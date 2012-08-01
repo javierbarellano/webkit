@@ -399,6 +399,16 @@ else
 webcore_cppflags += -DENABLE_MEDIA_STREAM=0
 endif # END ENABLE_MEDIA_STREAM
 
+# ----
+# Discovery Support
+# ----
+if ENABLE_DISCOVERY
+FEATURE_DEFINES += ENABLE_DISCOVERY=1
+webcore_cppflags += -DENABLE_DISCOVERY=1
+else
+webcore_cppflags += -DENABLE_DISCOVERY=0
+endif # END ENABLE_DISCOVERY
+
 # XPath grammar
 # NOTE: older versions of bison do not inject an inclusion guard, so we do it
 $(GENSOURCES_WEBCORE)/XPathGrammar.h: $(GENSOURCES_WEBCORE)/XPathGrammar.cpp

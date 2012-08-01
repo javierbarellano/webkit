@@ -335,6 +335,7 @@ v8 {
         bindings/js/JSMessagePortCustom.h \
         bindings/js/JSMutationCallbackCustom.cpp \
         bindings/js/JSNamedNodeMapCustom.cpp \
+	bindings/js/JSNavServicesCustom.cpp \
         bindings/js/JSNodeCustom.cpp \
         bindings/js/JSNodeFilterCondition.cpp \
         bindings/js/JSNodeFilterCustom.cpp \
@@ -498,6 +499,10 @@ SOURCES += \
     css/WebKitCSSRegionRule.cpp \
     css/WebKitCSSShaderValue.cpp \
     css/WebKitCSSTransformValue.cpp \
+    Modules/discovery/DiscoveryBase.cpp \
+    Modules/discovery/NavDsc.cpp \
+    Modules/discovery/UPnPSearch.cpp \
+    Modules/discovery/ZeroConf.cpp \
     dom/ActiveDOMObject.cpp \
     dom/Attr.cpp \
     dom/Attribute.cpp \
@@ -1017,6 +1022,8 @@ SOURCES += \
     page/MemoryInfo.cpp \
     page/MouseEventWithHitTestResults.cpp \
     page/Navigator.cpp \
+    page/NavServices.cpp \
+    page/NavService.cpp \
     page/NavigatorBase.cpp \
     page/NavigatorRegisterProtocolHandler.cpp \
     page/OriginAccessEntry.cpp \
@@ -1640,6 +1647,12 @@ HEADERS += \
     css/WebKitCSSRegionRule.h \
     css/WebKitCSSShaderValue.h \
     css/WebKitCSSTransformValue.h \
+    Modules/discovery/DiscoveryBase.h \
+    Modules/discovery/NavDsc.h \
+    Modules/discovery/UPnPSearch.h \
+    Modules/discovery/ZeroConf.h \
+    Modules/discovery/UPnPDevice.h \
+    Modules/discovery/ZCDevice.h \
     dom/ActiveDOMObject.h \
     dom/Attr.h \
     dom/Attribute.h \
@@ -2123,6 +2136,14 @@ HEADERS += \
     page/MouseEventWithHitTestResults.h \
     page/NavigatorBase.h \
     page/Navigator.h \
+    page/NavDscCB.h \
+    page/NavEvent.h \
+    page/NavEventCB.h \
+    page/NavServiceError.h \
+    page/NavServiceErrorCB.h \
+    page/NavServiceOkCB.h \
+    page/NavServices.h \
+    page/NavService.h \
     page/PageGroup.h \
     page/PageGroupLoadDeferrer.h \
     page/Page.h \

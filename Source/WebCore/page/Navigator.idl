@@ -40,6 +40,22 @@ module window {
 
         readonly attribute boolean onLine;
 
+        void getNetworkServices(
+        		in DOMString type,
+        		in [Callback]  NavServiceOkCB successCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+        void onNetworkServices(
+        		in DOMString type,
+        		in [Callback]  NavDscCB serviceAddedCallback,
+        		in [Callback]  NavServiceOkCB serviceRemovedCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+        void onNetworkEvent(
+        		in DOMString type,
+        		in [Callback]  NavEventCB msgCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
 #if defined(ENABLE_POINTER_LOCK) && ENABLE_POINTER_LOCK
         readonly attribute [V8EnabledAtRuntime] PointerLock webkitPointer;
 #endif

@@ -31,6 +31,8 @@
 #include "config.h"
 #include "DocumentThreadableLoader.h"
 
+#include "Modules/discovery/UPnPSearch.h"
+
 #include "CachedRawResource.h"
 #include "CachedResourceLoader.h"
 #include "CrossOriginAccessControl.h"
@@ -90,7 +92,16 @@ DocumentThreadableLoader::DocumentThreadableLoader(Document* document, Threadabl
 
 void DocumentThreadableLoader::makeRequest(const ResourceRequest& request)
 {
-    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests) {
+    UPnPSearch* upnp = UPnPSearch::getInstance();
+    CString host = request.url().host().ascii();
+    char cHost[1024];
+    memcpy(cHost, host.data(), host.length());
+    cHost[host.length()] = 0;
+
+    bool ok = upnp->hostPortOk(cHost, (int)request.url().port());
+    //printf("MakeRequest: host: %s, port: %d, OK:%s\n", cHost, (int)request.url().port(), (ok ? "true":"false"));
+
+    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests || ok) {
         loadRequest(request, DoSecurityCheck);
         return;
     }

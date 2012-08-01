@@ -409,6 +409,14 @@ IDL_BINDINGS += \
     $$PWD/page/Location.idl \
     $$PWD/page/MemoryInfo.idl \
     $$PWD/page/Navigator.idl \
+    $$PWD/page/NavServiceErrorCB.idl \
+    $$PWD/page/NavServiceOkCB.idl \
+    $$PWD/page/NavServices.idl \
+    $$PWD/page/NavService.idl \
+    $$PWD/page/NavEvent.idl \
+    $$PWD/page/NavEventCB.idl \
+    $$PWD/page/NavServiceError.idl \
+    $$PWD/page/NavDscCB.idl \
     $$PWD/page/Performance.idl \
     $$PWD/page/PerformanceNavigation.idl \
     $$PWD/page/PerformanceTiming.idl \

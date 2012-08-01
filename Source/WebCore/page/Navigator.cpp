@@ -22,6 +22,16 @@
 
 #include "config.h"
 #include "Navigator.h"
+#include "Modules/discovery/UPnPDevice.h"
+#include "Modules/discovery/UPnPSearch.h"
+#include "Modules/discovery/NavDsc.h"
+
+#include "NavServiceError.h"
+#include "NavServiceErrorCB.h"
+#include "NavServiceOkCB.h"
+#include "NavDscCB.h"
+#include "NavEvent.h"
+#include "NavEventCB.h"
 
 #include "CookieJar.h"
 #include "DOMMimeTypeArray.h"
@@ -45,6 +55,11 @@ namespace WebCore {
 Navigator::Navigator(Frame* frame)
     : DOMWindowProperty(frame)
 {
+	m_errorCBIsSet = false;
+	m_UPnPserviceAddedCBIsSet = false;
+	m_UPnPserviceRemovedCBIsSet = false;
+	m_ZCserviceAddedCBIsSet = false;
+	m_ZCserviceRemovedCBIsSet = false;
 }
 
 Navigator::~Navigator()
@@ -142,5 +157,293 @@ void Navigator::getStorageUpdates()
 {
     // FIXME: Remove this method or rename to yieldForStorageUpdates.
 }
+
+// ---------------------------------------------------
+// Home Networking
+// ---------------------------------------------------
+
+void Navigator::getNetworkServices(
+		const String& type,
+		PassRefPtr<NavServiceOkCB> successcb,
+		PassRefPtr<NavServiceErrorCB> errorcb)
+{
+	printf("getNetworkServices()\n");
+	
+	if (!m_frame)
+		return;
+
+	WTF::CString cType(type.ascii());
+	NavDsc *nd = NavDsc::create(m_frame);
+
+	// Get service type
+	char sType[1000];
+	ProtocolType protoType = readRemoveTypePrefix(cType, sType);
+
+
+	if (errorcb)
+	{
+		m_errorCB = errorcb;
+		m_errorCBIsSet = true;
+		if (protoType == UPNP_PROTO)
+			nd->onUPnPDiscovery(sType, this);
+		else if (protoType == ZC_PROTO)
+			nd->onZCDiscovery(sType, this);
+	}
+	else
+		m_errorCBIsSet = false;
+
+	std::map<std::string, UPnPDevice> devs;
+	std::map<std::string, ZCDevice> zcdevs;
+
+	if (protoType == UPNP_PROTO)
+		devs = nd->startUPnPDiscovery(sType);
+	else if (protoType == ZC_PROTO)
+		zcdevs = nd->startZeroConfDiscovery(sType);
+	else if (errorcb)
+	{
+		PassRefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
+		errorcb->handleEvent(err.get());
+		return;
+	}
+	else
+		return; // Error found and no error callback
+
+	PassRefPtr<NavServices> services = setServices(sType, devs, zcdevs, protoType);
+
+	successcb->handleEvent(services.get());
+
+}
+
+void Navigator::onNetworkServices(
+		const String& type,
+		PassRefPtr<NavDscCB> serviceAddedCB,
+		PassRefPtr<NavServiceOkCB> serviceRemovedCB,
+		PassRefPtr<NavServiceErrorCB> errorCB)
+{
+	if (!m_frame)
+		return;
+
+	WTF::CString cType(type.ascii());
+	NavDsc *nd = NavDsc::create(m_frame);
+	char sType[1000];
+	ProtocolType protoType = readRemoveTypePrefix(cType, sType);
+
+	if (protoType == UPNP_PROTO)
+	{
+		if (serviceAddedCB)
+		{
+			m_UPnPserviceAddedCB = serviceAddedCB;
+			m_uacb[std::string(sType)] = m_UPnPserviceAddedCB;
+			m_UPnPserviceAddedCBIsSet = true;
+		}
+
+		if (serviceRemovedCB)
+		{
+			m_UPnPserviceRemovedCB = serviceRemovedCB;
+			m_urcb[std::string(sType)] = m_UPnPserviceRemovedCB;
+			m_UPnPserviceRemovedCBIsSet = true;
+		}
+
+		nd->onUPnPDiscovery(sType, this);
+	}
+	else if (protoType == ZC_PROTO)
+	{
+		if (serviceAddedCB)
+		{
+			m_ZCserviceAddedCB = serviceAddedCB;
+			m_zacb[std::string(sType)] = m_ZCserviceAddedCB;
+			m_ZCserviceAddedCBIsSet = true;
+		}
+
+		if (serviceRemovedCB)
+		{
+			m_ZCserviceRemovedCB = serviceRemovedCB;
+			m_zrcb[std::string(sType)] = m_ZCserviceRemovedCB;
+			m_ZCserviceRemovedCBIsSet = true;
+		}
+
+		nd->onZCDiscovery(sType, this);
+	}
+	else if (errorCB)
+	{
+		PassRefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
+		errorCB->handleEvent(err.get());
+	}
+}
+
+/*
+ * Event messaging
+ */
+
+void Navigator::onNetworkEvent(
+    		const String& type,
+    		PassRefPtr<NavEventCB> eventCB,
+    		PassRefPtr<NavServiceErrorCB> errorcb)
+{
+	m_eventCB = eventCB;
+
+	if (!m_frame)
+		return;
+
+	WTF::CString cType(type.ascii());
+	char sType[1000];
+	readRemoveTypePrefix(cType, sType);
+
+	m_ecb[std::string(sType)] = m_eventCB;
+
+	NavDsc *nd = NavDsc::create(m_frame);
+	nd->onUPnPEvent(sType, this);
+
+}
+
+void Navigator::onError(int error)
+{
+	if (m_errorCBIsSet)
+	{
+		// Applies to getNetworkServices() only
+		PassRefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NETWORK_ERR);
+		m_errorCB->handleEvent(err.get());
+	}
+}
+
+void Navigator::sendEvent(std::string uuid, std::string stype, std::string body)
+{
+	std::string name = "";
+	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
+
+	PassRefPtr<NavEvent> event = NavEvent::create();
+	event->setPropertyset(WTF::String(body.c_str()));
+	event->setUuid(WTF::String(uuid.c_str()));
+	event->setServiceType(WTF::String(stype.c_str()));
+	event->setFriendlyName(WTF::String(name.c_str()));
+
+	if (m_ecb.find(stype) != m_ecb.end())
+		m_ecb[stype]->handleEvent(event.get());
+}
+
+void Navigator::UPnPDevAdded(std::string type)
+{
+	NavDsc *nd = NavDsc::create(m_frame);
+	std::map<std::string, UPnPDevice> devs = nd->startUPnPDiscovery(type.c_str());
+
+	PassRefPtr<NavService> srv = NavService::create();
+	UPnPDevice d = devs.begin()->second;
+	srv->setEventUrl(String(d.eventURL.c_str(), d.eventURL.length()));
+	srv->setName(String(d.friendlyName.c_str(), d.friendlyName.length()));
+	srv->setServiceType(String(type.c_str(), type.length()));
+	srv->setUrl(String(d.descURL.c_str(), d.descURL.length()));
+	srv->setuuid(String(d.uuid.c_str(), d.uuid.length()));
+
+	if (m_UPnPserviceAddedCBIsSet && m_uacb.find(type)!=m_uacb.end())
+		m_uacb[type]->handleEvent(srv.get());
+}
+void Navigator::ZCDevAdded(std::string type)
+{
+	NavDsc *nd = NavDsc::create(m_frame);
+	std::map<std::string, ZCDevice> zcdevs = nd->startZeroConfDiscovery(type.c_str());
+
+	PassRefPtr<NavService> srv = NavService::create();
+	ZCDevice d = zcdevs.begin()->second;
+	srv->setName(String(d.friendlyName.c_str(), d.friendlyName.length()));
+	srv->setServiceType(String(type.c_str(), type.length()));
+	srv->setUrl(String(d.url.c_str(), d.url.length()));
+	srv->setuuid(String(d.friendlyName.c_str(), d.friendlyName.length()));
+
+	if (m_ZCserviceAddedCBIsSet && m_zacb.find(type)!=m_zacb.end())
+		m_zacb[type]->handleEvent(srv.get());
+}
+
+void Navigator::UPnPDevDropped(std::string type)
+{
+	std::map<std::string, UPnPDevice> devs;
+	std::map<std::string, ZCDevice> zcdevs;
+
+	if (m_UPnPserviceRemovedCBIsSet && m_urcb.find(type)!=m_urcb.end())
+	{
+		PassRefPtr<NavServices> services = setServices(type.c_str(), devs, zcdevs, UPNP_PROTO);
+		m_urcb[type]->handleEvent(services.get());
+	}
+}
+void Navigator::ZCDevDropped(std::string type)
+{
+	std::map<std::string, UPnPDevice> devs;
+	std::map<std::string, ZCDevice> zcdevs;
+
+	if (m_ZCserviceRemovedCBIsSet && m_zrcb.find(type)!=m_zrcb.end())
+	{
+		PassRefPtr<NavServices> services = setServices(type.c_str(), devs, zcdevs, ZC_PROTO);
+		m_zrcb[type]->handleEvent(services.get());
+	}
+}
+
+Navigator::ProtocolType Navigator::readRemoveTypePrefix(WTF::CString &cType, char *sType)
+{
+	ProtocolType protoType = UPNP_PROTO;
+	if (!strncmp(cType.data(), "upnp:", 5))
+	{
+		strcpy(sType, &cType.data()[5]);
+		protoType = UPNP_PROTO;
+	}
+	else if (!strncmp(cType.data(), "zeroconf:", 9))
+	{
+		strcpy(sType, &cType.data()[9]);
+		protoType = ZC_PROTO;
+	}
+
+	return protoType;
+}
+
+PassRefPtr<NavServices> Navigator::setServices(
+		const char* type,
+		std::map<std::string, UPnPDevice> devs,
+		std::map<std::string, ZCDevice> zcdevs,
+		ProtocolType protoType)
+{
+	PassRefPtr<NavServices> services = NavServices::create(NavServices::CONNECTED);
+	Vector<NavService*>* vDevs = new Vector<NavService*>();
+
+	if (protoType == UPNP_PROTO)
+	{
+		std::map<std::string, UPnPDevice>::iterator it;
+		for (it=devs.begin(); it!=devs.end(); it++)
+		{
+			UPnPDevice d((*it).second);
+			if (d.isOkToUse) {
+				NavService* nns = new NavService();
+				nns->setServiceType(WTF::String(type));
+				nns->setPType(NavService::UPNP_TYPE);
+				nns->setUrl(WTF::String(d.descURL.c_str()));
+				nns->setuuid(WTF::String((*it).first.c_str())); // UUID
+				nns->setName(WTF::String(d.friendlyName.c_str()));
+				vDevs->append(nns);
+			}
+		}
+
+	}
+	else if (protoType == ZC_PROTO)
+	{
+		std::map<std::string, ZCDevice>::iterator it;
+		for (it=zcdevs.begin(); it!=zcdevs.end(); it++)
+		{
+			ZCDevice d((*it).second);
+			if (d.isOkToUse) {
+				NavService* nns = new NavService();
+				nns->setServiceType(WTF::String(type));
+				nns->setPType(NavService::ZCONF_TYPE);
+				nns->setUrl(WTF::String(d.url.c_str()));
+				nns->setuuid(WTF::String((*it).first.c_str())); // UUID
+				nns->setName(WTF::String(d.friendlyName.c_str()));
+				vDevs->append(nns);
+			}
+		}
+	}
+
+	// Write devices to service object
+	services->setServices(vDevs);
+
+	return services;
+}
+// -------------------------------------------------------
+// -------------------------------------------------------
 
 } // namespace WebCore

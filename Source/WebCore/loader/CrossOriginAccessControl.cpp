@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "CrossOriginAccessControl.h"
+#include "Modules/discovery/UPnPSearch.h"
 
 #include "HTTPParsers.h"
 #include "ResourceResponse.h"
@@ -151,11 +152,24 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
     // FIXME: Access-Control-Allow-Origin can contain a list of origins.
     RefPtr<SecurityOrigin> accessControlOrigin = SecurityOrigin::createFromString(accessControlOriginString);
     if (!accessControlOrigin->isSameSchemeHostPort(securityOrigin)) {
+
         if (accessControlOriginString == "*")
             errorDescription = "Cannot use wildcard in Access-Control-Allow-Origin when credentials flag is true.";
         else
             errorDescription =  "Origin " + securityOrigin->toString() + " is not allowed by Access-Control-Allow-Origin.";
-        return false;
+
+        char host[1000];
+        for (int i=0; i<(int)response.url().host().length(); i++)
+        	host[i] = (char)response.url().host().characterStartingAt(i);
+
+        host[response.url().host().length()] = 0;
+
+        UPnPSearch* upnp = UPnPSearch::getInstance();
+        bool ok = upnp->hostPortOk(host, (int)response.url().port());
+
+        if (!ok)
+        	return false;
+
     }
 
     if (includeCredentials == AllowStoredCredentials) {

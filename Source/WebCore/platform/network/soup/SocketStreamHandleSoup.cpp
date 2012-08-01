@@ -31,6 +31,9 @@
 #include "config.h"
 #include "SocketStreamHandle.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "KURL.h"
 #include "Logging.h"
 #include "NotImplemented.h"
@@ -171,6 +174,7 @@ int SocketStreamHandle::platformSend(const char* data, int length)
     // SocketStreamHandleBase will need to send more in the future.
     if (written < length)
         beginWaitingForSocketWritability();
+	printf("platformSend(): wrote: %d\n", (int)written);
 
     return written;
 }

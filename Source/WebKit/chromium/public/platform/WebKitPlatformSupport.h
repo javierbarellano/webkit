@@ -42,6 +42,8 @@
 #include "WebString.h"
 #include "WebURL.h"
 #include "WebVector.h"
+#include "UDPSocketHandle.h"
+#include "HNEventServerHandle.h"
 
 #include <time.h>
 
@@ -221,6 +223,11 @@ public:
 
     // Returns a new WebSocketStreamHandle instance.
     virtual WebSocketStreamHandle* createSocketStreamHandle() { return 0; }
+
+    // Support Home Networking (HN) Device Discovery (DLNA/UPnP or ZeroConf)
+    virtual UDPSocketHandle* createUDPSocketHandle() {return 0;}
+    virtual HNEventServerHandle* createHNEventServerHandle() {return 0;}
+
 
     // Returns the User-Agent string that should be used for the given URL.
     virtual WebString userAgent(const WebURL&) { return WebString(); }
