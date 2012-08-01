@@ -1,0 +1,11 @@
+
+
+module window {
+    interface [
+               Callback
+    ] NavServiceOkCB
+    {
+        boolean handleEvent(in NavServices services);
+    };
+
+}

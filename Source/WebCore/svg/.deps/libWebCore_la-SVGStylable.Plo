@@ -1,0 +1,2 @@
+Source/WebCore/svg/libWebCore_la-SVGStylable.lo: \
+ Source/WebCore/svg/SVGStylable.cpp

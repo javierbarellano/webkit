@@ -1,0 +1,2 @@
+Source/WebCore/platform/gtk/libWebCoreGtk_la-WidgetRenderingContext.lo: \
+ Source/WebCore/platform/gtk/WidgetRenderingContext.cpp
