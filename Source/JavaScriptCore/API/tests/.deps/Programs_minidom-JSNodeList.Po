@@ -1,0 +1,87 @@
+Source/JavaScriptCore/API/tests/Programs_minidom-JSNodeList.o: \
+ Source/JavaScriptCore/API/tests/JSNodeList.c \
+ Source/JavaScriptCore/API/tests/JSNode.h \
+ Source/JavaScriptCore/API/JSBase.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdbool.h \
+ Source/JavaScriptCore/API/tests/Node.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stddef.h \
+ Source/JavaScriptCore/API/tests/JSNodeList.h \
+ Source/JavaScriptCore/API/tests/NodeList.h \
+ Source/JavaScriptCore/API/JSObjectRef.h \
+ Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/JSBase.h \
+ Source/JavaScriptCore/API/JSBase.h \
+ Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/JSValueRef.h \
+ Source/JavaScriptCore/API/JSValueRef.h \
+ Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/WebKitAvailability.h \
+ Source/JavaScriptCore/API/WebKitAvailability.h \
+ Source/JavaScriptCore/API/JSValueRef.h Source/WTF/wtf/UnusedParam.h \
+ Source/WTF/wtf/Platform.h Source/WTF/wtf/Compiler.h \
+ Source/WTF/wtf/gobject/GTypedefs.h Source/WTF/wtf/Assertions.h \
+ /usr/include/inttypes.h /usr/include/features.h \
+ /usr/include/x86_64-linux-gnu/bits/predefs.h \
+ /usr/include/x86_64-linux-gnu/sys/cdefs.h \
+ /usr/include/x86_64-linux-gnu/bits/wordsize.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h
+
+Source/JavaScriptCore/API/tests/JSNode.h:
+
+Source/JavaScriptCore/API/JSBase.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdbool.h:
+
+Source/JavaScriptCore/API/tests/Node.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.6/include/stddef.h:
+
+Source/JavaScriptCore/API/tests/JSNodeList.h:
+
+Source/JavaScriptCore/API/tests/NodeList.h:
+
+Source/JavaScriptCore/API/JSObjectRef.h:
+
+Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/JSBase.h:
+
+Source/JavaScriptCore/API/JSBase.h:
+
+Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/JSValueRef.h:
+
+Source/JavaScriptCore/API/JSValueRef.h:
+
+Source/JavaScriptCore/ForwardingHeaders/JavaScriptCore/WebKitAvailability.h:
+
+Source/JavaScriptCore/API/WebKitAvailability.h:
+
+Source/JavaScriptCore/API/JSValueRef.h:
+
+Source/WTF/wtf/UnusedParam.h:
+
+Source/WTF/wtf/Platform.h:
+
+Source/WTF/wtf/Compiler.h:
+
+Source/WTF/wtf/gobject/GTypedefs.h:
+
+Source/WTF/wtf/Assertions.h:
+
+/usr/include/inttypes.h:
+
+/usr/include/features.h:
+
+/usr/include/x86_64-linux-gnu/bits/predefs.h:
+
+/usr/include/x86_64-linux-gnu/sys/cdefs.h:
+
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs.h:
+
+/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/x86_64-linux-gnu/bits/wchar.h:

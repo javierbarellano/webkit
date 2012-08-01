@@ -32,10 +32,15 @@
 #define WebURL_h
 
 #include "WebCString.h"
-#include <googleurl/src/url_parse.h>
+//#include <googleurl/src/url_parse.h>
 
 #if WEBKIT_IMPLEMENTATION
 namespace WebCore { class KURL; }
+namespace url_parse {
+struct Parsed {
+	Parsed(){}
+};
+}
 #else
 #include <googleurl/src/gurl.h>
 #endif

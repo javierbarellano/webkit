@@ -797,6 +797,14 @@ AC_ARG_ENABLE(media_stream,
               [],[enable_media_stream="no"])
 AC_MSG_RESULT([$enable_media_stream])
 
+# check whether to enable discovery support
+AC_MSG_CHECKING([whether to enable discovery support])
+AC_ARG_ENABLE(discovery,
+              AC_HELP_STRING([--enable-discovery],
+                             [enable discovery support (incomplete) [default=yes]]),
+              [],[enable_discovery="yes"])
+AC_MSG_RESULT([$enable_discovery])
+
 # check whether to enable XSLT support
 AC_MSG_CHECKING([whether to enable XSLT support])
 AC_ARG_ENABLE(xslt,
@@ -1366,6 +1374,7 @@ AM_CONDITIONAL([ENABLE_MEDIA_STATISTICS],[test "$enable_media_statistics" = "yes
 AM_CONDITIONAL([ENABLE_VIDEO_TRACK],[test "$enable_video_track" = "yes"])
 AM_CONDITIONAL([ENABLE_FULLSCREEN_API],[test "$enable_fullscreen_api" = "yes"])
 AM_CONDITIONAL([ENABLE_MEDIA_STREAM],[test "$enable_media_stream" = "yes"])
+AM_CONDITIONAL([ENABLE_DISCOVERY],[test "$enable_discovery" = "yes"])
 AM_CONDITIONAL([ENABLE_LEGACY_NOTIFICATIONS],[test "$enable_legacy_notifications" = "yes"])
 AM_CONDITIONAL([ENABLE_NOTIFICATIONS],[test "$enable_notifications" = "yes"])
 AM_CONDITIONAL([ENABLE_ORIENTATION_EVENTS],[test "$enable_orientation_events" = "yes"])
@@ -1469,6 +1478,7 @@ Features:
  HTML5 track element support                              : $enable_video_track
  Fullscreen API support                                   : $enable_fullscreen_api
  Media stream support                                     : $enable_media_stream
+ Discovery support                                     	  : $enable_discovery
  Icon database support                                    : $enable_icon_database
  Image resizer support                                    : $enable_image_resizer
  Link prefetch support                                    : $enable_link_prefetch
