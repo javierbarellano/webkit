@@ -37,7 +37,7 @@ PATH: /sbin
 PATH: /bin
 PATH: /usr/games
 PATH: /home/clarke/atelite/bin
-PATH: /home/clarke/depot_tools
+PATH: /home/clarke/workspace/WebKitDSCQT/depot_tools
 
 
 ## ----------- ##
@@ -1066,6 +1066,7 @@ config.status:1517: creating Source/WebKit/gtk/webkitgtk-3.0.pc
 config.status:1517: creating Source/WebKit/gtk/JSCore-3.0.gir
 config.status:1517: creating Source/JavaScriptCore/javascriptcoregtk-3.0.pc
 config.status:1517: creating autotoolsconfig.h
+config.status:1698: autotoolsconfig.h is unchanged
 config.status:1746: executing depfiles commands
 config.status:1746: executing libtool commands
 
