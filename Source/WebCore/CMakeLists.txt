@@ -560,6 +560,14 @@ SET(WebCore_IDL_FILES
     page/Location.idl
     page/MemoryInfo.idl
     page/Navigator.idl
+    page/NavServiceErrorCB.idl
+    page/NavServiceOkCB.idl
+    page/NavServices.idl
+    page/NavService.idl
+    page/NavEvent.idl
+    page/NavEventCB.idl
+    page/NavServiceError.idl
+    page/NavDscCB.idl
     page/Performance.idl
     page/PerformanceEntry.idl
     page/PerformanceEntryList.idl

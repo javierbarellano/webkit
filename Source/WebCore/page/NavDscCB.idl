@@ -1,0 +1,9 @@
+
+module window {
+	interface [
+               Callback
+    ] NavDscCB {
+        boolean handleEvent(in NavService service);
+    };
+
+}

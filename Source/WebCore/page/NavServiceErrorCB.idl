@@ -1,0 +1,11 @@
+
+
+module window {
+
+	interface [
+        Callback
+    ] NavServiceErrorCB {
+        boolean handleEvent( in NavServiceError error );
+    };
+
+}

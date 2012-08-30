@@ -421,6 +421,14 @@ BINDING_IDLS = \
     $(WebCore)/page/Location.idl \
     $(WebCore)/page/MemoryInfo.idl \
     $(WebCore)/page/Navigator.idl \
+    $(WebCore)/page/NavServiceErrorCB.idl \
+    $(WebCore)/page/NavServiceOkCB.idl \
+    $(WebCore)/page/NavServices.idl \
+    $(WebCore)/page/NavService.idl \
+    $(WebCore)/page/NavEvent.idl \
+    $(WebCore)/page/NavEventCB.idl \
+    $(WebCore)/page/NavServiceError.idl \
+    $(WebCore)/page/NavDscCB.idl \
     $(WebCore)/page/Performance.idl \
     $(WebCore)/page/PerformanceNavigation.idl \
     $(WebCore)/page/PerformanceTiming.idl \

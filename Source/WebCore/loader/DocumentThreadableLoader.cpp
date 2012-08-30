@@ -31,6 +31,8 @@
 #include "config.h"
 #include "DocumentThreadableLoader.h"
 
+#include "Modules/discovery/UPnPSearch.h"
+
 #include "CachedRawResource.h"
 #include "CachedResourceLoader.h"
 #include "CrossOriginAccessControl.h"
@@ -85,7 +87,25 @@ DocumentThreadableLoader::DocumentThreadableLoader(Document* document, Threadabl
     // Setting an outgoing referer is only supported in the async code path.
     ASSERT(m_async || request.httpReferrer().isEmpty());
 
+<<<<<<< HEAD
     if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests) {
+=======
+    makeRequest(request);
+}
+
+void DocumentThreadableLoader::makeRequest(const ResourceRequest& request)
+{
+    UPnPSearch* upnp = UPnPSearch::getInstance();
+    CString host = request.url().host().ascii();
+    char cHost[1024];
+    memcpy(cHost, host.data(), host.length());
+    cHost[host.length()] = 0;
+
+    bool ok = upnp->hostPortOk(cHost, (int)request.url().port());
+    //printf("MakeRequest: host: %s, port: %d, OK:%s\n", cHost, (int)request.url().port(), (ok ? "true":"false"));
+
+    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests || ok) {
+>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
         loadRequest(request, DoSecurityCheck);
         return;
     }

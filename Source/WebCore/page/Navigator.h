@@ -20,6 +20,14 @@
 #ifndef Navigator_h
 #define Navigator_h
 
+#include <string>
+#include <map>
+
+#include "Modules/discovery/UPnPDevice.h"
+#include "Modules/discovery/ZCDevice.h"
+#include "Modules/discovery/NavDsc.h"
+#include "NavServices.h"
+
 #include "DOMWindowProperty.h"
 #include "NavigatorBase.h"
 #include "Supplementable.h"
@@ -29,12 +37,19 @@
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
+
 namespace WebCore {
 
 class DOMMimeTypeArray;
 class DOMPluginArray;
 class Frame;
 class PluginData;
+
+// Home Networking
+class NavDscCB;
+class NavServiceErrorCB;
+class NavServiceOkCB;
+class NavEventCB;
 
 typedef int ExceptionCode;
 
@@ -52,6 +67,85 @@ public:
 
     virtual String userAgent() const;
 
+<<<<<<< HEAD
+=======
+    // ----------------------------------
+    // Home networking
+    // ----------------------------------
+public:
+	enum ProtocolType
+	{
+		UPNP_PROTO = 1,
+		ZC_PROTO =2
+	};
+    void getNetworkServices(
+            		const String& type,
+            		PassRefPtr<NavServiceOkCB> serviceCB,
+            		PassRefPtr<NavServiceErrorCB> errorCB );
+
+    void onNetworkServices(
+            		const String& type,
+            		PassRefPtr<NavDscCB> serviceAddedCB,
+            		PassRefPtr<NavServiceOkCB> serviceRemovedCB,
+            		PassRefPtr<NavServiceErrorCB> errorCB);
+
+    void onNetworkEvent(
+    		const String& type,
+    		PassRefPtr<NavEventCB> msgCB,
+    		PassRefPtr<NavServiceErrorCB> errorcb);
+
+    void onError(int error);
+
+    void UPnPDevAdded(std::string type);
+    void ZCDevAdded(std::string type);
+
+    void UPnPDevDropped(std::string type);
+    void ZCDevDropped(std::string type);
+
+    void sendEvent(std::string uuid, std::string stype, std::string body);
+
+private:
+   PassRefPtr<NavServices> setServices(
+   		const char* type,
+   		std::map<std::string, UPnPDevice> devs,
+   		std::map<std::string, ZCDevice> zcdevs,
+   		ProtocolType protoType);
+
+    ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
+
+    // Home Networking Data
+    mutable RefPtr<NavServiceErrorCB> m_errorCB;
+    bool m_errorCBIsSet;
+
+    std::map<std::string, RefPtr<NavDscCB> > m_uacb;
+    mutable RefPtr<NavDscCB> m_UPnPserviceAddedCB;
+    bool m_UPnPserviceAddedCBIsSet;
+
+    std::map<std::string, RefPtr<NavServiceOkCB> > m_urcb;
+    mutable RefPtr<NavServiceOkCB> m_UPnPserviceRemovedCB;
+    bool m_UPnPserviceRemovedCBIsSet;
+
+    std::map<std::string, RefPtr<NavDscCB> > m_zacb;
+    mutable RefPtr<NavDscCB> m_ZCserviceAddedCB;
+    bool m_ZCserviceAddedCBIsSet;
+
+    std::map<std::string, RefPtr<NavServiceOkCB> > m_zrcb;
+    mutable RefPtr<NavServiceOkCB> m_ZCserviceRemovedCB;
+    bool m_ZCserviceRemovedCBIsSet;
+
+    std::map<std::string, RefPtr<NavEventCB> > m_ecb;
+    mutable RefPtr<NavEventCB> m_eventCB;
+
+    // ----------------------------------
+    // ----------------------------------
+
+public:
+
+#if ENABLE(POINTER_LOCK)
+    PointerLock* webkitPointer() const;
+#endif
+
+>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
     // Relinquishes the storage lock, if one exists.
     void getStorageUpdates();
 

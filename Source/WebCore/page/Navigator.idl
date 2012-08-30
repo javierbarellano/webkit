@@ -40,6 +40,29 @@ module window {
 
         readonly attribute boolean onLine;
 
+<<<<<<< HEAD
+=======
+        void getNetworkServices(
+        		in DOMString type,
+        		in [Callback]  NavServiceOkCB successCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+        void onNetworkServices(
+        		in DOMString type,
+        		in [Callback]  NavDscCB serviceAddedCallback,
+        		in [Callback]  NavServiceOkCB serviceRemovedCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+        void onNetworkEvent(
+        		in DOMString type,
+        		in [Callback]  NavEventCB msgCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+#if defined(ENABLE_POINTER_LOCK) && ENABLE_POINTER_LOCK
+        readonly attribute [V8EnabledAtRuntime] PointerLock webkitPointer;
+#endif
+
+>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
         void getStorageUpdates(); // FIXME: Remove this method or rename to yieldForStorageUpdates.
     };
 

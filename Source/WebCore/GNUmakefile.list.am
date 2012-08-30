@@ -423,6 +423,22 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSNamedNodeMap.h \
 	DerivedSources/WebCore/JSNavigator.cpp \
 	DerivedSources/WebCore/JSNavigator.h \
+	DerivedSources/WebCore/JSNavServices.cpp \
+	DerivedSources/WebCore/JSNavServices.h \
+	DerivedSources/WebCore/JSNavService.cpp \
+	DerivedSources/WebCore/JSNavService.h \
+	DerivedSources/WebCore/JSNavEvent.cpp \
+	DerivedSources/WebCore/JSNavEvent.h \
+	DerivedSources/WebCore/JSNavEventCB.cpp \
+	DerivedSources/WebCore/JSNavEventCB.h \
+	DerivedSources/WebCore/JSNavServiceError.cpp \
+	DerivedSources/WebCore/JSNavServiceError.h \
+	DerivedSources/WebCore/JSNavServiceErrorCB.cpp \
+	DerivedSources/WebCore/JSNavServiceErrorCB.h \
+	DerivedSources/WebCore/JSNavServiceOkCB.cpp \
+	DerivedSources/WebCore/JSNavServiceOkCB.h \
+	DerivedSources/WebCore/JSNavDscCB.cpp \
+	DerivedSources/WebCore/JSNavDscCB.h \
 	DerivedSources/WebCore/JSNavigatorUserMediaError.cpp \
 	DerivedSources/WebCore/JSNavigatorUserMediaError.h \
 	DerivedSources/WebCore/JSNavigatorUserMediaErrorCallback.cpp \
@@ -979,6 +995,14 @@ dom_binding_idls += \
 	$(WebCore)/page/Location.idl \
 	$(WebCore)/page/MemoryInfo.idl \
 	$(WebCore)/page/Navigator.idl \
+	$(WebCore)/page/NavServiceErrorCB.idl \
+	$(WebCore)/page/NavServiceOkCB.idl \
+	$(WebCore)/page/NavServices.idl \
+	$(WebCore)/page/NavService.idl \
+	$(WebCore)/page/NavEvent.idl \
+	$(WebCore)/page/NavEventCB.idl \
+	$(WebCore)/page/NavServiceError.idl \
+	$(WebCore)/page/NavDscCB.idl \
 	$(WebCore)/page/Performance.idl \
 	$(WebCore)/page/PerformanceEntry.idl \
 	$(WebCore)/page/PerformanceEntryList.idl \
@@ -1022,6 +1046,17 @@ dom_binding_idls += \
 	$(WebCore)/xml/XPathResult.idl \
 	$(WebCore)/xml/XSLTProcessor.idl
 
+webcore_modules_sources += \
+	Source/WebCore/Modules/discovery/NavDsc.cpp \
+	Source/WebCore/Modules/discovery/NavDsc.h \
+	Source/WebCore/Modules/discovery/DiscoveryBase.cpp \
+	Source/WebCore/Modules/discovery/DiscoveryBase.h \
+	Source/WebCore/Modules/discovery/UPnPSearch.cpp \
+	Source/WebCore/Modules/discovery/UPnPSearch.h \
+	Source/WebCore/Modules/discovery/ZeroConf.cpp \
+	Source/WebCore/Modules/discovery/ZeroConf.h \
+	Source/WebCore/Modules/discovery/UPnPDevice.h \
+	Source/WebCore/Modules/discovery/ZCDevice.h \
 webcore_modules_sources += \
 	Source/WebCore/Modules/filesystem/AsyncFileWriter.h \
 	Source/WebCore/Modules/filesystem/AsyncFileWriterClient.h \
@@ -1509,6 +1544,7 @@ webcore_sources += \
 	Source/WebCore/bindings/js/JSMutationCallbackCustom.cpp \
 	Source/WebCore/bindings/js/JSMutationObserverCustom.cpp \
 	Source/WebCore/bindings/js/JSNamedNodeMapCustom.cpp \
+	Source/WebCore/bindings/js/JSNavServicesCustom.cpp \
 	Source/WebCore/bindings/js/JSNodeCustom.cpp \
 	Source/WebCore/bindings/js/JSNodeCustom.h \
 	Source/WebCore/bindings/js/JSNodeFilterCondition.cpp \
@@ -3093,6 +3129,10 @@ webcore_sources += \
 	Source/WebCore/page/MouseEventWithHitTestResults.h \
 	Source/WebCore/page/Navigator.cpp \
 	Source/WebCore/page/Navigator.h \
+	Source/WebCore/page/NavServices.cpp \
+	Source/WebCore/page/NavServices.h \
+	Source/WebCore/page/NavService.cpp \
+	Source/WebCore/page/NavService.h \
 	Source/WebCore/page/NavigatorBase.cpp \
 	Source/WebCore/page/NavigatorBase.h \
 	Source/WebCore/page/OriginAccessEntry.cpp \
