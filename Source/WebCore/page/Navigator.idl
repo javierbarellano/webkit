@@ -40,8 +40,6 @@ module window {
 
         readonly attribute boolean onLine;
 
-<<<<<<< HEAD
-=======
         void getNetworkServices(
         		in DOMString type,
         		in [Callback]  NavServiceOkCB successCallback,
@@ -62,7 +60,6 @@ module window {
         readonly attribute [V8EnabledAtRuntime] PointerLock webkitPointer;
 #endif
 
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
         void getStorageUpdates(); // FIXME: Remove this method or rename to yieldForStorageUpdates.
     };
 

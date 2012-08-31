@@ -8,6 +8,7 @@
 #ifndef UDPSOCKETERROR_H_
 #define UDPSOCKETERROR_H_
 
+#include "../../../bindings/gobject/ConvertToUTF8String.h"
 #include "UDPSocketErrorBase.h"
 
 namespace WebCore {

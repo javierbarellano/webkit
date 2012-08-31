@@ -1179,9 +1179,9 @@
             'page/Location.idl',
             'page/MemoryInfo.idl',
             'page/Navigator.idl',
-<<<<<<< HEAD
-            'page/PagePopupController.idl',
-=======
+#<<<<<<< HEAD
+#            'page/PagePopupController.idl',
+#=======
             'page/NavServiceErrorCB.idl',
             'page/NavServiceOkCB.idl',
             'page/NavServices.idl',
@@ -1191,7 +1191,7 @@
             'page/NavServiceError.idl',
             'page/NavDscCB.idl',
             'page/NavigatorRegisterProtocolHandler.idl',
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
+#>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
             'page/Performance.idl',
             'page/PerformanceEntry.idl',
             'page/PerformanceEntryList.idl',
@@ -1387,17 +1387,17 @@
             'svg/SVGZoomEvent.idl',
         ],
         'webcore_files': [
-<<<<<<< HEAD
-            'Modules/battery/BatteryClient.h',
-            'Modules/battery/BatteryController.cpp',
-            'Modules/battery/BatteryController.h',
-            'Modules/battery/BatteryManager.cpp',
-            'Modules/battery/BatteryManager.h',
-            'Modules/battery/BatteryStatus.cpp',
-            'Modules/battery/BatteryStatus.h',
-            'Modules/battery/NavigatorBattery.cpp',
-            'Modules/battery/NavigatorBattery.h',
-=======
+#<<<<<<< HEAD
+#            'Modules/battery/BatteryClient.h',
+#            'Modules/battery/BatteryController.cpp',
+#            'Modules/battery/BatteryController.h',
+#            'Modules/battery/BatteryManager.cpp',
+#            'Modules/battery/BatteryManager.h',
+#            'Modules/battery/BatteryStatus.cpp',
+#            'Modules/battery/BatteryStatus.h',
+#            'Modules/battery/NavigatorBattery.cpp',
+#            'Modules/battery/NavigatorBattery.h',
+#=======
             'Modules/discovery/NavDsc.cpp',
             'Modules/discovery/NavDsc.h',
             'Modules/discovery/DiscoveryBase.cpp',
@@ -1408,7 +1408,7 @@
             'Modules/discovery/ZeroConf.h',
             'Modules/discovery/UPnPDevice.h',
             'Modules/discovery/ZCDevice.h',
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
+#>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
             'Modules/filesystem/DOMFilePath.cpp',
             'Modules/filesystem/DOMFilePath.h',
             'Modules/filesystem/DOMFileSystem.cpp',
@@ -2647,11 +2647,11 @@
             'css/WebKitCSSSVGDocumentValue.cpp',
             'css/WebKitCSSSVGDocumentValue.h',
             'css/WebKitCSSTransformValue.cpp',
-<<<<<<< HEAD
-            'css/WrapShapeFunctions.cpp',
-            'editing/AlternativeTextController.cpp',
-            'editing/AlternativeTextController.h',
-=======
+#<<<<<<< HEAD
+#            'css/WrapShapeFunctions.cpp',
+#            'editing/AlternativeTextController.cpp',
+#            'editing/AlternativeTextController.h',
+#=======
             'Modules/discovery/DiscoveryBase.cpp',
             'Modules/discovery/DiscoveryBase.h',
             'Modules/discovery/UPnPSearch.cpp',
@@ -2662,7 +2662,7 @@
             'Modules/discovery/ZeroConf.h',
             'Modules/discovery/UPnPDevice.h',
             'Modules/discovery/ZCDevice.h',
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
+#>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
             'editing/AppendNodeCommand.cpp',
             'editing/AppendNodeCommand.h',
             'editing/ApplyBlockElementCommand.cpp',
@@ -3128,8 +3128,8 @@
             'page/Navigator.h',
             'page/NavigatorBase.cpp',
             'page/NavigatorBase.h',
-<<<<<<< HEAD
-=======
+#<<<<<<< HEAD
+#=======
             'page/NavDscCB.cpp',
             'page/NavDscCB.h',
             'page/NavServices.cpp',
@@ -3148,7 +3148,7 @@
             'page/NavServiceOkCB.h',
             'page/NavigatorRegisterProtocolHandler.cpp',
             'page/NavigatorRegisterProtocolHandler.h',
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
+#>>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
             'page/OriginAccessEntry.cpp',
             'page/OriginAccessEntry.h',
             'page/Page.cpp',

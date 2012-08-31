@@ -16,6 +16,14 @@ CONFIG += staticlib
 
 DEFINES += QT_MAKEDLL
 
+haveQt(5) {
+    # Add a QtScript dependency for the time being, in order to pull in the include
+    # path for QtScript when it's built as a standalone module
+    QT += script
+} else {
+    INCLUDEPATH += $$PWD/../WTF/wtf/qt/compat
+}
+
 RESOURCES += \
     $$PWD/WebCore.qrc
 
@@ -225,236 +233,6 @@ SOURCES += \
      bridge/runtime_root.cpp \
      testing/js/WebCoreTestSupport.cpp
 
-<<<<<<< HEAD
-=======
-    SOURCES += \
-        bindings/v8/custom/V8CustomSQLStatementErrorCallback.cpp \
-        bindings/v8/custom/V8CustomVoidCallback.cpp \
-        bindings/v8/custom/V8DOMFormDataCustom.cpp \
-        bindings/v8/custom/V8DOMWindowCustom.cpp \
-        bindings/v8/custom/V8DedicatedWorkerContextCustom.cpp \
-        bindings/v8/custom/V8DocumentCustom.cpp \
-        bindings/v8/custom/V8DocumentLocationCustom.cpp \
-        bindings/v8/custom/V8EventCustom.cpp \
-        bindings/v8/custom/V8FileReaderCustom.cpp \
-        bindings/v8/custom/V8HTMLAllCollectionCustom.cpp
-
-    SOURCES += \
-        bindings/v8/custom/V8HTMLCanvasElementCustom.cpp \
-        bindings/v8/custom/V8HTMLCollectionCustom.cpp \
-        bindings/v8/custom/V8HTMLDocumentCustom.cpp \
-        bindings/v8/custom/V8HTMLElementCustom.cpp \
-        bindings/v8/custom/V8HTMLFormElementCustom.cpp \
-        bindings/v8/custom/V8HTMLFrameElementCustom.cpp \
-        bindings/v8/custom/V8HTMLFrameSetElementCustom.cpp \
-        bindings/v8/custom/V8HTMLImageElementConstructor.cpp \
-        bindings/v8/custom/V8HTMLInputElementCustom.cpp \
-        bindings/v8/custom/V8HTMLLinkElementCustom.cpp \
-        bindings/v8/custom/V8HTMLMediaElementCustom.cpp \
-        bindings/v8/custom/V8HTMLOptionsCollectionCustom.cpp \
-        bindings/v8/custom/V8HTMLOutputElementCustom.cpp \
-        bindings/v8/custom/V8HTMLPlugInElementCustom.cpp \
-        bindings/v8/custom/V8HTMLSelectElementCustom.cpp \
-        bindings/v8/custom/V8LocationCustom.cpp \
-        bindings/v8/custom/V8MessageChannelConstructor.cpp \
-        bindings/v8/custom/V8MessagePortCustom.cpp \
-        bindings/v8/custom/V8MessageEventCustom.cpp \
-        bindings/v8/custom/V8MutationCallbackCustom.cpp \
-        bindings/v8/custom/V8NamedNodeMapCustom.cpp \
-        bindings/v8/custom/V8NamedNodesCollection.cpp \
-        bindings/v8/custom/V8NodeCustom.cpp \
-        bindings/v8/custom/V8NodeListCustom.cpp \
-        bindings/v8/custom/V8PerformanceCustom.cpp \
-        bindings/v8/custom/V8SQLResultSetRowListCustom.cpp \
-        bindings/v8/custom/V8SQLTransactionCustom.cpp \
-        bindings/v8/custom/V8WebSocketCustom.cpp \
-        \
-        bindings/v8/custom/V8StorageCustom.cpp \
-        bindings/v8/custom/V8StyleSheetCustom.cpp \
-        bindings/v8/custom/V8StyleSheetListCustom.cpp \
-        bindings/v8/custom/V8WebKitAnimationCustom.cpp \
-        bindings/v8/custom/V8WebKitMutationObserverCustom.cpp \
-        bindings/v8/custom/V8WebKitPointConstructor.cpp \
-        bindings/v8/custom/V8WorkerContextCustom.cpp \
-        bindings/v8/custom/V8WorkerCustom.cpp \
-        bindings/v8/custom/V8XMLHttpRequestConstructor.cpp \
-        bindings/v8/custom/V8XMLHttpRequestCustom.cpp \
-        \
-        bindings/v8/custom/V8SVGDocumentCustom.cpp \
-        bindings/v8/custom/V8SVGElementCustom.cpp \
-        bindings/v8/custom/V8SVGLengthCustom.cpp \
-        bindings/v8/custom/V8SVGPathSegCustom.cpp \
-        \
-        bindings/v8/specialization/V8BindingState.cpp\
-        \
-        bindings/v8/custom/V8NotificationCenterCustom.cpp \
-        bindings/v8/custom/V8ConsoleCustom.cpp \
-        bindings/v8/custom/V8SQLTransactionSyncCustom.cpp \
-        bindings/v8/V8WorkerContextErrorHandler.cpp \
-        testing/v8/WebCoreTestSupport.cpp
-} else {
-    SOURCES += \
-        bindings/ScriptControllerBase.cpp \
-        bindings/js/CallbackFunction.cpp \
-        bindings/js/DOMObjectHashTableMap.cpp \
-        bindings/js/DOMWrapperWorld.cpp \
-        bindings/js/GCController.cpp \
-        bindings/js/JSArrayBufferCustom.cpp \
-        bindings/js/JSAttrCustom.cpp \
-        bindings/js/JSBlobCustom.cpp \
-        bindings/js/JSCDATASectionCustom.cpp \
-        bindings/js/JSCSSFontFaceRuleCustom.cpp \
-        bindings/js/JSCSSImportRuleCustom.cpp \
-        bindings/js/JSCSSMediaRuleCustom.cpp \
-        bindings/js/JSCSSPageRuleCustom.cpp \
-        bindings/js/JSCSSRuleCustom.cpp \
-        bindings/js/JSCSSRuleListCustom.cpp \
-        bindings/js/JSCSSStyleDeclarationCustom.cpp \
-        bindings/js/JSCSSStyleRuleCustom.cpp \
-        bindings/js/JSCSSValueCustom.cpp \
-        bindings/js/JSCallbackData.cpp \
-        bindings/js/JSCanvasRenderingContext2DCustom.cpp \
-        bindings/js/JSCanvasRenderingContextCustom.cpp \
-        bindings/js/JSClipboardCustom.cpp \
-        bindings/js/JSConsoleCustom.cpp \
-        bindings/js/JSCoordinatesCustom.cpp \
-        bindings/js/JSCustomVoidCallback.cpp \
-        bindings/js/JSCustomXPathNSResolver.cpp \
-        bindings/js/JSDictionary.cpp \
-        bindings/js/JSDOMBinding.cpp \
-        bindings/js/JSDOMFormDataCustom.cpp \
-        bindings/js/JSDOMGlobalObject.cpp \
-        bindings/js/JSDOMImplementationCustom.cpp \
-        bindings/js/JSDOMMimeTypeArrayCustom.cpp \
-        bindings/js/JSDOMPluginArrayCustom.cpp \
-        bindings/js/JSDOMPluginCustom.cpp \
-        bindings/js/JSDOMStringMapCustom.cpp \
-        bindings/js/JSDOMTokenListCustom.cpp \
-        bindings/js/JSDOMWindowBase.cpp \
-        bindings/js/JSDOMWindowCustom.cpp \
-        bindings/js/JSDOMWindowShell.cpp \
-        bindings/js/JSDOMWindowWebAudioCustom.cpp \
-        bindings/js/JSDOMWindowWebSocketCustom.cpp \
-        bindings/js/JSDOMWrapper.cpp \
-        bindings/js/JSDataViewCustom.cpp \
-        bindings/js/JSDesktopNotificationsCustom.cpp \
-        bindings/js/JSDeviceMotionEventCustom.cpp \
-        bindings/js/JSDeviceOrientationEventCustom.cpp \
-        bindings/js/JSDocumentCustom.cpp \
-        bindings/js/JSElementCustom.cpp \
-        bindings/js/JSErrorHandler.cpp \
-        bindings/js/JSEventCustom.cpp \
-        bindings/js/JSEventListener.cpp \
-        bindings/js/JSEventTarget.cpp \
-        bindings/js/JSExceptionBase.cpp \
-        bindings/js/JSFileReaderCustom.cpp \
-        bindings/js/JSFloat32ArrayCustom.cpp \
-        bindings/js/JSFloat64ArrayCustom.cpp \
-        bindings/js/JSGeolocationCustom.cpp \
-        bindings/js/JSHTMLAllCollectionCustom.cpp \
-        bindings/js/JSHTMLAppletElementCustom.cpp \
-        bindings/js/JSHTMLCanvasElementCustom.cpp \
-        bindings/js/JSHTMLCollectionCustom.cpp \
-        bindings/js/JSHTMLDocumentCustom.cpp \
-        bindings/js/JSHTMLElementCustom.cpp \
-        bindings/js/JSHTMLEmbedElementCustom.cpp \
-        bindings/js/JSHTMLFormElementCustom.cpp \
-        bindings/js/JSHTMLFrameElementCustom.cpp \
-        bindings/js/JSHTMLFrameSetElementCustom.cpp \
-        bindings/js/JSHTMLInputElementCustom.cpp \
-        bindings/js/JSHTMLLinkElementCustom.cpp \
-        bindings/js/JSHTMLMediaElementCustom.cpp \
-        bindings/js/JSHTMLObjectElementCustom.cpp \
-        bindings/js/JSHTMLOptionsCollectionCustom.cpp \
-        bindings/js/JSHTMLOutputElementCustom.cpp \
-        bindings/js/JSHTMLSelectElementCustom.cpp \
-        bindings/js/JSHTMLStyleElementCustom.cpp \
-        bindings/js/JSHistoryCustom.cpp \
-        bindings/js/JSImageConstructor.cpp \
-        bindings/js/JSImageDataCustom.cpp \
-        bindings/js/JSInjectedScriptHostCustom.cpp \
-        bindings/js/JSInjectedScriptManager.cpp \
-        bindings/js/JSInspectorFrontendHostCustom.cpp \
-        bindings/js/JSInt16ArrayCustom.cpp \
-        bindings/js/JSInt32ArrayCustom.cpp \
-        bindings/js/JSInt8ArrayCustom.cpp \
-        bindings/js/JSLazyEventListener.cpp \
-        bindings/js/JSLocationCustom.cpp \
-        bindings/js/JSMainThreadExecState.cpp \
-        bindings/js/JSMediaListCustom.cpp \
-        bindings/js/JSMemoryInfoCustom.cpp \
-        bindings/js/JSMessageChannelCustom.cpp \
-        bindings/js/JSMessageEventCustom.cpp \
-        bindings/js/JSMessagePortCustom.cpp \
-        bindings/js/JSMessagePortCustom.h \
-        bindings/js/JSMutationCallbackCustom.cpp \
-        bindings/js/JSNamedNodeMapCustom.cpp \
-	bindings/js/JSNavServicesCustom.cpp \
-        bindings/js/JSNodeCustom.cpp \
-        bindings/js/JSNodeFilterCondition.cpp \
-        bindings/js/JSNodeFilterCustom.cpp \
-        bindings/js/JSNodeIteratorCustom.cpp \
-        bindings/js/JSNodeListCustom.cpp \
-        bindings/js/JSPluginElementFunctions.cpp \
-        bindings/js/JSPopStateEventCustom.cpp \
-        bindings/js/JSProcessingInstructionCustom.cpp \
-        bindings/js/JSRequestAnimationFrameCallbackCustom.cpp \
-        bindings/js/JSScriptProfileNodeCustom.cpp \
-        bindings/js/JSStorageCustom.cpp \
-        bindings/js/JSStyleSheetCustom.cpp \
-        bindings/js/JSStyleSheetListCustom.cpp \
-        bindings/js/JSTextCustom.cpp \
-        bindings/js/JSTouchCustom.cpp \
-        bindings/js/JSTouchListCustom.cpp \
-        bindings/js/JSTreeWalkerCustom.cpp \
-        bindings/js/JSUint16ArrayCustom.cpp \
-        bindings/js/JSUint32ArrayCustom.cpp \
-        bindings/js/JSUint8ArrayCustom.cpp \
-        bindings/js/JSUint8ClampedArrayCustom.cpp \
-        bindings/js/JSWebKitAnimationCustom.cpp \
-        bindings/js/JSWebKitAnimationListCustom.cpp \
-        bindings/js/JSWebKitCSSKeyframeRuleCustom.cpp \
-        bindings/js/JSWebKitCSSKeyframesRuleCustom.cpp \
-        bindings/js/JSWebKitMutationObserverCustom.cpp \
-        bindings/js/JSWebKitPointCustom.cpp \
-        bindings/js/JSXMLHttpRequestCustom.cpp \
-        bindings/js/JSXMLHttpRequestUploadCustom.cpp \
-        bindings/js/JSXPathResultCustom.cpp \
-        bindings/js/PageScriptDebugServer.cpp \
-        bindings/js/ScheduledAction.cpp \
-        bindings/js/ScriptCachedFrameData.cpp \
-        bindings/js/ScriptCallStackFactory.cpp \
-        bindings/js/ScriptController.cpp \
-        bindings/js/ScriptControllerQt.cpp \
-        bindings/js/ScriptDebugServer.cpp \
-        bindings/js/ScriptEventListener.cpp \
-        bindings/js/ScriptFunctionCall.cpp \
-        bindings/js/ScriptGCEvent.cpp \
-        bindings/js/ScriptObject.cpp \
-        bindings/js/ScriptProfile.cpp \
-        bindings/js/ScriptState.cpp \
-        bindings/js/ScriptValue.cpp \
-        bindings/js/SerializedScriptValue.cpp \
-        bridge/IdentifierRep.cpp \
-        bridge/NP_jsobject.cpp \
-        bridge/c/CRuntimeObject.cpp \
-        bridge/c/c_class.cpp \
-        bridge/c/c_instance.cpp \
-        bridge/c/c_runtime.cpp \
-        bridge/c/c_utility.cpp \
-        bridge/jsc/BridgeJSC.cpp \
-        bridge/npruntime.cpp \
-        bridge/qt/qt_class.cpp \
-        bridge/qt/qt_instance.cpp \
-        bridge/qt/qt_pixmapruntime.cpp \
-        bridge/qt/qt_runtime.cpp \
-        bridge/runtime_array.cpp \
-        bridge/runtime_method.cpp \
-        bridge/runtime_object.cpp \
-        bridge/runtime_root.cpp \
-        testing/js/WebCoreTestSupport.cpp
-}
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
 
 SOURCES += \
     Modules/filesystem/DOMFilePath.cpp \
@@ -563,14 +341,10 @@ SOURCES += \
     css/WebKitCSSSVGDocumentValue.cpp \
     css/WebKitCSSShaderValue.cpp \
     css/WebKitCSSTransformValue.cpp \
-<<<<<<< HEAD
-    css/WrapShapeFunctions.cpp \
-=======
     Modules/discovery/DiscoveryBase.cpp \
     Modules/discovery/NavDsc.cpp \
     Modules/discovery/UPnPSearch.cpp \
     Modules/discovery/ZeroConf.cpp \
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
     dom/ActiveDOMObject.cpp \
     dom/Attr.cpp \
     dom/BeforeTextInsertedEvent.cpp \
@@ -1075,6 +849,11 @@ SOURCES += \
     loader/SubstituteData.cpp \
     loader/TextResourceDecoder.cpp \
     loader/ThreadableLoader.cpp \
+#    notifications/DOMWindowNotifications.cpp \
+#    notifications/Notification.cpp \
+#    notifications/NotificationCenter.cpp \
+#    notifications/NotificationController.cpp \
+#    notifications/WorkerContextNotifications.cpp \
     page/animation/AnimationBase.cpp \
     page/animation/AnimationController.cpp \
     page/animation/CompositeAnimation.cpp \
@@ -1114,6 +893,7 @@ SOURCES += \
     page/NavServices.cpp \
     page/NavService.cpp \
     page/NavigatorBase.cpp \
+    page/NavigatorRegisterProtocolHandler.cpp \
     page/OriginAccessEntry.cpp \
     page/Page.cpp \
     page/PageGroup.cpp \
@@ -1710,16 +1490,12 @@ HEADERS += \
     css/WebKitCSSSVGDocumentValue.h \
     css/WebKitCSSShaderValue.h \
     css/WebKitCSSTransformValue.h \
-<<<<<<< HEAD
-    css/WrapShapeFunctions.h \
-=======
     Modules/discovery/DiscoveryBase.h \
     Modules/discovery/NavDsc.h \
     Modules/discovery/UPnPSearch.h \
     Modules/discovery/ZeroConf.h \
     Modules/discovery/UPnPDevice.h \
     Modules/discovery/ZCDevice.h \
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
     dom/ActiveDOMObject.h \
     dom/Attr.h \
     dom/Attribute.h \
@@ -2188,6 +1964,12 @@ HEADERS += \
     mathml/MathMLInlineContainerElement.h \
     mathml/MathMLMathElement.h \
     mathml/MathMLTextElement.h \
+#    notifications/DOMWindowNotifications.h \
+#    notifications/Notification.h \
+#    notifications/NotificationCenter.h \
+#    notifications/NotificationClient.h \
+#    notifications/NotificationController.h \
+#    notifications/WorkerContextNotifications.h \
     page/animation/AnimationBase.h \
     page/animation/AnimationController.h \
     page/animation/CompositeAnimation.h \
@@ -3060,13 +2842,18 @@ mac {
         platform/text/cf/StringImplCF.cpp
 }
 
-contains(QT_CONFIG,icu)|mac: SOURCES += platform/text/TextBreakIteratorICU.cpp
-mac {
-    # For Mac we use the same SmartReplace implementation as the Apple port.
-    SOURCES += editing/SmartReplaceCF.cpp
-    INCLUDEPATH += $$PWD/icu
+haveQt(5) {
+    contains(QT_CONFIG,icu)|mac: SOURCES += platform/text/TextBreakIteratorICU.cpp
+    mac {
+        # For Mac we use the same SmartReplace implementation as the Apple port.
+        SOURCES += editing/SmartReplaceCF.cpp
+        INCLUDEPATH += $$PWD/icu
+    } else {
+        SOURCES += editing/SmartReplaceICU.cpp
+    }
 } else {
-    SOURCES += editing/SmartReplaceICU.cpp
+    SOURCES += platform/text/qt/TextBreakIteratorQt.cpp \
+               editing/qt/SmartReplaceQt.cpp
 }
 
 contains(DEFINES, ENABLE_NETSCAPE_PLUGIN_API=1) {

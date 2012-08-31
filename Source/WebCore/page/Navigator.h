@@ -67,8 +67,6 @@ public:
 
     virtual String userAgent() const;
 
-<<<<<<< HEAD
-=======
     // ----------------------------------
     // Home networking
     // ----------------------------------
@@ -145,7 +143,6 @@ public:
     PointerLock* webkitPointer() const;
 #endif
 
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
     // Relinquishes the storage lock, if one exists.
     void getStorageUpdates();
 

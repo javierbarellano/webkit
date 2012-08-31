@@ -104,10 +104,10 @@ void updateRequestForAccessControl(ResourceRequest& request, SecurityOrigin* sec
     request.setHTTPOrigin(securityOrigin->toString());
 }
 
-ResourceRequest createAccessControlPreflightRequest(const ResourceRequest& request, SecurityOrigin* securityOrigin)
+ResourceRequest createAccessControlPreflightRequest(const ResourceRequest& request, SecurityOrigin* securityOrigin, StoredCredentials allowCredentials)
 {
     ResourceRequest preflightRequest(request.url());
-    updateRequestForAccessControl(preflightRequest, securityOrigin, DoNotAllowStoredCredentials);
+    updateRequestForAccessControl(preflightRequest, securityOrigin, allowCredentials);
     preflightRequest.setHTTPMethod("OPTIONS");
     preflightRequest.setHTTPHeaderField("Access-Control-Request-Method", request.httpMethod());
     preflightRequest.setPriority(request.priority());
@@ -150,13 +150,9 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
     }
 
     // FIXME: Access-Control-Allow-Origin can contain a list of origins.
-<<<<<<< HEAD
-    if (accessControlOriginString != securityOrigin->toString()) {
-=======
     RefPtr<SecurityOrigin> accessControlOrigin = SecurityOrigin::createFromString(accessControlOriginString);
     if (!accessControlOrigin->isSameSchemeHostPort(securityOrigin)) {
 
->>>>>>> c03915a483127cc3e12a1f7ad9aca1f1f32c3666
         if (accessControlOriginString == "*")
             errorDescription = "Cannot use wildcard in Access-Control-Allow-Origin when credentials flag is true.";
         else

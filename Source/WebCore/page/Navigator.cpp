@@ -305,7 +305,7 @@ void Navigator::onError(int error)
 void Navigator::sendEvent(std::string uuid, std::string stype, std::string body)
 {
 	std::string name = "";
-	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
+//	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
 
 	PassRefPtr<NavEvent> event = NavEvent::create();
 	event->setPropertyset(WTF::String(body.c_str()));
