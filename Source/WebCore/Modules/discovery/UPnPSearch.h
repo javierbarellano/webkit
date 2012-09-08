@@ -25,6 +25,7 @@
 
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/DiscoveryBase.h"
+#include "Modules/discovery/IDiscoveryAPI.h"
 
 namespace WebCore
 {
@@ -42,6 +43,7 @@ class UPnPSearch : public DiscoveryBase
 {
 
 public:
+	static std::map<std::string, UPnPDevice> discoverInternalDevs(const char *type, IDiscoveryAPI *api);
 	static std::map<std::string, UPnPDevice> discoverDevs(const char *type, NavDsc *navDsc);
 
 	static UPnPSearch* getInstance();
@@ -49,6 +51,8 @@ public:
 	static UPnPSearch* create();
 
 	void getUPnPFriendlyName(std::string uuid, std::string type, std::string& name);
+
+	void checkForDroppedInternalDevs();
 
     //
     // UDPSocketHandleClient support
@@ -91,7 +95,7 @@ public:
 
 	virtual ~UPnPSearch();
 
-	void eventServer(std::string eventUrl, std::string uuid, std::string host, std::string port);
+	void eventServer(const char *type, std::string eventUrl, std::string uuid, std::string host, std::string port);
 
 	void closeServer();
 
@@ -112,6 +116,11 @@ private:
 
 	std::string getLocalIp();
 	
+	bool notInBadList(std::string sUUid);
+
+	bool isCurrentType(const char* type);
+	bool isInternalType(const char* type);
+
 	static UPnPSearch* instance_;
 
 	// key == service type
@@ -119,20 +128,19 @@ private:
 	std::map<std::string, UPnPDevMap> devs_;
 
 	std::vector<std::string> badDevs_;
-	bool isbadDev(std::string uuid)
-	{
-		for (int i=0; i<(int)badDevs_.size(); i++)
-			if (badDevs_[i] == uuid)
-				return true;
-
-		return false;
-	}
 
 	long lastSend_;
 
 	bool sendPending_;
 	
 	std::map<long, KURL> *tcpSocket_;
+
+	// Private API support
+	IDiscoveryAPI *api_;
+	std::map<std::string, UPnPDevMap> internalDevs_;
+	std::string internal_type_;
+
+
 
 };
 

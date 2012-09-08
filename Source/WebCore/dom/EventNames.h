@@ -55,6 +55,8 @@ namespace WebCore {
     macro(copy) \
     macro(cut) \
     macro(dblclick) \
+    macro(devadded) \
+    macro(devdropped) \
     macro(devicemotion) \
     macro(deviceorientation) \
     macro(dischargingtimechange) \
@@ -115,6 +117,7 @@ namespace WebCore {
     macro(textInput) \
     macro(unload) \
     macro(updateready) \
+    macro(upnpevent) \
     macro(versionchange) \
     macro(webkitvisibilitychange) \
     macro(write) \

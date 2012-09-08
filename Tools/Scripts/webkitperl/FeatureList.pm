@@ -67,6 +67,7 @@ my (
     $deviceOrientationSupport,
     $dialogElementSupport,
     $directoryUploadSupport,
+    $discoverySupport,
     $downloadAttributeSupport,
     $fileSystemSupport,
     $filtersSupport,
@@ -213,6 +214,9 @@ my @features = (
 
     { option => "directory-upload", desc => "Toggle Directory Upload support",
       define => "ENABLE_DIRECTORY_UPLOAD", default => 0, value => \$directoryUploadSupport },
+
+    { option => "discovery", desc => "Toggle Discovery support",
+      define => "ENABLE_DISCOVERY", default => 1, value => \$discoverySupport },
 
     { option => "download-attribute", desc => "Toggle Download Attribute support",
       define => "ENABLE_DOWNLOAD_ATTRIBUTE", default => isBlackBerry(), value => \$downloadAttributeSupport },

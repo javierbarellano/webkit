@@ -709,6 +709,15 @@ webcore_built_sources += \
 	DerivedSources/WebCore/XPathGrammar.h
 
 dom_binding_idls += \
+	$(WebCore)/Modules/discovery/Nav.idl \
+	$(WebCore)/Modules/discovery/NavServiceErrorCB.idl \
+	$(WebCore)/Modules/discovery/NavServiceOkCB.idl \
+	$(WebCore)/Modules/discovery/NavServices.idl \
+	$(WebCore)/Modules/discovery/NavService.idl \
+	$(WebCore)/Modules/discovery/NavEvent.idl \
+	$(WebCore)/Modules/discovery/NavEventCB.idl \
+	$(WebCore)/Modules/discovery/NavServiceError.idl \
+	$(WebCore)/Modules/discovery/NavDscCB.idl \
 	$(WebCore)/Modules/gamepad/Gamepad.idl \
 	$(WebCore)/Modules/gamepad/GamepadList.idl \
 	$(WebCore)/Modules/gamepad/NavigatorGamepad.idl \
@@ -995,14 +1004,6 @@ dom_binding_idls += \
 	$(WebCore)/page/Location.idl \
 	$(WebCore)/page/MemoryInfo.idl \
 	$(WebCore)/page/Navigator.idl \
-	$(WebCore)/page/NavServiceErrorCB.idl \
-	$(WebCore)/page/NavServiceOkCB.idl \
-	$(WebCore)/page/NavServices.idl \
-	$(WebCore)/page/NavService.idl \
-	$(WebCore)/page/NavEvent.idl \
-	$(WebCore)/page/NavEventCB.idl \
-	$(WebCore)/page/NavServiceError.idl \
-	$(WebCore)/page/NavDscCB.idl \
 	$(WebCore)/page/Performance.idl \
 	$(WebCore)/page/PerformanceEntry.idl \
 	$(WebCore)/page/PerformanceEntryList.idl \
@@ -1057,7 +1058,21 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/discovery/ZeroConf.h \
 	Source/WebCore/Modules/discovery/UPnPDevice.h \
 	Source/WebCore/Modules/discovery/ZCDevice.h \
-webcore_modules_sources += \
+ \
+	Source/WebCore/Modules/discovery/Nav.cpp \
+	Source/WebCore/Modules/discovery/Nav.h \
+	Source/WebCore/Modules/discovery/NavDscCB.h \
+	Source/WebCore/Modules/discovery/NavEvent.cpp \
+	Source/WebCore/Modules/discovery/NavEvent.h \
+	Source/WebCore/Modules/discovery/NavEventCB.h \
+	Source/WebCore/Modules/discovery/NavService.cpp \
+	Source/WebCore/Modules/discovery/NavService.h \
+	Source/WebCore/Modules/discovery/NavServiceError.h \
+	Source/WebCore/Modules/discovery/NavServiceErrorCB.h \
+	Source/WebCore/Modules/discovery/NavServiceOkCB.h \
+	Source/WebCore/Modules/discovery/NavServices.cpp \
+	Source/WebCore/Modules/discovery/NavServices.h \
+\
 	Source/WebCore/Modules/filesystem/AsyncFileWriter.h \
 	Source/WebCore/Modules/filesystem/AsyncFileWriterClient.h \
 	Source/WebCore/Modules/filesystem/DOMFilePath.cpp \
@@ -3129,10 +3144,6 @@ webcore_sources += \
 	Source/WebCore/page/MouseEventWithHitTestResults.h \
 	Source/WebCore/page/Navigator.cpp \
 	Source/WebCore/page/Navigator.h \
-	Source/WebCore/page/NavServices.cpp \
-	Source/WebCore/page/NavServices.h \
-	Source/WebCore/page/NavService.cpp \
-	Source/WebCore/page/NavService.h \
 	Source/WebCore/page/NavigatorBase.cpp \
 	Source/WebCore/page/NavigatorBase.h \
 	Source/WebCore/page/OriginAccessEntry.cpp \

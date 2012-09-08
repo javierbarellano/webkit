@@ -136,6 +136,11 @@ haveQtModule(widgets): DEFINES += HAVE_QSTYLE=1
     }
 }
 
+# Discovery support
+!contains(DEFINES, ENABLE_DISCOVERY=.) {
+       DEFINES += ENABLE_DISCOVERY=1
+}
+
 # orientation support
 haveQtModule(sensors) {
     !contains(DEFINES, ENABLE_ORIENTATION_EVENTS=.): DEFINES += ENABLE_ORIENTATION_EVENTS=1

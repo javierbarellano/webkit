@@ -25,8 +25,8 @@ public:
 
 	virtual void set_client(HNEventServerHandleClient *client)=0;
 
-    // Start Home Networking server for eventing support.
-    virtual void connect(const char *url, bool isMulticastGroup) = 0;
+    // Start Home Networking Event server.
+    virtual void connect() = 0;
 
     // Send Subscribe request to UPnP device
     virtual bool send(const char *data, int len) = 0;

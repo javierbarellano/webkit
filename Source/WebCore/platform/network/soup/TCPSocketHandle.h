@@ -8,6 +8,9 @@
 #ifndef TCPSOCKETHANDLE_H_
 #define TCPSOCKETHANDLE_H_
 
+#include <sstream>
+#include <string>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -29,9 +32,14 @@ class TCPSocketHandleClient;
 class TCPSocketHandle : public RefCounted<TCPSocketHandle> {
 public:
 
-	static PassRefPtr<TCPSocketHandle> create(const KURL& url)
+//	static PassRefPtr<TCPSocketHandle> create(const KURL& url)
+//	{
+//		return adoptRef(new TCPSocketHandle(url));
+//	}
+
+	static PassRefPtr<TCPSocketHandle> create(const char *url, int port)
 	{
-		return adoptRef(new TCPSocketHandle(url));
+		return adoptRef(new TCPSocketHandle(url, port));
 	}
 
 
@@ -60,6 +68,7 @@ public:
 		size_t lim = *len;
 		fd_set read_fds;
 		struct timeval timeout;
+		const int MSec = 1000;
 
 		if (m_inError)
 		{
@@ -73,7 +82,7 @@ public:
 			FD_ZERO(&read_fds);
 			FD_SET(m_socket, &read_fds);
 			timeout.tv_sec = 0;
-			timeout.tv_usec = 500*1000;
+			timeout.tv_usec = 1500 * MSec;
 			int rc = select(m_socket+1, &read_fds, NULL, NULL, &timeout);
 			if(rc < 0)
 			{
@@ -110,8 +119,24 @@ protected:
 
 private:
 
+//	// Constructor
+//	TCPSocketHandle(const KURL &url)
+//	{
+//		WTF::CString cHost = url.host().ascii();
+//		int port = url.port() ? url.port():80;
+//
+//		init(cHost.data(), port);
+//
+//	}
+//
 	// Constructor
-	TCPSocketHandle(const KURL &url)
+	TCPSocketHandle(const char *host, int port)
+	{
+		init(host, port);
+	}
+
+	// Constructor
+	void init(const char *host, int port)
 	{
 		int on = 1;
 		int rc = 0;
@@ -133,21 +158,32 @@ private:
 			return;
 		}
 
-		WTF::CString cHost = url.host().ascii();
-
-		bzero(&m_servaddr,sizeof(m_servaddr));
-		m_servaddr.sin_family = AF_INET;
-		m_servaddr.sin_addr.s_addr=inet_addr(cHost.data());
-		m_servaddr.sin_port=htons(url.port() ? url.port():80);
-
-		if (connect(m_socket, (struct sockaddr *)&m_servaddr, sizeof(m_servaddr)) < 0)
+		on = 1;
+		if((rc = setsockopt(m_socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&on, sizeof(on))) < 0)
 		{
-			printf("-ERROR- connect failed! errno: %d\n", errno);
+			printf("-ERROR- setsockopt(SO_KEEPALIVE) failed! errno: %d\n", errno);
 			m_inError = errno;
 			return;
 		}
 
-		m_url = url;
+
+		bzero(&m_servaddr,sizeof(m_servaddr));
+		m_servaddr.sin_family = AF_INET;
+		m_servaddr.sin_addr.s_addr=inet_addr(host);
+		m_servaddr.sin_port=htons(port ? port:80);
+
+		if (connect(m_socket, (struct sockaddr *)&m_servaddr, sizeof(m_servaddr)) < 0)
+		{
+			printf("-ERROR- connect to: %s:%d failed! errno: %d\n", host, port, errno);
+			m_inError = errno;
+			return;
+		}
+
+		std::stringstream ss;
+		ss << "http://" << host << ":" << port;
+		//KURL url(ParsedURLString, String(ss.str().c_str(), ss.str().length()));
+
+		//m_url = url;
 	}
 
 

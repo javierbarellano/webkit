@@ -59,6 +59,8 @@ namespace WebCore {
     class MediaSource;
     class MediaStream;
     class MessagePort;
+    class NavService;
+    class NavServices;
     class Node;
     class Notification;
     class SVGElementInstance;

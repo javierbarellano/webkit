@@ -8,6 +8,7 @@ webcore_cppflags += \
 	-I$(srcdir)/Source/ThirdParty/ANGLE/include \
 	-I$(srcdir)/Source/ThirdParty/ANGLE/include/GLSLANG \
 	-I$(srcdir)/Source/WebCore \
+	-I$(srcdir)/Source/WebCore/Modules/discovery \
 	-I$(srcdir)/Source/WebCore/Modules/filesystem \
 	-I$(srcdir)/Source/WebCore/Modules/gamepad \
 	-I$(srcdir)/Source/WebCore/Modules/geolocation \
@@ -744,6 +745,18 @@ FEATURE_DEFINES += ENABLE_SPELLCHECK=1
 webcore_cppflags += -DENABLE_SPELLCHECK=1
 endif  # END ENABLE_SPELLCHECK
 
+# ----
+# Discovery Support
+# ----
+if ENABLE_DISCOVERY
+FEATURE_DEFINES += ENABLE_DISCOVERY=1
+webcore_cppflags += -DENABLE_DISCOVERY=1
+else
+webcore_cppflags += -DENABLE_DISCOVERY=0
+endif  # END ENABLE_DISCOVERY
+
+
+
 DerivedSources/WebCore/CSSPropertyNames.cpp: DerivedSources/WebCore/CSSPropertyNames.h
 DerivedSources/WebCore/CSSPropertyNames.h: $(WEBCORE_CSS_PROPERTY_NAMES) $(WebCore)/css/makeprop.pl
 	$(AM_V_GEN)
@@ -881,6 +894,7 @@ DerivedSources/ANGLE/glslang_tab.cpp: Source/ThirdParty/ANGLE/src/compiler/glsla
 DerivedSources/ANGLE/glslang_tab.h: DerivedSources/ANGLE/glslang_tab.cpp
 
 IDL_PATH := \
+    $(WebCore)/Modules/discovery \
     $(WebCore)/Modules/filesystem \
     $(WebCore)/Modules/gamepad \
     $(WebCore)/Modules/geolocation \
@@ -1051,6 +1065,7 @@ libWebCoreGtk_la_CPPFLAGS = \
 	$(XT_CFLAGS)
 
 EXTRA_DIST += \
+	$(shell ls $(srcdir)/Source/WebCore/Modules/discovery/*.idl) \
 	$(shell ls $(srcdir)/Source/WebCore/Modules/filesystem/*.idl) \
 	$(shell ls $(srcdir)/Source/WebCore/Modules/gamepad/*.idl) \
 	$(shell ls $(srcdir)/Source/WebCore/Modules/geolocation/*.idl) \

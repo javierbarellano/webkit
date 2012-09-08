@@ -2,6 +2,10 @@
 *.pbxuser
 *.perspective*
 *.pyc
+*.la
+*.lo
+*.o
+/.deps/
 .DS_Store
 .directory
 build/

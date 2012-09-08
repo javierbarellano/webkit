@@ -86,6 +86,15 @@ STYLESHEETS_EMBED = \
     $$PWD/css/mobileThemeQt.css
 
 IDL_BINDINGS += \
+    $$PWD/Modules/discovery/NavServiceErrorCB.idl \
+    $$PWD/Modules/discovery/NavServiceOkCB.idl \
+    $$PWD/Modules/discovery/NavServices.idl \
+    $$PWD/Modules/discovery/NavService.idl \
+    $$PWD/Modules/discovery/NavEvent.idl \
+    $$PWD/Modules/discovery/NavEventCB.idl \
+    $$PWD/Modules/discovery/NavServiceError.idl \
+    $$PWD/Modules/discovery/NavDscCB.idl \
+    $$PWD/Modules/discovery/Nav.idl \
     $$PWD/Modules/filesystem/DOMFileSystem.idl \
     $$PWD/Modules/filesystem/DOMFileSystemSync.idl \
     $$PWD/Modules/filesystem/DOMWindowFileSystem.idl \
@@ -423,14 +432,6 @@ IDL_BINDINGS += \
     $$PWD/page/Location.idl \
     $$PWD/page/MemoryInfo.idl \
     $$PWD/page/Navigator.idl \
-    $$PWD/page/NavServiceErrorCB.idl \
-    $$PWD/page/NavServiceOkCB.idl \
-    $$PWD/page/NavServices.idl \
-    $$PWD/page/NavService.idl \
-    $$PWD/page/NavEvent.idl \
-    $$PWD/page/NavEventCB.idl \
-    $$PWD/page/NavServiceError.idl \
-    $$PWD/page/NavDscCB.idl \
     $$PWD/page/Performance.idl \
     $$PWD/page/PerformanceEntry.idl \
     $$PWD/page/PerformanceEntryList.idl \
@@ -719,6 +720,7 @@ generateBindings.script = $$PWD/bindings/scripts/generate-bindings.pl
 generateBindings.commands = perl -I$$PWD/bindings/scripts $$generateBindings.script \
                             --defines \"$${FEATURE_DEFINES_JAVASCRIPT}\" \
                             --generator JS \
+                            --include $$PWD/Modules/discovery \
                             --include $$PWD/Modules/filesystem \
                             --include $$PWD/Modules/geolocation \
                             --include $$PWD/Modules/indexeddb \

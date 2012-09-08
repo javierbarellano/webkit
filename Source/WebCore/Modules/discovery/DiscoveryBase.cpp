@@ -75,37 +75,83 @@ void DiscoveryBase::getHostPort(const char *url, char* host, int *port)
 	*port = atoi(sPort);
 }
 
-void DiscoveryBase::HTTPget(KURL &url, char *bf, size_t *len)
+void DiscoveryBase::socketSend(const char *host, int port, const char *toSend, size_t sLen, char *bf, size_t *len)
+{
+	RefPtr<TCPSocketHandle> socket = TCPSocketHandle::create(host, port);
+
+	socket->send(toSend, sLen);
+	socket->receive(bf, len);
+}
+
+void DiscoveryBase::HTTPget(const char *host, int port, const char *path, char *bf, size_t *len)
 {
 	/*
 	GET /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
 	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
 	Host: 10.36.0.237:2869
+	Connection: keep-alive
 	*/
 
-	RefPtr<TCPSocketHandle> socket = TCPSocketHandle::create(url);
+	std::stringstream toSend;
+	toSend << "GET "<< path << " HTTP/1.1\r\n";
+	toSend << "User-Agent: Platinum/0.5.3.0, DLNADOC/1.50\r\n";
+	toSend << "Host: " << host << ":" << port << "\r\n";
+	toSend << "Connection: keep-alive\r\n\r\n";
+
+	socketSend(host, port, toSend.str().c_str(), toSend.str().length(), bf, len);
+}
+
+void DiscoveryBase::HTTPget(KURL &url, char *bf, size_t *len)
+{
+	String path = url.path();
+	String query = url.query();
+	std::string pq(path.ascii().data());
+	if (query.length())
+	{
+		pq += "?";
+		pq += std::string(query.ascii().data());
+	}
+	String host = url.host();
+	int port = url.port();
+
+	HTTPget(host.ascii().data(), port, pq.c_str(), bf, len);
+
+}
+
+// optHeaders can be NULL
+// optHeaders should include /r/n at the end of lines
+void DiscoveryBase::HTTPpost(KURL &url, char *postBody, char *optHeaders, char *bf, size_t *len)
+{
+	/*
+	POST /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
+	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
+	Content-Length: ???
+	Host: 10.36.0.237:2869
+	*/
 
 	String path = url.path();
 	String query = url.query();
-	std::string req = "GET ";
-	req.append(path.ascii().data());
+	std::string pq(path.ascii().data());
 	if (query.length())
 	{
-		req += "?";
-		req.append(query.ascii().data());
+		pq += "?";
+		pq += std::string(query.ascii().data());
 	}
+	std::string host(url.host().ascii().data());
+	int port = url.port();
 
-	req += " HTTP/1.1\r\nUser-Agent: Platinum/0.5.3.0, DLNADOC/1.50\r\nHost: ";
-	req.append(url.host().ascii().data());
-	req += ":";
+	std::stringstream toSend;
+	toSend << "POST "<< pq << " http/1.1\r\n";
+	toSend << "User-Agent: Platinum/0.5.3.0, DLNADOC/1.50\r\n";
+	toSend << "Host: " << host << ":" << port << "\r\n\r\n";
+	toSend << "Content-Length: " << strlen(postBody) << "\r\n";
+	toSend << "Content-Type: application/soap+xml; charset=utf-8" << "\r\n";
+	if (optHeaders)
+		toSend << optHeaders;
+	toSend << "\r\n";
+	toSend << postBody << "\r\n\r\n";
 
-	std::stringstream ss;
-	int port = url.port() ? url.port() : 80;
-	ss << req << port << "\r\n\r\n";
-
-	socket->send(ss.str().c_str(), ss.str().length());
-	socket->receive(bf, len);
-
+	socketSend(host.c_str(), port, toSend.str().c_str(), toSend.str().length(), bf, len);
 }
 
 // static

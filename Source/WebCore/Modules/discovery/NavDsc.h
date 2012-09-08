@@ -8,12 +8,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"
 
 namespace WebCore {
 
-class Navigator;
+class Nav;
+class IDiscoveryAPI;
 class Frame;
 
 class NavDsc
@@ -25,23 +27,28 @@ public:
 
 	virtual ~NavDsc();
 
+	std::map<std::string, UPnPDevice> startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
+
+
 	std::map<std::string, UPnPDevice> startUPnPDiscovery(const char *type);
 	std::map<std::string, ZCDevice> startZeroConfDiscovery(const char *type);
 
-	void onUPnPDiscovery(const char *type, Navigator *nav)
+	void onUPnPDiscovery(const char *type, IDiscoveryAPI *nav)
 	{
-		printf("Setting m_UPnPnav...\n");
+		//printf("onUPnPDiscovery(): Setting m_UPnPnav...\n");
 		m_UPnPnav = nav;
 		// Tell UPnPSearch to callback on dev change
 	}
-	void onZCDiscovery(const char *type, Navigator *nav)
+	void onZCDiscovery(const char *type, IDiscoveryAPI *nav)
 	{
+		//printf("onZCDiscovery(): Setting m_ZCnav...\n");
 		m_ZCnav = nav;
 		// Tell UPnPSearch to callback on dev change
 	}
 
-	void onUPnPEvent(const char *type, Navigator *nav)
+	void onUPnPEvent(const char *type, IDiscoveryAPI *nav)
 	{
+		//printf("onUPnPEvent(): Setting m_UPnPnav...\n");
 		m_UPnPnav = nav;
 	}
 
@@ -63,8 +70,9 @@ private:
 	NavDsc(Frame * frame);
 
 	Frame* m_frame;
-	Navigator *m_UPnPnav;
-	Navigator *m_ZCnav;
+
+	IDiscoveryAPI *m_UPnPnav;
+	IDiscoveryAPI *m_ZCnav;
 
 	// UUID, false == Don't use, true == ok to use
 	std::map<std::string, bool> m_whiteBlackList;

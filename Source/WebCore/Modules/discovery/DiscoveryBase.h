@@ -28,6 +28,11 @@ public:
 	DiscoveryBase(const char *type);
 	virtual ~DiscoveryBase();
 
+	static void socketSend(const char *url, int port, const char *toSend, size_t sLen, char *bf, size_t *len);
+	static void HTTPget(const char *host, int port, const char *path, char *bf, size_t *len);
+	static void HTTPget(KURL &url, char *bf, size_t *len);
+	static void HTTPpost(KURL &url, char *postBody, char *optHeaders, char *bf, size_t *len);
+
 	// White list imp
 	virtual bool hostPortOk(const char* host, int port)=0;
 
@@ -55,8 +60,6 @@ public:
 protected:
 
 	virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort)=0;
-
-	void HTTPget(KURL &url, char *bf, size_t *len);
 
 	bool canReceiveAnotherDev_;
 

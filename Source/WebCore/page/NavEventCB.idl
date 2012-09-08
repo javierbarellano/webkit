@@ -1,9 +1,0 @@
-module window {
-
-    interface [
-        Callback
-    ] NavEventCB {
-        boolean handleEvent( in NavEvent event );
-    };
-
-}

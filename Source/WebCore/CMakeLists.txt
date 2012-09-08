@@ -1,6 +1,7 @@
 SET(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}"
     "${WEBCORE_DIR}/Modules/battery"
+    "${WEBCORE_DIR}/Modules/discovery"
     "${WEBCORE_DIR}/Modules/filesystem"
     "${WEBCORE_DIR}/Modules/gamepad"
     "${WEBCORE_DIR}/Modules/geolocation"
@@ -108,6 +109,7 @@ SET(WebCore_INCLUDE_DIRECTORIES
 
 SET(WebCore_IDL_INCLUDES
     Modules/battery
+    Modules/discovery
     Modules/filesystem
     Modules/gamepad
     Modules/geolocation
@@ -143,6 +145,16 @@ SET(WebCore_IDL_INCLUDES
 SET(WebCore_IDL_FILES
     Modules/battery/BatteryManager.idl
     Modules/battery/NavigatorBattery.idl
+
+    Modules/discovery/Nav.idl
+    Modules/discovery/NavDscCB.idl
+    Modules/discovery/NavEvent.idl
+    Modules/discovery/NavEventCB.idl
+    Modules/discovery/NavService.idl
+    Modules/discovery/NavServiceError.idl
+    Modules/discovery/NavServiceErrorCB.idl
+    Modules/discovery/NavServiceOkCB.idl
+    Modules/discovery/NavServices.idl
 
     Modules/filesystem/DirectoryEntry.idl
     Modules/filesystem/DirectoryEntrySync.idl
@@ -560,14 +572,6 @@ SET(WebCore_IDL_FILES
     page/Location.idl
     page/MemoryInfo.idl
     page/Navigator.idl
-    page/NavServiceErrorCB.idl
-    page/NavServiceOkCB.idl
-    page/NavServices.idl
-    page/NavService.idl
-    page/NavEvent.idl
-    page/NavEventCB.idl
-    page/NavServiceError.idl
-    page/NavDscCB.idl
     page/Performance.idl
     page/PerformanceEntry.idl
     page/PerformanceEntryList.idl
@@ -771,6 +775,15 @@ SET(WebCore_SOURCES
     Modules/battery/BatteryManager.cpp
     Modules/battery/BatteryStatus.cpp
     Modules/battery/NavigatorBattery.cpp
+
+    Modules/discovery/DiscoveryBase.cpp
+    Modules/discovery/Nav.cpp
+    Modules/discovery/NavDsc.cpp
+    Modules/discovery/NavEvent.cpp
+    Modules/discovery/NavService.cpp
+    Modules/discovery/NavServices.cpp
+    Modules/discovery/UPnPSearch.cpp
+    Modules/discovery/ZeroConf.cpp
 
     Modules/filesystem/DOMFilePath.cpp
     Modules/filesystem/DOMFileSystem.cpp

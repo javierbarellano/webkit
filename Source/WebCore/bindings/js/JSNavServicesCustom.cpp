@@ -4,37 +4,31 @@
  *  Created on: Jan 10, 2012
  *      Author: gar
  */
+#include "config.h"
 
 #include <string>
 
-#include "config.h"
 #include "JSNavServices.h"
 #include "JSNavService.h"
 
-using namespace JSC;
+#include "UString.h"
+#include "JSValue.h"
+#include "CallFrame.h"
+
 
 namespace WebCore {
 
-JSValue JSNavServices::item(ExecState* exec)
+JSC::JSValue JSNavServices::item(JSC::ExecState* exec)
 {
-    bool ok;
-    uint32_t index = Identifier::toUInt32(exec->argument(0).toString(exec)->value(exec), ok);
-    if (ok)
-    {
-    	NavService *srv = impl()->item(index);
-    	printf("JSNavServices::item(): name: %s", srv->name().ascii().data());
+    JSC::UString sArg = exec->argument(0).toString(exec)->value(exec);
+    uint32_t index = atoi(sArg.ascii().data());
 
-    	return toJS(exec, globalObject(), srv);
+	NavService *srv = impl()->item(index);
 
-    }
-
-	std::string google = "ERROR, index invalid.";
-	UString sVal(google.c_str(), google.length());
-	JSString *v = jsString(&exec->globalData(), sVal);
-	JSValue val = v->toPrimitive(exec, PreferString);
-
-	return val;
+	return toJS(exec, globalObject(), srv);
 }
+
+void JSNavService::visitChildren(JSCell*, JSC::SlotVisitor&){}
 
 
 };

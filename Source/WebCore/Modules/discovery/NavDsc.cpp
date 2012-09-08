@@ -11,6 +11,7 @@
 #include "FrameLoaderClient.h"
 #include "ResourceHandle.h"
 
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"
 #include "Modules/discovery/UPnPDevice.h"
@@ -32,7 +33,7 @@
 #include <vector>
 #include <map>
 
-#include "Navigator.h"
+#include "Modules/discovery/Nav.h"
 #include "NavDsc.h"
 
 namespace WebCore {
@@ -49,9 +50,9 @@ NavDsc *NavDsc::create(Frame * frame)
 }
 
 NavDsc::NavDsc(Frame * frame) :
-		m_frame(frame),
-		m_UPnPnav(NULL),
-		m_ZCnav(NULL)
+		  m_frame(frame)
+		, m_UPnPnav(NULL)
+		, m_ZCnav(NULL)
 {
 }
 
@@ -85,6 +86,37 @@ void NavDsc::lostZCDev(std::string type)
 		m_ZCnav->ZCDevDropped(type);
 }
 
+std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
+{
+	std::map<std::string, UPnPDevice> empty;
+	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverInternalDevs(type, api);
+
+	if (devs.size()==0)
+		return devs;
+
+	// We have devices to look at
+
+	if (!m_frame)
+		return empty;
+
+	Page* page = m_frame->page();
+	if (!page)
+		return empty;
+
+	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
+	{
+		UPnPDevice d = (*it).second;
+		d.isOkToUse = true;
+		UPnPSearch::getInstance()->eventServer(type, d.eventURL, d.uuid, d.host, d.port);
+		devs[(*it).first] = d;
+	}
+
+
+	return devs;
+
+}
+
+
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 {
@@ -107,7 +139,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 	{
 		UPnPDevice d = (*it).second;
 		d.isOkToUse = true;
-		UPnPSearch::getInstance()->eventServer(d.eventURL, d.uuid, d.host, d.port);
+		UPnPSearch::getInstance()->eventServer(type, d.eventURL, d.uuid, d.host, d.port);
 		devs[(*it).first] = d;
 	}
 

@@ -173,6 +173,7 @@ SOURCES += \
      bindings/js/JSMutationCallbackCustom.cpp \
      bindings/js/JSMutationObserverCustom.cpp \
      bindings/js/JSNamedNodeMapCustom.cpp \
+     bindings/js/JSNavServicesCustom.cpp \
      bindings/js/JSNodeCustom.cpp \
      bindings/js/JSNodeFilterCondition.cpp \
      bindings/js/JSNodeFilterCustom.cpp \
@@ -235,6 +236,10 @@ SOURCES += \
 
 
 SOURCES += \
+    Modules/discovery/Nav.cpp \
+    Modules/discovery/NavEvent.cpp \
+    Modules/discovery/NavServices.cpp \
+    Modules/discovery/NavService.cpp \
     Modules/filesystem/DOMFilePath.cpp \
     Modules/filesystem/DOMFileSystem.cpp \
     Modules/filesystem/DOMFileSystemBase.cpp \
@@ -341,6 +346,7 @@ SOURCES += \
     css/WebKitCSSSVGDocumentValue.cpp \
     css/WebKitCSSShaderValue.cpp \
     css/WebKitCSSTransformValue.cpp \
+    css/WrapShapeFunctions.cpp \
     Modules/discovery/DiscoveryBase.cpp \
     Modules/discovery/NavDsc.cpp \
     Modules/discovery/UPnPSearch.cpp \
@@ -890,8 +896,6 @@ SOURCES += \
     page/MemoryInfo.cpp \
     page/MouseEventWithHitTestResults.cpp \
     page/Navigator.cpp \
-    page/NavServices.cpp \
-    page/NavService.cpp \
     page/NavigatorBase.cpp \
     page/NavigatorRegisterProtocolHandler.cpp \
     page/OriginAccessEntry.cpp \
@@ -1368,6 +1372,23 @@ HEADERS += \
     plugins/npruntime.h
 
 HEADERS += \
+    Modules/discovery/DiscoveryBase.h \
+    Modules/discovery/NavDsc.h \
+    Modules/discovery/UPnPSearch.h \
+    Modules/discovery/ZeroConf.h \
+    Modules/discovery/UPnPDevice.h \
+    Modules/discovery/ZCDevice.h \
+    \
+    Modules/discovery/Nav.h \
+    Modules/discovery/NavDscCB.h \
+    Modules/discovery/NavService.h \
+    Modules/discovery/NavServices.h \
+    Modules/discovery/NavEvent.h \
+    Modules/discovery/NavEventCB.h \
+    Modules/discovery/NavServiceError.h \
+    Modules/discovery/NavServiceErrorCB.h \
+    Modules/discovery/NavServiceOkCB.h \
+    \
     Modules/geolocation/Geolocation.h \
     Modules/geolocation/GeolocationController.h \
     Modules/geolocation/GeolocationError.h \
@@ -2004,14 +2025,6 @@ HEADERS += \
     page/MouseEventWithHitTestResults.h \
     page/NavigatorBase.h \
     page/Navigator.h \
-    page/NavDscCB.h \
-    page/NavEvent.h \
-    page/NavEventCB.h \
-    page/NavServiceError.h \
-    page/NavServiceErrorCB.h \
-    page/NavServiceOkCB.h \
-    page/NavServices.h \
-    page/NavService.h \
     page/PageGroup.h \
     page/PageGroupLoadDeferrer.h \
     page/Page.h \
@@ -2996,6 +3009,22 @@ contains(DEFINES, ENABLE_DATA_TRANSFER_ITEMS=1) {
         dom/StringCallback.cpp \
         platform/qt/DataTransferItemQt.cpp \
         platform/qt/DataTransferItemListQt.cpp
+}
+
+contains(DEFINES, ENABLE_DISCOVERY=1) {
+    HEADERS += \
+        Modules/discovery/Nav.h \
+        Modules/discovery/NavDscCB.h \
+        Modules/discovery/NavEvent.h \
+        Modules/discovery/NavEventCB.h \
+        Modules/discovery/NavService.h \
+        Modules/discovery/NavServiceError.h \
+        Modules/discovery/NavServiceErrorCB.h \
+        Modules/discovery/NavServiceOkCB.h \
+        Modules/discovery/NavServices.h
+
+    SOURCES += \
+        bindings/js/JSNavServicesCustom.cpp
 }
 
 contains(DEFINES, ENABLE_FILE_SYSTEM=1) {

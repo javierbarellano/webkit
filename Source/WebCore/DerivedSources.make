@@ -28,6 +28,7 @@
 
 VPATH = \
     $(WebCore) \
+    $(WebCore)/Modules/discovery \
     $(WebCore)/Modules/filesystem \
     $(WebCore)/Modules/geolocation \
     $(WebCore)/Modules/indexeddb \
@@ -61,6 +62,15 @@ VPATH = \
 #
 
 BINDING_IDLS = \
+    $(WebCore)/Modules/discovery/NavServiceErrorCB.idl \
+    $(WebCore)/Modules/discovery/NavServiceOkCB.idl \
+    $(WebCore)/Modules/discovery/NavServices.idl \
+    $(WebCore)/Modules/discovery/NavService.idl \
+    $(WebCore)/Modules/discovery/NavEvent.idl \
+    $(WebCore)/Modules/discovery/NavEventCB.idl \
+    $(WebCore)/Modules/discovery/NavServiceError.idl \
+    $(WebCore)/Modules/discovery/NavDscCB.idl \
+    $(WebCore)/Modules/discovery/Nav.idl \
     $(WebCore)/Modules/filesystem/DOMFileSystem.idl \
     $(WebCore)/Modules/filesystem/DOMFileSystemSync.idl \
     $(WebCore)/Modules/filesystem/DOMWindowFileSystem.idl \
@@ -421,14 +431,6 @@ BINDING_IDLS = \
     $(WebCore)/page/Location.idl \
     $(WebCore)/page/MemoryInfo.idl \
     $(WebCore)/page/Navigator.idl \
-    $(WebCore)/page/NavServiceErrorCB.idl \
-    $(WebCore)/page/NavServiceOkCB.idl \
-    $(WebCore)/page/NavServices.idl \
-    $(WebCore)/page/NavService.idl \
-    $(WebCore)/page/NavEvent.idl \
-    $(WebCore)/page/NavEventCB.idl \
-    $(WebCore)/page/NavServiceError.idl \
-    $(WebCore)/page/NavDscCB.idl \
     $(WebCore)/page/Performance.idl \
     $(WebCore)/page/PerformanceNavigation.idl \
     $(WebCore)/page/PerformanceTiming.idl \
@@ -966,6 +968,7 @@ preprocess_idls_script = perl $(addprefix -I $(WebCore)/, $(sort $(dir $(1)))) $
 
 IDL_INCLUDES = \
     $(WebCore)/Modules/battery \
+    $(WebCore)/Modules/discovery \
     $(WebCore)/Modules/filesystem \
     $(WebCore)/Modules/gamepad \
     $(WebCore)/Modules/geolocation \
