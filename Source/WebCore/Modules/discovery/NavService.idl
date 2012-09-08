@@ -1,0 +1,19 @@
+module discovery {
+	interface [
+               Conditional=DISCOVERY,
+	           OmitConstructor,
+	           ActiveDOMObject,
+	           EventTarget
+	           ] NavService	{
+
+	    readonly attribute DOMString name;
+	    readonly attribute DOMString url;
+	    readonly attribute DOMString eventUrl;
+	    readonly attribute DOMString uuid;
+	    readonly attribute DOMString config;
+	    readonly attribute DOMString serviceType;
+
+	    attribute EventListener onupnpevent;
+
+	};
+}

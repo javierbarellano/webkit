@@ -1,0 +1,12 @@
+
+
+module window {
+
+	interface [
+               Conditional=DISCOVERY,
+               Callback
+    ] NavServiceErrorCB {
+        boolean handleEvent( in NavServiceError error );
+    };
+
+}

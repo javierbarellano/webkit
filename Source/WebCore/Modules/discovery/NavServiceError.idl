@@ -1,0 +1,12 @@
+
+
+module window {
+    interface [
+               Conditional=DISCOVERY
+   ] NavServiceError {
+        const unsigned short PERMISSION_DENIED_ERR = 1;
+        readonly attribute unsigned short code;
+    };
+
+}
+
