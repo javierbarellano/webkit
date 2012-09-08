@@ -6,10 +6,13 @@
 *.lo
 *.o
 /.deps/
+/.dirstamp
 .DS_Store
 .directory
 build/
 /WebKitBuild/
+DerivedSources/
+Libraries/
 autoinstall.cache.d
 project.xcworkspace
 xcuserdata
