@@ -1,0 +1,18 @@
+
+
+module window {
+
+    interface [
+               Conditional=DISCOVERY,
+               Supplemental=Navigator
+    ] Navigator {
+
+        void getNetworkServices(
+        		in DOMString type,
+        		in [Callback]  NavServiceOkCB successCallback,
+                in [Callback, Optional] NavServiceErrorCB errorCallback );
+
+
+    };
+
+}

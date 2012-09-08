@@ -1,0 +1,31 @@
+module discovery {
+	interface [
+               Conditional=DISCOVERY,
+	           OmitConstructor,
+	           ActiveDOMObject,
+	           EventTarget
+	           ] NavServices
+	{
+
+		// NavigatorNetworkService item(index)
+		[Custom] void item(in unsigned long index);
+
+		readonly attribute unsigned long length;
+
+		readonly attribute unsigned short servicesAvailable;
+
+        attribute EventListener ondevadded;
+        attribute EventListener ondevdropped;
+
+        // EventTarget interface
+        void addEventListener(in DOMString type,
+                              in EventListener listener,
+                              in [Optional] boolean useCapture);
+        void removeEventListener(in DOMString type,
+                                 in EventListener listener,
+                                 in [Optional] boolean useCapture);
+        boolean dispatchEvent(in Event evt)
+            raises(EventException);
+
+	};
+}
