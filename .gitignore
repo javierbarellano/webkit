@@ -6,6 +6,7 @@
 *.lo
 *.o
 *.Po
+Tools/WebKitTestRunner/InjectedBundle/gtk/.deps/*
 /.deps
 /.dirstamp
 .DS_Store
