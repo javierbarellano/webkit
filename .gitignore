@@ -263,6 +263,7 @@ Source/WebKit/gtk/po/sv.mo
 Source/WebKit/gtk/po/uk.mo
 Source/WebKit/gtk/po/vi.mo
 Source/WebKit/gtk/po/zh_CN.mo
+Source/JavaScriptCore/tests/mozilla/actual.html
 autotoolsconfig.h
 config.log
 config.status
