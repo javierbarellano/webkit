@@ -130,10 +130,13 @@ void Nav::getNetworkServices(
 		return; // Error found and no error callback
 
 	RefPtr<NavServices> services = NULL;
-	if (nv->m_services.find(strType) == nv->m_services.end())
+	if (nv->m_services.find(strType) == nv->m_services.end()) {
 		services = nv->setServices(sType, devs, zcdevs, protoType, NULL);
-	else
+		services->turnOffVerifier();
+		services->suspendIfNeeded();
+	} else {
 		services = nv->setServices(sType, devs, zcdevs, protoType, nv->m_services[strType]);
+	}
 
 	nv->m_services[strType] = services;
 	successcb->handleEvent(nv->m_services[strType].get());
@@ -203,10 +206,11 @@ void Nav::UPnPDevAddedInternal(std::string type)
 	//m_frame->existingDOMWindow()->dispatchEvent(Event::create(eventNames().focusEvent, true, true));
 
 	NavServices* srvs = m_services[type].get();
+	printf("UPnPDevAddedInternal(): sending event.\n");
 
 	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
 
-	//printf("UPnPDevAddedInternal(): sent event. ref=%d\n", m_services[type]->refCount());
+	printf("UPnPDevAddedInternal(): sent event. ref=%d\n", m_services[type]->refCount());
 
 
 }

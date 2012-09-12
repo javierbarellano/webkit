@@ -127,6 +127,7 @@ private:
     std::map<std::string, RefPtr<NavEventCB> > m_ecb;
     mutable RefPtr<NavEventCB> m_eventCB;
 
+    NavServices* m_servicesSingle;
     std::map<std::string, RefPtr<NavServices> > m_services;
 
 
