@@ -312,7 +312,7 @@ void UPnPSearch::checkForDroppedInternalDevs()
 
 			internalDevs_[type] = dm;
 			if (api_)
-				api_->UPnPDevDropped(type);
+				api_->serverListUpdate(type, &dm.devMap);
 		}
 	}
 }
@@ -554,7 +554,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		internalDevs_[internal_type_] = dm;
 		printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 		if (api_)
-			api_->UPnPDevAdded(internal_type_);
+			api_->serverListUpdate(internal_type_, &dm.devMap);
 	}
 
 	return true;

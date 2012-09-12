@@ -79,6 +79,8 @@ public:
     virtual void sendEvent(std::string uuid, std::string stype, std::string body);
     virtual void sendEventInternal();
 
+    virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
+
     // Events
 	std::string m_curType;
 	int m_eventType;
