@@ -67,7 +67,7 @@ public:
     virtual void onError(int error);
 
     virtual void UPnPDevAdded(std::string type);
-    virtual void UPnPDevAddedInternal(std::string type);
+    static void UPnPDevAddedInternal(void *ptr);
     virtual void ZCDevAdded(std::string type);
     virtual void ZCDevAddedInternal(std::string type);
 
@@ -97,14 +97,16 @@ public:
 private:
     Nav(Frame*);
 
-    PassRefPtr<NavServices> setServices(
+    void setServices(
+    		std::string strType,
     		const char* type,
     		std::map<std::string, UPnPDevice> devs,
     		std::map<std::string, ZCDevice> zcdevs,
-    		ProtocolType protoType,
-    		PassRefPtr<NavServices> servicesParm);
+    		ProtocolType protoType);
 
     ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
+
+    static Mutex *m_main;
 
     // Home Networking Data
     mutable RefPtr<NavServiceErrorCB> m_errorCB;
@@ -129,7 +131,6 @@ private:
     std::map<std::string, RefPtr<NavEventCB> > m_ecb;
     mutable RefPtr<NavEventCB> m_eventCB;
 
-    NavServices* m_servicesSingle;
     std::map<std::string, RefPtr<NavServices> > m_services;
 
 

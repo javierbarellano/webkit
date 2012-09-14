@@ -192,7 +192,20 @@ bool EventTarget::fireEventListeners(Event* event)
     if (!d)
         return true;
 
+
     EventListenerVector* listenerVector = d->eventListenerMap.find(event->type());
+
+    Vector<AtomicString> et = d->eventListenerMap.eventTypes();
+    for (int i=0; i<(int)et.size(); i++)
+    {
+    	// == didn't work to find(type) either, so I'm using this
+    	if (et.at(i).contains(event->type().string(), true) &&
+    		event->type().contains(et.at(i).string(), true))
+    	{
+    		listenerVector = d->eventListenerMap.find(et.at(i)); // Very odd bug in WebKit WTF
+    		break;
+    	}
+    }
 
     if (listenerVector)
         fireEventListeners(event, d, *listenerVector);

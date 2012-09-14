@@ -174,6 +174,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 //		devs[(*it).first] = d;
 //	}
 //
+
 	return devs;
 
 }

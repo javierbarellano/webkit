@@ -19,10 +19,14 @@
 #include "NavDscCB.h"
 #include "NavEvent.h"
 #include "NavEventCB.h"
+#include <wtf/Threading.h>
+#include <wtf/MainThread.h>
 
 #include "Nav.h"
 
 namespace WebCore {
+
+Mutex *Nav::m_main = NULL;
 
 void eventHandlerThread(void *context)
 {
@@ -33,19 +37,19 @@ void eventHandlerThread(void *context)
 
 	switch (nav->m_eventType) {
 	case Nav::ADDED_UPNP_EVENT:
-		nav->UPnPDevAddedInternal(nav->m_curType);
+		//nav->UPnPDevAddedInternal(nav);
 		break;
 
 	case Nav::DROPPED_UPNP_EVENT:
-		nav->UPnPDevDroppedInternal(nav->m_curType);
+		//nav->UPnPDevDroppedInternal(nav->m_curType);
 		break;
 
 	case Nav::ADDED_ZC_EVENT:
-		nav->ZCDevAddedInternal(nav->m_curType);
+		//nav->ZCDevAddedInternal(nav->m_curType);
 		break;
 
 	case Nav::DROPPED_ZC_EVENT:
-		nav->ZCDevDroppedInternal(nav->m_curType);
+		//nav->ZCDevDroppedInternal(nav->m_curType);
 		break;
 	}
 }
@@ -57,9 +61,14 @@ Nav::Nav(Frame* frame)
 	m_UPnPserviceRemovedCBIsSet = false;
 	m_ZCserviceAddedCBIsSet = false;
 	m_ZCserviceRemovedCBIsSet = false;
+
+	if (!m_main)
+		m_main = new Mutex();
 }
 
 Nav::~Nav() {
+	delete m_main;
+	m_main = NULL;
 }
 
 // Static
@@ -84,7 +93,7 @@ void Nav::getNetworkServices(
 		PassRefPtr<NavServiceOkCB> successcb,
 		PassRefPtr<NavServiceErrorCB> errorcb)
 {
-	printf("getNetworkServices()\n");
+	printf("Nav::getNetworkServices() Start\n");
 
 	Nav *nv = from(n);
 	IDiscoveryAPI *disAPI = nv;
@@ -129,21 +138,16 @@ void Nav::getNetworkServices(
 	else
 		return; // Error found and no error callback
 
-	RefPtr<NavServices> services = NULL;
-	if (nv->m_services.find(strType) == nv->m_services.end()) {
-		services = nv->setServices(sType, devs, zcdevs, protoType, NULL);
-		services->turnOffVerifier();
-		services->suspendIfNeeded();
-	} else {
-		services = nv->setServices(sType, devs, zcdevs, protoType, nv->m_services[strType]);
-	}
+	nv->setServices(strType, sType, devs, zcdevs, protoType);
 
-	nv->m_services[strType] = services;
-	successcb->handleEvent(nv->m_services[strType].get());
+	NavServices* srvs = nv->m_services[strType].get();
+
+	//successcb->handleEvent(srvs);
 
 	//PassRefPtr<NavServices> services = nv->setServices(sType, devs, zcdevs, protoType);
 	//successcb->handleEvent(services.get());
 
+	printf("Nav::getNetworkServices() Done. srvs: %p\n", srvs);
 }
 
 
@@ -192,25 +196,30 @@ void Nav::sendEventInternal()
 
 void Nav::UPnPDevAdded(std::string type)
 {
+	m_main->lock();
 	m_curType = type;
-	m_eventType = ADDED_UPNP_EVENT;
-	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
+	callOnMainThread(Nav::UPnPDevAddedInternal,this);
+	m_main->unlock();
+
+//	m_eventType = ADDED_UPNP_EVENT;
+//	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
 }
-void Nav::UPnPDevAddedInternal(std::string type)
+void Nav::UPnPDevAddedInternal(void *ptr)
 {
-	if (m_services.find(type) == m_services.end()) {
+	Nav *nv = (Nav*)ptr;
+	if (nv->m_services.find(nv->m_curType) == nv->m_services.end()) {
 		printf("UPnPDevAddedInternal() - UPnP Device NOT FOUND!!!\n");
 		return;
 	}
 
 	//m_frame->existingDOMWindow()->dispatchEvent(Event::create(eventNames().focusEvent, true, true));
 
-	NavServices* srvs = m_services[type].get();
+	NavServices* srvs = nv->m_services[nv->m_curType].get();
 	printf("UPnPDevAddedInternal(): sending event.\n");
 
-	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	bool prevented = srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
 
-	printf("UPnPDevAddedInternal(): sent event. ref=%d\n", m_services[type]->refCount());
+	printf("UPnPDevAddedInternal(): sent event. ref=%d prevented: %s\n", nv->m_services[nv->m_curType]->refCount(), prevented ? "true":"false");
 
 
 }
@@ -224,7 +233,7 @@ void Nav::ZCDevAdded(std::string type)
 
 void Nav::ZCDevAddedInternal(std::string type)
 {
-	UPnPDevAddedInternal(type);
+	UPnPDevAddedInternal(NULL);
 }
 
 void Nav::UPnPDevDropped(std::string type)
@@ -271,18 +280,23 @@ Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType)
 	return protoType;
 }
 
-PassRefPtr<NavServices> Nav::setServices(
+void Nav::setServices(
+		std::string strType,
 		const char* type,
 		std::map<std::string, UPnPDevice> devs,
 		std::map<std::string, ZCDevice> zcdevs,
-		ProtocolType protoType,
-		PassRefPtr<NavServices> servicesParm
+		ProtocolType protoType
 		)
 {
-	RefPtr<NavServices> services = NavServices::create(m_frame->document(), NavServices::CONNECTED);
+	printf("Nav::setServices() Start\n");
 
-	if (servicesParm) {
-		services = servicesParm;
+	RefPtr<NavServices> services = NavServices::create(m_frame->document(), NavServices::CONNECTED);
+	services->turnOffVerifier();
+	services->suspendIfNeeded();
+
+	if (m_services.find(strType) == m_services.end()) {
+		m_services[strType].release();
+		m_services.erase(m_services.find(strType));
 	}
 
 	Vector<NavService*>* vDevs = new Vector<NavService*>();
@@ -299,7 +313,11 @@ PassRefPtr<NavServices> Nav::setServices(
 
 			UPnPDevice d((*it).second);
 			if (d.isOkToUse) {
-				NavService* nns = new NavService(m_frame->document());
+				RefPtr<NavService> srv = NavService::create(m_frame->document());
+				srv->turnOffVerifier();
+				srv->suspendIfNeeded();
+
+				NavService* nns = srv.get();
 				nns->setServiceType(WTF::String(type));
 				nns->setPType(NavService::UPNP_TYPE);
 				nns->setUrl(WTF::String(d.descURL.c_str()));
@@ -335,8 +353,9 @@ PassRefPtr<NavServices> Nav::setServices(
 
 	// Write devices to service object
 	services->setServices(vDevs);
+	m_services[strType] = services;
 
-	return services;
+	printf("Nav::setServices() DONE.\n");
 }
 // -------------------------------------------------------
 // -------------------------------------------------------
