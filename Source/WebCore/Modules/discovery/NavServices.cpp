@@ -33,11 +33,6 @@ NavServices& NavServices::operator= (const NavServices &that)
 	return *this;
 }
 
-NavServices::~NavServices()
-{
-	clearSrvs();
-}
-
 const AtomicString& NavServices::interfaceName() const
 {
     return eventNames().interfaceForNavServices;

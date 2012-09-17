@@ -135,13 +135,13 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 	if (!page)
 		return empty;
 	
-	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-	{
-		UPnPDevice d = (*it).second;
-		d.isOkToUse = true;
-		UPnPSearch::getInstance()->eventServer(type, d.eventURL, d.uuid, d.host, d.port);
-		devs[(*it).first] = d;
-	}
+//	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
+//	{
+//		UPnPDevice d = (*it).second;
+//		d.isOkToUse = true;
+//		UPnPSearch::getInstance()->eventServer(type, d.eventURL, d.uuid, d.host, d.port);
+//		devs[(*it).first] = d;
+//	}
 
 
 // 	WebKit::ChromeClientImpl *cc = new WebKit::ChromeClientImpl(page->chrome()->client());

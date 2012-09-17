@@ -43,15 +43,15 @@ public:
 
     NavServices& operator= (const NavServices &that);
 
-    virtual ~NavServices();
+    virtual ~NavServices(){ clearSrvs(); }
 
     int servicesAvailable() const {return m_services.size();}
 
     int length() const {return m_services.size();}
 
-    NavService* item(unsigned short index) {return m_services.at(index);}
+    NavService* item(unsigned short index) {return m_services.at(index).get();}
 
-    void setServices(Vector<NavService*>* vDevs)
+    void setServices(Vector<RefPtr<NavService> >* vDevs)
     {
     	m_services.clear();
     	for (int i=0; i < (int)vDevs->size(); i++)
@@ -62,7 +62,7 @@ public:
     {
     	for (int i=0; i<(int)m_services.size(); i++)
     		if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
-    			return m_services[i];
+    			return m_services[i].get();
 
     	return NULL;
     }
@@ -70,7 +70,7 @@ public:
     void clearSrvs()
     {
     	for (int i=0; i<(int)m_services.size(); i++)
-    		delete m_services.at(i);
+    		m_services.at(i).release();
 
     	m_services.clear();
     }
@@ -84,7 +84,7 @@ public:
     using RefCounted<NavServices>::ref;
     using RefCounted<NavServices>::deref;
 
-    Vector<NavService*> m_services;
+    Vector<RefPtr<NavService> > m_services;
 
 protected:
     virtual EventTargetData* eventTargetData();

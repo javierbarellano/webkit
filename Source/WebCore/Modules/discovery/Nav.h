@@ -9,6 +9,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
@@ -131,8 +132,10 @@ private:
     std::map<std::string, RefPtr<NavEventCB> > m_ecb;
     mutable RefPtr<NavEventCB> m_eventCB;
 
-    std::map<std::string, RefPtr<NavServices> > m_services;
+    //std::map<std::string, RefPtr<NavServices> > m_services;
 
+    mutable RefPtr<NavServices> m_srvcs;
+    std::vector<RefPtr<NavService> > m_srv;
 
 };
 
