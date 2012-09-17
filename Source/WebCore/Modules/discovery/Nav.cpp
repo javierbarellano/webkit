@@ -273,7 +273,7 @@ void Nav::setServices(
 		m_srvcs.release();
 
 	m_srvcs = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-	printf("Nav::setServices() m_srvcs: %p\n", m_srvcs.get());
+	m_srvcs->suspendIfNeeded();
 
 	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
 
@@ -285,7 +285,7 @@ void Nav::setServices(
 			UPnPDevice d((*it).second);
 			if (d.isOkToUse) {
 				RefPtr<NavService> srv = NavService::create(m_frame->document());
-				srv->suspendIfNeededCalled();
+				srv->suspendIfNeeded();
 				srv->setServiceType(WTF::String(type));
 				srv->setPType(NavService::UPNP_TYPE);
 				srv->setUrl(WTF::String(d.descURL.c_str()));
