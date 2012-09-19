@@ -35,17 +35,17 @@
 #include "WebDOMSVGPoint.h"
 #include "WebDOMString.h"
 #include "WebDOMa.h"
+#include "WebDOMany.h"
 #include "WebDOMb.h"
 #include "WebDOMbool.h"
-#include "WebDOMc.h"
 #include "WebDOMd.h"
 #include "WebDOMe.h"
 #include "WebExceptionHandler.h"
 #include "WebNativeEventListener.h"
 #include "a.h"
+#include "any.h"
 #include "b.h"
 #include "bool.h"
-#include "c.h"
 #include "d.h"
 #include "e.h"
 #include "wtf/text/AtomicString.h"
@@ -541,6 +541,22 @@ void WebDOMTestObj::setConditionalAttr3(int newConditionalAttr3)
 }
 
 #endif
+WebDOMany WebDOMTestObj::anyAttribute() const
+{
+    if (!impl())
+        return WebDOMany();
+
+    return toWebKit(WTF::getPtr(impl()->anyAttribute()));
+}
+
+void WebDOMTestObj::setAnyAttribute(const WebDOMany& newAnyAttribute)
+{
+    if (!impl())
+        return;
+
+    impl()->setAnyAttribute(toWebCore(newAnyAttribute));
+}
+
 WebDOMDocument WebDOMTestObj::contentDocument() const
 {
     if (!impl())
@@ -900,14 +916,6 @@ void WebDOMTestObj::convert2(const WebDOMb& )
         return;
 
     impl()->convert2(toWebCore());
-}
-
-void WebDOMTestObj::convert3(const WebDOMc& )
-{
-    if (!impl())
-        return;
-
-    impl()->convert3(toWebCore());
 }
 
 void WebDOMTestObj::convert4(const WebDOMd& )

@@ -118,7 +118,8 @@ namespace WebCore {
     macro(unload) \
     macro(updateready) \
     macro(upnpevent) \
-    macro(versionchange) \
+    macro(upgradeneeded) \
+	macro(versionchange) \
     macro(webkitvisibilitychange) \
     macro(write) \
     macro(writeend) \
@@ -229,6 +230,9 @@ namespace WebCore {
     macro(removetrack) \
     macro(mute) \
     macro(unmute) \
+    macro(icechange) \
+    macro(icecandidate) \
+    macro(negotationneeded) \
     \
     macro(show) \
     \

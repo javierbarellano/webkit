@@ -27,8 +27,8 @@
 #define Internals_h
 
 #include "ContextDestructionObserver.h"
+#include "ExceptionCodePlaceholder.h"
 #include "NodeList.h"
-#include "PlatformString.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
@@ -49,7 +49,7 @@ class Range;
 class ScriptExecutionContext;
 class ShadowRoot;
 class WebKitPoint;
-class FastMallocStatistics;
+class MallocStatistics;
 
 typedef int ExceptionCode;
 
@@ -142,6 +142,8 @@ public:
 #if ENABLE(TOUCH_ADJUSTMENT)
     PassRefPtr<WebKitPoint> touchPositionAdjustedToBestClickableNode(long x, long y, long width, long height, Document*, ExceptionCode&);
     Node* touchNodeAdjustedToBestClickableNode(long x, long y, long width, long height, Document*, ExceptionCode&);
+    PassRefPtr<WebKitPoint> touchPositionAdjustedToBestContextMenuNode(long x, long y, long width, long height, Document*, ExceptionCode&);
+    Node* touchNodeAdjustedToBestContextMenuNode(long x, long y, long width, long height, Document*, ExceptionCode&);
     PassRefPtr<ClientRect> bestZoomableAreaForTouchPoint(long x, long y, long width, long height, Document*, ExceptionCode&);
 #endif
 
@@ -156,7 +158,6 @@ public:
 
     unsigned wheelEventHandlerCount(Document*, ExceptionCode&);
     unsigned touchEventHandlerCount(Document*, ExceptionCode&);
-    bool hasTouchEventListener(Document*, ExceptionCode&);
 
     PassRefPtr<NodeList> nodesFromRect(Document*, int x, int y, unsigned topPadding, unsigned rightPadding,
         unsigned bottomPadding, unsigned leftPadding, bool ignoreClipping, bool allowShadowContent, ExceptionCode&) const;
@@ -198,6 +199,10 @@ public:
     int pageNumber(Element*, float pageWidth = 800, float pageHeight = 600);
     PassRefPtr<DOMStringList> iconURLs(Document*) const;
 
+    int numberOfPages(float pageWidthInPixels = 800, float pageHeightInPixels = 600);
+    String pageProperty(String, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
+    String pageSizeAndMarginsInPixels(int, int, int, int, int, int, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
+
 #if ENABLE(FULLSCREEN_API)
     void webkitWillEnterFullScreenForElement(Document*, Element*);
     void webkitDidEnterFullScreenForElement(Document*, Element*);
@@ -208,7 +213,9 @@ public:
     void registerURLSchemeAsBypassingContentSecurityPolicy(const String& scheme);
     void removeURLSchemeRegisteredAsBypassingContentSecurityPolicy(const String& scheme);
 
-    PassRefPtr<FastMallocStatistics> fastMallocStatistics() const;
+    PassRefPtr<MallocStatistics> mallocStatistics() const;
+
+    PassRefPtr<DOMStringList> getReferencedFilePaths() const;
 
 private:
     explicit Internals(Document*);

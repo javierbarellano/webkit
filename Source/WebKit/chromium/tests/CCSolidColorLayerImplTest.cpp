@@ -24,13 +24,13 @@
 
 #include "config.h"
 
-#include "cc/CCSolidColorLayerImpl.h"
+#include "CCSolidColorLayerImpl.h"
 
+#include "CCAppendQuadsData.h"
 #include "CCLayerTestCommon.h"
+#include "CCSingleThreadProxy.h"
+#include "CCSolidColorDrawQuad.h"
 #include "MockCCQuadCuller.h"
-#include "cc/CCSingleThreadProxy.h"
-#include "cc/CCSolidColorDrawQuad.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -54,9 +54,8 @@ TEST(CCSolidColorLayerImplTest, verifyTilingCompleteAndNoOverlap)
     layer->createRenderSurface();
     layer->setRenderTarget(layer.get());
 
-    OwnPtr<CCSharedQuadState> sharedQuadState = layer->createSharedQuadState(0);
-    bool hadMissingTiles = false;
-    layer->appendQuads(quadCuller, sharedQuadState.get(), hadMissingTiles);
+    CCAppendQuadsData data;
+    layer->appendQuads(quadCuller, data);
 
     verifyQuadsExactlyCoverRect(quadCuller.quadList(), visibleContentRect);
 }
@@ -79,9 +78,8 @@ TEST(CCSolidColorLayerImplTest, verifyCorrectBackgroundColorInQuad)
     layer->createRenderSurface();
     layer->setRenderTarget(layer.get());
 
-    OwnPtr<CCSharedQuadState> sharedQuadState = layer->createSharedQuadState(0);
-    bool hadMissingTiles = false;
-    layer->appendQuads(quadCuller, sharedQuadState.get(), hadMissingTiles);
+    CCAppendQuadsData data;
+    layer->appendQuads(quadCuller, data);
 
     ASSERT_EQ(quadCuller.quadList().size(), 1U);
     EXPECT_EQ(CCSolidColorDrawQuad::materialCast(quadCuller.quadList()[0].get())->color(), testColor);
@@ -105,9 +103,8 @@ TEST(CCSolidColorLayerImplTest, verifyCorrectOpacityInQuad)
     layer->createRenderSurface();
     layer->setRenderTarget(layer.get());
 
-    OwnPtr<CCSharedQuadState> sharedQuadState = layer->createSharedQuadState(0);
-    bool hadMissingTiles = false;
-    layer->appendQuads(quadCuller, sharedQuadState.get(), hadMissingTiles);
+    CCAppendQuadsData data;
+    layer->appendQuads(quadCuller, data);
 
     ASSERT_EQ(quadCuller.quadList().size(), 1U);
     EXPECT_EQ(opacity, CCSolidColorDrawQuad::materialCast(quadCuller.quadList()[0].get())->opacity());

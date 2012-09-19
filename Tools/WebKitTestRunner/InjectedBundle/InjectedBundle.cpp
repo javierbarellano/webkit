@@ -72,9 +72,14 @@ void InjectedBundle::didInitializePageGroup(WKBundleRef bundle, WKBundlePageGrou
     static_cast<InjectedBundle*>(const_cast<void*>(clientInfo))->didInitializePageGroup(pageGroup);
 }
 
-void InjectedBundle::didReceiveMessage(WKBundleRef bundle, WKStringRef messageName, WKTypeRef messageBody, const void *clientInfo)
+void InjectedBundle::didReceiveMessage(WKBundleRef bundle, WKStringRef messageName, WKTypeRef messageBody, const void* clientInfo)
 {
     static_cast<InjectedBundle*>(const_cast<void*>(clientInfo))->didReceiveMessage(messageName, messageBody);
+}
+
+void InjectedBundle::didReceiveMessageToPage(WKBundleRef bundle, WKBundlePageRef page, WKStringRef messageName, WKTypeRef messageBody, const void* clientInfo)
+{
+    static_cast<InjectedBundle*>(const_cast<void*>(clientInfo))->didReceiveMessageToPage(page, messageName, messageBody);
 }
 
 void InjectedBundle::initialize(WKBundleRef bundle, WKTypeRef initializationUserData)
@@ -88,7 +93,8 @@ void InjectedBundle::initialize(WKBundleRef bundle, WKTypeRef initializationUser
         didCreatePage,
         willDestroyPage,
         didInitializePageGroup,
-        didReceiveMessage
+        didReceiveMessage,
+        didReceiveMessageToPage
     };
     WKBundleSetClient(m_bundle, &client);
 
@@ -165,26 +171,34 @@ void InjectedBundle::didReceiveMessage(WKStringRef messageName, WKTypeRef messag
         m_dumpPixels = false;
 
         resetLocalSettings();
+        m_testRunner->removeAllWebNotificationPermissions();
 
         return;
     }
     if (WKStringIsEqualToUTF8CString(messageName, "CallAddChromeInputFieldCallback")) {
-        m_layoutTestController->callAddChromeInputFieldCallback();
+        m_testRunner->callAddChromeInputFieldCallback();
         return;
     }
     if (WKStringIsEqualToUTF8CString(messageName, "CallRemoveChromeInputFieldCallback")) {
-        m_layoutTestController->callRemoveChromeInputFieldCallback();
+        m_testRunner->callRemoveChromeInputFieldCallback();
         return;
     }
     if (WKStringIsEqualToUTF8CString(messageName, "CallFocusWebViewCallback")) {
-        m_layoutTestController->callFocusWebViewCallback();
+        m_testRunner->callFocusWebViewCallback();
         return;
     }
     if (WKStringIsEqualToUTF8CString(messageName, "CallSetBackingScaleFactorCallback")) {
-        m_layoutTestController->callSetBackingScaleFactorCallback();
+        m_testRunner->callSetBackingScaleFactorCallback();
         return;
     }
 
+    WKRetainPtr<WKStringRef> errorMessageName(AdoptWK, WKStringCreateWithUTF8CString("Error"));
+    WKRetainPtr<WKStringRef> errorMessageBody(AdoptWK, WKStringCreateWithUTF8CString("Unknown"));
+    WKBundlePostMessage(m_bundle, errorMessageName.get(), errorMessageBody.get());
+}
+
+void InjectedBundle::didReceiveMessageToPage(WKBundlePageRef page, WKStringRef messageName, WKTypeRef messageBody)
+{
     WKRetainPtr<WKStringRef> errorMessageName(AdoptWK, WKStringCreateWithUTF8CString("Error"));
     WKRetainPtr<WKStringRef> errorMessageBody(AdoptWK, WKStringCreateWithUTF8CString("Unknown"));
     WKBundlePostMessage(m_bundle, errorMessageName.get(), errorMessageBody.get());
@@ -195,9 +209,9 @@ bool InjectedBundle::booleanForKey(WKDictionaryRef dictionary, const char* key)
     WKRetainPtr<WKStringRef> wkKey(AdoptWK, WKStringCreateWithUTF8CString(key));
     WKTypeRef value = WKDictionaryGetItemForKey(dictionary, wkKey.get());
     if (WKGetTypeID(value) != WKBooleanGetTypeID()) {
-        stringBuilder()->append("Boolean value for key \"");
+        stringBuilder()->appendLiteral("Boolean value for key \"");
         stringBuilder()->append(key);
-        stringBuilder()->append("\" not found in dictionary\n");
+        stringBuilder()->appendLiteral("\" not found in dictionary\n");
         return false;
     }
     return WKBooleanGetValue(static_cast<WKBooleanRef>(value));
@@ -211,7 +225,7 @@ void InjectedBundle::beginTesting(WKDictionaryRef settings)
     m_repaintRects.clear();
     m_stringBuilder->clear();
 
-    m_layoutTestController = LayoutTestController::create();
+    m_testRunner = TestRunner::create();
     m_gcController = GCController::create();
     m_eventSendingController = EventSendingController::create();
     m_textInputController = TextInputController::create();
@@ -225,16 +239,28 @@ void InjectedBundle::beginTesting(WKDictionaryRef settings)
     WKBundleSwitchNetworkLoaderToNewTestingSession(m_bundle);
     WKBundleSetAuthorAndUserStylesEnabled(m_bundle, m_pageGroup, true);
     WKBundleSetFrameFlatteningEnabled(m_bundle, m_pageGroup, false);
+    WKBundleSetMinimumLogicalFontSize(m_bundle, m_pageGroup, 9);
+    WKBundleSetMinimumTimerInterval(m_bundle, m_pageGroup, 0.010); // 10 milliseconds (DOMTimer::s_minDefaultTimerInterval)
+    WKBundleSetSpatialNavigationEnabled(m_bundle, m_pageGroup, false);
+    WKBundleSetAllowFileAccessFromFileURLs(m_bundle, m_pageGroup, true);
+    WKBundleSetPluginsEnabled(m_bundle, m_pageGroup, true);
+    WKBundleSetPopupBlockingEnabled(m_bundle, m_pageGroup, false);
 
     WKBundleRemoveAllUserContent(m_bundle, m_pageGroup);
 
-    m_layoutTestController->setShouldDumpFrameLoadCallbacks(booleanForKey(settings, "DumpFrameLoadDelegates"));
+    m_testRunner->setShouldDumpFrameLoadCallbacks(booleanForKey(settings, "DumpFrameLoadDelegates"));
+    m_testRunner->setUserStyleSheetEnabled(false);
+    m_testRunner->setXSSAuditorEnabled(false);
+    m_testRunner->setCloseRemainingWindowsWhenComplete(false);
+    m_testRunner->setAcceptsEditing(true);
+    m_testRunner->setTabKeyCyclesThroughElements(true);
 
     page()->prepare();
 
     WKBundleClearAllDatabases(m_bundle);
     WKBundleClearApplicationCache(m_bundle);
     WKBundleResetOriginAccessWhitelists(m_bundle);
+    WKBundleSetDatabaseQuota(m_bundle, 5 * 1024 * 1024);
 }
 
 void InjectedBundle::done()
@@ -323,6 +349,13 @@ void InjectedBundle::postSetWindowIsKey(bool isKey)
     WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString("SetWindowIsKey"));
     WKRetainPtr<WKBooleanRef> messageBody(AdoptWK, WKBooleanCreate(isKey));
     WKBundlePostSynchronousMessage(m_bundle, messageName.get(), messageBody.get(), 0);
+}
+
+void InjectedBundle::postSimulateWebNotificationClick(uint64_t notificationID)
+{
+    WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString("SimulateWebNotificationClick"));
+    WKRetainPtr<WKUInt64Ref> messageBody(AdoptWK, WKUInt64Create(notificationID));
+    WKBundlePostMessage(m_bundle, messageName.get(), messageBody.get());
 }
 
 } // namespace WTR

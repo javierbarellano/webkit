@@ -106,10 +106,8 @@ public:
     virtual ScrollbarOverlayStyle scrollbarOverlayStyle() const = 0;
     virtual bool isCustomScrollbar() const = 0;
     virtual Orientation orientation() const = 0;
-
-#if WEBKIT_IMPLEMENTATION
-    WEBKIT_EXPORT static PassOwnPtr<WebScrollbar> create(WebCore::Scrollbar*);
-#endif
+    virtual bool isAlphaLocked() const { return false; }
+    virtual void setIsAlphaLocked(bool) { }
 };
 
 } // namespace WebKit

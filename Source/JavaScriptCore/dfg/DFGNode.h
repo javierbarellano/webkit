@@ -33,6 +33,7 @@
 #include "CodeBlock.h"
 #include "CodeOrigin.h"
 #include "DFGAdjacencyList.h"
+#include "DFGArrayMode.h"
 #include "DFGCommon.h"
 #include "DFGNodeFlags.h"
 #include "DFGNodeType.h"
@@ -76,6 +77,8 @@ struct OpInfo {
 // Node represents a single operation in the data flow graph.
 struct Node {
     enum VarArgTag { VarArg };
+    
+    Node() { }
     
     // Construct a node with up to 3 children, no immediate value.
     Node(NodeType op, CodeOrigin codeOrigin, NodeIndex child1 = NoNode, NodeIndex child2 = NoNode, NodeIndex child3 = NoNode)
@@ -245,11 +248,19 @@ struct Node {
         children.reset();
     }
     
+    void convertToStructureTransitionWatchpoint(Structure* structure)
+    {
+        ASSERT(m_op == CheckStructure || m_op == ForwardCheckStructure);
+        m_opInfo = bitwise_cast<uintptr_t>(structure);
+        if (m_op == CheckStructure)
+            m_op = StructureTransitionWatchpoint;
+        else
+            m_op = ForwardStructureTransitionWatchpoint;
+    }
+    
     void convertToStructureTransitionWatchpoint()
     {
-        ASSERT(m_op == CheckStructure);
-        m_opInfo = bitwise_cast<uintptr_t>(structureSet().singletonStructure());
-        m_op = StructureTransitionWatchpoint;
+        convertToStructureTransitionWatchpoint(structureSet().singletonStructure());
     }
     
     JSCell* weakConstant()
@@ -326,12 +337,6 @@ struct Node {
     VirtualRegister local()
     {
         return variableAccessData()->local();
-    }
-    
-    VirtualRegister unmodifiedArgumentsRegister()
-    {
-        ASSERT(op() == TearOffActivation);
-        return static_cast<VirtualRegister>(m_opInfo);
     }
     
     VirtualRegister unlinkedLocal()
@@ -675,7 +680,13 @@ struct Node {
     
     bool hasStructure()
     {
-        return op() == StructureTransitionWatchpoint;
+        switch (op()) {
+        case StructureTransitionWatchpoint:
+        case ForwardStructureTransitionWatchpoint:
+            return true;
+        default:
+            return false;
+        }
     }
     
     Structure* structure()
@@ -716,6 +727,41 @@ struct Node {
     {
         ASSERT(hasFunctionExprIndex());
         return m_opInfo;
+    }
+    
+    bool hasArrayMode()
+    {
+        switch (op()) {
+        case GetIndexedPropertyStorage:
+        case GetArrayLength:
+        case PutByVal:
+        case PutByValAlias:
+        case GetByVal:
+        case StringCharAt:
+        case StringCharCodeAt:
+        case CheckArray:
+        case Arrayify:
+        case ArrayPush:
+        case ArrayPop:
+            return true;
+        default:
+            return false;
+        }
+    }
+    
+    Array::Mode arrayMode()
+    {
+        ASSERT(hasArrayMode());
+        return static_cast<Array::Mode>(m_opInfo);
+    }
+    
+    bool setArrayMode(Array::Mode arrayMode)
+    {
+        ASSERT(hasArrayMode());
+        if (this->arrayMode() == arrayMode)
+            return false;
+        m_opInfo = arrayMode;
+        return true;
     }
     
     bool hasVirtualRegister()
@@ -761,6 +807,7 @@ struct Node {
         case ValueToInt32:
         case UInt32ToNumber:
         case DoubleAsInt32:
+        case PhantomArguments:
             return true;
         case Phantom:
         case Nop:
@@ -867,12 +914,27 @@ struct Node {
     {
         return isBooleanSpeculation(prediction());
     }
-    
+   
+    bool shouldSpeculateString()
+    {
+        return isStringSpeculation(prediction());
+    }
+ 
     bool shouldSpeculateFinalObject()
     {
         return isFinalObjectSpeculation(prediction());
     }
     
+    bool shouldSpeculateNonStringCell()
+    {
+        return isNonStringCellSpeculation(prediction());
+    }
+
+    bool shouldSpeculateNonStringCellOrOther()
+    {
+        return isNonStringCellOrOtherSpeculation(prediction());
+    }
+
     bool shouldSpeculateFinalObjectOrOther()
     {
         return isFinalObjectOrOtherSpeculation(prediction());

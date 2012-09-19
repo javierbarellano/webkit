@@ -40,12 +40,14 @@ SOURCES += \
     API/JSObjectRef.cpp \
     API/JSStringRef.cpp \
     API/JSValueRef.cpp \
+    API/JSWeakObjectMapRefPrivate.cpp \
     API/OpaqueJSString.cpp \
     assembler/ARMAssembler.cpp \
     assembler/ARMv7Assembler.cpp \
     assembler/LinkBuffer.cpp \
     assembler/MacroAssemblerARM.cpp \
     assembler/MacroAssemblerSH4.cpp \
+    bytecode/ArrayProfile.cpp \
     bytecode/CallLinkInfo.cpp \
     bytecode/CallLinkStatus.cpp \
     bytecode/CodeBlock.cpp \
@@ -77,6 +79,7 @@ SOURCES += \
     heap/HandleSet.cpp \
     heap/HandleStack.cpp \
     heap/BlockAllocator.cpp \
+    heap/GCThreadSharedData.cpp \
     heap/Heap.cpp \
     heap/HeapTimer.cpp \
     heap/IncrementalSweeper.cpp \
@@ -86,6 +89,7 @@ SOURCES += \
     heap/MarkedAllocator.cpp \
     heap/MarkedBlock.cpp \
     heap/MarkedSpace.cpp \
+    heap/SlotVisitor.cpp \
     heap/VTableSpectrum.cpp \
     heap/WriteBarrierSupport.cpp \
     debugger/DebuggerActivation.cpp \
@@ -93,6 +97,7 @@ SOURCES += \
     debugger/Debugger.cpp \
     dfg/DFGAbstractState.cpp \
     dfg/DFGArgumentsSimplificationPhase.cpp \
+    dfg/DFGArrayMode.cpp \
     dfg/DFGAssemblyHelpers.cpp \
     dfg/DFGByteCodeParser.cpp \
     dfg/DFGCapabilities.cpp \
@@ -117,7 +122,6 @@ SOURCES += \
     dfg/DFGOSRExitCompiler32_64.cpp \
     dfg/DFGPhase.cpp \
     dfg/DFGPredictionPropagationPhase.cpp \
-    dfg/DFGRedundantPhiEliminationPhase.cpp \
     dfg/DFGRepatch.cpp \
     dfg/DFGSpeculativeJIT.cpp \
     dfg/DFGSpeculativeJIT32_64.cpp \
@@ -206,7 +210,9 @@ SOURCES += \
     runtime/JSONObject.cpp \
     runtime/JSPropertyNameIterator.cpp \
     runtime/JSSegmentedVariableObject.cpp \
-    runtime/JSStaticScopeObject.cpp \
+    runtime/JSWithScope.cpp \
+    runtime/JSNameScope.cpp \
+    runtime/JSScope.cpp \
     runtime/JSString.cpp \
     runtime/JSStringJoiner.cpp \
     runtime/JSSymbolTableObject.cpp \
@@ -239,8 +245,8 @@ SOURCES += \
     runtime/RegExpPrototype.cpp \
     runtime/RegExpCache.cpp \
     runtime/SamplingCounter.cpp \
-    runtime/ScopeChain.cpp \
     runtime/SmallStrings.cpp \
+    runtime/SparseArrayValueMap.cpp \
     runtime/StrictEvalActivation.cpp \
     runtime/StringConstructor.cpp \
     runtime/StringObject.cpp \
@@ -250,7 +256,6 @@ SOURCES += \
     runtime/Structure.cpp \
     runtime/SymbolTable.cpp \
     runtime/TimeoutChecker.cpp \
-    runtime/UString.cpp \
     tools/CodeProfile.cpp \
     tools/CodeProfiling.cpp \
     yarr/YarrJIT.cpp \

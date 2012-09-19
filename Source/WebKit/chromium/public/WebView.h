@@ -60,11 +60,9 @@ class WebString;
 class WebTextFieldDecoratorClient;
 class WebViewClient;
 struct WebActiveWheelFlingParameters;
-struct WebFloatQuad;
 struct WebMediaPlayerAction;
 struct WebPluginAction;
 struct WebPoint;
-struct WebTouchCandidatesInfo;
 
 class WebView : public WebWidget {
 public:
@@ -259,9 +257,13 @@ public:
     // overwrites the previously saved scroll and scale state.
     virtual void saveScrollAndScaleState() = 0;
 
-    // Restore the previously saved scroll and scale state. After restroing the
+    // Restore the previously saved scroll and scale state. After restoring the
     // state, this function deletes any saved scroll and scale state.
     virtual void restoreScrollAndScaleState() = 0;
+
+    // Reset the scroll and scale state and clobber any previously saved values for
+    // these parameters.
+    virtual void resetScrollAndScaleState() = 0;
 
     // Prevent the web page from setting a maximum scale via the viewport meta
     // tag. This is an accessibility feature that lets folks zoom in to web
@@ -460,26 +462,14 @@ public:
     virtual void transferActiveWheelFlingAnimation(const WebActiveWheelFlingParameters&) = 0;
 
     virtual bool setEditableSelectionOffsets(int start, int end) = 0;
+    virtual bool setCompositionFromExistingText(int compositionStart, int compositionEnd, const WebVector<WebCompositionUnderline>& underlines) = 0;
+    virtual void extendSelectionAndDelete(int before, int after) = 0;
 
     virtual bool isSelectionEditable() const = 0;
 
     // Benchmarking support -------------------------------------------------
 
     virtual WebViewBenchmarkSupport* benchmarkSupport() { return 0; }
-
-
-    // Touch ----------------------------------------------------------------
-
-    // Returns a list of layout bounding boxes of the event target node touched by
-    // the input point with the padding. If no target node is found, an empty
-    // list is returned. If the node is of an inline type, each line box is returned
-    // separately. Otherwise, one bounding box is returned. Also returns information
-    // about the found candidates and their dimension, and the highlight color to use.
-    virtual WebVector<WebFloatQuad> getTouchHighlightQuads(const WebPoint&,
-                                                           int padding,
-                                                           WebTouchCandidatesInfo& outTouchInfo,
-                                                           WebColor& outTapHighlightColor) = 0;
-
 
     // Visibility -----------------------------------------------------------
 
@@ -507,7 +497,7 @@ public:
     // level is changed in this update from the previous update).
     virtual void updateBatteryStatus(const WebBatteryStatus&) { }
 
-    // Testing functionality for LayoutTestController -----------------------
+    // Testing functionality for TestRunner ---------------------------------
 
     // Simulates a compositor lost context.
     virtual void loseCompositorContext(int numTimes) = 0;

@@ -24,18 +24,18 @@
  */
 
 #include "config.h"
-#include "cc/CCDrawQuad.h"
+#include "CCDrawQuad.h"
 
+#include "CCCheckerboardDrawQuad.h"
+#include "CCDebugBorderDrawQuad.h"
+#include "CCIOSurfaceDrawQuad.h"
+#include "CCRenderPassDrawQuad.h"
+#include "CCSolidColorDrawQuad.h"
+#include "CCStreamVideoDrawQuad.h"
+#include "CCTextureDrawQuad.h"
+#include "CCTileDrawQuad.h"
+#include "CCYUVVideoDrawQuad.h"
 #include "IntRect.h"
-#include "cc/CCCheckerboardDrawQuad.h"
-#include "cc/CCDebugBorderDrawQuad.h"
-#include "cc/CCIOSurfaceDrawQuad.h"
-#include "cc/CCRenderPassDrawQuad.h"
-#include "cc/CCSolidColorDrawQuad.h"
-#include "cc/CCStreamVideoDrawQuad.h"
-#include "cc/CCTextureDrawQuad.h"
-#include "cc/CCTileDrawQuad.h"
-#include "cc/CCYUVVideoDrawQuad.h"
 
 namespace WebCore {
 
@@ -95,6 +95,21 @@ unsigned CCDrawQuad::size() const
 
     CRASH();
     return sizeof(CCDrawQuad);
+}
+
+PassOwnPtr<CCDrawQuad> CCDrawQuad::copy(const CCSharedQuadState* copiedSharedQuadState) const
+{
+    // RenderPass quads have their own copy() method.
+    ASSERT(material() != RenderPass);
+
+    unsigned bytes = size();
+    ASSERT(bytes);
+
+    OwnPtr<CCDrawQuad> copyQuad(adoptPtr(reinterpret_cast<CCDrawQuad*>(new char[bytes])));
+    memcpy(copyQuad.get(), this, bytes);
+    copyQuad->setSharedQuadState(copiedSharedQuadState);
+
+    return copyQuad.release();
 }
 
 void CCDrawQuad::setSharedQuadState(const CCSharedQuadState* sharedQuadState)

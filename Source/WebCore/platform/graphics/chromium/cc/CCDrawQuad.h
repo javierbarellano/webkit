@@ -26,7 +26,7 @@
 #ifndef CCDrawQuad_h
 #define CCDrawQuad_h
 
-#include "cc/CCSharedQuadState.h"
+#include "CCSharedQuadState.h"
 
 namespace WebCore {
 
@@ -79,6 +79,8 @@ public:
     // Returns transfer size of this object based on the derived class (by
     // looking at the material type).
     unsigned size() const;
+
+    PassOwnPtr<CCDrawQuad> copy(const CCSharedQuadState* copiedSharedQuadState) const;
 
     const CCSharedQuadState* sharedQuadState() const { return m_sharedQuadState; }
     int sharedQuadStateId() const { return m_sharedQuadStateId; }

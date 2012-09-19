@@ -60,8 +60,10 @@ bool isColorInputField(const WebCore::Element*);
 AttributeState elementAttributeState(const WebCore::Element*, const WebCore::QualifiedName&);
 AttributeState elementSupportsAutocorrect(const WebCore::Element*);
 AttributeState elementSupportsAutocomplete(const WebCore::Element*);
+AttributeState elementSupportsSpellCheck(const WebCore::Element*);
 
 WTF::String inputElementText(WebCore::Element*);
+WTF::String webWorksContext(const WebCore::Element*);
 
 WebCore::HTMLTextFormControlElement* toTextControlElement(WebCore::Node*);
 

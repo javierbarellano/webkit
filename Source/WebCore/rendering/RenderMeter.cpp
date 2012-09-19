@@ -32,7 +32,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-RenderMeter::RenderMeter(HTMLMeterElement* element)
+RenderMeter::RenderMeter(HTMLElement* element)
     : RenderBlock(element)
 {
 }
@@ -41,21 +41,32 @@ RenderMeter::~RenderMeter()
 {
 }
 
-void RenderMeter::computeLogicalWidth()
+HTMLMeterElement* RenderMeter::meterElement() const
 {
-    RenderBox::computeLogicalWidth();
+    ASSERT(node());
+
+    if (isHTMLMeterElement(node()))
+        return toHTMLMeterElement(node());
+
+    ASSERT(node()->shadowHost());
+    return toHTMLMeterElement(node()->shadowHost());
+}
+
+void RenderMeter::updateLogicalWidth()
+{
+    RenderBox::updateLogicalWidth();
     setWidth(theme()->meterSizeForBounds(this, pixelSnappedIntRect(frameRect())).width());
 }
 
-void RenderMeter::computeLogicalHeight()
+void RenderMeter::updateLogicalHeight()
 {
-    RenderBox::computeLogicalHeight();
+    RenderBox::updateLogicalHeight();
     setHeight(theme()->meterSizeForBounds(this, pixelSnappedIntRect(frameRect())).height());
 }
 
 double RenderMeter::valueRatio() const
 {
-    return static_cast<HTMLMeterElement*>(node())->valueRatio();
+    return meterElement()->valueRatio();
 }
 
 void RenderMeter::updateFromElement()

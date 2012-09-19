@@ -31,7 +31,6 @@
 /**
  * @constructor
  * @extends {WebInspector.View}
- * @implements {WebInspector.TimelinePresentationModel.Filter}
  * @param {WebInspector.TimelineModel} model
  */
 WebInspector.TimelineOverviewPane = function(model)
@@ -272,14 +271,6 @@ WebInspector.TimelineOverviewPane.prototype = {
         if (this._frameOverview)
             this._frameOverview.reset();
         this._update();
-    },
-
-    /**
-     * @param {WebInspector.TimelinePresentationModel.Record} record
-     */
-    accept: function(record)
-    {
-        return record.lastChildEndTime >= this._windowStartTime && record.startTime <= this._windowEndTime;
     },
 
     windowStartTime: function()
@@ -652,13 +643,13 @@ WebInspector.TimelineOverviewCalculator.prototype = {
      */
     computePosition: function(time)
     {
-        return (time - this.minimumBoundary) / this.boundarySpan * this._workingArea + this.paddingLeft;
+        return (time - this._minimumBoundary) / this.boundarySpan() * this._workingArea + this.paddingLeft;
     },
 
     computeBarGraphPercentages: function(record)
     {
-        var start = (WebInspector.TimelineModel.startTimeInSeconds(record) - this.minimumBoundary) / this.boundarySpan * 100;
-        var end = (WebInspector.TimelineModel.endTimeInSeconds(record) - this.minimumBoundary) / this.boundarySpan * 100;
+        var start = (WebInspector.TimelineModel.startTimeInSeconds(record) - this._minimumBoundary) / this.boundarySpan() * 100;
+        var end = (WebInspector.TimelineModel.endTimeInSeconds(record) - this._minimumBoundary) / this.boundarySpan() * 100;
         return {start: start, end: end};
     },
 
@@ -668,9 +659,8 @@ WebInspector.TimelineOverviewCalculator.prototype = {
      */
     setWindow: function(minimum, maximum)
     {
-        this.minimumBoundary = minimum >= 0 ? minimum : undefined;
-        this.maximumBoundary = maximum >= 0 ? maximum : undefined;
-        this.boundarySpan = this.maximumBoundary - this.minimumBoundary;
+        this._minimumBoundary = minimum >= 0 ? minimum : undefined;
+        this._maximumBoundary = maximum >= 0 ? maximum : undefined;
     },
 
     /**
@@ -691,6 +681,21 @@ WebInspector.TimelineOverviewCalculator.prototype = {
     formatTime: function(value)
     {
         return Number.secondsToString(value);
+    },
+
+    maximumBoundary: function()
+    {
+        return this._maximumBoundary;
+    },
+
+    minimumBoundary: function()
+    {
+        return this._minimumBoundary;
+    },
+
+    boundarySpan: function()
+    {
+        return this._maximumBoundary - this._minimumBoundary;
     }
 }
 
@@ -1218,3 +1223,24 @@ WebInspector.TimelineFrameOverview.prototype = {
 }
 
 WebInspector.TimelineFrameOverview.prototype.__proto__ = WebInspector.View.prototype;
+
+/**
+ * @param {WebInspector.TimelineOverviewPane} pane
+ * @constructor
+ * @implements {WebInspector.TimelinePresentationModel.Filter}
+ */
+WebInspector.TimelineWindowFilter = function(pane)
+{
+    this._pane = pane;
+}
+
+WebInspector.TimelineWindowFilter.prototype = {
+    /**
+     * @param {!WebInspector.TimelinePresentationModel.Record} record
+     * @return {boolean}
+     */
+    accept: function(record)
+    {
+        return record.lastChildEndTime >= this._pane._windowStartTime && record.startTime <= this._pane._windowEndTime;
+    }
+}

@@ -24,7 +24,8 @@
 
 #include "config.h"
 
-#include "cc/CCScheduler.h"
+#include "CCScheduler.h"
+
 #include "TraceEvent.h"
 
 namespace WebCore {
@@ -54,6 +55,16 @@ void CCScheduler::setVisible(bool visible)
 {
     m_stateMachine.setVisible(visible);
     processScheduledActions();
+}
+
+void CCScheduler::setCanDraw(bool canDraw)
+{
+    m_stateMachine.setCanDraw(canDraw);
+
+    // Defer processScheduleActions so we don't recurse and commit/draw
+    // multiple frames. We can call processScheduledActions directly
+    // once it is no longer re-entrant.
+    m_frameRateController->setActive(m_stateMachine.vsyncCallbackNeeded());
 }
 
 void CCScheduler::setNeedsCommit()
@@ -105,6 +116,11 @@ void CCScheduler::setMaxFramesPending(int maxFramesPending)
     m_frameRateController->setMaxFramesPending(maxFramesPending);
 }
 
+void CCScheduler::setSwapBuffersCompleteSupported(bool supported)
+{
+    m_frameRateController->setSwapBuffersCompleteSupported(supported);
+}
+
 void CCScheduler::didSwapBuffersComplete()
 {
     TRACE_EVENT0("cc", "CCScheduler::didSwapBuffersComplete");
@@ -144,16 +160,10 @@ void CCScheduler::vsyncTick()
     m_stateMachine.didLeaveVSync();
 }
 
-CCSchedulerStateMachine::Action CCScheduler::nextAction()
-{
-    m_stateMachine.setCanDraw(m_client->canDraw());
-    return m_stateMachine.nextAction();
-}
-
 void CCScheduler::processScheduledActions()
 {
     // Early out so we don't spam TRACE_EVENTS with useless processScheduledActions.
-    if (nextAction() == CCSchedulerStateMachine::ACTION_NONE) {
+    if (m_stateMachine.nextAction() == CCSchedulerStateMachine::ACTION_NONE) {
         m_frameRateController->setActive(m_stateMachine.vsyncCallbackNeeded());
         return;
     }
@@ -162,7 +172,7 @@ void CCScheduler::processScheduledActions()
     // setNeedsCommit. Proceeed with caution.
     CCSchedulerStateMachine::Action action;
     do {
-        action = nextAction();
+        action = m_stateMachine.nextAction();
         m_stateMachine.updateState(action);
         TRACE_EVENT1("cc", "CCScheduler::processScheduledActions()", "action", action);
 
@@ -173,16 +183,11 @@ void CCScheduler::processScheduledActions()
             m_client->scheduledActionBeginFrame();
             break;
         case CCSchedulerStateMachine::ACTION_BEGIN_UPDATE_MORE_RESOURCES:
-            m_client->scheduledActionUpdateMoreResources();
-            if (!m_client->hasMoreResourceUpdates()) {
-                // If we were just told to update resources, but there are no
-                // more pending, then tell the state machine that the
-                // beginUpdateMoreResources completed. If more are pending,
-                // then we will ack the update at the next draw.
-                m_updateMoreResourcesPending = false;
-                m_stateMachine.beginUpdateMoreResourcesComplete(false);
-            } else
+            if (m_client->hasMoreResourceUpdates()) {
+                m_client->scheduledActionUpdateMoreResources(m_frameRateController->nextTickTimeIfActivated());
                 m_updateMoreResourcesPending = true;
+            } else
+                m_stateMachine.beginUpdateMoreResourcesComplete(false);
             break;
         case CCSchedulerStateMachine::ACTION_COMMIT:
             m_client->scheduledActionCommit();

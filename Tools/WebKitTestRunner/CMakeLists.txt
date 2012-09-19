@@ -8,6 +8,7 @@ SET(WebKitTestRunner_SOURCES
     ${WEBKIT_TESTRUNNER_DIR}/PixelDumpSupport.cpp
     ${WEBKIT_TESTRUNNER_DIR}/TestController.cpp
     ${WEBKIT_TESTRUNNER_DIR}/TestInvocation.cpp
+    ${WEBKIT_TESTRUNNER_DIR}/WebNotificationProvider.cpp
 )
 
 SET(WebKitTestRunner_LIBRARIES
@@ -42,7 +43,7 @@ SET(WebKitTestRunner_INCLUDE_DIRECTORIES
     ${DERIVED_SOURCES_DIR}/InjectedBundle
     ${CMAKE_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/Source
-    ${LIBSOUP24_INCLUDE_DIRS}
+    ${LIBSOUP_INCLUDE_DIRS}
 )
 
 SET(WebKitTestRunnerInjectedBundle_SOURCES
@@ -55,7 +56,7 @@ SET(WebKitTestRunnerInjectedBundle_SOURCES
     ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/InjectedBundle.cpp
     ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/InjectedBundleMain.cpp
     ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/InjectedBundlePage.cpp
-    ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/LayoutTestController.cpp
+    ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/TestRunner.cpp
     ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/TextInputController.cpp
 
     ${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/Bindings/JSWrapper.cpp
@@ -67,7 +68,7 @@ GENERATE_BINDINGS(WebKitTestRunnerInjectedBundle_SOURCES
     "${WebKitTestRunnerInjectedBundle_IDL_FILES}"
     "${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/Bindings"
     "--include=${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/Bindings"
-    ""
+    "${FEATURE_DEFINES_WITH_SPACE_SEPARATOR}"
     ${DERIVED_SOURCES_DIR}/InjectedBundle JS TestRunner
     )
 
@@ -80,10 +81,6 @@ TARGET_LINK_LIBRARIES(TestRunnerInjectedBundle ${WebKitTestRunner_LIBRARIES})
 
 ADD_EXECUTABLE(WebKitTestRunner ${WebKitTestRunner_SOURCES})
 TARGET_LINK_LIBRARIES(WebKitTestRunner ${WebKitTestRunner_LIBRARIES})
-
-IF (WebKitTestRunner_LINK_FLAGS)
-    ADD_TARGET_PROPERTIES(WebKitTestRunner LINK_FLAGS ${WebKitTestRunner_LINK_FLAGS})
-ENDIF ()
 
 ADD_DEPENDENCIES(${WebKit2_LIBRARY_NAME} ${ForwardingHeadersForWebKitTestRunner_NAME})
 ADD_DEPENDENCIES(${WebKit2_LIBRARY_NAME} ${ForwardingNetworkHeadersForWebKitTestRunner_NAME})

@@ -34,7 +34,7 @@ class tst_QGraphicsWebView : public QObject
 {
     Q_OBJECT
 
-private slots:
+private Q_SLOTS:
     void qgraphicswebview();
     void crashOnViewlessWebPages();
     void microFocusCoordinates();
@@ -92,7 +92,7 @@ public:
 
     QGraphicsWebView* webView;
 
-private slots:
+private Q_SLOTS:
     // Force a webview deletion during the load.
     // It should not cause WebPage to crash due to
     // it accessing invalid pageClient pointer.
@@ -184,7 +184,7 @@ void tst_QGraphicsWebView::widgetsRenderingThroughCache()
     scene->addItem(webView);
     view.setGeometry(QRect(0, 0, 500, 500));
     QWidget *const widget = &view;
-    QTest::qWaitForWindowShown(widget);
+    QTest::qWaitForWindowExposed(widget);
 
     // 1. Reference without tiling.
     webView->settings()->setAttribute(QWebSettings::TiledBackingStoreEnabled, false);
@@ -409,11 +409,11 @@ void tst_QGraphicsWebView::setPalette()
     QVERIFY(webView1.palette() == palette1);
     QVERIFY(webView1.page()->palette() == palette1);
 
-    QTest::qWaitForWindowShown(&view1);
+    QTest::qWaitForWindowExposed(&view1);
 
     if (!active) {
         controlView.show();
-        QTest::qWaitForWindowShown(&controlView);
+        QTest::qWaitForWindowExposed(&controlView);
         QApplication::setActiveWindow(&controlView);
         activeView = &controlView;
         controlView.activateWindow();
@@ -464,11 +464,11 @@ void tst_QGraphicsWebView::setPalette()
     webView2.setPalette(palette2);
     view2.show();
 
-    QTest::qWaitForWindowShown(&view2);
+    QTest::qWaitForWindowExposed(&view2);
 
     if (!active) {
         controlView.show();
-        QTest::qWaitForWindowShown(&controlView);
+        QTest::qWaitForWindowExposed(&controlView);
         QApplication::setActiveWindow(&controlView);
         activeView = &controlView;
         controlView.activateWindow();
@@ -610,7 +610,7 @@ void tst_QGraphicsWebView::compareCanvasToImage(const QUrl& url, const QImage& r
 {
     GraphicsView view;
     view.show();
-    QTest::qWaitForWindowShown(&view);
+    QTest::qWaitForWindowExposed(&view);
 
     QGraphicsWebView* const graphicsWebView = view.m_webView;
     graphicsWebView->load(url);
@@ -620,7 +620,6 @@ void tst_QGraphicsWebView::compareCanvasToImage(const QUrl& url, const QImage& r
         QPainter painter(&pixmap);
         view.render(&painter);
     }
-    QApplication::syncX();
 
     const QSize imageSize = reference.size();
 
@@ -636,7 +635,7 @@ void tst_QGraphicsWebView::compareCanvasToImage(const QUrl& url, const QImage& r
 
 class ResizeSpy : public QObject {
     Q_OBJECT
-public slots:
+public Q_SLOTS:
     void receiveResize(int width, int height)
     {
         m_size = QSize(width, height);
@@ -648,7 +647,7 @@ public slots:
         return m_size;
     }
 
-signals:
+Q_SIGNALS:
     void resized();
 
 private:

@@ -59,7 +59,7 @@ WebInspector.TimelinePresentationModel.categories = function()
 /**
  * @return {!Object.<string, {title: string, category}>}
  */
-WebInspector.TimelinePresentationModel.initRecordStyles_ = function()
+WebInspector.TimelinePresentationModel._initRecordStyles = function()
 {
     if (WebInspector.TimelinePresentationModel._recordStylesMap)
         return WebInspector.TimelinePresentationModel._recordStylesMap;
@@ -72,9 +72,13 @@ WebInspector.TimelinePresentationModel.initRecordStyles_ = function()
     recordStyles[recordTypes.Program] = { title: WebInspector.UIString("Program"), category: categories["program"] };
     recordStyles[recordTypes.EventDispatch] = { title: WebInspector.UIString("Event"), category: categories["scripting"] };
     recordStyles[recordTypes.BeginFrame] = { title: WebInspector.UIString("Frame Start"), category: categories["rendering"] };
-    recordStyles[recordTypes.Layout] = { title: WebInspector.UIString("Layout"), category: categories["rendering"] };
+    recordStyles[recordTypes.ScheduleStyleRecalculation] = { title: WebInspector.UIString("Schedule Style Recalculation"), category: categories["rendering"] };
     recordStyles[recordTypes.RecalculateStyles] = { title: WebInspector.UIString("Recalculate Style"), category: categories["rendering"] };
+    recordStyles[recordTypes.InvalidateLayout] = { title: WebInspector.UIString("Invalidate Layout"), category: categories["rendering"] };
+    recordStyles[recordTypes.Layout] = { title: WebInspector.UIString("Layout"), category: categories["rendering"] };
     recordStyles[recordTypes.Paint] = { title: WebInspector.UIString("Paint"), category: categories["painting"] };
+    recordStyles[recordTypes.DecodeImage] = { title: WebInspector.UIString("Image Decode"), category: categories["painting"] };
+    recordStyles[recordTypes.ResizeImage] = { title: WebInspector.UIString("Image Resize"), category: categories["painting"] };
     recordStyles[recordTypes.CompositeLayers] = { title: WebInspector.UIString("Composite Layers"), category: categories["painting"] };
     recordStyles[recordTypes.ParseHTML] = { title: WebInspector.UIString("Parse"), category: categories["loading"] };
     recordStyles[recordTypes.TimerInstall] = { title: WebInspector.UIString("Install Timer"), category: categories["scripting"] };
@@ -108,7 +112,7 @@ WebInspector.TimelinePresentationModel.initRecordStyles_ = function()
  */
 WebInspector.TimelinePresentationModel.recordStyle = function(record)
 {
-    var recordStyles = WebInspector.TimelinePresentationModel.initRecordStyles_();
+    var recordStyles = WebInspector.TimelinePresentationModel._initRecordStyles();
     var result = recordStyles[record.type];
     if (!result) {
         result = {
@@ -169,6 +173,27 @@ WebInspector.TimelinePresentationModel.forAllRecords = function(recordsArray, pr
 }
 
 /**
+ * @param {string=} recordType
+ * @return {boolean}
+ */
+WebInspector.TimelinePresentationModel.needsPreviewElement = function(recordType)
+{
+    if (!recordType)
+        return false;
+    const recordTypes = WebInspector.TimelineModel.RecordType;
+    switch (recordType) {
+    case recordTypes.ScheduleResourceRequest:
+    case recordTypes.ResourceSendRequest:
+    case recordTypes.ResourceReceiveResponse:
+    case recordTypes.ResourceReceivedData:
+    case recordTypes.ResourceFinish:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/**
  * @param {string} recordType
  * @param {string=} title
  */
@@ -193,13 +218,29 @@ WebInspector.TimelinePresentationModel.createEventDivider = function(recordType,
     return eventDivider;
 }
 
+WebInspector.TimelinePresentationModel._hiddenRecords = { }
+WebInspector.TimelinePresentationModel._hiddenRecords[WebInspector.TimelineModel.RecordType.MarkDOMContent] = 1;
+WebInspector.TimelinePresentationModel._hiddenRecords[WebInspector.TimelineModel.RecordType.MarkLoad] = 1;
+WebInspector.TimelinePresentationModel._hiddenRecords[WebInspector.TimelineModel.RecordType.ScheduleStyleRecalculation] = 1;
+WebInspector.TimelinePresentationModel._hiddenRecords[WebInspector.TimelineModel.RecordType.InvalidateLayout] = 1;
+
 WebInspector.TimelinePresentationModel.prototype = {
     /**
-     * @param {WebInspector.TimelinePresentationModel.Filter} filter
+     * @param {!WebInspector.TimelinePresentationModel.Filter} filter
      */
     addFilter: function(filter)
     {
         this._filters.push(filter);
+    },
+
+    /**
+     * @param {!WebInspector.TimelinePresentationModel.Filter} filter
+     */
+    removeFilter: function(filter)
+    {
+        var index = this._filters.indexOf(filter);
+        if (index !== -1)
+            this._filters.splice(index, 1);
     },
 
     rootRecord: function()
@@ -215,7 +256,7 @@ WebInspector.TimelinePresentationModel.prototype = {
     reset: function()
     {
         this._linkifier.reset();
-        this._rootRecord = new WebInspector.TimelinePresentationModel.Record(this, { type: WebInspector.TimelineModel.RecordType.Root }, null, null);
+        this._rootRecord = new WebInspector.TimelinePresentationModel.Record(this, { type: WebInspector.TimelineModel.RecordType.Root }, null, null, false);
         this._sendRequestRecords = {};
         this._scheduledResourceRequests = {};
         this._timerRecords = {};
@@ -223,6 +264,8 @@ WebInspector.TimelinePresentationModel.prototype = {
         this._timeRecords = {};
         this._frames = [];
         this._minimumRecordTime = -1;
+        this._lastInvalidateLayout = {};
+        this._lastScheduleStyleRecalculation = {};
     },
 
     addFrame: function(frame)
@@ -250,19 +293,12 @@ WebInspector.TimelinePresentationModel.prototype = {
 
     _innerAddRecord: function(record, parentRecord)
     {
+        const recordTypes = WebInspector.TimelineModel.RecordType;
+        var isHiddenRecord = record.type in WebInspector.TimelinePresentationModel._hiddenRecords;
         var connectedToOldRecord = false;
-        var recordTypes = WebInspector.TimelineModel.RecordType;
-
-        switch (record.type) {
-        // No bar entry for load events.
-        case recordTypes.MarkDOMContent:
-        case recordTypes.MarkLoad:
-            parentRecord = null;
-            break;
-        case recordTypes.Time:
+        if (record.type === recordTypes.Time)
             parentRecord = this._rootRecord;
-            break;
-        default:
+        else if (!isHiddenRecord) {
             var newParentRecord = this._findParentRecord(record);
             if (newParentRecord) {
                 parentRecord = newParentRecord;
@@ -290,9 +326,9 @@ WebInspector.TimelinePresentationModel.prototype = {
             }
         }
 
-        var formattedRecord = new WebInspector.TimelinePresentationModel.Record(this, record, parentRecord, scriptDetails);
+        var formattedRecord = new WebInspector.TimelinePresentationModel.Record(this, record, parentRecord, scriptDetails, isHiddenRecord);
 
-        if (record.type === recordTypes.MarkDOMContent || record.type === recordTypes.MarkLoad)
+        if (isHiddenRecord)
             return formattedRecord;
 
         formattedRecord.collapsed = (parentRecord === this._rootRecord);
@@ -352,8 +388,16 @@ WebInspector.TimelinePresentationModel.prototype = {
         this._glueRecords = glue;
     },
 
+    invalidateFilteredRecords: function()
+    {
+        delete this._filteredRecords;
+    },
+
     filteredRecords: function()
     {
+        if (this._filteredRecords)
+            return this._filteredRecords;
+
         var recordsInWindow = [];
 
         var stack = [{children: this._rootRecord.children, index: 0, parentIsCollapsed: false}];
@@ -384,6 +428,7 @@ WebInspector.TimelinePresentationModel.prototype = {
             }
         }
 
+        this._filteredRecords = recordsInWindow;
         return recordsInWindow;
     },
 
@@ -401,16 +446,22 @@ WebInspector.TimelinePresentationModel.prototype.__proto__ = WebInspector.Object
 
 /**
  * @constructor
+ * @param {WebInspector.TimelinePresentationModel} presentationModel
+ * @param {Object} record
+ * @param {WebInspector.TimelinePresentationModel.Record} parentRecord
+ * @param {Object|undefined} scriptDetails
+ * @param {boolean} hidden
  */
-WebInspector.TimelinePresentationModel.Record = function(presentationModel, record, parentRecord, scriptDetails)
+WebInspector.TimelinePresentationModel.Record = function(presentationModel, record, parentRecord, scriptDetails, hidden)
 {
     this._linkifier = presentationModel._linkifier;
     this._aggregatedStats = [];
     this._record = record;
     this._children = [];
-    this.parent = parentRecord;
-    if (parentRecord)
+    if (!hidden && parentRecord) {
+        this.parent = parentRecord;
         parentRecord.children.push(this);
+    }
 
     this._selfTime = this.endTime - this.startTime;
     this._lastChildEndTime = this.endTime;
@@ -422,6 +473,8 @@ WebInspector.TimelinePresentationModel.Record = function(presentationModel, reco
         this.scriptName = scriptDetails.scriptName;
         this.scriptLine = scriptDetails.scriptLine;
     }
+    if (parentRecord && parentRecord.callSiteStackTrace)
+        this.callSiteStackTrace = parentRecord.callSiteStackTrace;
 
     var recordTypes = WebInspector.TimelineModel.RecordType;
     switch (record.type) {
@@ -488,6 +541,30 @@ WebInspector.TimelinePresentationModel.Record = function(presentationModel, reco
             this.intervalDuration = intervalDuration;
             timeRecord.intervalDuration = intervalDuration;
         }
+        break;
+
+    case recordTypes.ScheduleStyleRecalculation:
+        presentationModel._lastScheduleStyleRecalculation[this.frameId] = this;
+        break;
+
+    case recordTypes.RecalculateStyles:
+        var scheduleStyleRecalculationRecord = presentationModel._lastScheduleStyleRecalculation[this.frameId];
+        if (!scheduleStyleRecalculationRecord)
+            break;
+        this.callSiteStackTrace = scheduleStyleRecalculationRecord.stackTrace;
+        break;
+
+    case recordTypes.InvalidateLayout:
+        presentationModel._lastInvalidateLayout[this.frameId] = this;
+        break;
+
+    case recordTypes.Layout:
+        var invalidateLayoutRecord = presentationModel._lastInvalidateLayout[this.frameId];
+        if (invalidateLayoutRecord)
+            this.callSiteStackTrace = invalidateLayoutRecord.stackTrace || invalidateLayoutRecord.callSiteStackTrace;
+        if (this.stackTrace)
+            this.setHasWarning();
+        presentationModel._lastInvalidateLayout[this.frameId] = null;
         break;
     }
 }
@@ -607,9 +684,9 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
     /**
      * @return {number}
      */
-    get totalHeapSize()
+    get usedHeapSizeDelta()
     {
-        return this._record.totalHeapSize;
+        return this._record.usedHeapSizeDelta || 0;
     },
 
     /**
@@ -635,10 +712,24 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
         return this.startTime <= time && time <= this.endTime;
     },
 
-    generatePopupContent: function()
+    /**
+     * @param {function(Element)} callback
+     */
+    generatePopupContent: function(callback)
+    {
+        if (WebInspector.TimelinePresentationModel.needsPreviewElement(this.type))
+            WebInspector.DOMPresentationUtils.buildImagePreviewContents(this.url, false, this._generatePopupContentWithImagePreview.bind(this, callback));
+        else
+            this._generatePopupContentWithImagePreview(callback);
+    },
+
+    /**
+     * @param {function(Element)} callback
+     * @param {Element=} previewElement
+     */
+    _generatePopupContentWithImagePreview: function(callback, previewElement)
     {
         var contentHelper = new WebInspector.TimelinePresentationModel.PopupContentHelper(this.title);
-
         var text = WebInspector.UIString("%s (at %s)", Number.secondsToString(this._lastChildEndTime - this.startTime, true),
             Number.secondsToString(this._startTimeOffset));
         contentHelper._appendTextRow(WebInspector.UIString("Duration"), text);
@@ -650,6 +741,10 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
                 WebInspector.TimelinePresentationModel._generateAggregatedInfo(this._aggregatedStats));
         }
         const recordTypes = WebInspector.TimelineModel.RecordType;
+
+        // The messages may vary per record type;
+        var callSiteStackTraceLabel;
+        var callStackLabel;
 
         switch (this.type) {
             case recordTypes.GCEvent:
@@ -675,7 +770,9 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
             case recordTypes.ResourceReceiveResponse:
             case recordTypes.ResourceReceivedData:
             case recordTypes.ResourceFinish:
-                contentHelper._appendElementRow(WebInspector.UIString("Resource"), this._linkifyLocation(this.url));
+                contentHelper._appendElementRow(WebInspector.UIString("Resource"), WebInspector.linkifyResourceAsNode(this.url));
+                if (previewElement)
+                    contentHelper._appendElementRow(WebInspector.UIString("Preview"), previewElement);
                 if (this.data["requestMethod"])
                     contentHelper._appendTextRow(WebInspector.UIString("Request Method"), this.data["requestMethod"]);
                 if (typeof this.data["statusCode"] === "number")
@@ -694,6 +791,15 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
                 contentHelper._appendTextRow(WebInspector.UIString("Dimensions"), WebInspector.UIString("%d × %d", this.data["width"], this.data["height"]));
                 break;
             case recordTypes.RecalculateStyles: // We don't want to see default details.
+                callSiteStackTraceLabel = WebInspector.UIString("Styles invalidated");
+                callStackLabel = WebInspector.UIString("Styles recalculation forced");
+                break;
+            case recordTypes.Layout:
+                callSiteStackTraceLabel = WebInspector.UIString("Layout invalidated");
+                if (this.stackTrace) {
+                    callStackLabel = WebInspector.UIString("Layout forced");
+                    contentHelper._appendTextRow(WebInspector.UIString("Note"), WebInspector.UIString("Forced synchronous layout is a possible performance bottleneck."));
+                }
                 break;
             case recordTypes.Time:
             case recordTypes.TimeEnd:
@@ -709,16 +815,22 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
         if (this.scriptName && this.type !== recordTypes.FunctionCall)
             contentHelper._appendElementRow(WebInspector.UIString("Function Call"), this._linkifyScriptLocation());
 
-        if (this.usedHeapSize)
-            contentHelper._appendTextRow(WebInspector.UIString("Used Heap Size"), WebInspector.UIString("%s of %s", Number.bytesToString(this.usedHeapSize), Number.bytesToString(this.totalHeapSize)));
+        if (this.usedHeapSize) {
+            if (this.usedHeapSizeDelta) {
+                var sign = this.usedHeapSizeDelta > 0 ? "+" : "-";
+                contentHelper._appendTextRow(WebInspector.UIString("Used Heap Size"),
+                    WebInspector.UIString("%s (%s%s)", Number.bytesToString(this.usedHeapSize), sign, Number.bytesToString(this.usedHeapSizeDelta)));
+            } else if (this.category === WebInspector.TimelinePresentationModel.categories().scripting)
+                contentHelper._appendTextRow(WebInspector.UIString("Used Heap Size"), Number.bytesToString(this.usedHeapSize));
+        }
 
-        if (this.callSiteStackTrace && this.callSiteStackTrace.length)
-            contentHelper._appendStackTrace(WebInspector.UIString("Call Site stack"), this.callSiteStackTrace, this._linkifyCallFrame.bind(this));
+        if (this.callSiteStackTrace)
+            contentHelper._appendStackTrace(callSiteStackTraceLabel || WebInspector.UIString("Call Site stack"), this.callSiteStackTrace, this._linkifyCallFrame.bind(this));
 
         if (this.stackTrace)
-            contentHelper._appendStackTrace(WebInspector.UIString("Call Stack"), this.stackTrace, this._linkifyCallFrame.bind(this));
+            contentHelper._appendStackTrace(callStackLabel || WebInspector.UIString("Call Stack"), this.stackTrace, this._linkifyCallFrame.bind(this));
 
-        return contentHelper._contentTable;
+        callback(contentHelper._contentTable);
     },
 
     _refreshDetails: function()
@@ -751,6 +863,10 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
                 return this.data ? this.data["type"] : null;
             case WebInspector.TimelineModel.RecordType.Paint:
                 return this.data["width"] + "\u2009\u00d7\u2009" + this.data["height"];
+            case WebInspector.TimelineModel.RecordType.DecodeImage:
+                return this.data["imageType"];
+            case WebInspector.TimelineModel.RecordType.ResizeImage:
+                return this.data["cached"] ? WebInspector.UIString("cached") : WebInspector.UIString("non-cached");
             case WebInspector.TimelineModel.RecordType.TimerInstall:
             case WebInspector.TimelineModel.RecordType.TimerRemove:
                 return this._linkifyTopCallFrame(this.data["timerId"]);
@@ -779,15 +895,14 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
 
     /**
      * @param {string} url
-     * @param {number=} lineNumber
+     * @param {number} lineNumber
      * @param {number=} columnNumber
      */
     _linkifyLocation: function(url, lineNumber, columnNumber)
     {
         // FIXME(62725): stack trace line/column numbers are one-based.
-        lineNumber = lineNumber ? lineNumber - 1 : lineNumber;
         columnNumber = columnNumber ? columnNumber - 1 : 0;
-        return this._linkifier.linkifyLocation(url, lineNumber, columnNumber, "timeline-details");
+        return this._linkifier.linkifyLocation(url, lineNumber - 1, columnNumber, "timeline-details");
     },
 
     _linkifyCallFrame: function(callFrame)
@@ -800,7 +915,11 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
      */
     _linkifyTopCallFrame: function(defaultValue)
     {
-        return this.stackTrace ? this._linkifyCallFrame(this.stackTrace[0]) : defaultValue;
+        if (this.stackTrace)
+            return this._linkifyCallFrame(this.stackTrace[0]);
+        if (this.callSiteStackTrace)
+            return this._linkifyCallFrame(this.callSiteStackTrace[0]);
+        return defaultValue;
     },
 
     /**
@@ -831,6 +950,13 @@ WebInspector.TimelinePresentationModel.Record.prototype = {
     get aggregatedStats()
     {
         return this._aggregatedStats;
+    },
+
+    setHasWarning: function()
+    {
+        this.hasWarning = true;
+        for (var parent = this.parent; parent && !parent.childHasWarning; parent = parent.parent)
+            parent.childHasWarning = true;
     }
 }
 
@@ -854,6 +980,7 @@ WebInspector.TimelinePresentationModel._generateAggregatedInfo = function(aggreg
 
 /**
  * @constructor
+ * @param {string} title
  */
 WebInspector.TimelinePresentationModel.PopupContentHelper = function(title)
 {
@@ -995,7 +1122,8 @@ WebInspector.TimelinePresentationModel.Filter = function()
 
 WebInspector.TimelinePresentationModel.Filter.prototype = {
     /**
-     * @param {WebInspector.TimelinePresentationModel.Record} record
+     * @param {!WebInspector.TimelinePresentationModel.Record} record
+     * @return {boolean}
      */
     accept: function(record) { return false; }
 }

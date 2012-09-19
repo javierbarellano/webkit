@@ -35,7 +35,6 @@
 #include "NodeList.h"
 #include "V8Binding.h"
 #include "V8Node.h"
-#include "V8Proxy.h"
 
 #include <wtf/RefPtr.h>
 #include <wtf/StdLibExtras.h>
@@ -46,7 +45,7 @@ v8::Handle<v8::Value> V8NodeList::namedPropertyGetter(v8::Local<v8::String> name
 {
     INC_STATS("DOM.NodeList.NamedPropertyGetter");
     NodeList* list = V8NodeList::toNative(info.Holder());
-    AtomicString key = v8ValueToAtomicWebCoreString(name);
+    AtomicString key = toWebCoreAtomicString(name);
 
     // Length property cannot be overridden.
     DEFINE_STATIC_LOCAL(const AtomicString, length, ("length"));
@@ -57,7 +56,7 @@ v8::Handle<v8::Value> V8NodeList::namedPropertyGetter(v8::Local<v8::String> name
     if (!result)
         return v8Undefined();
 
-    return toV8(result.release(), info.GetIsolate());
+    return toV8(result.release(), info.Holder(), info.GetIsolate());
 }
 
 void V8NodeList::visitDOMWrapper(DOMDataStore* store, void* object, v8::Persistent<v8::Object> wrapper)

@@ -46,11 +46,11 @@ class tst_QWebFrame : public QObject
 public:
     bool eventFilter(QObject* watched, QEvent* event);
 
-public slots:
+public Q_SLOTS:
     void init();
     void cleanup();
 
-private slots:
+private Q_SLOTS:
     void horizontalScrollAfterBack();
     void symmetricUrl();
     void progressSignal();
@@ -244,7 +244,7 @@ protected:
         return 0;
     }
 
-private slots:
+private Q_SLOTS:
     void continueRedirect()
     {
         emit metaDataChanged();
@@ -601,7 +601,7 @@ void tst_QWebFrame::popupFocus()
     // Call setFocus before show to work around http://bugreports.qt.nokia.com/browse/QTBUG-14762
     view.setFocus();
     view.show();
-    QTest::qWaitForWindowShown(&view);
+    QTest::qWaitForWindowExposed(&view);
     view.activateWindow();
     QTRY_VERIFY(view.hasFocus());
 
@@ -625,7 +625,7 @@ void tst_QWebFrame::inputFieldFocus()
     view.setHtml("<html><body><input type=\"text\"></input></body></html>");
     view.resize(400, 100);
     view.show();
-    QTest::qWaitForWindowShown(&view);
+    QTest::qWaitForWindowExposed(&view);
     view.activateWindow();
     view.setFocus();
     QTRY_VERIFY(view.hasFocus());
@@ -1027,7 +1027,7 @@ void tst_QWebFrame::evaluateWillCauseRepaint()
     view.setHtml(html);
     view.show();
 
-    QTest::qWaitForWindowShown(&view);
+    QTest::qWaitForWindowExposed(&view);
     view.page()->mainFrame()->evaluateJavaScript(
         "document.getElementById('junk').style.display = 'none';");
 
@@ -1489,10 +1489,10 @@ public:
 
     URLSetter(QWebFrame*, Signal, Type, const QUrl&);
 
-public slots:
+public Q_SLOTS:
     void execute();
 
-signals:
+Q_SIGNALS:
     void finished();
 
 private:

@@ -78,6 +78,7 @@ LayerTreeCoordinator::LayerTreeCoordinator(WebPage* webPage)
     , m_shouldSyncFrame(false)
     , m_shouldSyncRootLayer(true)
     , m_layerFlushTimer(this, &LayerTreeCoordinator::layerFlushTimerFired)
+    , m_releaseInactiveAtlasesTimer(this, &LayerTreeCoordinator::releaseInactiveAtlasesTimerFired)
     , m_layerFlushSchedulingEnabled(true)
     , m_forceRepaintAsyncCallbackID(0)
 {
@@ -254,6 +255,11 @@ bool LayerTreeCoordinator::flushPendingLayerChanges()
         return false;
 
     m_shouldSyncFrame = false;
+
+    for (size_t i = 0; i < m_detachedLayers.size(); ++i)
+        m_webPage->send(Messages::LayerTreeCoordinatorProxy::DeleteCompositingLayer(m_detachedLayers[i]));
+    m_detachedLayers.clear();
+
     bool didSync = m_webPage->corePage()->mainFrame()->view()->syncCompositingStateIncludingSubframes();
     m_nonCompositedContentLayer->syncCompositingStateForThisLayerOnly();
     if (m_pageOverlayLayer)
@@ -298,10 +304,10 @@ void LayerTreeCoordinator::syncLayerChildren(WebLayerID id, const Vector<WebLaye
     m_webPage->send(Messages::LayerTreeCoordinatorProxy::SetCompositingLayerChildren(id, children));
 }
 
-void LayerTreeCoordinator::syncCanvas(WebLayerID id, const IntSize& canvasSize, uint32_t graphicsSurfaceToken)
+void LayerTreeCoordinator::syncCanvas(WebLayerID id, const IntSize& canvasSize, uint64_t graphicsSurfaceToken, uint32_t frontBuffer)
 {
     m_shouldSyncFrame = true;
-    m_webPage->send(Messages::LayerTreeCoordinatorProxy::SyncCanvas(id, canvasSize, graphicsSurfaceToken));
+    m_webPage->send(Messages::LayerTreeCoordinatorProxy::SyncCanvas(id, canvasSize, graphicsSurfaceToken, frontBuffer));
 }
 
 #if ENABLE(CSS_FILTERS)
@@ -325,7 +331,8 @@ void LayerTreeCoordinator::detachLayer(CoordinatedGraphicsLayer* layer)
 {
     m_registeredLayers.remove(layer);
     m_shouldSyncFrame = true;
-    m_webPage->send(Messages::LayerTreeCoordinatorProxy::DeleteCompositingLayer(layer->id()));
+    m_detachedLayers.append(layer->id());
+    scheduleLayerFlush();
 }
 
 static void updateOffsetFromViewportForSelf(RenderLayer* renderLayer)
@@ -367,7 +374,7 @@ void LayerTreeCoordinator::syncFixedLayers()
     if (!m_webPage->corePage()->settings() || !m_webPage->corePage()->settings()->acceleratedCompositingForFixedPositionEnabled())
         return;
 
-    if (!m_webPage->mainFrame()->view()->hasFixedObjects())
+    if (!m_webPage->mainFrame()->view()->hasViewportConstrainedObjects())
         return;
 
     RenderLayer* rootRenderLayer = m_webPage->mainFrame()->contentRenderer()->compositor()->rootRenderLayer();
@@ -600,8 +607,8 @@ void LayerTreeCoordinator::renderNextFrame()
 {
     m_waitingForUIProcess = false;
     scheduleLayerFlush();
-    for (int i = 0; i < m_updateAtlases.size(); ++i)
-        m_updateAtlases[i].didSwapBuffers();
+    for (unsigned i = 0; i < m_updateAtlases.size(); ++i)
+        m_updateAtlases[i]->didSwapBuffers();
 }
 
 bool LayerTreeCoordinator::layerTreeTileUpdatesAllowed() const
@@ -622,19 +629,53 @@ void LayerTreeCoordinator::purgeBackingStores()
 PassOwnPtr<WebCore::GraphicsContext> LayerTreeCoordinator::beginContentUpdate(const WebCore::IntSize& size, ShareableBitmap::Flags flags, ShareableSurface::Handle& handle, WebCore::IntPoint& offset)
 {
     OwnPtr<WebCore::GraphicsContext> graphicsContext;
-    for (int i = 0; i < m_updateAtlases.size(); ++i) {
-        UpdateAtlas& atlas = m_updateAtlases[i];
-        if (atlas.flags() == flags) {
+    for (unsigned i = 0; i < m_updateAtlases.size(); ++i) {
+        UpdateAtlas* atlas = m_updateAtlases[i].get();
+        if (atlas->flags() == flags) {
             // This will return null if there is no available buffer space.
-            graphicsContext = atlas.beginPaintingOnAvailableBuffer(handle, size, offset);
+            graphicsContext = atlas->beginPaintingOnAvailableBuffer(handle, size, offset);
             if (graphicsContext)
                 return graphicsContext.release();
         }
     }
 
-    static const int ScratchBufferDimension = 2000;
-    m_updateAtlases.append(UpdateAtlas(ScratchBufferDimension, flags));
-    return m_updateAtlases.last().beginPaintingOnAvailableBuffer(handle, size, offset);
+    static const int ScratchBufferDimension = 1024; // Should be a power of two.
+    m_updateAtlases.append(adoptPtr(new UpdateAtlas(ScratchBufferDimension, flags)));
+    scheduleReleaseInactiveAtlases();
+    return m_updateAtlases.last()->beginPaintingOnAvailableBuffer(handle, size, offset);
+}
+
+const double ReleaseInactiveAtlasesTimerInterval = 0.5;
+
+void LayerTreeCoordinator::scheduleReleaseInactiveAtlases()
+{
+    if (!m_releaseInactiveAtlasesTimer.isActive())
+        m_releaseInactiveAtlasesTimer.startRepeating(ReleaseInactiveAtlasesTimerInterval);
+}
+
+void LayerTreeCoordinator::releaseInactiveAtlasesTimerFired(Timer<LayerTreeCoordinator>*)
+{
+    // We always want to keep one atlas for non-composited content.
+    OwnPtr<UpdateAtlas> atlasToKeepAnyway;
+    bool foundActiveAtlasForNonCompositedContent = false;
+    for (int i = m_updateAtlases.size() - 1;  i >= 0; --i) {
+        UpdateAtlas* atlas = m_updateAtlases[i].get();
+        if (!atlas->isInUse())
+            atlas->addTimeInactive(ReleaseInactiveAtlasesTimerInterval);
+        bool usableForNonCompositedContent = atlas->flags() == ShareableBitmap::NoFlags;
+        if (atlas->isInactive()) {
+            if (!foundActiveAtlasForNonCompositedContent && !atlasToKeepAnyway && usableForNonCompositedContent)
+                atlasToKeepAnyway = m_updateAtlases[i].release();
+            m_updateAtlases.remove(i);
+        } else if (usableForNonCompositedContent)
+            foundActiveAtlasForNonCompositedContent = true;
+    }
+
+    if (!foundActiveAtlasForNonCompositedContent && atlasToKeepAnyway)
+        m_updateAtlases.append(atlasToKeepAnyway.release());
+
+    if (m_updateAtlases.size() <= 1)
+        m_releaseInactiveAtlasesTimer.stop();
 }
 
 } // namespace WebKit

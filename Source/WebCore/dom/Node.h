@@ -27,6 +27,7 @@
 
 #include "EditingBoundary.h"
 #include "EventTarget.h"
+#include "FractionalLayoutRect.h"
 #include "KURLHash.h"
 #include "LayoutTypes.h"
 #include "MutationObserver.h"
@@ -65,7 +66,6 @@ class Frame;
 class HTMLInputElement;
 class IntRect;
 class KeyboardEvent;
-class MemoryObjectInfo;
 class NSResolver;
 class NamedNodeMap;
 class NameNodeList;
@@ -348,11 +348,15 @@ public:
     void setHasAttrList() { setFlag(HasAttrListFlag); }
     void clearHasAttrList() { clearFlag(HasAttrListFlag); }
 
+    bool hasScopedHTMLStyleChild() const { return getFlag(HasScopedHTMLStyleChildFlag); }
+    void setHasScopedHTMLStyleChild(bool flag) { setFlag(flag, HasScopedHTMLStyleChildFlag); }
+
     enum ShouldSetAttached {
         SetAttached,
         DoNotSetAttached
     };
     void lazyAttach(ShouldSetAttached = SetAttached);
+    void lazyReattach(ShouldSetAttached = SetAttached);
 
     virtual void setFocus(bool = true);
     virtual void setActive(bool f = true, bool /*pause*/ = false) { setFlag(f, IsActiveFlag); }
@@ -399,8 +403,8 @@ public:
     }
 
     virtual bool shouldUseInputMethod();
-    virtual LayoutRect getRect() const;
-    IntRect getPixelSnappedRect() const { return pixelSnappedIntRect(getRect()); }
+    virtual LayoutRect boundingBox() const;
+    IntRect pixelSnappedBoundingBox() const { return pixelSnappedIntRect(boundingBox()); }
     LayoutRect renderRect(bool* isReplaced);
     IntRect pixelSnappedRenderRect(bool* isReplaced) { return pixelSnappedIntRect(renderRect(isReplaced)); }
 
@@ -545,11 +549,11 @@ public:
     //
     enum InsertionNotificationRequest {
         InsertionDone,
-        InsertionShouldCallDidNotifyDescendantInsertions
+        InsertionShouldCallDidNotifySubtreeInsertions
     };
 
     virtual InsertionNotificationRequest insertedInto(ContainerNode* insertionPoint);
-    virtual void didNotifyDescendantInsertions(ContainerNode*) { }
+    virtual void didNotifySubtreeInsertions(ContainerNode*) { }
 
     // Notifies the node that it is no longer part of the tree.
     //
@@ -580,6 +584,7 @@ public:
 
     virtual bool willRespondToMouseMoveEvents();
     virtual bool willRespondToMouseClickEvents();
+    virtual bool willRespondToTouchEvents();
 
     PassRefPtr<Element> querySelector(const AtomicString& selectors, ExceptionCode&);
     PassRefPtr<NodeList> querySelectorAll(const AtomicString& selectors, ExceptionCode&);
@@ -655,11 +660,8 @@ public:
     void notifyMutationObserversNodeWillDetach();
 #endif // ENABLE(MUTATION_OBSERVERS)
 
-#if ENABLE(STYLE_SCOPED)
     void registerScopedHTMLStyleChild();
     void unregisterScopedHTMLStyleChild();
-#endif
-    bool hasScopedHTMLStyleChild() const;
     size_t numberOfScopedHTMLStyleChildren() const;
 
     virtual void reportMemoryUsage(MemoryObjectInfo*) const;
@@ -707,10 +709,11 @@ private:
 #endif
         InNamedFlowFlag = 1 << 26,
         HasAttrListFlag = 1 << 27,
-        HasCustomCallbacksFlag = 1 << 28
+        HasCustomCallbacksFlag = 1 << 28,
+        HasScopedHTMLStyleChildFlag = 1 << 29
     };
 
-    // 4 bits remaining
+    // 3 bits remaining
 
     bool getFlag(NodeFlags mask) const { return m_nodeFlags & mask; }
     void setFlag(bool f, NodeFlags mask) const { m_nodeFlags = (m_nodeFlags & ~mask) | (-(int32_t)f & mask); } 
@@ -872,6 +875,13 @@ inline void Node::reattachIfAttached()
 {
     if (attached())
         reattach();
+}
+
+inline void Node::lazyReattach(ShouldSetAttached shouldSetAttached)
+{
+    if (attached())
+        detach();
+    lazyAttach(shouldSetAttached);
 }
 
 } //namespace

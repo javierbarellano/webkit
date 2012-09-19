@@ -59,6 +59,10 @@ USER_LINGUAS :=
 USE_LINGUAS :=
 MOFILES :=
 ALL_MOFILES :=
+feature_defines_defaults :=
+feature_defines_overrides :=
+feature_defines_unstable :=
+feature_defines :=
 dom_binding_idls :=
 wtf_sources :=
 javascriptcore_h_api :=
@@ -100,7 +104,6 @@ global_cflags :=
 global_cxxflags :=
 JSCORE_GIRSOURCES :=
 WEBKIT_GIRSOURCES :=
-FEATURE_DEFINES :=
 typelibsdir :=
 typelibs_DATA :=
 EXTRA_DIST :=
@@ -152,7 +155,6 @@ endif
 global_cppflags += \
 	-DBUILDING_CAIRO__=1 \
 	-DBUILDING_GTK__=1 \
-	-DBUILDING_SOUP__=1 \
 	-DWTF_CHANGES
 
 if ENABLE_WEBKIT2

@@ -33,7 +33,9 @@
 #include "PluginController.h"
 #include "PluginControllerProxyMessages.h"
 #include "ShareableBitmap.h"
+#include "WebProcessConnectionMessages.h"
 #include <WebCore/RunLoop.h>
+#include <WebCore/SecurityOrigin.h>
 #include <wtf/Noncopyable.h>
 
 namespace CoreIPC {
@@ -69,6 +71,11 @@ public:
 #endif
 
     PluginController* asPluginController() { return this; }
+
+    bool isInitializing() const { return m_isInitializing; }
+    
+    void setInitializationReply(PassRefPtr<Messages::WebProcessConnection::CreatePlugin::DelayedReply>);
+    PassRefPtr<Messages::WebProcessConnection::CreatePlugin::DelayedReply> takeInitializationReply();
 
 private:
     PluginControllerProxy(WebProcessConnection*, const PluginCreationParameters&);
@@ -146,6 +153,7 @@ private:
     void updateLayerHostingContext(LayerHostingMode);
 #endif
 
+    void storageBlockingStateChanged(bool);
     void privateBrowsingStateChanged(bool);
     void getFormValue(bool& returnValue, String& formValue);
 
@@ -157,8 +165,12 @@ private:
     uint64_t m_pluginInstanceID;
 
     String m_userAgent;
+    bool m_storageBlockingEnabled;
     bool m_isPrivateBrowsingEnabled;
     bool m_isAcceleratedCompositingEnabled;
+    bool m_isInitializing;
+
+    RefPtr<Messages::WebProcessConnection::CreatePlugin::DelayedReply> m_initializationReply;
 
     RefPtr<Plugin> m_plugin;
 

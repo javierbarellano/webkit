@@ -31,9 +31,10 @@
 #include "config.h"
 #include "BindingState.h"
 
+#include "DOMWindow.h"
 #include "Frame.h"
 #include "ScriptController.h"
-#include "V8Proxy.h"
+#include "V8Binding.h"
 #include <wtf/StdLibExtras.h>
 
 namespace WebCore {
@@ -57,41 +58,24 @@ static v8::Handle<v8::Context> activeContext()
 
 DOMWindow* activeDOMWindow(BindingState*)
 {
-    return V8Proxy::retrieveWindow(activeContext());
+    return toDOMWindow(activeContext());
 }
 
 DOMWindow* firstDOMWindow(BindingState*)
 {
-    return V8Proxy::retrieveWindow(v8::Context::GetEntered());
+    return toDOMWindow(v8::Context::GetEntered());
 }
 
-Frame* activeFrame(BindingState*)
+Document* currentDocument(BindingState*)
 {
-    v8::Handle<v8::Context> context = activeContext();
-    if (context.IsEmpty())
-        return 0;
-    return V8Proxy::retrieveFrame(context);
+    return toDOMWindow(v8::Context::GetCurrent())->document();
 }
 
-Frame* firstFrame(BindingState*)
+void printErrorMessageForFrame(Frame* frame, const String& message)
 {
-    v8::Handle<v8::Context> context = v8::Context::GetEntered();
-    if (context.IsEmpty())
-        return 0;
-    return V8Proxy::retrieveFrame(context);
-}
-
-Frame* currentFrame(BindingState*)
-{
-    v8::Handle<v8::Context> context = v8::Context::GetCurrent();
-    if (context.IsEmpty())
-        return 0;
-    return V8Proxy::retrieveFrame(context);
-}
-
-void immediatelyReportUnsafeAccessTo(BindingState*, Document* targetDocument)
-{
-    V8Proxy::reportUnsafeAccessTo(targetDocument);
+    if (!frame)
+        return;
+    frame->document()->domWindow()->printErrorMessage(message);
 }
 
 }

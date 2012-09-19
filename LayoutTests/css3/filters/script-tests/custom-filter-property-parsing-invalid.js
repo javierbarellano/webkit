@@ -47,6 +47,8 @@ testInvalidFilterRule("Mix function with alpha compositing mode 'plus-lighter', 
 testInvalidFilterRule("Mix function with alpha compositing mode 'highlight', which should only apply to -webkit-background-composite", "custom(none mix(url(shader) highlight))");
 testInvalidFilterRule("Mix function with 4 args", "custom(none mix(url(shader) multiply clear normal))");
 testInvalidFilterRule("Mix function with comma separators", "custom(none mix(url(shader), multiply, clear))");
+testInvalidFilterRule("Mix function with comma terminator", "custom(none mix(url(shader), multiply clear,))");
+testInvalidFilterRule("Mix function with one comma", "custom(none mix(,))");
 
 testInvalidFilterRule("No shader", "custom(none, 10 20)");
 testInvalidFilterRule("Too many mesh sizes", "custom(none, 10 20 30)");
@@ -75,3 +77,39 @@ testInvalidFilterRule("Invalid parameter types", "custom(url(shader), p1 1.0 2.0
 testInvalidFilterRule("No parameter value 1", "custom(url(shader), p1)");
 testInvalidFilterRule("No parameter value 2", "custom(url(shader), p1, p2, p3)");
 
+testInvalidFilterRule("One invalid transform", "custom(none url(shader), someId invalid_rotate(0deg))");
+testInvalidFilterRule("Multiple invalid transforms", "custom(none url(shader), someId invalid_rotate(0deg) invalid_perspective(0))");
+testInvalidFilterRule("Invalid transform between valid ones", "custom(none url(shader), someId rotate(0deg) invalid_rotate(0deg) perspective(0))");
+testInvalidFilterRule("Valid transform between invalid ones", "custom(none url(shader), someId invalid_rotate(0deg) perspective(0) another_invalid(0))");
+testInvalidFilterRule("Valid transform without leading comma", "custom(none url(shader) someId perspective(0))");
+testInvalidFilterRule("Valid transform with trailing comma", "custom(none url(shader), someId perspective(0),)");
+testInvalidFilterRule("Valid transform with trailing comma and without leading comma", "custom(none url(shader) someId perspective(0),)");
+testInvalidFilterRule("Invalid transform with trailing comma", "custom(none url(shader), someId invalid_rotate(0deg),)");
+testInvalidFilterRule("Invalid transform without leading comma", "custom(none url(shader) someId invalid_rotate(0deg))");
+testInvalidFilterRule("Empty transform (only the id)", "custom(none url(shader), someId)");
+testInvalidFilterRule("Empty transform (without the id)", "custom(none url(shader),)");
+testInvalidFilterRule("Empty transform (two empty commas)", "custom(none url(shader),,)");
+testInvalidFilterRule("Valid transform with invalid characters", "custom(none url(shader),someId rotate(0deg) *.-,)");
+
+testInvalidFilterRule("Empty array()", "custom(none url(shader), id array())");
+testInvalidFilterRule("One comma in array()", "custom(none url(shader), id array(,))");
+testInvalidFilterRule("Multile commas in array()", "custom(none url(shader), id array(,,,))");
+testInvalidFilterRule("Multiple commas with a value in array()", "custom(none url(shader), id array(,,1,))");
+testInvalidFilterRule("One comma followed by a negative value in array()", "custom(none url(shader), id array(,-4))");
+testInvalidFilterRule("One comma followed by a value in array()", "custom(none url(shader), id array(,4))");
+testInvalidFilterRule("One negative value followed by a comma in array()", "custom(none url(shader), id array(-4,))");
+testInvalidFilterRule("One value followed by a comma in array()", "custom(none url(shader), id array(4,))");
+testInvalidFilterRule("A series of correct values followed by a comma in array()", "custom(none url(shader), id array(1, 2, 3, 4,))");
+testInvalidFilterRule("A series of correct values followed by a letter in array()", "custom(none url(shader), id array(1, 2, 3, 4, x))");
+testInvalidFilterRule("Two commas as separator between values in array()", "custom(none url(shader), id array(1, 2, , 4))");
+testInvalidFilterRule("Leading comma in array()", "custom(none url(shader), id array(,1, 2, 3, 4))");
+testInvalidFilterRule("Semicolon separated values in array()", "custom(none url(shader), id array(1; 2; 3; 4))");
+testInvalidFilterRule("Space separated values in array()", "custom(none url(shader), id array(1 2 3 4))");
+testInvalidFilterRule("Space separated values with comma terminator in array()", "custom(none url(shader), id array(1 2 3 4,))");
+testInvalidFilterRule("Space separated values with leading comma in array()", "custom(none url(shader), id array(, 1 2 3 4))");
+testInvalidFilterRule("NaN in array()", "custom(none url(shader), id array(NaN))");
+testInvalidFilterRule("NaN and values in array()", "custom(none url(shader), id array(1, 2, NaN, 3))");
+testInvalidFilterRule("Invalid unit value in array()", "custom(none url(shader), id array(1px))");
+testInvalidFilterRule("Invalid unit value in array(), second", "custom(none url(shader), id array(none))");
+testInvalidFilterRule("Invalid unit value in array(), third", "custom(none url(shader), id array(1deg))");
+testInvalidFilterRule("Invalid unit value in array(), at the end of a partially valid value list", "custom(none url(shader), id array(1, 2, 3, 4px))");

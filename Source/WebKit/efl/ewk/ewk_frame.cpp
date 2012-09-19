@@ -458,7 +458,7 @@ const char* ewk_frame_script_execute(Evas_Object* ewkFrame, const char* script)
 
     JSC::ExecState* exec = smartData->frame->script()->globalObject(WebCore::mainThreadNormalWorld())->globalExec();
     JSC::JSLockHolder lock(exec);
-    resultString = WebCore::ustringToString(result.toString(exec)->value(exec));
+    resultString = result.toString(exec)->value(exec);
     return eina_stringshare_add(resultString.utf8().data());
 #else
     notImplemented();
@@ -766,12 +766,12 @@ void ewk_frame_intent_deliver(const Evas_Object* ewkFrame, Ewk_Intent* ewk_inten
         for (size_t i = 0; i < origChannels->size(); ++i)
             (*channels)[i] = origChannels->at(i).release();
     }
-    OwnPtr<WebCore::MessagePortArray> ports = WebCore::MessagePort::entanglePorts(*(smartData->frame->domWindow()->scriptExecutionContext()), channels.release());
+    OwnPtr<WebCore::MessagePortArray> ports = WebCore::MessagePort::entanglePorts(*(smartData->frame->document()), channels.release());
 
     OwnPtr<WebCore::DeliveredIntentClient> dummyClient;
     RefPtr<WebCore::DeliveredIntent> deliveredIntent = WebCore::DeliveredIntent::create(smartData->frame, dummyClient.release(), intent->action(), intent->type(), intent->data(), ports.release(), intent->extras());
 
-    WebCore::DOMWindowIntents::from(smartData->frame->domWindow())->deliver(deliveredIntent.release());
+    WebCore::DOMWindowIntents::from(smartData->frame->document()->domWindow())->deliver(deliveredIntent.release());
 #endif
 }
 
@@ -897,7 +897,7 @@ Eina_Bool ewk_frame_focused_element_geometry_get(const Evas_Object *ewkFrame, in
     WebCore::Node* focusedNode = document->focusedNode();
     if (!focusedNode)
         return false;
-    WebCore::IntRect nodeRect = focusedNode->getPixelSnappedRect();
+    WebCore::IntRect nodeRect = focusedNode->pixelSnappedBoundingBox();
     if (x)
         *x = nodeRect.x();
     if (y)
@@ -1638,7 +1638,7 @@ ssize_t ewk_frame_source_get(const Evas_Object* ewkFrame, char** frameSource)
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame->document(), -1);
     EINA_SAFETY_ON_NULL_RETURN_VAL(frameSource, -1);
 
-    WTF::String source;
+    StringBuilder builder;
     *frameSource = 0; // Saves 0 to pointer until it's not allocated.
 
     if (!smartData->frame->document()->isHTMLDocument()) {
@@ -1654,28 +1654,20 @@ ssize_t ewk_frame_source_get(const Evas_Object* ewkFrame, char** frameSource)
             if (node->hasTagName(WebCore::HTMLNames::htmlTag)) {
                 WebCore::HTMLElement* element = static_cast<WebCore::HTMLElement*>(node);
                 if (element)
-                    source = element->outerHTML();
+                    builder.append(element->outerHTML());
                 break;
             }
         }
 
-    // Try to get <head> and <body> tags if <html> tag was not found.
-    if (source.isEmpty()) {
-        if (smartData->frame->document()->head())
-            source = smartData->frame->document()->head()->outerHTML();
-
-        if (smartData->frame->document()->body())
-            source += smartData->frame->document()->body()->outerHTML();
-    }
-
-    size_t sourceLength = strlen(source.utf8().data());
+    CString utf8String = builder.toString().utf8();
+    size_t sourceLength = utf8String.length();
     *frameSource = static_cast<char*>(malloc(sourceLength + 1));
     if (!*frameSource) {
         CRITICAL("Could not allocate memory.");
         return -1;
     }
 
-    strncpy(*frameSource, source.utf8().data(), sourceLength);
+    strncpy(*frameSource, utf8String.data(), sourceLength);
     (*frameSource)[sourceLength] = '\0';
 
     return sourceLength;

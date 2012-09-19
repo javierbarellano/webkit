@@ -35,6 +35,7 @@
 namespace WebCore {
 
 class Extensions3DOpenGL : public Extensions3DOpenGLCommon {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     virtual ~Extensions3DOpenGL();
 
@@ -47,6 +48,9 @@ public:
     virtual GC3Dboolean isVertexArrayOES(Platform3DObject);
     virtual void bindVertexArrayOES(Platform3DObject);
     virtual void copyTextureCHROMIUM(GC3Denum, Platform3DObject, Platform3DObject, GC3Dint, GC3Denum);
+    virtual void insertEventMarkerEXT(const String&);
+    virtual void pushGroupMarkerEXT(const String&);
+    virtual void popGroupMarkerEXT(void);
 
 protected:
     // This class only needs to be instantiated by GraphicsContext3D implementations.

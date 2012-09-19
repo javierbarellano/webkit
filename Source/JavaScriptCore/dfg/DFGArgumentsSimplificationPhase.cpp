@@ -145,7 +145,7 @@ public:
         }
         
         // Figure out which variables alias the arguments and nothing else, and are
-        // used only for GetByVal and GetArgumentsLength accesses. At the same time,
+        // used only for GetByVal and GetArrayLength accesses. At the same time,
         // identify uses of CreateArguments that are not consistent with the arguments
         // being aliased only to variables that satisfy these constraints.
         for (BlockIndex blockIndex = 0; blockIndex < m_graph.m_blocks.size(); ++blockIndex) {
@@ -188,28 +188,30 @@ public:
                         // aliasing. But not yet.
                         observeBadArgumentsUse(node.child1());
                         
-                        if (variableAccessData->isCaptured()) {
-                            // If this is an assignment to the arguments register, then
-                            // pretend as if the arguments were created. We don't want to
-                            // optimize code that explicitly assigns to the arguments,
-                            // because that seems too ugly.
-                            
-                            // But, before getting rid of CreateArguments, we will have
-                            // an assignment to the arguments registers with JSValue().
-                            // That's because CSE will refuse to get rid of the
-                            // init_lazy_reg since it treats CreateArguments as reading
-                            // local variables. That could be fixed, but it's easier to
-                            // work around this here.
-                            if (source.op() == JSConstant
-                                && !source.valueOfJSConstant(codeBlock()))
-                                break;
-                            
-                            if (argumentsRegister != InvalidVirtualRegister
-                                && (variableAccessData->local() == argumentsRegister
-                                    || variableAccessData->local() == unmodifiedArgumentsRegister(argumentsRegister)))
-                                m_createsArguments.add(node.codeOrigin.inlineCallFrame);
+                        // If this is an assignment to the arguments register, then
+                        // pretend as if the arguments were created. We don't want to
+                        // optimize code that explicitly assigns to the arguments,
+                        // because that seems too ugly.
+                        
+                        // But, before getting rid of CreateArguments, we will have
+                        // an assignment to the arguments registers with JSValue().
+                        // That's because CSE will refuse to get rid of the
+                        // init_lazy_reg since it treats CreateArguments as reading
+                        // local variables. That could be fixed, but it's easier to
+                        // work around this here.
+                        if (source.op() == JSConstant
+                            && !source.valueOfJSConstant(codeBlock()))
+                            break;
+                        
+                        if (argumentsRegister != InvalidVirtualRegister
+                            && (variableAccessData->local() == argumentsRegister
+                                || variableAccessData->local() == unmodifiedArgumentsRegister(argumentsRegister))) {
+                            m_createsArguments.add(node.codeOrigin.inlineCallFrame);
                             break;
                         }
+
+                        if (variableAccessData->isCaptured())
+                            break;
                         
                         // Make sure that if it's a variable that we think is aliased to
                         // the arguments, that we know that it might actually not be.
@@ -277,34 +279,25 @@ public:
                 }
                     
                 case GetByVal: {
-                    if (!node.prediction()
-                        || !m_graph[node.child1()].prediction()
-                        || !m_graph[node.child2()].prediction()) {
+                    if (node.arrayMode() != Array::Arguments) {
                         observeBadArgumentsUses(node);
                         break;
                     }
-                    
-                    if (!isActionableArraySpeculation(m_graph[node.child1()].prediction())
-                        || !m_graph[node.child2()].shouldSpeculateInteger()) {
-                        observeBadArgumentsUses(node);
-                        break;
-                    }
-                    
-                    if (m_graph[node.child1()].shouldSpeculateArguments()) {
-                        // If arguments is used as an index, then it's an escaping use.
-                        // That's so awful and pretty much impossible since it would
-                        // imply that the arguments were predicted integer, but it's
-                        // good to be defensive and thorough.
-                        observeBadArgumentsUse(node.child2());
-                        observeProperArgumentsUse(node, node.child1());
-                        break;
-                    }
-                    
-                    observeBadArgumentsUses(node);
+
+                    // That's so awful and pretty much impossible since it would
+                    // imply that the arguments were predicted integer, but it's
+                    // good to be defensive and thorough.
+                    observeBadArgumentsUse(node.child2());
+                    observeProperArgumentsUse(node, node.child1());
                     break;
                 }
                     
-                case GetArgumentsLength: {
+                case GetArrayLength: {
+                    if (node.arrayMode() != Array::Arguments) {
+                        observeBadArgumentsUses(node);
+                        break;
+                    }
+                        
                     observeProperArgumentsUse(node, node.child1());
                     break;
                 }
@@ -315,6 +308,18 @@ public:
                     // CreateArguments - is just being kept alive, then this transformation
                     // will not break this, since the Phantom will now just keep alive a
                     // PhantomArguments and OSR exit will still do the right things.
+                    break;
+                    
+                case CheckStructure:
+                case ForwardCheckStructure:
+                case StructureTransitionWatchpoint:
+                case ForwardStructureTransitionWatchpoint:
+                case CheckArray:
+                    // We don't care about these because if we get uses of the relevant
+                    // variable then we can safely get rid of these, too. This of course
+                    // relies on there not being any information transferred by the CFA
+                    // from a CheckStructure on one variable to the information about the
+                    // structures of another variable.
                     break;
                     
                 default:
@@ -429,9 +434,8 @@ public:
                     
                     VariableAccessData* variableAccessData = node.variableAccessData();
                     
-                    if (variableAccessData->isCaptured()) {
-                        ASSERT(m_graph.argumentsRegisterFor(node.codeOrigin) == variableAccessData->local()
-                               || unmodifiedArgumentsRegister(m_graph.argumentsRegisterFor(node.codeOrigin)) == variableAccessData->local());
+                    if (m_graph.argumentsRegisterFor(node.codeOrigin) == variableAccessData->local()
+                           || unmodifiedArgumentsRegister(m_graph.argumentsRegisterFor(node.codeOrigin)) == variableAccessData->local()) {
                         // The child of this store should really be the empty value.
                         Node emptyJSValue(JSConstant, node.codeOrigin, OpInfo(codeBlock()->addOrFindConstant(JSValue())));
                         emptyJSValue.ref();
@@ -443,6 +447,7 @@ public:
                         changed = true;
                         break;
                     }
+                    ASSERT(!variableAccessData->isCaptured());
                     
                     // If this is a store into a VariableAccessData* that is marked as
                     // arguments aliasing for an InlineCallFrame* that does not create
@@ -471,39 +476,47 @@ public:
                     break;
                 }
                     
-                case GetByVal: {
-                    if (!node.prediction()
-                        || !m_graph[node.child1()].prediction()
-                        || !m_graph[node.child2()].prediction())
+                case CheckStructure:
+                case ForwardCheckStructure:
+                case StructureTransitionWatchpoint:
+                case ForwardStructureTransitionWatchpoint:
+                case CheckArray: {
+                    // We can just get rid of this node, if it references a phantom argument.
+                    if (!isOKToOptimize(m_graph[node.child1()]))
                         break;
-                    
-                    if (!isActionableArraySpeculation(m_graph[node.child1()].prediction())
-                        || !m_graph[node.child2()].shouldSpeculateInteger())
-                        break;
-                    
-                    if (m_graph[node.child1()].shouldSpeculateArguments()) {
-                        // This can be simplified to GetMyArgumentByVal if we know that
-                        // it satisfies either condition (1) or (2):
-                        // 1) Its first child is a valid ArgumentsAliasingData and the
-                        //    InlineCallFrame* is not marked as creating arguments.
-                        // 2) Its first child is CreateArguments and its InlineCallFrame*
-                        //    is not marked as creating arguments.
-                        
-                        if (!isOKToOptimize(m_graph[node.child1()]))
-                            break;
-                        
-                        m_graph.deref(node.child1());
-                        node.children.child1() = node.children.child2();
-                        node.children.child2() = Edge();
-                        node.setOpAndDefaultFlags(GetMyArgumentByVal);
-                        changed = true;
-                        --indexInBlock; // Force reconsideration of this op now that it's a GetMyArgumentByVal.
-                        break;
-                    }
+                    m_graph.deref(node.child1());
+                    node.setOpAndDefaultFlags(Phantom);
+                    node.children.setChild1(Edge());
                     break;
                 }
                     
-                case GetArgumentsLength: {
+                case GetByVal: {
+                    if (node.arrayMode() != Array::Arguments)
+                        break;
+
+                    // This can be simplified to GetMyArgumentByVal if we know that
+                    // it satisfies either condition (1) or (2):
+                    // 1) Its first child is a valid ArgumentsAliasingData and the
+                    //    InlineCallFrame* is not marked as creating arguments.
+                    // 2) Its first child is CreateArguments and its InlineCallFrame*
+                    //    is not marked as creating arguments.
+                    
+                    if (!isOKToOptimize(m_graph[node.child1()]))
+                        break;
+                    
+                    m_graph.deref(node.child1());
+                    node.children.child1() = node.children.child2();
+                    node.children.child2() = Edge();
+                    node.setOpAndDefaultFlags(GetMyArgumentByVal);
+                    changed = true;
+                    --indexInBlock; // Force reconsideration of this op now that it's a GetMyArgumentByVal.
+                    break;
+                }
+                    
+                case GetArrayLength: {
+                    if (node.arrayMode() != Array::Arguments)
+                        break;
+                    
                     if (!isOKToOptimize(m_graph[node.child1()]))
                         break;
                     
@@ -605,6 +618,7 @@ public:
                     
                     node.setOpAndDefaultFlags(Nop);
                     m_graph.clearAndDerefChild1(node);
+                    m_graph.clearAndDerefChild2(node);
                     node.setRefCount(0);
                     break;
                 }
@@ -743,12 +757,14 @@ private:
         }
                         
         VariableAccessData* variableAccessData = child.variableAccessData();
-        if (variableAccessData->isCaptured()) {
-            if (child.local() == m_graph.uncheckedArgumentsRegisterFor(child.codeOrigin)
-                && node.codeOrigin.inlineCallFrame != child.codeOrigin.inlineCallFrame)
-                m_createsArguments.add(child.codeOrigin.inlineCallFrame);
+        if (child.local() == m_graph.uncheckedArgumentsRegisterFor(child.codeOrigin)
+            && node.codeOrigin.inlineCallFrame != child.codeOrigin.inlineCallFrame) {
+            m_createsArguments.add(child.codeOrigin.inlineCallFrame);
             return;
         }
+
+        if (variableAccessData->isCaptured())
+            return;
         
         ArgumentsAliasingData& data = m_argumentsAliasing.find(variableAccessData)->second;
         data.mergeCallContext(node.codeOrigin.inlineCallFrame);
@@ -762,16 +778,15 @@ private:
         switch (source.op()) {
         case GetLocal: {
             VariableAccessData* variableAccessData = source.variableAccessData();
-            if (variableAccessData->isCaptured()) {
-                int argumentsRegister = m_graph.uncheckedArgumentsRegisterFor(source.codeOrigin);
-                if (argumentsRegister == InvalidVirtualRegister)
-                    break;
-                if (argumentsRegister == variableAccessData->local())
-                    return true;
-                if (unmodifiedArgumentsRegister(argumentsRegister) == variableAccessData->local())
-                    return true;
+            int argumentsRegister = m_graph.uncheckedArgumentsRegisterFor(source.codeOrigin);
+            if (argumentsRegister == InvalidVirtualRegister)
                 break;
-            }
+            if (argumentsRegister == variableAccessData->local())
+                return true;
+            if (unmodifiedArgumentsRegister(argumentsRegister) == variableAccessData->local())
+                return true;
+            if (variableAccessData->isCaptured())
+                break;
             ArgumentsAliasingData& data =
                 m_argumentsAliasing.find(variableAccessData)->second;
             if (!data.isValid())

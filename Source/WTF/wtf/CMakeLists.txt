@@ -82,6 +82,7 @@ SET(WTF_HEADERS
     RefPtr.h
     RefPtrHashMap.h
     RetainPtr.h
+    SaturatedArithmetic.h
     SegmentedVector.h
     SHA1.h
     StackBounds.h
@@ -122,6 +123,7 @@ SET(WTF_HEADERS
     text/AtomicStringImpl.h
     text/Base64.h
     text/CString.h
+    text/IntegerToStringConversion.h
     text/StringBuffer.h
     text/StringHash.h
     text/StringImpl.h
@@ -215,7 +217,3 @@ ADD_DEFINITIONS(-DBUILDING_WTF)
 ADD_LIBRARY(${WTF_LIBRARY_NAME} STATIC ${WTF_HEADERS} ${WTF_SOURCES})
 TARGET_LINK_LIBRARIES(${WTF_LIBRARY_NAME} ${WTF_LIBRARIES})
 SET_TARGET_PROPERTIES(${WTF_LIBRARY_NAME} PROPERTIES FOLDER "JavaScriptCore")
-
-IF (WTF_LINK_FLAGS)
-    ADD_TARGET_PROPERTIES(${WTF_LIBRARY_NAME} LINK_FLAGS "${WTF_LINK_FLAGS}")
-ENDIF ()

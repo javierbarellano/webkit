@@ -31,6 +31,7 @@
 #if ENABLE(DFG_JIT)
 
 #include "CodeOrigin.h"
+#include "Options.h"
 #include "VirtualRegister.h"
 
 /* DFG_ENABLE() - turn on a specific features in the DFG JIT */
@@ -132,7 +133,7 @@ enum SpillRegistersMode { NeedToSpill, DontSpill };
 
 enum NoResultTag { NoResult };
 
-enum OptimizationFixpointState { FixpointConverged, FixpointNotConverged };
+enum OptimizationFixpointState { BeforeFixpoint, FixpointNotConverged, FixpointConverged };
 
 inline bool shouldShowDisassembly()
 {

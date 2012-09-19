@@ -24,26 +24,28 @@
 
 #include "config.h"
 
-#include "cc/CCPrioritizedTexture.h"
+#include "CCPrioritizedTexture.h"
 
+#include "CCPrioritizedTextureManager.h"
+#include "CCSingleThreadProxy.h" // For DebugScopedSetImplThread
+#include "CCTexture.h"
 #include "CCTiledLayerTestCommon.h"
 #include "FakeCCGraphicsContext.h"
-#include "cc/CCPrioritizedTextureManager.h"
-#include "cc/CCSingleThreadProxy.h" // For DebugScopedSetImplThread
-#include "cc/CCTexture.h"
+#include "WebCompositorInitializer.h"
 #include <gtest/gtest.h>
 
 using namespace WebCore;
 using namespace WebKitTests;
 using namespace WTF;
 
-namespace {
+namespace WebCore {
 
 class CCPrioritizedTextureTest : public testing::Test {
 public:
     CCPrioritizedTextureTest()
         : m_textureSize(256, 256)
         , m_textureFormat(GraphicsContext3D::RGBA)
+        , m_compositorInitializer(0)
         , m_context(WebKit::createFakeCCGraphicsContext())
     {
         DebugScopedSetImplThread implThread;
@@ -68,16 +70,27 @@ public:
 
     bool validateTexture(OwnPtr<CCPrioritizedTexture>& texture, bool requestLate)
     {
-        DebugScopedSetImplThread implThread;
-#if !ASSERT_DISABLED
-        texture->textureManager()->assertInvariants();
-#endif
+        textureManagerAssertInvariants(texture->textureManager());
         if (requestLate)
             texture->requestLate();
+        textureManagerAssertInvariants(texture->textureManager());
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         bool success = texture->canAcquireBackingTexture();
         if (success)
             texture->acquireBackingTexture(resourceProvider());
         return success;
+    }
+
+    void prioritizeTexturesAndBackings(CCPrioritizedTextureManager* textureManager)
+    {
+        textureManager->prioritizeTextures();
+        textureManagerUpdateBackingsPriorities(textureManager);
+    }
+
+    void textureManagerUpdateBackingsPriorities(CCPrioritizedTextureManager* textureManager)
+    {
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
+        textureManager->updateBackingsPriorities();
     }
 
     CCResourceProvider* resourceProvider()
@@ -85,12 +98,30 @@ public:
        return m_resourceProvider.get();
     }
 
+    void textureManagerAssertInvariants(CCPrioritizedTextureManager* textureManager)
+    {
+#if !ASSERT_DISABLED
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
+        textureManager->assertInvariants();
+#endif
+    }
+
+    bool textureBackingIsAbovePriorityCutoff(CCPrioritizedTexture* texture)
+    {
+        return texture->m_backing->wasAbovePriorityCutoffAtLastPriorityUpdate();
+    }
+
 protected:
     const IntSize m_textureSize;
     const GC3Denum m_textureFormat;
+    WebCompositorInitializer m_compositorInitializer;
     OwnPtr<CCGraphicsContext> m_context;
     OwnPtr<CCResourceProvider> m_resourceProvider;
 };
+
+}
+
+namespace {
 
 TEST_F(CCPrioritizedTextureTest, requestTextureExceedingMaxLimit)
 {
@@ -108,7 +139,7 @@ TEST_F(CCPrioritizedTextureTest, requestTextureExceedingMaxLimit)
         textures[i]->setRequestPriority(100 + i);
 
     // Only lower half should be available.
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     EXPECT_TRUE(validateTexture(textures[0], false));
     EXPECT_TRUE(validateTexture(textures[7], false));
     EXPECT_FALSE(validateTexture(textures[8], false));
@@ -119,7 +150,7 @@ TEST_F(CCPrioritizedTextureTest, requestTextureExceedingMaxLimit)
         textures[i]->setRequestPriority(100 - i);
 
     // Only upper half should be available.
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     EXPECT_FALSE(validateTexture(textures[0], false));
     EXPECT_FALSE(validateTexture(textures[7], false));
     EXPECT_TRUE(validateTexture(textures[8], false));
@@ -128,7 +159,7 @@ TEST_F(CCPrioritizedTextureTest, requestTextureExceedingMaxLimit)
     EXPECT_EQ(texturesMemorySize(maxTextures), textureManager->memoryAboveCutoffBytes());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -145,11 +176,11 @@ TEST_F(CCPrioritizedTextureTest, changeMemoryLimits)
 
     // Set max limit to 8 textures
     textureManager->setMaxMemoryLimitBytes(texturesMemorySize(8));
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     for (size_t i = 0; i < maxTextures; ++i)
         validateTexture(textures[i], false);
     {
-        DebugScopedSetImplThread implThread;
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         textureManager->reduceMemory(resourceProvider());
     }
 
@@ -158,11 +189,11 @@ TEST_F(CCPrioritizedTextureTest, changeMemoryLimits)
 
     // Set max limit to 5 textures
     textureManager->setMaxMemoryLimitBytes(texturesMemorySize(5));
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     for (size_t i = 0; i < maxTextures; ++i)
         EXPECT_EQ(validateTexture(textures[i], false), i < 5);
     {
-        DebugScopedSetImplThread implThread;
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         textureManager->reduceMemory(resourceProvider());
     }
 
@@ -171,18 +202,18 @@ TEST_F(CCPrioritizedTextureTest, changeMemoryLimits)
 
     // Set max limit to 4 textures
     textureManager->setMaxMemoryLimitBytes(texturesMemorySize(4));
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     for (size_t i = 0; i < maxTextures; ++i)
         EXPECT_EQ(validateTexture(textures[i], false), i < 4);
     {
-        DebugScopedSetImplThread implThread;
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         textureManager->reduceMemory(resourceProvider());
     }
 
     EXPECT_EQ(texturesMemorySize(4), textureManager->memoryAboveCutoffBytes());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -201,7 +232,7 @@ TEST_F(CCPrioritizedTextureTest, textureManagerPartialUpdateTextures)
 
     for (size_t i = 0; i < numTextures; ++i)
         textures[i]->setRequestPriority(200 + i);
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
 
     // Allocate textures which are currently high priority.
     EXPECT_TRUE(validateTexture(textures[0], false));
@@ -216,7 +247,7 @@ TEST_F(CCPrioritizedTextureTest, textureManagerPartialUpdateTextures)
 
     for (size_t i = 0; i < numTextures; ++i)
         moreTextures[i]->setRequestPriority(100 + i);
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
 
     // Textures are now below cutoff.
     EXPECT_FALSE(validateTexture(textures[0], false));
@@ -242,7 +273,7 @@ TEST_F(CCPrioritizedTextureTest, textureManagerPartialUpdateTextures)
     EXPECT_FALSE(textures[2]->haveBackingTexture());
     EXPECT_FALSE(textures[3]->haveBackingTexture());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -263,7 +294,7 @@ TEST_F(CCPrioritizedTextureTest, textureManagerPrioritiesAreEqual)
 
     // Set max limit to 8 textures
     textureManager->setMaxMemoryLimitBytes(texturesMemorySize(8));
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
 
     // The two high priority textures should be available, others should not.
     for (size_t i = 0; i < 2; ++i)
@@ -282,7 +313,7 @@ TEST_F(CCPrioritizedTextureTest, textureManagerPrioritiesAreEqual)
     EXPECT_EQ(texturesMemorySize(8), textureManager->memoryAboveCutoffBytes());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -295,14 +326,14 @@ TEST_F(CCPrioritizedTextureTest, textureManagerDestroyedFirst)
     EXPECT_FALSE(texture->haveBackingTexture());
 
     texture->setRequestPriority(100);
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
 
     EXPECT_TRUE(validateTexture(texture, false));
     EXPECT_TRUE(texture->canAcquireBackingTexture());
     EXPECT_TRUE(texture->haveBackingTexture());
 
     {
-        DebugScopedSetImplThread implThread;
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         textureManager->clearAllMemory(resourceProvider());
     }
     textureManager.clear();
@@ -321,7 +352,7 @@ TEST_F(CCPrioritizedTextureTest, textureMovedToNewManager)
     EXPECT_FALSE(texture->haveBackingTexture());
 
     texture->setRequestPriority(100);
-    textureManagerOne->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManagerOne.get());
 
     EXPECT_TRUE(validateTexture(texture, false));
     EXPECT_TRUE(texture->canAcquireBackingTexture());
@@ -330,7 +361,7 @@ TEST_F(CCPrioritizedTextureTest, textureMovedToNewManager)
     texture->setTextureManager(0);
 
     {
-        DebugScopedSetImplThread implThread;
+        DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
         textureManagerOne->clearAllMemory(resourceProvider());
     }
     textureManagerOne.clear();
@@ -340,13 +371,13 @@ TEST_F(CCPrioritizedTextureTest, textureMovedToNewManager)
 
     texture->setTextureManager(textureManagerTwo.get());
 
-    textureManagerTwo->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManagerTwo.get());
 
     EXPECT_TRUE(validateTexture(texture, false));
     EXPECT_TRUE(texture->canAcquireBackingTexture());
     EXPECT_TRUE(texture->haveBackingTexture());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManagerTwo->clearAllMemory(resourceProvider());
 }
 
@@ -371,7 +402,7 @@ TEST_F(CCPrioritizedTextureTest, renderSurfacesReduceMemoryAvailableOutsideRootS
         textures[i]->setRequestPriority(100 + i);
 
     // Only lower half should be available.
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     EXPECT_TRUE(validateTexture(textures[0], false));
     EXPECT_TRUE(validateTexture(textures[3], false));
     EXPECT_FALSE(validateTexture(textures[4], false));
@@ -382,7 +413,7 @@ TEST_F(CCPrioritizedTextureTest, renderSurfacesReduceMemoryAvailableOutsideRootS
         textures[i]->setRequestPriority(100 - i);
 
     // Only upper half should be available.
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     EXPECT_FALSE(validateTexture(textures[0], false));
     EXPECT_FALSE(validateTexture(textures[3], false));
     EXPECT_TRUE(validateTexture(textures[4], false));
@@ -392,7 +423,7 @@ TEST_F(CCPrioritizedTextureTest, renderSurfacesReduceMemoryAvailableOutsideRootS
     EXPECT_EQ(texturesMemorySize(4), textureManager->memoryForSelfManagedTextures());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -417,7 +448,7 @@ TEST_F(CCPrioritizedTextureTest, renderSurfacesReduceMemoryAvailableForRequestLa
         textures[i]->setRequestPriority(100);
 
     // The first four to be requested late will be available.
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
     for (unsigned i = 0; i < maxTextures; ++i)
         EXPECT_FALSE(validateTexture(textures[i], false));
     for (unsigned i = 0; i < maxTextures; i += 2)
@@ -429,7 +460,7 @@ TEST_F(CCPrioritizedTextureTest, renderSurfacesReduceMemoryAvailableForRequestLa
     EXPECT_EQ(texturesMemorySize(4), textureManager->memoryForSelfManagedTextures());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
 
@@ -455,7 +486,7 @@ TEST_F(CCPrioritizedTextureTest, whenRenderSurfaceNotAvailableTexturesAlsoNotAva
     for (size_t i = 6; i < 8; ++i)
         textures[i]->setRequestPriority(CCPriorityCalculator::visiblePriority(false));
 
-    textureManager->prioritizeTextures();
+    prioritizeTexturesAndBackings(textureManager.get());
 
     // Unable to requestLate textures in the child surface.
     EXPECT_FALSE(validateTexture(textures[6], true));
@@ -469,8 +500,57 @@ TEST_F(CCPrioritizedTextureTest, whenRenderSurfaceNotAvailableTexturesAlsoNotAva
     EXPECT_EQ(texturesMemorySize(2), textureManager->memoryForSelfManagedTextures());
     EXPECT_LE(textureManager->memoryUseBytes(), textureManager->memoryAboveCutoffBytes());
 
-    DebugScopedSetImplThread implThread;
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
     textureManager->clearAllMemory(resourceProvider());
 }
+
+TEST_F(CCPrioritizedTextureTest, requestLateBackingsSorting)
+{
+    const size_t maxTextures = 8;
+    OwnPtr<CCPrioritizedTextureManager> textureManager = createManager(maxTextures);
+    textureManager->setMaxMemoryLimitBytes(texturesMemorySize(maxTextures));
+
+    // Create textures to fill our memory limit.
+    OwnPtr<CCPrioritizedTexture> textures[maxTextures];
+    for (size_t i = 0; i < maxTextures; ++i)
+        textures[i] = textureManager->createTexture(m_textureSize, m_textureFormat);
+
+    // Set equal priorities, and allocate backings for all textures.
+    for (size_t i = 0; i < maxTextures; ++i)
+        textures[i]->setRequestPriority(100);
+    prioritizeTexturesAndBackings(textureManager.get());
+    for (unsigned i = 0; i < maxTextures; ++i)
+        EXPECT_TRUE(validateTexture(textures[i], false));
+
+    // Drop the memory limit and prioritize (none will be above the threshold,
+    // but they still have backings because reduceMemory hasn't been called).
+    textureManager->setMaxMemoryLimitBytes(texturesMemorySize(maxTextures / 2));
+    prioritizeTexturesAndBackings(textureManager.get());
+
+    // Push half of them back over the limit.
+    for (size_t i = 0; i < maxTextures; i += 2)
+        EXPECT_TRUE(textures[i]->requestLate());
+
+    // Push the priorities to the backings array and sort the backings array
+    textureManagerUpdateBackingsPriorities(textureManager.get());
+
+    // Assert that the backings list be sorted with the below-limit backings
+    // before the above-limit backings.
+    textureManagerAssertInvariants(textureManager.get());
+
+    // Make sure that we have backings for all of the textures.
+    for (size_t i = 0; i < maxTextures; ++i)
+        EXPECT_TRUE(textures[i]->haveBackingTexture());
+
+    // Make sure that only the requestLate textures are above the priority cutoff
+    for (size_t i = 0; i < maxTextures; i += 2)
+        EXPECT_TRUE(textureBackingIsAbovePriorityCutoff(textures[i].get()));
+    for (size_t i = 1; i < maxTextures; i += 2)
+        EXPECT_FALSE(textureBackingIsAbovePriorityCutoff(textures[i].get()));
+
+    DebugScopedSetImplThreadAndMainThreadBlocked implThreadAndMainThreadBlocked;
+    textureManager->clearAllMemory(resourceProvider());
+}
+
 
 } // namespace

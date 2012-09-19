@@ -448,7 +448,7 @@ private:
             break;
         }
             
-        case GetPropertyStorage: 
+        case GetButterfly: 
         case GetIndexedPropertyStorage:
         case AllocatePropertyStorage:
         case ReallocatePropertyStorage: {
@@ -612,24 +612,15 @@ private:
             
         case PutByValAlias:
         case GetArrayLength:
-        case GetArgumentsLength:
-        case GetInt8ArrayLength:
-        case GetInt16ArrayLength:
-        case GetInt32ArrayLength:
-        case GetUint8ArrayLength:
-        case GetUint8ClampedArrayLength:
-        case GetUint16ArrayLength:
-        case GetUint32ArrayLength:
-        case GetFloat32ArrayLength:
-        case GetFloat64ArrayLength:
-        case GetStringLength:
         case Int32ToDouble:
         case DoubleAsInt32:
         case GetLocalUnlinked:
         case GetMyArgumentsLength:
         case GetMyArgumentByVal:
         case PhantomPutStructure:
-        case PhantomArguments: {
+        case PhantomArguments:
+        case CheckArray:
+        case Arrayify: {
             // This node should never be visible at this stage of compilation. It is
             // inserted by fixup(), which follows this phase.
             ASSERT_NOT_REACHED();
@@ -637,7 +628,6 @@ private:
         }
         
         case PutByVal:
-        case PutByValSafe:
             changed |= m_graph[m_graph.varArgChild(node, 0)].mergeFlags(NodeUsedAsValue);
             changed |= m_graph[m_graph.varArgChild(node, 1)].mergeFlags(NodeUsedAsNumber | NodeUsedAsInt);
             changed |= m_graph[m_graph.varArgChild(node, 2)].mergeFlags(NodeUsedAsValue);
@@ -675,6 +665,7 @@ private:
         case CheckStructure:
         case ForwardCheckStructure:
         case StructureTransitionWatchpoint:
+        case ForwardStructureTransitionWatchpoint:
         case CheckFunction:
         case PutStructure:
         case TearOffActivation:
@@ -714,8 +705,10 @@ private:
         if (node.flags() & NodeHasVarArgs) {
             for (unsigned childIdx = node.firstChild();
                  childIdx < node.firstChild() + node.numChildren();
-                 childIdx++)
-                changed |= m_graph[m_graph.m_varArgChildren[childIdx]].mergeFlags(NodeUsedAsValue);
+                 childIdx++) {
+                if (!!m_graph.m_varArgChildren[childIdx])
+                    changed |= m_graph[m_graph.m_varArgChildren[childIdx]].mergeFlags(NodeUsedAsValue);
+            }
         } else {
             if (!node.child1())
                 return changed;

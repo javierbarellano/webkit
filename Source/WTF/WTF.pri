@@ -18,11 +18,11 @@ mac {
         win32: LIBS += -licuin -licuuc -licudt
         else: LIBS += -licui18n -licuuc -licudata
     } else {
-        error("To build QtWebKit with Qt 5 you need ICU")
+        error("To build QtWebKit with Qt 5 you need to build Qt 5 with libICU support. Check for ICU support being mentioned in qtbase/config.summary.")
     }
 }
 
-linux-*:contains(DEFINES, WTF_USE_GSTREAMER=1) {
+linux-*:use?(GSTREAMER) {
     DEFINES += ENABLE_GLIB_SUPPORT=1
     PKGCONFIG += glib-2.0 gio-2.0
 }
@@ -30,4 +30,13 @@ linux-*:contains(DEFINES, WTF_USE_GSTREAMER=1) {
 win32-* {
     LIBS += -lwinmm
     LIBS += -lgdi32
+}
+
+qnx {
+    # required for timegm
+    LIBS += -lnbutil
+}
+
+mac {
+    LIBS += -framework AppKit
 }

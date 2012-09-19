@@ -59,6 +59,8 @@ void ContentDistributor::distribute(Element* host)
     ContentDistribution pool;
     for (Node* node = host->firstChild(); node; node = node->nextSibling())
         pool.append(node);
+    Vector<bool> distributed(pool.size());
+    distributed.fill(false);
 
     for (ShadowRoot* root = host->youngestShadowRoot(); root; root = root->olderShadowRoot()) {
         for (Node* node = root; node; node = node->traverseNextNode(root)) {
@@ -69,9 +71,9 @@ void ContentDistributor::distribute(Element* host)
                 continue;
             ShadowRoot* older = root->olderShadowRoot();
             if (point->doesSelectFromHostChildren())
-                distributeSelectionsTo(point, pool);
+                distributeSelectionsTo(point, pool, distributed);
             else if (older && !older->assignedTo()) {
-                distributeShadowChildrenTo(point, older);
+                distributeNodeChildrenTo(point, older);
                 older->setAssignedTo(point);
             }
         }
@@ -106,30 +108,31 @@ void ContentDistributor::finishInivalidation()
     m_validity = Invalidated;
 }
 
-void ContentDistributor::distributeSelectionsTo(InsertionPoint* insertionPoint, ContentDistribution& pool)
+void ContentDistributor::distributeSelectionsTo(InsertionPoint* insertionPoint, const ContentDistribution& pool, Vector<bool>& distributed)
 {
     ContentDistribution distribution;
     ContentSelectorQuery query(insertionPoint);
 
     for (size_t i = 0; i < pool.size(); ++i) {
-        Node* child = pool[i].get();
-        if (!child)
+        if (distributed[i])
             continue;
+
+        Node* child = pool[i].get();
         if (!query.matches(child))
             continue;
 
         distribution.append(child);
         m_nodeToInsertionPoint.add(child, insertionPoint);
-        pool[i] = 0;
+        distributed[i] = true;
     }
 
     insertionPoint->setDistribution(distribution);
 }
 
-void ContentDistributor::distributeShadowChildrenTo(InsertionPoint* insertionPoint, ShadowRoot* root)
+void ContentDistributor::distributeNodeChildrenTo(InsertionPoint* insertionPoint, ContainerNode* containerNode)
 {
     ContentDistribution distribution;
-    for (Node* node = root->firstChild(); node; node = node->nextSibling()) {
+    for (Node* node = containerNode->firstChild(); node; node = node->nextSibling()) {
         distribution.append(node);
         m_nodeToInsertionPoint.add(node, insertionPoint);
     }

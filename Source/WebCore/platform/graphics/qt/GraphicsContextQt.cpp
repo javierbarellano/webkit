@@ -108,6 +108,8 @@ static inline QPainter::CompositionMode toQtCompositionMode(CompositeOperator op
         return QPainter::CompositionMode_Darken;
     case CompositePlusLighter:
         return QPainter::CompositionMode_Plus;
+    case CompositeDifference:
+        return QPainter::CompositionMode_Difference;
     default:
         ASSERT_NOT_REACHED();
     }
@@ -461,7 +463,12 @@ void GraphicsContext::drawLine(const IntPoint& point1, const IntPoint& point2)
         p->setPen(pen);
     }
 
-    p->drawLine(p1, p2);
+    // Qt interprets geometric units as end-point inclusive, while WebCore interprets geomtric units as endpoint exclusive.
+    // This means we need to subtract one from the endpoint, or the line will be painted one pixel too long.
+    if (p1.x() == p2.x())
+        p->drawLine(p1, p2 - FloatSize(0, 1));
+    else
+        p->drawLine(p1, p2 - FloatSize(1, 0));
 
     if (patWidth)
         p->restore();

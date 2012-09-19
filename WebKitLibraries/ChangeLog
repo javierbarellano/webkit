@@ -1,3 +1,66 @@
+2012-09-08  Sam Weinig  <sam@webkit.org>
+
+        Switch to entering the sandbox directly from main(), rather than waiting for the initialization message
+        https://bugs.webkit.org/show_bug.cgi?id=96194
+
+        Reviewed by Dan Bernstein.
+
+        Update WKSI with SPI for getting the bundle URL from an executable URL.
+
+        * WebKitSystemInterface.h:
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+        * libWebKitSystemInterfaceSnowLeopard.a:
+        Adds WKCopyBundleURLForExecutableURL().
+
+2012-08-29  Tony Chang  <tony@chromium.org>
+
+        Remove ENABLE_CSS3_FLEXBOX compile time flag
+        https://bugs.webkit.org/show_bug.cgi?id=95382
+
+        Reviewed by Ojan Vafai.
+
+        Everyone is already enabling this by default and the spec has stablized.
+
+        * win/tools/vsprops/FeatureDefines.vsprops:
+        * win/tools/vsprops/FeatureDefinesCairo.vsprops:
+
+2012-08-15  Bruno de Oliveira Abinader  <bruno.abinader@basyskom.com>
+
+        [css3-text] Add CSS3 Text decoration compile flag
+        https://bugs.webkit.org/show_bug.cgi?id=93863
+
+        Reviewed by Julien Chaffraix.
+
+        This patch handles the compile flag implementation, which will come disabled by
+        default, thus not exposing the CSS3 text decoration features to the web, unless
+        when explicitly enabling it with "--css3-text-decoration" build parameter.
+
+        * win/tools/vsprops/FeatureDefines.vsprops:
+        * win/tools/vsprops/FeatureDefinesCairo.vsprops:
+
+2012-08-14  Alex Christensen  <alex.christensen@flexsim.com>
+
+        /SAFESEH should not be a common linker option
+        https://bugs.webkit.org/show_bug.cgi?id=89372
+
+        Reviewed by Darin Adler.
+
+        * win/tools/vsprops/common.vsprops:
+        removed /SAFESEH as a default option for the linker (doesn't work for x64)
+
+2012-08-13  Roger Fong  <roger_fong@apple.com>
+
+        Enable CSS Sticky Position on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=93905
+
+        Reviewed by Tim Horton.
+
+        As per https://bugs.webkit.org/show_bug.cgi?id=90046, the ENABLE_CSS_STICKY_POSITION needs to be turned on for Windows as well.
+
+        * win/tools/vsprops/FeatureDefines.vsprops:
+        Include ENABLE_CSS_STICKY_POSITION flag. 
+        
 2012-08-06  Anders Carlsson  <andersca@apple.com>
 
         If the Apple Java plug-in is blocked and no runtime is installed, don't load it

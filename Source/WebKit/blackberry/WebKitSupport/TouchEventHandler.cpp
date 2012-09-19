@@ -42,7 +42,6 @@
 #include "RenderLayer.h"
 #include "RenderTheme.h"
 #include "RenderView.h"
-#include "RenderedDocumentMarker.h"
 #include "SelectionHandler.h"
 #include "WebPage_p.h"
 #include "WebTapHighlight.h"
@@ -136,10 +135,16 @@ void TouchEventHandler::touchEventCancel()
 
     // If we cancel a single touch event, we need to also clean up any hover
     // state we get into by synthetically moving the mouse to the m_fingerPoint.
-    Element* elementUnderFatFinger = m_lastFatFingersResult.nodeAsElementIfApplicable();
-    if (elementUnderFatFinger && elementUnderFatFinger->renderer()) {
+    Element* elementUnderFatFinger = m_lastFatFingersResult.positionWasAdjusted() ? m_lastFatFingersResult.nodeAsElementIfApplicable() : 0;
+    do {
+        if (!elementUnderFatFinger || !elementUnderFatFinger->renderer())
+            break;
 
-        HitTestRequest request(HitTestRequest::FingerUp);
+        if (!elementUnderFatFinger->renderer()->style()->affectedByHoverRules()
+            && !elementUnderFatFinger->renderer()->style()->affectedByActiveRules())
+            break;
+
+        HitTestRequest request(HitTestRequest::TouchEvent | HitTestRequest::Release);
         // The HitTestResult point is not actually needed.
         HitTestResult result(IntPoint::zero());
         result.setInnerNode(elementUnderFatFinger);
@@ -148,11 +153,14 @@ void TouchEventHandler::touchEventCancel()
         ASSERT(document);
         document->renderView()->layer()->updateHoverActiveState(request, result);
         document->updateStyleIfNeeded();
+
         // Updating the document style may destroy the renderer.
-        if (elementUnderFatFinger->renderer())
-            elementUnderFatFinger->renderer()->repaint();
+        if (!elementUnderFatFinger->renderer())
+            break;
+
+        elementUnderFatFinger->renderer()->repaint();
         ASSERT(!elementUnderFatFinger->hovered());
-    }
+    } while (0);
 
     m_lastFatFingersResult.reset();
 }
@@ -169,11 +177,17 @@ void TouchEventHandler::touchHoldEvent()
         m_webPage->clearFocusNode();
 }
 
+static bool isMainFrameScrollable(const WebPagePrivate* page)
+{
+    return page->viewportSize().width() < page->contentsSize().width() || page->viewportSize().height() < page->contentsSize().height();
+}
+
 bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFatFingers)
 {
     // Enable input mode on any touch event.
     m_webPage->m_inputHandler->setInputModeEnabled();
     bool pureWithMouseConversion = m_webPage->m_touchEventMode == PureTouchEventsWithMouseConversion;
+    bool alwaysEnableMouseConversion = pureWithMouseConversion || (!isMainFrameScrollable(m_webPage) && !m_webPage->m_inRegionScroller->d->isActive());
 
     switch (point.m_state) {
     case Platform::TouchPoint::TouchPressed:
@@ -195,7 +209,10 @@ bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFa
 
             // Set or reset the touch mode.
             Element* possibleTargetNodeForMouseMoveEvents = static_cast<Element*>(m_lastFatFingersResult.positionWasAdjusted() ? elementUnderFatFinger : m_lastFatFingersResult.node());
-            m_convertTouchToMouse = pureWithMouseConversion ? true : shouldConvertTouchToMouse(possibleTargetNodeForMouseMoveEvents);
+            m_convertTouchToMouse = alwaysEnableMouseConversion ? true : shouldConvertTouchToMouse(possibleTargetNodeForMouseMoveEvents);
+
+            if (!possibleTargetNodeForMouseMoveEvents || (!possibleTargetNodeForMouseMoveEvents->hasEventListeners(eventNames().touchmoveEvent) && !m_convertTouchToMouse))
+                m_webPage->client()->notifyNoMouseMoveOrTouchMoveHandlers();
 
             if (elementUnderFatFinger)
                 drawTapHighlight();
@@ -214,11 +231,20 @@ bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFa
         }
     case Platform::TouchPoint::TouchReleased:
         {
-            unsigned spellLength = spellCheck(point);
+            imf_sp_text_t spellCheckOptionRequest;
+            bool shouldRequestSpellCheckOptions = false;
+
+            if (m_lastFatFingersResult.isTextInput())
+                shouldRequestSpellCheckOptions = m_webPage->m_inputHandler->shouldRequestSpellCheckingOptionsForPoint(point.m_pos
+                                                                                                                      , m_lastFatFingersResult.nodeAsElementIfApplicable(FatFingersResult::ShadowContentNotAllowed)
+                                                                                                                      , spellCheckOptionRequest);
+
             // Apply any suppressed changes. This does not eliminate the need
             // for the show after the handling of fat finger pressed as it may
-            // have triggered a state change.
-            m_webPage->m_inputHandler->processPendingKeyboardVisibilityChange();
+            // have triggered a state change. Leave the change suppressed if
+            // we are triggering spell check options.
+            if (!shouldRequestSpellCheckOptions)
+                m_webPage->m_inputHandler->processPendingKeyboardVisibilityChange();
 
             if (shouldSuppressMouseDownOnTouchDown())
                 handleFatFingerPressed();
@@ -240,11 +266,8 @@ bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFa
             PlatformMouseEvent mouseEvent(adjustedPoint, m_lastScreenPoint, PlatformEvent::MouseReleased, 1, LeftButton, TouchScreen);
             m_webPage->handleMouseEvent(mouseEvent);
             m_lastFatFingersResult.reset(); // Reset the fat finger result as its no longer valid when a user's finger is not on the screen.
-            if (spellLength) {
-                unsigned end = m_webPage->m_inputHandler->caretPosition();
-                unsigned start = end - spellLength;
-                m_webPage->m_client->requestSpellingSuggestionsForString(start, end);
-            }
+            if (shouldRequestSpellCheckOptions)
+                m_webPage->m_inputHandler->requestSpellingCheckingOptions(spellCheckOptionRequest);
             return true;
         }
     case Platform::TouchPoint::TouchMoved:
@@ -252,7 +275,7 @@ bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFa
             PlatformMouseEvent mouseEvent(point.m_pos, m_lastScreenPoint, PlatformEvent::MouseMoved, 1, LeftButton, TouchScreen);
             m_lastScreenPoint = point.m_screenPos;
             if (!m_webPage->handleMouseEvent(mouseEvent)) {
-                m_convertTouchToMouse = pureWithMouseConversion;
+                m_convertTouchToMouse = alwaysEnableMouseConversion;
                 return false;
             }
             return true;
@@ -262,31 +285,6 @@ bool TouchEventHandler::handleTouchPoint(Platform::TouchPoint& point, bool useFa
         break;
     }
     return false;
-}
-
-unsigned TouchEventHandler::spellCheck(Platform::TouchPoint& touchPoint)
-{
-    Element* elementUnderFatFinger = m_lastFatFingersResult.nodeAsElementIfApplicable();
-    if (!m_lastFatFingersResult.isTextInput() || !elementUnderFatFinger)
-        return 0;
-
-    LayoutPoint contentPos(m_webPage->mapFromViewportToContents(touchPoint.m_pos));
-    contentPos = DOMSupport::convertPointToFrame(m_webPage->mainFrame(), m_webPage->focusedOrMainFrame(), contentPos);
-
-    Document* document = elementUnderFatFinger->document();
-    ASSERT(document);
-    RenderedDocumentMarker* marker = document->markers()->renderedMarkerContainingPoint(contentPos, DocumentMarker::Spelling);
-    if (!marker)
-        return 0;
-
-    IntRect rect = marker->renderedRect();
-    LayoutPoint newContentPos = LayoutPoint(rect.x() + rect.width(), rect.y() + rect.height() / 2);
-    Frame* frame = m_webPage->focusedOrMainFrame();
-    if (frame != m_webPage->mainFrame())
-        newContentPos = m_webPage->mainFrame()->view()->windowToContents(frame->view()->contentsToWindow(newContentPos));
-    m_lastFatFingersResult.m_adjustedPosition = newContentPos;
-    m_lastFatFingersResult.m_positionWasAdjusted = true;
-    return marker->endOffset() - marker->startOffset();
 }
 
 void TouchEventHandler::handleFatFingerPressed()
@@ -364,12 +362,12 @@ void TouchEventHandler::drawTapHighlight()
     // On the client side, this info is being used to hide the tap highlight window on scroll.
     RenderLayer* layer = m_webPage->enclosingFixedPositionedAncestorOrSelfIfFixedPositioned(renderer->enclosingLayer());
     bool shouldHideTapHighlightRightAfterScrolling = !layer->renderer()->isRenderView();
-    shouldHideTapHighlightRightAfterScrolling |= !!m_webPage->m_inRegionScroller->d->node();
+    shouldHideTapHighlightRightAfterScrolling |= !!m_webPage->m_inRegionScroller->d->isActive();
 
     IntPoint framePos(m_webPage->frameOffset(elementFrame));
 
     // FIXME: We can get more precise on the <map> case by calculating the rect with HTMLAreaElement::computeRect().
-    IntRect absoluteRect = renderer->absoluteClippedOverflowRect();
+    IntRect absoluteRect(renderer->absoluteClippedOverflowRect());
     absoluteRect.move(framePos.x(), framePos.y());
 
     IntRect clippingRect;

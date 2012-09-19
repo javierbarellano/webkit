@@ -163,7 +163,7 @@ static inline void dispatchEventsOnWindowAndFocusedNode(Document* document, bool
 
 static inline bool hasCustomFocusLogic(Node* node)
 {
-    return node->hasTagName(inputTag) || node->hasTagName(textareaTag) || node->hasTagName(videoTag) || node->hasTagName(audioTag);
+    return node->isHTMLElement() && toHTMLElement(node)->hasCustomFocusLogic();
 }
 
 static inline bool isNonFocusableShadowHost(Node* node, KeyboardEvent* event)
@@ -285,7 +285,7 @@ bool FocusController::setInitialFocus(FocusDirection direction, KeyboardEvent* e
     // into the web area again, even if focus did not change within WebCore. PostNotification is called instead
     // of handleFocusedUIElementChanged, because this will send the notification even if the element is the same.
     if (AXObjectCache::accessibilityEnabled())
-        focusedOrMainFrame()->document()->axObjectCache()->postNotification(focusedOrMainFrame()->document()->renderer(), AXObjectCache::AXFocusedUIElementChanged, true);
+        focusedOrMainFrame()->document()->axObjectCache()->postNotification(focusedOrMainFrame()->document(), AXObjectCache::AXFocusedUIElementChanged, true);
 
     return didAdvanceFocus;
 }
@@ -708,7 +708,7 @@ void FocusController::setContainingWindowIsVisible(bool containingWindowIsVisibl
 
         for (HashSet<ScrollableArea*>::const_iterator it = scrollableAreas->begin(), end = scrollableAreas->end(); it != end; ++it) {
             ScrollableArea* scrollableArea = *it;
-            ASSERT(scrollableArea->isOnActivePage());
+            ASSERT(scrollableArea->scrollbarsCanBeActive() || m_page->shouldSuppressScrollbarAnimations());
 
             contentAreaDidShowOrHide(scrollableArea, containingWindowIsVisible);
         }

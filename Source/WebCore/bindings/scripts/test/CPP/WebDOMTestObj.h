@@ -38,9 +38,9 @@ class WebDOMSVGPoint;
 class WebDOMString;
 class WebDOMTestObj;
 class WebDOMa;
+class WebDOMany;
 class WebDOMb;
 class WebDOMbool;
-class WebDOMc;
 class WebDOMd;
 class WebDOMe;
 
@@ -129,6 +129,8 @@ public:
     int conditionalAttr3() const;
     void setConditionalAttr3(int);
 #endif
+    WebDOMany anyAttribute() const;
+    void setAnyAttribute(const WebDOMany&);
     WebDOMDocument contentDocument() const;
     WebDOMSVGPoint mutablePoint() const;
     void setMutablePoint(const WebDOMSVGPoint&);
@@ -182,7 +184,6 @@ public:
 #endif
     void convert1(const WebDOMa& );
     void convert2(const WebDOMb& );
-    void convert3(const WebDOMc& );
     void convert4(const WebDOMd& );
     void convert5(const WebDOMe& );
     WebDOMSVGPoint mutablePointFunction();

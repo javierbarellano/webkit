@@ -405,6 +405,8 @@ class TestPort(Port):
 
     def diff_image(self, expected_contents, actual_contents, tolerance=None):
         diffed = actual_contents != expected_contents
+        if 'ref' in expected_contents:
+            assert tolerance == 0
         if diffed:
             return ("< %s\n---\n> %s\n" % (expected_contents, actual_contents), 1, None)
         return (None, 0, None)
@@ -525,7 +527,7 @@ class TestDriver(Driver):
         pixel_tests_flag = '-p' if pixel_tests else ''
         return [self._port._path_to_driver()] + [pixel_tests_flag] + self._port.get_option('additional_drt_flag', []) + per_test_args
 
-    def run_test(self, test_input):
+    def run_test(self, test_input, stop_when_done):
         start_time = time.time()
         test_name = test_input.test_name
         test_args = test_input.args or []
@@ -562,6 +564,9 @@ class TestDriver(Driver):
         if crashed_process_name:
             crash_logs = CrashLogs(self._port.host)
             crash_log = crash_logs.find_newest_log(crashed_process_name, None) or ''
+
+        if stop_when_done:
+            self.stop()
 
         return DriverOutput(actual_text, test.actual_image, test.actual_checksum, audio,
             crash=test.crash or test.web_process_crash, crashed_process_name=crashed_process_name,

@@ -29,10 +29,10 @@
 #include "ScrollbarLayerChromium.h"
 
 #include "BitmapCanvasLayerTextureUpdater.h"
+#include "CCLayerTreeHost.h"
+#include "CCScrollbarLayerImpl.h"
+#include "CCTextureUpdateQueue.h"
 #include "LayerPainterChromium.h"
-#include "cc/CCLayerTreeHost.h"
-#include "cc/CCScrollbarLayerImpl.h"
-#include "cc/CCTextureUpdateQueue.h"
 #include <public/WebRect.h>
 
 using WebKit::WebRect;
@@ -65,7 +65,7 @@ void ScrollbarLayerChromium::pushPropertiesTo(CCLayerImpl* layer)
     CCScrollbarLayerImpl* scrollbarLayer = static_cast<CCScrollbarLayerImpl*>(layer);
 
     if (!scrollbarLayer->scrollbarGeometry())
-        scrollbarLayer->setScrollbarGeometry(adoptPtr(m_geometry->clone()));
+        scrollbarLayer->setScrollbarGeometry(CCScrollbarGeometryFixedThumb::create(adoptPtr(m_geometry->clone())));
 
     scrollbarLayer->setScrollbarData(m_scrollbar.get());
 
@@ -188,7 +188,7 @@ void ScrollbarLayerChromium::setLayerTreeHost(CCLayerTreeHost* host)
 
 void ScrollbarLayerChromium::createTextureUpdaterIfNeeded()
 {
-    m_textureFormat = layerTreeHost()->layerRendererCapabilities().bestTextureFormat;
+    m_textureFormat = layerTreeHost()->rendererCapabilities().bestTextureFormat;
 
     if (!m_backTrackUpdater)
         m_backTrackUpdater = BitmapCanvasLayerTextureUpdater::create(ScrollbarBackgroundPainter::create(m_scrollbar.get(), m_painter, m_geometry.get(), WebKit::WebScrollbar::BackTrackPart));
@@ -228,8 +228,8 @@ void ScrollbarLayerChromium::updatePart(LayerTextureUpdater* painter, LayerTextu
     painter->prepareToUpdate(rect, rect.size(), 1, 1, paintedOpaqueRect, stats);
     texture->prepareRect(rect, stats);
 
-    IntRect destRect(IntPoint(), rect.size());
-    TextureUploader::Parameters upload = { texture, rect, destRect };
+    IntSize destOffset(0, 0);
+    TextureUploader::Parameters upload = { texture, rect, destOffset };
     queue.appendFullUpload(upload);
 }
 

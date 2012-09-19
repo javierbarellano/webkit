@@ -1228,6 +1228,7 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
     Color backgroundColor = webPage->drawsTransparentBackground() ? Color::transparent : Color::white;
     bool isMainFrame = webPage->mainWebFrame() == m_frame;
     bool shouldUseFixedLayout = isMainFrame && webPage->useFixedLayout();
+    IntRect currentVisibleContentBounds = m_frame->visibleContentBounds();
 
     const ResourceResponse& response = m_frame->coreFrame()->loader()->documentLoader()->response();
     m_frameHasCustomRepresentation = isMainFrame && WebProcess::shared().shouldUseCustomRepresentationForResponse(response);
@@ -1235,8 +1236,8 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
 
     m_frame->coreFrame()->createView(webPage->size(), backgroundColor, /* transparent */ false, IntSize(), shouldUseFixedLayout);
     m_frame->coreFrame()->view()->setTransparent(!webPage->drawsBackground());
-    if (shouldUseFixedLayout)
-        m_frame->coreFrame()->view()->setFixedVisibleContentRect(webPage->bounds());
+    if (shouldUseFixedLayout && !currentVisibleContentBounds.isEmpty())
+        m_frame->coreFrame()->view()->setFixedVisibleContentRect(currentVisibleContentBounds);
 }
 
 void WebFrameLoaderClient::didSaveToPageCache()
@@ -1356,9 +1357,6 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugIn
 
 void WebFrameLoaderClient::redirectDataToPlugin(Widget* pluginWidget)
 {
-    ASSERT(!m_pluginView);
-    ASSERT(pluginWidget);
-    
     m_pluginView = static_cast<PluginView*>(pluginWidget);
 }
 

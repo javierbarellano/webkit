@@ -40,8 +40,9 @@
 #import "FrameLoadDelegate.h"
 #import "HistoryDelegate.h"
 #import "JavaScriptThreading.h"
-#import "LayoutTestController.h"
+#import "TestRunner.h"
 #import "MockGeolocationProvider.h"
+#import "MockWebNotificationProvider.h"
 #import "NavigationController.h"
 #import "ObjCPlugin.h"
 #import "ObjCPluginFunction.h"
@@ -88,6 +89,7 @@
 #import <wtf/Assertions.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/Threading.h>
+#import <wtf/ObjcRuntimeExtras.h>
 #import <wtf/OwnPtr.h>
 
 extern "C" {
@@ -118,7 +120,7 @@ static void runTest(const string& testPathOrURL);
 volatile bool done;
 
 NavigationController* gNavigationController = 0;
-RefPtr<LayoutTestController> gLayoutTestController;
+RefPtr<TestRunner> gTestRunner;
 
 WebFrame *mainFrame = 0;
 // This is the topmost frame that is loading, during a given load, or nil when no load is 
@@ -151,7 +153,7 @@ static RetainPtr<CFStringRef> persistentUserStyleSheetLocation;
 
 static WebHistoryItem *prevTestBFItem = nil;  // current b/f item at the end of the previous test
 
-#if __OBJC2__
+#ifdef __OBJC2__
 static void swizzleAllMethods(Class imposter, Class original)
 {
     unsigned int imposterMethodCount;
@@ -190,7 +192,7 @@ static void poseAsClass(const char* imposter, const char* original)
     Class imposterClass = objc_getClass(imposter);
     Class originalClass = objc_getClass(original);
 
-#if !__OBJC2__
+#ifndef __OBJC2__
     class_poseAs(imposterClass, originalClass);
 #else
 
@@ -353,7 +355,7 @@ static NSArray *drt_NSFontManager_availableFontFamilies(id self, SEL _cmd)
     if (availableFontFamilies)
         return availableFontFamilies;
     
-    NSArray *availableFamilies = appKitAvailableFontFamiliesIMP(self, _cmd);
+    NSArray *availableFamilies = wtfCallIMP<id>(appKitAvailableFontFamiliesIMP, self, _cmd);
 
     NSMutableSet *prunedFamiliesSet = [NSMutableSet setWithArray:availableFamilies];
     [prunedFamiliesSet intersectSet:allowedFontFamilySet()];
@@ -510,7 +512,7 @@ static void registerMockScrollbars()
 
 WebView *createWebViewAndOffscreenWindow()
 {
-    NSRect rect = NSMakeRect(0, 0, LayoutTestController::maxViewWidth, LayoutTestController::maxViewHeight);
+    NSRect rect = NSMakeRect(0, 0, TestRunner::maxViewWidth, TestRunner::maxViewHeight);
     WebView *webView = [[WebView alloc] initWithFrame:rect frameName:nil groupName:@"org.webkit.DumpRenderTree"];
         
     [webView setUIDelegate:uiDelegate];
@@ -519,6 +521,7 @@ WebView *createWebViewAndOffscreenWindow()
     [webView setResourceLoadDelegate:resourceLoadDelegate];
     [webView _setGeolocationProvider:[MockGeolocationProvider shared]];
     [webView _setDeviceOrientationProvider:[WebDeviceOrientationProviderMock shared]];
+    [webView _setNotificationProvider:[MockWebNotificationProvider shared]];
 
     // Register the same schemes that Safari does
     [WebView registerURLSchemeAsLocal:@"feed"];
@@ -673,7 +676,7 @@ static void resetDefaultsToConsistentValues()
 
     [WebPreferences _setCurrentNetworkLoaderSessionCookieAcceptPolicy:NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain];
     
-    LayoutTestController::setSerializeHTTPLoads(false);
+    TestRunner::setSerializeHTTPLoads(false);
 
     setlocale(LC_ALL, "");
 }
@@ -899,7 +902,7 @@ void dumpRenderTree(int argc, const char *argv[])
     
     [DumpRenderTreePasteboard releaseLocalPasteboards];
 
-    // FIXME: This should be moved onto LayoutTestController and made into a HashSet
+    // FIXME: This should be moved onto TestRunner and made into a HashSet
     if (disallowedURLs) {
         CFRelease(disallowedURLs);
         disallowedURLs = 0;
@@ -924,9 +927,9 @@ static NSInteger compareHistoryItems(id item1, id item2, void *context)
 
 static NSData *dumpAudio()
 {
-    const char *encodedAudioData = gLayoutTestController->encodedAudioData().c_str();
+    const char *encodedAudioData = gTestRunner->encodedAudioData().c_str();
     
-    NSData *data = [NSData dataWithBytes:encodedAudioData length:gLayoutTestController->encodedAudioData().length()];
+    NSData *data = [NSData dataWithBytes:encodedAudioData length:gTestRunner->encodedAudioData().length()];
     return data;
 }
 
@@ -974,7 +977,7 @@ static void dumpFrameScrollPosition(WebFrame *f)
         printf("scrolled to %.f,%.f\n", scrollPosition.x, scrollPosition.y);
     }
 
-    if (gLayoutTestController->dumpChildFrameScrollPositions()) {
+    if (gTestRunner->dumpChildFrameScrollPositions()) {
         NSArray *kids = [f childFrames];
         if (kids)
             for (unsigned i = 0; i < [kids count]; i++)
@@ -998,7 +1001,7 @@ static NSString *dumpFramesAsText(WebFrame *frame)
 
     [result appendFormat:@"%@\n", [documentElement innerText]];
 
-    if (gLayoutTestController->dumpChildFramesAsText()) {
+    if (gTestRunner->dumpChildFramesAsText()) {
         NSArray *kids = [frame childFrames];
         if (kids) {
             for (unsigned i = 0; i < [kids count]; i++)
@@ -1078,21 +1081,21 @@ static void dumpBackForwardListForWebView(WebView *view)
 static void sizeWebViewForCurrentTest()
 {
     // W3C SVG tests expect to be 480x360
-    bool isSVGW3CTest = (gLayoutTestController->testPathOrURL().find("svg/W3C-SVG-1.1") != string::npos);
+    bool isSVGW3CTest = (gTestRunner->testPathOrURL().find("svg/W3C-SVG-1.1") != string::npos);
     if (isSVGW3CTest)
         [[mainFrame webView] setFrameSize:NSMakeSize(480, 360)];
     else
-        [[mainFrame webView] setFrameSize:NSMakeSize(LayoutTestController::maxViewWidth, LayoutTestController::maxViewHeight)];
+        [[mainFrame webView] setFrameSize:NSMakeSize(TestRunner::maxViewWidth, TestRunner::maxViewHeight)];
 }
 
 static const char *methodNameStringForFailedTest()
 {
     const char *errorMessage;
-    if (gLayoutTestController->dumpAsText())
+    if (gTestRunner->dumpAsText())
         errorMessage = "[documentElement innerText]";
-    else if (gLayoutTestController->dumpDOMAsWebArchive())
+    else if (gTestRunner->dumpDOMAsWebArchive())
         errorMessage = "[[mainFrame DOMDocument] webArchive]";
-    else if (gLayoutTestController->dumpSourceAsWebArchive())
+    else if (gTestRunner->dumpSourceAsWebArchive())
         errorMessage = "[[mainFrame dataSource] webArchive]";
     else
         errorMessage = "[mainFrame renderTreeAsExternalRepresentation]";
@@ -1136,6 +1139,7 @@ bool shouldSetWaitToDumpWatchdog()
 void dump()
 {
     invalidateAnyPreviousWaitToDumpWatchdog();
+    ASSERT(!gTestRunner->hasPendingWebNotificationClick());
 
     if (dumpTree) {
         NSString *resultString = nil;
@@ -1143,43 +1147,43 @@ void dump()
         NSString *resultMimeType = @"text/plain";
 
         if ([[[mainFrame dataSource] _responseMIMEType] isEqualToString:@"text/plain"]) {
-            gLayoutTestController->setDumpAsText(true);
-            gLayoutTestController->setGeneratePixelResults(false);
+            gTestRunner->setDumpAsText(true);
+            gTestRunner->setGeneratePixelResults(false);
         }
-        if (gLayoutTestController->dumpAsAudio()) {
+        if (gTestRunner->dumpAsAudio()) {
             resultData = dumpAudio();
             resultMimeType = @"audio/wav";
-        } else if (gLayoutTestController->dumpAsText()) {
+        } else if (gTestRunner->dumpAsText()) {
             resultString = dumpFramesAsText(mainFrame);
-        } else if (gLayoutTestController->dumpAsPDF()) {
+        } else if (gTestRunner->dumpAsPDF()) {
             resultData = dumpFrameAsPDF(mainFrame);
             resultMimeType = @"application/pdf";
-        } else if (gLayoutTestController->dumpDOMAsWebArchive()) {
+        } else if (gTestRunner->dumpDOMAsWebArchive()) {
             WebArchive *webArchive = [[mainFrame DOMDocument] webArchive];
             resultString = HardAutorelease(createXMLStringFromWebArchiveData((CFDataRef)[webArchive data]));
             resultMimeType = @"application/x-webarchive";
-        } else if (gLayoutTestController->dumpSourceAsWebArchive()) {
+        } else if (gTestRunner->dumpSourceAsWebArchive()) {
             WebArchive *webArchive = [[mainFrame dataSource] webArchive];
             resultString = HardAutorelease(createXMLStringFromWebArchiveData((CFDataRef)[webArchive data]));
             resultMimeType = @"application/x-webarchive";
         } else
-            resultString = [mainFrame renderTreeAsExternalRepresentationForPrinting:gLayoutTestController->isPrinting()];
+            resultString = [mainFrame renderTreeAsExternalRepresentationForPrinting:gTestRunner->isPrinting()];
 
         if (resultString && !resultData)
             resultData = [resultString dataUsingEncoding:NSUTF8StringEncoding];
 
         printf("Content-Type: %s\n", [resultMimeType UTF8String]);
 
-        if (gLayoutTestController->dumpAsAudio())
+        if (gTestRunner->dumpAsAudio())
             printf("Content-Transfer-Encoding: base64\n");
 
         if (resultData) {
             fwrite([resultData bytes], 1, [resultData length], stdout);
 
-            if (!gLayoutTestController->dumpAsText() && !gLayoutTestController->dumpDOMAsWebArchive() && !gLayoutTestController->dumpSourceAsWebArchive())
+            if (!gTestRunner->dumpAsText() && !gTestRunner->dumpDOMAsWebArchive() && !gTestRunner->dumpSourceAsWebArchive())
                 dumpFrameScrollPosition(mainFrame);
 
-            if (gLayoutTestController->dumpBackForwardList())
+            if (gTestRunner->dumpBackForwardList())
                 dumpBackForwardListForAllWindows();
         } else
             printf("ERROR: nil result from %s", methodNameStringForFailedTest());
@@ -1195,9 +1199,9 @@ void dump()
         }            
     }
 
-    if (dumpPixelsForCurrentTest && gLayoutTestController->generatePixelResults())
+    if (dumpPixelsForCurrentTest && gTestRunner->generatePixelResults())
         // FIXME: when isPrinting is set, dump the image with page separators.
-        dumpWebViewAsPixelsAndCompareWithExpected(gLayoutTestController->expectedPixelHash());
+        dumpWebViewAsPixelsAndCompareWithExpected(gTestRunner->expectedPixelHash());
 
     puts("#EOF");   // terminate the (possibly empty) pixels block
 
@@ -1256,10 +1260,10 @@ static void resetWebViewToConsistentStateBeforeTesting()
     
     resetDefaultsToConsistentValues();
 
-    if (gLayoutTestController) {
+    if (gTestRunner) {
         WebCoreTestSupport::resetInternalsObject([mainFrame globalContext]);
         // in the case that a test using the chrome input field failed, be sure to clean up for the next test
-        gLayoutTestController->removeChromeInputField();
+        gTestRunner->removeChromeInputField();
     }
 
     [[mainFrame webView] setSmartInsertDeleteEnabled:YES];
@@ -1269,6 +1273,7 @@ static void resetWebViewToConsistentStateBeforeTesting()
     [WebView _setAllowsRoundingHacks:NO];
 
     [[MockGeolocationProvider shared] stopTimer];
+    [[MockWebNotificationProvider shared] reset];
     
     // Clear the contents of the general pasteboard
     [[NSPasteboard generalPasteboard] declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
@@ -1304,19 +1309,19 @@ static void runTest(const string& inputLine)
     
     resetWebViewToConsistentStateBeforeTesting();
 
-    gLayoutTestController = LayoutTestController::create(testURL, command.expectedPixelHash);
+    gTestRunner = TestRunner::create(testURL, command.expectedPixelHash);
     topLoadingFrame = nil;
     ASSERT(!draggingInfo); // the previous test should have called eventSender.mouseUp to drop!
     releaseAndZero(&draggingInfo);
     done = NO;
 
     sizeWebViewForCurrentTest();
-    gLayoutTestController->setIconDatabaseEnabled(false);
+    gTestRunner->setIconDatabaseEnabled(false);
 
     if (disallowedURLs)
         CFSetRemoveAllValues(disallowedURLs);
     if (shouldLogFrameLoadDelegates(pathOrURL.c_str()))
-        gLayoutTestController->setDumpFrameLoadCallbacks(true);
+        gTestRunner->setDumpFrameLoadCallbacks(true);
 
     if (shouldLogHistoryDelegates(pathOrURL.c_str()))
         [[mainFrame webView] setHistoryDelegate:historyDelegate];
@@ -1324,12 +1329,12 @@ static void runTest(const string& inputLine)
         [[mainFrame webView] setHistoryDelegate:nil];
 
     if (shouldEnableDeveloperExtras(pathOrURL.c_str())) {
-        gLayoutTestController->setDeveloperExtrasEnabled(true);
+        gTestRunner->setDeveloperExtrasEnabled(true);
         if (shouldOpenWebInspector(pathOrURL.c_str()))
-            gLayoutTestController->showWebInspector();
+            gTestRunner->showWebInspector();
         if (shouldDumpAsText(pathOrURL.c_str())) {
-            gLayoutTestController->setDumpAsText(true);
-            gLayoutTestController->setGeneratePixelResults(false);
+            gTestRunner->setDumpAsText(true);
+            gTestRunner->setGeneratePixelResults(false);
         }
     }
 
@@ -1364,7 +1369,7 @@ static void runTest(const string& inputLine)
 
     WorkQueue::shared()->clear();
 
-    if (gLayoutTestController->closeRemainingWindowsWhenComplete()) {
+    if (gTestRunner->closeRemainingWindowsWhenComplete()) {
         NSArray* array = [DumpRenderTreeWindow openWindows];
 
         unsigned count = [array count];
@@ -1384,8 +1389,8 @@ static void runTest(const string& inputLine)
 
     // If developer extras enabled Web Inspector may have been open by the test.
     if (shouldEnableDeveloperExtras(pathOrURL.c_str())) {
-        gLayoutTestController->closeWebInspector();
-        gLayoutTestController->setDeveloperExtrasEnabled(false);
+        gTestRunner->closeWebInspector();
+        gTestRunner->setDeveloperExtrasEnabled(false);
     }
 
     resetWebViewToConsistentStateBeforeTesting();
@@ -1399,7 +1404,7 @@ static void runTest(const string& inputLine)
     ASSERT(CFArrayGetCount(openWindowsRef) == 1);
     ASSERT(CFArrayGetValueAtIndex(openWindowsRef, 0) == [[mainFrame webView] window]);
 
-    gLayoutTestController.clear();
+    gTestRunner.clear();
 
     if (ignoreWebCoreNodeLeaks)
         [WebCoreStatistics stopIgnoringWebCoreNodeLeaks];

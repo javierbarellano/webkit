@@ -39,7 +39,6 @@ class CSSStyleSheet;
 class CachedCSSStyleSheet;
 class Document;
 class MediaQuerySet;
-class MemoryObjectInfo;
 class SecurityOrigin;
 class StyleSheetContents;
 
@@ -110,12 +109,15 @@ public:
 
 private:
     CSSStyleSheet(PassRefPtr<StyleSheetContents>, CSSImportRule* ownerRule);
-    CSSStyleSheet(PassRefPtr<StyleSheetContents>, Node* ownerNode);
+    CSSStyleSheet(PassRefPtr<StyleSheetContents>, Node* ownerNode, bool isInlineStylesheet);
 
     virtual bool isCSSStyleSheet() const { return true; }
     virtual String type() const { return "text/css"; }
+
+    bool canAccessRules() const;
     
     RefPtr<StyleSheetContents> m_contents;
+    bool m_isInlineStylesheet;
     bool m_isDisabled;
     String m_title;
     RefPtr<MediaQuerySet> m_mediaQueries;

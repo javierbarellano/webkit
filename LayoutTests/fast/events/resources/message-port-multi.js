@@ -19,6 +19,7 @@ shouldThrow('channel.port1.postMessage("same port", [channel.port1])');
 shouldThrow('channel.port1.postMessage("entangled port", [channel.port2])');
 shouldThrow('channel.port1.postMessage("null port", [channel3.port1, null, channel3.port2])');
 shouldThrow('channel.port1.postMessage("notAPort", [channel3.port1, {}, channel3.port2])');
+shouldThrow('channel.port1.postMessage("duplicate port", [channel3.port1, channel3.port1])');
 // Should be OK to send channel3.port1 (should not have been disentangled by the previous failed calls).
 channel.port1.postMessage("entangled ports", [channel3.port1, channel3.port2]);
 
@@ -37,20 +38,52 @@ function testTransfers() {
     var channel0 = new MessageChannel();
 
     var c1 = new MessageChannel();
-    channel0.port1.webkitPostMessage({id:"send-port", port:c1.port1}, [c1.port1]);
+    channel0.port1.postMessage({id:"send-port", port:c1.port1}, [c1.port1]);
     var c2 = new MessageChannel();
-    channel0.port1.webkitPostMessage({id:"send-port-twice", port0:c2.port1, port1:c2.port1}, [c2.port1]);
+    channel0.port1.postMessage({id:"send-port-twice", port0:c2.port1, port1:c2.port1}, [c2.port1]);
     var c3 = new MessageChannel();
-    channel0.port1.webkitPostMessage({id:"send-two-ports", port0:c3.port1, port1:c3.port2}, [c3.port1, c3.port2]);
+    channel0.port1.postMessage({id:"send-two-ports", port0:c3.port1, port1:c3.port2}, [c3.port1, c3.port2]);
     var c4 = new MessageChannel();
     try {
-        channel0.port1.webkitPostMessage({id:"host-object", hostObject:c3, port:c4.port1}, [c4.port1]);
+        channel0.port1.postMessage({id:"host-object", hostObject:c3, port:c4.port1}, [c4.port1]);
         testFailed("Sending host object should throw");
     } catch(e) {
-        testPassed("Sending host object has thrown " + e);
+        if (e.code == DOMException.DATA_CLONE_ERR)
+          testPassed("Sending host object has thrown " + e);
+        else
+          testFailed("Sending host object should throw a DataCloneError, got: " + e);
+    }
+    try {
+        channel0.port1.postMessage({id:"host-object2", hostObject:navigator, port:c4.port1}, [c4.port1]);
+        testFailed("Sending host object should throw");
+    } catch(e) {
+        if (e.code == DOMException.DATA_CLONE_ERR)
+          testPassed("Sending host object has thrown " + e);
+        else
+          testFailed("Sending host object should throw a DataCloneError, got: " + e);
+    }
+    try {
+        var f1 = function() {}
+        channel0.port1.postMessage({id:"function-object", function:f1, port:c4.port1}, [c4.port1]);
+        testFailed("Sending Function object should throw");
+    } catch(e) {
+        if (e.code == DOMException.DATA_CLONE_ERR)
+          testPassed("Sending Function object has thrown " + e);
+        else
+          testFailed("Sending Function object should throw a DataCloneError, got: " + e);
+    }
+    try {
+        var err = new Error();
+        channel0.port1.postMessage({id:"error-object", error:err, port:c4.port1}, [c4.port1]);
+        testFailed("Sending Error object should throw");
+    } catch(e) {
+        if (e.code == DOMException.DATA_CLONE_ERR)
+          testPassed("Sending Error object has thrown " + e);
+        else
+          testPassed("Sending Error object should throw a DataCloneError, got: " + e);
     }
     c4.port1.postMessage("Should succeed");
-    channel0.port1.webkitPostMessage({id:"done"});
+    channel0.port1.postMessage({id:"done"});
 
     channel0.port2.onmessage = function(event) {
         if (event.data.id == "send-port") {

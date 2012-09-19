@@ -420,17 +420,6 @@ WEBKIT_API void
 webkit_dom_test_obj_convert2(WebKitDOMTestObj* self, WebKitDOMb* );
 
 /**
- * webkit_dom_test_obj_convert3:
- * @self: A #WebKitDOMTestObj
- * @: A #WebKitDOMc
- *
- * Returns:
- *
-**/
-WEBKIT_API void
-webkit_dom_test_obj_convert3(WebKitDOMTestObj* self, WebKitDOMc* );
-
-/**
  * webkit_dom_test_obj_convert4:
  * @self: A #WebKitDOMTestObj
  * @: A #WebKitDOMd
@@ -1209,6 +1198,27 @@ webkit_dom_test_obj_get_conditional_attr3(WebKitDOMTestObj* self);
 **/
 WEBKIT_API void
 webkit_dom_test_obj_set_conditional_attr3(WebKitDOMTestObj* self, glong value);
+
+/**
+ * webkit_dom_test_obj_get_any_attribute:
+ * @self: A #WebKitDOMTestObj
+ *
+ * Returns: (transfer none):
+ *
+**/
+WEBKIT_API WebKitDOMany*
+webkit_dom_test_obj_get_any_attribute(WebKitDOMTestObj* self);
+
+/**
+ * webkit_dom_test_obj_set_any_attribute:
+ * @self: A #WebKitDOMTestObj
+ * @value: A #WebKitDOMany
+ *
+ * Returns: (transfer none):
+ *
+**/
+WEBKIT_API void
+webkit_dom_test_obj_set_any_attribute(WebKitDOMTestObj* self, WebKitDOMany* value);
 
 /**
  * webkit_dom_test_obj_get_content_document:

@@ -108,6 +108,7 @@ FrameLoaderClientBlackBerry::FrameLoaderClientBlackBerry()
     , m_pluginView(0)
     , m_hasSentResponseToPlugin(false)
     , m_cancelLoadOnNextData(false)
+    , m_wasProvisionalLoadTriggeredByUserGesture(true) // To avoid affecting the first load.
 {
 }
 
@@ -117,9 +118,7 @@ FrameLoaderClientBlackBerry::~FrameLoaderClientBlackBerry()
 
 int FrameLoaderClientBlackBerry::playerId() const
 {
-    if (m_webPagePrivate && m_webPagePrivate->m_client)
-        return m_webPagePrivate->m_client->getInstanceId();
-    return 0;
+    return m_webPagePrivate ? m_webPagePrivate->playerID() : 0;
 }
 
 bool FrameLoaderClientBlackBerry::cookiesEnabled() const
@@ -346,9 +345,9 @@ PassRefPtr<Widget> FrameLoaderClientBlackBerry::createPlugin(const IntSize& plug
 
 void FrameLoaderClientBlackBerry::redirectDataToPlugin(Widget* pluginWidget)
 {
-    ASSERT(!m_pluginView);
     m_pluginView = static_cast<PluginView*>(pluginWidget);
-    m_hasSentResponseToPlugin = false;
+    if (pluginWidget)
+        m_hasSentResponseToPlugin = false;
 }
 
 void FrameLoaderClientBlackBerry::receivedData(const char* data, int length, const String& textEncoding)
@@ -504,6 +503,8 @@ void FrameLoaderClientBlackBerry::dispatchDidStartProvisionalLoad()
 
     if (m_webPagePrivate->m_dumpRenderTree)
         m_webPagePrivate->m_dumpRenderTree->didStartProvisionalLoadForFrame(m_frame);
+
+    m_wasProvisionalLoadTriggeredByUserGesture = ScriptController::processingUserGesture();
 }
 
 void FrameLoaderClientBlackBerry::dispatchDidReceiveResponse(DocumentLoader*, unsigned long identifier, const ResourceResponse& response)
@@ -547,6 +548,8 @@ void FrameLoaderClientBlackBerry::dispatchDidCommitLoad()
         // SubstituteData in dispatchDidFailProvisionalLoad).
         if (m_loadingErrorPage) {
             m_loadingErrorPage = false;
+            if (HistoryItem* item = m_frame->loader()->history()->currentItem())
+                item->viewState().shouldSaveViewState = false;
             m_webPagePrivate->m_client->notifyLoadFailedBeforeCommit(
                 originalUrl.characters(), originalUrl.length(),
                     url.characters(), url.length(), token.characters(), token.length());
@@ -566,7 +569,7 @@ void FrameLoaderClientBlackBerry::dispatchDidCommitLoad()
 
 void FrameLoaderClientBlackBerry::dispatchDidHandleOnloadEvents()
 {
-    m_webPagePrivate->m_client->notifyDocumentOnLoad();
+    m_webPagePrivate->m_client->notifyDocumentOnLoad(isMainFrame());
     if (m_webPagePrivate->m_dumpRenderTree)
         m_webPagePrivate->m_dumpRenderTree->didHandleOnloadEventsForFrame(m_frame);
 }
@@ -897,9 +900,8 @@ void FrameLoaderClientBlackBerry::dispatchDidClearWindowObjectInWorld(DOMWrapper
         return;
 
     // Provide the extension object first in case the client or others want to use it.
-    // FIXME: Conditionally attach extension object based on some flag or whether or not we
-    // are browser or something else.
-    attachExtensionObjectToFrame(m_frame, m_webPagePrivate->m_client);
+    if (m_webPagePrivate->m_enableQnxJavaScriptObject)
+        attachExtensionObjectToFrame(m_frame, m_webPagePrivate->m_client);
 
     m_webPagePrivate->m_client->notifyWindowObjectCleared();
 
@@ -1044,6 +1046,9 @@ void FrameLoaderClientBlackBerry::restoreViewState()
     if (!currentItem)
         return;
 
+    HistoryItemViewState& viewState = currentItem->viewState();
+    if (!viewState.shouldSaveViewState)
+        return;
     // WebPagePrivate is messing up FrameView::wasScrolledByUser() by sending
     // scroll events that look like they were user generated all the time.
     //
@@ -1062,14 +1067,21 @@ void FrameLoaderClientBlackBerry::restoreViewState()
 
     // We need to reset this variable after the view state has been restored.
     m_webPagePrivate->m_didRestoreFromPageCache = false;
-    HistoryItemViewState& viewState = currentItem->viewState();
 
     // Restore the meta first.
     m_webPagePrivate->m_minimumScale = viewState.minimumScale;
     m_webPagePrivate->m_maximumScale = viewState.maximumScale;
     m_webPagePrivate->m_userScalable = viewState.isUserScalable;
+
     // Also, try to keep the users zoom if any.
     double scale = viewState.scale;
+
+    // If it was zoomToFitScale use the new zoomToFitScale because
+    // the new one may be different to the old one due to contents
+    // size change (e.g. after reloaded).
+    if (viewState.isZoomToFitScale)
+        scale = m_webPagePrivate->zoomToFitScale();
+
     bool shouldReflowBlock = viewState.shouldReflowBlock;
     if (m_webPagePrivate->m_userPerformedManualZoom) {
         scale = m_webPagePrivate->currentScale();
@@ -1087,6 +1099,10 @@ void FrameLoaderClientBlackBerry::restoreViewState()
     // When rotate happens, only zoom when previous page was zoomToFitScale, otherwise keep old scale.
     if (orientationChanged && viewState.isZoomToFitScale)
         scale = BlackBerry::Platform::Graphics::Screen::primaryScreen()->width() * scale / static_cast<double>(BlackBerry::Platform::Graphics::Screen::primaryScreen()->height());
+
+    // Don't flash checkerboard before WebPagePrivate::restoreHistoryViewState() finished.
+    // This call will be balanced by BackingStorePrivate::resumeScreenAndBackingStoreUpdates() in WebPagePrivate::restoreHistoryViewState().
+    m_webPagePrivate->m_backingStore->d->suspendScreenAndBackingStoreUpdates();
 
     // It is not safe to render the page at this point. So we post a message instead. Messages have higher priority than timers.
     BlackBerry::Platform::webKitThreadMessageClient()->dispatchMessage(BlackBerry::Platform::createMethodCallMessage(
@@ -1246,6 +1262,24 @@ void FrameLoaderClientBlackBerry::dispatchDidLoadFromApplicationCache(const Reso
         return;
 
     m_webPagePrivate->m_client->notifyDidLoadFromApplicationCache();
+}
+
+PassRefPtr<SecurityOrigin> FrameLoaderClientBlackBerry::securityOriginForNewDocument(const KURL& url)
+{
+    // What we are trying to do here is to keep using the old path as origin when a file-based html page
+    // changes its location to some html in a subfolder. This will allow some file-based html packages
+    // to work smoothly even with security checks enabled.
+
+    RefPtr<SecurityOrigin> newSecurityOrigin = SecurityOrigin::create(url);
+
+    if (m_wasProvisionalLoadTriggeredByUserGesture || !url.isLocalFile())
+        return newSecurityOrigin;
+
+    RefPtr<SecurityOrigin> currentSecurityOrigin = m_frame->document()->securityOrigin();
+    if (currentSecurityOrigin && currentSecurityOrigin->containsInFolder(newSecurityOrigin.get()))
+        return currentSecurityOrigin;
+
+    return newSecurityOrigin;
 }
 
 } // WebCore

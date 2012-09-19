@@ -55,9 +55,8 @@ public:
     static const int64_t InvalidId = 0;
     int64_t id() const { return m_id; }
 
-    void registerFrontendCallbacks(PassRefPtr<IDBDatabaseCallbacks>);
-    void openConnection(PassRefPtr<IDBCallbacks>);
-    void openConnectionWithVersion(PassRefPtr<IDBCallbacks>, int64_t version);
+    void openConnection(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>);
+    void openConnectionWithVersion(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, int64_t version);
     void deleteDatabase(PassRefPtr<IDBCallbacks>);
 
     // IDBDatabaseBackendInterface
@@ -72,15 +71,16 @@ public:
     IDBTransactionCoordinator* transactionCoordinator() const { return m_transactionCoordinator.get(); }
     void transactionStarted(PassRefPtr<IDBTransactionBackendImpl>);
     void transactionFinished(PassRefPtr<IDBTransactionBackendImpl>);
-    void transactionFinishedAndEventsFired(PassRefPtr<IDBTransactionBackendImpl>);
+    void transactionFinishedAndCompleteFired(PassRefPtr<IDBTransactionBackendImpl>);
+    void transactionFinishedAndAbortFired(PassRefPtr<IDBTransactionBackendImpl>);
 
 private:
     IDBDatabaseBackendImpl(const String& name, IDBBackingStore* database, IDBTransactionCoordinator*, IDBFactoryBackendImpl*, const String& uniqueIdentifier);
 
     bool openInternal();
-    void runIntVersionChangeTransaction(int64_t requestedVersion, PassRefPtr<IDBCallbacks>);
+    void runIntVersionChangeTransaction(int64_t requestedVersion, PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>);
     void loadObjectStores();
-    int32_t connectionCount();
+    size_t connectionCount();
     void processPendingCalls();
 
     static void createObjectStoreInternal(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>, PassRefPtr<IDBTransactionBackendImpl>);
@@ -92,6 +92,7 @@ private:
     static void removeObjectStoreFromMap(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>);
     static void addObjectStoreToMap(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>);
     static void resetVersion(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, const String& version);
+    static void resetIntVersion(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, int64_t intVersion);
 
     RefPtr<IDBBackingStore> m_backingStore;
     int64_t m_id;
@@ -124,10 +125,6 @@ private:
 
     class PendingDeleteCall;
     Deque<RefPtr<PendingDeleteCall> > m_pendingDeleteCalls;
-
-    // FIXME: Eliminate the limbo state between openConnection() and registerFrontendCallbacks()
-    // that this counter tracks.
-    int32_t m_pendingConnectionCount;
 
     typedef ListHashSet<RefPtr<IDBDatabaseCallbacks> > DatabaseCallbacksSet;
     DatabaseCallbacksSet m_databaseCallbacksSet;

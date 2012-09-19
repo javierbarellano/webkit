@@ -45,13 +45,11 @@
 #include "PageGroup.h"
 #include "PageScriptDebugServer.h"
 #include "painting/GraphicsContextBuilder.h"
-#include "PlatformString.h"
 #include "RenderView.h"
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
 #include "V8Binding.h"
-#include "V8Proxy.h"
 #include "V8Utilities.h"
 #include "WebDataSource.h"
 #include "WebDevToolsAgentClient.h"
@@ -68,6 +66,7 @@
 #include <wtf/MathExtras.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/OwnPtr.h>
+#include <wtf/text/WTFString.h>
 
 using namespace WebCore;
 using namespace std;
@@ -424,7 +423,7 @@ void WebDevToolsAgentImpl::didCreateScriptContext(WebFrameImpl* webframe, int wo
     if (worldId)
         return;
     if (WebCore::Frame* frame = webframe->frame())
-        frame->script()->proxy()->setContextDebugId(m_hostId);
+        frame->script()->setContextDebugId(m_hostId);
 }
 
 void WebDevToolsAgentImpl::mainFrameViewCreated(WebFrameImpl* webFrame)

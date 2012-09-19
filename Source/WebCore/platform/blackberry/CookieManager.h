@@ -29,14 +29,10 @@
 
 #include "CookieMap.h"
 #include "ParsedCookie.h"
-#include "PlatformString.h"
 #include "Timer.h"
 #include <BlackBerryPlatformGuardedPointer.h>
 #include <wtf/HashMap.h>
-
-namespace WTF {
-class String;
-}
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -104,8 +100,6 @@ public:
     // Returns all cookies that are associated with the specified URL as raw cookies.
     void getRawCookies(Vector<ParsedCookie*>& stackOfCookies, const KURL& requestURL, CookieFilter = WithHttpOnlyCookies) const;
 
-    void flushCookiesToBackingStore();
-
 private:
     friend CookieManager& cookieManager();
 
@@ -116,7 +110,7 @@ private:
 
     void addCookieToMap(CookieMap* targetMap, ParsedCookie* candidateCookie, BackingStoreRemovalPolicy postToBackingStore, CookieFilter = WithHttpOnlyCookies);
 
-    CookieMap* findOrCreateCookieMap(CookieMap* protocolMap, const String& domain, bool findOnly);
+    CookieMap* findOrCreateCookieMap(CookieMap* protocolMap, const ParsedCookie& candidateCookie);
 
     void initiateCookieLimitCleanUp();
     void cookieLimitCleanUp(Timer<CookieManager>*);

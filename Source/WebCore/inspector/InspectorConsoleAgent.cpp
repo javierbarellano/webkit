@@ -47,6 +47,7 @@
 #include <wtf/CurrentTime.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
+#include <wtf/text/StringBuilder.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -163,7 +164,7 @@ void InspectorConsoleAgent::startTiming(const String& title)
     if (title.isNull())
         return;
 
-    m_times.add(title, currentTime() * 1000);
+    m_times.add(title, monotonicallyIncreasingTime());
 }
 
 void InspectorConsoleAgent::stopTiming(const String& title, PassRefPtr<ScriptCallStack> callStack)
@@ -180,8 +181,8 @@ void InspectorConsoleAgent::stopTiming(const String& title, PassRefPtr<ScriptCal
     double startTime = it->second;
     m_times.remove(it);
 
-    double elapsed = currentTime() * 1000 - startTime;
-    String message = title + String::format(": %.0fms", elapsed);
+    double elapsed = monotonicallyIncreasingTime() - startTime;
+    String message = title + String::format(": %.3fms", elapsed * 1000);
     const ScriptCallFrame& lastCaller = callStack->at(0);
     addMessageToConsole(JSMessageSource, LogMessageType, LogMessageLevel, message, lastCaller.sourceURL(), lastCaller.lineNumber());
 }
@@ -218,7 +219,7 @@ void InspectorConsoleAgent::frameWindowDiscarded(DOMWindow* window)
     m_injectedScriptManager->discardInjectedScriptsFor(window);
 }
 
-void InspectorConsoleAgent::resourceRetrievedByXMLHttpRequest(unsigned long identifier, const String& url, const String& sendURL, unsigned sendLineNumber)
+void InspectorConsoleAgent::didFinishXHRLoading(unsigned long identifier, const String& url, const String& sendURL, unsigned sendLineNumber)
 {
     if (!developerExtrasEnabled())
         return;
@@ -249,11 +250,14 @@ void InspectorConsoleAgent::didFailLoading(unsigned long identifier, const Resou
         return;
     if (error.isCancellation()) // Report failures only.
         return;
-    String message = "Failed to load resource";
-    if (!error.localizedDescription().isEmpty())
-        message += ": " + error.localizedDescription();
+    StringBuilder message;
+    message.appendLiteral("Failed to load resource");
+    if (!error.localizedDescription().isEmpty()) {
+        message.appendLiteral(": ");
+        message.append(error.localizedDescription());
+    }
     String requestId = IdentifiersFactory::requestId(identifier);
-    addConsoleMessage(adoptPtr(new ConsoleMessage(NetworkMessageSource, LogMessageType, ErrorMessageLevel, message, error.failingURL(), requestId)));
+    addConsoleMessage(adoptPtr(new ConsoleMessage(NetworkMessageSource, LogMessageType, ErrorMessageLevel, message.toString(), error.failingURL(), requestId)));
 }
 
 void InspectorConsoleAgent::setMonitoringXHREnabled(ErrorString*, bool enabled)

@@ -245,8 +245,14 @@ IntSize CachedImage::imageSizeForRenderer(const RenderObject* renderer, float mu
     if (m_image->isSVGImage()) {
         SVGImageCache::SizeAndScales sizeAndScales = m_svgImageCache->requestedSizeAndScales(renderer);
         if (!sizeAndScales.size.isEmpty()) {
-            imageSize.setWidth(sizeAndScales.size.width() / sizeAndScales.zoom);
-            imageSize.setHeight(sizeAndScales.size.height() / sizeAndScales.zoom);
+            float scale = sizeAndScales.scale;
+            if (!scale) {
+                Page* page = renderer->document()->page();
+                scale = page->deviceScaleFactor() * page->pageScaleFactor();
+            }
+
+            imageSize.setWidth(scale * sizeAndScales.size.width() / sizeAndScales.zoom);
+            imageSize.setHeight(scale * sizeAndScales.size.height() / sizeAndScales.zoom);
         }
     }
 #endif
@@ -379,12 +385,8 @@ void CachedImage::error(CachedResource::Status status)
 {
     checkShouldPaintBrokenImage();
     clear();
-    setStatus(status);
-    ASSERT(errorOccurred());
-    m_data.clear();
+    CachedResource::error(status);
     notifyObservers();
-    setLoading(false);
-    checkNotify();
 }
 
 void CachedImage::setResponse(const ResourceResponse& response)
@@ -470,13 +472,9 @@ void CachedImage::changedInRect(const Image* image, const IntRect& rect)
 
 void CachedImage::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CachedResourceImage);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CachedResourceImage);
     CachedResource::reportMemoryUsage(memoryObjectInfo);
-    if (m_image) {
-        if (m_image->data())
-            info.addRawBuffer(m_image->data(), m_image->data()->size());
-        info.addRawBuffer(m_image.get(), decodedSize());
-    }
+    info.addMember(m_image);
 #if ENABLE(SVG)
     info.addMember(m_svgImageCache);
 #endif

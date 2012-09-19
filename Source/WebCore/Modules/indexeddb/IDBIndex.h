@@ -33,8 +33,8 @@
 #include "IDBMetadata.h"
 #include "IDBObjectStore.h"
 #include "IDBRequest.h"
-#include "PlatformString.h"
 #include <wtf/Forward.h>
+#include <wtf/text/WTFString.h>
 
 #if ENABLE(INDEXED_DATABASE)
 
@@ -53,7 +53,8 @@ public:
     // Implement the IDL
     const String name() const { return m_metadata.name; }
     PassRefPtr<IDBObjectStore> objectStore() const { return m_objectStore; }
-    PassRefPtr<IDBAny> keyPath() const { return m_metadata.keyPath; }
+    PassRefPtr<IDBAny> keyPathAny() const { return IDBAny::create(m_metadata.keyPath); }
+    const IDBKeyPath keyPath() const { return m_metadata.keyPath; }
     bool unique() const { return m_metadata.unique; }
     bool multiEntry() const { return m_metadata.multiEntry; }
 

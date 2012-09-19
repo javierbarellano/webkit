@@ -128,10 +128,8 @@ namespace WebCore {
     class TransformationMatrix;
 
     enum TextDrawingMode {
-        TextModeInvisible = 0,
         TextModeFill      = 1 << 0,
         TextModeStroke    = 1 << 1,
-        TextModeClip      = 1 << 2
     };
     typedef unsigned TextDrawingModeFlags;
 
@@ -568,6 +566,7 @@ namespace WebCore {
     };
 
     class GraphicsContextStateSaver {
+        WTF_MAKE_FAST_ALLOCATED;
     public:
         GraphicsContextStateSaver(GraphicsContext& context, bool saveAndRestore = true)
         : m_context(context)

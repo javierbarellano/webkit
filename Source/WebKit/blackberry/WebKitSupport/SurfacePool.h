@@ -83,6 +83,8 @@ public:
     // Compositing thread must notify the SurfacePool when EGLImages are composited
     void notifyBuffersComposited(const Vector<TileBuffer*>& buffers);
 
+    void destroyPlatformSync(void* platformSync);
+
 private:
     // This is necessary so BackingStoreTile can atomically swap buffers with m_backBuffer.
     friend class BackingStoreTile;
@@ -99,7 +101,7 @@ private:
     bool m_initialized; // SurfacePool has been set up, with or without buffers.
     bool m_buffersSuspended; // Buffer objects exist, but pixel memory has been freed.
 
-    std::set<void*> m_syncObjectsToDestroy;
+    std::set<void*> m_garbage;
     bool m_hasFenceExtension;
     mutable pthread_mutex_t m_mutex;
 };

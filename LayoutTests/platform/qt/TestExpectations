@@ -54,9 +54,6 @@ BUGWK85203 : ietestcenter/css3/multicolumn/column-containing-block-003.htm = IMA
 BUGWK85211 : ietestcenter/css3/flexbox/flexbox-align-stretch-001.htm = IMAGE
 BUGWK85212 : ietestcenter/css3/flexbox/flexbox-layout-002.htm = IMAGE
 
-// Generate results for your platform(s)
-BUGWK85567 : fast/images/png-suite/test.html = IMAGE
-
 // Interferes with the tests that should pass
 BUGWK85689 SKIP : fast/animation/request-animation-frame-disabled.html = TEXT
 
@@ -66,8 +63,6 @@ BUGWK85308 SKIP : ietestcenter/css3/valuesandunits/units-000.htm = IMAGE
 BUGWK85310 : ietestcenter/css3/valuesandunits/units-010.htm = IMAGE
 
 // IETC namespace failures
-BUGWK86137 : ietestcenter/css3/namespaces/prefix-007.xml = IMAGE
-BUGWK86139 : ietestcenter/css3/namespaces/prefix-010.xml = IMAGE
 BUGWK86142 : ietestcenter/css3/namespaces/syntax-021.xml = IMAGE
 
 // CSS Variables are not yet enabled.
@@ -82,6 +77,9 @@ BUGWK85262 SKIP : fast/css/image-resolution = PASS
 
 // CSS image-orientation is not yet enabled.
 BUGWK89052 SKIP : fast/css/image-orientation = PASS
+
+// CSS3 Text Decoration support is not yet enabled (needs ENABLE_CSS3_TEXT_DECORATION).
+BUGWK58491 SKIP : fast/css3-text-decoration = PASS
 
 // Needs rebaseline after bug 86441
 // failing new tests
@@ -125,20 +123,17 @@ BUGWK91376 : http/tests/security/sandboxed-iframe-modify-self.html = TEXT PASS
 BUGWK91379 : http/tests/security/contentSecurityPolicy/policy-does-not-affect-child.html = TEXT PASS
 BUGWK91379 : http/tests/security/contentSecurityPolicy/object-src-none-allowed.html = TEXT PASS
 
-BUGWK85811 DEBUG : fast/events/message-port-close.html = CRASH
-
 // Needs rebaseline after https://bugs.webkit.org/show_bug.cgi?id=80219
 BUGWK80219 : compositing/overflow/clip-descendents.html = TEXT
 
-// Require rebaseline after bug 93148
-BUGWK93148 : tables/mozilla_expected_failures/bugs/bug106966.html = TEXT
-BUGWK93148 : tables/mozilla_expected_failures/marvin/table_overflow_hidden_tbody.html  = TEXT
-BUGWK93148 : tables/mozilla_expected_failures/marvin/table_overflow_hidden_tr.html  = TEXT
-BUGWK93148 : fast/css/nested-layers-with-hover.html = TEXT
-
 BUGWK93247 DEBUG : fast/lists/list-marker-remove-crash.html = CRASH
 
-// Test requiring rebaseling afer bug 93475
-BUGWK93475 : fast/block/float/overhanging-tall-block.html = TEXT
+// This has always failed on Qt - exposed by bug 89826
+BUGWK94004 : css2.1/20110323/c541-word-sp-000.htm = IMAGE
 
-BUGWK93654 DEBUG : fast/events/keyevent-iframe-removed-crash.html = CRASH
+
+// Added by bug 89826
+BUGWK94005 : css2.1/20110323/word-spacing-remove-space-003.htm = IMAGE
+BUGWK94005 : css2.1/20110323/word-spacing-remove-space-006.htm = IMAGE
+BUGWK94006 : fast/css/word-spacing-characters-complex-text.html = IMAGE
+

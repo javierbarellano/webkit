@@ -28,38 +28,47 @@
 namespace WebCore {
 class Frame;
 class Node;
+class RenderBox;
 class RenderObject;
+class RenderLayer;
 }
 
 namespace BlackBerry {
 namespace WebKit {
 
+class InRegionScrollableArea;
 class WebPagePrivate;
 
 class InRegionScrollerPrivate {
 public:
     InRegionScrollerPrivate(WebPagePrivate*);
 
-    void setNode(WebCore::Node*);
-    WebCore::Node* node() const;
     void reset();
+    bool isActive() const;
 
-    bool canScroll() const;
-    bool hasNode() const;
+    bool setScrollPositionCompositingThread(unsigned camouflagedLayer, const WebCore::IntPoint& scrollPosition);
+    bool setScrollPositionWebKitThread(unsigned camouflagedLayer, const WebCore::IntPoint& scrollPosition, bool supportsAcceleratedScrolling);
 
-    bool scrollBy(const Platform::IntSize& delta);
-    bool compositedSetScrollPosition(unsigned camouflagedLayer, const WebCore::IntPoint& scrollPosition);
+    void calculateInRegionScrollableAreasForPoint(const WebCore::IntPoint&);
+    const std::vector<Platform::ScrollViewBase*>& activeInRegionScrollableAreas() const;
 
-    std::vector<Platform::ScrollViewBase*> inRegionScrollableAreasForPoint(const WebCore::IntPoint&);
+    void clearDocumentData(const WebCore::Document*);
+
+    static bool canScrollRenderBox(WebCore::RenderBox*);
 
     WebPagePrivate* m_webPage;
+    bool m_needsActiveScrollableAreaCalculation;
 
 private:
-    bool scrollNodeRecursively(WebCore::Node*, const WebCore::IntSize& delta);
-    bool scrollRenderer(WebCore::RenderObject*, const WebCore::IntSize& delta);
+    bool setLayerScrollPosition(WebCore::RenderLayer*, const WebCore::IntPoint& scrollPosition);
+
+    void calculateActiveAndShrinkCachedScrollableAreas(WebCore::RenderLayer*);
+
+    void pushBackInRegionScrollable(InRegionScrollableArea*);
+
     void adjustScrollDelta(const WebCore::IntPoint& maxOffset, const WebCore::IntPoint& currentOffset, WebCore::IntSize& delta) const;
 
-    RefPtr<WebCore::Node> m_inRegionScrollStartingNode;
+    std::vector<Platform::ScrollViewBase*> m_activeInRegionScrollableAreas;
 };
 
 }

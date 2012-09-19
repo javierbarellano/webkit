@@ -45,8 +45,9 @@ using namespace WebCore;
 
 namespace WebKit {
 
-WebIDBDatabaseImpl::WebIDBDatabaseImpl(PassRefPtr<IDBDatabaseBackendInterface> databaseBackend)
+WebIDBDatabaseImpl::WebIDBDatabaseImpl(PassRefPtr<IDBDatabaseBackendInterface> databaseBackend, WTF::PassRefPtr<IDBDatabaseCallbacksProxy> databaseCallbacks)
     : m_databaseBackend(databaseBackend)
+    , m_databaseCallbacks(databaseCallbacks)
 {
 }
 
@@ -92,19 +93,20 @@ WebIDBTransaction* WebIDBDatabaseImpl::transaction(const WebDOMStringList& names
 
 void WebIDBDatabaseImpl::close()
 {
-    // Use the callbacks that ::open gave us so that the backend in
+    // Use the callbacks passed in to the constructor so that the backend in
     // multi-process chromium knows which database connection is closing.
     if (!m_databaseCallbacks)
         return;
-    m_databaseBackend->close(m_databaseCallbacks);
-    m_databaseCallbacks = 0;
+    m_databaseBackend->close(m_databaseCallbacks.release());
 }
 
-void WebIDBDatabaseImpl::open(WebIDBDatabaseCallbacks* callbacks)
+void WebIDBDatabaseImpl::forceClose()
 {
-    ASSERT(!m_databaseCallbacks);
-    m_databaseCallbacks = IDBDatabaseCallbacksProxy::create(adoptPtr(callbacks));
-    m_databaseBackend->registerFrontendCallbacks(m_databaseCallbacks);
+    if (!m_databaseCallbacks)
+        return;
+    RefPtr<IDBDatabaseCallbacksProxy> callbacks = m_databaseCallbacks.release();
+    m_databaseBackend->close(callbacks);
+    callbacks->onForcedClose();
 }
 
 } // namespace WebKit

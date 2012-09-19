@@ -26,10 +26,10 @@
 #ifndef CCRenderer_h
 #define CCRenderer_h
 
+#include "CCLayerTreeHost.h"
+#include "CCRenderPass.h"
 #include "FloatQuad.h"
 #include "IntRect.h"
-#include "cc/CCLayerTreeHost.h"
-#include "cc/CCRenderPass.h"
 #include <wtf/Noncopyable.h>
 #include <wtf/PassRefPtr.h>
 
@@ -66,7 +66,7 @@ public:
 
     virtual ~CCRenderer() { }
 
-    virtual const LayerRendererCapabilities& capabilities() const = 0;
+    virtual const RendererCapabilities& capabilities() const = 0;
 
     const CCLayerTreeSettings& settings() const { return m_client->settings(); }
 
@@ -77,7 +77,7 @@ public:
     virtual void viewportChanged() { }
 
     virtual void decideRenderPassAllocationsForFrame(const CCRenderPassList&) { }
-    virtual bool haveCachedResourcesForRenderPassId(int) const { return false; }
+    virtual bool haveCachedResourcesForRenderPassId(CCRenderPass::Id) const { return false; }
 
     virtual void drawFrame(const CCRenderPassList&, const CCRenderPassIdHashMap&) = 0;
 

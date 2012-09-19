@@ -32,34 +32,22 @@
  * @constructor
  * @extends {WebInspector.Panel}
  * @param {string} id
- * @param {string} label
  * @param {string} pageURL
- * @param {string} iconURL
  */
-WebInspector.ExtensionPanel = function(id, label, pageURL, iconURL)
+WebInspector.ExtensionPanel = function(id, pageURL)
 {
     WebInspector.Panel.call(this, id);
     this.setHideOnDetach();
-    this._toolbarItemLabel = label;
     this._statusBarItems = [];
-
-    if (iconURL) {
-        this._addStyleRule(".toolbar-item." + id + " .toolbar-icon", "background-image: url(" + iconURL + ");");
-        this._addStyleRule(".toolbar-small .toolbar-item." + id + " .toolbar-icon", "background-position-x: -32px;");
-    }
     var extensionView = new WebInspector.ExtensionView(id, pageURL, "extension panel");
     extensionView.show(this.element);
+    this.setDefaultFocusedElement(extensionView.defaultFocusedElement());
 }
 
 WebInspector.ExtensionPanel.prototype = {
-    get toolbarItemLabel()
-    {
-        return this._toolbarItemLabel;
-    },
-
     defaultFocusedElement: function()
     {
-        return this.sidebarTreeElement || this.element;
+        return WebInspector.View.prototype.defaultFocusedElement.call(this);
     },
 
     get statusBarItems()
@@ -100,13 +88,6 @@ WebInspector.ExtensionPanel.prototype = {
     {
         WebInspector.extensionServer.notifySearchAction(this.name, WebInspector.extensionAPI.panels.SearchAction.PreviousSearchResult);
         WebInspector.Panel.prototype.jumpToPreviousSearchResult.call(this);
-    },
-
-    _addStyleRule: function(selector, body)
-    {
-        var style = document.createElement("style");
-        style.textContent = selector + " { " + body + " }";
-        document.head.appendChild(style);
     }
 }
 

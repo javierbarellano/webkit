@@ -27,10 +27,10 @@
 
 #include "WebCompositorImpl.h"
 
+#include "CCLayerTreeHost.h"
+#include "CCProxy.h"
+#include "CCSettings.h"
 #include "CCThreadImpl.h"
-#include "cc/CCLayerTreeHost.h"
-#include "cc/CCProxy.h"
-#include "cc/CCSettings.h"
 #include <public/Platform.h>
 #include <wtf/ThreadingPrimitives.h>
 
@@ -47,9 +47,9 @@ void WebCompositor::initialize(WebThread* implThread)
     WebCompositorImpl::initialize(implThread);
 }
 
-bool WebCompositor::threadingEnabled()
+bool WebCompositor::isThreadingEnabled()
 {
-    return WebCompositorImpl::threadingEnabled();
+    return WebCompositorImpl::isThreadingEnabled();
 }
 
 void WebCompositor::shutdown()
@@ -90,7 +90,7 @@ void WebCompositorImpl::initialize(WebThread* implThread)
         CCProxy::setImplThread(0);
 }
 
-bool WebCompositorImpl::threadingEnabled()
+bool WebCompositorImpl::isThreadingEnabled()
 {
     return s_implThread;
 }

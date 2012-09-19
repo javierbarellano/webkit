@@ -31,10 +31,11 @@
 #include "CachedResourceLoader.h"
 #include "CrossfadeGeneratedImage.h"
 #include "ImageBuffer.h"
-#include "MemoryInstrumentation.h"
 #include "RenderObject.h"
 #include "StyleCachedImage.h"
 #include "StyleGeneratedImage.h"
+#include "WebCoreMemoryInstrumentation.h"
+#include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
 
@@ -85,12 +86,15 @@ CSSCrossfadeValue::~CSSCrossfadeValue()
 
 String CSSCrossfadeValue::customCssText() const
 {
-    String result = "-webkit-cross-fade(";
-    result += m_fromValue->cssText() + ", ";
-    result += m_toValue->cssText() + ", ";
-    result += m_percentageValue->cssText();
-    result += ")";
-    return result;
+    StringBuilder result;
+    result.appendLiteral("-webkit-cross-fade(");
+    result.append(m_fromValue->cssText());
+    result.appendLiteral(", ");
+    result.append(m_toValue->cssText());
+    result.appendLiteral(", ");
+    result.append(m_percentageValue->cssText());
+    result.append(')');
+    return result.toString();
 }
 
 IntSize CSSCrossfadeValue::fixedSize(const RenderObject* renderer)
@@ -137,11 +141,11 @@ void CSSCrossfadeValue::loadSubimages(CachedResourceLoader* cachedResourceLoader
 
 void CSSCrossfadeValue::reportDescendantMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     CSSImageGeneratorValue::reportBaseClassMemoryUsage(memoryObjectInfo);
-    info.addInstrumentedMember(m_fromValue);
-    info.addInstrumentedMember(m_toValue);
-    info.addInstrumentedMember(m_percentageValue);
+    info.addMember(m_fromValue);
+    info.addMember(m_toValue);
+    info.addMember(m_percentageValue);
     // FIXME: add instrumentation for
     // m_cachedFromImage
     // m_cachedToImage

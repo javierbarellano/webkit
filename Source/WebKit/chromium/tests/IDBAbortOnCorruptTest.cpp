@@ -26,6 +26,7 @@
 #include "config.h"
 #include "IDBCursorBackendInterface.h"
 #include "IDBDatabaseBackendInterface.h"
+#include "IDBDatabaseCallbacks.h"
 #include "IDBFactoryBackendImpl.h"
 #include "IDBFakeBackingStore.h"
 #include "SecurityOrigin.h"
@@ -51,7 +52,7 @@ public:
         m_wasErrorCalled = true;
     }
     virtual void onSuccess(PassRefPtr<DOMStringList>) { }
-    virtual void onSuccess(PassRefPtr<IDBCursorBackendInterface>) { }
+    virtual void onSuccess(PassRefPtr<IDBCursorBackendInterface>, PassRefPtr<IDBKey>, PassRefPtr<IDBKey>, PassRefPtr<SerializedScriptValue>) { }
     virtual void onSuccess(PassRefPtr<IDBDatabaseBackendInterface>)
     {
         EXPECT_TRUE(false);
@@ -60,7 +61,7 @@ public:
     virtual void onSuccess(PassRefPtr<IDBTransactionBackendInterface>) { }
     virtual void onSuccess(PassRefPtr<SerializedScriptValue>) { }
     virtual void onSuccess(PassRefPtr<SerializedScriptValue>, PassRefPtr<IDBKey>, const IDBKeyPath&) { }
-    virtual void onSuccessWithContinuation() { }
+    virtual void onSuccess(PassRefPtr<IDBKey>, PassRefPtr<IDBKey>, PassRefPtr<SerializedScriptValue>) { };
     virtual void onSuccessWithPrefetch(const Vector<RefPtr<IDBKey> >&, const Vector<RefPtr<IDBKey> >&, const Vector<RefPtr<SerializedScriptValue> >&) { }
     virtual void onBlocked() { }
 private:
@@ -96,13 +97,26 @@ protected:
     }
 };
 
+class FakeIDBDatabaseCallbacks : public IDBDatabaseCallbacks {
+public:
+    static PassRefPtr<FakeIDBDatabaseCallbacks> create() { return adoptRef(new FakeIDBDatabaseCallbacks()); }
+    virtual ~FakeIDBDatabaseCallbacks() { }
+    virtual void onVersionChange(const String& version) OVERRIDE { }
+    virtual void onVersionChange(int64_t oldVersion, int64_t newVersion) OVERRIDE { }
+    virtual void onForcedClose() OVERRIDE { }
+private:
+    FakeIDBDatabaseCallbacks() { }
+};
+
 TEST(IDBAbortTest, TheTest)
 {
     RefPtr<IDBFactoryBackendImpl> factory = FailingIDBFactoryBackendImpl::create();
     const String& name = "db name";
     MockIDBCallbacks callbacks;
+    RefPtr<FakeIDBDatabaseCallbacks> databaseCallbacks = FakeIDBDatabaseCallbacks::create();
     RefPtr<SecurityOrigin> origin = SecurityOrigin::create("http", "localhost", 81);
-    factory->open(name, &callbacks, origin, 0 /*Frame*/, String() /*path*/);
+    const int64_t DummyVersion = 2;
+    factory->open(name, DummyVersion, &callbacks, databaseCallbacks, origin, 0 /*Frame*/, String() /*path*/);
 }
 
 } // namespace

@@ -514,6 +514,54 @@
 			Name="runtime"
 			>
 			<File
+				RelativePath="..\..\runtime\Reject.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\ArrayStorage.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\IndexingType.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\PropertyStorage.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\PutDirectIndexMode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\ButterflyInlineMethods.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\Butterfly.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\IndexingHeaderInlineMethods.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\SparseArrayValueMap.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\ArrayConventions.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\IndexingHeader.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\SparseArrayValueMap.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\runtime\ArgList.cpp"
 				>
 			</File>
@@ -882,11 +930,27 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\JSStaticScopeObject.cpp"
+				RelativePath="..\..\runtime\JSWithScope.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\JSStaticScopeObject.h"
+				RelativePath="..\..\runtime\JSWithScope.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\JSNameScope.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\JSNameScope.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\JSScope.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\JSScope.h"
 				>
 			</File>
 			<File
@@ -897,14 +961,14 @@
 				RelativePath="..\..\runtime\JSString.h"
 				>
 			</File>
-                        <File
-                                RelativePath="..\..\runtime\JSStringJoiner.cpp"
-                                >
-                        </File>
-                        <File
-                                RelativePath="..\..\runtime\JSStringJoiner.h"
-                                >
-                        </File>
+			<File
+				RelativePath="..\..\runtime\JSStringJoiner.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\JSStringJoiner.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\runtime\JSSymbolTableObject.cpp"
 				>
@@ -1178,18 +1242,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\ScopeChain.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\ScopeChain.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\ScopeChainMark.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\runtime\SmallStrings.cpp"
 				>
 			</File>
@@ -1275,26 +1327,6 @@
 			</File>
 			<File
 				RelativePath="..\..\runtime\TimeoutChecker.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\UString.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\UString.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\UStringBuilder.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\UStringConcatenate.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\runtime\UStringImpl.h"
 				>
 			</File>
 			<File
@@ -1529,6 +1561,14 @@
 		<Filter
 			Name="bytecode"
 			>
+			<File
+				RelativePath="..\..\bytecode\ArrayProfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ArrayProfile.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\bytecode\CallLinkInfo.cpp"
 				>
@@ -1978,7 +2018,71 @@
 			Name="llint"
 			>
 			<File
+				RelativePath="..\..\llint\LLIntCLoop.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntCLoop.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntCommon.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntData.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\llint\LLIntData.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntEntrypoints.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntEntrypoints.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntExceptions.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntExceptions.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntOfflineAsmConfig.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntOpcode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntSlowPaths.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntSlowPaths.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntThunks.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LLIntThunks.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LowLevelInterpreter.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\llint\LowLevelInterpreter.h"
 				>
 			</File>
 		</Filter>
@@ -2035,6 +2139,14 @@
 			</File>
 			<File
 				RelativePath="..\..\interpreter\RegisterFile.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\interpreter\VMInspector.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\interpreter\VMInspector.h"
 				>
 			</File>
 		</Filter>
@@ -2310,6 +2422,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\heap\GCThreadSharedData.cpp"
+				>
+			</File>
+			<File
+    			RelativePath="..\..\heap\GCThreadSharedData.h"
+    			>
+			</File>
+			<File
 				RelativePath="..\..\heap\Heap.cpp"
 				>
 			</File>
@@ -2371,6 +2491,14 @@
 			</File>
 			<File
 				RelativePath="..\..\heap\MarkStack.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\heap\MarkStackInlineMethods.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\heap\SlotVisitor.cpp"
 				>
 			</File>
 			<File

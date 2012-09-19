@@ -106,6 +106,9 @@ namespace WebCore {
     class Frame;
     class FrameView;
     class HTMLPlugInElement;
+#if ENABLE(WEB_INTENTS)
+    class Intent;
+#endif
     class KeyboardEvent;
     class Page;
     class PrintContext;
@@ -306,7 +309,9 @@ public:
     bool useFixedLayout() const { return m_useFixedLayout; }
     void setFixedLayoutSize(const WebCore::IntSize&);
 
-    void setPaginationMode(uint32_t /* WebCore::Page::Pagination::Mode */);
+    void setSuppressScrollbarAnimations(bool);
+
+    void setPaginationMode(uint32_t /* WebCore::Pagination::Mode */);
     void setPaginationBehavesLikeColumns(bool);
     void setPageLength(double);
     void setGapBetweenPages(double);
@@ -453,8 +458,13 @@ public:
     void updateAccessibilityTree();
     bool handleMousePressedEvent(const WebCore::PlatformMouseEvent&);
 #if USE(TEXTURE_MAPPER_GL)
-    void widgetMapped(int64_t nativeWindowHandle);
+    void setAcceleratedCompositingWindowId(int64_t nativeWindowHandle);
+    void invalidateWidget();
 #endif
+#endif
+
+#if PLATFORM(QT)
+    bool handleMouseReleaseEvent(const WebCore::PlatformMouseEvent&);
 #endif
 
     void setCompositionForTesting(const String& compositionString, uint64_t from, uint64_t length);
@@ -476,7 +486,7 @@ public:
 #endif
 
 #if ENABLE(WEB_INTENTS)
-    void deliverIntentToFrame(uint64_t frameID, const IntentData&);
+    void deliverCoreIntentToFrame(uint64_t frameID, WebCore::Intent*);
 #endif
 
     void replaceSelectionWithText(WebCore::Frame*, const String&);
@@ -574,6 +584,8 @@ public:
     void setAsynchronousPluginInitializationEnabledForAllPlugins(bool enabled) { m_asynchronousPluginInitializationEnabledForAllPlugins = enabled; }
     bool artificialPluginInitializationDelayEnabled() const { return m_artificialPluginInitializationDelayEnabled; }
     void setArtificialPluginInitializationDelayEnabled(bool enabled) { m_artificialPluginInitializationDelayEnabled = enabled; }
+    void setTabToLinksEnabled(bool enabled) { m_tabToLinks = enabled; }
+    bool tabToLinksEnabled() const { return m_tabToLinks; }
 
     bool scrollingPerformanceLoggingEnabled() const { return m_scrollingPerformanceLoggingEnabled; }
     void setScrollingPerformanceLoggingEnabled(bool);
@@ -639,6 +651,10 @@ private:
 #endif
 #if ENABLE(CONTEXT_MENUS)
     void contextMenuHidden() { m_isShowingContextMenu = false; }
+#endif
+
+#if ENABLE(WEB_INTENTS)
+    void deliverIntentToFrame(uint64_t frameID, const IntentData&);
 #endif
 
     static void scroll(WebCore::Page*, WebCore::ScrollDirection, WebCore::ScrollGranularity);

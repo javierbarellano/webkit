@@ -42,7 +42,7 @@
  *   when done to continue with the form submission. If the last reference is removed on a
  *   #Ewk_Form_Submission_Request and the form has not been submitted yet,
  *   ewk_form_submission_request_submit() will be called automatically.
- * - "intent,request,new", Ewk_Intent_Request*: reports new Web intent request.
+ * - "intent,request,new", Ewk_Intent*: reports new Web intent request.
  * - "intent,service,register", Ewk_Intent_Service*: reports new Web intent service registration.
  * - "load,error", const Ewk_Web_Error*: reports main frame load failed.
  * - "load,finished", void: reports load finished.
@@ -64,6 +64,7 @@
  * - "text,found", unsigned int*: the requested text was found and it gives the number of matches.
  * - "title,changed", const char*: title of the main frame was changed.
  * - "uri,changed", const char*: uri of the main frame was changed.
+ * - "webprocess,crashed", Eina_Bool*: expects a @c EINA_TRUE if web process crash is handled; @c EINA_FALSE, otherwise.
  */
 
 #ifndef ewk_view_h
@@ -73,6 +74,7 @@
 #include "ewk_context.h"
 #include "ewk_download_job.h"
 #include "ewk_intent.h"
+#include "ewk_settings.h"
 #include "ewk_url_request.h"
 #include "ewk_url_response.h"
 #include "ewk_web_error.h"
@@ -83,6 +85,12 @@
 extern "C" {
 #endif
 
+/// Enum values containing text directionality values.
+typedef enum {
+    EWK_TEXT_DIRECTION_RIGHT_TO_LEFT,
+    EWK_TEXT_DIRECTION_LEFT_TO_RIGHT
+} Ewk_Text_Direction;
+
 typedef struct _Ewk_View_Smart_Data Ewk_View_Smart_Data;
 typedef struct _Ewk_View_Smart_Class Ewk_View_Smart_Class;
 
@@ -91,24 +99,35 @@ struct _Ewk_View_Smart_Class {
     Evas_Smart_Class sc; /**< all but 'data' is free to be changed. */
     unsigned long version;
 
+    Eina_Bool (*popup_menu_show)(Ewk_View_Smart_Data *sd, Eina_Rectangle rect, Ewk_Text_Direction text_direction, double page_scale_factor, Eina_List *items, int selected_index);
+    Eina_Bool (*popup_menu_hide)(Ewk_View_Smart_Data *sd);
+
     // event handling:
     //  - returns true if handled
     //  - if overridden, have to call parent method if desired
     Eina_Bool (*focus_in)(Ewk_View_Smart_Data *sd);
     Eina_Bool (*focus_out)(Ewk_View_Smart_Data *sd);
+    Eina_Bool (*fullscreen_enter)(Ewk_View_Smart_Data *sd);
+    Eina_Bool (*fullscreen_exit)(Ewk_View_Smart_Data *sd);
     Eina_Bool (*mouse_wheel)(Ewk_View_Smart_Data *sd, const Evas_Event_Mouse_Wheel *ev);
     Eina_Bool (*mouse_down)(Ewk_View_Smart_Data *sd, const Evas_Event_Mouse_Down *ev);
     Eina_Bool (*mouse_up)(Ewk_View_Smart_Data *sd, const Evas_Event_Mouse_Up *ev);
     Eina_Bool (*mouse_move)(Ewk_View_Smart_Data *sd, const Evas_Event_Mouse_Move *ev);
     Eina_Bool (*key_down)(Ewk_View_Smart_Data *sd, const Evas_Event_Key_Down *ev);
     Eina_Bool (*key_up)(Ewk_View_Smart_Data *sd, const Evas_Event_Key_Up *ev);
+
+    // javascript popup:
+    //   - All strings should be guaranteed to be stringshared.
+    void (*run_javascript_alert)(Ewk_View_Smart_Data *sd, const char *message);
+    Eina_Bool (*run_javascript_confirm)(Ewk_View_Smart_Data *sd, const char *message);
+    const char *(*run_javascript_prompt)(Ewk_View_Smart_Data *sd, const char *message, const char *default_value); /**< return string should be stringshared. */
 };
 
 /**
  * The version you have to put into the version field
  * in the @a Ewk_View_Smart_Class structure.
  */
-#define EWK_VIEW_SMART_CLASS_VERSION 1UL
+#define EWK_VIEW_SMART_CLASS_VERSION 4UL
 
 /**
  * Initializer for whole Ewk_View_Smart_Class structure.
@@ -120,7 +139,7 @@ struct _Ewk_View_Smart_Class {
  * @see EWK_VIEW_SMART_CLASS_INIT_VERSION
  * @see EWK_VIEW_SMART_CLASS_INIT_NAME_VERSION
  */
-#define EWK_VIEW_SMART_CLASS_INIT(smart_class_init) {smart_class_init, EWK_VIEW_SMART_CLASS_VERSION, 0, 0, 0, 0, 0, 0, 0, 0}
+#define EWK_VIEW_SMART_CLASS_INIT(smart_class_init) {smart_class_init, EWK_VIEW_SMART_CLASS_VERSION, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 /**
  * Initializer to zero a whole Ewk_View_Smart_Class structure.
@@ -273,7 +292,7 @@ EAPI Eina_Bool ewk_view_smart_class_set(Ewk_View_Smart_Class *api);
  *
  * @return view object on success or @c NULL on failure
  */
-Evas_Object *ewk_view_smart_add(Evas *e, Evas_Smart *smart, Ewk_Context *context);
+EAPI Evas_Object *ewk_view_smart_add(Evas *e, Evas_Smart *smart, Ewk_Context *context);
 
 /**
  * Creates a new EFL WebKit view object.
@@ -345,6 +364,15 @@ EAPI Eina_Bool ewk_view_reload_bypass_cache(Evas_Object *o);
  * @return @c EINA_TRUE on success or @c EINA_FALSE otherwise.
  */
 EAPI Eina_Bool    ewk_view_stop(Evas_Object *o);
+
+/**
+ * Gets the Ewk_Settings of this view.
+ *
+ * @param o view object to get Ewk_Settings
+ *
+ * @return the Ewk_Settings of this view or @c NULL on failure
+ */
+EAPI Ewk_Settings *ewk_view_settings_get(const Evas_Object *o);
 
 /**
  * Delivers a Web intent to the view's main frame.
@@ -475,7 +503,7 @@ Eina_Bool ewk_view_scale_set(Evas_Object *o, double scaleFactor, int x, int y);
  *
  * @return current scale factor in use on success or @c -1.0 on failure
  */
-double ewk_view_scale_get(const Evas_Object *o);
+EAPI double ewk_view_scale_get(const Evas_Object *o);
 
 /**
  * Queries the ratio between the CSS units and device pixels when the content is unscaled.
@@ -534,7 +562,7 @@ EAPI Eina_Bool ewk_view_device_pixel_ratio_set(Evas_Object *o, float ratio);
  * use this one.
  *
  * @param o view object to change theme
- * @param path theme path, may be @c NULL to reset to the default theme
+ * @param path theme path
  */
 EAPI void ewk_view_theme_set(Evas_Object *o, const char *path);
 
@@ -589,6 +617,49 @@ EAPI Eina_Bool ewk_view_text_find(Evas_Object *o, const char *text, Ewk_Find_Opt
 * @return @c EINA_TRUE on success, @c EINA_FALSE on errors
 */
 EAPI Eina_Bool ewk_view_text_find_highlight_clear(Evas_Object *o);
+
+/**
+ * Selects index of current popup menu.
+ *
+ * @param o view object contains popup menu.
+ * @param index index of item to select
+ *
+ * @return @c EINA_TRUE on success, @c EINA_FALSE on failure (probably
+ *         popup menu is not selected or index is out of range)
+ */
+EAPI Eina_Bool ewk_view_popup_menu_select(Evas_Object *o, unsigned int index);
+
+/**
+ * Closes current popup menu.
+ *
+ * @param o view object contains popup menu.
+ *
+ * @return @c EINA_TRUE on success, @c EINA_FALSE on failure (probably
+ *         popup menu is not selected)
+ */
+EAPI Eina_Bool ewk_view_popup_menu_close(Evas_Object *o);
+
+/**
+ * Sets whether the ewk_view supports the mouse events or not.
+ *
+ * The ewk_view will support the mouse events if EINA_TRUE or not support the
+ * mouse events otherwise. The default value is EINA_TRUE.
+ *
+ * @param o view object to enable/disable the mouse events
+ * @param enabled a state to set
+ *
+ * @return @c EINA_TRUE on success or @c EINA_FALSE on failure
+ */
+EAPI Eina_Bool ewk_view_mouse_events_enabled_set(Evas_Object *o, Eina_Bool enabled);
+
+/**
+ * Queries if the ewk_view supports the mouse events.
+ *
+ * @param o view object to query if the mouse events are enabled
+ *
+ * @return @c EINA_TRUE if the mouse events are enabled or @c EINA_FALSE otherwise
+ */
+EAPI Eina_Bool ewk_view_mouse_events_enabled_get(const Evas_Object *o);
 
 #ifdef __cplusplus
 }

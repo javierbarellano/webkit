@@ -26,6 +26,7 @@
 
 #include "StringHash.h"
 #include <wtf/HashSet.h>
+#include <wtf/MemoryInstrumentation.h>
 #include <wtf/Threading.h>
 #include <wtf/WTFThreadData.h>
 #include <wtf/unicode/UTF8.h>
@@ -37,6 +38,7 @@ using namespace Unicode;
 COMPILE_ASSERT(sizeof(AtomicString) == sizeof(String), atomic_string_and_string_must_be_same_size);
 
 class AtomicStringTable {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     static AtomicStringTable* create()
     {
@@ -298,6 +300,26 @@ PassRefPtr<StringImpl> AtomicString::add(StringImpl* baseString, unsigned start,
     SubstringLocation buffer = { baseString, start, length };
     return addToStringTable<SubstringLocation, SubstringTranslator>(buffer);
 }
+    
+typedef HashTranslatorCharBuffer<LChar> LCharBuffer;
+struct LCharBufferTranslator {
+    static unsigned hash(const LCharBuffer& buf)
+    {
+        return StringHasher::computeHashAndMaskTop8Bits(buf.s, buf.length);
+    }
+
+    static bool equal(StringImpl* const& str, const LCharBuffer& buf)
+    {
+        return WTF::equal(str, buf.s, buf.length);
+    }
+
+    static void translate(StringImpl*& location, const LCharBuffer& buf, unsigned hash)
+    {
+        location = StringImpl::create(buf.s, buf.length).leakRef();
+        location->setHash(hash);
+        location->setIsAtomic(true);
+    }
+};
 
 typedef HashTranslatorCharBuffer<char> CharBuffer;
 struct CharBufferFromLiteralDataTranslator {
@@ -318,6 +340,18 @@ struct CharBufferFromLiteralDataTranslator {
         location->setIsAtomic(true);
     }
 };
+
+PassRefPtr<StringImpl> AtomicString::add(const LChar* s, unsigned length)
+{
+    if (!s)
+        return 0;
+
+    if (!length)
+        return StringImpl::empty();
+
+    LCharBuffer buffer = { s, length };
+    return addToStringTable<LCharBuffer, LCharBufferTranslator>(buffer);
+}
 
 PassRefPtr<StringImpl> AtomicString::addFromLiteralData(const char* characters, unsigned length)
 {
@@ -401,5 +435,11 @@ void AtomicString::show() const
     m_string.show();
 }
 #endif
+
+void AtomicString::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
+{
+    MemoryClassInfo info(memoryObjectInfo, this);
+    info.addMember(m_string);
+}
 
 } // namespace WTF

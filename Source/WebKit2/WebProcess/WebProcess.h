@@ -78,6 +78,9 @@ QT_END_NAMESPACE
 namespace WebCore {
     class IntSize;
     class PageGroup;
+#if ENABLE(WEB_INTENTS)
+    class PlatformMessagePortChannel;
+#endif
     class ResourceRequest;
     class ResourceResponse;
 }
@@ -112,13 +115,20 @@ public:
     void createWebPage(uint64_t pageID, const WebPageCreationParameters&);
     void removeWebPage(uint64_t pageID);
     WebPage* focusedWebPage() const;
-    
+
+#if ENABLE(WEB_INTENTS) 
+    uint64_t addMessagePortChannel(PassRefPtr<WebCore::PlatformMessagePortChannel>);
+    WebCore::PlatformMessagePortChannel* messagePortChannel(uint64_t);
+    void removeMessagePortChannel(uint64_t);
+#endif
+
     InjectedBundle* injectedBundle() const { return m_injectedBundle.get(); }
 
     bool isSeparateProcess() const;
 
 #if PLATFORM(MAC)
     void initializeShim();
+    void initializeSandbox(const String& clientIdentifier);
 
 #if USE(ACCELERATED_COMPOSITING)
     mach_port_t compositingRenderServerPort() const { return m_compositingRenderServerPort; }
@@ -189,6 +199,10 @@ private:
     void registerURLSchemeAsEmptyDocument(const String&);
     void registerURLSchemeAsSecure(const String&) const;
     void setDomainRelaxationForbiddenForURLScheme(const String&) const;
+    void registerURLSchemeAsLocal(const String&) const;
+    void registerURLSchemeAsNoAccess(const String&) const;
+    void registerURLSchemeAsDisplayIsolated(const String&) const;
+    void registerURLSchemeAsCORSEnabled(const String&) const;
     void setDefaultRequestTimeoutInterval(double);
     void setAlwaysUsesComplexTextCodePath(bool);
     void setShouldUseFontSmoothing(bool);
@@ -300,6 +314,10 @@ private:
 
     HashMap<uint64_t, WebFrame*> m_frameMap;
 
+#if ENABLE(WEB_INTENTS)
+    HashMap<uint64_t, RefPtr<WebCore::PlatformMessagePortChannel> > m_messagePortChannels;
+#endif
+
     HashSet<String, CaseFoldingHash> m_mimeTypesWithCustomRepresentations;
 
     TextCheckerState m_textCheckerState;
@@ -316,8 +334,6 @@ private:
     WebIconDatabaseProxy m_iconDatabaseProxy;
     
     String m_localStorageDirectory;
-
-    RefPtr<SandboxExtension> m_applicationCachePathExtension;
 
 #if ENABLE(PLUGIN_PROCESS)
     PluginProcessConnectionManager m_pluginProcessConnectionManager;

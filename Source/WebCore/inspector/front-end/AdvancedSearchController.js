@@ -56,7 +56,7 @@ WebInspector.AdvancedSearchController.prototype = {
     {
         if (WebInspector.KeyboardShortcut.makeKeyFromEvent(event) === this._shortcut.key) {
             if (!this._searchView || !this._searchView.isShowing() || this._searchView._search !== document.activeElement) {
-                WebInspector.inspectorView.setCurrentPanel(WebInspector.panels.scripts);
+                WebInspector.showPanel("scripts");
                 this.show();
             } else
                 this.close();
@@ -222,6 +222,8 @@ WebInspector.SearchView = function(controller)
 WebInspector.SearchView.maxQueriesCount = 20;
 
 WebInspector.SearchView.prototype = {
+    __proto__: WebInspector.View.prototype,
+
     /**
      * @return {Array.<Element>}
      */
@@ -388,7 +390,7 @@ WebInspector.SearchView.prototype = {
     }
 }
 
-WebInspector.SearchView.prototype.__proto__ = WebInspector.View.prototype;
+//WebInspector.SearchView.prototype.__proto__ = WebInspector.View.prototype;
 
 /**
  * @constructor
@@ -498,7 +500,7 @@ WebInspector.FileBasedSearchResultsPane.prototype = {
     {
         var anchor = document.createElement("a");
         anchor.preferredPanel = "scripts";
-        anchor.href = uiSourceCode.url;
+        anchor.href = sanitizeHref(uiSourceCode.url);
         anchor.uiSourceCode = uiSourceCode;
         anchor.lineNumber = lineNumber;
         return anchor;
@@ -583,7 +585,7 @@ WebInspector.FileBasedSearchResultsPane.prototype = {
         var showMoreMatchesElement = new TreeElement(showMoreMatchesText, null, false);
         fileTreeElement.appendChild(showMoreMatchesElement);
         showMoreMatchesElement.listItemElement.addStyleClass("show-more-matches");
-        showMoreMatchesElement.onselect = this._showMoreMatchesElementSelected.bind(this, searchResult, startMatchIndex);
+        showMoreMatchesElement.onselect = this._showMoreMatchesElementSelected.bind(this, searchResult, startMatchIndex, showMoreMatchesElement);
     },
 
     /**
@@ -627,7 +629,7 @@ WebInspector.FileBasedSearchResultsPane.prototype = {
         fileTreeElement.listItemElement.appendChild(matchesCountSpan);
         
         var searchResult = this._searchResults[searchResultIndex];
-        fileTreeElement.onexpand = this._fileTreeElementExpanded.bind(this, searchResult);
+        fileTreeElement.onexpand = this._fileTreeElementExpanded.bind(this, searchResult, fileTreeElement);
 
         // Expand until at least certain amount of matches is expanded.
         if (this._matchesExpandedCount < WebInspector.FileBasedSearchResultsPane.matchesExpandedByDefaultCount)

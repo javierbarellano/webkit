@@ -55,6 +55,7 @@ private:
     virtual ~HTMLProgressElement();
 
     virtual void willAddAuthorShadowRoot() OVERRIDE;
+    virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
 
     virtual bool supportLabels() const OVERRIDE { return true; }
 
@@ -71,7 +72,7 @@ private:
     void didElementStateChange();
     void createShadowSubtree();
 
-    RefPtr<ProgressValueElement> m_value;
+    ProgressValueElement* m_value;
     bool m_hasAuthorShadowRoot;
 };
 

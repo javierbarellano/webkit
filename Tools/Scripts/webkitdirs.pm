@@ -735,8 +735,8 @@ sub builtDylibPathForName
                 $libraryName .= "d";
             }
 
-            my $mkspec = `$qmakebin -query QMAKE_MKSPECS`;
-            $mkspec =~ s/[\n|\r]$//g;
+            chomp(my $mkspec = `$qmakebin -query QT_HOST_DATA`);
+            $mkspec .= "/mkspecs";
             my $qtMajorVersion = retrieveQMakespecVar("$mkspec/qconfig.pri", "QT_MAJOR_VERSION");
             if (not $qtMajorVersion) {
                 $qtMajorVersion = "";
@@ -834,45 +834,27 @@ sub qtFeatureDefaults
 {
     die "ERROR: qmake missing but required to build WebKit.\n" if not commandExists($qmakebin);
 
-    my $qmakepath = File::Spec->catfile(sourceDir(), "Tools", "qmake");
-    my $qmakecommand;
-    if (isWindows()) {
-        $qmakecommand = "(set QMAKEPATH=$qmakepath) && $qmakebin";
-    } else {
-        $qmakecommand = "QMAKEPATH=$qmakepath $qmakebin";
-    }
+    my $oldQmakeEval = $ENV{QMAKE_CACHE_EVAL};
+    $ENV{QMAKE_CACHE_EVAL} = "CONFIG+=print_defaults";
 
     my $originalCwd = getcwd();
+    my $qmakepath = File::Spec->catfile(sourceDir(), "Tools", "qmake");
+    chdir $qmakepath or die "Failed to cd into " . $qmakepath . "\n";
 
-    my $file = File::Spec->catfile($qmakepath, "configure.pro");
+    my $file = File::Spec->catfile(sourceDir(), "WebKit.pro");
+
     my @buildArgs;
-    my $qconfigs;
+    @buildArgs = (@buildArgs, @{$_[0]}) if (@_);
 
-    if (@_) {
-        @buildArgs = (@buildArgs, @{$_[0]});
-        $qconfigs = $_[1];
-        my $dir = File::Spec->catfile(productDir(), "Tools", "qmake");
-        File::Path::mkpath($dir);
-        chdir $dir or die "Failed to cd into " . $dir . "\n";
-    } else {
-        # Do a quick check of the features without running the config tests
-        push @buildArgs, "CONFIG+=quick_check";
-    }
-
-    my @defaults = `$qmakecommand @buildArgs -nocache $file 2>&1`;
+    my @defaults = `$qmakebin @buildArgs $file 2>&1`;
 
     my %qtFeatureDefaults;
     for (@defaults) {
-        if (/ DEFINES: /) {
+        if (/DEFINES: /) {
             while (/(\S+?)=(\S+?)/gi) {
                 $qtFeatureDefaults{$1}=$2;
             }
-        } elsif (/ CONFIG:(.*)$/) {
-            if (@_) {
-                $$qconfigs = $1;
-            }
         } elsif (/Done computing defaults/) {
-            print "\n";
             last;
         } elsif (@_) {
             print $_;
@@ -880,6 +862,7 @@ sub qtFeatureDefaults
     }
 
     chdir $originalCwd;
+    $ENV{QMAKE_CACHE_EVAL} = $oldQmakeEval;
 
     return %qtFeatureDefaults;
 }
@@ -1559,8 +1542,21 @@ sub checkRequiredSystemConfig
             print "*************************************************************\n";
         }
     } elsif (isGtk() or isQt() or isWx() or isEfl()) {
-        my @cmds = qw(flex bison gperf);
+        my @cmds = qw(bison gperf);
+        if (isQt() and isWindows()) {
+            push @cmds, "win_flex";
+        } else {
+            push @cmds, "flex";
+        }
         my @missing = ();
+        my $oldPath = $ENV{PATH};
+        if (isQt() and isWindows()) {
+            chomp(my $gnuWin32Dir = `$qmakebin -query QT_HOST_DATA`);
+            $gnuWin32Dir = File::Spec->catfile($gnuWin32Dir, "..", "gnuwin32", "bin");
+            if (-d "$gnuWin32Dir") {
+                $ENV{PATH} = $gnuWin32Dir . ";" . $ENV{PATH};
+            }
+        }
         foreach my $cmd (@cmds) {
             push @missing, $cmd if not commandExists($cmd);
         }
@@ -1568,6 +1564,9 @@ sub checkRequiredSystemConfig
         if (@missing) {
             my $list = join ", ", @missing;
             die "ERROR: $list missing but required to build WebKit.\n";
+        }
+        if (isQt() and isWindows()) {
+            $ENV{PATH} = $oldPath;
         }
     }
     # Win32 and other platforms may want to check for minimum config
@@ -1606,9 +1605,9 @@ sub setupAppleWinEnv()
 
         # FIXME: We should remove this explicit version check for cygwin once we stop supporting Cygwin 1.7.9 or older versions. 
         # https://bugs.webkit.org/show_bug.cgi?id=85791
-        my $currentCygwinVersion = version->parse(`uname -r`);
-        my $firstCygwinVersionWithoutTTYSupport = version->parse("1.7.10");
-        if ($currentCygwinVersion < $firstCygwinVersionWithoutTTYSupport) {
+        my $uname_version = (POSIX::uname())[2];
+        $uname_version =~ s/\(.*\)//;  # Remove the trailing cygwin version, if any.
+        if (version->parse($uname_version) < version->parse("1.7.10")) {
             # Setting the environment variable 'CYGWIN' to 'tty' makes cygwin enable extra support (i.e., termios)
             # for UNIX-like ttys in the Windows console
             $variablesToSet{CYGWIN} = "tty" unless $ENV{CYGWIN};
@@ -1872,8 +1871,8 @@ sub retrieveQMakespecVar
 sub qtMakeCommand($)
 {
     my ($qmakebin) = @_;
-    chomp(my $mkspec = `$qmakebin -query QMAKE_MKSPECS`);
-    $mkspec .= "/default";
+    chomp(my $mkspec = `$qmakebin -query QT_HOST_DATA`);
+    $mkspec .= "/mkspecs/default";
     my $compiler = retrieveQMakespecVar("$mkspec/qmake.conf", "QMAKE_CC");
 
     #print "default spec: " . $mkspec . "\n";
@@ -1892,23 +1891,6 @@ sub autotoolsFlag($$)
     my $prefix = $flag ? "--enable" : "--disable";
 
     return $prefix . '-' . $feature;
-}
-
-sub getMD5HashForFile($)
-{
-    my $file = shift;
-
-    open(FILE_CONTENTS, $file);
-
-    # Read the whole file.
-    my $contents = "";
-    while (<FILE_CONTENTS>) {
-        $contents .= $_;
-    }
-
-    close(FILE_CONTENTS);
-
-    return md5_hex($contents);
 }
 
 sub runAutogenForAutotoolsProjectIfNecessary($@)
@@ -1954,7 +1936,10 @@ sub runAutogenForAutotoolsProjectIfNecessary($@)
 
     # Prefix the command with jhbuild run.
     unshift(@buildArgs, "$relSourceDir/autogen.sh");
-    unshift(@buildArgs, "$sourceDir/Tools/gtk/run-with-jhbuild");
+    my $jhbuildWrapperPrefix = jhbuildWrapperPrefixIfNeeded();
+    if ($jhbuildWrapperPrefix) {
+        unshift(@buildArgs, $jhbuildWrapperPrefix);
+    }
     if (system(@buildArgs) ne 0) {
         die "Calling autogen.sh failed!\n";
     }
@@ -1963,58 +1948,6 @@ sub runAutogenForAutotoolsProjectIfNecessary($@)
 sub getJhbuildPath()
 {
     return join('/', baseProductDir(), "Dependencies");
-}
-
-sub jhbuildConfigurationChanged()
-{
-    foreach my $file (qw(jhbuildrc.md5sum jhbuild.modules.md5sum)) {
-        my $path = join('/', getJhbuildPath(), $file);
-        if (! -e $path) {
-            return 1;
-        }
-
-        # Get the md5 sum of the file we're testing, look in the right platform directory.
-        $file =~ m/(.+)\.md5sum/;
-        my $platformDir = isEfl() ? 'efl' : 'gtk';
-        my $actualFile = join('/', $sourceDir, 'Tools', $platformDir, $1);
-        my $currentSum = getMD5HashForFile($actualFile);
-
-        # Get our previous record.
-        open(PREVIOUS_MD5, $path);
-        chomp(my $previousSum = <PREVIOUS_MD5>);
-        close(PREVIOUS_MD5);
-
-        if ($previousSum ne $currentSum) {
-            return 1;
-        }
-    }
-}
-
-sub saveJhbuildMd5() {
-    my $platform = isEfl() ? 'efl' : 'gtk';
-    # Save md5sum for jhbuild-related files.
-    foreach my $file (qw(jhbuildrc jhbuild.modules)) {
-        my $source = join('/', $sourceDir, "Tools", $platform, $file);
-        my $destination = join('/', getJhbuildPath(), $file);
-        open(SUM, ">$destination" . ".md5sum");
-        print SUM getMD5HashForFile($source);
-        close(SUM);
-    }
-}
-
-sub cleanJhbuild() {
-        # If the configuration changed, dependencies may have been removed.
-        # Since we lack a granular way of uninstalling those we wipe out the
-        # jhbuild root and start from scratch.
-        my $jhbuildPath = getJhbuildPath();
-        if (system("rm -rf $jhbuildPath/Root") ne 0) {
-            die "Cleaning jhbuild root failed!";
-        }
-
-        my $platform = isEfl() ? 'efl' : 'gtk';
-        if (system("perl $sourceDir/Tools/jhbuild/jhbuild-wrapper --$platform clean") ne 0) {
-            die "Cleaning jhbuild modules failed!";
-        }
 }
 
 sub mustReRunAutogen($@)
@@ -2106,33 +2039,19 @@ sub buildAutotoolsProject($@)
     # Enable unstable features when building through build-webkit.
     push @buildArgs, "--enable-unstable-features";
 
-    # We might need to update jhbuild dependencies.
-    my $needUpdate = 0;
-    if (jhbuildConfigurationChanged()) {
-        cleanJhbuild();
-        $needUpdate = 1;
-    }
-
     if (checkForArgumentAndRemoveFromArrayRef("--update-gtk", \@buildArgs)) {
-        $needUpdate = 1;
-    }
-
-    if ($needUpdate) {
         # Force autogen to run, to catch the possibly updated libraries.
         system("rm -f previous-autogen-arguments.txt");
 
         system("perl", "$sourceDir/Tools/Scripts/update-webkitgtk-libs") == 0 or die $!;
     }
 
-    saveJhbuildMd5();
-
     # If GNUmakefile exists, don't run autogen.sh unless its arguments
     # have changed. The makefile should be smart enough to track autotools
     # dependencies and re-run autogen.sh when build files change.
     runAutogenForAutotoolsProjectIfNecessary($dir, $prefix, $sourceDir, $project, @buildArgs);
 
-    my $gtkScriptsPath = "$sourceDir/Tools/gtk";
-    my $runWithJhbuild = "$gtkScriptsPath/run-with-jhbuild";
+    my $runWithJhbuild = jhbuildWrapperPrefixIfNeeded();
     if (system("$runWithJhbuild $make $makeArgs") ne 0) {
         die "\nFailed to build WebKit using '$make'!\n";
     }
@@ -2140,8 +2059,12 @@ sub buildAutotoolsProject($@)
     chdir ".." or die;
 
     if ($project eq 'WebKit' && !isCrossCompilation()) {
-        my @docGenerationOptions = ($runWithJhbuild, "$gtkScriptsPath/generate-gtkdoc", "--skip-html");
+        my @docGenerationOptions = ("$sourceDir/Tools/gtk/generate-gtkdoc", "--skip-html");
         push(@docGenerationOptions, productDir());
+
+        if ($runWithJhbuild) {
+            unshift(@docGenerationOptions, $runWithJhbuild);
+        }
 
         if (system(@docGenerationOptions)) {
             die "\n gtkdoc did not build without warnings\n";
@@ -2153,9 +2076,14 @@ sub buildAutotoolsProject($@)
 
 sub jhbuildWrapperPrefixIfNeeded()
 {
-    if (isEfl()) {
-        return File::Spec->catfile(sourceDir(), "Tools", "efl", "run-with-jhbuild");
+    if (-e getJhbuildPath()) {
+        if (isEfl()) {
+            return File::Spec->catfile(sourceDir(), "Tools", "efl", "run-with-jhbuild");
+        } elsif (isGtk()) {
+            return File::Spec->catfile(sourceDir(), "Tools", "gtk", "run-with-jhbuild");
+        }
     }
+
     return "";
 }
 
@@ -2193,15 +2121,6 @@ sub generateBuildSystemFromCMakeProject
     determineArchitecture();
     if ($architecture ne "x86_64" && !isARM()) {
         $ENV{'CXXFLAGS'} = "-march=pentium4 -msse2 -mfpmath=sse " . ($ENV{'CXXFLAGS'} || "");
-    }
-
-    if (isEfl() && jhbuildConfigurationChanged()) {
-        cleanJhbuild();
-        system("perl", "$sourceDir/Tools/Scripts/update-webkitefl-libs") == 0 or die $!;
-    }
-
-    if (isEfl()) {
-        saveJhbuildMd5();
     }
 
     # We call system("cmake @args") instead of system("cmake", @args) so that @args is
@@ -2247,6 +2166,11 @@ sub buildCMakeProjectOrExit($$$$@)
 
     exit(exitStatus(cleanCMakeGeneratedProject())) if $clean;
 
+    if (isEfl() && checkForArgumentAndRemoveFromARGV("--update-efl")) {
+        system("perl", "$sourceDir/Tools/Scripts/update-webkitefl-libs") == 0 or die $!;
+    }
+
+
     $returnCode = exitStatus(generateBuildSystemFromCMakeProject($port, $prefixPath, @cmakeArgs));
     exit($returnCode) if $returnCode;
     $returnCode = exitStatus(buildCMakeGeneratedProject($makeArgs));
@@ -2287,6 +2211,7 @@ sub buildQMakeProjects
 
     my $make = qtMakeCommand($qmakebin);
     my $makeargs = "";
+    my $command;
     my $installHeaders;
     my $installLibs;
     for my $i (0 .. $#buildParams) {
@@ -2311,13 +2236,22 @@ sub buildQMakeProjects
         $makeargs .= " -j" . numberOfCPUs();
     }
 
-    my $qmakepath = File::Spec->catfile(sourceDir(), "Tools", "qmake");
-    my $qmakecommand;
-    if (isWindows()) {
-        $qmakecommand = "(set QMAKEPATH=$qmakepath) && $qmakebin";
-    } else {
-        $qmakecommand = "QMAKEPATH=$qmakepath $qmakebin";
+    $make = "$make $makeargs";
+    $make =~ s/\s+$//;
+
+    my $originalCwd = getcwd();
+    my $dir = File::Spec->canonpath(productDir());
+    File::Path::mkpath($dir);
+    chdir $dir or die "Failed to cd into " . $dir . "\n";
+
+    if ($clean) {
+        $command = "$make distclean";
+        print "\nCalling '$command' in " . $dir . "\n\n";
+        return system $command;
     }
+
+    my $qmakepath = File::Spec->catfile(sourceDir(), "Tools", "qmake");
+    my $qmakecommand = $qmakebin;
 
     my $config = configuration();
     push @buildArgs, "INSTALL_HEADERS=" . $installHeaders if defined($installHeaders);
@@ -2327,153 +2261,80 @@ sub buildQMakeProjects
     if ($passedConfig =~ m/debug/i) {
         push @buildArgs, "CONFIG-=release";
         push @buildArgs, "CONFIG+=debug";
-    } elsif (!$passedConfig or $passedConfig =~ m/release/i) {
+    } elsif ($passedConfig =~ m/release/i) {
         push @buildArgs, "CONFIG+=release";
         push @buildArgs, "CONFIG-=debug";
-    } else {
+    } elsif ($passedConfig) {
         die "Build type $passedConfig is not supported with --qt.\n";
     }
-    push @buildArgs, "CONFIG-=debug_and_release" if ($passedConfig && isDarwin());
 
-    my $originalCwd = getcwd();
-    my $dir = File::Spec->canonpath(productDir());
-    File::Path::mkpath($dir);
-    chdir $dir or die "Failed to cd into " . $dir . "\n";
-
-    my %defines = qtFeatureDefaults(\@buildArgs, \$qconfigs);
+    # Using build-webkit to build assumes you want a developer-build
+    push @buildArgs, "CONFIG-=production_build";
 
     my $svnRevision = currentSVNRevision();
+    my $previousSvnRevision = "unknown";
 
     my $buildHint = "";
 
-    my $pathToDefinesCache = File::Spec->catfile($dir, ".webkit.config");
-    my $pathToOldDefinesFile = File::Spec->catfile($dir, "defaults.txt");
-
-    # FIXME: Get rid of .webkit.config and defaults.txt and move all the logic to .qmake.cache
-
-    # Ease transition to new build layout
-    if (-e $pathToOldDefinesFile) {
-        print "Old build layout detected";
-        $buildHint = "clean";
-    } elsif (-e $pathToDefinesCache && open(DEFAULTS, $pathToDefinesCache)) {
-        my %previousDefines;
-        while (<DEFAULTS>) {
-            if ($_ =~ m/(\S+)=(\S+)/gi) {
-                $previousDefines{$1} = $2;
+    my $pathToQmakeCache = File::Spec->catfile($dir, ".qmake.cache");
+    if (-e $pathToQmakeCache && open(QMAKECACHE, $pathToQmakeCache)) {
+        while (<QMAKECACHE>) {
+            if ($_ =~ m/^SVN_REVISION\s=\s(\d+)$/) {
+                $previousSvnRevision = $1;
             }
         }
-        close (DEFAULTS);
-
-        $previousDefines{"SVN_REVISION"} = "unknown" if not exists $previousDefines{"SVN_REVISION"};
-
-        if ($svnRevision ne $previousDefines{"SVN_REVISION"}) {
-            print "Last built revision was " . $previousDefines{"SVN_REVISION"} .
-                ", now at revision $svnRevision. Full incremental build needed.\n";
-
-            $buildHint = "incremental";
-        }
-
-        # Don't confuse the should-we-clean heuristics below
-        delete($previousDefines{"SVN_REVISION"});
-
-        my @uniqueDefineNames = keys %{ +{ map { $_, 1 } (keys %defines, keys %previousDefines) } };
-        foreach my $define (@uniqueDefineNames) {
-            if (! exists $previousDefines{$define}) {
-                print "Feature $define added";
-                $buildHint = "clean";
-                last;
-            }
-
-            if (! exists $defines{$define}) {
-                print "Feature $define removed";
-                $buildHint = "clean";
-                last;
-            }
-
-            if ($defines{$define} != $previousDefines{$define}) {
-                print "Feature $define changed ($previousDefines{$define} -> $defines{$define})";
-                $buildHint = "clean";
-                last;
-            }
-        }
-    } else {
-        # Missing build cache suggests we had a broken build after a clean,
-        # so we assume we have to do an incremental build just in case.
-        $buildHint = "incremental";
     }
-
-    if ($buildHint eq "clean") {
-        print ", clean build needed!\n";
-        # FIXME: This STDIN/STDOUT check does not work on the bots. Disable until it does.
-        # if (! -t STDIN || ( &promptUser("Would you like to clean the build directory?", "yes") eq "yes")) {
-            chdir $originalCwd;
-            File::Path::rmtree($dir);
-            File::Path::mkpath($dir);
-            chdir $dir or die "Failed to cd into " . $dir . "\n";
-        #}
-
-        # Still trigger an incremental build
-        $buildHint = "incremental";
-    }
-
-    if ($buildHint eq "incremental") {
-        my $qmakeDefines = "DEFINES +=";
-        foreach my $key (sort keys %defines) {
-            $qmakeDefines .= " \\\n    $key=$defines{$key}";
-        }
-        open(QMAKE_CACHE, ">.qmake.cache") or die "Cannot create .qmake.cache!\n";
-        print QMAKE_CACHE "CONFIG += webkit_configured $qconfigs\n";
-        print QMAKE_CACHE $qmakeDefines."\n";
-        close(QMAKE_CACHE);
-    }
-
-    # Save config up-front so we can detect changes to the build config even
-    # when the user re-configures after aborting the build.
-    open(DEFAULTS, ">$pathToDefinesCache");
-    print DEFAULTS "# These defines were set when building WebKit last time\n";
-    foreach my $key (sort keys %defines) {
-        print DEFAULTS "$key=$defines{$key}\n";
-    }
-    close(DEFAULTS);
 
     my $result = 0;
 
-    my $makefile = File::Spec->catfile($dir, "Makefile");
-    if (! -e $makefile) {
-        push @buildArgs, "-after OVERRIDE_SUBDIRS=\"@{$projects}\"" if @{$projects};
+    # Run qmake, regadless of having a makefile or not, so that qmake can
+    # detect changes to the configuration.
 
-        push @buildArgs, File::Spec->catfile(sourceDir(), "WebKit.pro");
-        my $command = "$qmakecommand @buildArgs";
-        print "Calling '$command' in " . $dir . "\n\n";
-        print "Installation headers directory: $installHeaders\n" if(defined($installHeaders));
-        print "Installation libraries directory: $installLibs\n" if(defined($installLibs));
-
-        $result = system "$command";
-        if ($result ne 0) {
-           die "Failed to setup build environment using $qmakebin!\n";
-        }
-    }
-
-    my $command = "$make $makeargs";
-    $command =~ s/\s+$//;
-
-    if ($clean) {
-        $command = "$command distclean";
-    } elsif ($buildHint eq "incremental") {
-        $command = "$command incremental";
-    }
-
+    push @buildArgs, "-after OVERRIDE_SUBDIRS=\"@{$projects}\"" if @{$projects};
+    unshift @buildArgs, File::Spec->catfile(sourceDir(), "WebKit.pro");
+    $command = "$qmakecommand @buildArgs";
     print "Calling '$command' in " . $dir . "\n\n";
+    print "Installation headers directory: $installHeaders\n" if(defined($installHeaders));
+    print "Installation libraries directory: $installLibs\n" if(defined($installLibs));
+
+    my $configChanged = 0;
+    open(QMAKE, "$command 2>&1 |") || die "Could not execute qmake";
+    while (<QMAKE>) {
+        $configChanged = 1 if $_ =~ m/The configuration was changed since the last build/;
+        print $_;
+    }
+
+    close(QMAKE);
+    $result = $?;
+
+    $command = "$make";
+
+    if ($result ne 0) {
+       die "\nFailed to set up build environment using $qmakebin!\n";
+    }
+
+    if ($configChanged) {
+        print "Calling '$command wipeclean' in " . $dir . "\n\n";
+        $result = system "$command wipeclean";
+    }
+
+    if ($svnRevision ne $previousSvnRevision) {
+        print "Last built revision was " . $previousSvnRevision .
+            ", now at revision $svnRevision. Full incremental build needed.\n";
+        $command .= " incremental";
+    }
+
+    print "\nCalling '$command' in " . $dir . "\n\n";
     $result = system $command;
 
     chdir ".." or die;
 
     if ($result eq 0) {
         # Now that the build completed successfully we can save the SVN revision
-        open(DEFAULTS, ">>$pathToDefinesCache");
-        print DEFAULTS "SVN_REVISION=$svnRevision\n";
-        close(DEFAULTS);
-    } elsif ($buildHint eq "" && exitStatus($result)) {
+        open(QMAKECACHE, ">>$pathToQmakeCache");
+        print QMAKECACHE "SVN_REVISION = $svnRevision\n";
+        close(QMAKECACHE);
+    } elsif (!$command =~ /incremental/ && exitStatus($result)) {
         my $exitCode = exitStatus($result);
         my $failMessage = <<EOF;
 
@@ -2486,11 +2347,11 @@ The build failed with exit code $exitCode. This may have been because you
   - added a new resource to a qrc file
 
 as dependencies are not automatically re-computed for local developer builds.
-You may try computing dependencies manually by running 'make qmake' in:
+You may try computing dependencies manually by running 'make qmake_all' in:
 
   $dir
 
-or passing --makeargs="qmake" to build-webkit.
+or passing --makeargs="qmake_all" to build-webkit.
 
 =========================
 
@@ -2616,49 +2477,6 @@ sub buildChromium($@)
         print STDERR "This platform is not supported by chromium.\n";
     }
     return $result;
-}
-
-sub chromiumInstall64BitAndroidLinkerIfNeeded
-{
-    my ($androidNdkRoot) = @_;
-
-    # Resolve the toolchain version through glob().
-    my $linkerDirPrefix = glob("$androidNdkRoot/toolchains/arm-linux-androideabi-*/prebuilt/linux-x86");
-
-    my $linkerDirname1 = "$linkerDirPrefix/bin";
-    my $linkerBasename1 = "arm-linux-androideabi-ld";
-    my $linkerDirname2 = "$linkerDirPrefix/arm-linux-androideabi/bin";
-    my $linkerBasename2 = "ld";
-    my $newLinker = "arm-linux-androideabi-ld.e4df3e0a5bb640ccfa2f30ee67fe9b3146b152d6";
-
-    # Do not continue if the new linker is not (yet) available.
-    if (! -e "third_party/aosp/$newLinker") {
-        return;
-    }
-
-    chromiumReplaceAndroidLinkerIfNeeded($linkerDirname1, $linkerBasename1, $newLinker);
-    chromiumReplaceAndroidLinkerIfNeeded($linkerDirname2, $linkerBasename2, $newLinker);
-}
-
-sub chromiumReplaceAndroidLinkerIfNeeded
-{
-    my ($linkerDirname, $linkerBasename, $newLinker) = @_;
-
-    # If the destination directory does not exist, or the linker has already
-    # been installed, replacing it will not be necessary.
-    if (! -d "$linkerDirname" || -e "$linkerDirname/$newLinker") {
-        return;
-    }
-
-    print "Installing 64-bit Android linker in $linkerDirname..\n";
-    system("cp", "third_party/aosp/$newLinker", "$linkerDirname/$newLinker");
-    system("mv", "$linkerDirname/$linkerBasename", "$linkerDirname/$linkerBasename.orig");
-    system("ln", "-s", "$newLinker", "$linkerDirname/$linkerBasename");
-
-    if (! -e "$linkerDirname/$newLinker") {
-        print "Unable to copy the linker.\n";
-        exit 1;
-    }
 }
 
 sub appleApplicationSupportPath

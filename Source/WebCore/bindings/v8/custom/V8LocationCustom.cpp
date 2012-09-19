@@ -37,12 +37,11 @@
 #include "FrameLoader.h"
 #include "KURL.h"
 #include "Location.h"
-#include "PlatformString.h"
 #include "V8Binding.h"
 #include "V8DOMWindow.h"
 #include "V8EventListener.h"
 #include "V8Utilities.h"
-#include "V8Proxy.h"
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -130,7 +129,7 @@ void V8Location::protocolAccessorSetter(v8::Local<v8::String> name, v8::Local<v8
     ExceptionCode ec = 0;
     impl->setProtocol(protocol, activeDOMWindow(state), firstDOMWindow(state), ec);
     if (UNLIKELY(ec))
-        V8Proxy::setDOMException(ec, info.GetIsolate());
+        setDOMException(ec, info.GetIsolate());
 }
 
 void V8Location::searchAccessorSetter(v8::Local<v8::String> name, v8::Local<v8::Value> value, const v8::AccessorInfo& info)
@@ -269,19 +268,6 @@ bool V8Location::namedSecurityCheck(v8::Local<v8::Object> host, v8::Local<v8::Va
     // Only allow same origin access
     Location* imp = V8Location::toNative(host);
     return BindingSecurity::shouldAllowAccessToFrame(BindingState::instance(), imp->frame(), DoNotReportSecurityError);
-}
-
-v8::Handle<v8::Value> toV8(Location* impl, v8::Isolate* isolate)
-{
-    if (!impl)
-        return v8NullWithCheck(isolate);
-    v8::Handle<v8::Object> wrapper = getDOMObjectMap().get(impl);
-    if (wrapper.IsEmpty()) {
-        wrapper = V8Location::wrap(impl, isolate);
-        if (!wrapper.IsEmpty())
-            V8DOMWrapper::setNamedHiddenWindowReference(impl->frame(), "location", wrapper);
-    }
-    return wrapper;
 }
 
 }  // namespace WebCore

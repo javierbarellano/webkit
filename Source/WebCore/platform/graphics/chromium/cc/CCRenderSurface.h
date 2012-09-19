@@ -29,9 +29,10 @@
 
 #if USE(ACCELERATED_COMPOSITING)
 
+#include "CCRenderPass.h"
+#include "CCSharedQuadState.h"
 #include "FloatRect.h"
 #include "IntRect.h"
-#include "cc/CCSharedQuadState.h"
 #include <public/WebTransformationMatrix.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/text/WTFString.h>
@@ -40,10 +41,11 @@ namespace WebCore {
 
 class CCDamageTracker;
 class CCQuadSink;
-class CCRenderPass;
+class CCRenderPassSink;
 class CCLayerImpl;
-class LayerRendererChromium;
 class TextStream;
+
+struct CCAppendQuadsData;
 
 class CCRenderSurface {
     WTF_MAKE_NONCOPYABLE(CCRenderSurface);
@@ -104,10 +106,10 @@ public:
 
     CCDamageTracker* damageTracker() const { return m_damageTracker.get(); }
 
-    PassOwnPtr<CCSharedQuadState> createSharedQuadState(int id) const;
-    PassOwnPtr<CCSharedQuadState> createReplicaSharedQuadState(int id) const;
+    CCRenderPass::Id renderPassId();
 
-    void appendQuads(CCQuadSink&, CCSharedQuadState*, bool forReplica, int renderPassId);
+    void appendRenderPasses(CCRenderPassSink&);
+    void appendQuads(CCQuadSink&, CCAppendQuadsData&, bool forReplica, CCRenderPass::Id renderPassId);
 
 private:
     CCLayerImpl* m_owningLayer;

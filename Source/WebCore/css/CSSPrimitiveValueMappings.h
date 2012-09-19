@@ -50,6 +50,7 @@
 #include "TextRenderingMode.h"
 #include "ThemeTypes.h"
 #include "UnicodeBidi.h"
+#include "WritingMode.h"
 
 #if ENABLE(CSS_SHADERS)
 #include "CustomFilterOperation.h"
@@ -1146,14 +1147,12 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EDisplay e)
         case INLINE_BOX:
             m_value.ident = CSSValueWebkitInlineBox;
             break;
-#if ENABLE(CSS3_FLEXBOX)
         case FLEX:
             m_value.ident = CSSValueWebkitFlex;
             break;
         case INLINE_FLEX:
             m_value.ident = CSSValueWebkitInlineFlex;
             break;
-#endif
         case GRID:
             m_value.ident = CSSValueWebkitGrid;
             break;
@@ -1202,8 +1201,6 @@ template<> inline CSSPrimitiveValue::operator EEmptyCell() const
     ASSERT_NOT_REACHED();
     return SHOW;
 }
-
-#if ENABLE(CSS3_FLEXBOX)
 
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EAlignItems e)
     : CSSValue(PrimitiveClass)
@@ -1409,8 +1406,6 @@ template<> inline CSSPrimitiveValue::operator EFlexWrap() const
     ASSERT_NOT_REACHED();
     return FlexWrapNone;
 }
-
-#endif
 
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EFloat e)
     : CSSValue(PrimitiveClass)
@@ -1960,6 +1955,12 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EOverflow e)
         case OOVERLAY:
             m_value.ident = CSSValueOverlay;
             break;
+        case OPAGEDX:
+            m_value.ident = CSSValueWebkitPagedX;
+            break;
+        case OPAGEDY:
+            m_value.ident = CSSValueWebkitPagedY;
+            break;
     }
 }
 
@@ -1978,6 +1979,10 @@ template<> inline CSSPrimitiveValue::operator EOverflow() const
             return OMARQUEE;
         case CSSValueOverlay:
             return OOVERLAY;
+        case CSSValueWebkitPagedX:
+            return OPAGEDX;
+        case CSSValueWebkitPagedY:
+            return OPAGEDY;
     }
 
     ASSERT_NOT_REACHED();
@@ -2198,6 +2203,27 @@ template<> inline CSSPrimitiveValue::operator ETextDecoration() const
     return TDNONE;
 }
 
+#if ENABLE(CSS3_TEXT_DECORATION)
+template<> inline CSSPrimitiveValue::operator TextDecorationStyle() const
+{
+    switch (m_value.ident) {
+    case CSSValueSolid:
+        return TextDecorationStyleSolid;
+    case CSSValueDouble:
+        return TextDecorationStyleDouble;
+    case CSSValueDotted:
+        return TextDecorationStyleDotted;
+    case CSSValueDashed:
+        return TextDecorationStyleDashed;
+    case CSSValueWavy:
+        return TextDecorationStyleWavy;
+    }
+
+    ASSERT_NOT_REACHED();
+    return TextDecorationStyleSolid;
+}
+#endif // CSS3_TEXT_DECORATION
+
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ETextSecurity e)
     : CSSValue(PrimitiveClass)
 {
@@ -2272,6 +2298,32 @@ template<> inline CSSPrimitiveValue::operator ETextTransform() const
     return TTNONE;
 }
 
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EUnicodeBidi e)
+    : CSSValue(PrimitiveClass)
+{
+    m_primitiveUnitType = CSS_IDENT;
+    switch (e) {
+    case UBNormal:
+        m_value.ident = CSSValueNormal;
+        break;
+    case Embed:
+        m_value.ident = CSSValueEmbed;
+        break;
+    case Override:
+        m_value.ident = CSSValueBidiOverride;
+        break;
+    case Isolate:
+        m_value.ident = CSSValueWebkitIsolate;
+        break;
+    case IsolateOverride:
+        m_value.ident = CSSValueWebkitIsolateOverride;
+        break;
+    case Plaintext:
+        m_value.ident = CSSValueWebkitPlaintext;
+        break;
+    }
+}
+
 template<> inline CSSPrimitiveValue::operator EUnicodeBidi() const
 {
     switch (m_value.ident) {
@@ -2283,6 +2335,8 @@ template<> inline CSSPrimitiveValue::operator EUnicodeBidi() const
         return Override;
     case CSSValueWebkitIsolate:
         return Isolate;
+    case CSSValueWebkitIsolateOverride:
+        return IsolateOverride;
     case CSSValueWebkitPlaintext:
         return Plaintext;
     }
@@ -2564,31 +2618,31 @@ template<> inline CSSPrimitiveValue::operator EWordBreak() const
     return NormalWordBreak;
 }
 
-template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EWordWrap e)
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EOverflowWrap e)
     : CSSValue(PrimitiveClass)
 {
     m_primitiveUnitType = CSS_IDENT;
     switch (e) {
-        case NormalWordWrap:
+        case NormalOverflowWrap:
             m_value.ident = CSSValueNormal;
             break;
-        case BreakWordWrap:
+        case BreakOverflowWrap:
             m_value.ident = CSSValueBreakWord;
             break;
     }
 }
 
-template<> inline CSSPrimitiveValue::operator EWordWrap() const
+template<> inline CSSPrimitiveValue::operator EOverflowWrap() const
 {
     switch (m_value.ident) {
         case CSSValueBreakWord:
-            return BreakWordWrap;
+            return BreakOverflowWrap;
         case CSSValueNormal:
-            return NormalWordWrap;
+            return NormalOverflowWrap;
     }
 
     ASSERT_NOT_REACHED();
-    return NormalWordWrap;
+    return NormalOverflowWrap;
 }
 
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(TextDirection e)

@@ -19,10 +19,15 @@
 #ifndef InputHandler_h
 #define InputHandler_h
 
-#include <BlackBerryPlatformInputEvents.h>
+#include "TextChecking.h"
 
+#include <BlackBerryPlatformInputEvents.h>
+#include <BlackBerryPlatformSettings.h>
+
+#include <imf/events.h>
 #include <imf/input_data.h>
 #include <map>
+#include <pthread.h>
 #include <wtf/RefPtr.h>
 
 namespace WTF {
@@ -37,13 +42,17 @@ class HTMLInputElement;
 class HTMLSelectElement;
 class IntRect;
 class Node;
+class Range;
 class SpellChecker;
 class TextCheckingRequest;
+class VisiblePosition;
+class VisibleSelection;
 }
 
 namespace BlackBerry {
 
 namespace Platform {
+class IntPoint;
 class KeyboardEvent;
 }
 
@@ -57,7 +66,9 @@ public:
     ~InputHandler();
 
     enum FocusElementType { TextEdit, TextPopup /* Date/Time & Color */, SelectPopup, Plugin };
-    enum CaretScrollType { CenterAlways, CenterIfNeeded, EdgeIfNeeded };
+    enum CaretScrollType { CenterAlways = BlackBerry::Platform::Settings::ScrollAdjustmentCenterAlways,
+                           CenterIfNeeded = BlackBerry::Platform::Settings::ScrollAdjustmentCenterIfNeeded,
+                           EdgeIfNeeded = BlackBerry::Platform::Settings::ScrollAdjustmentEdgeIfNeeded };
 
     bool isInputModeEnabled() const;
     void setInputModeEnabled(bool active = true);
@@ -102,7 +113,7 @@ public:
     void setPopupListIndexes(int size, const bool* selecteds);
 
     bool processingChange() const { return m_processingChange; }
-    void setProcessingChange(bool processingChange) { m_processingChange = processingChange; }
+    void setProcessingChange(bool);
 
     WTF::String elementText();
 
@@ -126,7 +137,10 @@ public:
 
     void requestCheckingOfString(WTF::PassRefPtr<WebCore::TextCheckingRequest>);
     void spellCheckingRequestProcessed(int32_t transactionId, spannable_string_t*);
-    void spellCheckingRequestCancelled(int32_t id, bool isSequenceId = false);
+    void spellCheckingRequestCancelled(int32_t transactionId);
+
+    bool shouldRequestSpellCheckingOptionsForPoint(Platform::IntPoint&, const WebCore::Element*, imf_sp_text_t&);
+    void requestSpellingCheckingOptions(imf_sp_text_t&);
 
 private:
     enum PendingKeyboardStateChange { NoChange, Visible, NotVisible };
@@ -183,8 +197,10 @@ private:
 
     void learnText();
     void sendLearnTextDetails(const WTF::String&);
-    int32_t convertTransactionIdToSequenceId(int32_t transactionId);
+    void spellCheckBlock(WebCore::VisibleSelection&, WebCore::TextCheckingProcessType);
+    PassRefPtr<WebCore::Range> getRangeForSpellCheckWithFineGranularity(WebCore::VisiblePosition startPosition, WebCore::VisiblePosition endPosition);
     WebCore::SpellChecker* getSpellChecker();
+    bool shouldSpellCheckElement(const WebCore::Element*) const;
 
     WebPagePrivate* m_webPage;
 
@@ -203,7 +219,8 @@ private:
     PendingKeyboardStateChange m_pendingKeyboardVisibilityChange;
     bool m_delayKeyboardVisibilityChange;
 
-    std::map<int32_t, int32_t> m_sequenceMap;
+    RefPtr<WebCore::TextCheckingRequest> m_request;
+    int32_t m_processingTransactionId;
 };
 
 }

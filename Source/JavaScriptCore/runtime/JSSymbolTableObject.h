@@ -29,50 +29,50 @@
 #ifndef JSSymbolTableObject_h
 #define JSSymbolTableObject_h
 
-#include "JSObject.h"
+#include "JSScope.h"
 #include "PropertyDescriptor.h"
 #include "SymbolTable.h"
 
 namespace JSC {
 
-class JSSymbolTableObject : public JSNonFinalObject {
+class JSSymbolTableObject : public JSScope {
 public:
-    typedef JSNonFinalObject Base;
+    typedef JSScope Base;
     
-    SymbolTable& symbolTable() const { return *m_symbolTable; }
-    
-    JS_EXPORT_PRIVATE static void destroy(JSCell*);
+    SharedSymbolTable* symbolTable() const { return m_symbolTable.get(); }
     
     static NO_RETURN_DUE_TO_ASSERT void putDirectVirtual(JSObject*, ExecState*, PropertyName, JSValue, unsigned attributes);
     
     JS_EXPORT_PRIVATE static bool deleteProperty(JSCell*, ExecState*, PropertyName);
-    JS_EXPORT_PRIVATE static void getOwnPropertyNames(JSObject*, ExecState*, PropertyNameArray&, EnumerationMode);
-    
-    bool isDynamicScope(bool& requiresDynamicChecks) const;
+    JS_EXPORT_PRIVATE static void getOwnNonIndexPropertyNames(JSObject*, ExecState*, PropertyNameArray&, EnumerationMode);
     
 protected:
-    static const unsigned StructureFlags = OverridesGetPropertyNames | JSNonFinalObject::StructureFlags;
+    static const unsigned StructureFlags = IsEnvironmentRecord | OverridesVisitChildren | OverridesGetPropertyNames | Base::StructureFlags;
     
-    JSSymbolTableObject(JSGlobalData& globalData, Structure* structure, SymbolTable* symbolTable)
-        : JSNonFinalObject(globalData, structure)
-        , m_symbolTable(symbolTable)
+    JSSymbolTableObject(JSGlobalData& globalData, Structure* structure, JSScope* scope, SharedSymbolTable* symbolTable = 0)
+        : Base(globalData, structure, scope)
     {
+        if (symbolTable)
+            m_symbolTable.set(globalData, this, symbolTable);
     }
-    
+
     void finishCreation(JSGlobalData& globalData)
     {
         Base::finishCreation(globalData);
-        ASSERT(m_symbolTable);
+        if (!m_symbolTable)
+            m_symbolTable.set(globalData, this, SharedSymbolTable::create(globalData));
     }
-    
-    SymbolTable* m_symbolTable;
+
+    static void visitChildren(JSCell*, SlotVisitor&);
+
+    WriteBarrier<SharedSymbolTable> m_symbolTable;
 };
 
 template<typename SymbolTableObjectType>
 inline bool symbolTableGet(
     SymbolTableObjectType* object, PropertyName propertyName, PropertySlot& slot)
 {
-    SymbolTable& symbolTable = object->symbolTable();
+    SymbolTable& symbolTable = *object->symbolTable();
     SymbolTable::iterator iter = symbolTable.find(propertyName.publicName());
     if (iter == symbolTable.end())
         return false;
@@ -86,7 +86,7 @@ template<typename SymbolTableObjectType>
 inline bool symbolTableGet(
     SymbolTableObjectType* object, PropertyName propertyName, PropertyDescriptor& descriptor)
 {
-    SymbolTable& symbolTable = object->symbolTable();
+    SymbolTable& symbolTable = *object->symbolTable();
     SymbolTable::iterator iter = symbolTable.find(propertyName.publicName());
     if (iter == symbolTable.end())
         return false;
@@ -102,7 +102,7 @@ inline bool symbolTableGet(
     SymbolTableObjectType* object, PropertyName propertyName, PropertySlot& slot,
     bool& slotIsWriteable)
 {
-    SymbolTable& symbolTable = object->symbolTable();
+    SymbolTable& symbolTable = *object->symbolTable();
     SymbolTable::iterator iter = symbolTable.find(propertyName.publicName());
     if (iter == symbolTable.end())
         return false;
@@ -121,7 +121,7 @@ inline bool symbolTablePut(
     JSGlobalData& globalData = exec->globalData();
     ASSERT(!Heap::heap(value) || Heap::heap(value) == Heap::heap(object));
     
-    SymbolTable& symbolTable = object->symbolTable();
+    SymbolTable& symbolTable = *object->symbolTable();
     SymbolTable::iterator iter = symbolTable.find(propertyName.publicName());
     if (iter == symbolTable.end())
         return false;
@@ -146,8 +146,8 @@ inline bool symbolTablePutWithAttributes(
 {
     ASSERT(!Heap::heap(value) || Heap::heap(value) == Heap::heap(object));
     
-    SymbolTable::iterator iter = object->symbolTable().find(propertyName.publicName());
-    if (iter == object->symbolTable().end())
+    SymbolTable::iterator iter = object->symbolTable()->find(propertyName.publicName());
+    if (iter == object->symbolTable()->end())
         return false;
     SymbolTableEntry& entry = iter->second;
     ASSERT(!entry.isNull());

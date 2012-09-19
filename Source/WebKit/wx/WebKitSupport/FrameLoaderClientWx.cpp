@@ -43,7 +43,6 @@
 #include "HTMLFrameOwnerElement.h"
 #include "NotImplemented.h"
 #include "Page.h"
-#include "PlatformString.h"
 #include "PluginView.h"
 #include "ProgressTracker.h"
 #include "RenderPart.h"
@@ -56,6 +55,7 @@
 
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
+#include <wtf/text/WTFString.h>
 
 #include <stdio.h>
 #if OS(UNIX)
@@ -904,9 +904,9 @@ PassRefPtr<Widget> FrameLoaderClientWx::createPlugin(const IntSize& size, HTMLPl
 
 void FrameLoaderClientWx::redirectDataToPlugin(Widget* pluginWidget)
 {
-    ASSERT(!m_pluginView);
     m_pluginView = static_cast<PluginView*>(pluginWidget);
-    m_hasSentResponseToPlugin = false;
+    if (pluginWidget)
+        m_hasSentResponseToPlugin = false;
 }
 
 ResourceError FrameLoaderClientWx::pluginWillHandleLoadError(const ResourceResponse& response)

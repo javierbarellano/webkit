@@ -182,7 +182,7 @@ class DriverTest(unittest.TestCase):
             def has_crashed(self):
                 return self.crashed
 
-            def stop(self):
+            def stop(self, timeout):
                 pass
 
         def assert_crash(driver, error_line, crashed, name, pid, unresponsive=False):
@@ -218,6 +218,12 @@ class DriverTest(unittest.TestCase):
         driver._server_process = FakeServerProcess(False)
         driver._subprocess_was_unresponsive = False
         assert_crash(driver, '#PROCESS UNRESPONSIVE - WebProcess (pid 8675)\n', True, 'WebProcess', 8675, True)
+
+        driver._crashed_process_name = None
+        driver._crashed_pid = None
+        driver._server_process = FakeServerProcess(False)
+        driver._subprocess_was_unresponsive = False
+        assert_crash(driver, '#CRASHED - renderer (pid 8675)\n', True, 'renderer', 8675)
 
         driver._crashed_process_name = None
         driver._crashed_pid = None

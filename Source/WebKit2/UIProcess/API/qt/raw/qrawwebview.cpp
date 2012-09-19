@@ -185,7 +185,7 @@ PassRefPtr<WebKit::WebContextMenuProxy> QRawWebViewPrivate::createContextMenuPro
 }
 
 #if ENABLE(INPUT_TYPE_COLOR)
-PassRefPtr<WebKit::WebColorChooserProxy> QRawWebViewPrivate::createColorChooserProxy(WebKit::WebPageProxy*, const WebCore::Color& intialColor)
+PassRefPtr<WebKit::WebColorChooserProxy> QRawWebViewPrivate::createColorChooserProxy(WebKit::WebPageProxy*, const WebCore::Color& intialColor, const WebCore::IntRect&)
 {
     notImplemented();
     return PassRefPtr<WebKit::WebColorChooserProxy>();
@@ -240,7 +240,10 @@ PassOwnPtr<WebKit::DrawingAreaProxy> QRawWebViewPrivate::createDrawingAreaProxy(
 }
 
 QRawWebViewPrivate::QRawWebViewPrivate(WebKit::WebContext* context, WebKit::WebPageGroup* pageGroup, QRawWebViewClient* client)
-    : m_client(client)
+    : m_focused(false)
+    , m_visible(false)
+    , m_active(false)
+    , m_client(client)
     , m_webPageProxy(context->createWebPage(this, pageGroup))
 {
     m_webPageProxy->pageGroup()->preferences()->setForceCompositingMode(true);
@@ -325,14 +328,20 @@ QSize QRawWebView::size() const
 
 void QRawWebView::setSize(const QSize& size)
 {
-    d->m_size = size;
-    d->m_webPageProxy->setViewportSize(size);
-
-
     WebKit::DrawingAreaProxy* drawingArea = d->m_webPageProxy->drawingArea();
     if (!drawingArea)
         return;
 
+    if (d->m_webPageProxy->useFixedLayout())
+        d->m_webPageProxy->setViewportSize(size);
+    else {
+        WebKit::LayerTreeCoordinatorProxy* coordinator = drawingArea->layerTreeCoordinatorProxy();
+        if (!coordinator)
+            return;
+        coordinator->setContentsSize(WebCore::FloatSize(size.width(), size.height()));
+    }
+
+    d->m_size = size;
 
     drawingArea->setSize(d->m_size, WebCore::IntSize());
     drawingArea->setVisibleContentsRect(WebCore::IntRect(WebCore::IntPoint(), d->m_size), 1 /*scale*/, WebCore::FloatPoint());
@@ -380,9 +389,9 @@ void QRawWebView::sendWheelEvent(QWheelEvent* event)
     d->m_webPageProxy->handleWheelEvent(WebKit::NativeWebWheelEvent(event, QTransform()));
 }
 
-#if ENABLE(TOUCH_EVENTS)
 void QRawWebView::sendTouchEvent(QTouchEvent* event)
 {
+#if ENABLE(TOUCH_EVENTS)
     d->m_webPageProxy->handleTouchEvent(WebKit::NativeWebTouchEvent(event, QTransform()));
-}
 #endif
+}

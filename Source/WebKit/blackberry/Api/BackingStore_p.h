@@ -101,6 +101,9 @@ public:
     enum TileMatrixDirection { Horizontal, Vertical };
     BackingStorePrivate();
 
+    void instrumentBeginFrame();
+    void instrumentCancelFrame();
+
     // Returns whether direct rendering is explicitly turned on or is
     // required because the surface pool is not large enough to meet
     // the minimum number of tiles required to scroll.
@@ -131,11 +134,8 @@ public:
     bool shouldSuppressNonVisibleRegularRenderJobs() const;
     bool shouldPerformRenderJobs() const;
     bool shouldPerformRegularRenderJobs() const;
-    void startRenderTimer();
-    void stopRenderTimer();
-    void renderOnTimer(WebCore::Timer<BackingStorePrivate>*);
-    void renderOnIdle();
-    bool willFireTimer();
+    void dispatchRenderJob();
+    void renderJob();
 
     // Set of helper methods for the scrollBackingStore() method.
     Platform::IntRect contentsRect() const;
@@ -337,6 +337,8 @@ public:
     BlackBerry::Platform::IntSize surfaceSize() const;
     BlackBerry::Platform::Graphics::Buffer* buffer() const;
 
+    void didRenderContent(const Platform::IntRect& renderedRect);
+
     static WebPage* s_currentBackingStoreOwner;
 
     unsigned m_suspendScreenUpdates;
@@ -363,9 +365,6 @@ public:
     TileMatrixDirection m_preferredTileMatrixDimension;
 
     Platform::IntRect m_visibleTileBufferRect;
-
-    // Last resort timer for rendering.
-    OwnPtr<WebCore::Timer<BackingStorePrivate> > m_renderTimer;
 
     pthread_mutex_t m_mutex;
 

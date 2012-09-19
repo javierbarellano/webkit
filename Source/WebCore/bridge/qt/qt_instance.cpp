@@ -20,6 +20,7 @@
 #include "config.h"
 #include "qt_instance.h"
 
+#include "APICast.h"
 #include "Error.h"
 #include "JSDOMBinding.h"
 #include "JSDOMWindowBase.h"
@@ -212,7 +213,7 @@ void QtInstance::getPropertyNames(ExecState* exec, PropertyNameArray& array)
             QMetaMethod method = meta->method(i);
             if (method.access() != QMetaMethod::Private) {
                 QByteArray sig = method.methodSignature();
-                array.add(Identifier(exec, UString(sig.constData(), sig.length())));
+                array.add(Identifier(exec, String(sig.constData(), sig.length())));
             }
         }
     }
@@ -302,10 +303,6 @@ JSValue QtInstance::valueOf(ExecState* exec) const
     return stringValue(exec);
 }
 
-// In qt_runtime.cpp
-JSValue convertQVariantToValue(ExecState*, PassRefPtr<RootObject> root, const QVariant& variant);
-QVariant convertValueToQVariant(ExecState*, JSValue, QMetaType::Type hint, int *distance);
-
 QByteArray QtField::name() const
 {
     if (m_type == MetaProperty)
@@ -337,7 +334,11 @@ JSValue QtField::valueFromInstance(ExecState* exec, const Instance* inst) const
         else if (m_type == DynamicProperty)
             val = obj->property(m_dynamicProperty);
 #endif
-        return convertQVariantToValue(exec, inst->rootObject(), val);
+        JSValueRef exception = 0;
+        JSValueRef jsValue = convertQVariantToValue(toRef(exec), inst->rootObject(), val, &exception);
+        if (exception)
+            return throwError(exec, toJS(exec, exception));
+        return toJS(exec, jsValue);
     }
     QString msg = QString(QLatin1String("cannot access member `%1' of deleted QObject")).arg(QLatin1String(name()));
     return throwError(exec, createError(exec, msg.toLatin1().constData()));
@@ -356,7 +357,12 @@ void QtField::setValueToInstance(ExecState* exec, const Instance* inst, JSValue 
             argtype = (QMetaType::Type) m_property.userType();
 
         // dynamic properties just get any QVariant
-        QVariant val = convertValueToQVariant(exec, aValue, argtype, 0);
+        JSValueRef exception = 0;
+        QVariant val = convertValueToQVariant(toRef(exec), toRef(exec, aValue), argtype, 0, &exception);
+        if (exception) {
+            throwError(exec, toJS(exec, exception));
+            return;
+        }
         if (m_type == MetaProperty) {
             if (m_property.isWritable())
                 m_property.write(obj, val);

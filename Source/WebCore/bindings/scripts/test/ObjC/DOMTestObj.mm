@@ -45,9 +45,9 @@
 #import "DOMTestObjectBConstructorInternal.h"
 #import "DOMTestObjectCConstructorInternal.h"
 #import "DOMaInternal.h"
+#import "DOManyInternal.h"
 #import "DOMbInternal.h"
 #import "DOMboolInternal.h"
-#import "DOMcInternal.h"
 #import "DOMdInternal.h"
 #import "DOMeInternal.h"
 #import "Dictionary.h"
@@ -70,9 +70,9 @@
 #import "WebCoreObjCExtras.h"
 #import "WebScriptObjectPrivate.h"
 #import "a.h"
+#import "any.h"
 #import "b.h"
 #import "bool.h"
-#import "c.h"
 #import "d.h"
 #import "e.h"
 #import <wtf/GetPtr.h>
@@ -625,6 +625,20 @@
 }
 #endif
 
+- (DOMany *)anyAttribute
+{
+    WebCore::JSMainThreadNullState state;
+    return kit(WTF::getPtr(IMPL->anyAttribute()));
+}
+
+- (void)setAnyAttribute:(DOMany *)newAnyAttribute
+{
+    WebCore::JSMainThreadNullState state;
+    ASSERT(newAnyAttribute);
+
+    IMPL->setAnyAttribute(core(newAnyAttribute));
+}
+
 - (DOMDocument *)contentDocument
 {
     WebCore::JSMainThreadNullState state;
@@ -1001,12 +1015,6 @@
 {
     WebCore::JSMainThreadNullState state;
     IMPL->convert2(core());
-}
-
-- (void)convert3:(DOMc *)
-{
-    WebCore::JSMainThreadNullState state;
-    IMPL->convert3(core());
 }
 
 - (void)convert4:(DOMd *)

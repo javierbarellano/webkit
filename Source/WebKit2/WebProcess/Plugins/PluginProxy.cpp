@@ -123,14 +123,6 @@ bool PluginProxy::canInitializeAsynchronously() const
     return controller()->asynchronousPluginInitializationEnabled() && (m_connection->supportsAsynchronousPluginInitialization() || controller()->asynchronousPluginInitializationEnabledForAllPlugins());
 }
 
-void PluginProxy::waitForAsynchronousInitialization()
-{
-    ASSERT(!m_isStarted);
-    ASSERT(m_waitingOnAsynchronousInitialization);
-
-    initializeSynchronously();
-}
-
 bool PluginProxy::initializeSynchronously()
 {
     ASSERT(m_pendingPluginCreationParameters);
@@ -199,10 +191,12 @@ void PluginProxy::didFailToCreatePluginInternal()
 
 void PluginProxy::destroy()
 {
-    m_connection->connection()->sendSync(Messages::WebProcessConnection::DestroyPlugin(m_pluginInstanceID, m_waitingOnAsynchronousInitialization), Messages::WebProcessConnection::DestroyPlugin::Reply(), 0);
-
     m_isStarted = false;
 
+    if (!m_connection)
+        return;
+
+    m_connection->connection()->sendSync(Messages::WebProcessConnection::DestroyPlugin(m_pluginInstanceID, m_waitingOnAsynchronousInitialization), Messages::WebProcessConnection::DestroyPlugin::Reply(), 0);
     m_connection->removePluginProxy(this);
 }
 
@@ -456,6 +450,11 @@ void PluginProxy::sendComplexTextInput(const String& textInput)
 void PluginProxy::contentsScaleFactorChanged(float scaleFactor)
 {
     geometryDidChange();
+}
+
+void PluginProxy::storageBlockingStateChanged(bool isStorageBlockingEnabled)
+{
+    m_connection->connection()->send(Messages::PluginControllerProxy::StorageBlockingStateChanged(isStorageBlockingEnabled), m_pluginInstanceID);
 }
 
 void PluginProxy::privateBrowsingStateChanged(bool isPrivateBrowsingEnabled)

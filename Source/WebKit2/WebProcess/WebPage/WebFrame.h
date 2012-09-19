@@ -40,9 +40,13 @@
 #include <wtf/RetainPtr.h>
 
 namespace WebCore {
-    class Frame;
-    class HTMLFrameOwnerElement;
-    class KURL;
+class Frame;
+class HTMLFrameOwnerElement;
+class IntRect;
+#if ENABLE(WEB_INTENTS)
+class Intent;
+#endif
+class KURL;
 }
 
 namespace WebKit {
@@ -81,6 +85,7 @@ public:
 
 #if ENABLE(WEB_INTENTS)
     void deliverIntent(const IntentData&);
+    void deliverIntent(WebCore::Intent*);
 #endif
 
     String source() const;
@@ -108,6 +113,7 @@ public:
     bool hasVerticalScrollbar() const;
     bool getDocumentBackgroundColor(double* red, double* green, double* blue, double* alpha);
     bool containsAnyFormElements() const;
+    void stopLoading();
 
     static WebFrame* frameForContext(JSContextRef);
 

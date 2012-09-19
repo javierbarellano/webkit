@@ -57,7 +57,7 @@ static void serverCallback(SoupServer* server, SoupMessage* message, const char*
         eina_strbuf_append_printf(buffer, INDEX_HTML_STRING, soup_server_get_port(server));
         soup_message_headers_replace(message->response_headers, "Set-Cookie", "foo=bar; Max-Age=60");
         soup_message_body_append(message->response_body, SOUP_MEMORY_TAKE, eina_strbuf_string_steal(buffer), eina_strbuf_length_get(buffer));
-        eina_strbuf_string_free(buffer);
+        eina_strbuf_free(buffer);
     } else if (!strcmp(path, "/image.png"))
         soup_message_headers_replace(message->response_headers, "Set-Cookie", "baz=qux; Max-Age=60");
     else
@@ -258,7 +258,7 @@ TEST_F(EWK2UnitTestBase, ewk_cookie_manager_cookies_delete)
     ASSERT_EQ(countHostnamesWithCookies(cookieManager), 0);
 }
 
-TEST_F(EWK2UnitTestBase, ewk_cookie_manager_permanent_storage)
+TEST_F(EWK2UnitTestBase, DISABLED_ewk_cookie_manager_permanent_storage)
 {
     OwnPtr<EWK2UnitTestServer> httpServer = adoptPtr(new EWK2UnitTestServer);
     httpServer->run(serverCallback);

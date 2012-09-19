@@ -37,7 +37,6 @@
 #include "V8Binding.h"
 #include "V8Element.h"
 #include "V8Node.h"
-#include "V8Proxy.h"
 
 #include <wtf/RefPtr.h>
 
@@ -51,7 +50,7 @@ v8::Handle<v8::Value> V8NamedNodeMap::indexedPropertyGetter(uint32_t index, cons
     if (!result)
         return v8Undefined();
 
-    return toV8(result.release(), info.GetIsolate());
+    return toV8(result.release(), info.Holder(), info.GetIsolate());
 }
 
 v8::Handle<v8::Value> V8NamedNodeMap::namedPropertyGetter(v8::Local<v8::String> name, const v8::AccessorInfo& info)
@@ -68,7 +67,7 @@ v8::Handle<v8::Value> V8NamedNodeMap::namedPropertyGetter(v8::Local<v8::String> 
     if (!result)
         return v8Undefined();
 
-    return toV8(result.release(), info.GetIsolate());
+    return toV8(result.release(), info.Holder(), info.GetIsolate());
 }
 
 } // namespace WebCore

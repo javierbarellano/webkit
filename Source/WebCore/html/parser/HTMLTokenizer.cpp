@@ -474,6 +474,7 @@ bool HTMLTokenizer::nextToken(SegmentedString& source, HTMLToken& token)
             } else if (cc == '>') {
                 if (isAppropriateEndTag()) {
                     m_temporaryBuffer.append(cc);
+                    m_token->setConvertTo8BitIfPossible();
                     return flushEmitAndResumeIn(source, HTMLTokenizerState::DataState);
                 }
             }
@@ -543,6 +544,7 @@ bool HTMLTokenizer::nextToken(SegmentedString& source, HTMLToken& token)
             } else if (cc == '>') {
                 if (isAppropriateEndTag()) {
                     m_temporaryBuffer.append(cc);
+                    m_token->setConvertTo8BitIfPossible();
                     return flushEmitAndResumeIn(source, HTMLTokenizerState::DataState);
                 }
             }
@@ -1063,9 +1065,9 @@ bool HTMLTokenizer::nextToken(SegmentedString& source, HTMLToken& token)
     END_STATE()
 
     HTML_BEGIN_STATE(MarkupDeclarationOpenState) {
-        DEFINE_STATIC_LOCAL(String, dashDashString, ("--"));
-        DEFINE_STATIC_LOCAL(String, doctypeString, ("doctype"));
-        DEFINE_STATIC_LOCAL(String, cdataString, ("[CDATA["));
+        DEFINE_STATIC_LOCAL(String, dashDashString, (ASCIILiteral("--")));
+        DEFINE_STATIC_LOCAL(String, doctypeString, (ASCIILiteral("doctype")));
+        DEFINE_STATIC_LOCAL(String, cdataString, (ASCIILiteral("[CDATA[")));
         if (cc == '-') {
             SegmentedString::LookAheadResult result = source.lookAhead(dashDashString);
             if (result == SegmentedString::DidMatch) {
@@ -1266,8 +1268,8 @@ bool HTMLTokenizer::nextToken(SegmentedString& source, HTMLToken& token)
             m_token->setForceQuirks();
             return emitAndReconsumeIn(source, HTMLTokenizerState::DataState);
         } else {
-            DEFINE_STATIC_LOCAL(String, publicString, ("public"));
-            DEFINE_STATIC_LOCAL(String, systemString, ("system"));
+            DEFINE_STATIC_LOCAL(String, publicString, (ASCIILiteral("public")));
+            DEFINE_STATIC_LOCAL(String, systemString, (ASCIILiteral("system")));
             if (cc == 'P' || cc == 'p') {
                 SegmentedString::LookAheadResult result = source.lookAheadIgnoringCase(publicString);
                 if (result == SegmentedString::DidMatch) {

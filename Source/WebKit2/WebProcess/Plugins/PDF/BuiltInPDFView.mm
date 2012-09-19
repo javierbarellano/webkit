@@ -342,6 +342,7 @@ bool BuiltInPDFView::initialize(const Parameters& parameters)
     if (!parameters.shouldUseManualLoader && !parameters.url.isEmpty())
         controller()->loadURL(pdfDocumentRequestID, "GET", parameters.url.string(), String(), HTTPHeaderMap(), Vector<uint8_t>(), false);
 
+    controller()->didInitializePlugin();
     return true;
 }
 
@@ -659,6 +660,10 @@ void BuiltInPDFView::setLayerHostingMode(LayerHostingMode)
 
 #endif
 
+void BuiltInPDFView::storageBlockingStateChanged(bool)
+{
+}
+
 void BuiltInPDFView::privateBrowsingStateChanged(bool)
 {
 }
@@ -791,7 +796,7 @@ IntSize BuiltInPDFView::contentsSize() const
     return m_pdfDocumentSize;
 }
 
-bool BuiltInPDFView::isOnActivePage() const
+bool BuiltInPDFView::scrollbarsCanBeActive() const
 {
     return !pluginView()->frame()->document()->inPageCache();
 }

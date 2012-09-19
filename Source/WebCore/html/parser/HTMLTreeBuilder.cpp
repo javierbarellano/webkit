@@ -110,98 +110,6 @@ static bool isTableBodyContextTag(const AtomicString& tagName)
         || tagName == theadTag;
 }
 
-// http://www.whatwg.org/specs/web-apps/current-work/multipage/parsing.html#special
-static bool isSpecialNode(const HTMLStackItem* item)
-{
-    if (item->hasTagName(MathMLNames::miTag)
-        || item->hasTagName(MathMLNames::moTag)
-        || item->hasTagName(MathMLNames::mnTag)
-        || item->hasTagName(MathMLNames::msTag)
-        || item->hasTagName(MathMLNames::mtextTag)
-        || item->hasTagName(MathMLNames::annotation_xmlTag)
-        || item->hasTagName(SVGNames::foreignObjectTag)
-        || item->hasTagName(SVGNames::descTag)
-        || item->hasTagName(SVGNames::titleTag))
-        return true;
-    if (item->isDocumentFragmentNode())
-        return true;
-    if (!isInHTMLNamespace(item))
-        return false;
-    const AtomicString& tagName = item->localName();
-    return tagName == addressTag
-        || tagName == appletTag
-        || tagName == areaTag
-        || tagName == articleTag
-        || tagName == asideTag
-        || tagName == baseTag
-        || tagName == basefontTag
-        || tagName == bgsoundTag
-        || tagName == blockquoteTag
-        || tagName == bodyTag
-        || tagName == brTag
-        || tagName == buttonTag
-        || tagName == captionTag
-        || tagName == centerTag
-        || tagName == colTag
-        || tagName == colgroupTag
-        || tagName == commandTag
-        || tagName == ddTag
-        || tagName == detailsTag
-        || tagName == dirTag
-        || tagName == divTag
-        || tagName == dlTag
-        || tagName == dtTag
-        || tagName == embedTag
-        || tagName == fieldsetTag
-        || tagName == figcaptionTag
-        || tagName == figureTag
-        || tagName == footerTag
-        || tagName == formTag
-        || tagName == frameTag
-        || tagName == framesetTag
-        || isNumberedHeaderTag(tagName)
-        || tagName == headTag
-        || tagName == headerTag
-        || tagName == hgroupTag
-        || tagName == hrTag
-        || tagName == htmlTag
-        || tagName == iframeTag
-        || tagName == imgTag
-        || tagName == inputTag
-        || tagName == isindexTag
-        || tagName == liTag
-        || tagName == linkTag
-        || tagName == listingTag
-        || tagName == marqueeTag
-        || tagName == menuTag
-        || tagName == metaTag
-        || tagName == navTag
-        || tagName == noembedTag
-        || tagName == noframesTag
-        || tagName == noscriptTag
-        || tagName == objectTag
-        || tagName == olTag
-        || tagName == pTag
-        || tagName == paramTag
-        || tagName == plaintextTag
-        || tagName == preTag
-        || tagName == scriptTag
-        || tagName == sectionTag
-        || tagName == selectTag
-        || tagName == styleTag
-        || tagName == summaryTag
-        || tagName == tableTag
-        || isTableBodyContextTag(tagName)
-        || tagName == tdTag
-        || tagName == textareaTag
-        || tagName == thTag
-        || tagName == titleTag
-        || tagName == trTag
-        || tagName == ulTag
-        || tagName == wbrTag
-        || tagName == xmpTag;
-}
-
 static bool isNonAnchorNonNobrFormattingTag(const AtomicString& tagName)
 {
     return tagName == bTag
@@ -249,6 +157,7 @@ public:
     explicit ExternalCharacterTokenBuffer(AtomicHTMLToken* token)
         : m_current(token->characters().data())
         , m_end(m_current + token->characters().size())
+        , m_isAll8BitData(token->isAll8BitData())
     {
         ASSERT(!isEmpty());
     }
@@ -256,6 +165,7 @@ public:
     explicit ExternalCharacterTokenBuffer(const String& string)
         : m_current(string.characters())
         , m_end(m_current + string.length())
+        , m_isAll8BitData(string.length() && string.is8Bit())
     {
         ASSERT(!isEmpty());
     }
@@ -266,6 +176,8 @@ public:
     }
 
     bool isEmpty() const { return m_current == m_end; }
+
+    bool isAll8BitData() const { return m_isAll8BitData; }
 
     void skipAtMostOneLeadingNewline()
     {
@@ -294,7 +206,12 @@ public:
         ASSERT(!isEmpty());
         const UChar* start = m_current;
         m_current = m_end;
-        return String(start, m_current - start);
+        size_t length = m_current - start;
+
+        if (isAll8BitData())
+            return String::make8BitFrom16BitSource(start, length);
+
+        return String(start, length);
     }
 
     void giveRemainingTo(StringBuilder& recipient)
@@ -344,6 +261,7 @@ private:
 
     const UChar* m_current;
     const UChar* m_end;
+    bool m_isAll8BitData;
 };
 
 
@@ -471,7 +389,7 @@ void HTMLTreeBuilder::constructTreeFromAtomicToken(AtomicHTMLToken* token)
         processToken(token);
 
     bool inForeignContent = !m_tree.isEmpty()
-        && !isInHTMLNamespace(m_tree.currentStackItem())
+        && !m_tree.currentStackItem()->isInHTMLNamespace()
         && !HTMLElementStack::isHTMLIntegrationPoint(m_tree.currentStackItem())
         && !HTMLElementStack::isMathMLTextIntegrationPoint(m_tree.currentStackItem());
 
@@ -630,7 +548,7 @@ void HTMLTreeBuilder::processCloseWhenNestedTag(AtomicHTMLToken* token)
             processFakeEndTag(item->localName());
             break;
         }
-        if (isSpecialNode(item.get()) && !item->hasTagName(addressTag) && !item->hasTagName(divTag) && !item->hasTagName(pTag))
+        if (item->isSpecialNode() && !item->hasTagName(addressTag) && !item->hasTagName(divTag) && !item->hasTagName(pTag))
             break;
         nodeRecord = nodeRecord->next();
     }
@@ -806,7 +724,7 @@ void HTMLTreeBuilder::processStartTagForInBody(AtomicHTMLToken* token)
     }
     if (isNumberedHeaderTag(token->name())) {
         processFakePEndTagIfPInButtonScope();
-        if (isNumberedHeaderTag(m_tree.currentStackItem()->localName())) {
+        if (m_tree.currentStackItem()->isNumberedHeaderElement()) {
             parseError(token);
             m_tree.openElements()->pop();
         }
@@ -1484,27 +1402,12 @@ void HTMLTreeBuilder::processAnyOtherEndTagForInBody(AtomicHTMLToken* token)
             m_tree.openElements()->popUntilPopped(item->element());
             return;
         }
-        if (isSpecialNode(item.get())) {
+        if (item->isSpecialNode()) {
             parseError(token);
             return;
         }
         record = record->next();
     }
-}
-
-// FIXME: This probably belongs on HTMLElementStack.
-HTMLElementStack::ElementRecord* HTMLTreeBuilder::furthestBlockForFormattingElement(Element* formattingElement)
-{
-    HTMLElementStack::ElementRecord* furthestBlock = 0;
-    HTMLElementStack::ElementRecord* record = m_tree.openElements()->topRecord();
-    for (; record; record = record->next()) {
-        if (record->element() == formattingElement)
-            return furthestBlock;
-        if (isSpecialNode(record->stackItem().get()))
-            furthestBlock = record;
-    }
-    ASSERT_NOT_REACHED();
-    return 0;
 }
 
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#parsing-main-inbody
@@ -1517,74 +1420,81 @@ void HTMLTreeBuilder::callTheAdoptionAgency(AtomicHTMLToken* token)
     static const int outerIterationLimit = 8;
     static const int innerIterationLimit = 3;
 
+    // 1, 2, 3 and 16 are covered by the for() loop.
     for (int i = 0; i < outerIterationLimit; ++i) {
-        // 1.
+        // 4.
         Element* formattingElement = m_tree.activeFormattingElements()->closestElementInScopeWithName(token->name());
-        if (!formattingElement || ((m_tree.openElements()->contains(formattingElement)) && !m_tree.openElements()->inScope(formattingElement))) {
+        // 4.a
+        if (!formattingElement)
+            return processAnyOtherEndTagForInBody(token);
+        // 4.c
+        if ((m_tree.openElements()->contains(formattingElement)) && !m_tree.openElements()->inScope(formattingElement)) {
             parseError(token);
             notImplemented(); // Check the stack of open elements for a more specific parse error.
             return;
         }
+        // 4.b
         HTMLElementStack::ElementRecord* formattingElementRecord = m_tree.openElements()->find(formattingElement);
         if (!formattingElementRecord) {
             parseError(token);
             m_tree.activeFormattingElements()->remove(formattingElement);
             return;
         }
+        // 4.d
         if (formattingElement != m_tree.currentElement())
             parseError(token);
-        // 2.
-        HTMLElementStack::ElementRecord* furthestBlock = furthestBlockForFormattingElement(formattingElement);
-        // 3.
+        // 5.
+        HTMLElementStack::ElementRecord* furthestBlock = m_tree.openElements()->furthestBlockForFormattingElement(formattingElement);
+        // 6.
         if (!furthestBlock) {
             m_tree.openElements()->popUntilPopped(formattingElement);
             m_tree.activeFormattingElements()->remove(formattingElement);
             return;
         }
-        // 4.
+        // 7.
         ASSERT(furthestBlock->isAbove(formattingElementRecord));
         RefPtr<HTMLStackItem> commonAncestor = formattingElementRecord->next()->stackItem();
-        // 5.
+        // 8.
         HTMLFormattingElementList::Bookmark bookmark = m_tree.activeFormattingElements()->bookmarkFor(formattingElement);
-        // 6.
+        // 9.
         HTMLElementStack::ElementRecord* node = furthestBlock;
         HTMLElementStack::ElementRecord* nextNode = node->next();
         HTMLElementStack::ElementRecord* lastNode = furthestBlock;
+        // 9.1, 9.2, 9.3 and 9.11 are covered by the for() loop.
         for (int i = 0; i < innerIterationLimit; ++i) {
-            // 6.1
+            // 9.4
             node = nextNode;
             ASSERT(node);
-            nextNode = node->next(); // Save node->next() for the next iteration in case node is deleted in 6.2.
-            // 6.2
+            nextNode = node->next(); // Save node->next() for the next iteration in case node is deleted in 9.5.
+            // 9.5
             if (!m_tree.activeFormattingElements()->contains(node->element())) {
                 m_tree.openElements()->remove(node->element());
                 node = 0;
                 continue;
             }
-            // 6.3
+            // 9.6
             if (node == formattingElementRecord)
                 break;
-            // 6.5
+            // 9.7
             RefPtr<HTMLStackItem> newItem = m_tree.createElementFromSavedToken(node->stackItem().get());
 
             HTMLFormattingElementList::Entry* nodeEntry = m_tree.activeFormattingElements()->find(node->element());
             nodeEntry->replaceElement(newItem);
             node->replaceElement(newItem.release());
-            // 6.4 -- Intentionally out of order to handle the case where node
-            // was replaced in 6.5.
-            // http://www.w3.org/Bugs/Public/show_bug.cgi?id=10096
+
+            // 9.8
             if (lastNode == furthestBlock)
                 bookmark.moveToAfter(nodeEntry);
-            // 6.6
+            // 9.9
             if (ContainerNode* parent = lastNode->element()->parentNode())
                 parent->parserRemoveChild(lastNode->element());
             node->element()->parserAddChild(lastNode->element());
             if (lastNode->element()->parentElement()->attached() && !lastNode->element()->attached())
                 lastNode->element()->lazyAttach();
-            // 6.7
+            // 9.10
             lastNode = node;
         }
-        // 7
+        // 10.
         if (ContainerNode* parent = lastNode->element()->parentNode())
             parent->parserRemoveChild(lastNode->element());
         if (commonAncestor->causesFosterParenting())
@@ -1596,24 +1506,25 @@ void HTMLTreeBuilder::callTheAdoptionAgency(AtomicHTMLToken* token)
             if (lastNode->element()->parentNode()->attached() && !lastNode->element()->attached())
                 lastNode->element()->lazyAttach();
         }
-        // 8
+        // 11.
         RefPtr<HTMLStackItem> newItem = m_tree.createElementFromSavedToken(formattingElementRecord->stackItem().get());
-        // 9
+        // 12.
         newItem->element()->takeAllChildrenFrom(furthestBlock->element());
-        // 10
+        // 13.
         Element* furthestBlockElement = furthestBlock->element();
         // FIXME: All this creation / parserAddChild / attach business should
-        //        be in HTMLConstructionSite.  My guess is that steps 8--12
+        //        be in HTMLConstructionSite. My guess is that steps 11--15
         //        should all be in some HTMLConstructionSite function.
         furthestBlockElement->parserAddChild(newItem->element());
+        // FIXME: Why is this attach logic necessary? Style resolve should attach us if needed.
         if (furthestBlockElement->attached() && !newItem->element()->attached()) {
             // Notice that newItem->element() might already be attached if, for example, one of the reparented
             // children is a style element, which attaches itself automatically.
             newItem->element()->attach();
         }
-        // 11
+        // 14.
         m_tree.activeFormattingElements()->swapTo(formattingElement, newItem, bookmark);
-        // 12
+        // 15.
         m_tree.openElements()->remove(formattingElement);
         m_tree.openElements()->insertAbove(newItem, furthestBlock);
     }
@@ -2646,7 +2557,7 @@ bool HTMLTreeBuilder::shouldProcessTokenInForeignContent(AtomicHTMLToken* token)
     if (m_tree.isEmpty())
         return false;
     HTMLStackItem* item = m_tree.currentStackItem();
-    if (isInHTMLNamespace(item))
+    if (item->isInHTMLNamespace())
         return false;
     if (HTMLElementStack::isMathMLTextIntegrationPoint(item)) {
         if (token->type() == HTMLTokenTypes::StartTag
@@ -2746,7 +2657,7 @@ void HTMLTreeBuilder::processTokenInForeignContent(AtomicHTMLToken* token)
             m_tree.openElements()->pop();
             return;
         }
-        if (!isInHTMLNamespace(m_tree.currentStackItem())) {
+        if (!m_tree.currentStackItem()->isInHTMLNamespace()) {
             // FIXME: This code just wants an Element* iterator, instead of an ElementRecord*
             HTMLElementStack::ElementRecord* nodeRecord = m_tree.openElements()->topRecord();
             if (!nodeRecord->stackItem()->hasLocalName(token->name()))
@@ -2758,7 +2669,7 @@ void HTMLTreeBuilder::processTokenInForeignContent(AtomicHTMLToken* token)
                 }
                 nodeRecord = nodeRecord->next();
 
-                if (isInHTMLNamespace(nodeRecord->stackItem().get()))
+                if (nodeRecord->stackItem()->isInHTMLNamespace())
                     break;
             }
         }

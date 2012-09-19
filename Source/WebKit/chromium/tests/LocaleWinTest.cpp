@@ -123,16 +123,16 @@ protected:
 #endif
 
 #if ENABLE(INPUT_TYPE_TIME_MULTIPLE_FIELDS)
-    String timeFormatText(LCID lcid)
+    String timeFormat(LCID lcid)
     {
         OwnPtr<LocaleWin> locale = LocaleWin::create(lcid);
-        return locale->timeFormatText();
+        return locale->timeFormat();
     }
 
-    String shortTimeFormatText(LCID lcid)
+    String shortTimeFormat(LCID lcid)
     {
         OwnPtr<LocaleWin> locale = LocaleWin::create(lcid);
-        return locale->shortTimeFormatText();
+        return locale->shortTimeFormat();
     }
 
     String timeAMPMLabel(LCID lcid, unsigned index)
@@ -211,7 +211,10 @@ TEST_F(LocaleWinTest, TestFormat)
 
     EXPECT_STREQ("Jan-1-0001", locale->formatDate("MMM-d-yyyy", 2012, 1, January, 1).utf8().data());
     EXPECT_STREQ("Sep-13-275760", locale->formatDate("MMM-d-yyyy", 2012, 275760, September, 13).utf8().data());
-    
+
+    OwnPtr<LocaleWin> persian = LocaleWin::create(Persian);
+    // U+06F0 U+06F1 / U+06F0 U+06F8 / U+06F0 U+06F0 U+06F0 U+06F2
+    EXPECT_STREQ("\xDB\xB0\xDB\xB1/\xDB\xB0\xDB\xB8/\xDB\xB0\xDB\xB0\xDB\xB0\xDB\xB1", persian->formatDate("dd/MM/yyyy", 2012, 1, August, 1).utf8().data());
 
     // For the following test, we'd like to confirm they don't crash and their
     // results are not important because we can assume invalid arguments are
@@ -255,6 +258,10 @@ TEST_F(LocaleWinTest, TestParse)
     EXPECT_TRUE(isnan(locale->parseDate("MMMM/d/y", 2012, "November 27 2")));
     EXPECT_TRUE(isnan(locale->parseDate("MMMM/d/y", 2012, "November 32 2")));
     EXPECT_TRUE(isnan(locale->parseDate("MMMM/d/y", 2012, "-1/-1/-1")));
+
+    OwnPtr<LocaleWin> persian = LocaleWin::create(Persian);
+    // U+06F1 U+06F6 / U+06F0 U+06F8 / 2012
+    EXPECT_EQ(msForDate(2012, August, 16), persian->parseDate("dd/MM/yyyy", 2012, String::fromUTF8("\xDB\xB1\xDB\xB6/\xDB\xB0\xDB\xB8/2012")));
 }
 
 TEST_F(LocaleWinTest, formatDate)
@@ -318,18 +325,18 @@ TEST_F(LocaleWinTest, weekDayShortLabels)
 #endif
 
 #if ENABLE(INPUT_TYPE_TIME_MULTIPLE_FIELDS)
-TEST_F(LocaleWinTest, timeFormatText)
+TEST_F(LocaleWinTest, timeFormat)
 {
-    EXPECT_STREQ("h:mm:ss a", timeFormatText(EnglishUS).utf8().data());
-    EXPECT_STREQ("HH:mm:ss", timeFormatText(FrenchFR).utf8().data());
-    EXPECT_STREQ("H:mm:ss", timeFormatText(JapaneseJP).utf8().data());
+    EXPECT_STREQ("h:mm:ss a", timeFormat(EnglishUS).utf8().data());
+    EXPECT_STREQ("HH:mm:ss", timeFormat(FrenchFR).utf8().data());
+    EXPECT_STREQ("H:mm:ss", timeFormat(JapaneseJP).utf8().data());
 }
 
-TEST_F(LocaleWinTest, shortTimeFormatText)
+TEST_F(LocaleWinTest, shortTimeFormat)
 {
-    EXPECT_STREQ("h:mm:ss a", shortTimeFormatText(EnglishUS).utf8().data());
-    EXPECT_STREQ("HH:mm:ss", shortTimeFormatText(FrenchFR).utf8().data());
-    EXPECT_STREQ("H:mm:ss", shortTimeFormatText(JapaneseJP).utf8().data());
+    EXPECT_STREQ("h:mm:ss a", shortTimeFormat(EnglishUS).utf8().data());
+    EXPECT_STREQ("HH:mm:ss", shortTimeFormat(FrenchFR).utf8().data());
+    EXPECT_STREQ("H:mm:ss", shortTimeFormat(JapaneseJP).utf8().data());
 }
 
 TEST_F(LocaleWinTest, timeAMPMLabels)

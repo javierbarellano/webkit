@@ -598,7 +598,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
     JSC::ExecState* exec = _private->coreFrame->script()->globalObject(mainThreadNormalWorld())->globalExec();
     JSC::JSLockHolder lock(exec);
-    return ustringToString(result.toString(exec)->value(exec));
+    return result.toWTFString(exec);
 }
 
 - (NSRect)_caretRectAtPosition:(const Position&)pos affinity:(NSSelectionAffinity)affinity
@@ -906,7 +906,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
 - (unsigned)_pendingFrameUnloadEventCount
 {
-    return _private->coreFrame->domWindow()->pendingUnloadEventListeners();
+    return _private->coreFrame->document()->domWindow()->pendingUnloadEventListeners();
 }
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
@@ -1067,7 +1067,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     if (frameLoader->subframeLoader()->containsPlugins())
         [result setObject:[NSNumber numberWithBool:YES] forKey:WebFrameHasPlugins];
     
-    if (DOMWindow* domWindow = _private->coreFrame->domWindow()) {
+    if (DOMWindow* domWindow = _private->coreFrame->document()->domWindow()) {
         if (domWindow->hasEventListeners(eventNames().unloadEvent))
             [result setObject:[NSNumber numberWithBool:YES] forKey:WebFrameHasUnloadListener];
         if (domWindow->optionalApplicationCache())
@@ -1124,7 +1124,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
     JSC::ExecState* exec = anyWorldGlobalObject->globalExec();
     JSC::JSLockHolder lock(exec);
-    return ustringToString(result.toString(exec)->value(exec));
+    return result.toWTFString(exec);
 }
 
 - (JSGlobalContextRef)_globalContextForScriptWorld:(WebScriptWorld *)world

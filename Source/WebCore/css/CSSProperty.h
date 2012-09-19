@@ -25,12 +25,11 @@
 #include "CSSValue.h"
 #include "RenderStyleConstants.h"
 #include "TextDirection.h"
+#include "WritingMode.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
-
-class MemoryObjectInfo;
 
 class CSSProperty {
 public:

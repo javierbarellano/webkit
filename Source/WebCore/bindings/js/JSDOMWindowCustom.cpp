@@ -21,6 +21,7 @@
 #include "config.h"
 #include "JSDOMWindowCustom.h"
 
+#include "BindingSecurity.h"
 #include "Frame.h"
 #include "HTMLCollection.h"
 #include "HTMLDocument.h"
@@ -99,12 +100,12 @@ JSValue nonCachingStaticFunctionGetter(ExecState* exec, JSValue, PropertyName pr
 
 static JSValue childFrameGetter(ExecState* exec, JSValue slotBase, PropertyName propertyName)
 {
-    return toJS(exec, jsCast<JSDOMWindow*>(asObject(slotBase))->impl()->frame()->tree()->scopedChild(propertyNameToAtomicString(propertyName))->domWindow());
+    return toJS(exec, jsCast<JSDOMWindow*>(asObject(slotBase))->impl()->frame()->tree()->scopedChild(propertyNameToAtomicString(propertyName))->document()->domWindow());
 }
 
 static JSValue indexGetter(ExecState* exec, JSValue slotBase, unsigned index)
 {
-    return toJS(exec, jsCast<JSDOMWindow*>(asObject(slotBase))->impl()->frame()->tree()->scopedChild(index)->domWindow());
+    return toJS(exec, jsCast<JSDOMWindow*>(asObject(slotBase))->impl()->frame()->tree()->scopedChild(index)->document()->domWindow());
 }
 
 static JSValue namedItemGetter(ExecState* exec, JSValue slotBase, PropertyName propertyName)
@@ -112,7 +113,7 @@ static JSValue namedItemGetter(ExecState* exec, JSValue slotBase, PropertyName p
     JSDOMWindowBase* thisObj = jsCast<JSDOMWindow*>(asObject(slotBase));
     Document* document = thisObj->impl()->frame()->document();
 
-    ASSERT(thisObj->allowsAccessFrom(exec));
+    ASSERT(BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObj->impl()));
     ASSERT(document);
     ASSERT(document->isHTMLDocument());
 
@@ -158,15 +159,15 @@ bool JSDOMWindow::getOwnPropertySlot(JSCell* cell, ExecState* exec, PropertyName
     // because we always allow access to some function, just different ones depending whether access
     // is allowed.
     String errorMessage;
-    bool allowsAccess = thisObject->allowsAccessFrom(exec, errorMessage);
-
+    bool allowsAccess = shouldAllowAccessToDOMWindow(exec, thisObject->impl(), errorMessage);
+    
     // Look for overrides before looking at any of our own properties, but ignore overrides completely
     // if this is cross-domain access.
     if (allowsAccess && JSGlobalObject::getOwnPropertySlot(thisObject, exec, propertyName, slot))
         return true;
-
+    
     // We need this code here because otherwise JSDOMWindowBase will stop the search before we even get to the
-    // prototype due to the blanket same origin (allowsAccessFrom) check at the end of getOwnPropertySlot.
+    // prototype due to the blanket same origin (shouldAllowAccessToDOMWindow) check at the end of getOwnPropertySlot.
     // Also, it's important to get the implementation straight out of the DOMWindow prototype regardless of
     // what prototype is actually set on this object.
     entry = JSDOMWindowPrototype::s_info.propHashTable(exec)->entry(exec, propertyName);
@@ -268,11 +269,87 @@ bool JSDOMWindow::getOwnPropertySlot(JSCell* cell, ExecState* exec, PropertyName
     return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
+bool JSDOMWindow::getOwnPropertySlotByIndex(JSCell* cell, ExecState* exec, unsigned index, PropertySlot& slot)
+{
+    JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(cell);
+    
+    if (!thisObject->impl()->frame()) {
+        // FIXME: We should have a message here that explains why the property access/function call was
+        // not allowed. 
+        slot.setUndefined();
+        return true;
+    }
+
+    // We need to check for cross-domain access here without printing the generic warning message
+    // because we always allow access to some function, just different ones depending whether access
+    // is allowed.
+    String errorMessage;
+    bool allowsAccess = shouldAllowAccessToDOMWindow(exec, thisObject->impl(), errorMessage);
+
+    // Look for overrides before looking at any of our own properties, but ignore overrides completely
+    // if this is cross-domain access.
+    if (allowsAccess && JSGlobalObject::getOwnPropertySlotByIndex(thisObject, exec, index, slot))
+        return true;
+    
+    PropertyName propertyName = Identifier::from(exec, index);
+    
+    // Check for child frames by name before built-in properties to
+    // match Mozilla. This does not match IE, but some sites end up
+    // naming frames things that conflict with window properties that
+    // are in Moz but not IE. Since we have some of these, we have to do
+    // it the Moz way.
+    if (thisObject->impl()->frame()->tree()->scopedChild(propertyNameToAtomicString(propertyName))) {
+        slot.setCustom(thisObject, childFrameGetter);
+        return true;
+    }
+    
+    // Do prototype lookup early so that functions and attributes in the prototype can have
+    // precedence over the index and name getters.  
+    JSValue proto = thisObject->prototype();
+    if (proto.isObject()) {
+        if (asObject(proto)->getPropertySlot(exec, index, slot)) {
+            if (!allowsAccess) {
+                thisObject->printErrorMessage(errorMessage);
+                slot.setUndefined();
+            }
+            return true;
+        }
+    }
+
+    // FIXME: Search the whole frame hierarchy somewhere around here.
+    // We need to test the correct priority order.
+
+    // allow window[1] or parent[1] etc. (#56983)
+    if (index < thisObject->impl()->frame()->tree()->scopedChildCount()) {
+        ASSERT(index != PropertyName::NotAnIndex);
+        slot.setCustomIndex(thisObject, index, indexGetter);
+        return true;
+    }
+
+    if (!allowsAccess) {
+        thisObject->printErrorMessage(errorMessage);
+        slot.setUndefined();
+        return true;
+    }
+
+    // Allow shortcuts like 'Image1' instead of document.images.Image1
+    Document* document = thisObject->impl()->frame()->document();
+    if (document->isHTMLDocument()) {
+        AtomicStringImpl* atomicPropertyName = findAtomicString(propertyName);
+        if (atomicPropertyName && (static_cast<HTMLDocument*>(document)->hasNamedItem(atomicPropertyName) || document->hasElementWithId(atomicPropertyName))) {
+            slot.setCustom(thisObject, namedItemGetter);
+            return true;
+        }
+    }
+
+    return Base::getOwnPropertySlotByIndex(thisObject, exec, index, slot);
+}
+
 bool JSDOMWindow::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(object);
     // Never allow cross-domain getOwnPropertyDescriptor
-    if (!thisObject->allowsAccessFrom(exec))
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         return false;
 
     const HashEntry* entry;
@@ -349,7 +426,7 @@ void JSDOMWindow::put(JSCell* cell, ExecState* exec, PropertyName propertyName, 
 
     // Optimization: access JavaScript global variables directly before involving the DOM.
     if (thisObject->JSGlobalObject::hasOwnPropertyForWrite(exec, propertyName)) {
-        if (thisObject->allowsAccessFrom(exec))
+        if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
             JSGlobalObject::put(thisObject, exec, propertyName, value, slot);
         return;
     }
@@ -357,24 +434,52 @@ void JSDOMWindow::put(JSCell* cell, ExecState* exec, PropertyName propertyName, 
     if (lookupPut<JSDOMWindow>(exec, propertyName, value, s_info.propHashTable(exec), thisObject))
         return;
 
-    if (thisObject->allowsAccessFrom(exec))
+    if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         Base::put(thisObject, exec, propertyName, value, slot);
+}
+
+void JSDOMWindow::putByIndex(JSCell* cell, ExecState* exec, unsigned index, JSValue value, bool shouldThrow)
+{
+    JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(cell);
+    if (!thisObject->impl()->frame())
+        return;
+    
+    PropertyName propertyName = Identifier::from(exec, index);
+
+    // Optimization: access JavaScript global variables directly before involving the DOM.
+    if (thisObject->JSGlobalObject::hasOwnPropertyForWrite(exec, propertyName)) {
+        if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
+            JSGlobalObject::putByIndex(thisObject, exec, index, value, shouldThrow);
+        return;
+    }
+    
+    if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
+        Base::putByIndex(thisObject, exec, index, value, shouldThrow);
 }
 
 bool JSDOMWindow::deleteProperty(JSCell* cell, ExecState* exec, PropertyName propertyName)
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(cell);
     // Only allow deleting properties by frames in the same origin.
-    if (!thisObject->allowsAccessFrom(exec))
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         return false;
     return Base::deleteProperty(thisObject, exec, propertyName);
+}
+
+bool JSDOMWindow::deletePropertyByIndex(JSCell* cell, ExecState* exec, unsigned propertyName)
+{
+    JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(cell);
+    // Only allow deleting properties by frames in the same origin.
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
+        return false;
+    return Base::deletePropertyByIndex(thisObject, exec, propertyName);
 }
 
 void JSDOMWindow::getPropertyNames(JSObject* object, ExecState* exec, PropertyNameArray& propertyNames, EnumerationMode mode)
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(object);
     // Only allow the window to enumerated by frames in the same origin.
-    if (!thisObject->allowsAccessFrom(exec))
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         return;
     Base::getPropertyNames(thisObject, exec, propertyNames, mode);
 }
@@ -383,7 +488,7 @@ void JSDOMWindow::getOwnPropertyNames(JSObject* object, ExecState* exec, Propert
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(object);
     // Only allow the window to enumerated by frames in the same origin.
-    if (!thisObject->allowsAccessFrom(exec))
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         return;
     Base::getOwnPropertyNames(thisObject, exec, propertyNames, mode);
 }
@@ -392,7 +497,7 @@ bool JSDOMWindow::defineOwnProperty(JSC::JSObject* object, JSC::ExecState* exec,
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(object);
     // Only allow defining properties in this way by frames in the same origin, as it allows setters to be introduced.
-    if (!thisObject->allowsAccessFrom(exec))
+    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
         return false;
 
     // Don't allow shadowing location using accessor properties.
@@ -412,7 +517,7 @@ void JSDOMWindow::setLocation(ExecState* exec, JSValue value)
     if (Frame* activeFrame = activeDOMWindow(exec)->frame()) {
         if (Settings* settings = activeFrame->settings()) {
             if (settings->usesDashboardBackwardCompatibilityMode() && !activeFrame->tree()->parent()) {
-                if (allowsAccessFrom(exec))
+                if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, impl()))
                     putDirect(exec->globalData(), Identifier(exec, "location"), value);
                 return;
             }
@@ -420,12 +525,12 @@ void JSDOMWindow::setLocation(ExecState* exec, JSValue value)
     }
 #endif
 
-    UString locationString = value.toString(exec)->value(exec);
+    String locationString = value.toString(exec)->value(exec);
     if (exec->hadException())
         return;
 
     if (Location* location = impl()->location())
-        location->setHref(ustringToString(locationString), activeDOMWindow(exec), firstDOMWindow(exec));
+        location->setHref(locationString, activeDOMWindow(exec), firstDOMWindow(exec));
 }
 
 JSValue JSDOMWindow::event(ExecState* exec) const
@@ -471,7 +576,7 @@ JSValue JSDOMWindow::open(ExecState* exec)
     String urlString = valueToStringWithUndefinedOrNullCheck(exec, exec->argument(0));
     if (exec->hadException())
         return jsUndefined();
-    AtomicString frameName = exec->argument(1).isUndefinedOrNull() ? "_blank" : ustringToAtomicString(exec->argument(1).toString(exec)->value(exec));
+    AtomicString frameName = exec->argument(1).isUndefinedOrNull() ? "_blank" : exec->argument(1).toString(exec)->value(exec);
     if (exec->hadException())
         return jsUndefined();
     String windowFeaturesString = valueToStringWithUndefinedOrNullCheck(exec, exec->argument(2));
@@ -588,10 +693,12 @@ JSValue JSDOMWindow::postMessage(ExecState* exec)
     return handlePostMessage(impl(), exec);
 }
 
+#if ENABLE(LEGACY_VENDOR_PREFIXES)
 JSValue JSDOMWindow::webkitPostMessage(ExecState* exec)
 {
     return handlePostMessage(impl(), exec);
 }
+#endif
 
 JSValue JSDOMWindow::setTimeout(ExecState* exec)
 {
@@ -640,7 +747,7 @@ JSValue JSDOMWindow::addEventListener(ExecState* exec)
     if (!listener.isObject())
         return jsUndefined();
 
-    impl()->addEventListener(ustringToAtomicString(exec->argument(0).toString(exec)->value(exec)), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)), exec->argument(2).toBoolean());
+    impl()->addEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)), exec->argument(2).toBoolean(exec));
     return jsUndefined();
 }
 
@@ -654,7 +761,7 @@ JSValue JSDOMWindow::removeEventListener(ExecState* exec)
     if (!listener.isObject())
         return jsUndefined();
 
-    impl()->removeEventListener(ustringToAtomicString(exec->argument(0).toString(exec)->value(exec)), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)).get(), exec->argument(2).toBoolean());
+    impl()->removeEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)).get(), exec->argument(2).toBoolean(exec));
     return jsUndefined();
 }
 

@@ -50,6 +50,7 @@
 #include "WebCoreSystemInterface.h"
 #include <objc/objc-runtime.h>
 #include <wtf/MainThread.h>
+#include <wtf/ObjcRuntimeExtras.h>
 #include <wtf/StdLibExtras.h>
 
 namespace WebCore {
@@ -138,7 +139,7 @@ void EventHandler::focusDocumentView()
 bool EventHandler::passWidgetMouseDownEventToWidget(const MouseEventWithHitTestResults& event)
 {
     // Figure out which view to send the event to.
-    RenderObject* target = targetNode(event) ? targetNode(event)->renderer() : 0;
+    RenderObject* target = event.targetNode() ? event.targetNode()->renderer() : 0;
     if (!target || !target->isWidget())
         return false;
     
@@ -352,7 +353,7 @@ bool EventHandler::passSubframeEventToSubframe(MouseEventWithHitTestResults& eve
             return true;
         
         case NSLeftMouseDown: {
-            Node* node = targetNode(event);
+            Node* node = event.targetNode();
             if (!node)
                 return false;
             RenderObject* renderer = node->renderer();
@@ -412,7 +413,7 @@ static void selfRetainingNSScrollViewScrollWheel(NSScrollView *self, SEL selecto
 
     if (shouldRetainSelf)
         [self retain];
-    originalNSScrollViewScrollWheel(self, selector, event);
+    wtfCallIMP<void>(originalNSScrollViewScrollWheel, self, selector, event);
     if (shouldRetainSelf)
         [self release];
 }

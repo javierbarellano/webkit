@@ -37,13 +37,13 @@
 #include "HTMLElement.h"
 #include "HTMLFormElement.h"
 #include "Node.h"
+#include "ScriptSourceCode.h"
 #include "V8Binding.h"
 #include "V8DOMWrapper.h"
 #include "V8Document.h"
 #include "V8HTMLFormElement.h"
 #include "V8HiddenPropertyName.h"
 #include "V8Node.h"
-#include "V8Proxy.h"
 #include "V8RecursionScope.h"
 #include "WorldContextHandle.h"
 
@@ -100,7 +100,7 @@ v8::Local<v8::Value> V8LazyEventListener::callListenerFunction(ScriptExecutionCo
     if (!frame->script()->canExecuteScripts(AboutToExecuteScript))
         return v8::Local<v8::Value>();
 
-    return frame->script()->proxy()->callFunction(handlerFunction, receiver, 1, parameters);
+    return frame->script()->callFunction(handlerFunction, receiver, 1, parameters);
 }
 
 static v8::Handle<v8::Value> V8LazyEventListenerToString(const v8::Arguments& args)
@@ -124,7 +124,7 @@ void V8LazyEventListener::prepareListenerObject(ScriptExecutionContext* context)
     if (!frame->script()->canExecuteScripts(NotAboutToExecuteScript))
         return;
     // Use the outer scope to hold context.
-    v8::Local<v8::Context> v8Context = worldContext().adjustedContext(frame->script()->proxy());
+    v8::Local<v8::Context> v8Context = toV8Context(context, worldContext());
     // Bail out if we cannot get the context.
     if (v8Context.IsEmpty())
         return;
@@ -146,19 +146,18 @@ void V8LazyEventListener::prepareListenerObject(ScriptExecutionContext* context)
     // Call with 4 arguments instead of 3, pass additional null as the last parameter.
     // By calling the function with 4 arguments, we create a setter on arguments object
     // which would shadow property "3" on the prototype.
-    String code = "(function() {" \
-        "with (this[2]) {" \
-        "with (this[1]) {" \
-        "with (this[0]) {";
-    code.append("return function(");
-    code.append(m_eventParameterName);
-    code.append(") {");
-    code.append(m_code);
-    // Insert '\n' otherwise //-style comments could break the handler.
-    code.append("\n};}}}})");
+    String code = "(function() {"
+        "with (this[2]) {"
+        "with (this[1]) {"
+        "with (this[0]) {"
+            "return function(" + m_eventParameterName + ") {" +
+                m_code + "\n" // Insert '\n' otherwise //-style comments could break the handler.
+            "};"
+        "}}}})";
+
     v8::Handle<v8::String> codeExternalString = v8ExternalString(code);
 
-    v8::Handle<v8::Script> script = V8Proxy::compileScript(codeExternalString, m_sourceURL, m_position);
+    v8::Handle<v8::Script> script = ScriptSourceCode::compileScript(codeExternalString, m_sourceURL, m_position);
     if (script.IsEmpty())
         return;
 
@@ -220,18 +219,12 @@ void V8LazyEventListener::prepareListenerObject(ScriptExecutionContext* context)
     if (!toStringTemplate.IsEmpty())
         toStringFunction = toStringTemplate->GetFunction();
     if (!toStringFunction.IsEmpty()) {
-        String toStringResult = "function ";
-        toStringResult.append(m_functionName);
-        toStringResult.append("(");
-        toStringResult.append(m_eventParameterName);
-        toStringResult.append(") {\n  ");
-        toStringResult.append(m_code);
-        toStringResult.append("\n}");
-        wrappedFunction->SetHiddenValue(V8HiddenPropertyName::toStringString(), v8ExternalString(toStringResult));
+        String toStringString = "function " + m_functionName + "(" + m_eventParameterName + ") {\n  " + m_code + "\n}";
+        wrappedFunction->SetHiddenValue(V8HiddenPropertyName::toStringString(), v8ExternalString(toStringString));
         wrappedFunction->Set(v8::String::NewSymbol("toString"), toStringFunction);
     }
 
-    wrappedFunction->SetName(v8::String::New(fromWebCoreString(m_functionName), m_functionName.length()));
+    wrappedFunction->SetName(v8String(m_functionName));
 
     // FIXME: Remove the following comment-outs.
     // See https://bugs.webkit.org/show_bug.cgi?id=85152 for more details.

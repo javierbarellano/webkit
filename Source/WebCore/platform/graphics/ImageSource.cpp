@@ -175,7 +175,7 @@ float ImageSource::frameDurationAtIndex(size_t index)
     return duration;
 }
 
-ImageOrientation ImageSource::orientationAtIndex(size_t index) const
+ImageOrientation ImageSource::orientationAtIndex(size_t) const
 {
     // The JPEG and TIFF decoders need to be taught how to read EXIF, XMP, or IPTC data.
     notImplemented();
@@ -196,6 +196,13 @@ bool ImageSource::frameIsCompleteAtIndex(size_t index)
 
     ImageFrame* buffer = m_decoder->frameBufferAtIndex(index);
     return buffer && buffer->status() == ImageFrame::FrameComplete;
+}
+
+unsigned ImageSource::frameBytesAtIndex(size_t index) const
+{
+    if (!m_decoder)
+        return 0;
+    return m_decoder->frameBytesAtIndex(index);
 }
 
 }

@@ -29,7 +29,6 @@
 #include "FloatRect.h"
 #include "FragmentScriptingPermission.h"
 #include "IntRect.h"
-#include "Node.h"
 #include "RangeBoundaryPoint.h"
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
@@ -43,6 +42,7 @@ class ContainerNode;
 class Document;
 class DocumentFragment;
 class FloatQuad;
+class Node;
 class NodeWithIndex;
 class Text;
 
@@ -117,7 +117,7 @@ public:
         PartiallyFixedPosition,
         EntirelyFixedPosition
     };
-    
+
     // Not transform-friendly
     void textRects(Vector<IntRect>&, bool useSelectionHeight = false, RangeInFixedPosition* = 0) const;
     IntRect boundingBox() const;
@@ -126,7 +126,6 @@ public:
     void textQuads(Vector<FloatQuad>&, bool useSelectionHeight = false, RangeInFixedPosition* = 0) const;
     void getBorderAndTextQuads(Vector<FloatQuad>&) const;
     FloatRect boundingRect() const;
-    FloatRect transformFriendlyBoundingBox() const;
 
     void nodeChildrenChanged(ContainerNode*);
     void nodeChildrenWillBeRemoved(ContainerNode*);

@@ -26,16 +26,16 @@
 #ifndef CCLayerImpl_h
 #define CCLayerImpl_h
 
+#include "CCInputHandler.h"
+#include "CCLayerAnimationController.h"
+#include "CCRenderSurface.h"
+#include "CCResourceProvider.h"
+#include "CCSharedQuadState.h"
 #include "FloatRect.h"
 #include "IntRect.h"
 #include "Region.h"
 #include "SkColor.h"
 #include "TextStream.h"
-#include "cc/CCInputHandler.h"
-#include "cc/CCLayerAnimationController.h"
-#include "cc/CCRenderSurface.h"
-#include "cc/CCResourceProvider.h"
-#include "cc/CCSharedQuadState.h"
 #include <public/WebFilterOperations.h>
 #include <public/WebTransformationMatrix.h>
 #include <wtf/OwnPtr.h>
@@ -47,11 +47,13 @@ namespace WebCore {
 
 class CCLayerSorter;
 class CCLayerTreeHostImpl;
-class CCRenderer;
 class CCQuadSink;
+class CCRenderer;
 class CCScrollbarAnimationController;
 class CCScrollbarLayerImpl;
 class LayerChromium;
+
+struct CCAppendQuadsData;
 
 class CCLayerImpl : public CCLayerAnimationControllerClient {
 public:
@@ -89,15 +91,14 @@ public:
     CCLayerTreeHostImpl* layerTreeHostImpl() const { return m_layerTreeHostImpl; }
     void setLayerTreeHostImpl(CCLayerTreeHostImpl* hostImpl) { m_layerTreeHostImpl = hostImpl; }
 
-    PassOwnPtr<CCSharedQuadState> createSharedQuadState(int id) const;
+    PassOwnPtr<CCSharedQuadState> createSharedQuadState() const;
     // willDraw must be called before appendQuads. If willDraw is called,
     // didDraw is guaranteed to be called before another willDraw or before
     // the layer is destroyed. To enforce this, any class that overrides
     // willDraw/didDraw must call the base class version.
     virtual void willDraw(CCResourceProvider*);
-    virtual void appendQuads(CCQuadSink&, const CCSharedQuadState*, bool& hadMissingTiles) { }
+    virtual void appendQuads(CCQuadSink&, CCAppendQuadsData&) { }
     virtual void didDraw(CCResourceProvider*);
-    void appendDebugBorderQuad(CCQuadSink&, const CCSharedQuadState*) const;
 
     virtual CCResourceProvider::ResourceId contentsResourceId() const;
 
@@ -274,6 +275,8 @@ public:
 
 protected:
     explicit CCLayerImpl(int);
+
+    void appendDebugBorderQuad(CCQuadSink&, const CCSharedQuadState*, CCAppendQuadsData&) const;
 
     virtual void dumpLayerProperties(TextStream&, int indent) const;
     static void writeIndent(TextStream&, int indent);

@@ -25,12 +25,13 @@
 #ifndef CCThreadedTest_h
 #define CCThreadedTest_h
 
+#include "CCLayerTreeHost.h"
+#include "CCLayerTreeHostImpl.h"
+#include "CCScopedThreadProxy.h"
 #include "CompositorFakeWebGraphicsContext3D.h"
-#include "cc/CCLayerTreeHost.h"
-#include "cc/CCLayerTreeHostImpl.h"
-#include "cc/CCScopedThreadProxy.h"
 #include <gtest/gtest.h>
 #include <public/WebAnimationDelegate.h>
+#include <public/WebThread.h>
 
 namespace WebCore {
 class CCLayerImpl;
@@ -38,10 +39,6 @@ class CCLayerTreeHost;
 class CCLayerTreeHostClient;
 class CCLayerTreeHostImpl;
 class GraphicsContext3D;
-}
-
-namespace WebKit {
-class WebThread;
 }
 
 namespace WebKitTests {
@@ -56,7 +53,7 @@ public:
     virtual void animateLayers(WebCore::CCLayerTreeHostImpl*, double monotonicTime) { }
     virtual void willAnimateLayers(WebCore::CCLayerTreeHostImpl*, double monotonicTime) { }
     virtual void applyScrollAndScale(const WebCore::IntSize&, float) { }
-    virtual void updateAnimations(double monotonicTime) { }
+    virtual void animate(double monotonicTime) { }
     virtual void layout() { }
     virtual void didRecreateOutputSurface(bool succeeded) { }
     virtual void didAddAnimation() { }
@@ -117,6 +114,8 @@ public:
 protected:
     CCThreadedTest();
 
+    virtual void initializeSettings(WebCore::CCLayerTreeSettings&) { }
+
     virtual void scheduleComposite();
 
     static void onEndTest(void* self);
@@ -134,6 +133,7 @@ protected:
     static void dispatchDidAddAnimation(void* self);
 
     virtual void runTest(bool threaded);
+    WebKit::WebThread* webThread() const { return m_webThread.get(); }
 
     WebCore::CCLayerTreeSettings m_settings;
     OwnPtr<MockCCLayerTreeHostClient> m_client;

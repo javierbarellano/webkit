@@ -24,10 +24,10 @@
 
 #include "config.h"
 
-#include "cc/CCLayerSorter.h"
+#include "CCLayerSorter.h"
 
-#include "cc/CCMathUtil.h"
-#include "cc/CCRenderSurface.h"
+#include "CCMathUtil.h"
+#include "CCRenderSurface.h"
 #include <limits.h>
 #include <public/WebTransformationMatrix.h>
 #include <wtf/Deque.h>
@@ -264,7 +264,7 @@ void CCLayerSorter::createGraphEdges()
 #endif
     // Fraction of the total zRange below which z differences
     // are not considered reliable.
-    const float zThresholdFactor = 0.01;
+    const float zThresholdFactor = 0.01f;
     float zThreshold = m_zRange * zThresholdFactor;
 
     for (unsigned na = 0; na < m_nodes.size(); na++) {

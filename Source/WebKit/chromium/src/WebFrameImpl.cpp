@@ -140,6 +140,7 @@
 #include "ShadowRoot.h"
 #include "SkiaUtils.h"
 #include "SpellChecker.h"
+#include "StyleInheritedData.h"
 #include "SubstituteData.h"
 #include "TextAffinity.h"
 #include "TextIterator.h"
@@ -169,6 +170,7 @@
 #include "WebSecurityOrigin.h"
 #include "WebViewImpl.h"
 #include "XPathResult.h"
+#include "htmlediting.h"
 #include "markup.h"
 #include "painting/GraphicsContextBuilder.h"
 #include "platform/WebFloatPoint.h"
@@ -194,6 +196,7 @@
 #include "V8DirectoryEntry.h"
 #include "V8DOMFileSystem.h"
 #include "V8FileEntry.h"
+#include "V8GCController.h"
 #include <public/WebFileSystem.h>
 #endif
 
@@ -568,22 +571,24 @@ int WebFrame::instanceCount()
 
 WebFrame* WebFrame::frameForEnteredContext()
 {
-    Frame* frame =
-        ScriptController::retrieveFrameForEnteredContext();
-    return WebFrameImpl::fromFrame(frame);
+    v8::Handle<v8::Context> context = v8::Context::GetEntered();
+    if (context.IsEmpty())
+        return 0;
+    return frameForContext(context);
 }
 
 WebFrame* WebFrame::frameForCurrentContext()
 {
-    Frame* frame =
-        ScriptController::retrieveFrameForCurrentContext();
-    return WebFrameImpl::fromFrame(frame);
+    v8::Handle<v8::Context> context = v8::Context::GetCurrent();
+    if (context.IsEmpty())
+        return 0;
+    return frameForContext(context);
 }
 
 #if WEBKIT_USING_V8
 WebFrame* WebFrame::frameForContext(v8::Handle<v8::Context> context)
-{
-    return WebFrameImpl::fromFrame(V8Proxy::retrieveFrame(context));
+{ 
+   return WebFrameImpl::fromFrame(toFrameIfNotDetached(context));
 }
 #endif
 
@@ -809,10 +814,10 @@ WebAnimationController* WebFrameImpl::animationController()
 
 WebPerformance WebFrameImpl::performance() const
 {
-    if (!m_frame || !m_frame->domWindow())
+    if (!m_frame)
         return WebPerformance();
 
-    return WebPerformance(m_frame->domWindow()->performance());
+    return WebPerformance(m_frame->document()->domWindow()->performance());
 }
 
 NPObject* WebFrameImpl::windowObject() const
@@ -887,7 +892,7 @@ void WebFrameImpl::addMessageToConsole(const WebConsoleMessage& message)
         return;
     }
 
-    frame()->domWindow()->console()->addMessage(OtherMessageSource, LogMessageType, webCoreMessageLevel, message.text);
+    frame()->document()->domWindow()->console()->addMessage(OtherMessageSource, LogMessageType, webCoreMessageLevel, message.text);
 }
 
 void WebFrameImpl::collectGarbage()
@@ -898,7 +903,7 @@ void WebFrameImpl::collectGarbage()
         return;
     // FIXME: Move this to the ScriptController and make it JS neutral.
 #if USE(V8)
-    m_frame->script()->collectGarbage();
+    V8GCController::collectGarbage();
 #else
     notImplemented();
 #endif
@@ -960,7 +965,7 @@ v8::Local<v8::Context> WebFrameImpl::mainWorldScriptContext() const
     if (!m_frame)
         return v8::Local<v8::Context>();
 
-    return V8Proxy::mainWorldContext(m_frame);
+    return ScriptController::mainWorldContext(m_frame);
 }
 
 v8::Handle<v8::Value> WebFrameImpl::createFileSystem(WebFileSystem::Type type,
@@ -1024,7 +1029,7 @@ void WebFrameImpl::loadHistoryItem(const WebHistoryItem& item)
 
     m_frame->loader()->prepareForHistoryNavigation();
     RefPtr<HistoryItem> currentItem = m_frame->loader()->history()->currentItem();
-    m_inSameDocumentHistoryLoad = currentItem->shouldDoSameDocumentNavigationTo(historyItem.get());
+    m_inSameDocumentHistoryLoad = currentItem && currentItem->shouldDoSameDocumentNavigationTo(historyItem.get());
     m_frame->page()->goToItem(historyItem.get(),
                               FrameLoadTypeIndexedBackForward);
     m_inSameDocumentHistoryLoad = false;
@@ -1180,12 +1185,17 @@ void WebFrameImpl::commitDocumentData(const char* data, size_t length)
 
 unsigned WebFrameImpl::unloadListenerCount() const
 {
-    return frame()->domWindow()->pendingUnloadEventListeners();
+    return frame()->document()->domWindow()->pendingUnloadEventListeners();
 }
 
 bool WebFrameImpl::isProcessingUserGesture() const
 {
     return ScriptController::processingUserGesture();
+}
+
+bool WebFrameImpl::consumeUserGesture() const
+{
+    return UserGestureIndicator::consumeUserGesture();
 }
 
 bool WebFrameImpl::willSuppressOpenerInNewFrame() const
@@ -1232,14 +1242,6 @@ bool WebFrameImpl::hasMarkedText() const
 WebRange WebFrameImpl::markedRange() const
 {
     return frame()->editor()->compositionRange();
-}
-
-void WebFrameImpl::setSelectionToRange(const WebRange& range)
-{
-    if (frame()->selection()->isContentEditable()) {
-        RefPtr<Range> replacementRange = PassRefPtr<Range>(range);
-        frame()->selection()->setSelection(VisibleSelection(replacementRange.get(), SEL_DEFAULT_AFFINITY));
-    }
 }
 
 bool WebFrameImpl::firstRectForCharacterRange(unsigned location, unsigned length, WebRect& rect) const
@@ -1464,22 +1466,11 @@ bool WebFrameImpl::selectWordAroundCaret()
     return true;
 }
 
-void WebFrameImpl::selectRange(const WebPoint& start, const WebPoint& end)
+void WebFrameImpl::selectRange(const WebPoint& base, const WebPoint& extent)
 {
-    VisiblePosition startPosition = visiblePositionForWindowPoint(start);
-    VisiblePosition endPosition = visiblePositionForWindowPoint(end);
-
-    // To correctly handle editable boundaries, we adjust the selection by setting its extent
-    // while keeping its base fixed. For a touch-based UI, this means that moving the selection
-    // handles behaves like a drag-select with the mouse, which is what we want here. If both
-    // endpoints changed, we need to set the extent twice.
-    // FIXME: the WebFrame::SelectRange API should explicitly state which endpoint is moving.
-    VisibleSelection newSelection = frame()->selection()->selection();
-    if (startPosition != newSelection.visibleStart())
-        newSelection = VisibleSelection(newSelection.visibleEnd(), startPosition);
-    if (endPosition != newSelection.visibleEnd())
-        newSelection = VisibleSelection(newSelection.visibleStart(), endPosition);
-
+    VisiblePosition basePos = visiblePositionForWindowPoint(base);
+    VisiblePosition extentPos = visiblePositionForWindowPoint(extent);
+    VisibleSelection newSelection = VisibleSelection(basePos, extentPos);
     if (frame()->selection()->shouldChangeSelection(newSelection))
         frame()->selection()->setSelection(newSelection, CharacterGranularity);
 }
@@ -1503,7 +1494,7 @@ VisiblePosition WebFrameImpl::visiblePositionForWindowPoint(const WebPoint& poin
 
     frame()->document()->renderView()->layer()->hitTest(request, result);
 
-    Node* node = EventHandler::targetNode(result);
+    Node* node = result.targetNode();
     if (!node)
         return VisiblePosition();
 
@@ -1671,7 +1662,7 @@ bool WebFrameImpl::find(int identifier,
     }
 
 #if OS(ANDROID)
-    viewImpl()->zoomToFindInPageRect(frameView()->contentsToWindow(enclosingIntRect(m_activeMatch->transformFriendlyBoundingBox())));
+    viewImpl()->zoomToFindInPageRect(frameView()->contentsToWindow(enclosingIntRect(RenderObject::absoluteBoundingBoxRectForRange(m_activeMatch.get()))));
 #endif
 
     setMarkerActive(m_activeMatch.get(), true);
@@ -1732,17 +1723,15 @@ void WebFrameImpl::scopeStringMatches(int identifier,
                                       const WebFindOptions& options,
                                       bool reset)
 {
-    if (!shouldScopeMatches(searchText))
-        return;
-
     WebFrameImpl* mainFrameImpl = viewImpl()->mainFrameImpl();
 
     if (reset) {
         // This is a brand new search, so we need to reset everything.
         // Scoping is just about to begin.
         m_scopingComplete = false;
+
         // Clear highlighting for this frame.
-        if (frame()->editor()->markedTextMatchesAreHighlighted())
+        if (frame() && frame()->editor()->markedTextMatchesAreHighlighted())
             frame()->page()->unmarkAllTextMatches();
 
         // Clear the tickmarks and results cache.
@@ -1762,6 +1751,14 @@ void WebFrameImpl::scopeStringMatches(int identifier,
             searchText,
             options,
             false); // false=we just reset, so don't do it again.
+        return;
+    }
+
+    if (!shouldScopeMatches(searchText)) {
+        // Note that we want to defer the final update when resetting even if shouldScopeMatches returns false.
+        // This is done in order to prevent sending a final message based only on the results of the first frame
+        // since m_framesScopingCount would be 0 as other frames have yet to reset.
+        finishCurrentScopingEffort(identifier);
         return;
     }
 
@@ -1891,10 +1888,18 @@ void WebFrameImpl::scopeStringMatches(int identifier,
         return; // Done for now, resume work later.
     }
 
+    finishCurrentScopingEffort(identifier);
+}
+
+void WebFrameImpl::finishCurrentScopingEffort(int identifier)
+{
+    WebFrameImpl* mainFrameImpl = viewImpl()->mainFrameImpl();
+
     // This frame has no further scoping left, so it is done. Other frames might,
     // of course, continue to scope matches.
     m_scopingComplete = true;
     mainFrameImpl->m_framesScopingCount--;
+    m_lastFindRequestCompletedWithNoMatches = !m_lastMatchCount;
 
     // If this is the last frame to finish scoping we need to trigger the final
     // update to be sent.
@@ -1911,6 +1916,9 @@ void WebFrameImpl::cancelPendingScopingEffort()
     m_deferredScopingWork.clear();
 
     m_activeMatchIndexInCurrentFrame = -1;
+
+    if (!m_scopingComplete)
+        m_lastFindRequestCompletedWithNoMatches = false;
 }
 
 void WebFrameImpl::increaseMatchCount(int count, int identifier)
@@ -1956,34 +1964,29 @@ void WebFrameImpl::sendOrientationChangeEvent(int orientation)
 
 void WebFrameImpl::addEventListener(const WebString& eventType, WebDOMEventListener* listener, bool useCapture)
 {
-    DOMWindow* window = m_frame->domWindow();
-
-    EventListenerWrapper* listenerWrapper =
-        listener->createEventListenerWrapper(eventType, useCapture, window);
-
-    m_frame->domWindow()->addEventListener(eventType, adoptRef(listenerWrapper), useCapture);
+    DOMWindow* window = m_frame->document()->domWindow();
+    EventListenerWrapper* listenerWrapper = listener->createEventListenerWrapper(eventType, useCapture, window);
+    window->addEventListener(eventType, adoptRef(listenerWrapper), useCapture);
 }
 
 void WebFrameImpl::removeEventListener(const WebString& eventType, WebDOMEventListener* listener, bool useCapture)
 {
-    DOMWindow* window = m_frame->domWindow();
-
-    EventListenerWrapper* listenerWrapper =
-        listener->getEventListenerWrapper(eventType, useCapture, window);
+    DOMWindow* window = m_frame->document()->domWindow();
+    EventListenerWrapper* listenerWrapper = listener->getEventListenerWrapper(eventType, useCapture, window);
     window->removeEventListener(eventType, listenerWrapper, useCapture);
 }
 
 bool WebFrameImpl::dispatchEvent(const WebDOMEvent& event)
 {
     ASSERT(!event.isNull());
-    return m_frame->domWindow()->dispatchEvent(event);
+    return m_frame->document()->domWindow()->dispatchEvent(event);
 }
 
 void WebFrameImpl::dispatchMessageEventWithOriginCheck(const WebSecurityOrigin& intendedTargetOrigin, const WebDOMEvent& event)
 {
     ASSERT(!event.isNull());
     // Pass an empty call stack, since we don't have the one from the other process.
-    m_frame->domWindow()->dispatchMessageEventWithOriginCheck(intendedTargetOrigin.get(), event, 0);
+    m_frame->document()->domWindow()->dispatchMessageEventWithOriginCheck(intendedTargetOrigin.get(), event, 0);
 }
 
 int WebFrameImpl::findMatchMarkersVersion() const
@@ -2154,7 +2157,7 @@ int WebFrameImpl::selectFindMatch(unsigned index, WebRect* selectionRect)
     }
 
     IntRect activeMatchRect;
-    IntRect activeMatchBoundingBox = enclosingIntRect(m_activeMatch->transformFriendlyBoundingBox());
+    IntRect activeMatchBoundingBox = enclosingIntRect(RenderObject::absoluteBoundingBoxRectForRange(m_activeMatch.get()));
 
     if (!activeMatchBoundingBox.isEmpty()) {
         if (m_activeMatch->firstNode() && m_activeMatch->firstNode()->renderer())
@@ -2190,11 +2193,11 @@ void WebFrameImpl::deliverIntent(const WebIntent& intent, WebMessagePortChannelA
             (*channels)[i] = MessagePortChannel::create(platformChannel);
         }
     }
-    OwnPtr<MessagePortArray> portArray = WebCore::MessagePort::entanglePorts(*(m_frame->domWindow()->scriptExecutionContext()), channels.release());
+    OwnPtr<MessagePortArray> portArray = WebCore::MessagePort::entanglePorts(*(m_frame->document()), channels.release());
 
     RefPtr<DeliveredIntent> deliveredIntent = DeliveredIntent::create(m_frame, client.release(), intent.action(), intent.type(), intentData, portArray.release(), webcoreIntent->extras());
 
-    DOMWindowIntents::from(m_frame->domWindow())->deliver(deliveredIntent.release());
+    DOMWindowIntents::from(m_frame->document()->domWindow())->deliver(deliveredIntent.release());
 #endif
 }
 
@@ -2288,6 +2291,7 @@ WebFrameImpl::WebFrameImpl(WebFrameClient* client)
     , m_totalMatchCount(-1)
     , m_framesScopingCount(-1)
     , m_scopingComplete(false)
+    , m_lastFindRequestCompletedWithNoMatches(false)
     , m_nextInvalidateAfter(0)
     , m_findMatchMarkersVersion(0)
     , m_findMatchRectsAreValid(false)
@@ -2529,13 +2533,13 @@ void WebFrameImpl::invalidateArea(AreaToInvalidate area)
             contentArea.move(-frameRect.x(), -frameRect.y());
             view->invalidateRect(contentArea);
         }
+    }
 
-        if ((area & InvalidateScrollbar) == InvalidateScrollbar) {
-            // Invalidate the vertical scroll bar region for the view.
-            Scrollbar* scrollbar = view->verticalScrollbar();
-            if (scrollbar)
-                scrollbar->invalidate();
-        }
+    if ((area & InvalidateScrollbar) == InvalidateScrollbar) {
+        // Invalidate the vertical scroll bar region for the view.
+        Scrollbar* scrollbar = view->verticalScrollbar();
+        if (scrollbar)
+            scrollbar->invalidate();
     }
 }
 
@@ -2570,9 +2574,9 @@ int WebFrameImpl::ordinalOfFirstMatchForFrame(WebFrameImpl* frame) const
 
 bool WebFrameImpl::shouldScopeMatches(const String& searchText)
 {
-    // Don't scope if we can't find a frame or a view or if the frame is not visible.
+    // Don't scope if we can't find a frame or a view.
     // The user may have closed the tab/application, so abort.
-    if (!frame() || !frame()->view() || !hasVisibleContent())
+    if (!frame() || !frame()->view())
         return false;
 
     ASSERT(frame()->document() && frame()->view());
@@ -2580,7 +2584,7 @@ bool WebFrameImpl::shouldScopeMatches(const String& searchText)
     // If the frame completed the scoping operation and found 0 matches the last
     // time it was searched, then we don't have to search it again if the user is
     // just adding to the search string or sending the same search string again.
-    if (m_scopingComplete && !m_lastSearchString.isEmpty() && !m_lastMatchCount) {
+    if (m_lastFindRequestCompletedWithNoMatches && !m_lastSearchString.isEmpty()) {
         // Check to see if the search string prefixes match.
         String previousSearchPrefix =
             searchText.substring(0, m_lastSearchString.length());

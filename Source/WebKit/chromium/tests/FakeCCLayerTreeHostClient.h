@@ -27,10 +27,10 @@
 
 #include "config.h"
 
+#include "CCInputHandler.h"
+#include "CCLayerTreeHost.h"
 #include "CompositorFakeWebGraphicsContext3D.h"
 #include "FakeWebCompositorOutputSurface.h"
-
-#include "cc/CCLayerTreeHost.h"
 
 namespace WebCore {
 
@@ -38,7 +38,7 @@ class FakeCCLayerTreeHostClient : public CCLayerTreeHostClient {
 public:
     virtual void willBeginFrame() OVERRIDE { }
     virtual void didBeginFrame() OVERRIDE { }
-    virtual void updateAnimations(double monotonicFrameBeginTime) OVERRIDE { }
+    virtual void animate(double monotonicFrameBeginTime) OVERRIDE { }
     virtual void layout() OVERRIDE { }
     virtual void applyScrollAndScale(const IntSize& scrollDelta, float pageScale) OVERRIDE { }
 
@@ -48,6 +48,7 @@ public:
         return WebKit::FakeWebCompositorOutputSurface::create(WebKit::CompositorFakeWebGraphicsContext3D::create(attrs));
     }
     virtual void didRecreateOutputSurface(bool success) OVERRIDE { }
+    virtual PassOwnPtr<CCInputHandler> createInputHandler() OVERRIDE { return nullptr; }
     virtual void willCommit() OVERRIDE { }
     virtual void didCommit() OVERRIDE { }
     virtual void didCommitAndDrawFrame() OVERRIDE { }

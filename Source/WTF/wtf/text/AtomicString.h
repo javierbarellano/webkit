@@ -35,6 +35,7 @@
 namespace WTF {
 
 struct AtomicStringHash;
+class MemoryObjectInfo;
 
 class AtomicString {
 public:
@@ -43,6 +44,7 @@ public:
     AtomicString() { }
     AtomicString(const LChar* s) : m_string(add(s)) { }
     AtomicString(const char* s) : m_string(add(s)) { }
+    AtomicString(const LChar* s, unsigned length) : m_string(add(s, length)) { }
     AtomicString(const UChar* s, unsigned length) : m_string(add(s, length)) { }
     AtomicString(const UChar* s, unsigned length, unsigned existingHash) : m_string(add(s, length, existingHash)) { }
     AtomicString(const UChar* s) : m_string(add(s)) { }
@@ -85,8 +87,11 @@ public:
     const String& string() const { return m_string; };
 
     AtomicStringImpl* impl() const { return static_cast<AtomicStringImpl *>(m_string.impl()); }
-    
+
+    bool is8Bit() const { return m_string.is8Bit(); }
     const UChar* characters() const { return m_string.characters(); }
+    const LChar* characters8() const { return m_string.characters8(); }
+    const UChar* characters16() const { return m_string.characters16(); }
     unsigned length() const { return m_string.length(); }
     
     UChar operator[](unsigned int i) const { return m_string[i]; }
@@ -153,11 +158,18 @@ public:
 #ifndef NDEBUG
     void show() const;
 #endif
+
+    WTF_EXPORT_STRING_API void reportMemoryUsage(MemoryObjectInfo*) const;
+
 private:
+    // The explicit constructors with AtomicString::ConstructFromLiteral must be used for literals.
+    AtomicString(ASCIILiteral);
+
     String m_string;
     
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const LChar*);
     ALWAYS_INLINE static PassRefPtr<StringImpl> add(const char* s) { return add(reinterpret_cast<const LChar*>(s)); };
+    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const LChar*, unsigned length);
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const UChar*, unsigned length);
     ALWAYS_INLINE static PassRefPtr<StringImpl> add(const char* s, unsigned length) { return add(reinterpret_cast<const char*>(s), length); };
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const UChar*, unsigned length, unsigned existingHash);

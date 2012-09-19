@@ -105,7 +105,7 @@ public:
     WTF::TextPosition eventHandlerPosition() const;
 
     void enableEval();
-    void disableEval();
+    void disableEval(const String& errorMessage);
 
     static bool processingUserGesture();
 
@@ -121,7 +121,7 @@ public:
 
     const String* sourceURL() const { return m_sourceURL; } // 0 if we are not evaluating any script
 
-    void clearWindowShell(bool goingIntoPageCache = false);
+    void clearWindowShell(DOMWindow* newDOMWindow, bool goingIntoPageCache);
     void updateDocument();
 
     void namedItemAdded(HTMLDocument*, const AtomicString&) { }

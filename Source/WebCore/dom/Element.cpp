@@ -70,6 +70,7 @@
 #include "StyleResolver.h"
 #include "Text.h"
 #include "TextIterator.h"
+#include "UndoManager.h"
 #include "VoidCallback.h"
 #include "WebKitAnimationList.h"
 #include "XMLNSNames.h"
@@ -282,7 +283,7 @@ void Element::scrollIntoView(bool alignToTop)
     if (!renderer())
         return;
 
-    LayoutRect bounds = getRect();
+    LayoutRect bounds = boundingBox();
     // Align to the top / bottom and to the closest edge.
     if (alignToTop)
         renderer()->scrollRectToVisible(bounds, ScrollAlignment::alignToEdgeIfNeeded, ScrollAlignment::alignTopAlways);
@@ -297,7 +298,7 @@ void Element::scrollIntoViewIfNeeded(bool centerIfNeeded)
     if (!renderer())
         return;
 
-    LayoutRect bounds = getRect();
+    LayoutRect bounds = boundingBox();
     if (centerIfNeeded)
         renderer()->scrollRectToVisible(bounds, ScrollAlignment::alignCenterIfNeeded, ScrollAlignment::alignCenterIfNeeded);
     else
@@ -531,7 +532,7 @@ IntRect Element::boundsInRootViewSpace()
         // Get the bounding rectangle from the SVG model.
         SVGElement* svgElement = static_cast<SVGElement*>(this);
         FloatRect localRect;
-        if (svgElement->boundingBox(localRect))
+        if (svgElement->getBoundingBox(localRect))
             quads.append(renderer()->localToAbsoluteQuad(localRect));
     } else
 #endif
@@ -579,7 +580,7 @@ PassRefPtr<ClientRect> Element::getBoundingClientRect()
         // Get the bounding rectangle from the SVG model.
         SVGElement* svgElement = static_cast<SVGElement*>(this);
         FloatRect localRect;
-        if (svgElement->boundingBox(localRect))
+        if (svgElement->getBoundingBox(localRect))
             quads.append(renderer()->localToAbsoluteQuad(localRect));
     } else
 #endif
@@ -695,6 +696,8 @@ inline void Element::setAttributeInternal(size_t index, const QualifiedName& nam
 
 void Element::attributeChanged(const Attribute& attribute)
 {
+    parseAttribute(attribute);
+
     document()->incDOMTreeVersion();
 
     if (isIdAttributeName(attribute.name())) {
@@ -724,26 +727,73 @@ void Element::attributeChanged(const Attribute& attribute)
     const QualifiedName& attrName = attribute.name();
     if (attrName == aria_activedescendantAttr) {
         // any change to aria-activedescendant attribute triggers accessibility focus change, but document focus remains intact
-        document()->axObjectCache()->handleActiveDescendantChanged(renderer());
+        document()->axObjectCache()->handleActiveDescendantChanged(this);
     } else if (attrName == roleAttr) {
         // the role attribute can change at any time, and the AccessibilityObject must pick up these changes
-        document()->axObjectCache()->handleAriaRoleChanged(renderer());
+        document()->axObjectCache()->handleAriaRoleChanged(this);
     } else if (attrName == aria_valuenowAttr) {
         // If the valuenow attribute changes, AX clients need to be notified.
-        document()->axObjectCache()->postNotification(renderer(), AXObjectCache::AXValueChanged, true);
+        document()->axObjectCache()->postNotification(this, AXObjectCache::AXValueChanged, true);
     } else if (attrName == aria_labelAttr || attrName == aria_labeledbyAttr || attrName == altAttr || attrName == titleAttr) {
         // If the content of an element changes due to an attribute change, notify accessibility.
-        document()->axObjectCache()->contentChanged(renderer());
+        document()->axObjectCache()->contentChanged(this);
     } else if (attrName == aria_checkedAttr)
-        document()->axObjectCache()->checkedStateChanged(renderer());
+        document()->axObjectCache()->checkedStateChanged(this);
     else if (attrName == aria_selectedAttr)
-        document()->axObjectCache()->selectedChildrenChanged(renderer());
+        document()->axObjectCache()->selectedChildrenChanged(this);
     else if (attrName == aria_expandedAttr)
-        document()->axObjectCache()->handleAriaExpandedChange(renderer());
+        document()->axObjectCache()->handleAriaExpandedChange(this);
     else if (attrName == aria_hiddenAttr)
-        document()->axObjectCache()->childrenChanged(renderer());
+        document()->axObjectCache()->childrenChanged(this);
     else if (attrName == aria_invalidAttr)
-        document()->axObjectCache()->postNotification(renderer(), AXObjectCache::AXInvalidStatusChanged, true);
+        document()->axObjectCache()->postNotification(this, AXObjectCache::AXInvalidStatusChanged, true);
+}
+
+void Element::parseAttribute(const Attribute& attribute)
+{
+    if (attribute.name() == classAttr)
+        classAttributeChanged(attribute.value());
+}
+
+template <typename CharacterType>
+static inline bool classStringHasClassName(const CharacterType* characters, unsigned length)
+{
+    ASSERT(length > 0);
+
+    unsigned i = 0;
+    do {
+        if (isNotHTMLSpace(characters[i]))
+            break;
+        ++i;
+    } while (i < length);
+
+    return i < length;
+}
+
+static inline bool classStringHasClassName(const AtomicString& newClassString)
+{
+    unsigned length = newClassString.length();
+
+    if (!length)
+        return false;
+
+    if (newClassString.is8Bit())
+        return classStringHasClassName(newClassString.characters8(), length);
+    return classStringHasClassName(newClassString.characters16(), length);
+}
+
+void Element::classAttributeChanged(const AtomicString& newClassString)
+{
+    if (classStringHasClassName(newClassString)) {
+        const bool shouldFoldCase = document()->inQuirksMode();
+        ensureAttributeData()->setClass(newClassString, shouldFoldCase);
+    } else if (attributeData())
+        mutableAttributeData()->clearClass();
+
+    if (DOMTokenList* classList = optionalClassList())
+        static_cast<ClassList*>(classList)->reset(newClassString);
+
+    setNeedsStyleRecalc();
 }
 
 // Returns true is the given attribute is an event handler.
@@ -792,7 +842,15 @@ void Element::parserSetAttributes(const Vector<Attribute>& attributeVector, Frag
         }
     }
 
-    m_attributeData = ElementAttributeData::createImmutable(filteredAttributes);
+    // When the document is in parsing state, we cache immutable ElementAttributeData objects with the
+    // input attribute vector as key. (This cache is held by Document.)
+    if (!document() || !document()->parsing())
+        m_attributeData = ElementAttributeData::createImmutable(filteredAttributes);
+    else if (!isHTMLElement()) {
+        // FIXME: Support attribute data sharing for non-HTML elements.
+        m_attributeData = ElementAttributeData::createImmutable(filteredAttributes);
+    } else
+        m_attributeData = document()->cachedImmutableAttributeData(this, filteredAttributes);
 
     // Iterate over the set of attributes we already have on the stack in case
     // attributeChanged mutates m_attributeData.
@@ -998,9 +1056,8 @@ void Element::detach()
     if (ElementShadow* shadow = this->shadow()) {
         detachChildrenIfNeeded();
         shadow->detach();
-        detachAsNode();
-    } else
-        ContainerNode::detach();
+    }
+    ContainerNode::detach();
 
     RenderWidget::resumeWidgetHierarchyUpdates();
 }
@@ -1359,31 +1416,28 @@ void Element::finishParsingChildren()
 #ifndef NDEBUG
 void Element::formatForDebugger(char* buffer, unsigned length) const
 {
-    String result;
+    StringBuilder result;
     String s;
-    
-    s = nodeName();
-    if (s.length() > 0) {
-        result += s;
-    }
-          
+
+    result.append(nodeName());
+
     s = getIdAttribute();
     if (s.length() > 0) {
         if (result.length() > 0)
-            result += "; ";
-        result += "id=";
-        result += s;
+            result.appendLiteral("; ");
+        result.appendLiteral("id=");
+        result.append(s);
     }
-          
+
     s = getAttribute(classAttr);
     if (s.length() > 0) {
         if (result.length() > 0)
-            result += "; ";
-        result += "class=";
-        result += s;
+            result.appendLiteral("; ");
+        result.appendLiteral("class=");
+        result.append(s);
     }
-          
-    strncpy(buffer, result.utf8().data(), length - 1);
+
+    strncpy(buffer, result.toString().utf8().data(), length - 1);
 }
 #endif
 
@@ -1409,20 +1463,14 @@ PassRefPtr<Attr> Element::setAttributeNode(Attr* attr, ExceptionCode& ec)
     ElementAttributeData* attributeData = mutableAttributeData();
 
     size_t index = attributeData->getAttributeItemIndex(attr->qualifiedName());
-    Attribute* oldAttribute = index != notFound ? attributeData->attributeItem(index) : 0;
-
-    if (!oldAttribute) {
-        attributeData->addAttribute(Attribute(attr->qualifiedName(), attr->value()), this);
-        attributeData->setAttr(this, attr->qualifiedName(), attr);
-        return 0;
+    if (index != notFound) {
+        if (oldAttr)
+            oldAttr->detachFromElementWithValue(attributeData->attributeItem(index)->value());
+        else
+            oldAttr = Attr::create(document(), attr->qualifiedName(), attributeData->attributeItem(index)->value());
     }
 
-    if (oldAttr)
-        oldAttr->detachFromElementWithValue(oldAttribute->value());
-    else
-        oldAttr = Attr::create(document(), oldAttribute->name(), oldAttribute->value());
-
-    attributeData->replaceAttribute(index, Attribute(attr->name(), attr->value()), this);
+    setAttributeInternal(index, attr->qualifiedName(), attr->value(), NotInSynchronizationOfLazyAttribute);
     attributeData->setAttr(this, attr->qualifiedName(), attr);
     return oldAttr.release();
 }
@@ -1610,7 +1658,7 @@ void Element::updateFocusAppearance(bool /*restorePreviousSelection*/)
             frame->selection()->revealSelection();
         }
     } else if (renderer() && !renderer()->isWidget())
-        renderer()->scrollRectToVisible(getRect());
+        renderer()->scrollRectToVisible(boundingBox());
 }
 
 void Element::blur()
@@ -1985,6 +2033,8 @@ RenderRegion* Element::renderRegion() const
     return 0;
 }
 
+#if ENABLE(CSS_REGIONS)
+
 const AtomicString& Element::webkitRegionOverset() const
 {
     document()->updateLayoutIgnorePendingStylesheets();
@@ -2013,6 +2063,22 @@ const AtomicString& Element::webkitRegionOverset() const
     ASSERT_NOT_REACHED();
     return undefinedState;
 }
+
+Vector<RefPtr<Range> > Element::webkitGetRegionFlowRanges() const
+{
+    document()->updateLayoutIgnorePendingStylesheets();
+
+    Vector<RefPtr<Range> > rangeObjects;
+    if (document()->cssRegionsEnabled() && renderer() && renderer()->isRenderRegion()) {
+        RenderRegion* region = toRenderRegion(renderer());
+        if (region->isValid())
+            region->getRanges(rangeObjects);
+    }
+
+    return rangeObjects;
+}
+
+#endif
 
 #ifndef NDEBUG
 bool Element::fastAttributeLookupAllowed(const QualifiedName& name) const
@@ -2046,6 +2112,11 @@ void Element::willModifyAttribute(const QualifiedName& name, const AtomicString&
 #if ENABLE(MUTATION_OBSERVERS)
     if (OwnPtr<MutationObserverInterestGroup> recipients = MutationObserverInterestGroup::createForAttributesMutation(this, name))
         recipients->enqueueMutationRecord(MutationRecord::createAttributes(this, name, oldValue));
+#endif
+
+#if ENABLE(UNDO_MANAGER)
+    if (UndoManager::isRecordingAutomaticTransaction(this))
+        UndoManager::addTransactionStep(AttrChangingDOMTransactionStep::create(this, name, oldValue, newValue));
 #endif
 
 #if ENABLE(INSPECTOR)
@@ -2212,65 +2283,7 @@ void Element::createMutableAttributeData()
     if (!m_attributeData)
         m_attributeData = ElementAttributeData::create();
     else
-        m_attributeData = m_attributeData->makeMutable();
+        m_attributeData = m_attributeData->makeMutableCopy();
 }
-
-#if ENABLE(UNDO_MANAGER)
-bool Element::undoScope() const
-{
-    return hasRareData() && elementRareData()->m_undoScope;
-}
-
-void Element::setUndoScope(bool undoScope)
-{
-    ElementRareData* data = ensureElementRareData();
-    data->m_undoScope = undoScope;
-    if (!undoScope)
-        disconnectUndoManager();
-}
-
-PassRefPtr<UndoManager> Element::undoManager()
-{
-    if (!undoScope() || (isContentEditable() && !isRootEditableElement())) {
-        disconnectUndoManager();
-        return 0;
-    }
-    ElementRareData* data = ensureElementRareData();
-    if (!data->m_undoManager)
-        data->m_undoManager = UndoManager::create(this);
-    return data->m_undoManager;
-}
-
-void Element::disconnectUndoManager()
-{
-    if (!hasRareData())
-        return;
-    ElementRareData* data = elementRareData();
-    UndoManager* undoManager = data->m_undoManager.get();
-    if (!undoManager)
-        return;
-    undoManager->clearUndoRedo();
-    undoManager->disconnect();
-    data->m_undoManager.clear();
-}
-
-void Element::disconnectUndoManagersInSubtree()
-{
-    Node* node = firstChild();
-    while (node) {
-        if (node->isElementNode()) {
-            Element* element = toElement(node);
-            if (element->hasRareData() && element->elementRareData()->m_undoManager) {
-                if (!node->isContentEditable()) {
-                    node = node->traverseNextSibling(this);
-                    continue;
-                }
-                element->disconnectUndoManager();
-            }
-        }
-        node = node->traverseNextNode(this);
-    }
-}
-#endif
 
 } // namespace WebCore

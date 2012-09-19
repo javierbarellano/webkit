@@ -2040,6 +2040,26 @@ def check_namespace_indentation(clean_lines, line_number, file_extension, file_s
             break;
 
 
+def check_directive_indentation(clean_lines, line_number, file_state, error):
+    """Looks for indentation of preprocessor directives.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_state: A _FileState instance which maintains information about
+                  the state of things in the file.
+      error: The function to call with any errors found.
+    """
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    indented_preprocessor_directives = match(r'\s+#', line)
+    if not indented_preprocessor_directives:
+        return
+
+    error(line_number, 'whitespace/indent', 4, 'preprocessor directives (e.g., #ifdef, #define, #import) should never be indented.')
+
+
 def check_using_std(clean_lines, line_number, file_state, error):
     """Looks for 'using std::foo;' statements which should be replaced with 'using namespace std;'.
 
@@ -2425,7 +2445,7 @@ def check_for_comparisons_to_zero(clean_lines, line_number, error):
     line = clean_lines.elided[line_number]
 
     # Include NULL here so that users don't have to convert NULL to 0 first and then get this error.
-    if search(r'[=!]=\s*(NULL|0|true|false)\W', line) or search(r'\W(NULL|0|true|false)\s*[=!]=', line):
+    if search(r'[=!]=\s*(NULL|0|true|false)[^\w.]', line) or search(r'[^\w.](NULL|0|true|false)\s*[=!]=', line):
         if not search('LIKELY', line) and not search('UNLIKELY', line):
             error(line_number, 'readability/comparison_to_zero', 5,
                   'Tests for true/false, null/non-null, and zero/non-zero should all be done without equality comparisons.')
@@ -2567,7 +2587,10 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
         and not (match(r'.*\(.*\).*{.*.}', line)
                  and class_state.classinfo_stack
                  and line.count('{') == line.count('}'))
-        and not cleansed_line.startswith('#define ')):
+        and not cleansed_line.startswith('#define ')
+        # It's ok to use use WTF_MAKE_NONCOPYABLE and WTF_MAKE_FAST_ALLOCATED macros in 1 line
+        and not (cleansed_line.find("WTF_MAKE_NONCOPYABLE") != -1
+                 and cleansed_line.find("WTF_MAKE_FAST_ALLOCATED") != -1)):
         error(line_number, 'whitespace/newline', 4,
               'More than one command on the same line')
 
@@ -2578,6 +2601,7 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
 
     # Some more style checks
     check_namespace_indentation(clean_lines, line_number, file_extension, file_state, error)
+    check_directive_indentation(clean_lines, line_number, file_state, error)
     check_using_std(clean_lines, line_number, file_state, error)
     check_max_min_macros(clean_lines, line_number, file_state, error)
     check_ctype_functions(clean_lines, line_number, file_state, error)
@@ -2746,6 +2770,10 @@ def check_include_line(filename, file_extension, clean_lines, line_number, inclu
     if include.startswith('wtf/') and not is_system:
         error(line_number, 'build/include', 4,
               'wtf includes should be <wtf/file.h> instead of "wtf/file.h".')
+
+    if filename.find('/chromium/') != -1 and include.startswith('cc/CC'):
+        error(line_number, 'build/include', 4,
+              'cc includes should be "CCFoo.h" instead of "cc/CCFoo.h".')
 
     duplicate_header = include in include_state
     if duplicate_header:
@@ -3023,6 +3051,11 @@ def check_language(filename, clean_lines, line_number, file_extension, include_s
               'Please declare integral type bitfields with either signed or unsigned.')
 
     check_identifier_name_in_declaration(filename, line_number, line, file_state, error)
+
+    # Check for unsigned int (should be just 'unsigned')
+    if search(r'\bunsigned int\b', line):
+        error(line_number, 'runtime/unsigned', 1,
+              'Omit int when using unsigned')
 
     # Check that we're not using static_cast<Text*>.
     if search(r'\bstatic_cast<Text\*>', line):
@@ -3591,6 +3624,7 @@ class CppChecker(object):
         'runtime/sizeof',
         'runtime/string',
         'runtime/threadsafe_fn',
+        'runtime/unsigned',
         'runtime/virtual',
         'whitespace/blank_line',
         'whitespace/braces',

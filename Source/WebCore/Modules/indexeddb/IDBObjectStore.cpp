@@ -32,6 +32,7 @@
 #include "IDBAny.h"
 #include "IDBBindingUtilities.h"
 #include "IDBCursorBackendInterface.h"
+#include "IDBCursorWithValue.h"
 #include "IDBDatabase.h"
 #include "IDBDatabaseException.h"
 #include "IDBIndex.h"
@@ -40,6 +41,7 @@
 #include "IDBKeyRange.h"
 #include "IDBTracing.h"
 #include "IDBTransaction.h"
+#include "ScriptCallStack.h"
 #include "SerializedScriptValue.h"
 #include <wtf/UnusedParam.h>
 
@@ -103,11 +105,11 @@ PassRefPtr<IDBRequest> IDBObjectStore::get(ScriptExecutionContext* context, Pass
 }
 
 static void generateIndexKeysForValue(const IDBIndexMetadata& indexMetadata,
-                                      PassRefPtr<SerializedScriptValue> objectValue,
+                                      const ScriptValue& objectValue,
                                       IDBObjectStore::IndexKeys* indexKeys)
 {
     ASSERT(indexKeys);
-    RefPtr<IDBKey> indexKey = createIDBKeyFromSerializedValueAndKeyPath(objectValue, indexMetadata.keyPath);
+    RefPtr<IDBKey> indexKey = createIDBKeyFromScriptValueAndKeyPath(objectValue, indexMetadata.keyPath);
 
     if (!indexKey)
         return;
@@ -127,22 +129,21 @@ static void generateIndexKeysForValue(const IDBIndexMetadata& indexMetadata,
     }
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::add(ScriptExecutionContext* context, PassRefPtr<SerializedScriptValue> value, PassRefPtr<IDBKey> key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::add(ScriptExecutionContext* context, ScriptValue& value, PassRefPtr<IDBKey> key, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::add");
     return put(IDBObjectStoreBackendInterface::AddOnly, IDBAny::create(this), context, value, key, ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(ScriptExecutionContext* context, PassRefPtr<SerializedScriptValue> value, PassRefPtr<IDBKey> key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(ScriptExecutionContext* context, ScriptValue& value, PassRefPtr<IDBKey> key, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::put");
     return put(IDBObjectStoreBackendInterface::AddOrUpdate, IDBAny::create(this), context, value, key, ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMode putMode, PassRefPtr<IDBAny> source, ScriptExecutionContext* context, PassRefPtr<SerializedScriptValue> prpValue, PassRefPtr<IDBKey> prpKey, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMode putMode, PassRefPtr<IDBAny> source, ScriptExecutionContext* context, ScriptValue& value, PassRefPtr<IDBKey> prpKey, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::put");
-    RefPtr<SerializedScriptValue> value = prpValue;
     RefPtr<IDBKey> key = prpKey;
     if (m_deleted) {
         ec = IDBDatabaseException::IDB_INVALID_STATE_ERR;
@@ -156,7 +157,15 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMo
         ec = IDBDatabaseException::READ_ONLY_ERR;
         return 0;
     }
-    if (value->blobURLs().size() > 0) {
+
+    ScriptState* state = ScriptState::current();
+    RefPtr<SerializedScriptValue> serializedValue = value.serialize(state);
+    if (state->hadException()) {
+        ec = IDBDatabaseException::IDB_DATA_CLONE_ERR;
+        return 0;
+    }
+
+    if (serializedValue->blobURLs().size() > 0) {
         // FIXME: Add Blob/File/FileList support
         ec = IDBDatabaseException::IDB_DATA_CLONE_ERR;
         return 0;
@@ -175,7 +184,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMo
         return 0;
     }
     if (usesInLineKeys) {
-        RefPtr<IDBKey> keyPathKey = createIDBKeyFromSerializedValueAndKeyPath(value, keyPath);
+        RefPtr<IDBKey> keyPathKey = createIDBKeyFromScriptValueAndKeyPath(value, keyPath);
         if (keyPathKey && !keyPathKey->isValid()) {
             ec = IDBDatabaseException::DATA_ERR;
             return 0;
@@ -185,9 +194,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMo
             return 0;
         }
         if (hasKeyGenerator && !keyPathKey) {
-            RefPtr<IDBKey> dummyKey = IDBKey::createNumber(-1);
-            RefPtr<SerializedScriptValue> valueAfterInjection = injectIDBKeyIntoSerializedValue(dummyKey, value, keyPath);
-            if (!valueAfterInjection) {
+            if (!canInjectIDBKeyIntoScriptValue(value, keyPath)) {
                 ec = IDBDatabaseException::DATA_ERR;
                 return 0;
             }
@@ -211,7 +218,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBObjectStoreBackendInterface::PutMo
     ASSERT(indexKeys.size() == indexNames.size());
 
     RefPtr<IDBRequest> request = IDBRequest::create(context, source, m_transaction.get());
-    m_backend->putWithIndexKeys(value.release(), key.release(), putMode, request, m_transaction->backend(), indexNames, indexKeys, ec);
+    m_backend->putWithIndexKeys(serializedValue.release(), key.release(), putMode, request, m_transaction->backend(), indexNames, indexKeys, ec);
     if (ec) {
         request->markEarlyDeath();
         return 0;
@@ -282,18 +289,96 @@ PassRefPtr<IDBRequest> IDBObjectStore::clear(ScriptExecutionContext* context, Ex
     return request.release();
 }
 
-PassRefPtr<IDBIndex> IDBObjectStore::createIndex(const String& name, const String& keyPath, const Dictionary& options, ExceptionCode& ec)
-{
-    return createIndex(name, IDBKeyPath(keyPath), options, ec);
+namespace {
+// This class creates the index keys for a given index by extracting
+// them from the SerializedScriptValue, for all the existing values in
+// the objectStore. It only needs to be kept alive by virtue of being
+// a listener on an IDBRequest object, in the same way that JavaScript
+// cursor success handlers are kept alive.
+class IndexPopulator : public EventListener {
+public:
+    static PassRefPtr<IndexPopulator> create(PassRefPtr<IDBObjectStoreBackendInterface> backend, PassRefPtr<IDBTransactionBackendInterface> transaction, PassRefPtr<IDBRequest> request, const IDBIndexMetadata& indexMetadata)
+    {
+        return adoptRef(new IndexPopulator(backend, transaction, indexMetadata));
+    }
+
+    virtual bool operator==(const EventListener& other)
+    {
+        return this == &other;
+    }
+
+private:
+    IndexPopulator(PassRefPtr<IDBObjectStoreBackendInterface> backend,
+                   PassRefPtr<IDBTransactionBackendInterface> transaction,
+                   const IDBIndexMetadata& indexMetadata)
+        : EventListener(CPPEventListenerType)
+        , m_objectStoreBackend(backend)
+        , m_transaction(transaction)
+        , m_indexMetadata(indexMetadata)
+    {
+    }
+
+    virtual void handleEvent(ScriptExecutionContext* context, Event* event)
+    {
+        ASSERT(event->type() == eventNames().successEvent);
+        EventTarget* target = event->target();
+        IDBRequest* request = static_cast<IDBRequest*>(target);
+
+        ExceptionCode ec = 0;
+        RefPtr<IDBAny> cursorAny = request->result(ec);
+        ASSERT(!ec);
+        RefPtr<IDBCursorWithValue> cursor;
+        if (cursorAny->type() == IDBAny::IDBCursorWithValueType)
+            cursor = cursorAny->idbCursorWithValue();
+
+        Vector<String, 1> indexNames;
+        indexNames.append(m_indexMetadata.name);
+        if (cursor) {
+            cursor->continueFunction(ec);
+            ASSERT(!ec);
+
+            RefPtr<IDBKey> primaryKey = cursor->primaryKey();
+            RefPtr<IDBAny> valueAny = cursor->value();
+
+            ASSERT(valueAny->type() == IDBAny::ScriptValueType);
+            ScriptValue value = valueAny->scriptValue();
+
+            IDBObjectStore::IndexKeys indexKeys;
+            generateIndexKeysForValue(m_indexMetadata, value, &indexKeys);
+
+            Vector<IDBObjectStore::IndexKeys, 1> indexKeysList;
+            indexKeysList.append(indexKeys);
+
+            m_objectStoreBackend->setIndexKeys(primaryKey, indexNames, indexKeysList, m_transaction.get());
+
+        } else {
+            // Now that we are done indexing, tell the backend to go
+            // back to processing tasks of type NormalTask.
+            m_objectStoreBackend->setIndexesReady(indexNames, m_transaction.get());
+            m_objectStoreBackend.clear();
+            m_transaction.clear();
+        }
+
+    }
+
+    RefPtr<IDBObjectStoreBackendInterface> m_objectStoreBackend;
+    RefPtr<IDBTransactionBackendInterface> m_transaction;
+    IDBIndexMetadata m_indexMetadata;
+};
 }
 
-PassRefPtr<IDBIndex> IDBObjectStore::createIndex(const String& name, PassRefPtr<DOMStringList> keyPath, const Dictionary& options, ExceptionCode& ec)
+PassRefPtr<IDBIndex> IDBObjectStore::createIndex(ScriptExecutionContext* context, const String& name, const String& keyPath, const Dictionary& options, ExceptionCode& ec)
 {
-    return createIndex(name, IDBKeyPath(*keyPath), options, ec);
+    return createIndex(context, name, IDBKeyPath(keyPath), options, ec);
+}
+
+PassRefPtr<IDBIndex> IDBObjectStore::createIndex(ScriptExecutionContext* context, const String& name, PassRefPtr<DOMStringList> keyPath, const Dictionary& options, ExceptionCode& ec)
+{
+    return createIndex(context, name, IDBKeyPath(*keyPath), options, ec);
 }
 
 
-PassRefPtr<IDBIndex> IDBObjectStore::createIndex(const String& name, const IDBKeyPath& keyPath, const Dictionary& options, ExceptionCode& ec)
+PassRefPtr<IDBIndex> IDBObjectStore::createIndex(ScriptExecutionContext* context, const String& name, const IDBKeyPath& keyPath, const Dictionary& options, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::createIndex");
     if (!m_transaction->isVersionChange() || m_deleted) {
@@ -337,6 +422,19 @@ PassRefPtr<IDBIndex> IDBObjectStore::createIndex(const String& name, const IDBKe
     RefPtr<IDBIndex> index = IDBIndex::create(metadata, indexBackend.release(), this, m_transaction.get());
     m_indexMap.set(name, index);
     m_metadata.indexes.set(name, metadata);
+
+    ASSERT(!ec);
+    if (ec)
+        return 0;
+
+    RefPtr<IDBRequest> indexRequest = openCursor(context, static_cast<IDBKeyRange*>(0), IDBCursor::directionNext(), IDBTransactionBackendInterface::PreemptiveTask, ec);
+    ASSERT(!ec);
+    if (ec)
+        return 0;
+
+    // This is kept alive by being the success handler of the request, which is in turn kept alive by the owning transaction.
+    RefPtr<IndexPopulator> indexPopulator = IndexPopulator::create(m_backend, m_transaction->backend(), indexRequest, metadata);
+    indexRequest->setOnsuccess(indexPopulator);
 
     return index.release();
 }
@@ -398,7 +496,7 @@ void IDBObjectStore::deleteIndex(const String& name, ExceptionCode& ec)
     }
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, PassRefPtr<IDBKeyRange> range, const String& directionString, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, PassRefPtr<IDBKeyRange> range, const String& directionString, IDBTransactionBackendInterface::TaskType taskType, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::openCursor");
     if (m_deleted) {
@@ -415,7 +513,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* contex
 
     RefPtr<IDBRequest> request = IDBRequest::create(context, IDBAny::create(this), m_transaction.get());
     request->setCursorDetails(IDBCursorBackendInterface::ObjectStoreCursor, direction);
-    m_backend->openCursor(range, direction, request, m_transaction->backend(), ec);
+    m_backend->openCursor(range, direction, request, taskType, m_transaction->backend(), ec);
     if (ec) {
         request->markEarlyDeath();
         return 0;
@@ -426,7 +524,8 @@ PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* contex
 PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, PassRefPtr<IDBKeyRange> range, unsigned short direction, ExceptionCode& ec)
 {
     IDB_TRACE("IDBObjectStore::openCursor");
-    DEFINE_STATIC_LOCAL(String, consoleMessage, ("Numeric direction values are deprecated in IDBObjectStore.openCursor. Use \"next\", \"nextunique\", \"prev\", or \"prevunique\"."));
+    // FIXME: Is this thread-safe?
+    DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Numeric direction values are deprecated in IDBObjectStore.openCursor. Use \"next\", \"nextunique\", \"prev\", or \"prevunique\".")));
     context->addConsoleMessage(JSMessageSource, LogMessageType, WarningMessageLevel, consoleMessage);
     const String& directionString = IDBCursor::directionToString(direction, ec);
     if (ec)

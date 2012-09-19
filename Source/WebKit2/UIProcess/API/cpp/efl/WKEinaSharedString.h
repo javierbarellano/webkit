@@ -52,11 +52,16 @@ public:
     ALWAYS_INLINE bool operator==(const WKEinaSharedString& other) const { return this->m_string == other.m_string; }
     ALWAYS_INLINE bool operator!=(const WKEinaSharedString& other) const { return !(*this == other); }
 
+    bool operator==(const char* str) const;
+    ALWAYS_INLINE bool operator!=(const char* str) const { return !(*this == str); }
+
     ALWAYS_INLINE operator const char* () const { return m_string; }
 
     ALWAYS_INLINE bool isNull() const { return !m_string; }
 
     ALWAYS_INLINE size_t length() const { return m_string ? static_cast<size_t>(eina_stringshare_strlen(m_string)) : 0; }
+
+    static WKEinaSharedString adopt(Eina_Stringshare*);
 
 private:
     const char* m_string;

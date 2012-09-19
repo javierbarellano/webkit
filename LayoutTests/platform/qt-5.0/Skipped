@@ -15,9 +15,6 @@ editing/pasteboard/data-transfer-items-image-png.html
 # https://bugs.webkit.org/show_bug.cgi?id=76897
 fast/events/clear-edit-drag-state.html
 
-# https://bugs.webkit.org/show_bug.cgi?id=77380
-fast/url/path.html
-
 # REGRESSION (r106488): fast/events/remove-target-with-shadow-in-drag.html fails
 # fast/events/remove-target-with-shadow-in-drag.html made fast/events/resize-subframe.html timeout
 fast/events/remove-target-with-shadow-in-drag.html
@@ -52,12 +49,6 @@ http/tests/security/xssAuditor/script-tag-with-16bit-unicode2.html
 http/tests/security/xssAuditor/script-tag-with-16bit-unicode5.html
 http/tests/security/xssAuditor/script-tag-with-fancy-unicode.html
 http/tests/security/xssAuditor/script-tag-with-invalid-url-encoding.html
-
-# Unskipped by http://trac.webkit.org/changeset/116409
-# These tests pass on Qt 4.8, but fail on Qt 5. The needs more investigation.
-fast/text/complex-text-opacity.html
-fast/text/whitespace/pre-wrap-overflow-selection.html
-fast/text/word-break.html
 
 # [Qt] New failing and flakey tests with newer Qt 5
 # https://bugs.webkit.org/show_bug.cgi?id=86452
@@ -101,10 +92,6 @@ svg/text/scaling-font-with-geometric-precision.html
 # [Qt] editing/inserting/multiple-lines-selected.html fails
 # https://bugs.webkit.org/show_bug.cgi?id=91993
 editing/inserting/multiple-lines-selected.html
-
-# [Qt] platform/qt/plugins/qt-qwidget-plugin.html fails
-# https://bugs.webkit.org/show_bug.cgi?id=92141
-platform/qt/plugins/qt-qwidget-plugin.html
 
 # [Qt] svg/clip-path/deep-nested-clip-in-mask{,-panning}.svg failing
 # https://bugs.webkit.org/show_bug.cgi?id=92156

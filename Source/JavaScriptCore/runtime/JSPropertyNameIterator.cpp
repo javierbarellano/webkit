@@ -67,6 +67,9 @@ JSPropertyNameIterator* JSPropertyNameIterator::create(ExecState* exec, JSObject
     if (o->structure()->typeInfo().overridesGetPropertyNames())
         return jsPropertyNameIterator;
     
+    if (hasIndexingHeader(o->structure()->indexingType()))
+        return jsPropertyNameIterator;
+    
     size_t count = normalizePrototypeChain(exec, o);
     StructureChain* structureChain = o->structure()->prototypeChain(exec);
     WriteBarrier<Structure>* structure = structureChain->head();
@@ -103,8 +106,7 @@ void JSPropertyNameIterator::visitChildren(JSCell* cell, SlotVisitor& visitor)
     ASSERT_GC_OBJECT_INHERITS(thisObject, &s_info);
     ASSERT(thisObject->structure()->typeInfo().overridesVisitChildren());
     visitor.appendValues(thisObject->m_jsStrings.get(), thisObject->m_jsStringsSize);
-    if (thisObject->m_cachedPrototypeChain)
-        visitor.append(&thisObject->m_cachedPrototypeChain);
+    visitor.append(&thisObject->m_cachedPrototypeChain);
 }
 
 } // namespace JSC

@@ -1,6 +1,7 @@
+CONSOLE MESSAGE: line 26: SyntaxError: Expected an identifier but found 'JavaScript' instead
 Tests getEventListeners() method of console command line API.
 
-
+ 
 - inner -
 keydown: {
     0: {
@@ -19,32 +20,33 @@ mousemove: {
         useCapture: false
     }
 }
-keydown: {
-    0: {
-        listener: function listener2() { }
-        useCapture: true
-    }
-}
 mousedown: {
     0: {
         listener: function listener2() { }
         useCapture: true
     }
 }
-- attribute event listeners -
-mouseover: {
+keydown: {
     0: {
-        listener: function onmouseover(event) { listener2() }
-        useCapture: false
+        listener: function listener2() { }
+        useCapture: true
     }
 }
+- attribute event listeners -
 click: {
     0: {
         listener: function onclick(event) { alert(1) }
         useCapture: false
     }
 }
+mouseover: {
+    0: {
+        listener: function onmouseover(event) { listener2() }
+        useCapture: false
+    }
+}
 - empty -
+- invalid -
 - object -
 undefined
 - null -

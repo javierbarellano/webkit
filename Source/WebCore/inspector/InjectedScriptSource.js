@@ -174,7 +174,7 @@ InjectedScript.prototype = {
      */
     _parseObjectId: function(objectId)
     {
-        return eval("(" + objectId + ")");
+        return InjectedScriptHost.evaluate("(" + objectId + ")");
     },
 
     /**
@@ -197,7 +197,7 @@ InjectedScript.prototype = {
      */
     dispatch: function(methodName, args)
     {
-        var argsArray = eval("(" + args + ")");
+        var argsArray = InjectedScriptHost.evaluate("(" + args + ")");
         var result = this[methodName].apply(this, argsArray);
         if (typeof result === "undefined") {
             inspectedWindow.console.error("Web Inspector error: InjectedScript.%s returns undefined", methodName);
@@ -222,12 +222,6 @@ InjectedScript.prototype = {
         var descriptors = this._propertyDescriptors(object, ownProperties);
 
         // Go over properties, wrap object values.
-        if (descriptors.length === 0 && "arguments" in object) {
-            // Fill in JSC scope object.
-            for (var key in object)
-                descriptors.push({ name: key, value: object[key], writable: false, configurable: false, enumerable: true});
-        }
-
         for (var i = 0; i < descriptors.length; ++i) {
             var descriptor = descriptors[i];
             if ("get" in descriptor)
@@ -342,7 +336,7 @@ InjectedScript.prototype = {
      */
     evaluate: function(expression, objectGroup, injectCommandLineAPI, returnByValue)
     {
-        return this._evaluateAndWrap(inspectedWindow.eval, inspectedWindow, expression, objectGroup, false, injectCommandLineAPI, returnByValue);
+        return this._evaluateAndWrap(InjectedScriptHost.evaluate, InjectedScriptHost, expression, objectGroup, false, injectCommandLineAPI, returnByValue);
     },
 
     /**
@@ -360,7 +354,7 @@ InjectedScript.prototype = {
 
         if (args) {
             var resolvedArgs = [];
-            args = eval(args);
+            args = InjectedScriptHost.evaluate(args);
             for (var i = 0; i < args.length; ++i) {
                 objectId = args[i].objectId;
                 if (objectId) {
@@ -382,7 +376,7 @@ InjectedScript.prototype = {
 
         try {
             var objectGroup = this._idToObjectGroupName[parsedObjectId.id];
-            var func = eval("(" + expression + ")");
+            var func = InjectedScriptHost.evaluate("(" + expression + ")");
             if (typeof func !== "function")
                 return "Given expression does not evaluate to a function";
 
@@ -515,7 +509,7 @@ InjectedScript.prototype = {
      */
     _callFrameForId: function(topCallFrame, callFrameId)
     {
-        var parsedCallFrameId = eval("(" + callFrameId + ")");
+        var parsedCallFrameId = InjectedScriptHost.evaluate("(" + callFrameId + ")");
         var ordinal = parsedCallFrameId["ordinal"];
         var callFrame = topCallFrame;
         while (--ordinal >= 0 && callFrame)
@@ -554,15 +548,29 @@ InjectedScript.prototype = {
         return object;
     },
 
+    /**
+     * @param {string} name
+     * @return {Object}
+     */ 
     module: function(name)
     {
         return this._modules[name];
     },
- 
+
+    /**
+     * @param {string} name
+     * @param {string} source
+     * @return {Object}
+     */ 
     injectModule: function(name, source)
     {
         delete this._modules[name];
-        var module = eval("(" + source + ")");
+        var moduleFunction = InjectedScriptHost.evaluate("(" + source + ")");
+        if (typeof moduleFunction !== "function") {
+            inspectedWindow.console.error("Web Inspector error: A function was expected for module %s evaluation", name);
+            return null;
+        }
+        var module = moduleFunction.call(inspectedWindow, InjectedScriptHost, inspectedWindow, injectedScriptId);
         this._modules[name] = module;
         return module;
     },
@@ -929,16 +937,52 @@ function CommandLineAPIImpl()
 }
 
 CommandLineAPIImpl.prototype = {
-    $: function()
+    /**
+     * @param {string} selector
+     * @param {Node=} start
+     */
+    $: function (selector, start)
     {
-        return document.getElementById.apply(document, arguments)
+        if (this._canQuerySelectorOnNode(start))
+            return start.querySelector(selector);
+
+        var result = document.querySelector(selector);
+        if (result)
+            return result;
+        if (selector && selector[0] !== "#") {
+            result = document.getElementById(selector);
+            if (result) {
+                console.warn("The console function $() has changed from $=getElementById(id) to $=querySelector(selector). You might try $(\"#%s\")", selector );
+                return null;
+            }
+        }
+        return result;
     },
 
-    $$: function()
+    /**
+     * @param {string} selector
+     * @param {Node=} start
+     */
+    $$: function (selector, start)
     {
-        return document.querySelectorAll.apply(document, arguments)
+        if (this._canQuerySelectorOnNode(start))
+            return start.querySelectorAll(selector);
+        return document.querySelectorAll(selector);
     },
 
+    /**
+     * @param {Node} node
+     * @return {boolean}
+     */
+    _canQuerySelectorOnNode: function(node)
+    {
+        return !!node && InjectedScriptHost.type(node) === "node" && (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.DOCUMENT_NODE || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE);
+    },
+
+    /**
+     * @param {string} xpath
+     * @param {Node=} context
+     */
     $x: function(xpath, context)
     {
         var doc = (context && context.ownerDocument) || inspectedWindow.document;

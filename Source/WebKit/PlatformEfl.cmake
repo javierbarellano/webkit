@@ -1,11 +1,3 @@
-LIST(APPEND WebKit_LINK_FLAGS
-    ${ECORE_X_LDFLAGS}
-    ${EDJE_LDFLAGS}
-    ${EFLDEPS_LDFLAGS}
-    ${EFREET_LDFLAGS}
-    ${EVAS_LDFLAGS}
-)
-
 LIST(APPEND WebKit_INCLUDE_DIRECTORIES
     "${CMAKE_SOURCE_DIR}/Source"
     "${WEBKIT_DIR}/efl/ewk"
@@ -16,18 +8,19 @@ LIST(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/graphics/efl"
     "${WEBCORE_DIR}/platform/network/soup"
     ${CAIRO_INCLUDE_DIRS}
-    ${ECORE_X_INCLUDE_DIRS}
+    ${ECORE_INCLUDE_DIRS}
+    ${ECORE_EVAS_INCLUDE_DIRS}
+    ${ECORE_INPUT_INCLUDE_DIRS}
     ${EDJE_INCLUDE_DIRS}
-    ${EFLDEPS_INCLUDE_DIRS}
     ${EFREET_INCLUDE_DIRS}
+    ${EINA_INCLUDE_DIRS}
     ${EVAS_INCLUDE_DIRS}
-    ${EUKIT_INCLUDE_DIRS}
-    ${EDBUS_INCLUDE_DIRS}
+    ${HARFBUZZ_INCLUDE_DIRS}
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIR}
     ${SQLITE_INCLUDE_DIR}
-    ${Glib_INCLUDE_DIRS}
-    ${LIBSOUP24_INCLUDE_DIRS}
+    ${GLIB_INCLUDE_DIRS}
+    ${LIBSOUP_INCLUDE_DIRS}
 )
 
 IF (ENABLE_SVG)
@@ -60,16 +53,6 @@ IF (WTF_USE_FREETYPE)
   )
 ENDIF ()
 
-IF (WTF_USE_PANGO)
-  LIST(APPEND WebKit_INCLUDE_DIRECTORIES
-    "${WEBCORE_DIR}/platform/graphics/pango"
-    ${Pango_INCLUDE_DIRS}
-  )
-  LIST(APPEND WebKit_LIBRARIES
-    ${Pango_LIBRARIES}
-  )
-ENDIF ()
-
 IF (ENABLE_NOTIFICATIONS)
   LIST(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/notifications"
@@ -88,9 +71,9 @@ IF (ENABLE_BATTERY_STATUS)
   )
 ENDIF ()
 
-IF (ENABLE_REGISTER_PROTOCOL_HANDLER)
+IF (ENABLE_NAVIGATOR_CONTENT_UTILS)
   LIST(APPEND WebKit_INCLUDE_DIRECTORIES
-    "${WEBCORE_DIR}/Modules/protocolhandler"
+    "${WEBCORE_DIR}/Modules/navigatorcontentutils"
   )
 ENDIF ()
 
@@ -98,6 +81,8 @@ LIST(APPEND WebKit_SOURCES
     efl/WebCoreSupport/AssertMatchingEnums.cpp
     efl/WebCoreSupport/BatteryClientEfl.cpp
     efl/WebCoreSupport/ChromeClientEfl.cpp
+    efl/WebCoreSupport/ColorChooserEfl.cpp
+    efl/WebCoreSupport/ContextMenuClientEfl.cpp
     efl/WebCoreSupport/DeviceOrientationClientEfl.cpp
     efl/WebCoreSupport/DeviceMotionClientEfl.cpp
     efl/WebCoreSupport/DragClientEfl.cpp
@@ -108,11 +93,13 @@ LIST(APPEND WebKit_SOURCES
     efl/WebCoreSupport/FullscreenVideoControllerEfl.cpp
     efl/WebCoreSupport/IconDatabaseClientEfl.cpp
     efl/WebCoreSupport/InspectorClientEfl.cpp
+    efl/WebCoreSupport/NavigatorContentUtilsClientEfl.cpp 
     efl/WebCoreSupport/NetworkInfoClientEfl.cpp
     efl/WebCoreSupport/NotificationPresenterClientEfl.cpp
     efl/WebCoreSupport/PageClientEfl.cpp
     efl/WebCoreSupport/PlatformStrategiesEfl.cpp 
-    efl/WebCoreSupport/RegisterProtocolHandlerClientEfl.cpp 
+    efl/WebCoreSupport/PopupMenuEfl.cpp
+    efl/WebCoreSupport/SearchPopupMenuEfl.cpp
     efl/WebCoreSupport/StorageTrackerClientEfl.cpp
     efl/WebCoreSupport/VibrationClientEfl.cpp
 
@@ -147,20 +134,22 @@ LIST(APPEND WebKit_SOURCES
 
 LIST(APPEND WebKit_LIBRARIES
     ${CAIRO_LIBRARIES}
-    ${ECORE_X_LIBRARIES}
-    ${EFLDEPS_LIBRARIES}
+    ${ECORE_LIBRARIES}
+    ${ECORE_EVAS_LIBRARIES}
+    ${ECORE_INPUT_LIBRARIES}
     ${EFREET_LIBRARIES}
-    ${EUKIT_LIBRARIES}
-    ${EDBUS_LIBRARIES}
+    ${EVAS_LIBRARIES}
     ${FREETYPE_LIBRARIES}
+    ${HARFBUZZ_LIBRARIES}
     ${LIBXML2_LIBRARIES}
     ${SQLITE_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
     ${PNG_LIBRARY}
     ${JPEG_LIBRARY}
     ${CMAKE_DL_LIBS}
-    ${Glib_LIBRARIES}
-    ${LIBSOUP24_LIBRARIES}
+    ${GLIB_LIBRARIES}
+    ${GLIB_GOBJECT_LIBRARIES}
+    ${LIBSOUP_LIBRARIES}
 )
 
 SET(WebKit_THEME_DEFINITION "")
@@ -175,15 +164,15 @@ ADD_CUSTOM_COMMAND(
   COMMAND ${EDJE_CC_EXECUTABLE} -v -id ${WEBKIT_DIR}/efl/DefaultTheme ${WebKit_THEME_DEFINITION} ${WEBKIT_DIR}/efl/DefaultTheme/default.edc ${WebKit_THEME}
   DEPENDS
     ${WEBKIT_DIR}/efl/DefaultTheme/default.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_knob_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_knob_press_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_v.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_knob_press_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_knob_h.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_fill_v.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_fill_h.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_h.png
+    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_h.png
+    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_press_h.png
+    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_press_v.png
+    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_v.png
+    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_v.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_focus_button.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_press.png
     ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/icon.png
@@ -314,18 +303,11 @@ SET(EWKUnitTests_INCLUDE_DIRECTORIES
     ${EDJE_INCLUDE_DIRS}
 )
 
-SET(EWKUnitTests_LINK_FLAGS
-    ${ECORE_LDFLAGS}
-    ${ECORE_EVAS_LDFLAGS}
-    ${EVAS_LDFLAGS}
-    ${EDJE_LDFLAGS}
-)
-
 IF (ENABLE_GLIB_SUPPORT)
     LIST(APPEND EWKUnitTests_INCLUDE_DIRECTORIES "${WTF_DIR}/wtf/gobject")
     LIST(APPEND EWKUnitTests_LIBRARIES
-        ${Glib_LIBRARIES}
-        ${Gthread_LIBRARIES}
+        ${GLIB_LIBRARIES}
+        ${GLIB_GTHREAD_LIBRARIES}
     )
 ENDIF ()
 
@@ -354,7 +336,6 @@ IF (ENABLE_API_TESTS)
         ADD_TEST(${testName} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${testName})
         SET_TESTS_PROPERTIES(${testName} PROPERTIES TIMEOUT 60)
         TARGET_LINK_LIBRARIES(${testName} ${EWKUnitTests_LIBRARIES} ewkTestUtils)
-        ADD_TARGET_PROPERTIES(${testName} LINK_FLAGS "${EWKUnitTests_LINK_FLAGS}")
         SET_TARGET_PROPERTIES(${testName} PROPERTIES FOLDER "WebKit")
     ENDFOREACH ()
 ENDIF ()

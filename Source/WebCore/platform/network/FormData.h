@@ -21,10 +21,10 @@
 #define FormData_h
 
 #include "KURL.h"
-#include "PlatformString.h"
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/Vector.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -151,6 +151,8 @@ public:
 
     bool containsPasswordData() const { return m_containsPasswordData; }
     void setContainsPasswordData(bool containsPasswordData) { m_containsPasswordData = containsPasswordData; }
+
+    void reportMemoryUsage(MemoryObjectInfo*) const;
 
     static EncodingType parseEncodingType(const String& type)
     {

@@ -24,17 +24,16 @@
 
 #include "config.h"
 
-#include "cc/CCTextureUpdateController.h"
+#include "CCTextureUpdateController.h"
 
 #include "CCSchedulerTestCommon.h"
+#include "CCSingleThreadProxy.h" // For DebugScopedSetImplThread
 #include "CCTiledLayerTestCommon.h"
 #include "FakeWebCompositorOutputSurface.h"
 #include "FakeWebGraphicsContext3D.h"
-#include "cc/CCSingleThreadProxy.h" // For DebugScopedSetImplThread
-#include <public/WebCompositor.h>
-#include <public/WebThread.h>
-
+#include "WebCompositorInitializer.h"
 #include <gtest/gtest.h>
+#include <public/WebThread.h>
 #include <wtf/RefPtr.h>
 
 using namespace WebCore;
@@ -89,28 +88,30 @@ private:
 class TextureForUploadTest : public LayerTextureUpdater::Texture {
 public:
     TextureForUploadTest() : LayerTextureUpdater::Texture(adoptPtr<CCPrioritizedTexture>(0)) { }
-    virtual void updateRect(CCResourceProvider*, const IntRect& sourceRect, const IntRect& destRect) { }
+    virtual void updateRect(CCResourceProvider*, const IntRect& sourceRect, const IntSize& destOffset) { }
 };
 
 
 class CCTextureUpdateControllerTest : public Test {
 public:
     CCTextureUpdateControllerTest()
-    : m_queue(adoptPtr(new CCTextureUpdateQueue))
-    , m_uploader(this)
-    , m_fullUploadCountExpected(0)
-    , m_partialCountExpected(0)
-    , m_totalUploadCountExpected(0)
-    , m_maxUploadCountPerUpdate(0)
-    , m_numBeginUploads(0)
-    , m_numEndUploads(0)
-    , m_numConsecutiveFlushes(0)
-    , m_numDanglingUploads(0)
-    , m_numTotalUploads(0)
-    , m_numTotalFlushes(0)
-    , m_numPreviousUploads(0)
-    , m_numPreviousFlushes(0)
-    { }
+        : m_queue(adoptPtr(new CCTextureUpdateQueue))
+        , m_uploader(this)
+        , m_compositorInitializer(m_thread.get())
+        , m_fullUploadCountExpected(0)
+        , m_partialCountExpected(0)
+        , m_totalUploadCountExpected(0)
+        , m_maxUploadCountPerUpdate(0)
+        , m_numBeginUploads(0)
+        , m_numEndUploads(0)
+        , m_numConsecutiveFlushes(0)
+        , m_numDanglingUploads(0)
+        , m_numTotalUploads(0)
+        , m_numTotalFlushes(0)
+        , m_numPreviousUploads(0)
+        , m_numPreviousFlushes(0)
+    {
+    }
 
 public:
     void onFlush()
@@ -171,17 +172,9 @@ public:
 protected:
     virtual void SetUp()
     {
-        OwnPtr<WebThread> thread;
-        WebCompositor::initialize(thread.get());
-
         m_context = FakeWebCompositorOutputSurface::create(adoptPtr(new WebGraphicsContext3DForUploadTest(this)));
         DebugScopedSetImplThread implThread;
         m_resourceProvider = CCResourceProvider::create(m_context.get());
-    }
-
-    virtual void TearDown()
-    {
-        WebCompositor::shutdown();
     }
 
     void appendFullUploadsToUpdateQueue(int count)
@@ -190,7 +183,7 @@ protected:
         m_totalUploadCountExpected += count;
 
         const IntRect rect(0, 0, 300, 150);
-        const TextureUploader::Parameters upload = { &m_texture, rect, rect };
+        const TextureUploader::Parameters upload = { &m_texture, rect, IntSize() };
         for (int i = 0; i < count; i++)
             m_queue->appendFullUpload(upload);
     }
@@ -201,7 +194,7 @@ protected:
         m_totalUploadCountExpected += count;
 
         const IntRect rect(0, 0, 100, 100);
-        const TextureUploader::Parameters upload = { &m_texture, rect, rect };
+        const TextureUploader::Parameters upload = { &m_texture, rect, IntSize() };
         for (int i = 0; i < count; i++)
             m_queue->appendPartialUpload(upload);
     }
@@ -219,6 +212,9 @@ protected:
     TextureForUploadTest m_texture;
     FakeTextureCopier m_copier;
     TextureUploaderForUploadTest m_uploader;
+    OwnPtr<WebThread> m_thread;
+    WebCompositorInitializer m_compositorInitializer;
+
 
     // Properties / expectations of this test
     int m_fullUploadCountExpected;
@@ -540,6 +536,150 @@ TEST_F(CCTextureUpdateControllerTest, TripleUpdateFinalUpdateAllPartial)
 
     // Final sanity checks
     EXPECT_EQ(kFullUploads + kPartialUploads, m_numTotalUploads);
+}
+
+class FakeCCTextureUpdateController : public WebCore::CCTextureUpdateController {
+public:
+    static PassOwnPtr<FakeCCTextureUpdateController> create(WebCore::CCThread* thread, PassOwnPtr<CCTextureUpdateQueue> queue, CCResourceProvider* resourceProvider, TextureCopier* copier, TextureUploader* uploader)
+    {
+        return adoptPtr(new FakeCCTextureUpdateController(thread, queue, resourceProvider, copier, uploader));
+    }
+
+    void setMonotonicTimeNow(double time) { m_monotonicTimeNow = time; }
+    virtual double monotonicTimeNow() const OVERRIDE { return m_monotonicTimeNow; }
+    void setUpdateMoreTexturesTime(double time) { m_updateMoreTexturesTime = time; }
+    virtual double updateMoreTexturesTime() const OVERRIDE { return m_updateMoreTexturesTime; }
+    void setUpdateMoreTexturesSize(size_t size) { m_updateMoreTexturesSize = size; }
+    virtual size_t updateMoreTexturesSize() const OVERRIDE { return m_updateMoreTexturesSize; }
+
+protected:
+    FakeCCTextureUpdateController(WebCore::CCThread* thread, PassOwnPtr<CCTextureUpdateQueue> queue, CCResourceProvider* resourceProvider, TextureCopier* copier, TextureUploader* uploader)
+        : WebCore::CCTextureUpdateController(thread, queue, resourceProvider, copier, uploader)
+        , m_monotonicTimeNow(0)
+        , m_updateMoreTexturesTime(0)
+        , m_updateMoreTexturesSize(0) { }
+
+    double m_monotonicTimeNow;
+    double m_updateMoreTexturesTime;
+    size_t m_updateMoreTexturesSize;
+};
+
+TEST_F(CCTextureUpdateControllerTest, UpdateMoreTextures)
+{
+    FakeCCThread thread;
+
+    setMaxUploadCountPerUpdate(1);
+    appendFullUploadsToUpdateQueue(3);
+    appendPartialUploadsToUpdateQueue(0);
+
+    DebugScopedSetImplThread implThread;
+    OwnPtr<FakeCCTextureUpdateController> controller(FakeCCTextureUpdateController::create(&thread, m_queue.release(), m_resourceProvider.get(), &m_copier, &m_uploader));
+
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.1);
+    controller->setUpdateMoreTexturesSize(1);
+    // Not enough time for any updates.
+    controller->updateMoreTextures(0.09);
+    EXPECT_FALSE(thread.hasPendingTask());
+    EXPECT_EQ(0, m_numBeginUploads);
+    EXPECT_EQ(0, m_numEndUploads);
+
+    thread.reset();
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.1);
+    controller->setUpdateMoreTexturesSize(1);
+    // Only enough time for 1 update.
+    controller->updateMoreTextures(0.12);
+    EXPECT_TRUE(thread.hasPendingTask());
+    controller->setMonotonicTimeNow(thread.pendingDelayMs() / 1000.0);
+    thread.runPendingTask();
+    EXPECT_EQ(1, m_numBeginUploads);
+    EXPECT_EQ(1, m_numEndUploads);
+    EXPECT_EQ(1, m_numTotalUploads);
+
+    thread.reset();
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.1);
+    controller->setUpdateMoreTexturesSize(1);
+    // Enough time for 2 updates.
+    controller->updateMoreTextures(0.22);
+    EXPECT_TRUE(thread.hasPendingTask());
+    controller->setMonotonicTimeNow(controller->monotonicTimeNow() + thread.pendingDelayMs() / 1000.0);
+    thread.runPendingTask();
+    EXPECT_EQ(3, m_numBeginUploads);
+    EXPECT_EQ(3, m_numEndUploads);
+    EXPECT_EQ(3, m_numTotalUploads);
+}
+
+TEST_F(CCTextureUpdateControllerTest, NoMoreUpdates)
+{
+    FakeCCThread thread;
+
+    setMaxUploadCountPerUpdate(1);
+    appendFullUploadsToUpdateQueue(2);
+    appendPartialUploadsToUpdateQueue(0);
+
+    DebugScopedSetImplThread implThread;
+    OwnPtr<FakeCCTextureUpdateController> controller(FakeCCTextureUpdateController::create(&thread, m_queue.release(), m_resourceProvider.get(), &m_copier, &m_uploader));
+
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.1);
+    controller->setUpdateMoreTexturesSize(1);
+    // Enough time for 3 updates but only 2 necessary.
+    controller->updateMoreTextures(0.31);
+    EXPECT_TRUE(thread.hasPendingTask());
+    controller->setMonotonicTimeNow(controller->monotonicTimeNow() + thread.pendingDelayMs() / 1000.0);
+    thread.runPendingTask();
+    EXPECT_TRUE(thread.hasPendingTask());
+    controller->setMonotonicTimeNow(controller->monotonicTimeNow() + thread.pendingDelayMs() / 1000.0);
+    thread.runPendingTask();
+    EXPECT_EQ(2, m_numBeginUploads);
+    EXPECT_EQ(2, m_numEndUploads);
+    EXPECT_EQ(2, m_numTotalUploads);
+
+    thread.reset();
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.1);
+    controller->setUpdateMoreTexturesSize(1);
+    // Enough time for updates but no more updates left.
+    controller->updateMoreTextures(0.31);
+    EXPECT_FALSE(thread.hasPendingTask());
+    EXPECT_EQ(2, m_numBeginUploads);
+    EXPECT_EQ(2, m_numEndUploads);
+    EXPECT_EQ(2, m_numTotalUploads);
+}
+
+TEST_F(CCTextureUpdateControllerTest, UpdatesCompleteInFiniteTime)
+{
+    FakeCCThread thread;
+
+    setMaxUploadCountPerUpdate(1);
+    appendFullUploadsToUpdateQueue(2);
+    appendPartialUploadsToUpdateQueue(0);
+
+    DebugScopedSetImplThread implThread;
+    OwnPtr<FakeCCTextureUpdateController> controller(FakeCCTextureUpdateController::create(&thread, m_queue.release(), m_resourceProvider.get(), &m_copier, &m_uploader));
+
+    controller->setMonotonicTimeNow(0);
+    controller->setUpdateMoreTexturesTime(0.5);
+    controller->setUpdateMoreTexturesSize(1);
+
+    for (int i = 0; i < 100; i++) {
+        if (!controller->hasMoreUpdates())
+            break;
+
+        // Not enough time for any updates.
+        controller->updateMoreTextures(0.4);
+
+        if (thread.hasPendingTask()) {
+            controller->setMonotonicTimeNow(controller->monotonicTimeNow() + thread.pendingDelayMs() / 1000.0);
+            thread.runPendingTask();
+        }
+    }
+
+    EXPECT_EQ(2, m_numBeginUploads);
+    EXPECT_EQ(2, m_numEndUploads);
+    EXPECT_EQ(2, m_numTotalUploads);
 }
 
 } // namespace

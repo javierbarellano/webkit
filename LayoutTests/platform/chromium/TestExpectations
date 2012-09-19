@@ -13,25 +13,19 @@ BUGWK91666 SLOW MAC : editing/pasteboard/emacs-ctrl-k-y-001.html = IMAGE+TEXT
 BUGWK91666 SLOW MAC : editing/pasteboard/emacs-cntl-y-001.html = IMAGE
 BUGWK82097 SLOW : editing/selection/move-by-word-visually-crash-test-5.html = PASS
 BUGWK79679 SLOW DEBUG : platform/chromium/virtual/gpu/fast/canvas/getPutImageDataPairTest.html = PASS
-BUGCR92287 SLOW WIN MAC : fast/canvas/webgl/context-creation-and-destruction.html = PASS
-BUGCR92287 SLOW WIN MAC : platform/chromium/virtual/gpu/fast/canvas/webgl/context-creation-and-destruction.html = PASS
-BUGCR24182 SLOW MAC DEBUG : fast/css/large-list-of-rules-crash.html = PASS
+BUGWK92287 SLOW WIN MAC LINUX : fast/canvas/webgl/context-creation-and-destruction.html = PASS
+BUGWK92287 SLOW WIN MAC LINUX : platform/chromium/virtual/gpu/fast/canvas/webgl/context-creation-and-destruction.html = PASS
+BUGCR24182 SLOW DEBUG : fast/css/large-list-of-rules-crash.html = PASS
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : fast/dom/shadow/tree-scope-crash.html = PASS
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : fast/dom/Window/window-postmessage-clone-deep-array.html = PASS
 BUGCR24182 SLOW LINUX ANDROID MAC DEBUG : fast/dom/Window/window-postmessage-clone-really-deep-array.html = PASS
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : fast/frames/calculate-percentage.html = PASS
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : fast/frames/frameset-frameborder-boolean-values.html = PASS
-BUGCR24182 SLOW SNOWLEOPARD WIN DEBUG : fast/frames/sandboxed-iframe-navigation-parent.html = PASS
+BUGCR24182 SLOW MAC WIN DEBUG : fast/frames/sandboxed-iframe-navigation-parent.html = PASS
 BUGCR24182 SLOW DEBUG : fast/frames/valid.html = PASS
 BUGWK77184 SLOW DEBUG : fast/js/dfg-double-vote-fuzz.html = PASS
-BUGCR24182 SLOW DEBUG : fast/js/dfg-float32array.html = PASS
-BUGCR24182 SLOW DEBUG WIN MAC : fast/js/dfg-int16array.html = PASS
-BUGWK77365 SLOW DEBUG : fast/js/dfg-int32array-overflow-values.html = PASS
-BUGCR24182 SLOW DEBUG WIN MAC : fast/js/dfg-int8array.html = PASS
 BUGWK92948 DEBUG : fast/js/dfg-osr-entry-hoisted-clobbered-structure-check.html = PASS TIMEOUT
 BUGWK74787 SLOW DEBUG : fast/js/dfg-poison-fuzz.html = PASS
-BUGWK77069 SLOW DEBUG : fast/js/dfg-uint32array-overflow-values.html = PASS
-BUGCR24182 SLOW DEBUG WIN MAC : fast/js/dfg-uint8clampedarray.html = PASS
 BUGCR24182 SLOW : fast/js/regexp-overflow.html = PASS
 BUGCR24182 SNOWLEOPARD DEBUG : fast/js/repeat-cached-vm-reentry.html = PASS TIMEOUT
 BUGCR24182 SLOW DEBUG : fast/js/toString-and-valueOf-override.html = PASS
@@ -46,7 +40,7 @@ BUGCR24182 SLOW SNOWLEOPARD DEBUG : http/tests/misc/dns-prefetch-control.html = 
 BUGCR24182 SLOW WIN DEBUG : http/tests/misc/uncacheable-script-repeated.html = PASS
 BUGCR24182 SLOW WIN : http/tests/navigation/slowtimerredirect-basic.html = PASS
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : http/tests/security/xss-DENIED-iframe-src-alias.html = PASS
-BUGCR24182 SLOW WIN : http/tests/xmlhttprequest/simple-cross-origin-progress-events.html = PASS
+BUGCR24182 SLOW WIN ANDROID : http/tests/xmlhttprequest/simple-cross-origin-progress-events.html = PASS
 BUGCR24182 SLOW WIN : http/tests/xmlhttprequest/supported-xml-content-types.html = PASS
 BUGCR24182 SLOW WIN : http/tests/xmlhttprequest/XMLHttpRequestException.html = PASS
 BUGCR24182 SLOW DEBUG : ietestcenter/Javascript/15.4.4.16-7-c-ii-2.html = PASS
@@ -62,8 +56,39 @@ BUGCR24182 SLOW DEBUG : jquery/dimensions.html = PASS
 BUGCR24182 DEBUG : jquery/event.html = PASS TIMEOUT
 BUGCR24182 : jquery/manipulation.html = PASS TIMEOUT
 BUGCR24182 SLOW DEBUG : jquery/offset.html = PASS
-BUGCR24182 LINUX ANDROID WIN DEBUG : jquery/traversing.html = PASS TIMEOUT
+BUGCR24182 LINUX WIN DEBUG : jquery/traversing.html = PASS TIMEOUT
 BUGCR24182 SLOW SNOWLEOPARD DEBUG : svg/dom/baseVal-animVal-crash.html = PASS
+BUGCR24182 SLOW DEBUG : css3/flexbox/position-absolute-child.html = PASS
+BUGCR24182 SLOW WIN MAC DEBUG : fast/events/tabindex-focus-blur-all.html = PASS
+BUGCR24182 SLOW WIN SNOWLEOPARD DEBUG : fast/frames/invalid.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-int8array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-uint8array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-int16array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-uint16array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-int32array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-uint32array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-float32array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-float64array.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-uint8clampedarray.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-int32array-overflow-values.html = PASS
+BUGCR24182 SLOW DEBUG : fast/js/dfg-uint32array-overflow-values.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/dfg-inline-many-blocks.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/dfg-weak-js-constant-silent-fill.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/exception-sequencing.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/exception-sequencing-binops.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/exception-sequencing-binops2.html = PASS
+BUGWK93631 SLOW ANDROID : fast/js/toInt32UInt32.html = PASS
+BUGCR24182 SLOW ANDROID DEBUG : editing/selection/caret-at-bidi-boundary.html = PASS
+BUGCR24182 SLOW ANDROID DEBUG : fast/css/css-selector-deeply-nested.html = PASS
+// These tests are slow when run with --fully-parallel.
+BUGCR24182 SLOW : storage/indexeddb/database-closepending-flag.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/factory-basics-workers.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/factory-basics.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/factory-deletedatabase-interactions.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/intversion-and-setversion.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/key-generator.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/metadata.html = PASS
+BUGCR24182 SLOW : storage/indexeddb/structured-clone.html = PASS
 
 // These tests started being slow when we switched to DRT.
 BUGWK90488 SLOW LINUX WIN DEBUG : inspector = PASS
@@ -107,11 +132,11 @@ BUGCR89468 : css3/selectors3/xhtml/css3-modsel-d2.xml = IMAGE IMAGE+TEXT
 BUGCR89468 : css3/selectors3/xhtml/css3-modsel-d3.xml = IMAGE IMAGE+TEXT
 BUGCR89468 : css3/selectors3/xhtml/css3-modsel-d4.xml = IMAGE IMAGE+TEXT
 BUGCR89468 : css3/selectors3/xml/css3-modsel-15c.xml = IMAGE IMAGE+TEXT
-BUGCR89468 WIN LINUX ANDROID LION : css3/selectors3/xml/css3-modsel-d1.xml = IMAGE IMAGE+TEXT
-BUGCR89468 WIN LINUX ANDROID LION : css3/selectors3/xml/css3-modsel-d1b.xml = IMAGE IMAGE+TEXT
-BUGCR89468 WIN LINUX ANDROID LION : css3/selectors3/xml/css3-modsel-d2.xml = IMAGE IMAGE+TEXT
-BUGCR89468 WIN LINUX ANDROID LION : css3/selectors3/xml/css3-modsel-d3.xml = IMAGE IMAGE+TEXT
-BUGCR89468 WIN LINUX ANDROID LION : css3/selectors3/xml/css3-modsel-d4.xml = IMAGE IMAGE+TEXT
+BUGCR89468 BUGWK82122 WIN LINUX ANDROID MAC : css3/selectors3/xml/css3-modsel-d1.xml = IMAGE IMAGE+TEXT
+BUGCR89468 BUGWK82122 WIN LINUX ANDROID MAC : css3/selectors3/xml/css3-modsel-d1b.xml = IMAGE IMAGE+TEXT
+BUGCR89468 BUGWK82122 WIN LINUX ANDROID MAC : css3/selectors3/xml/css3-modsel-d2.xml = IMAGE IMAGE+TEXT
+BUGCR89468 BUGWK82122 WIN LINUX ANDROID MAC : css3/selectors3/xml/css3-modsel-d3.xml = IMAGE IMAGE+TEXT
+BUGCR89468 BUGWK82122 WIN LINUX ANDROID MAC : css3/selectors3/xml/css3-modsel-d4.xml = IMAGE IMAGE+TEXT
 
 // Chrome does not support WebArchives yet.
 BUGCR10395 SKIP : webarchive = PASS
@@ -141,16 +166,16 @@ BUGWK62698 SKIP : batterystatus = PASS
 BUGWK73528 SKIP : networkinformation = PASS
 
 // The intent tag is not yet enabled.
-BUGGBILLOCK SKIP : webintents/intent-tag.html = PASS
-
-// CSS Variables are not yet enabled.
-BUGWK85580 SKIP : inspector/styles/variables = PASS
+BUGWK75123 SKIP : webintents/intent-tag.html = PASS
 
 // CSS image-resolution is not yet enabled.
 BUGWK85262 SKIP : fast/css/image-resolution = PASS
 
 // CSS image-orientation is not yet enabled.
 BUGWK89052 SKIP : fast/css/image-orientation = PASS
+
+// CSS3 Text Decoration support is not yet enabled (needs ENABLE_CSS3_TEXT_DECORATION).
+BUGWK58491 SKIP : fast/css3-text-decoration = PASS
 
 // Chromium does not support smart pasting in text controls yet.
 BUGWK60830 SKIP : editing/pasteboard/smart-paste-in-text-control.html = PASS
@@ -173,8 +198,9 @@ WONTFIX : platform/mac-wk2 = TEXT IMAGE IMAGE+TEXT PASS TIMEOUT
 WONTFIX : platform/qt = TEXT IMAGE IMAGE+TEXT PASS MISSING
 WONTFIX SKIP : platform/qt/plugins/qt-qwidget-plugin.html = PASS
 WONTFIX SKIP : platform/qt/fast/forms = PASS
-WONTFIX MAC WIN : platform/chromium-linux = TEXT IMAGE IMAGE+TEXT
+WONTFIX MAC WIN : platform/chromium-linux = TEXT IMAGE IMAGE+TEXT MISSING
 WONTFIX SKIP LINUX MAC : platform/win = PASS
+WONTFIX SKIP LINUX WIN MAC : platform/chromium-android = PASS
 
 // These tests are for -apple- and -khtml- prefixes, which we don't support
 WONTFIX SKIP : inspector/styles/vendor-prefixes.html = TIMEOUT
@@ -508,6 +534,11 @@ WONTFIX SKIP : http/tests/websocket/tests/hybi/workers/shared-worker-simple.html
 WONTFIX SKIP : http/tests/inspector/network/network-shared-worker.html = PASS
 WONTFIX SKIP : http/tests/security/contentSecurityPolicy/shared-worker-connect-src-allowed.html = TEXT
 WONTFIX SKIP : http/tests/security/contentSecurityPolicy/shared-worker-connect-src-blocked.html = TEXT
+WONTFIX SKIP : http/tests/security/cross-origin-shared-worker.html = TEXT
+WONTFIX SKIP : http/tests/security/cross-origin-shared-worker-allowed.html = TEXT
+WONTFIX SKIP : http/tests/security/same-origin-shared-worker-blocked.html = TEXT
+WONTFIX SKIP : http/tests/security/storage-blocking-loosened-shared-worker.html = TEXT
+WONTFIX SKIP : http/tests/security/storage-blocking-strengthened-shared-worker.html = TEXT
 WONTFIX SKIP : storage/indexeddb/basics-shared-workers.html = PASS
 
 // test_shell does not support message ports
@@ -574,6 +605,7 @@ WONTFIX SKIP : platform/mac/editing/spelling/autocorrection-delete.html = PASS
 WONTFIX SKIP : platform/mac/editing/spelling/autocorrection-removing-underline-after-paste.html = PASS
 WONTFIX SKIP : platform/mac/editing/spelling/autocorrection-removing-underline.html = PASS
 WONTFIX SKIP : platform/mac/editing/spelling/autocorrection-simple.html = PASS
+WONTFIX SKIP : platform/mac/editing/spelling/removing-underline-after-accepting-autocorrection-using-punctuation.html = PASS
 
 // Checks for very kjs-specific garbage collector behavior.
 // Would have to be implemented much differently to work in v8.
@@ -581,6 +613,10 @@ WONTFIX SKIP : fast/dom/gc-10.html = PASS
 
 // We do not use Safari's private browsing mode.
 WONTFIX SKIP : http/tests/security/cross-frame-access-private-browsing.html = PASS
+WONTFIX SKIP : http/tests/security/storage-blocking-loosened-plugin.html = PASS
+WONTFIX SKIP : http/tests/security/storage-blocking-loosened-private-browsing-plugin.html = PASS
+WONTFIX SKIP : http/tests/security/storage-blocking-strengthened-plugin.html = PASS
+WONTFIX SKIP : http/tests/security/storage-blocking-strengthened-private-browsing-plugin.html = PASS
 WONTFIX SKIP : plugins/private-browsing-mode.html = PASS
 WONTFIX SKIP : plugins/private-browsing-mode-2.html = TEXT
 WONTFIX SKIP : storage/domstorage/localstorage/private-browsing-affects-storage.html = PASS
@@ -743,6 +779,7 @@ WONTFIX SKIP : fast/fast-mobile-scrolling/no-fixed-position-elements.html = IMAG
 
 // Tests for frameset flattening. Relevant only on mobile browsers.
 WONTFIX SKIP : fast/frames/flattening = TIMEOUT
+WONTFIX SKIP : fast/text-autosizing/narrow-iframe-flattened.html = IMAGE
 WONTFIX SKIP : http/tests/misc/iframe-flattening-3level-nesting-with-blocking-resource.html = TIMEOUT
 
 // This should be tested differently (see discussion on https://bugs.webkit.org/show_bug.cgi?id=35063).
@@ -825,10 +862,10 @@ WONTFIX XP : css3/font-feature-settings-rendering.html = IMAGE+TEXT PASS
 
 // These test the CoreAnimation plugin model which we never intend to support on
 // Windows and Linux.
-WONTFIX SKIP WIN LINUX ANDROID : compositing/plugins/1x1-composited-plugin.html = IMAGE+TEXT
-WONTFIX SKIP WIN LINUX ANDROID : compositing/plugins/composited-plugin.html = IMAGE+TEXT
-WONTFIX SKIP WIN LINUX ANDROID : compositing/plugins/large-to-small-composited-plugin.html = TEXT
-WONTFIX SKIP WIN LINUX ANDROID : compositing/plugins/small-to-large-composited-plugin.html = TEXT
+WONTFIX SKIP WIN LINUX : compositing/plugins/1x1-composited-plugin.html = IMAGE+TEXT
+WONTFIX SKIP WIN LINUX : compositing/plugins/composited-plugin.html = IMAGE+TEXT
+WONTFIX SKIP WIN LINUX : compositing/plugins/large-to-small-composited-plugin.html = TEXT
+WONTFIX SKIP WIN LINUX : compositing/plugins/small-to-large-composited-plugin.html = TEXT
 
 // Mac's popup behavior is different.
 WONTFIX MAC SKIP : fast/forms/select/menulist-onchange-fired-with-key-up-down.html = PASS
@@ -845,6 +882,22 @@ WONTFIX SKIP : platform/blackberry = PASS
 
 // JavaScriptCore bindings willfully have different behavior than V8 bindings
 WONTFIX SKIP : plugins/npruntime/overrides-all-properties.html = TEXT
+
+// JavaScriptCore treats document.all differently
+WONTFIX SKIP : fast/js/document-all-between-frames.html = TEXT
+
+// Chromium doesn't use fullscreen-specific media controls
+WONTFIX SKIP : media/video-controls-fullscreen-volume.html = TEXT
+
+// Test fails because it's trying to load a plugin we don't have. We probably don't need to fix this.
+WONTFIX : platform/gtk/plugins/invalidate-rect-with-null-npp-argument.html = TEXT
+
+// Mac and Win does not have global selection.
+WONTFIX MAC WIN : editing/pasteboard/paste-global-selection.html = TEXT
+
+BUGWK96109 SKIP LINUX : editing/pasteboard/paste-global-selection.html = TEXT
+
+// Skipping rules for ANDROID are in platform/chromium-android/TestExpectations.
 
 // -----------------------------------------------------------------
 // TESTS TO FIX
@@ -885,13 +938,6 @@ BUGWK66377 : fast/dom/StyleSheet/gc-inline-style-cssvalues.html = TEXT
 BUGWK66377 : fast/dom/StyleSheet/gc-parent-rule.html = TEXT
 BUGWK66377 : fast/dom/StyleSheet/gc-parent-stylesheet.html = TEXT
 BUGWK66377 : fast/dom/StyleSheet/gc-rule-children-wrappers.html = TEXT
-
-// These tests don't work with fast timers due to setTimeout
-// races. See https://bugs.webkit.org/show_bug.cgi?id=21536
-// We currently match upstream except for font differences, but we should
-// probably rewrite the test as suggested in the webkit bug.
-BUGCR24195 LINUX ANDROID WIN : fast/repaint/bugzilla-6473.html = IMAGE+TEXT
-BUGCR24195 MAC : fast/repaint/bugzilla-6473.html = IMAGE
 
 // Implement testRunner.display()
 BUGCR8630 LINUX ANDROID WIN : fast/repaint/body-background-image.html = IMAGE IMAGE+TEXT
@@ -1031,9 +1077,6 @@ BUGWK71792 : editing/spelling/markers.html = TEXT
 
 BUGCR79854 : editing/execCommand/delete-empty-container.html = PASS TEXT
 
-// pulled in from downstream during webkit roll 84350:84431
-BUGCASEQ LINUX ANDROID WIN : editing/selection/select-from-textfield-outwards.html = IMAGE+TEXT
-
 BUGWK60120 DEBUG : editing/execCommand/append-node-under-document.html = PASS TEXT
 
 BUGWK61611 LINUX ANDROID WIN : editing/pasteboard/interchange-newline-2.html = TEXT
@@ -1045,9 +1088,10 @@ BUGWK61624 WIN : editing/pasteboard/smart-paste-004.html = TEXT
 BUGWK78655 : editing/pasteboard/drag-files-to-editable-element.html = TEXT
 
 // New test in r93068
-BUGWK66268 WIN LINUX ANDROID : editing/deleting/regional-indicators.html = TEXT
+BUGWK66268 WIN LINUX : editing/deleting/regional-indicators.html = TEXT
 
 BUGWK67121 DEBUG SLOW : editing/selection/move-by-word-visually-multi-space.html = PASS
+BUGWK67121 ANDROID RELEASE SLOW : editing/selection/move-by-word-visually-multi-space.html = PASS
 
 // UndoManager is not yet enabled.
 BUGWK87908 SKIP : editing/undomanager = PASS
@@ -1273,8 +1317,7 @@ BUGWK84854 LINUX ANDROID : svg/batik/text/verticalTextOnPath.svg = IMAGE PASS
 BUGWK85107 : svg/as-image/svg-as-relative-image-with-explicit-size.html = PASS IMAGE
 BUGWK85107 : svg/as-image/animated-svg-as-image.html = PASS IMAGE
 
-// Times out on debug builds
-BUGWK93589 LINUX SNOWLEOPARD DEBUG : svg/dom/SVGScriptElement/script-change-externalResourcesRequired-while-loading.svg = TIMEOUT PASS TEXT
+BUGWK93589 : svg/dom/SVGScriptElement/script-change-externalResourcesRequired-while-loading.svg = TIMEOUT PASS TEXT
 
 // -----------------------------------------------------------------
 // End SVG TESTS
@@ -1356,7 +1399,7 @@ BUGWK73912 : accessibility/aria-checkbox-sends-notification.html = TEXT PASS
 WONTFIX : platform/chromium/virtual/gpu/canvas/philip/tests/2d.shadow.blur.low.html = PASS TIMEOUT
 
 // This test is overly-finicky about pixel values.
-BUGWK64876 LINUX ANDROID WIN : platform/chromium/virtual/gpu/fast/canvas/canvas-scale-strokePath-shadow.html = TEXT
+BUGWK64876 LINUX WIN : platform/chromium/virtual/gpu/fast/canvas/canvas-scale-strokePath-shadow.html = TEXT
 
 BUGWK75276 : fast/repaint/shadow-multiple-horizontal.html = IMAGE
 BUGWK75276 : fast/repaint/shadow-multiple-strict-horizontal.html = IMAGE
@@ -1475,46 +1518,17 @@ BUGCR23477 MAC : platform/chromium/virtual/gpu/fast/canvas/canvas-incremental-re
 BUGCR23476 MAC : fast/frames/inline-object-inside-frameset.html = IMAGE
 BUGCR23476 MAC : fast/text/font-initial.html = IMAGE
 
-BUGCR23473 MAC : fast/repaint/4774354.html = IMAGE
-BUGCR23473 MAC : fast/repaint/4776765.html = IMAGE
 BUGCR23473 MAC : fast/repaint/background-generated.html = IMAGE
-BUGCR23473 MAC : fast/repaint/block-selection-gap-in-table-cell.html = IMAGE
 BUGCR23473 MAC : fast/repaint/body-background-image.html = IMAGE
-BUGCR23473 MAC : fast/repaint/border-fit-lines.html = IMAGE
-BUGCR23473 MAC : fast/repaint/border-repaint-glitch.html = IMAGE
-BUGCR23473 MAC : fast/repaint/box-shadow-dynamic.html = IMAGE
-BUGCR23473 MAC : fast/repaint/bugzilla-3509.html = IMAGE
 BUGCR23473 MAC : fast/repaint/bugzilla-5699.html = IMAGE
 BUGCR23473 MAC : fast/repaint/bugzilla-6278.html = IMAGE
-BUGCR23473 MAC : fast/repaint/bugzilla-6388.html = IMAGE
-BUGCR23473 MAC : fast/repaint/bugzilla-7235.html = IMAGE
-BUGCR23473 MAC : fast/repaint/button-spurious-layout-hint.html = IMAGE
-BUGCR23473 MAC : fast/repaint/change-transform.html = IMAGE
-BUGCR23473 MAC : fast/repaint/clip-with-layout-delta.html = IMAGE
-BUGCR23473 MAC : fast/repaint/containing-block-position-change.html = IMAGE
 BUGCR23473 MAC : fast/repaint/content-into-overflow.html = IMAGE
-BUGCR23473 LION SNOWLEOPARD : fast/repaint/control-clip.html = IMAGE
+BUGCR23473 LION SNOWLEOPARD : fast/repaint/control-clip.html = IMAGE+TEXT
 BUGCR23473 MAC : fast/repaint/create-layer-repaint.html = IMAGE
-BUGCR23473 LION : fast/repaint/delete-into-nested-block.html = IMAGE
-BUGCR23473 MAC : fast/repaint/dynamic-table-vertical-alignment-change.html = IMAGE
-BUGCR23473 MAC : fast/repaint/erase-overflow.html = IMAGE
-BUGCR23473 MAC : fast/repaint/fixed-child-move-after-scroll.html = IMAGE
-BUGCR23473 MAC : fast/repaint/fixed-child-of-fixed-move-after-scroll.html = IMAGE
-BUGCR23473 MAC : fast/repaint/fixed-child-of-transformed-move-after-scroll.html = IMAGE
-BUGCR23473 MAC : fast/repaint/fixed-move-after-scroll.html = IMAGE
-BUGCR23473 MAC : fast/repaint/float-in-new-block-with-layout-delta.html = IMAGE
-BUGCR23473 MAC : fast/repaint/float-move-during-layout.html = IMAGE
-BUGCR23473 MAC : fast/repaint/inline-block-resize.html = IMAGE
-BUGCR23473 MAC : fast/repaint/inline-color-change.html = IMAGE
-BUGCR23473 MAC : fast/repaint/inline-overflow.html = IMAGE
 BUGCR23473 MAC : fast/repaint/intermediate-layout-position-clip.html = IMAGE
 BUGCR23473 MAC : fast/repaint/intermediate-layout-position.html = IMAGE
 BUGCR23473 MAC : fast/repaint/invisible-objects.html = IMAGE
-BUGCR23473 MAC : fast/repaint/layer-full-repaint.html = IMAGE
-BUGCR23473 MAC : fast/repaint/layer-hide-when-needs-layout.html = IMAGE
-BUGCR23473 MAC : fast/repaint/layer-visibility.html = IMAGE
 BUGCR23473 MAC : fast/repaint/layout-state-only-positioned.html = IMAGE
-BUGCR23473 MAC : fast/repaint/layout-state-relative.html = IMAGE
 BUGCR23473 MAC : fast/repaint/line-in-scrolled-clipped-block.html = IMAGE
 BUGCR23473 MAC : fast/repaint/line-overflow.html = IMAGE
 BUGCR23473 MAC : fast/repaint/list-marker-2.html = IMAGE
@@ -1522,7 +1536,6 @@ BUGCR23473 MAC : fast/repaint/make-children-non-inline.html = IMAGE
 BUGCR23473 MAC : fast/repaint/outline-child-repaint.html = IMAGE
 BUGCR23473 MAC : fast/repaint/outline-inset.html = IMAGE
 BUGCR23473 MAC : fast/repaint/outline-repaint-glitch.html = IMAGE
-BUGCR23473 MAC : fast/repaint/outline-shrinking.html = IMAGE
 BUGCR23473 MAC : fast/repaint/overflow-into-content.html = IMAGE
 BUGCR23473 MAC : fast/repaint/overflow-outline-repaint.html = IMAGE
 BUGCR23473 MAC : fast/repaint/overflow-scroll-delete.html = IMAGE
@@ -1579,10 +1592,6 @@ BUGCR27486 LINUX ANDROID WIN : fast/forms/range/slider-zoomed.html = TEXT
 // This test isn't just slow -- sometimes it times out indefinitely.
 BUGCR27569 : http/tests/xmlhttprequest/redirect-cross-origin-tripmine.html = PASS TIMEOUT
 
-// Merge WebKit 42200:42244 regressions
-BUGCR9786 : fast/dom/Window/dom-access-from-closure-iframe.html = TEXT
-BUGCR9786 : fast/dom/Window/dom-access-from-closure-window.html = TEXT
-
 BUGCR9798 SLOW WIN DEBUG : fast/dom/Window/slow-unload-handler.html = PASS
 
 BUGCR9798 WIN DEBUG : http/tests/misc/redirect-with-quotes.php = PASS TIMEOUT
@@ -1605,9 +1614,6 @@ BUGCR11001 : http/tests/history/back-to-post.php = TIMEOUT
 // Regressions from WebKit Merge 42932:42994 due to text metric changes.
 BUGCR11251 LINUX ANDROID WIN : svg/custom/svg-fonts-in-text-controls.html = TEXT
 BUGCR11251 LINUX ANDROID WIN : fast/forms/textarea-metrics.html = TEXT
-
-// WebKit 45017:45086
-BUGCR15217 : fast/js/dictionary-no-cache.html = PASS TEXT
 
 // WebKit 45086:45111
 BUGCR15270 : fast/js/excessive-comma-usage.html = TEXT
@@ -1740,7 +1746,7 @@ BUGCR30826 WIN : platform/win/fast/events/panScroll-imageMap-noHref-scroll.html 
 BUGCR30826 WIN DEBUG : platform/win/fast/events/panScroll-event-fired.html = PASS TIMEOUT TEXT
 
 // WebKit roll 52468->52535
-BUGCR31991 LINUX ANDROID WIN : fast/text/international/bidi-layout-across-linebreak.html = TEXT
+BUGCR31991 WIN7 : fast/text/international/bidi-layout-across-linebreak.html = TEXT
 
 BUGCR31623 WIN SNOWLEOPARD : http/tests/appcache/remove-cache.html = PASS TIMEOUT TEXT
 
@@ -1750,18 +1756,13 @@ BUGCR32155 : fast/js/Object-getOwnPropertyNames.html = TEXT
 
 // Expectations from roll to 53171:53194
 // As of Oct 7, 2010, times out on all platforms when doing DEBUG costing 13 seconds on average. Skipping.
-BUGCR32308 SKIP DEBUG : fast/frames/cached-frame-counter.html = TIMEOUT
-BUGCR32308 WIN RELEASE SLOW : fast/frames/cached-frame-counter.html = PASS
+// As of Aug 31, 2012, now times out in release. Marking flaky everywhere.
+BUGCR32308 : fast/frames/cached-frame-counter.html = TIMEOUT PASS
 
 BUGCR33293 SKIP : fast/media/lifetime.html = TIMEOUT
 
 // WebKit roll 53655 -> 53704
 BUGCR32900 : http/tests/misc/slow-loading-mask.html = IMAGE+TEXT IMAGE
-
-// WebKit roll 54059 -> 54075
-BUGCR33538 : fast/dom/Window/anonymous-slot-with-changes.html = TEXT
-
-BUGCR35064 : fast/forms/restore-selection-after-layout.html = PASS TEXT
 
 // WebKit roll 54493 to 54530: new tests.
 BUGCR35114 : fast/js/parser-syntax-check.html = TEXT
@@ -1786,7 +1787,7 @@ BUGCR40680 SKIP : fast/media/media-query-list-06.html = PASS
 BUGCR40680 SKIP : fast/media/media-query-list-07.html = PASS
 
 // Caused by http://trac.webkit.org/changeset/56394.
-BUG_JAPHET WIN : http/tests/xmlhttprequest/xmlhttprequest-50ms-download-dispatch.html = TIMEOUT TEXT PASS
+BUGCR143475 WIN : http/tests/xmlhttprequest/xmlhttprequest-50ms-download-dispatch.html = TIMEOUT TEXT PASS
 
 // Due to the differences in handling text encodings in KURL and googleurl.
 BUGWK20559 : http/tests/navigation/anchor-frames-gbk.html = TEXT
@@ -1807,14 +1808,7 @@ BUGCR41206 : fast/history/multiple-classes-visited.html = TIMEOUT TEXT
 
 // Tests that work with KURL, but fail with GURL
 BUGWK71758 : fast/url/invalid-urls-utf8.html = TEXT
-BUGWK71758 : fast/url/file.html = TEXT PASS
-BUGWK71758 : fast/url/file-http-base.html = TEXT PASS
-BUGWK71758 : fast/url/host.html = TEXT PASS
 BUGWK71758 : fast/url/idna2003.html = TEXT PASS
-BUGWK71758 : fast/url/port.html = TEXT PASS
-// ^--- When completed please restore this block:
-// // Started failing at r58152
-// BUGWK38038 : fast/url/file-http-base.html = TEXT
 
 // New testRunner function added at r57993
 BUGCR42696 : http/tests/xmlhttprequest/cross-origin-authorization-with-embedder.html = TIMEOUT
@@ -1837,25 +1831,10 @@ BUGCR43890 WIN : http/tests/loading/basic.html = PASS TEXT
 BUGWK45991 : canvas/philip/tests/2d.drawImage.broken.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.drawImage.broken.html = TEXT
 
-BUGWK39212 : canvas/philip/tests/2d.imageData.create1.type.html = TEXT
-BUGWK39212 : canvas/philip/tests/2d.imageData.create2.type.html = TEXT
-BUGWK39212 : canvas/philip/tests/2d.imageData.get.type.html = TEXT
-BUGWK39212 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.imageData.create1.type.html = TEXT
-BUGWK39212 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.imageData.create2.type.html = TEXT
-BUGWK39212 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.imageData.get.type.html = TEXT
-
-BUGWK40272 : canvas/philip/tests/2d.imageData.object.round.html = TEXT
-BUGWK40272 : canvas/philip/tests/2d.imageData.object.wrap.html = TEXT
-BUGWK40272 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.imageData.object.round.html = TEXT
-BUGWK40272 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.imageData.object.wrap.html = TEXT
-
 BUGWK45991 : canvas/philip/tests/2d.pattern.image.broken.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.image.broken.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.text.draw.baseline.ideographic.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.baseline.ideographic.html = TEXT
-
-BUGWK50797 : canvas/philip/tests/2d.fillStyle.parse.invalid.rgba-6.html = TEXT
-BUGWK50797 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.fillStyle.parse.invalid.rgba-6.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.text.draw.baseline.ideographic.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.baseline.ideographic.html = TEXT
 
 // Update canvas/philip in WK r71481
 BUGCR62301 : canvas/philip/tests/2d.drawImage.image.incomplete.omitted.html = TEXT
@@ -1886,46 +1865,33 @@ BUGWK38463 : canvas/philip/tests/2d.text.draw.baseline.top.html = TEXT
 BUGWK38463 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.baseline.top.html = TEXT
 
 BUGWK45991 : canvas/philip/tests/2d.text.draw.space.collapse.end.html = TEXT
-BUGWK45991 : canvas/philip/tests/2d.text.draw.space.collapse.nonspace.html = TEXT
 BUGWK45991 : canvas/philip/tests/2d.text.draw.space.collapse.other.html = TEXT
 BUGWK45991 : canvas/philip/tests/2d.text.draw.space.collapse.space.html = TEXT
 BUGWK45991 : canvas/philip/tests/2d.text.draw.space.collapse.start.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.space.collapse.end.html = TEXT
-BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.space.collapse.nonspace.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.space.collapse.other.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.space.collapse.space.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.space.collapse.start.html = TEXT
-
-BUGWK50859 : canvas/philip/tests/2d.text.font.parse.basic.html = TEXT
-BUGWK50859 : canvas/philip/tests/2d.text.font.parse.complex.html = TEXT
-BUGWK50859 : canvas/philip/tests/2d.text.font.parse.size.percentage.default.html = TEXT
-BUGWK50859 : canvas/philip/tests/2d.text.font.parse.size.percentage.html = TEXT
-BUGWK50859 : canvas/philip/tests/2d.text.font.parse.system.html = TEXT
-BUGWK50859 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.font.parse.basic.html = TEXT
-BUGWK50859 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.font.parse.complex.html = TEXT
-BUGWK50859 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.font.parse.size.percentage.default.html = TEXT
-BUGWK50859 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.font.parse.size.percentage.html = TEXT
-BUGWK50859 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.font.parse.system.html = TEXT
 
 BUGWK45991 : canvas/philip/tests/2d.text.measure.width.space.html = TEXT
 BUGWK45991 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.measure.width.space.html = TEXT
 
 // These tests fail everywhere we use skia and are most likely skia bugs
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.gradient.radial.outside3.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.path.arc.angle.3.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.path.arc.angle.5.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.path.arcTo.shape.curve1.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.path.arcTo.shape.curve2.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.pattern.paint.norepeat.coord3.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.pattern.paint.repeatx.coord1.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.pattern.paint.repeaty.coord1.html = TEXT
-BUGWK45991 LINUX WIN : canvas/philip/tests/2d.shadow.enable.blur.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.gradient.radial.outside3.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.path.arc.angle.3.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.path.arc.angle.5.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.norepeat.coord3.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.repeatx.coord1.html = TEXT
-BUGWK45991 LINUX ANDROID WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.repeaty.coord1.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.gradient.radial.outside3.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.path.arc.angle.3.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.path.arc.angle.5.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.path.arcTo.shape.curve1.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.path.arcTo.shape.curve2.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.pattern.paint.norepeat.coord3.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.pattern.paint.repeatx.coord1.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.pattern.paint.repeaty.coord1.html = TEXT
+BUGWK45991 LINUX ANDROID WIN : canvas/philip/tests/2d.shadow.enable.blur.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.gradient.radial.outside3.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.path.arc.angle.3.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.path.arc.angle.5.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.norepeat.coord3.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.repeatx.coord1.html = TEXT
+BUGWK45991 LINUX WIN : platform/chromium/virtual/gpu/canvas/philip/tests/2d.pattern.paint.repeaty.coord1.html = TEXT
 
 // Chromium does not support cancel for notifications permissions.
 BUGWK42798 SKIP : fast/notifications/notifications-cancel-request-permission.html = PASS
@@ -1952,7 +1918,7 @@ BUGCR47083 : fast/text/hyphenate-limit-lines.html = IMAGE IMAGE+TEXT
 BUGCR47083 : fast/text/hyphenate-limit-before-after.html = IMAGE+TEXT
 
 BUGCR48239 : fast/js/function-apply.html = TEXT
-BUGCR48239 LINUX ANDROID WIN : fast/js/function-apply-aliased.html = PASS TEXT
+BUGCR48239 : fast/js/function-apply-aliased.html = PASS TEXT
 BUGCR48239 : fast/js/function-apply-many-args.html = TIMEOUT TEXT
 
 BUGCR48859 WIN : fast/inline/continuation-outlines-with-layers-2.html = IMAGE+TEXT
@@ -1987,13 +1953,15 @@ BUGWK44199 RELEASE SLOW : perf/array-nested-loop.html = PASS TEXT
 BUGWK44199 RELEASE SLOW : perf/class-list-remove.html = PASS TEXT
 BUGWK71652 MAC LINUX ANDROID RELEASE SLOW : perf/document-contains.html = PASS
 BUGWK72372 WIN RELEASE SLOW : perf/document-contains.html = PASS
-BUGWK67921 RELEASE SLOW : perf/show-hide-table-rows.html = PASS
+BUGWK67921 RELEASE ANDROID : perf/show-hide-table-rows.html = TIMEOUT
+BUGWK67921 RELEASE LINUX WIN MAC SLOW : perf/show-hide-table-rows.html = PASS
 BUGWK44199 RELEASE : perf/clone-with-focus.html = PASS TEXT
 BUGWK44199 RELEASE : perf/typing-at-end-of-line.html = PASS TEXT
-BUGWK44199 BUGWK63057 RELEASE SLOW : perf/array-binary-search.html = MISSING PASS TEXT
+BUGWK44199 BUGWK63057 RELEASE SLOW : perf/array-binary-search.html = PASS TEXT
 BUGWK72901 RELEASE SLOW : perf/array-push-pop.html = PASS
 BUGWK44199 RELEASE : perf/array-reverse.html = PASS TIMEOUT
 BUGWK63057 RELEASE : perf/adding-radio-buttons.html = TEXT PASS
+BUGWK96977 RELEASE SNOWLEOPARD : perf/nested-combined-selectors.html = TEXT PASS
 
 // Failing after http://trac.webkit.org/changeset/65665/
 
@@ -2028,7 +1996,7 @@ BUGWK91431 : platform/chromium/virtual/gpu/fast/canvas/webgl/framebuffer-object-
 BUGWK91431 : platform/chromium/virtual/gpu/fast/canvas/webgl/gl-uniform-arrays.html = TEXT
 BUGWK91431 : platform/chromium/virtual/gpu/fast/canvas/webgl/point-size.html = TEXT
 BUGWK91431 LINUX MAC : fast/canvas/webgl/gl-object-get-calls.html = TEXT
-BUGWK91431 LINUX ANDROID MAC : platform/chromium/virtual/gpu/fast/canvas/webgl/gl-object-get-calls.html = TEXT
+BUGWK91431 LINUX MAC : platform/chromium/virtual/gpu/fast/canvas/webgl/gl-object-get-calls.html = TEXT
 
 // These were not fixed by the Mesa 7.9 upgrade. Need to investigate.
 BUGCR60651 WIN : fast/canvas/webgl/gl-object-get-calls.html = PASS TIMEOUT TEXT
@@ -2062,29 +2030,28 @@ BUGCR58936 : fast/js/numeric-escapes-in-string-literals.html = TEXT
 // content of <video> elements.
 BUGWK91205 SKIP : media/nodesFromRect-shadowContent.html = TEXT
 
-BUGJAMESR LINUX ANDROID WIN : fast/text/international/vertical-text-glyph-test.html = IMAGE+TEXT
-BUGJAMESR LINUX ANDROID WIN : fast/text/international/vertical-text-metrics-test.html = TEXT
+BUGWK96470 LINUX ANDROID WIN : fast/text/international/vertical-text-glyph-test.html = IMAGE+TEXT
+BUGWK96470 LINUX ANDROID WIN : fast/text/international/vertical-text-metrics-test.html = TEXT
 
 // Added in Webkit r69707 without expected results.
 // Expected result file added in r83450. Still no match.
-BUGJAPHET : platform/gtk/accessibility/aria-table-hierarchy.html = TEXT
+BUGCR143479 : platform/gtk/accessibility/aria-table-hierarchy.html = TEXT
 
 // r69833, JSC/V8 Date parsing differences
-BUGJAPHET : fast/js/date-parse-test.html = TEXT
+BUGCR143476 : fast/js/date-parse-test.html = TEXT
 
 // Vertical text needs to be implemented in platforms other than OS X.
-BUGCR65877 LINUX ANDROID WIN : fast/writing-mode/border-vertical-lr.html = IMAGE+TEXT
-BUGCR65877 : fast/writing-mode/japanese-lr-selection.html = IMAGE+TEXT IMAGE
-BUGCR65877 : fast/writing-mode/japanese-rl-selection.html = IMAGE+TEXT IMAGE
+BUGCR65877 ANDROID : fast/writing-mode/border-vertical-lr.html = IMAGE+TEXT
 BUGCR65877 : fast/writing-mode/japanese-ruby-vertical-lr.html = PASS IMAGE+TEXT
 BUGCR65877 : fast/writing-mode/japanese-ruby-vertical-rl.html = PASS IMAGE+TEXT
-BUGCR65877 : fast/writing-mode/japanese-ruby-horizontal-bt.html = PASS IMAGE+TEXT
-BUGCR65877 LINUX ANDROID : fast/writing-mode/broken-ideographic-font.html = IMAGE+TEXT
-BUGCR65877 LINUX ANDROID WIN : fast/writing-mode/vertical-font-fallback.html = IMAGE+TEXT
+BUGCR65877 LINUX ANDROID : fast/writing-mode/japanese-ruby-horizontal-bt.html = PASS IMAGE+TEXT
+BUGCR65877 LINUX : fast/writing-mode/broken-ideographic-font.html = IMAGE+TEXT
+BUGCR65877 ANDROID : fast/writing-mode/vertical-font-fallback.html = IMAGE+TEXT
 //BUGCR65877 LINUX ANDROID WIN : fast/writing-mode/broken-ideograph-small-caps.html = IMAGE
-BUGCR65877 LINUX ANDROID WIN : fast/writing-mode/Kusa-Makura-background-canvas.html = IMAGE+TEXT
+BUGCR65877 ANDROID : fast/writing-mode/Kusa-Makura-background-canvas.html = IMAGE+TEXT
 BUGCR65877 WIN : fast/text/international/text-combine-image-test.html = IMAGE+TEXT
 BUGWK53451 LINUX ANDROID : fast/text/international/text-combine-image-test.html = IMAGE+TEXT
+BUGWK94410 WIN : fast/writing-mode/vertical-baseline-alignment.html = IMAGE
 
 // New test, introduced by http://trac.webkit.org/changeset/70813 with only platform/mac baselines.
 BUGWK61161 LINUX ANDROID WIN : fast/writing-mode/border-image-horizontal-bt.html = IMAGE+TEXT
@@ -2159,7 +2126,7 @@ BUGCR8729 LINUX ANDROID MAC : http/tests/multipart/invalid-image-data.html = PAS
 BUGCR10370 LINUX ANDROID WIN : fast/css/font-weight-1.html = IMAGE+TEXT
 // Registering the fonts for this test causes other processes (Adium, Firefox)
 // to spin and become unresponsive or crash.
-BUGWK50709 MAC : fast/css/font-weight-1.html = IMAGE+TEXT
+BUGWK50709 MAC : fast/css/font-weight-1.html = IMAGE
 
 /////////////////////////////////////////////////////////////////////////////
 // End DRT failures
@@ -2176,7 +2143,7 @@ BUGCR66087 WIN : http/tests/xmlhttprequest/open-async-overload.html = PASS TEXT
 // memory and thus leading to unpredictable results.
 BUGCR66099 SKIP : fast/js/array-sort-modifying-tostring.html = PASS
 
-BUGCR66683 LINUX WIN : fast/canvas/canvas-draw-canvas-on-canvas-shadow.html = TEXT
+BUGCR66683 LINUX ANDROID WIN : fast/canvas/canvas-draw-canvas-on-canvas-shadow.html = TEXT
 BUGCR66683 : platform/chromium/virtual/gpu/fast/canvas/canvas-draw-canvas-on-canvas-shadow.html = TEXT
 BUGCR66686 : fast/loader/user-stylesheet-fast-path.html = TEXT
 
@@ -2185,17 +2152,18 @@ BUGCR66751 : http/tests/local/link-stylesheet-load-order.html = PASS TIMEOUT TEX
 
 // The test is just too slow and has never passed since its introduction on Dbg build.
 BUGWK90363 DEBUG : fast/overflow/lots-of-sibling-inline-boxes.html = PASS TIMEOUT
+BUGWK90363 ANDROID RELEASE : fast/overflow/lots-of-sibling-inline-boxes.html = PASS TIMEOUT
 
 // WebKit roll 74255:74308
 BUGCR67416 LINUX ANDROID WIN : fast/text/emphasis.html = IMAGE+TEXT
 BUGCR67416 : fast/text/emphasis-vertical.html = IMAGE IMAGE+TEXT
-BUGCR67540 LINUX ANDROID WIN : fast/text/emphasis-overlap.html = IMAGE+TEXT
-BUGCR67540 LINUX ANDROID WIN : fast/text/emphasis-avoid-ruby.html = IMAGE
+BUGCR67540 LINUX ANDROID : fast/text/emphasis-avoid-ruby.html = IMAGE
 BUGCR67540 LINUX ANDROID WIN SNOWLEOPARD : fast/repaint/text-emphasis-h.html = IMAGE
-BUGCR67540 LINUX ANDROID WIN : fast/repaint/text-emphasis-v.html = IMAGE
+BUGCR67540 LINUX ANDROID : fast/repaint/text-emphasis-v.html = IMAGE
 
-BUGCR67442 LINUX WIN : fast/canvas/fillText-shadow.html = TEXT
-BUGCR67442 LINUX ANDROID WIN : platform/chromium/virtual/gpu/fast/canvas/fillText-shadow.html = TEXT
+// See also CRBUG139863
+BUGCR67442 LINUX ANDROID WIN : fast/canvas/fillText-shadow.html = TEXT
+BUGCR67442 LINUX WIN : platform/chromium/virtual/gpu/fast/canvas/fillText-shadow.html = TEXT
 
 BUGCR68436 LINUX ANDROID DEBUG : fast/dom/DOMImplementation/createDocument-with-used-doctype.html = PASS TIMEOUT
 BUGCR68436 MAC WIN DEBUG : fast/dom/DOMImplementation/createDocument-with-used-doctype.html = TIMEOUT TEXT
@@ -2221,13 +2189,10 @@ BUGCR69571 : plugins/destroy-on-setwindow.html = CRASH TEXT
 BUGCR69639 BUGWK63227 : http/tests/loading/cross-origin-XHR-willLoadRequest.html = TIMEOUT TEXT
 
 BUGCR75238 WIN : fast/text/large-text-composed-char.html = IMAGE+TEXT
-// started to time out under Linux Debug at some point after WK r80582
-BUGCR75238 MAC WIN : fast/text/large-text-composed-char-dos.html = TEXT
-BUGCR75238 LINUX ANDROID RELEASE : fast/text/large-text-composed-char-dos.html = TEXT
-BUGCR75426 LINUX ANDROID DEBUG : fast/text/large-text-composed-char-dos.html = TIMEOUT
 
 // Added by http://trac.webkit.org/changeset/76548
 BUGCR70686 MAC : fast/text/international/cjk-segmentation.html = TEXT
+BUGCR144529 ANDROID : fast/text/international/cjk-segmentation.html = TEXT
 
 // Added by http://trac.webkit.org/changeset/76674
 BUGCR70882 WIN : fast/text/offsetForPosition-complex-fallback.html = TEXT
@@ -2251,7 +2216,7 @@ BUGCR71783 LION SNOWLEOPARD : scrollbars/custom-scrollbar-with-incomplete-style.
 /////////////////////////////////////////////////////////////////////////////
 
 
-BUGWK47923 : compositing/geometry/limit-layer-bounds-opacity-transition.html = TIMEOUT
+BUGWK47923 WIN LINUX MAC : compositing/geometry/limit-layer-bounds-opacity-transition.html = TIMEOUT
 
 // Chromium does not support PDF content in <img> tags.
 WONTFIX WIN LINUX ANDROID : compositing/images/direct-pdf-image.html = IMAGE
@@ -2297,7 +2262,7 @@ BUGWK55300 : fast/images/support-broken-image-delegate.html = TEXT
 // introduced by Dave Hyatt in WK r80582
 BUGCR75561 LINUX ANDROID WIN : fast/writing-mode/text-orientation-basic.html = IMAGE+TEXT
 
-BUGWK56060 LINUX ANDROID : fast/images/favicon-as-image.html = IMAGE+TEXT
+BUGWK56060 LINUX : fast/images/favicon-as-image.html = IMAGE+TEXT
 
 // Skip an overly restrictive cross-origin HTTPS test
 BUGCR69594 SKIP : http/tests/appcache/different-https-origin-resource-main.html = PASS
@@ -2344,9 +2309,6 @@ BUGCR77574 LINUX ANDROID : fast/writing-mode/fallback-orientation.html = IMAGE
 // Regression in r82056.
 BUGWK56519 SNOWLEOPARD : fast/ruby/base-shorter-than-text.html = IMAGE IMAGE+TEXT
 
-// New test added in r82152 and test expectation updated in r82189.
-BUGCR77734 : http/tests/uri/username-with-no-hostname.html = TEXT
-
 // Chrome doesn't load favicons in DRT tests.
 BUGWK57259 : http/tests/misc/link-rel-icon-beforeload.html = TEXT
 
@@ -2376,9 +2338,6 @@ BUGCR78835 : plugins/npp-set-window-called-during-destruction.html = TEXT
 // The merged test is flaky on Chromium since then.
 BUGCR78998 DEBUG : fast/frames/frame-element-name.html = PASS TEXT
 
-// Temporarily ignore fails until we generate a new baseline.
-BUGWK57785 WIN MAC : fast/frames/iframe-scaling-with-scroll.html = IMAGE MISSING
-
 BUGWK58193 WIN7 : http/tests/local/fileapi/send-sliced-dragged-file.html = PASS TIMEOUT TEXT
 
 // Regression caused by r83514.
@@ -2386,12 +2345,6 @@ BUGCR79110 LINUX ANDROID WIN : fast/overflow/infiniteRecursionGuard.html = IMAGE
 
 // Regression caused by r83628.
 BUGCR79241 : http/tests/misc/favicon-loads-with-icon-loading-override.html = TEXT
-
-// Regression caused by r83669. Seems to be V8 related.
-BUGCR79259 : fast/js/array-proto-func-property-getter-except.html = PASS TEXT
-
-// Flaky, perhaps Skia related.
-BUGCR79851 LINUX ANDROID : fast/table/frame-and-rules.html = PASS TEXT
 
 BUGCR79857 DEBUG : fast/events/popup-blocking-timers.html = PASS TEXT
 
@@ -2406,16 +2359,12 @@ BUGWK58924 MAC : plugins/mouse-click-iframe-to-plugin.html = PASS TIMEOUT
 BUGWK60097 DEBUG : fast/dom/HTMLLinkElement/link-and-subresource-test.html = PASS TEXT
 
 // Looks like some uninitialized memory at the bottom.
-BUGWK60103 LINUX ANDROID DEBUG : fast/replaced/border-radius-clip.html = IMAGE CRASH
-BUGWK60103 LINUX ANDROID RELEASE : fast/replaced/border-radius-clip.html = IMAGE
+BUGWK60103 LINUX ANDROID : fast/replaced/border-radius-clip.html = IMAGE CRASH
 BUGWK60103 WIN : fast/replaced/border-radius-clip.html = IMAGE
 BUGWK60103 MAC : fast/replaced/border-radius-clip.html = IMAGE+TEXT
 
 // Need to figure out why this is slow.
 BUGWK60131 SLOW : fast/css/visited-link-hang.html = PASS
-
-// pulled in from downstream during webkit roll 84350:84431
-BUGCASEQ LINUX ANDROID WIN : fast/forms/input-text-drag-down.html = IMAGE+TEXT
 
 // Introduced in r84443
 BUGWK59063 : fast/images/animated-gif-restored-from-bfcache.html = TEXT
@@ -2477,9 +2426,6 @@ BUGCR82950 WIN : http/tests/navigation/post-303-response.html = TEXT
 // Random timeouts and failures going back a week.
 BUGCR83290 WIN : http/tests/misc/link-rel-prefetch-and-subresource.html = PASS TIMEOUT TEXT
 
-BUGCR83499 : fast/box-shadow/scaled-box-shadow.html = PASS IMAGE+TEXT IMAGE
-BUGCR83499 : fast/box-shadow/box-shadow-transformed.html = PASS IMAGE+TEXT IMAGE
-
 BUGCR83504 SLOW WIN : fast/css/custom-font-xheight.html = PASS TEXT
 BUGCR83504 MAC : fast/css/custom-font-xheight.html = PASS TEXT
 
@@ -2498,35 +2444,18 @@ BUGCR84032 WIN : fast/dom/object-plugin-hides-properties.html = PASS TIMEOUT
 BUGWK74219 : fast/regions/positioned-objects-block-static-spanning-regions-rtl.html = PASS IMAGE
 BUGWK74219 : fast/regions/positioned-objects-block-static-spanning-regions.html = PASS IMAGE
 
+BUGWK96267 : fast/regions/autoheight-regions-mark.html = PASS
+
 BUGWK74137 SNOWLEOPARD : fast/regions/outline-sides-in-region.html = PASS TIMEOUT
 BUGWK83824 MAC : fast/regions/region-overflow-break.html = IMAGE
 BUGWK74137 : fast/regions/float-pushed-width-change.html = PASS IMAGE
-BUGWK74137 SNOWLEOPARD : fast/regions/region-overflow-auto-overflow-hidden.html = PASS IMAGE+TEXT TIMEOUT
-BUGWK74137 WIN LINUX ANDROID LION : fast/regions/region-overflow-auto-overflow-hidden.html = PASS MISSING
-BUGWK74137 SNOWLEOPARD : fast/regions/region-overflow-auto-overflow-visible.html = PASS IMAGE+TEXT TIMEOUT
-BUGWK74137 WIN LINUX ANDROID LION : fast/regions/region-overflow-auto-overflow-visible.html = PASS MISSING
-
-BUGWK82783 : css3/filters/filter-change-repaint-composited.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-change-repaint.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-blur.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-child-layers.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-composited-fallback-crash.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-composited-fallback.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-shadow-clipped.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-shadow-rotated.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-shadow.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-with-transform.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/filter-repaint-sepia.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 : css3/filters/nested-filter.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK82783 WIN : css3/filters/blur-filter-page-scroll.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-
+BUGWK74137 SNOWLEOPARD : fast/regions/region-overflow-auto-overflow-hidden.html = IMAGE+TEXT
+BUGWK74137 WIN LION : fast/regions/region-overflow-auto-overflow-hidden.html = MISSING
+BUGWK74137 SNOWLEOPARD : fast/regions/region-overflow-auto-overflow-visible.html = IMAGE+TEXT
+BUGWK74137 WIN LION : fast/regions/region-overflow-auto-overflow-visible.html = MISSING
 
 // CSS Regions tests for region styling and scoped styles
-BUGWK49142 : fast/regions/style-scoped-in-flow-override-container-style.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK49142 : fast/regions/style-scoped-in-flow-override-region-styling-multiple-regions.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK49142 : fast/regions/style-scoped-in-flow-override-region-styling.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
-BUGWK49142 : fast/regions/style-scoped-in-flow.html = PASS IMAGE IMAGE+TEXT TEXT MISSING
+BUGWK49142 : fast/regions/style-scoped-in-flow-override-region-styling-multiple-regions.html = IMAGE
 
 BUGWK92131 SKIP : inspector/styles/region-style-crash.html = PASS
 
@@ -2541,13 +2470,7 @@ BUGWK62754 WIN : http/tests/misc/object-embedding-svg-delayed-size-negotiation-2
 
 BUGCR89282 SNOWLEOPARD : fast/forms/range/input-appearance-range.html = PASS IMAGE
 
-// Strange scrollbar.
-BUGWK63115 : fast/css/font-face-in-shadow-DOM.html = PASS IMAGE+TEXT
-
 BUGCR87732 : fast/regex/toString.html = TEXT
-
-// Test fails because it's trying to load a plugin we don't have. We probably don't need to fix this.
-BUGJAPHET : platform/gtk/plugins/invalidate-rect-with-null-npp-argument.html = TEXT
 
 // Started around WebKit r90233:r90242
 BUGWK64000 DEBUG : fast/events/click-focus-anchor.html = PASS TEXT
@@ -2572,9 +2495,6 @@ BUGWK65124 LINUX ANDROID WIN : fast/repaint/japanese-rl-selection-clear.html = I
 BUGWK65124 WIN : fast/repaint/japanese-rl-selection-repaint.html = IMAGE+TEXT
 BUGWK65124 WIN LINUX ANDROID : fast/repaint/japanese-rl-selection-repaint-in-regions.html = IMAGE+TEXT
 BUGWK65124 WIN LINUX ANDROID : fast/repaint/line-flow-with-floats-in-regions.html = IMAGE+TEXT
-BUGWK65124 WIN : fast/writing-mode/japanese-lr-text.html = IMAGE+TEXT
-BUGWK65124 WIN : fast/writing-mode/japanese-rl-text-with-broken-font.html = IMAGE+TEXT
-BUGWK65124 WIN : fast/writing-mode/japanese-rl-text.html = IMAGE+TEXT
 
 BUGWK65199 LINUX ANDROID WIN SNOWLEOPARD : fast/writing-mode/broken-ideograph-small-caps.html = IMAGE+TEXT
 
@@ -2588,10 +2508,10 @@ BUGWK74694 : http/tests/cache/history-only-cached-subresource-loads-max-age-http
 
 BUGWK67915 LINUX ANDROID WIN : fast/borders/borderRadiusDashed06.html = IMAGE
 
-// Introduced in r92298, which might cause another test crashing.
-BUGZMO SKIP : fast/loader/reload-zero-byte-plugin.html = PASS
+BUGWK95365 SKIP : fast/loader/reload-zero-byte-plugin.html = PASS
 
 BUGWK65862 DEBUG SLOW : storage/indexeddb/index-cursor.html = PASS
+BUGWK65862 ANDROID RELEASE SLOW : storage/indexeddb/index-cursor.html = PASS
 
 // Performance issues with border radius clipping on Chromium not yet resolved
 BUGCR97716 : fast/clip/overflow-border-radius-composited.html = IMAGE
@@ -2629,7 +2549,7 @@ BUGWK66989 : transforms/3d/point-mapping/3d-point-mapping-deep.html = IMAGE IMAG
 BUGWK66989 : transforms/3d/point-mapping/3d-point-mapping-coplanar.html = IMAGE IMAGE+TEXT
 
 // We don't seem to load this glyph on windows
-BUGJAMESR WIN : fast/text/fallback-traits-fixup.html = IMAGE+TEXT
+BUGWK96430 WIN : fast/text/fallback-traits-fixup.html = IMAGE+TEXT
 
 // Failing after r94946
 BUGWK67926 WIN : fast/events/constructors/progress-event-constructor.html = TEXT
@@ -2640,25 +2560,6 @@ BUGWK73030 DEBUG : http/tests/loading/307-after-303-after-post.html = PASS TEXT
 BUGWK68437 BUGWK54322 SNOWLEOPARD : platform/chromium/virtual/gpu/fast/canvas/set-colors.html = TEXT
 // Failures introduced by USE_NEW_BUILDER in Skia.
 BUGCR33287 : fast/canvas/set-colors.html = TEXT
-
-BUG_EPOGER SNOWLEOPARD DEBUG : fast/js/try-catch-crash.html = PASS TIMEOUT
-
-// Alpha channel differences
-BUGWK68736 MAC : fast/table/border-collapsing/cached-cell-append.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-cell-remove.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-cell-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-cell-border-width.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-cell-sl-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-col-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-col-border-width.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-colgroup-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-colgroup-border-width.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-row-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-row-border-width.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-table-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-table-border-width.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-tbody-border-color.html = IMAGE
-BUGWK68736 MAC : fast/table/border-collapsing/cached-change-tbody-border-width.html = IMAGE
 
 BUGWK69060 WIN LINUX ANDROID : fast/repaint/selection-clear.html = IMAGE+TEXT
 
@@ -2676,7 +2577,7 @@ BUGWK69998 LINUX WIN : plugins/refcount-leaks.html = PASS TEXT
 // ICC color profiles are not supported on WIN, LINUX, ANDROID so SKIP for now.
 BUGWK70001 SKIP LINUX ANDROID WIN : fast/images/color-jpeg-with-color-profile.html = PASS
 // Paletted PNG with ICC color profiles not working.
-BUGWK86722 : fast/images/paletted-png-with-color-profile.html = MISSING
+BUGWK86722 SKIP : fast/images/paletted-png-with-color-profile.html = MISSING
 
 // V8 handles stack overflow exceptions differently than JSC
 BUGWK70210 : fast/js/stack-overflow-arrity-catch.html = TEXT
@@ -2687,36 +2588,26 @@ BUGWK70066 SKIP : svg/as-image/image-respects-deviceScaleFactor.html = TIMEOUT
 // SVG painting in high DPI mode is broken in DRT.
 BUGWK92511 SKIP : svg/as-image/animated-svg-repaints-completely-in-hidpi.html = IMAGE+TEXT
 
-// Flaky tests from ~r97647
-BUGWK70298 MAC : fast/table/border-collapsing/cached-69296.html = IMAGE
-
-BUGWK70640 SNOWLEOPARD : fast/multicol/vertical-lr/rules-with-border-before.html = PASS TEXT
-BUGWK70640 SNOWLEOPARD : fast/multicol/vertical-rl/rules-with-border-before.html = PASS TEXT
+// Swidth DRT to high DPI output mode, which temporarily breaks IMAGE
+BUGCR146756 LINUX WIN ANDROID MAC : fast/hidpi/broken-image-icon-hidpi.html = IMAGE
+BUGCR146756 LINUX WIN ANDROID MAC : fast/hidpi/broken-image-with-size-hidpi.html = IMAGE
+BUGCR146756 LINUX WIN ANDROID MAC : platform/chromium/virtual/gpu/fast/hidpi/broken-image-icon-hidpi.html = IMAGE
+BUGCR146756 LINUX WIN ANDROID MAC : platform/chromium/virtual/gpu/fast/hidpi/broken-image-with-size-hidpi.html = IMAGE
 
 BUGWK70866 LINUX ANDROID MAC DEBUG : fast/forms/form-associated-element-crash3.html = TIMEOUT PASS
 BUGWK72039 RELEASE : fast/forms/form-associated-element-crash3.html = MISSING PASS
 BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-associated-element-crash.html = MISSING PASS
 BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-associated-element-removal.html = MISSING PASS
-BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-attribute-elements.html = MISSING PASS
 BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-attribute-elements-order.html = MISSING PASS
 BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-attribute-elements-order2.html = MISSING PASS
-BUGWK72039 LINUX ANDROID RELEASE : fast/forms/form-attribute-nonexistence-form-id.html = MISSING PASS
 BUGWK72039 DEBUG : http/tests/multipart/policy-ignore-crash.php = MISSING PASS
-BUGWK72039 MAC : http/tests/loading/empty-subframe.html = MISSING PASS
 BUGWK72039 LINUX ANDROID RELEASE : fast/forms/formaction-attribute.html = MISSING PASS
 BUGWK78620 LINUX ANDROID DEBUG SLOW : fast/forms/formaction-attribute.html = PASS TEXT
 
-BUGWK70988 SNOWLEOPARD : fast/forms/submit-to-blank-multiple-times.html = PASS TEXT
-BUGWK70988 SNOWLEOPARD : fast/overflow/003.xml = PASS TEXT
-BUGWK70988 SNOWLEOPARD : fast/preloader/noscript.html = PASS TEXT
+BUGWK70988 SNOWLEOPARD DEBUG : fast/forms/submit-to-blank-multiple-times.html = PASS TEXT
+BUGWK70988 SNOWLEOPARD DEBUG : fast/overflow/003.xml = PASS TEXT
 
-BUGWK70988 SNOWLEOPARD : fast/css/css-selector-deeply-nested.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : fast/events/tabindex-focus-blur-all.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : fast/frames/invalid.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : fast/parser/residual-style-dom.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : fast/text/khmer-crash.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : http/tests/navigation/navigation-interrupted-by-fragment.html = PASS TIMEOUT
-BUGWK70988 SNOWLEOPARD : jquery/traversing.html = PASS TIMEOUT
+BUGWK70988 MAC : jquery/traversing.html = PASS TIMEOUT
 
 // BUGWK70988 MAC DEBUG SLOW : fast/frames/calculate-fixed.html = PASS
 // Crashing since on or before r122699, please uncomment previous line before removing.
@@ -2724,28 +2615,23 @@ BUGWK91415 MAC DEBUG SLOW : fast/frames/calculate-fixed.html = PASS TEXT
 BUGWK91415 MAC RELEASE : fast/frames/calculate-fixed.html = PASS TEXT
 BUGWK91415 WIN DEBUG SLOW : fast/frames/calculate-fixed.html = PASS
 
-BUGWK71278 SLOW WIN : fast/events/dispatch-message-string-data.html = PASS
+BUGWK71278 SLOW : fast/events/dispatch-message-string-data.html = PASS
 
 BUGWK71451 SLOW : fast/frames/sandboxed-iframe-navigation-windowopen.html = PASS
 
-BUGRICOW : fast/js/array-functions-non-arrays.html = TEXT
-BUGRICOW : fast/js/eval-cross-window.html = TEXT
-BUGRICOW : fast/js/toString-overrides.html = TEXT
+BUGWK94681 : fast/js/array-functions-non-arrays.html = TEXT
+BUGWK94688 : fast/js/toString-overrides.html = TEXT
 
 BUGWK91944 : platform/chromium/virtual/gpu/fast/canvas/canvas-transforms-fillRect-shadow.html = TEXT
 
 BUGWK73865 : media/track/text-track-cue-is-reachable.html = TEXT
 BUGWK73865 : media/track/text-track-is-reachable.html = TEXT
 
-BUGWK81402 WIN : media/track/track-active-cues.html = PASS TIMEOUT
-BUGWK83882 : media/track/track-mode.html = PASS TEXT TIMEOUT
-
 BUGWK72271 SNOWLEOPARD DEBUG : fast/dom/node-iterator-reference-node-moved-crash.html = PASS CRASH
 
 BUGWK72376 WIN : fast/forms/file/input-file-label.html = TEXT PASS
 
 // Animations tests use an inherently-flaky timer-based design.
-BUGWK66953 : animations/animation-direction-normal.html = TEXT PASS
 BUGWK66953 MAC DEBUG : animations/change-keyframes.html = TEXT PASS
 BUGWK66953 WIN MAC DEBUG : animations/change-one-anim.html = TEXT PASS
 BUGWK66953 DEBUG : animations/play-state.html = TEXT PASS
@@ -2758,10 +2644,6 @@ BUGWK72761 : accessibility/anonymous-render-block-in-continuation-causes-crash.h
 BUGWK77110 WIN DEBUG : accessibility/loading-iframe-sends-notification.html = PASS TEXT
 
 BUGWK73514 WIN : platform/chromium/compositing/lost-compositor-context-permanently.html = PASS TIMEOUT
-
-// Flaky/crashing
-BUGWK92660 : platform/chromium/compositing/accelerated-drawing/svg-filters.html = CRASH PASS
-BUGWK92660 : platform/chromium/compositing/accelerated-drawing/alpha.html = CRASH PASS
 
 BUGWK73766 : css3/unicode-bidi-isolate-aharon-failing.html = IMAGE
 
@@ -2785,18 +2667,14 @@ BUGWK75111 : fast/workers/storage/use-same-database-in-page-and-workers.html = P
 BUGCR108832 SKIP : fast/js/array-splice.html = PASS
 
 BUGWK75430 MAC : plugins/iframe-plugin-bgcolor.html = TEXT TIMEOUT
-BUGWK75083 RELEASE : perf/nested-combined-selectors.html = MISSING
 
-BUGWK75633 : fast/media/viewport-media-query.html = PASS IMAGE+TEXT
-
-BUGWK75716 : fullscreen/video-controls-drag.html = TEXT
+BUGWK75716 LINUX WIN MAC : fullscreen/video-controls-drag.html = TEXT
 
 BUGWK75786 SKIP : compositing/tiled-layers-hidpi.html = TIMEOUT
 
 BUGWK75932 : fast/js/array-defineOwnProperty.html = TEXT
 BUGWK75932 : fast/js/mozilla/strict/15.4.4.6.html = TEXT
 
-BUGWK76280 : media/W3C/video/networkState/networkState_during_progress.html = PASS TEXT
 BUGV8_1900 SLOW LINUX DEBUG : inspector/debugger/watch-expressions-panel-switch.html = PASS
 BUGV8_1900 LINUX DEBUG : inspector/debugger/debugger-breakpoints-not-activated-on-reload.html = PASS TIMEOUT
 
@@ -2804,7 +2682,7 @@ BUGV8_1900 LINUX DEBUG : inspector/debugger/debugger-breakpoints-not-activated-o
 BUGWK76050 WIN7 : fast/text/font-kerning.html = IMAGE
 
 // Started flaking presumably at http://trac.webkit.org/changeset/104368
-BUGWK76157 SNOWLEOPARD : compositing/geometry/limit-layer-bounds-transformed-overflow.html = PASS TEXT
+BUGWK76157 MAC : compositing/geometry/limit-layer-bounds-transformed-overflow.html = PASS TEXT
 
 BUGWK76488 : css3/images/cross-fade-background-size.html = IMAGE IMAGE+TEXT
 
@@ -2816,10 +2694,10 @@ BUGWK76727 : fast/multicol/span/span-as-immediate-columns-child-removal.html = I
 // Need to implement file name logging.
 BUGWK76572 : http/tests/download = TEXT
 
-BUGABARTH : fast/html/marquee-alternate.html = PASS TEXT
-
 BUGWK77314 WIN MAC : fast/events/touch/send-oncancel-event.html = PASS TEXT
-BUGWK77324 WIN MAC DEBUG SLOW : fast/js/dfg-int32array.html = PASS
+
+// Skipped until setTouchPointRadius get implemented
+BUGWK91012 SKIP : touchadjustment/focusout-on-touch.html = PASS TEXT
 
 // CRASH comes from BUGCR121442
 BUGWK77397 LINUX : plugins/crash-restoring-plugin-page-from-page-cache.html = TIMEOUT CRASH
@@ -2827,8 +2705,6 @@ BUGWK77397 WIN MAC : plugins/crash-restoring-plugin-page-from-page-cache.html = 
 
 // Started crashing at WK r106422.
 BUGWK77508 SKIP : platform/mac/fast/events/non-roman-key-code.html = PASS
-
-BUGWK77534 LINUX : plugins/createScriptableObject-before-start.html = PASS MISSING
 
 BUGWK78159 DEBUG WIN MAC LINUX ANDROID : compositing/iframes/scrolling-iframe.html = PASS TEXT
 
@@ -2861,9 +2737,6 @@ BUGV8_1973 : fast/js/caller-property.html = TEXT
 BUGWK78684 : fast/block/basic/fieldset-stretch-to-legend.html = IMAGE+TEXT
 BUGWK78684 : fast/borders/fieldsetBorderRadius.html = IMAGE+TEXT
 
-// New test; landed at r109779 but results look wrong on most Chrome platforms.
-BUGWK91945 : http/tests/incremental/partial-jpeg.html = IMAGE PASS
-
 BUGWK80498 WIN : fast/workers/worker-multi-startup.html = CRASH PASS
 
 BUGWK91946 : platform/chromium/fast/events/rtl-scrollbar.html = TEXT PASS
@@ -2881,10 +2754,9 @@ BUGWK81145 LION : compositing/plugins/composited-plugin.html = IMAGE+TEXT
 BUGWK81145 LION : fast/repaint/transform-absolute-in-positioned-container.html = IMAGE+TEXT
 BUGWK81145 LION : animations/cross-fade-webkit-mask-box-image.html = IMAGE
 BUGWK81145 LION : compositing/iframes/iframe-content-flipping.html = IMAGE
-BUGWK81145 LION : fast/frames/invalid.html = IMAGE
+BUGWK81145 SLOW LION : fast/frames/invalid.html = PASS IMAGE IMAGE+TEXT
 BUGWK81145 LION : fast/repaint/background-scaling.html = IMAGE
 BUGWK81145 LION : fast/repaint/scale-page-shrink.html = IMAGE
-BUGWK81145 LION : fast/writing-mode/vertical-align-table-baseline.html = IMAGE
 BUGWK81145 LION : platform/chromium/compositing/tiny-layer-rotated.html = IMAGE
 BUGWK81145 LION : editing/inserting/insert-3907422-fix.html = TEXT
 BUGWK81145 LION : editing/pasteboard/paste-text-002.html = TEXT
@@ -2928,130 +2800,124 @@ BUGWK81803 MAC : platform/chromium/compositing/rubberbanding/transform-overhang-
 
 BUGWK81931 SNOWLEOPARD WIN DEBUG : fast/images/destroyed-image-load-event.html = PASS TIMEOUT
 
-BUGWK37244 : tables/mozilla/bugs/bug27038-1.html = IMAGE+TEXT
-BUGWK37244 : tables/mozilla/bugs/bug27038-2.html = IMAGE+TEXT
 
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-100.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-100b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-101.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-101b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-102.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-102b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-103.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-103b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-104.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-104b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-105.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-105b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-106.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-106b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-107.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-107b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-108.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-108b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-109.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-109b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-110.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-110b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-111.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-111b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-112.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-112b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-113.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-113b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-114.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-114b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-115.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-115b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-116.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-116b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-117.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-117b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-118.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-119.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-120.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-121.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-122.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-123.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-123b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-124.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-124b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-125.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-125b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-126.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-126b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-127.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-127b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-128.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-128b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-129.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-129b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-130.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-130b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-131.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-131b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-132.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-132b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-133.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-133b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-134.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-134b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-135.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-135b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-136.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-136b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-137.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-137b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-138.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-138b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-139.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-139b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-140.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-140b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-141.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-141b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-142.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-142b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-143.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-143b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-145a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-145b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-146a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-146b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-147a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-147b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-153.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-172a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-172b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-173a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-173b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-174a.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-174b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-47.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-48.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-49.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-50.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-51.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-52.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-53.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-57.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-57b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-94.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-94b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-95.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-96.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-96b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-97.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-97b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-98.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-98b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-99.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-99b.xml = TEXT PASS
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-d1.xml = IMAGE
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-d1b.xml = IMAGE
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-d2.xml = IMAGE
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-d3.xml = IMAGE IMAGE+TEXT
-BUGWK82122 SNOWLEOPARD : css3/selectors3/xml/css3-modsel-d4.xml = IMAGE
+// The majority of these are only failing on the debug bots
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-100.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-100b.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-101.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-101b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-102.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-102b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-103.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-103b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-104.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-104b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-105.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-105b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-106.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-106b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-107.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-107b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-108.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-108b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-109.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-109b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-110.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-110b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-111.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-111b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-112.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-112b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-113.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-113b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-114.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-114b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-115.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-115b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-116.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-116b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-117.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-117b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-118.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-119.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-120.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-121.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-122.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-123.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-123b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-124.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-124b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-125.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-125b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-126.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-126b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-127.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-127b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-128.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-128b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-129.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-129b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-130.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-130b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-131.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-131b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-132.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-132b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-133.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-133b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-134.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-134b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-135.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-135b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-136.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-136b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-137.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-137b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-138.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-138b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-139.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-139b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-140.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-140b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-141.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-141b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-142.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-142b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-143.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-143b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-145a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-145b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-146a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-146b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-147a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-147b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-153.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-172a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-172b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-173a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-173b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-174a.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-174b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-47.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-48.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-49.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-50.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-51.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-52.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-53.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-57.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-57b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-94.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-94b.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-95.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-96.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-96b.xml = TEXT PASS
+BUGWK82122 MAC : css3/selectors3/xml/css3-modsel-97.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-97b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-98.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-98b.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-99.xml = TEXT PASS
+BUGWK82122 MAC DEBUG : css3/selectors3/xml/css3-modsel-99b.xml = TEXT PASS
 
 BUGWK82297 MAC : fast/events/platform-wheelevent-paging-x-in-scrolling-page.html = TEXT PASS
 BUGWK82297 MAC : fast/events/platform-wheelevent-paging-xy-in-scrolling-page.html = TEXT PASS
@@ -3101,9 +2967,6 @@ BUGWK83635 : platform/chromium/virtual/gpu/fast/canvas/2d.imageDataHD.html = TEX
 
 BUGWK83647 WIN LINUX ANDROID : fast/multicol/cell-shrinkback.html = IMAGE
 
-BUGWK84065 DEBUG : fast/canvas/webgl/shader-precision-format.html = TEXT
-BUGWK84065 DEBUG : platform/chromium/virtual/gpu/fast/canvas/webgl/shader-precision-format.html = TEXT
-
 // IETC grid layout
 BUGWK83906 : ietestcenter/css3/grid/grid-column-001.htm = IMAGE
 BUGWK83907 : ietestcenter/css3/grid/grid-column-002.htm = IMAGE
@@ -3139,7 +3002,7 @@ BUGWK84550 SNOWLEOPARD : fast/canvas/2d.text.draw.fill.maxWidth.gradient.html = 
 
 BUGWK84688 SNOWLEOPARD : compositing/animation/computed-style-during-delay.html = TEXT PASS
 
-BUGWK84696 SNOWLEOPARD : fast/workers/storage/interrupt-database.html = TIMEOUT PASS
+BUGWK84696 SLOW : fast/workers/storage/interrupt-database.html = PASS
 
 BUGWK84720 DEBUG : fast/repaint/fixed-right-in-page-scale.html = IMAGE PASS
 
@@ -3148,17 +3011,14 @@ BUGWK84724 SNOWLEOPARD : platform/chromium/media/video-frame-size-change.html = 
 BUGWK84735 WIN : http/tests/inspector/change-iframe-src.html = TIMEOUT PASS
 
 // This test has its own idea of "timeout", which is to crash.
-BUGWK84802 LINUX ANDROID WIN DEBUG SLOW : fast/js/random-array-gc-stress.html = PASS
+BUGWK84802 LINUX WIN DEBUG SLOW : fast/js/random-array-gc-stress.html = PASS
+BUGWK93631 ANDROID SLOW : fast/js/random-array-gc-stress.html = PASS
 BUGWK84802 MAC DEBUG SLOW : fast/js/random-array-gc-stress.html = PASS CRASH
 
 BUGWK84847 WIN RELEASE : inspector/timeline/timeline-start-time.html = TEXT PASS
 
 BUGCR128325 : platform/chromium/compositing/overflow/overflow-scrolling-touch-stacking-context.html = IMAGE+TEXT
 
-BUGWK85090 DEBUG SLOW : fast/js/dfg-float64array.html = PASS
-BUGWK85090 DEBUG SLOW : fast/js/dfg-uint32array.html = PASS
-BUGWK85090 DEBUG SLOW : fast/js/dfg-uint16array.html = PASS
-BUGWK85090 DEBUG SLOW : fast/js/dfg-uint8array.html = PASS
 BUGWK85106 SLOW : tables/mozilla/other/slashlogo.html = PASS
 
 BUGWK85174 : fast/files/blob-constructor.html = TEXT
@@ -3182,7 +3042,7 @@ BUGWK85951 WIN DEBUG : fast/css/hover-update.html = TEXT PASS
 BUGWK85958 : fast/forms/file/file-input-capture.html = TEXT
 
 // Started flaking at around http://trac.webkit.org/changeset/116278.
-BUGWK85950 LINUX ANDROID DEBUG : compositing/geometry/limit-layer-bounds-transformed-overflow.html = PASS TEXT
+BUGWK85950 LINUX DEBUG : compositing/geometry/limit-layer-bounds-transformed-overflow.html = PASS TEXT
 
 BUGWK81416 : fast/dom/wrapper-scope.html = TEXT
 
@@ -3208,9 +3068,6 @@ BUGWK86592 LINUX ANDROID : http/tests/xmlhttprequest/xmlhttprequest-unsafe-redir
 BUGWK86592 LINUX ANDROID : fast/loader/unload-form-about-blank.html = TIMEOUT PASS
 BUGWK86592 LINUX ANDROID : http/tests/xmlhttprequest/zero-length-response-sync.html = TIMEOUT PASS
 
-// strange "Unexpected no expected results found" on cr-linux ews
-BUGWK86600 LINUX ANDROID : http/tests/cache/loaded-from-cache-after-reload-within-iframe.html = MISSING PASS
-BUGWK86600 LINUX ANDROID : http/tests/cache/loaded-from-cache-after-reload.html = MISSING PASS
 BUGWK88964 MAC : http/tests/misc/embedCrasher.html = MISSING PASS
 
 BUGWK86674 DEBUG : fast/dom/HTMLObjectElement/beforeload-set-text-crash.xhtml = TIMEOUT PASS
@@ -3227,14 +3084,6 @@ BUGWK86909 WIN DEBUG : http/tests/security/referrer-policy-redirect-link.html = 
 BUGWK86909 WIN DEBUG : platform/chromium/virtual/gpu/fast/canvas/imagedata-contains-uint8clampedarray.html = PASS TIMEOUT
 BUGWK86909 WIN SLOW : platform/chromium/virtual/gpu/fast/canvas/webgl/webgl-composite-modes-repaint.html = PASS
 
-// Animation tests timing out since r117815
-BUGWK87075 : svg/animations/svgnumberoptionalnumber-animation-1.html = PASS TIMEOUT
-BUGWK87075 : svg/animations/animate-path-nested-transforms.html = PASS TIMEOUT
-BUGWK87075 : svg/animations/svgnumberoptionalnumber-animation-2.html = PASS TIMEOUT
-BUGWK87075 : svg/animations/svgnumberoptionalnumber-animation-3.html = PASS TIMEOUT
-BUGWK87075 : svg/animations/animate-path-animation-qQ-tT-inverse.html = PASS TIMEOUT
-BUGWK87075 : svg/animations/svgnumberoptionalnumber-animation-4.html = PASS TIMEOUT
-
 // Ref-tests can't have platform specific results.
 BUGWK87175 SKIP : fast/regions/floats-basic-in-variable-width-regions.html = PASS
 BUGWK87175 SKIP : fast/regions/overflow-in-uniform-regions.html = PASS
@@ -3245,7 +3094,7 @@ BUGWK89238 SKIP : fast/repaint/reflection-repaint-test.html = PASS
 BUGWK89238 SKIP : fast/repaint/transform-layout-repaint.html = PASS
 BUGWK87282 WIN : fast/sub-pixel/layout-boxes-with-zoom.html = IMAGE
 
-BUGWK87273 : webaudio/audioparam-connect-audioratesignal.html = TIMEOUT PASS
+BUGWK87273 RELEASE : webaudio/audioparam-connect-audioratesignal.html = TIMEOUT PASS
 
 BUGWK87321 XP : fast/history/history-subframe-with-name.html = TEXT PASS
 BUGWK87321 XP : fast/history/history-traversal-is-asynchronous.html = TEXT PASS
@@ -3257,18 +3106,11 @@ BUGWK79540 DEBUG : fast/files/workers/worker-read-blob-sync.html = PASS CRASH
 BUGWK90860 : fast/dom/shadow/shadowdom-for-object-complex-shadow.html = IMAGE
 BUGWK90860 : fast/dom/shadow/shadowdom-for-object-only-shadow.html = IMAGE
 BUGWK90860 : fast/dom/shadow/shadowdom-for-object-without-shadow.html = IMAGE
-BUGWK91485 : fast/dom/shadow/shadowdom-for-textarea-complex-shadow.html = IMAGE
-BUGWK91485 : fast/dom/shadow/shadowdom-for-textarea-without-shadow.html = IMAGE
-BUGWK91486 : fast/dom/shadow/shadowdom-for-button-complex-shadow.html = IMAGE
-BUGWK91486 : fast/dom/shadow/shadowdom-for-button-only-shadow.html = IMAGE
-BUGWK91486 : fast/dom/shadow/shadowdom-for-button-without-shadow.html = IMAGE
 BUGWK91487 : fast/dom/shadow/shadowdom-for-select-complex-shadow.html = IMAGE
 BUGWK91487 : fast/dom/shadow/shadowdom-for-select-without-shadow.html = IMAGE
 BUGWK91488 : fast/dom/shadow/shadowdom-for-output-only-shadow.html = IMAGE
 BUGWK91489 : fast/dom/shadow/shadowdom-for-fieldset-complex-shadow.html = IMAGE
 BUGWK91489 : fast/dom/shadow/shadowdom-for-fieldset-only-shadow.html = IMAGE
-BUGWK91491 : fast/dom/shadow/shadowdom-for-keygen-complex-shadow.html = IMAGE
-BUGWK91491 : fast/dom/shadow/shadowdom-for-keygen-without-shadow.html = IMAGE
 
 // Requires setUseDeferredFrameLoading() API from LayoutTestController.
 BUGWK87652 SKIP : http/tests/appcache/load-from-appcache-defer-resume-crash.html = PASS
@@ -3292,13 +3134,11 @@ BUGWK87772 DEBUG : svg/dom/viewspec-parser-5.html = TIMEOUT
 
 BUGWK87880 RELEASE : fast/layers/scroll-with-transform-composited-layer.html = PASS IMAGE
 
-BUGWK87886 LINUX ANDROID : perf/mouse-event.html = PASS TEXT
+BUGWK87886 LINUX : perf/mouse-event.html = PASS TEXT
 
 BUGWK88124 DEBUG : fast/css/absolute-child-with-percent-height-inside-relative-parent.html = PASS IMAGE+TEXT
 
 BUGWK88131 DEBUG : fast/dom/HTMLMeterElement/meter-element-crash.html = PASS TEXT
-
-BUGWK67116 DEBUG : compositing/layer-creation/overflow-scroll-overlap.html = PASS TEXT
 
 BUGWK88593 : fast/table/multiple-captions-display.xhtml = PASS IMAGE IMAGE+TEXT
 
@@ -3311,18 +3151,15 @@ BUGWK88833 DEBUG : media/video-played-collapse.html = PASS TEXT
 
 BUGWK88833 WIN DEBUG : media/track/track-kind.html = PASS TIMEOUT
 BUGWK88833 : http/tests/media/video-play-progress.html = PASS TIMEOUT
-BUGWK88833 MAC DEBUG : media/track/track-cues-cuechange.html = PASS TIMEOUT
 
 BUGWK88832 XP : http/tests/xmlhttprequest/origin-exact-matching.html = PASS TIMEOUT
 
 BUGCR132898 : http/tests/websocket/tests/hybi/workers/close.html = PASS TEXT
 
-// Flaky
-BUGWK89167 : media/track/track-cue-rendering-snap-to-lines-not-set.html = TEXT PASS
-
 // Timing out on some Windows bots
 BUGWK89510 WIN : gamepad/gamepad-polling-access.html = PASS TIMEOUT
 
+BUGWK96839 : compositing/geometry/fixed-position-transform-composited-page-scale.html = PASS IMAGE
 BUGWK89702 : compositing/geometry/fixed-position-transform-composited-page-scale-down.html = PASS IMAGE
 BUGWK89702 : compositing/scaling/tiled-layer-recursion.html = PASS IMAGE
 
@@ -3343,7 +3180,7 @@ BUGWK89813 LINUX ANDROID DEBUG : fast/js/large-expressions.html = PASS TIMEOUT
 
 BUGWK89820 : fast/text/hyphen-min-preferred-width.html = IMAGE
 
-BUGWK91433 LINUX ANDROID : fast/forms/placeholder-position.html = PASS IMAGE
+BUGWK91433 ANDROID : fast/forms/placeholder-position.html = PASS IMAGE
 
 // Kerning seems disabled for some reason.
 BUGWK89936 XP : fast/text/atsui-kerning-and-ligatures.html = IMAGE
@@ -3354,7 +3191,9 @@ BUGWK90003 WIN DEBUG : fast/js/repeat-cached-vm-reentry.html = TIMEOUT PASS
 
 // Flaky. It also times out very frequently on Windows and Linux debug build.
 BUGWK90207 SLOW WIN DEBUG : fast/forms/select/select-state-restore.html = PASS TEXT
-BUGWK90207 SLOW LINUX ANDROID DEBUG : fast/forms/select/select-state-restore.html = PASS TEXT
+BUGWK90207 SLOW LINUX DEBUG : fast/forms/select/select-state-restore.html = PASS TEXT
+BUGWK90207 ANDROID : fast/forms/select/select-state-restore.html = PASS TEXT TIMEOUT
+BUGWK90207 WIN RELEASE : fast/forms/select/select-state-restore.html = PASS TIMEOUT
 
 // Flaky
 BUGWK90430 : inspector/timeline/timeline-receive-response-event.html = PASS TEXT TIMEOUT
@@ -3362,11 +3201,7 @@ BUGWK90430 : inspector/timeline/timeline-receive-response-event.html = PASS TEXT
 BUGCR135709 : platform/chromium/compositing/scrollbars/custom-composited-different-track-parts.html = IMAGE PASS
 
 // webkitIsFullScreen does not have the correct value after an iframe exits fullscreen
-BUGWK90704 : fullscreen/exit-full-screen-iframe.html = TEXT
-
-// Hopefully will be fixed when WK bug 91660 is fixed.
-BUGWK90741 MAC : fast/text-autosizing/font-scale-factor.html = IMAGE
-BUGWK90741 MAC : fast/text-autosizing/simple-paragraph.html = IMAGE
+BUGWK90704 : fullscreen/exit-full-screen-iframe.html = TEXT PASS
 
 // Flaky
 BUGWK90743 : fast/events/display-none-on-focus-crash.html = PASS TEXT
@@ -3412,13 +3247,13 @@ BUGWK92022 DEBUG : svg/W3C-SVG-1.1/struct-dom-06-b.svg = TEXT PASS
 BUGWK92026 DEBUG SNOWLEOPARD : css3/selectors3/xml/css3-modsel-179a.xml = PASS IMAGE+TEXT
 BUGWK92027 DEBUG SNOWLEOPARD : fast/performance/performance-now-timestamps.html = PASS TEXT
 BUGWK92288 SNOWLEOPARD DEBUG : plugins/update-widgets-crash.html = PASS TIMEOUT
-BUGWK92297 DEBUG : media/video-set-rate-from-pause.html = PASS CRASH
+BUGWK92297 WIN LINUX MAC DEBUG : media/video-set-rate-from-pause.html = PASS CRASH
 
 BUGWK92570 WIN DEBUG : inspector/debugger/dom-breakpoints.html = PASS TIMEOUT
 BUGWK92570 WIN DEBUG : inspector/timeline/timeline-network-received-data.html = TEXT PASS TIMEOUT
 BUGWK92570 WIN DEBUG : inspector/timeline/timeline-start-time.html = TEXT PASS TIMEOUT
 
-BUGCR139493 DEBUG : media/track/track-cues-sorted-before-dispatch.html = PASS CRASH
+BUGWK94242 DEBUG : media/track/track-cues-sorted-before-dispatch.html = PASS TIMEOUT
 
 // Supposedly started failing between CR r140760 and CR r141216.  The failures
 // look like they involve antialiasing; the fact that the test clearly expects
@@ -3431,7 +3266,7 @@ BUGCR131189 : canvas/philip/tests/2d.transformation.transform.skewed.html = TEXT
 BUGCR131189 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.transformation.setTransform.skewed.html = TEXT
 BUGCR131189 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.transformation.transform.skewed.html = TEXT
 
-BUGWK92835 MAC WIN DEBUG SLOW : svg/as-background-image/svg-as-background-5.html = PASS
+BUGWK92835 MAC WIN ANDROID DEBUG SLOW : svg/as-background-image/svg-as-background-5.html = PASS
 
 BUGWK92850 LINUX ANDROID DEBUG : http/tests/websocket/tests/hybi/workers/close-code-and-reason.html = PASS CRASH
 
@@ -3457,7 +3292,6 @@ BUGWK85856 : scrollbars/rtl/div-horizontal.html = TEXT
 // Bug 93148 changed this to a testRunner test and it started timing out on Mac.
 BUGWK93148 MAC : fast/css/nested-layers-with-hover.html = TIMEOUT
 
-
 BUGWK93247 DEBUG : fast/lists/list-marker-remove-crash.html = CRASH
 
 BUGWK93565 DEBUG : fast/dom/Document/document-reopen.html = PASS TEXT
@@ -3465,9 +3299,6 @@ BUGWK93566 DEBUG : fast/parser/iframe-sets-parent-to-javascript-url.html = PASS 
 BUGWK93567 DEBUG : fast/parser/javascript-url-compat-mode.html = PASS TEXT
 BUGWK93569 DEBUG : http/tests/navigation/lockedhistory-iframe.html = PASS TIMEOUT TEXT
 BUGWK93568 DEBUG : http/tests/misc/window-dot-stop.html = PASS TEXT
-
-// Should only need rebaselining after bug 93558, if both squares are fully green.
-BUGWK93558 : compositing/masks/layer-mask-placement.html = IMAGE
 
 // V8 does not support static attributes
 BUGWK93488 SKIP : fast/notifications/notifications-permission.html = TEXT
@@ -3479,3 +3310,233 @@ BUGWK93799 MAC : fast/dom/HTMLMeterElement/meter-optimums.html = PASS IMAGE
 BUGWK93799 MAC : fast/dom/HTMLMeterElement/meter-styles.html = PASS IMAGE
 
 BUGWK93801 LION : fast/speech/input-appearance-searchandspeech.html = PASS IMAGE
+
+// Flaky
+BUGWK93938 DEBUG : fast/forms/range/slider-delete-while-dragging-thumb.html = PASS TEXT
+BUGWK93938 LION RELEASE : fast/forms/range/slider-delete-while-dragging-thumb.html = PASS TEXT
+BUGWK93938 DEBUG : fast/forms/range/slider-mouse-events.html = PASS TEXT
+BUGWK93938 LION RELEASE : fast/forms/range/slider-mouse-events.html = PASS TEXT
+BUGWK93938 WIN LINUX DEBUG : fast/forms/range/slider-onchange-event.html = PASS TEXT
+
+// Require rebaselining after  https://bugs.webkit.org/show_bug.cgi?id=89826
+BUGWK89826 MAC WIN : fast/css/word-space-extra.html = IMAGE+TEXT
+
+BUGWK94002 WIN7 : inspector/debugger = PASS TIMEOUT
+
+// Added by bug 89826
+BUGWK94008 WIN : fast/css/word-spacing-characters.html = IMAGE
+BUGWK94003 WIN : fast/css/word-spacing-characters-complex-text.html = IMAGE
+
+BUGWK94010 DEBUG : fast/regex/unicodeCaseInsensitive.html = PASS CRASH
+BUGWK94017 WIN : css2.1/20110323/c541-word-sp-000.htm = IMAGE
+
+BUGWK94059 DEBUG : editing/selection/move-by-line-001.html = PASS TEXT
+BUGWK94059 LION RELEASE : editing/selection/move-by-line-001.html = PASS TEXT
+
+BUGWK94060 LINUX : fast/dom/Window/dom-access-from-closure-window.html = PASS TEXT
+
+BUGWK94078 WIN RELEASE : http/tests/inspector/web-socket-frame-error.html = PASS TEXT
+
+BUGWK94256 DEBUG : fast/block/inline-children-root-linebox-crash.html = PASS CRASH
+
+// Following tests need baselines on Win and Linux 
+BUGWK94492 WIN LINUX : css3/filters/custom/custom-filter-color-matrix.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/custom-filter-composite-source-atop.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/custom-filter-shader-cache.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/effect-color-check.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/effect-custom-combined-missing.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/effect-custom.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/effect-custom-parameters.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/filter-repaint-custom-clipped.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/filter-repaint-custom.html = IMAGE
+BUGWK94492 WIN LINUX : css3/filters/custom/filter-repaint-custom-rotated.html = IMAGE
+
+// Flaky
+BUGWK95246 : http/tests/security/mixedContent/filesystem-url-in-iframe.html = PASS TEXT
+
+BUGWK95581 : http/tests/xmlhttprequest/zero-length-response.html = TIMEOUT PASS
+BUGWK95581 : http/tests/misc/javascript-url-stop-loaders.html = TIMEOUT PASS
+
+BUGWK94261 DEBUG : http/tests/inspector/indexeddb/resources-panel.html = PASS CRASH TIMEOUT
+
+// ENABLE_ACCELERATED_OVERFLOW_SCROLLING is not currently enabled in Chromium.
+BUGWK94353 : compositing/overflow/scrolling-content-clip-to-viewport.html = TEXT
+BUGWK94353 : compositing/overflow/textarea-scroll-touch.html = TEXT
+// Failing on Linux (Content Shell) only now
+BUGWK94353 LINUX ANDROID : compositing/overflow/nested-scrolling.html = IMAGE+TEXT PASS
+BUGWK94353 : compositing/overflow/overflow-auto-with-touch.html = TEXT
+BUGWK94353 : compositing/overflow/overflow-overlay-with-touch.html = TEXT
+
+BUGWK90488 SLOW WIN : http/tests/inspector/network-preflight-options.html = PASS
+
+BUGWK94501 WIN : http/tests/inspector/resource-tree/resource-tree-invalid-mime-type-css-content.html = PASS TEXT
+BUGWK94501 WIN LINUX : http/tests/inspector/resource-tree/resource-tree-frame-navigate.html = PASS TEXT
+
+BUGWK94521 LINUX : fast/loader/loadInProgress.html = PASS CRASH
+
+BUGWK94528 MAC : fast/text-autosizing/nested-em-line-height.html = PASS IMAGE
+
+BUGWK94532 LINUX : fast/forms/formmethod-attribute-button-html.html = PASS MISSING
+
+BUGWK94660 : fast/js/create-lots-of-workers.html = PASS CRASH TIMEOUT
+BUGWK95366 DEBUG : css3/flexbox/flexitem-stretch-image.html = TEXT PASS
+
+BUGCR67540 BUGWK94735 LINUX : fast/text/emphasis-overlap.html = IMAGE IMAGE+TEXT
+
+BUGWK94793 : http/tests/notifications/event-listener-crash.html = TEXT PASS
+
+// Failing tests because Android has different implementation of HTML controls.
+BUGCR144536 WONTFIX ANDROID : editing/selection/context-menu-on-text.html = TEXT
+BUGCR144536 WONTFIX ANDROID : editing/selection/context-menu-text-selection.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/dom/HTMLSelectElement/select-selectedOptions.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/events/select-element.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-clip.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-deselect-scroll.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-onchange.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-select-all.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-selection.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-selection-2.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/listbox-typeahead-scroll.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/option-mouseevents.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-cache-desynchronization.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-clientheight-large-size.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-clientheight-with-multiple-attr.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-item-background-clip.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-listbox-multiple-no-focusring.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-live-pseudo-selectors.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-multiple-elements-with-mouse-drag-with-options-less-than-size.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select-multiple-elements-with-mouse-drag.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select/listbox-drag-in-non-multiple.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select/listbox-in-multi-column.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select/option-selecting.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select/optgroup-clicking.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/forms/select/optgroup-rendering.html = TEXT
+BUGCR144536 WONTFIX ANDROID : fast/repaint/select-option-background-color.html = TEXT
+BUGCR144536 WONTFIX ANDROID : scrollbars/custom-scrollbar-with-incomplete-style.html = TEXT
+BUGCR144536 WONTFIX ANDROID : scrollbars/listbox-scrollbar-combinations.html = TEXT
+
+// Failing tests with 2d canvas acceleration.
+BUGCR145084 ANDROID : platform/chromium/virtual/gpu/canvas/philip = PASS TEXT
+BUGCR145084 ANDROID : platform/chromium/virtual/gpu/fast/canvas = PASS TEXT TIMEOUT
+
+// Failing compositing tests.
+BUGCR145087 ANDROID : compositing/geometry/fixed-position-composited-switch.html = TEXT
+BUGCR145087 ANDROID : compositing/geometry/limit-layer-bounds-opacity-transition.html = TEXT
+BUGCR145087 ANDROID : compositing/reflections/nested-reflection-animated.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-fixed-overflow-scrolled.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-fixed-overflow.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-fixed.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-iframe-fixed-overflow-scrolled.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-iframe-fixed-overflow.html = TEXT PASS
+BUGCR145087 ANDROID : compositing/rtl/rtl-iframe-fixed.html = TEXT PASS
+
+// Failing media tests on Android.
+BUGCR145590 ANDROID : fullscreen/video-controls-drag.html = TIMEOUT
+BUGCR145590 ANDROID : fullscreen/video-controls-override.html = TIMEOUT
+BUGCR145590 ANDROID : fullscreen/video-controls-timeline.html = TIMEOUT
+BUGCR145590 ANDROID : fullscreen/video-specified-size.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/appcache/video.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-abort.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-add-and-remove-buffers.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-async-events.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-errors.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-event-attributes.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-objects.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-play.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-seek.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-sourcebufferlist-crash.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/media-source/video-media-source-state-changes.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/pdf-served-as-pdf.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/text-served-as-text.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/video-error-abort.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/video-load-suspend.html = TIMEOUT
+BUGCR145590 ANDROID : http/tests/media/video-play-stall-before-meta-data.html = TEXT
+BUGCR145590 ANDROID : http/tests/media/video-throttled-load-metadata.html = TEXT
+BUGCR145590 ANDROID : http/tests/security/mixedContent/insecure-audio-video-in-main-frame.html = TEXT
+BUGCR145590 ANDROID : http/tests/security/video-cross-origin-readback.html = TEXT
+BUGCR145590 ANDROID : media/W3C/video/canPlayType/canPlayType_two_implies_one_5.html = TEXT
+BUGCR145590 ANDROID : media/W3C/video/canPlayType/canPlayType_two_implies_one_6.html = TEXT
+BUGCR145590 ANDROID : media/audio-data-url.html = TEXT
+BUGCR145590 ANDROID : media/audio-repaint.html = TEXT TIMEOUT
+BUGCR145590 ANDROID : media/encrypted-media/encrypted-media-events.html = TIMEOUT
+BUGCR145590 ANDROID : media/encrypted-media/encrypted-media-not-loaded.html = TEXT
+BUGCR145590 ANDROID : media/encrypted-media/encrypted-media-syntax.html = TEXT
+BUGCR145590 ANDROID : media/track/track-default-attribute.html = TIMEOUT PASS
+BUGCR145590 ANDROID : media/video-aspect-ratio.html = TEXT // 8 videos
+BUGCR145590 ANDROID : media/video-buffered.html = TEXT
+BUGCR145590 ANDROID : media/video-canvas-source.html = TEXT
+BUGCR145590 ANDROID : media/video-error-does-not-exist.html = TEXT
+BUGCR145590 ANDROID : media/video-set-rate-from-pause.html = TIMEOUT
+BUGCR145590 ANDROID : media/video-source-error-no-candidate.html = TIMEOUT PASS
+BUGCR145590 ANDROID : media/video-source-type-params.html = TEXT
+BUGCR145590 ANDROID : platform/chromium/compositing/video-frame-size-change.html = TIMEOUT
+BUGCR145590 ANDROID : platform/chromium/media/video-frame-size-change.html = TIMEOUT
+
+BUGWK89167 : media/track/track-cue-rendering-snap-to-lines-not-set.html = TEXT PASS
+
+BUGWK95588 MAC : fast/dom/shadow/shadowdom-for-textarea-complex-shadow.html = IMAGE
+
+BUGWK95070 LINUX DEBUG : inspector/styles/media-queries.html = TEXT
+BUGWK95070 WIN LINUX RELEASE : inspector/styles/media-queries.html = PASS TEXT
+
+BUGWK95101 SNOWLEOPARD : fast/text/atsui-bidi-control.html = PASS TIMEOUT
+
+// Failing due to sub-pixel layout.
+BUGWK95136 : fast/css/sticky/sticky-left-percentage.html = IMAGE
+BUGWK95136 WIN LINUX : fast/css/sticky/sticky-writing-mode-vertical-lr.html = IMAGE
+BUGWK95136 WIN LINUX : fast/css/sticky/sticky-writing-mode-vertical-rl.html = IMAGE
+
+BUGWK95617 : fast/js/function-constructor-this-value.html = PASS TEXT
+
+// These tests appear to be making bots flaky. See bug for details.
+BUGWK96951 SKIP : platform/chromium-linux/compositing/gestures = PASS IMAGE
+
+// Does not yet support new web notifications TestRunner API
+BUGWK95506 SKIP : http/tests/notifications = PASS
+
+// The test font doesn't contain the glyph that Android uses to detect Arabic.
+BUGCR146399 ANDROID : platform/chromium-linux/fast/text/international/arabic-vertical-offset.html = TEXT
+
+// Ref tests produce little image difference on Android.
+BUGCR146401 ANDROID : css3/filters/custom/effect-custom-transform-parameters.html = IMAGE
+BUGCR146401 ANDROID : css3/filters/custom/filter-fallback-to-software.html = IMAGE
+BUGCR146401 ANDROID : fast/css/sticky/sticky-writing-mode-vertical-lr.html = IMAGE
+
+BUGWK95813 : fast/innerHTML/innerHTML-iframe.html = TEXT PASS
+
+BUGWK96441 WIN DEBUG : fast/hidpi/gradient-with-scaled-ancestor.html = IMAGE
+BUGWK96441 WIN LINUX SNOWLEOPARD : platform/chromium/virtual/gpu/fast/hidpi/gradient-with-scaled-ancestor.html = IMAGE
+
+BUGWK96950 LINUX : http/tests/cache/cancel-during-revalidation-succeeded.html = PASS TEXT
+
+BUGWK96227 SKIP : fast/js/function-dot-arguments-identity.html = TEXT
+
+BUGWK96524 WIN LINUX DEBUG : fast/filesystem/workers/detached-frame-crash.html = PASS CRASH
+
+BUGWK96835 : canvas/philip/tests/2d.text.draw.fontface.notinpage.html = TEXT PASS
+BUGWK96835 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.text.draw.fontface.notinpage.html = TEXT PASS
+BUGWK96836 ANDROID LINUX WIN : inspector/debugger/xhr-breakpoints.html = TEXT PASS
+BUGWK96834 : platform/chromium/virtual/threaded/compositing/visibility/visibility-image-layers.html = IMAGE PASS
+BUGWK96833 : svg/carto.net/selectionlist.svg = IMAGE PASS
+BUGWK96833 : svg/carto.net/combobox.svg = IMAGE PASS
+
+BUGWK96720 MAC WIN : fast/forms/time-multiple-fields/time-multiple-fields-preserve-value-after-history-back.html = PASS TIMEOUT
+BUGWK96549 MAC : platform/chromium/virtual/gpu/fast/hidpi/focus-rings.html = IMAGE
+BUGWK96549 MAC : platform/chromium/virtual/gpu/fast/hidpi/video-controls-in-hidpi.html = IMAGE
+BUGWK96628 LION : fast/frames/calculate-order.html = PASS TEXT
+BUGWK96550 : http/tests/media/media-source/seek-to-end-after-duration-change.html = PASS TIMEOUT
+BUGWK96416 MAC : compositing/overflow/overflow-scaled-descendant-overlapping.html = IMAGE
+BUGWK96725 LINUX MAC WIN : http/tests/media/media-source/video-media-source-state-changes.html = PASS TEXT
+BUGCR63921 : platform/chromium/virtual/gpu/fast/canvas/canvas-fillPath-shadow.html = TEXT
+BUGWK77550 : platform/chromium/virtual/gpu/canvas/philip/tests/2d.gradient.interpolate.colouralpha.html = TEXT
+
+// Started failing on r128793
+BUGWK96953 WIN : http/tests/inspector/network/network-xhr-replay.html = TIMEOUT
+
+BUGWK96596 : fast/js/array-bad-time.html = TEXT
+BUGWK96596 : fast/js/array-slow-put.html = TEXT
+BUGWK96596 : fast/js/cross-frame-bad-time.html = TEXT
+BUGWK96596 : fast/js/object-bad-time.html = TEXT
+BUGWK96596 : fast/js/object-slow-put.html = TEXT
+BUGWK96962 : fast/js/cross-frame-really-bad-time.html = TEXT
+BUGWK96962 : fast/js/cross-frame-really-bad-time-with-__proto__.html = TEXT

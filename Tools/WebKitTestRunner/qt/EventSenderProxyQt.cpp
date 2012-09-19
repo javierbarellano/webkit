@@ -131,7 +131,7 @@ void EventSenderProxy::keyDown(WKStringRef keyRef, WKEventModifiers modifiersRef
             code = Qt::Key_Tab;
             if (modifiers == Qt::ShiftModifier)
                 code = Qt::Key_Backtab;
-            keyText = QString();
+            keyText = QStringLiteral("\t");
         } else if (code == KEYCODE_DEL || code == KEYCODE_BACKSPACE) {
             code = Qt::Key_Backspace;
             if (modifiers == Qt::AltModifier)
@@ -302,6 +302,11 @@ void EventSenderProxy::mouseMoveTo(double x, double y)
 }
 
 void EventSenderProxy::mouseScrollBy(int, int)
+{
+    // FIXME: Implement this.
+}
+
+void EventSenderProxy::continuousMouseScrollBy(int, int, bool)
 {
     // FIXME: Implement this.
 }

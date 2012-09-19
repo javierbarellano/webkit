@@ -60,6 +60,7 @@ from webkitpy.layout_tests.port import driver
 from webkitpy.layout_tests.port import http_lock
 from webkitpy.layout_tests.port import image_diff
 from webkitpy.layout_tests.port import server_process
+from webkitpy.layout_tests.port.factory import PortFactory
 from webkitpy.layout_tests.servers import apache_http_server
 from webkitpy.layout_tests.servers import http_server
 from webkitpy.layout_tests.servers import websocket_server
@@ -155,8 +156,14 @@ class Port(object):
         if self.get_option('webkit_test_runner'):
             # Add some more time to WebKitTestRunner because it needs to syncronise the state
             # with the web process and we want to detect if there is a problem with that in the driver.
-            return 50 * 1000
+            return 80 * 1000
         return 35 * 1000
+
+    def driver_stop_timeout(self):
+        """ Returns the amount of time in seconds to wait before killing the process in driver.stop()."""
+        # We want to wait for at least 3 seconds, but if we are really slow, we want to be slow on cleanup as
+        # well (for things like ASAN, Valgrind, etc.)
+        return 3.0 * float(self.get_option('time_out_ms', '0')) / self.default_timeout_ms()
 
     def wdiff_available(self):
         if self._wdiff_available is None:
@@ -198,7 +205,7 @@ class Port(object):
 
 
     def baseline_search_path(self):
-        return self.get_option('additional_platform_directory', []) + self.default_baseline_search_path()
+        return self.get_option('additional_platform_directory', []) + self._compare_baseline() + self.default_baseline_search_path()
 
     def default_baseline_search_path(self):
         """Return a list of absolute paths to directories to search under for
@@ -210,6 +217,14 @@ class Port(object):
         if self.name() != self.port_name:
             search_paths.append(self.port_name)
         return map(self._webkit_baseline_path, search_paths)
+
+    @memoized
+    def _compare_baseline(self):
+        factory = PortFactory(self.host)
+        target_port = self.get_option('compare_port')
+        if target_port:
+            return factory.get(target_port).default_baseline_search_path()
+        return []
 
     def check_build(self, needs_http):
         """This routine is used to ensure that the build is up to date
@@ -991,7 +1006,8 @@ class Port(object):
         expectations = OrderedDict()
 
         for path in self.expectations_files():
-            expectations[path] = self._filesystem.read_text_file(path)
+            if self._filesystem.exists(path):
+                expectations[path] = self._filesystem.read_text_file(path)
 
         for path in self.get_option('additional_expectations', []):
             expanded_path = self._filesystem.expanduser(path)
@@ -1098,15 +1114,6 @@ class Port(object):
 
     def default_configuration(self):
         return self._config.default_configuration()
-
-    def process_kill_time(self):
-        """ Returns the amount of time in seconds to wait before killing the process.
-
-        Within server_process.stop there is a time delta before the test is explictly
-        killed. By changing this the time can be extended in case the process needs
-        more time to cleanly exit on its own.
-        """
-        return 3.0
 
     #
     # PROTECTED ROUTINES
@@ -1460,7 +1467,9 @@ class Port(object):
     def _skipped_file_search_paths(self):
         # Unlike baseline_search_path, we only want to search [WK2-PORT, PORT-VERSION, PORT] and any directories
         # included via --additional-platform-directory, not the full casade.
-        # Note order doesn't matter since the Skipped file contents are all combined.
+        # Note order doesn't matter since the Skipped file contents are all combined; however
+        # we use this order explicitly so we can re-use it for TestExpectations files.
+        # FIXME: Update this when we get rid of Skipped files altogether.
 
         search_paths = set([self.port_name])
         if 'future' not in self.name():

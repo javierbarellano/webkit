@@ -34,8 +34,8 @@
 #include "EventSender.h"
 #include "GCController.h"
 #include "KURL.h"
-#include "LayoutTestController.h"
 #include "NotImplemented.h"
+#include "TestRunner.h"
 #include "TextInputController.h"
 #include "WebCoreSupport/DumpRenderTreeSupportEfl.h"
 #include "WebCoreTestSupport.h"
@@ -48,6 +48,7 @@
 #include <Evas.h>
 #include <cstdio>
 #include <wtf/NotFound.h>
+#include <wtf/text/StringBuilder.h>
 
 using namespace WebCore;
 
@@ -97,6 +98,7 @@ Evas_Object* DumpRenderTreeChrome::createView() const
 
     ewk_view_theme_set(view, DATA_DIR"/default.edj");
 
+    evas_object_smart_callback_add(view, "download,request", onDownloadRequest, 0);
     evas_object_smart_callback_add(view, "load,resource,failed", onResourceLoadFailed, 0);
     evas_object_smart_callback_add(view, "load,resource,finished", onResourceLoadFinished, 0);
     evas_object_smart_callback_add(view, "load,started", onLoadStarted, 0);
@@ -148,7 +150,7 @@ Evas_Object* DumpRenderTreeChrome::createWebInspectorView()
     Evas_Object* mainFrame = ewk_view_frame_main_get(inspectorView);
     evas_object_smart_callback_add(mainFrame, "load,finished", onInspectorFrameLoadFinished, 0);
 
-    evas_object_resize(inspectorView, LayoutTestController::maxViewWidth, LayoutTestController::maxViewHeight);
+    evas_object_resize(inspectorView, TestRunner::maxViewWidth, TestRunner::maxViewHeight);
     evas_object_show(inspectorView);
     evas_object_focus_set(inspectorView, true);
 
@@ -279,6 +281,8 @@ void DumpRenderTreeChrome::resetDefaultsToConsistentValues()
     ewk_view_setting_include_links_in_focus_chain_set(mainView(), EINA_FALSE);
     ewk_view_setting_scripts_can_access_clipboard_set(mainView(), EINA_TRUE);
     ewk_view_setting_web_audio_set(mainView(), EINA_FALSE);
+    ewk_view_setting_allow_universal_access_from_file_urls_set(mainView(), EINA_TRUE);
+    ewk_view_setting_allow_file_access_from_file_urls_set(mainView(), EINA_TRUE);
 
     ewk_view_zoom_set(mainView(), 1.0, 0, 0);
     ewk_view_scale_set(mainView(), 1.0, 0, 0);
@@ -306,6 +310,8 @@ void DumpRenderTreeChrome::resetDefaultsToConsistentValues()
     DumpRenderTreeSupportEfl::setDefersLoading(mainView(), false);
     DumpRenderTreeSupportEfl::setLoadsSiteIconsIgnoringImageLoadingSetting(mainView(), false);
     DumpRenderTreeSupportEfl::setSerializeHTTPLoads(false);
+    DumpRenderTreeSupportEfl::setMinimumLogicalFontSize(mainView(), 9);
+    DumpRenderTreeSupportEfl::setCSSRegionsEnabled(mainView(), true);
 
     // Reset capacities for the memory cache for dead objects.
     static const unsigned cacheTotalCapacity =  8192 * 1024;
@@ -363,15 +369,20 @@ static CString urlSuitableForTestResult(const char* uriString)
 
 static CString descriptionSuitableForTestResult(Ewk_Frame_Resource_Request* request)
 {
-    String ret = "<NSURLRequest URL ";
-    ret += pathSuitableForTestResult(request->url).data();
-    ret += ", main document URL ";
-    ret += urlSuitableForTestResult(request->first_party).data();
-    ret += ", http method ";
-    ret += request->http_method ? String(request->http_method) : "(none)";
-    ret += ">";
+    StringBuilder builder;
+    builder.appendLiteral("<NSURLRequest URL ");
+    builder.append(pathSuitableForTestResult(request->url).data());
+    builder.appendLiteral(", main document URL ");
+    builder.append(urlSuitableForTestResult(request->first_party).data());
+    builder.appendLiteral(", http method ");
 
-    return ret.utf8();
+    if (request->http_method)
+        builder.append(String(request->http_method));
+    else
+        builder.appendLiteral("(none)");
+
+    builder.append('>');
+    return builder.toString().utf8();
 }
 
 static CString descriptionSuitableForTestResult(const Ewk_Frame_Resource_Response* response)
@@ -379,13 +390,13 @@ static CString descriptionSuitableForTestResult(const Ewk_Frame_Resource_Respons
     if (!response)
         return CString("(null)");
 
-    String ret = "<NSURLResponse ";
-    ret += pathSuitableForTestResult(response->url).data();
-    ret += ", http status code ";
-    ret += String::number(response->status_code);
-    ret += ">";
-
-    return ret.utf8();
+    StringBuilder builder;
+    builder.appendLiteral("<NSURLResponse ");
+    builder.append(pathSuitableForTestResult(response->url).data());
+    builder.appendLiteral(", http status code ");
+    builder.append(String::number(response->status_code));
+    builder.append('>');
+    return builder.toString().utf8();
 }
 
 static CString descriptionSuitableForTestResult(Ewk_Frame_Load_Error* error)
@@ -418,12 +429,12 @@ void DumpRenderTreeChrome::onWindowObjectCleared(void* userData, Evas_Object*, v
 {
     Ewk_Window_Object_Cleared_Event* objectClearedInfo = static_cast<Ewk_Window_Object_Cleared_Event*>(eventInfo);
     JSValueRef exception = 0;
-    ASSERT(gLayoutTestController);
+    ASSERT(gTestRunner);
 
     GCController* gcController = static_cast<GCController*>(userData);
     ASSERT(gcController);
 
-    gLayoutTestController->makeWindowObject(objectClearedInfo->context, objectClearedInfo->windowObject, &exception);
+    gTestRunner->makeWindowObject(objectClearedInfo->context, objectClearedInfo->windowObject, &exception);
     ASSERT(!exception);
 
     gcController->makeWindowObject(objectClearedInfo->context, objectClearedInfo->windowObject, &exception);
@@ -456,7 +467,7 @@ void DumpRenderTreeChrome::onLoadStarted(void*, Evas_Object* view, void* eventIn
 
 Eina_Bool DumpRenderTreeChrome::processWork(void*)
 {
-    if (WorkQueue::shared()->processWork() && !gLayoutTestController->waitToDump())
+    if (WorkQueue::shared()->processWork() && !gTestRunner->waitToDump())
         dump();
 
     return ECORE_CALLBACK_CANCEL;
@@ -467,7 +478,7 @@ void DumpRenderTreeChrome::topLoadingFrameLoadFinished()
     topLoadingFrame = 0;
 
     WorkQueue::shared()->setFrozen(true);
-    if (gLayoutTestController->waitToDump())
+    if (gTestRunner->waitToDump())
         return;
 
     if (WorkQueue::shared()->count())
@@ -478,7 +489,7 @@ void DumpRenderTreeChrome::topLoadingFrameLoadFinished()
 
 void DumpRenderTreeChrome::onStatusbarTextSet(void*, Evas_Object*, void* eventInfo)
 {
-    if (!gLayoutTestController->dumpStatusCallbacks())
+    if (!gTestRunner->dumpStatusCallbacks())
         return;
 
     const char* statusbarText = static_cast<const char*>(eventInfo);
@@ -487,7 +498,7 @@ void DumpRenderTreeChrome::onStatusbarTextSet(void*, Evas_Object*, void* eventIn
 
 void DumpRenderTreeChrome::onFrameIconChanged(void*, Evas_Object* frame, void*)
 {
-    if (!done && gLayoutTestController->dumpIconChanges()) {
+    if (!done && gTestRunner->dumpIconChanges()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didChangeIcons\n", frameName.utf8().data());
     }
@@ -497,19 +508,19 @@ void DumpRenderTreeChrome::onFrameTitleChanged(void*, Evas_Object* frame, void* 
 {
     const Ewk_Text_With_Direction* titleText = static_cast<const Ewk_Text_With_Direction*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didReceiveTitle: %s\n", frameName.utf8().data(), (titleText && titleText->string) ? titleText->string : "");
     }
 
-    if (!done && gLayoutTestController->dumpTitleChanges())
-        printf("TITLE CHANGED: %s\n", (titleText && titleText->string) ? titleText->string : "");
+    if (!done && gTestRunner->dumpTitleChanges())
+        printf("TITLE CHANGED: '%s'\n", (titleText && titleText->string) ? titleText->string : "");
 
-    if (!done && gLayoutTestController->dumpHistoryDelegateCallbacks())
+    if (!done && gTestRunner->dumpHistoryDelegateCallbacks())
         printf("WebView updated the title for history URL \"%s\" to \"%s\".\n", ewk_frame_uri_get(frame)
                , (titleText && titleText->string) ? titleText->string : "");
 
-    gLayoutTestController->setTitleTextDirection(titleText->direction == EWK_TEXT_DIRECTION_LEFT_TO_RIGHT ? "ltr" : "rtl");
+    gTestRunner->setTitleTextDirection(titleText->direction == EWK_TEXT_DIRECTION_LEFT_TO_RIGHT ? "ltr" : "rtl");
 }
 
 void DumpRenderTreeChrome::onDocumentLoadFinished(void*, Evas_Object*, void* eventInfo)
@@ -517,7 +528,7 @@ void DumpRenderTreeChrome::onDocumentLoadFinished(void*, Evas_Object*, void* eve
     const Evas_Object* frame = static_cast<Evas_Object*>(eventInfo);
     const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks())
+    if (!done && gTestRunner->dumpFrameLoadCallbacks())
         printf("%s - didFinishDocumentLoadForFrame\n", frameName.utf8().data());
     else if (!done) {
         const unsigned pendingFrameUnloadEvents = DumpRenderTreeSupportEfl::pendingUnloadEventCount(frame);
@@ -530,19 +541,19 @@ void DumpRenderTreeChrome::onWillSendRequest(void*, Evas_Object*, void* eventInf
 {
     Ewk_Frame_Resource_Messages* messages = static_cast<Ewk_Frame_Resource_Messages*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpResourceLoadCallbacks())
+    if (!done && gTestRunner->dumpResourceLoadCallbacks())
         printf("%s - willSendRequest %s redirectResponse %s\n",
                m_dumpAssignedUrls.contains(messages->request->identifier) ? m_dumpAssignedUrls.get(messages->request->identifier).data() : "<unknown>",
                descriptionSuitableForTestResult(messages->request).data(),
                descriptionSuitableForTestResult(messages->redirect_response).data());
 
-    if (!done && gLayoutTestController->willSendRequestReturnsNull()) {
-        // As requested by the LayoutTestController, don't perform the request.
+    if (!done && gTestRunner->willSendRequestReturnsNull()) {
+        // As requested by the TestRunner, don't perform the request.
         messages->request->url = 0;
         return;
     }
 
-    if (!done && gLayoutTestController->willSendRequestReturnsNullOnRedirect() && messages->redirect_response) {
+    if (!done && gTestRunner->willSendRequestReturnsNullOnRedirect() && messages->redirect_response) {
         printf("Returning null for this redirect\n");
         messages->request->url = 0;
         return;
@@ -560,7 +571,7 @@ void DumpRenderTreeChrome::onWillSendRequest(void*, Evas_Object*, void* eventInf
         return;
     }
 
-    const std::string& destination = gLayoutTestController->redirectionDestinationForURL(url.string().utf8().data());
+    const std::string& destination = gTestRunner->redirectionDestinationForURL(url.string().utf8().data());
     if (destination.length())
         messages->request->url = strdup(destination.c_str());
 }
@@ -569,7 +580,7 @@ void DumpRenderTreeChrome::onWebViewOnloadEvent(void*, Evas_Object*, void* event
 {
     const Evas_Object* frame = static_cast<Evas_Object*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didHandleOnloadEventsForFrame\n", frameName.utf8().data());
     }
@@ -577,13 +588,13 @@ void DumpRenderTreeChrome::onWebViewOnloadEvent(void*, Evas_Object*, void* event
 
 void DumpRenderTreeChrome::onInsecureContentRun(void*, Evas_Object*, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks())
+    if (!done && gTestRunner->dumpFrameLoadCallbacks())
         printf("didRunInsecureContent\n");
 }
 
 void DumpRenderTreeChrome::onInsecureContentDisplayed(void*, Evas_Object*, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks())
+    if (!done && gTestRunner->dumpFrameLoadCallbacks())
         printf("didDisplayInsecureContent\n");
 }
 
@@ -608,7 +619,7 @@ void DumpRenderTreeChrome::onFrameCreated(void*, Evas_Object*, void* eventInfo)
 
 void DumpRenderTreeChrome::onWebViewNavigatedWithData(void*, Evas_Object*, void* eventInfo)
 {
-    if (done || !gLayoutTestController->dumpHistoryDelegateCallbacks())
+    if (done || !gTestRunner->dumpHistoryDelegateCallbacks())
         return;
 
     ASSERT(eventInfo);
@@ -631,7 +642,7 @@ void DumpRenderTreeChrome::onWebViewNavigatedWithData(void*, Evas_Object*, void*
 
 void DumpRenderTreeChrome::onWebViewServerRedirect(void*, Evas_Object*, void* eventInfo)
 {
-    if (done || !gLayoutTestController->dumpHistoryDelegateCallbacks())
+    if (done || !gTestRunner->dumpHistoryDelegateCallbacks())
         return;
 
     ASSERT(eventInfo);
@@ -641,7 +652,7 @@ void DumpRenderTreeChrome::onWebViewServerRedirect(void*, Evas_Object*, void* ev
 
 void DumpRenderTreeChrome::onWebViewClientRedirect(void*, Evas_Object*, void* eventInfo)
 {
-    if (done || !gLayoutTestController->dumpHistoryDelegateCallbacks())
+    if (done || !gTestRunner->dumpHistoryDelegateCallbacks())
         return;
 
     ASSERT(eventInfo);
@@ -651,7 +662,7 @@ void DumpRenderTreeChrome::onWebViewClientRedirect(void*, Evas_Object*, void* ev
 
 void DumpRenderTreeChrome::onWebViewPopulateVisitedLinks(void*, Evas_Object* ewkView, void*)
 {
-    if (done || !gLayoutTestController->dumpHistoryDelegateCallbacks())
+    if (done || !gTestRunner->dumpHistoryDelegateCallbacks())
         return;
 
     printf("Asked to populate visited links for WebView \"%s\"\n", ewk_view_uri_get(ewkView));
@@ -678,7 +689,7 @@ void DumpRenderTreeChrome::onInspectorFrameLoadFinished(void*, Evas_Object*, voi
 
 void DumpRenderTreeChrome::onFrameProvisionalLoad(void*, Evas_Object* frame, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didStartProvisionalLoadForFrame\n", frameName.utf8().data());
     }
@@ -686,7 +697,7 @@ void DumpRenderTreeChrome::onFrameProvisionalLoad(void*, Evas_Object* frame, voi
     if (!topLoadingFrame && !done)
         topLoadingFrame = frame;
   
-    if (!done && gLayoutTestController->stopProvisionalFrameLoads()) { 
+    if (!done && gTestRunner->stopProvisionalFrameLoads()) { 
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - stopping load in didStartProvisionalLoadForFrame callback\n", frameName.utf8().data());
         ewk_frame_stop(frame);
@@ -697,7 +708,7 @@ void DumpRenderTreeChrome::onFrameProvisionalLoadFailed(void*, Evas_Object* fram
 {
     m_provisionalLoadFailedFrame = frame;
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didFailProvisionalLoadWithError\n", frameName.utf8().data());
     }
@@ -705,7 +716,7 @@ void DumpRenderTreeChrome::onFrameProvisionalLoadFailed(void*, Evas_Object* fram
 
 void DumpRenderTreeChrome::onFrameLoadCommitted(void*, Evas_Object* frame, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didCommitLoadForFrame\n", frameName.utf8().data());
     }
@@ -721,10 +732,10 @@ void DumpRenderTreeChrome::onFrameLoadFinished(void*, Evas_Object* frame, void* 
     if (error)
         return;
 
-    if (!done && gLayoutTestController->dumpProgressFinishedCallback())
+    if (!done && gTestRunner->dumpProgressFinishedCallback())
         printf("postProgressFinishedNotification\n");
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didFinishLoadForFrame\n", frameName.utf8().data());
     }
@@ -738,7 +749,7 @@ void DumpRenderTreeChrome::onFrameLoadError(void*, Evas_Object* frame, void*)
     // In case of provisional load error, we receive both "load,error" and "load,provisional,failed"
     // signals. m_provisionalLoadFailedFrame is used to avoid printing twice the load error: in
     // onFrameProvisionalLoadFailed() and onFrameLoadError().
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks() && frame != m_provisionalLoadFailedFrame) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks() && frame != m_provisionalLoadFailedFrame) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didFailLoadWithError\n", frameName.utf8().data());
     }
@@ -752,7 +763,7 @@ void DumpRenderTreeChrome::onFrameLoadError(void*, Evas_Object* frame, void*)
 
 void DumpRenderTreeChrome::onFrameRedirectCancelled(void*, Evas_Object* frame, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didCancelClientRedirectForFrame\n", frameName.utf8().data());
     }
@@ -760,7 +771,7 @@ void DumpRenderTreeChrome::onFrameRedirectCancelled(void*, Evas_Object* frame, v
 
 void DumpRenderTreeChrome::onFrameRedirectForProvisionalLoad(void*, Evas_Object* frame, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - didReceiveServerRedirectForProvisionalLoadForFrame\n", frameName.utf8().data());
     }
@@ -770,7 +781,7 @@ void DumpRenderTreeChrome::onFrameRedirectRequested(void*, Evas_Object* frame, v
 {
     const char* url = static_cast<const char*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks()) {
+    if (!done && gTestRunner->dumpFrameLoadCallbacks()) {
         const String frameName(DumpRenderTreeSupportEfl::suitableDRTFrameName(frame));
         printf("%s - willPerformClientRedirectToURL: %s \n", frameName.utf8().data(), pathSuitableForTestResult(url).data());
     }
@@ -778,7 +789,7 @@ void DumpRenderTreeChrome::onFrameRedirectRequested(void*, Evas_Object* frame, v
 
 void DumpRenderTreeChrome::onDidDetectXSS(void*, Evas_Object* view, void*)
 {
-    if (!done && gLayoutTestController->dumpFrameLoadCallbacks())
+    if (!done && gTestRunner->dumpFrameLoadCallbacks())
         printf("didDetectXSS\n");
 }
 
@@ -786,14 +797,14 @@ void DumpRenderTreeChrome::onResponseReceived(void*, Evas_Object*, void* eventIn
 {
     Ewk_Frame_Resource_Response* response = static_cast<Ewk_Frame_Resource_Response*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpResourceLoadCallbacks()) {
+    if (!done && gTestRunner->dumpResourceLoadCallbacks()) {
         CString responseDescription(descriptionSuitableForTestResult(response));
         printf("%s - didReceiveResponse %s\n",
                m_dumpAssignedUrls.contains(response->identifier) ? m_dumpAssignedUrls.get(response->identifier).data() : "<unknown>",
                responseDescription.data());
     }
 
-    if (!done && gLayoutTestController->dumpResourceResponseMIMETypes()) {
+    if (!done && gTestRunner->dumpResourceResponseMIMETypes()) {
         printf("%s has MIME type %s\n",
                KURL(ParsedURLString, response->url).lastPathComponent().utf8().data(),
                response->mime_type);
@@ -804,7 +815,7 @@ void DumpRenderTreeChrome::onResourceLoadFinished(void*, Evas_Object*, void* eve
 {
     unsigned long identifier = *static_cast<unsigned long*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpResourceLoadCallbacks())
+    if (!done && gTestRunner->dumpResourceLoadCallbacks())
         printf("%s - didFinishLoading\n",
                (m_dumpAssignedUrls.contains(identifier) ? m_dumpAssignedUrls.take(identifier).data() : "<unknown>"));
 }
@@ -813,7 +824,7 @@ void DumpRenderTreeChrome::onResourceLoadFailed(void*, Evas_Object*, void* event
 {
     Ewk_Frame_Load_Error* error = static_cast<Ewk_Frame_Load_Error*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpResourceLoadCallbacks())
+    if (!done && gTestRunner->dumpResourceLoadCallbacks())
         printf("%s - didFailLoadingWithError: %s\n",
                (m_dumpAssignedUrls.contains(error->resource_identifier) ? m_dumpAssignedUrls.take(error->resource_identifier).data() : "<unknown>"),
                descriptionSuitableForTestResult(error).data());
@@ -823,7 +834,7 @@ void DumpRenderTreeChrome::onNewResourceRequest(void*, Evas_Object*, void* event
 {
     Ewk_Frame_Resource_Request* request = static_cast<Ewk_Frame_Resource_Request*>(eventInfo);
 
-    if (!done && gLayoutTestController->dumpResourceLoadCallbacks())
+    if (!done && gTestRunner->dumpResourceLoadCallbacks())
         m_dumpAssignedUrls.add(request->identifier, pathSuitableForTestResult(request->url));
 }
 
@@ -880,4 +891,20 @@ void DumpRenderTreeChrome::onFrameIntentServiceRegistration(void*, Evas_Object*,
            serviceInfo->title,
            serviceInfo->href,
            serviceInfo->disposition);
+}
+
+void DumpRenderTreeChrome::onDownloadRequest(void*, Evas_Object*, void* eventInfo)
+{
+    // In case of "download,request", the URL need to be downloaded, not opened on the current view.
+    // Because there is no download agent for the DumpRenderTree,
+    // create a new view and load the URL on that view just for a test.
+    Evas_Object* newView = browser->createView();
+    if (!newView)
+        return;
+
+    Ewk_Download* download = static_cast<Ewk_Download*>(eventInfo);
+    ewk_view_theme_set(newView, DATA_DIR"/default.edj");
+    ewk_view_uri_set(newView, download->url);
+ 
+    browser->m_extraViews.append(newView);
 }

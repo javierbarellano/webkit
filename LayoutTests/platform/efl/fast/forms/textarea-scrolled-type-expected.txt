@@ -3,17 +3,17 @@ layer at (0,0) size 800x600
 layer at (0,0) size 800x600
   RenderBlock {HTML} at (0,0) size 800x600
     RenderBody {BODY} at (8,8) size 784x584
-      RenderBlock (anonymous) at (0,0) size 784x161
+      RenderBlock (anonymous) at (0,0) size 784x157
         RenderText {#text} at (0,0) size 502x19
           text run at (0,0) width 502: "This tests that typing in a scrolled textarea does not cause unnecessary scrolling."
         RenderBR {BR} at (502,15) size 0x0
-        RenderText {#text} at (206,143) size 4x19
-          text run at (206,143) width 4: " "
-        RenderBR {BR} at (210,158) size 0x0
-      RenderBlock {DIV} at (0,161) size 784x0
-layer at (10,28) size 202x136 clip at (10,28) size 187x136 scrollY 252 scrollHeight 388
-  RenderTextControl {TEXTAREA} at (2,20) size 202x136 [bgcolor=#FFFFFF]
-    RenderBlock {DIV} at (4,6) size 180x378
+        RenderText {#text} at (205,139) size 4x19
+          text run at (205,139) width 4: " "
+        RenderBR {BR} at (209,154) size 0x0
+      RenderBlock {DIV} at (0,157) size 784x0
+layer at (10,28) size 201x132 clip at (11,29) size 184x130 scrollY 252 scrollHeight 382
+  RenderTextControl {TEXTAREA} at (2,20) size 201x132 [bgcolor=#FFFFFF] [border: (1px solid #000000)]
+    RenderBlock {DIV} at (3,3) size 180x378
       RenderText {#text} at (0,0) size 58x361
         text run at (0,0) width 9: "1"
         text run at (9,0) width 0: " "

@@ -256,6 +256,12 @@ void ScrollableArea::contentAreaDidHide() const
         scrollAnimator->contentAreaDidHide();
 }
 
+void ScrollableArea::finishCurrentScrollAnimations() const
+{
+    if (ScrollAnimator* scrollAnimator = existingScrollAnimator())
+        scrollAnimator->finishCurrentScrollAnimations();
+}
+
 void ScrollableArea::didAddVerticalScrollbar(Scrollbar* scrollbar)
 {
     scrollAnimator()->didAddVerticalScrollbar(scrollbar);
@@ -371,6 +377,41 @@ void ScrollableArea::serviceScrollAnimations()
 {
     if (ScrollAnimator* scrollAnimator = existingScrollAnimator())
         scrollAnimator->serviceScrollAnimations();
+}
+
+IntPoint ScrollableArea::scrollPosition() const
+{
+    int x = horizontalScrollbar() ? horizontalScrollbar()->value() : 0;
+    int y = verticalScrollbar() ? verticalScrollbar()->value() : 0;
+    return IntPoint(x, y);
+}
+
+IntPoint ScrollableArea::minimumScrollPosition() const
+{
+    return IntPoint();
+}
+
+IntPoint ScrollableArea::maximumScrollPosition() const
+{
+    return IntPoint(contentsSize().width() - visibleWidth(), contentsSize().height() - visibleHeight());
+}
+
+IntRect ScrollableArea::visibleContentRect(bool includeScrollbars) const
+{
+    int verticalScrollbarWidth = 0;
+    int horizontalScrollbarHeight = 0;
+
+    if (includeScrollbars) {
+        if (Scrollbar* verticalBar = verticalScrollbar())
+            verticalScrollbarWidth = !verticalBar->isOverlayScrollbar() ? verticalBar->width() : 0;
+        if (Scrollbar* horizontalBar = horizontalScrollbar())
+            horizontalScrollbarHeight = !horizontalBar->isOverlayScrollbar() ? horizontalBar->height() : 0;
+    }
+
+    return IntRect(scrollPosition().x(),
+                   scrollPosition().y(),
+                   std::max(0, visibleWidth() + verticalScrollbarWidth),
+                   std::max(0, visibleHeight() + horizontalScrollbarHeight));
 }
 
 } // namespace WebCore

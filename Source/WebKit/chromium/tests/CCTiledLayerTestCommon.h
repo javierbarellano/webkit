@@ -25,6 +25,11 @@
 #ifndef CCTiledLayerTestCommon_h
 #define CCTiledLayerTestCommon_h
 
+#include "CCGraphicsContext.h"
+#include "CCPrioritizedTexture.h"
+#include "CCResourceProvider.h"
+#include "CCTextureUpdateQueue.h"
+#include "CCTiledLayerImpl.h"
 #include "IntRect.h"
 #include "IntSize.h"
 #include "LayerTextureUpdater.h"
@@ -32,11 +37,6 @@
 #include "TextureCopier.h"
 #include "TextureUploader.h"
 #include "TiledLayerChromium.h"
-#include "cc/CCGraphicsContext.h"
-#include "cc/CCPrioritizedTexture.h"
-#include "cc/CCResourceProvider.h"
-#include "cc/CCTextureUpdateQueue.h"
-#include "cc/CCTiledLayerImpl.h"
 
 namespace WebKitTests {
 
@@ -49,7 +49,7 @@ public:
         Texture(FakeLayerTextureUpdater*, PassOwnPtr<WebCore::CCPrioritizedTexture>);
         virtual ~Texture();
 
-        virtual void updateRect(WebCore::CCResourceProvider* , const WebCore::IntRect&, const WebCore::IntRect&) OVERRIDE;
+        virtual void updateRect(WebCore::CCResourceProvider* , const WebCore::IntRect&, const WebCore::IntSize&) OVERRIDE;
         virtual void prepareRect(const WebCore::IntRect&, WebCore::CCRenderingStats&) OVERRIDE;
 
     private:
@@ -60,7 +60,7 @@ public:
     virtual ~FakeLayerTextureUpdater();
 
     virtual PassOwnPtr<WebCore::LayerTextureUpdater::Texture> createTexture(WebCore::CCPrioritizedTextureManager*) OVERRIDE;
-    virtual SampledTexelFormat sampledTexelFormat(GC3Denum) OVERRIDE { return SampledTexelFormatRGBA; }
+    virtual SampledTexelFormat sampledTexelFormat(GC3Denum) OVERRIDE;
 
     virtual void prepareToUpdate(const WebCore::IntRect& contentRect, const WebCore::IntSize&, float, float, WebCore::IntRect& resultingOpaqueRect, WebCore::CCRenderingStats&) OVERRIDE;
     // Sets the rect to invalidate during the next call to prepareToUpdate(). After the next
@@ -112,7 +112,6 @@ public:
     static WebCore::IntSize tileSize() { return WebCore::IntSize(100, 100); }
 
     using WebCore::TiledLayerChromium::invalidateContentRect;
-    using WebCore::TiledLayerChromium::updateContentRect;
     using WebCore::TiledLayerChromium::needsIdlePaint;
     using WebCore::TiledLayerChromium::skipsDraw;
     using WebCore::TiledLayerChromium::numPaintedTiles;
@@ -121,17 +120,14 @@ public:
     virtual void setNeedsDisplayRect(const WebCore::FloatRect&) OVERRIDE;
     const WebCore::FloatRect& lastNeedsDisplayRect() const { return m_lastNeedsDisplayRect; }
 
-    // Updates the visibleContentRect().
-    virtual void update(WebCore::CCTextureUpdateQueue&, const WebCore::CCOcclusionTracker*, WebCore::CCRenderingStats&) OVERRIDE;
-
     virtual void setTexturePriorities(const WebCore::CCPriorityCalculator&) OVERRIDE;
 
-    virtual WebCore::CCPrioritizedTextureManager* textureManager() const OVERRIDE { return m_textureManager; }
+    virtual WebCore::CCPrioritizedTextureManager* textureManager() const OVERRIDE;
     FakeLayerTextureUpdater* fakeLayerTextureUpdater() { return m_fakeTextureUpdater.get(); }
     WebCore::FloatRect updateRect() { return m_updateRect; }
 
 protected:
-    virtual WebCore::LayerTextureUpdater* textureUpdater() const OVERRIDE { return m_fakeTextureUpdater.get(); }
+    virtual WebCore::LayerTextureUpdater* textureUpdater() const OVERRIDE;
     virtual void createTextureUpdaterIfNeeded() OVERRIDE { }
 
 private:
@@ -145,7 +141,7 @@ public:
     explicit FakeTiledLayerWithScaledBounds(WebCore::CCPrioritizedTextureManager*);
 
     void setContentBounds(const WebCore::IntSize& contentBounds) { m_forcedContentBounds = contentBounds; }
-    virtual WebCore::IntSize contentBounds() const OVERRIDE { return m_forcedContentBounds; }
+    virtual WebCore::IntSize contentBounds() const OVERRIDE;
 
 protected:
     WebCore::IntSize m_forcedContentBounds;
@@ -153,16 +149,16 @@ protected:
 
 class FakeTextureCopier : public WebCore::TextureCopier {
 public:
-    virtual void copyTexture(Parameters) { }
-    virtual void flush() { }
+    virtual void copyTexture(Parameters) OVERRIDE { }
+    virtual void flush() OVERRIDE { }
 };
 
 class FakeTextureUploader : public WebCore::TextureUploader {
 public:
-    virtual bool isBusy() { return false; }
-    virtual void beginUploads() { }
-    virtual void endUploads() { }
-    virtual void uploadTexture(WebCore::CCResourceProvider* resourceProvider, Parameters upload) { upload.texture->updateRect(resourceProvider, upload.sourceRect, upload.destRect); }
+    virtual bool isBusy() OVERRIDE;
+    virtual void beginUploads() OVERRIDE { }
+    virtual void endUploads() OVERRIDE { }
+    virtual void uploadTexture(WebCore::CCResourceProvider*, Parameters upload) OVERRIDE;
 };
 
 }

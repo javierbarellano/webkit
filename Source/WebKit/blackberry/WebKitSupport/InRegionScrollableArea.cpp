@@ -20,8 +20,8 @@
 #include "InRegionScrollableArea.h"
 
 #include "Frame.h"
-#include "LayerCompositingThread.h"
 #include "LayerWebKitThread.h"
+#include "InRegionScroller_p.h"
 #include "RenderBox.h"
 #include "RenderLayer.h"
 #include "RenderLayerBacking.h"
@@ -39,6 +39,12 @@ InRegionScrollableArea::InRegionScrollableArea()
     , m_layer(0)
     , m_hasWindowVisibleRectCalculated(false)
 {
+}
+
+InRegionScrollableArea::~InRegionScrollableArea()
+{
+    if (m_cachedCompositedScrollableLayer)
+        m_cachedCompositedScrollableLayer->clearOverride();
 }
 
 InRegionScrollableArea::InRegionScrollableArea(WebPagePrivate* webPage, RenderLayer* layer)
@@ -70,14 +76,14 @@ InRegionScrollableArea::InRegionScrollableArea(WebPagePrivate* webPage, RenderLa
         m_scrollsHorizontally = view->contentsWidth() > view->visibleWidth();
         m_scrollsVertically = view->contentsHeight() > view->visibleHeight();
 
-        m_overscrollLimitFactor = 0.0; // FIXME eventually support overscroll
-        m_cachedCompositedScrollableLayer = 0; // FIXME: Needs composited layer for inner frames.
+        m_camouflagedCompositedScrollableLayer = reinterpret_cast<unsigned>(m_layer->enclosingElement()); // FIXME: Needs composited layer for inner frames.
+        m_cachedNonCompositedScrollableNode = m_layer->enclosingElement();
 
     } else { // RenderBox-based elements case (scrollable boxes (div's, p's, textarea's, etc)).
 
         RenderBox* box = m_layer->renderBox();
         ASSERT(box);
-        ASSERT(box->canBeScrolledAndHasScrollableArea());
+        ASSERT(InRegionScrollerPrivate::canScrollRenderBox(box));
 
         ScrollableArea* scrollableArea = static_cast<ScrollableArea*>(m_layer);
         m_scrollPosition = m_webPage->mapToTransformed(scrollableArea->scrollPosition());
@@ -87,13 +93,19 @@ InRegionScrollableArea::InRegionScrollableArea(WebPagePrivate* webPage, RenderLa
         m_scrollsHorizontally = box->scrollWidth() != box->clientWidth() && box->scrollsOverflowX();
         m_scrollsVertically = box->scrollHeight() != box->clientHeight() && box->scrollsOverflowY();
 
+        // Both caches below are self-exclusive.
         if (m_layer->usesCompositedScrolling()) {
+            m_forceContentToBeVerticallyScrollable = true;
             m_supportsCompositedScrolling = true;
             ASSERT(m_layer->backing()->hasScrollingLayer());
-            m_cachedCompositedScrollableLayer = reinterpret_cast<unsigned>(m_layer->backing()->scrollingLayer()->platformLayer()->layerCompositingThread());
+            m_camouflagedCompositedScrollableLayer = reinterpret_cast<unsigned>(m_layer->backing()->scrollingContentsLayer()->platformLayer());
+            m_cachedCompositedScrollableLayer = m_layer->backing()->scrollingContentsLayer()->platformLayer();
+            ASSERT(!m_cachedNonCompositedScrollableNode);
+        } else {
+            m_camouflagedCompositedScrollableLayer = reinterpret_cast<unsigned>(m_layer->enclosingElement());
+            m_cachedNonCompositedScrollableNode = m_layer->enclosingElement();
+            ASSERT(!m_cachedCompositedScrollableLayer);
         }
-
-        m_overscrollLimitFactor = 0.0;
     }
 }
 

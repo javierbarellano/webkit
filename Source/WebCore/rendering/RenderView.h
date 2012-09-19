@@ -48,6 +48,7 @@ public:
     virtual ~RenderView();
 
     bool hitTest(const HitTestRequest&, HitTestResult&);
+    bool hitTest(const HitTestRequest&, const HitTestLocation&, HitTestResult&);
 
     virtual const char* renderName() const OVERRIDE { return "RenderView"; }
 
@@ -58,8 +59,8 @@ public:
     virtual bool isChildAllowed(RenderObject*, RenderStyle*) const OVERRIDE;
 
     virtual void layout() OVERRIDE;
-    virtual void computeLogicalWidth() OVERRIDE;
-    virtual void computeLogicalHeight() OVERRIDE;
+    virtual void updateLogicalWidth() OVERRIDE;
+    virtual void updateLogicalHeight() OVERRIDE;
     // FIXME: This override is not needed and should be removed
     // it only exists to make computePreferredLogicalWidths public.
     virtual void computePreferredLogicalWidths() OVERRIDE;
@@ -193,8 +194,6 @@ public:
 
     IntSize viewportSize() const { return document()->viewportSize(); }
 
-    void setFixedPositionedObjectsNeedLayout();
-
     void setRenderQuoteHead(RenderQuote* head) { m_renderQuoteHead = head; }
     RenderQuote* renderQuoteHead() const { return m_renderQuoteHead; }
 
@@ -207,7 +206,7 @@ public:
     bool hasRenderCounters() { return m_renderCounterCount; }
 
 protected:
-    virtual void mapLocalToContainer(RenderBoxModelObject* repaintContainer, TransformState&, MapLocalToContainerFlags mode = ApplyContainerFlip, bool* wasFixed = 0) const OVERRIDE;
+    virtual void mapLocalToContainer(RenderBoxModelObject* repaintContainer, TransformState&, MapLocalToContainerFlags mode = ApplyContainerFlip | SnapOffsetForTransforms, bool* wasFixed = 0) const OVERRIDE;
     virtual const RenderObject* pushMappingToContainer(const RenderBoxModelObject* ancestorToStopAt, RenderGeometryMap&) const;
     virtual void mapAbsoluteToLocalPoint(bool fixed, bool useTransforms, TransformState&) const;
     virtual bool requiresColumns(int desiredColumnCount) const OVERRIDE;
@@ -351,17 +350,7 @@ public:
         , m_didCreateLayoutState(false)
     {
     }
-    
-    LayoutStateMaintainer(RenderView* view, RenderFlowThread* flowThread, bool regionsChanged)
-        : m_view(view)
-        , m_disabled(false)
-        , m_didStart(false)
-        , m_didEnd(false)
-        , m_didCreateLayoutState(false)
-    {
-        push(flowThread, regionsChanged);
-    }
-    
+
     ~LayoutStateMaintainer()
     {
         ASSERT(m_didStart == m_didEnd);   // if this fires, it means that someone did a push(), but forgot to pop().
@@ -374,14 +363,6 @@ public:
         m_didCreateLayoutState = m_view->pushLayoutState(root, offset, pageHeight, pageHeightChanged, colInfo);
         if (m_disabled && m_didCreateLayoutState)
             m_view->disableLayoutState();
-        m_didStart = true;
-    }
-    
-    void push(RenderFlowThread* flowThread, bool regionsChanged)
-    {
-        ASSERT(!m_didStart);
-        m_view->pushLayoutState(flowThread, regionsChanged);
-        m_didCreateLayoutState = true;
         m_didStart = true;
     }
 
