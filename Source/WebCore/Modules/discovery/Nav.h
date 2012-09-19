@@ -55,6 +55,7 @@ public:
 public:
 	enum ProtocolType
 	{
+		BAD_PROTO = 0,
 		UPNP_PROTO = 1,
 		ZC_PROTO =2
 	};

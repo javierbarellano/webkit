@@ -109,6 +109,16 @@ void Nav::getNetworkServices(
 	ProtocolType protoType = nv->readRemoveTypePrefix(cType, sType);
 	std::string strType(sType);
 
+	if (protoType != UPNP_PROTO && protoType != ZC_PROTO) {
+		if (errorcb)
+		{
+			RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
+			errorcb->handleEvent(err.get());
+			return;
+		}
+	}
+
+
 
 	if (errorcb)
 	{
@@ -131,7 +141,7 @@ void Nav::getNetworkServices(
 		zcdevs = nd->startZeroConfDiscovery(sType);
 	else if (errorcb)
 	{
-		PassRefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
+		RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
 		errorcb->handleEvent(err.get());
 		return;
 	}
@@ -245,7 +255,7 @@ void Nav::ZCDevDroppedInternal(std::string type)
 
 Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType)
 {
-	ProtocolType protoType = UPNP_PROTO;
+	ProtocolType protoType = BAD_PROTO;
 	if (!strncmp(cType.data(), "upnp:", 5))
 	{
 		strcpy(sType, &cType.data()[5]);
