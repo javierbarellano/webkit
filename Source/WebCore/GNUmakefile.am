@@ -387,7 +387,7 @@ $(WEBCORE_CSS_VALUE_KEYWORDS): $(srcdir)/configure.ac $(srcdir)/Source/WebCore/G
 # Discovery Support
 # ----
 if ENABLE_DISCOVERY
-FEATURE_DEFINES += ENABLE_DISCOVERY=1
+FEATURE_DEFINES = ENABLE_DISCOVERY=1
 webcore_cppflags += -DENABLE_DISCOVERY=1
 else
 webcore_cppflags += -DENABLE_DISCOVERY=0
