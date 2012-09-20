@@ -27,6 +27,7 @@
 #include "config.h"
 #include "CrossOriginAccessControl.h"
 #include "Modules/discovery/UPnPSearch.h"
+#include "Modules/discovery/ZeroConf.h"
 
 #include "HTTPParsers.h"
 #include "ResourceResponse.h"
@@ -167,8 +168,12 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
         UPnPSearch* upnp = UPnPSearch::getInstance();
         bool ok = upnp->hostPortOk(host, (int)response.url().port());
 
-        if (!ok)
-        	return false;
+        if (!ok) {
+            ZeroConf* zc = ZeroConf::getInstance();
+            bool ok = zc->hostPortOk(host, (int)response.url().port());
+            if (!ok)
+            	return false;
+        }
 
     }
 

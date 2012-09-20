@@ -28,32 +28,6 @@ namespace WebCore {
 
 Mutex *Nav::m_main = NULL;
 
-void eventHandlerThread(void *context)
-{
-	usleep(1000*100);
-	Nav* nav = (Nav*)context;
-
-	//if (true) return;
-
-	switch (nav->m_eventType) {
-	case Nav::ADDED_UPNP_EVENT:
-		//nav->UPnPDevAddedInternal(nav);
-		break;
-
-	case Nav::DROPPED_UPNP_EVENT:
-		//nav->UPnPDevDroppedInternal(nav->m_curType);
-		break;
-
-	case Nav::ADDED_ZC_EVENT:
-		//nav->ZCDevAddedInternal(nav->m_curType);
-		break;
-
-	case Nav::DROPPED_ZC_EVENT:
-		//nav->ZCDevDroppedInternal(nav->m_curType);
-		break;
-	}
-}
-
 Nav::Nav(Frame* frame)
 : DOMWindowProperty(frame) {
 	m_errorCBIsSet = false;
@@ -82,10 +56,6 @@ Nav* Nav::from(Navigator* navigator)
     }
     return supplement;
 }
-
-// ---------------------------------------------------
-// Home Networking
-// ---------------------------------------------------
 
 void Nav::getNetworkServices(
 		Navigator* n,
@@ -117,8 +87,6 @@ void Nav::getNetworkServices(
 			return;
 		}
 	}
-
-
 
 	if (errorcb)
 	{
@@ -178,16 +146,20 @@ void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
 
 	m_curType = stype;
 	m_eventType = SENDEVENT_UPNP_EVENT;
-	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
+
+	m_main->lock();
+	callOnMainThread(Nav::sendEventInternal,this);
+	m_main->unlock();
 
 }
 
-void Nav::sendEventInternal()
+void Nav::sendEventInternal(void *ptr)
 {
-	NavServices* srvs = m_srvcs.get();
+	Nav *nv = (Nav*)ptr;
+	NavServices* srvs = nv->m_srvcs.get();
 
 	for (int i=0; i<srvs->length(); i++) {
-		if (srvs->item(i)->uuid() == m_event->uuid()) {
+		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
 			NavService* srv = srvs->item(i);
 			srv->dispatchEvent(Event::create(eventNames().upnpeventEvent, true, true));
 		}
@@ -198,6 +170,7 @@ void Nav::UPnPDevAdded(std::string type)
 {
 	m_main->lock();
 	m_curType = type;
+	printf("Nav::UPnPDevAdded(%s)\n", type.c_str());
 	callOnMainThread(Nav::UPnPDevAddedInternal,this);
 	m_main->unlock();
 
@@ -219,37 +192,43 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 
 void Nav::ZCDevAdded(std::string type)
 {
+	m_main->lock();
 	m_curType = type;
-	m_eventType = ADDED_ZC_EVENT;
-	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
+	printf("Nav::ZCDevAdded(%s)\n", type.c_str());
+	callOnMainThread(Nav::ZCDevAddedInternal,this);
+	m_main->unlock();
+
 }
 
-void Nav::ZCDevAddedInternal(std::string type)
+void Nav::ZCDevAddedInternal(void *ptr)
 {
-	UPnPDevAddedInternal(NULL);
+	UPnPDevAddedInternal(ptr);
 }
 
 void Nav::UPnPDevDropped(std::string type)
 {
+	m_main->lock();
 	m_curType = type;
-	m_eventType = DROPPED_UPNP_EVENT;
-	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
+	callOnMainThread(Nav::UPnPDevDroppedInternal,this);
+	m_main->unlock();
 }
-void Nav::UPnPDevDroppedInternal(std::string type)
+void Nav::UPnPDevDroppedInternal(void *ptr)
 {
-	PassRefPtr<NavServices> srvs = m_srvcs;
+	Nav *nv = (Nav*)ptr;
+	PassRefPtr<NavServices> srvs = nv->m_srvcs;
 	srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
 }
 
 void Nav::ZCDevDropped(std::string type)
 {
+	m_main->lock();
 	m_curType = type;
-	m_eventType = DROPPED_ZC_EVENT;
-	WTF::createThread(eventHandlerThread, this, "EventHandlerThread");
+	callOnMainThread(Nav::ZCDevDroppedInternal,this);
+	m_main->unlock();
 }
-void Nav::ZCDevDroppedInternal(std::string type)
+void Nav::ZCDevDroppedInternal(void *ptr)
 {
-	UPnPDevDroppedInternal(type);
+	UPnPDevDroppedInternal(ptr);
 }
 
 
@@ -293,16 +272,16 @@ void Nav::setServices(
 		for (it=devs.begin(); it!=devs.end(); it++)
 		{
 			UPnPDevice d((*it).second);
-			if (d.isOkToUse) {
-				RefPtr<NavService> srv = NavService::create(m_frame->document());
-				srv->suspendIfNeeded();
-				srv->setServiceType(WTF::String(type));
-				srv->setPType(NavService::UPNP_TYPE);
-				srv->setUrl(WTF::String(d.descURL.c_str()));
-				srv->setuuid(WTF::String((*it).first.c_str())); // UUID
-				srv->setName(WTF::String(d.friendlyName.c_str()));
-				vDevs->append(srv);
-			}
+			RefPtr<NavService> srv = NavService::create(m_frame->document());
+			srv->suspendIfNeeded();
+
+			srv->setServiceType(WTF::String(type));
+			srv->setPType(NavService::UPNP_TYPE);
+			srv->setUrl(WTF::String(d.descURL.c_str()));
+			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
+			srv->setName(WTF::String(d.friendlyName.c_str()));
+
+			vDevs->append(srv);
 		}
 
 	}
@@ -312,25 +291,24 @@ void Nav::setServices(
 		for (it=zcdevs.begin(); it!=zcdevs.end(); it++)
 		{
 			ZCDevice d((*it).second);
-			if (d.isOkToUse) {
-				NavService* nns = new NavService(m_frame->document());
-				nns->setServiceType(WTF::String(type));
-				nns->setPType(NavService::ZCONF_TYPE);
-				nns->setUrl(WTF::String(d.url.c_str()));
-				nns->setuuid(WTF::String((*it).first.c_str())); // UUID
-				nns->setName(WTF::String(d.friendlyName.c_str()));
-				vDevs->append(nns);
-			}
+			RefPtr<NavService> srv = NavService::create(m_frame->document());
+			srv->suspendIfNeeded();
+
+			srv->setServiceType(WTF::String(type));
+			srv->setPType(NavService::ZCONF_TYPE);
+			srv->setUrl(WTF::String(d.url.c_str()));
+			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
+			srv->setName(WTF::String(d.friendlyName.c_str()));
+
+			vDevs->append(srv);
 		}
 	}
 
 	// Write devices to service object
 	m_srvcs->setServices(vDevs);
 
-	printf("Nav::setServices() DONE.\n");
+	printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
 }
-// -------------------------------------------------------
-// -------------------------------------------------------
 };
 
 #endif // DISCOVERY

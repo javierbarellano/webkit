@@ -38,9 +38,10 @@
 namespace WebCore
 {
 
-DiscoveryBase::DiscoveryBase(const char *type) :
-		cur_type_(type)
+DiscoveryBase::DiscoveryBase()
 {
+	cur_type_ = "Bad Type, Don't use!";
+	m_udpSocket = NULL;
 	canReceiveAnotherDev_ = false;
 	threadDone_ = true;
 	socketHandle_ = NULL;
@@ -70,8 +71,13 @@ void DiscoveryBase::getHostPort(const char *url, char* host, int *port)
 
 	char sPort[100];
 	strncpy(sPort, &host[end+1],20);
-	end = strchr(sPort,'/')-sPort;
-	sPort[end] = 0;
+	sPort[strlen(&host[end+1])] = 0;
+
+	if (strchr(sPort,'/')) {
+		end = strchr(sPort,'/')-sPort;
+		sPort[end] = 0;
+	}
+
 	*port = atoi(sPort);
 }
 

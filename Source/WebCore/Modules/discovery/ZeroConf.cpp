@@ -116,16 +116,19 @@ void zcDiscoveryThread(void *context)
 // static
 std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc *navDsc)
 {
- 	if (!instance_)
+	if (!instance_)
+		instance_ = new ZeroConf(type);
+
+	instance_->cur_type_ = std::string(type);
+
+ 	if (!instance_->m_udpSocket)
  	{
- 		instance_ = new ZeroConf(type);
 		KURL url(ParsedURLString, String(instance_->url_));
 
 		instance_->m_udpSocket = UDPSocketHandle::create(url, true, instance_) ;
 		instance_->m_tID = WTF::createThread(zcDiscoveryThread, instance_, "ZC_discovery");
 		instance_->m_tDroppedID = WTF::createThread(zcDroppedDevsThread, instance_, "DroppedZC");
  	}
- 	instance_->cur_type_ = std::string(type);
  	instance_->navDsc_ = navDsc;
 
  	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
@@ -147,13 +150,16 @@ ZeroConf* ZeroConf::getInstance()
 }
 
 ZeroConf::ZeroConf(const char *type) :
-				DiscoveryBase(type)
+				DiscoveryBase()
 {
  	devs_.clear();
 
  	strcpy(url_, "udp://224.0.0.251:5353");
 
- 	initQuery();
+ 	if (type) {
+ 		cur_type_ = std::string(type);
+ 	 	initQuery();
+ 	}
 }
 
 ZeroConf::~ZeroConf()
@@ -296,7 +302,8 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 		devs_[cur_type_] = dm;
 
 		printf("Adding dev: %s\n", zcd.friendlyName.c_str());
-		navDsc_->foundZCDev(cur_type_);
+		if (navDsc_)
+			navDsc_->foundZCDev(cur_type_);
 	}
 
 	return true;
@@ -429,8 +436,30 @@ void ZeroConf::initQuery()
    memcpy(&query_[prfixLen_+1+cur_type_.length()], postfix_, postfixLen_);
 }
 
+// Called by CrossOriginAccessControl.cpp
+// Check cross domain white list
 bool ZeroConf::hostPortOk(const char* host, int port)
 {
+	char lhost[1000];
+	int lport;
+
+	std::map<std::string, ZCDevMap>::iterator it =  devs_.begin();
+	for (; it!=devs_.end(); it++)
+	{
+		ZCDevMap dm = it->second;
+		std::map<std::string, ZCDevice>::iterator i = dm.devMap.begin();
+		for (; i!= dm.devMap.end(); i++)
+		{
+			ZCDevice d = (*i).second;
+			std::string url = d.url;
+
+			getHostPort(url.c_str(),lhost, &lport);
+
+			if (lport == port && !strcmp(host,lhost))
+				return true;
+		}
+	}
+
 	return false;
 }
 

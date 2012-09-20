@@ -95,6 +95,9 @@ UPnPSearch* UPnPSearch::instance_ = NULL;
 // static
 UPnPSearch* UPnPSearch::getInstance()
 {
+	if (!instance_)
+		instance_ = new UPnPSearch(NULL);
+
 	return instance_;
 }
 
@@ -108,7 +111,7 @@ UPnPSearch* UPnPSearch::create()
 
 
 UPnPSearch::UPnPSearch(const char *type) :
-		DiscoveryBase(type)
+		DiscoveryBase()
 {
 	internal_type_ = "";
 	api_ = NULL;
@@ -157,8 +160,12 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 void UPnPSearch::createConnect(const char *type)
 {
 	if (!instance_)
-	{
 		instance_ = new UPnPSearch(type);
+
+	instance_->cur_type_ = std::string(type);
+
+	if (!instance_->m_udpSocket)
+	{
 		KURL url(ParsedURLString, String(instance_->url_));
 		
 		// Constructor connects to socket
@@ -172,8 +179,7 @@ void UPnPSearch::createConnect(const char *type)
 // static
 std::map<std::string, UPnPDevice> UPnPSearch::discoverInternalDevs(const char *type, IDiscoveryAPI *api)
 {
-	createConnect("");
-	instance_->internal_type_ = std::string(type);
+	createConnect(type);
 	instance_->api_ = api;
 
 	if (instance_->internalDevs_.find(std::string(type)) != instance_->internalDevs_.end())
@@ -189,7 +195,6 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverInternalDevs(const char *t
 std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, NavDsc *navDsc)
 {
 	createConnect(type);
-	instance_->cur_type_ = std::string(type);
 	instance_->navDsc_ = navDsc;
 
 	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())

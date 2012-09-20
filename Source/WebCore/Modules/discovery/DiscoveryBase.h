@@ -25,7 +25,7 @@ class NavDsc;
 class DiscoveryBase : public UDPSocketHandleClient
 {
 public:
-	DiscoveryBase(const char *type);
+	DiscoveryBase();
 	virtual ~DiscoveryBase();
 
 	static void socketSend(const char *url, int port, const char *toSend, size_t sLen, char *bf, size_t *len);

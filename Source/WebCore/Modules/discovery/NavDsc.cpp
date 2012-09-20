@@ -181,7 +181,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 
 std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type)
 {
-	std::map<std::string, ZCDevice> enpty;
+	std::map<std::string, ZCDevice> empty;
 	std::map<std::string, ZCDevice> devs = ZeroConf::discoverDevs(type, this);
 
 	if (devs.size()==0)
@@ -189,18 +189,18 @@ std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type)
 
 	// We have devices to look at
 	if (!m_frame)
-		return enpty;
+		return empty;
 
 	Page* page = m_frame->page();
 	if (!page)
-		return enpty;
+		return empty;
 
-	for (std::map<std::string, ZCDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-	{
-		ZCDevice d = (*it).second;
-		d.isOkToUse = true;
-		devs[(*it).first] = d;
-	}
+//	for (std::map<std::string, ZCDevice>::iterator it = devs.begin(); it != devs.end(); it++)
+//	{
+//		ZCDevice d = (*it).second;
+//		d.isOkToUse = true;
+//		devs[(*it).first] = d;
+//	}
 		
 //	WebKit::ChromeClientImpl *cc = new WebKit::ChromeClientImpl(page->chrome()->client());
 //

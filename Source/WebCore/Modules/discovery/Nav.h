@@ -70,16 +70,18 @@ public:
 
     virtual void UPnPDevAdded(std::string type);
     static void UPnPDevAddedInternal(void *ptr);
+
     virtual void ZCDevAdded(std::string type);
-    virtual void ZCDevAddedInternal(std::string type);
+    static void ZCDevAddedInternal(void *ptr);
 
     virtual void UPnPDevDropped(std::string type);
-    virtual void UPnPDevDroppedInternal(std::string type);
+    static void UPnPDevDroppedInternal(void *ptr);
+
     virtual void ZCDevDropped(std::string type);
-    virtual void ZCDevDroppedInternal(std::string type);
+    static void ZCDevDroppedInternal(void *ptr);
 
     virtual void sendEvent(std::string uuid, std::string stype, std::string body);
-    virtual void sendEventInternal();
+    static void sendEventInternal(void *ptr);
 
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
 

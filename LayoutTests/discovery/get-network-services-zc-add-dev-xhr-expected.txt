@@ -1,0 +1,11 @@
+Tests navigator.getNetworkServices() works in happy case as expected.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS srvs.servicesAvailable>=1 is true
+PASS req.status==200 is true
+PASS navigator.getNetworkServices() second call to ok callback.
+PASS successfullyParsed is true
+
+TEST COMPLETE
