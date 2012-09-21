@@ -48,6 +48,7 @@ SET(WebKit2_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/battery"
     "${WEBCORE_DIR}/Modules/intents"
     "${WEBCORE_DIR}/Modules/networkinfo"
+    "${WEBCORE_DIR}/Modules/notifications"
     "${WEBCORE_DIR}/Modules/vibration"
     "${WEBCORE_DIR}/accessibility"
     "${WEBCORE_DIR}/bindings/js"
@@ -56,6 +57,7 @@ SET(WebKit2_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/bridge/jsc"
     "${WEBCORE_DIR}/css"
     "${WEBCORE_DIR}/dom"
+    "${WEBCORE_DIR}/dom/default"
     "${WEBCORE_DIR}/editing"
     "${WEBCORE_DIR}/history"
     "${WEBCORE_DIR}/html"
@@ -233,6 +235,8 @@ SET(WebKit2_SOURCES
     UIProcess/WebBackForwardList.cpp
     UIProcess/WebBatteryManagerProxy.cpp
     UIProcess/WebBatteryProvider.cpp
+    UIProcess/WebColorChooserProxy.cpp
+    UIProcess/WebColorPickerResultListenerProxy.cpp
     UIProcess/WebConnectionToWebProcess.cpp
     UIProcess/WebContext.cpp
     UIProcess/WebContextConnectionClient.cpp
@@ -288,6 +292,7 @@ SET(WebKit2_SOURCES
     UIProcess/API/C/WKBackForwardListItem.cpp
     UIProcess/API/C/WKBatteryManager.cpp
     UIProcess/API/C/WKBatteryStatus.cpp
+    UIProcess/API/C/WKColorPickerResultListener.cpp
     UIProcess/API/C/WKContext.cpp
     UIProcess/API/C/WKCookieManager.cpp
     UIProcess/API/C/WKCredential.cpp
@@ -380,6 +385,7 @@ SET(WebKit2_SOURCES
     WebProcess/InjectedBundle/InjectedBundleClient.cpp
     WebProcess/InjectedBundle/InjectedBundleDOMWindowExtension.cpp
     WebProcess/InjectedBundle/InjectedBundleHitTestResult.cpp
+    WebProcess/InjectedBundle/InjectedBundleIntent.cpp
     WebProcess/InjectedBundle/InjectedBundleIntentRequest.cpp
     WebProcess/InjectedBundle/InjectedBundleNavigationAction.cpp
     WebProcess/InjectedBundle/InjectedBundlePageDiagnosticLoggingClient.cpp
@@ -400,6 +406,7 @@ SET(WebKit2_SOURCES
     WebProcess/InjectedBundle/API/c/WKBundleFrame.cpp
     WebProcess/InjectedBundle/API/c/WKBundleHitTestResult.cpp
     WebProcess/InjectedBundle/API/c/WKBundleInspector.cpp
+    WebProcess/InjectedBundle/API/c/WKBundleIntent.cpp
     WebProcess/InjectedBundle/API/c/WKBundleIntentRequest.cpp
     WebProcess/InjectedBundle/API/c/WKBundleNavigationAction.cpp
     WebProcess/InjectedBundle/API/c/WKBundleNodeHandle.cpp
@@ -464,6 +471,7 @@ SET(WebKit2_SOURCES
     WebProcess/WebPage/EventDispatcher.cpp
     WebProcess/WebPage/FindController.cpp
 
+    WebProcess/WebPage/AreaAllocator.cpp
     WebProcess/WebPage/LayerTreeHost.cpp
     WebProcess/WebPage/PageOverlay.cpp
     WebProcess/WebPage/TapHighlightController.cpp
@@ -599,10 +607,6 @@ TARGET_LINK_LIBRARIES(${WebProcess_EXECUTABLE_NAME} ${WebProcess_LIBRARIES})
 SET_TARGET_PROPERTIES(${WebProcess_EXECUTABLE_NAME} PROPERTIES FOLDER "WebKit")
 
 SET_TARGET_PROPERTIES(${WebKit2_LIBRARY_NAME} PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-IF (WebKit2_LINK_FLAGS)
-    ADD_TARGET_PROPERTIES(${WebKit2_LIBRARY_NAME} LINK_FLAGS "${WebKit2_LINK_FLAGS}")
-    ADD_TARGET_PROPERTIES(${WebProcess_EXECUTABLE_NAME} LINK_FLAGS "${WebKit2_LINK_FLAGS}")
-ENDIF ()
 
 INSTALL(TARGETS ${WebKit2_LIBRARY_NAME} DESTINATION "${LIB_INSTALL_DIR}")
 INSTALL(TARGETS ${WebProcess_EXECUTABLE_NAME} DESTINATION "${EXEC_INSTALL_DIR}")

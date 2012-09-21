@@ -39,21 +39,20 @@
 #include "V8DirectoryEntrySync.h"
 #include "V8EntrySync.h"
 #include "V8FileEntrySync.h"
-#include "V8Proxy.h"
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-v8::Handle<v8::Value> toV8(EntrySync* impl, v8::Isolate* isolate)
+v8::Handle<v8::Value> toV8(EntrySync* impl, v8::Handle<v8::Object> creationContext, v8::Isolate* isolate)
 {
     if (!impl)
         return v8NullWithCheck(isolate);
 
     if (impl->isFile())
-        return toV8(static_cast<FileEntrySync*>(impl), isolate);
+        return toV8(static_cast<FileEntrySync*>(impl), creationContext, isolate);
 
     ASSERT(impl->isDirectory());
-    return toV8(static_cast<DirectoryEntrySync*>(impl), isolate);
+    return toV8(static_cast<DirectoryEntrySync*>(impl), creationContext, isolate);
 }
 
 } // namespace WebCore

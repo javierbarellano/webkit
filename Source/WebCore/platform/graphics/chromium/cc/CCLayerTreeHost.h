@@ -25,18 +25,17 @@
 #ifndef CCLayerTreeHost_h
 #define CCLayerTreeHost_h
 
+#include "CCAnimationEvents.h"
+#include "CCGraphicsContext.h"
+#include "CCLayerTreeHostClient.h"
+#include "CCLayerTreeHostCommon.h"
+#include "CCOcclusionTracker.h"
+#include "CCPrioritizedTextureManager.h"
+#include "CCProxy.h"
+#include "CCRenderingStats.h"
 #include "IntRect.h"
 #include "RateLimiter.h"
 #include "SkColor.h"
-#include "cc/CCAnimationEvents.h"
-#include "cc/CCGraphicsContext.h"
-#include "cc/CCLayerTreeHostCommon.h"
-#include "cc/CCOcclusionTracker.h"
-#include "cc/CCPrioritizedTextureManager.h"
-#include "cc/CCProxy.h"
-#include "cc/CCRenderingStats.h"
-
-
 #include <limits>
 #include <wtf/HashMap.h>
 #include <wtf/OwnPtr.h>
@@ -54,28 +53,6 @@ class CCTextureUpdateQueue;
 class HeadsUpDisplayLayerChromium;
 class Region;
 struct CCScrollAndScaleSet;
-
-class CCLayerTreeHostClient {
-public:
-    virtual void willBeginFrame() = 0;
-    // Marks finishing compositing-related tasks on the main thread. In threaded mode, this corresponds to didCommit().
-    virtual void didBeginFrame() = 0;
-    virtual void updateAnimations(double frameBeginTime) = 0;
-    virtual void layout() = 0;
-    virtual void applyScrollAndScale(const IntSize& scrollDelta, float pageScale) = 0;
-    virtual PassOwnPtr<WebKit::WebCompositorOutputSurface> createOutputSurface() = 0;
-    virtual void didRecreateOutputSurface(bool success) = 0;
-    virtual void willCommit() = 0;
-    virtual void didCommit() = 0;
-    virtual void didCommitAndDrawFrame() = 0;
-    virtual void didCompleteSwapBuffers() = 0;
-
-    // Used only in the single-threaded path.
-    virtual void scheduleComposite() = 0;
-
-protected:
-    virtual ~CCLayerTreeHostClient() { }
-};
 
 struct CCLayerTreeSettings {
     CCLayerTreeSettings()
@@ -117,8 +94,8 @@ struct CCLayerTreeSettings {
 };
 
 // Provides information on an Impl's rendering capabilities back to the CCLayerTreeHost
-struct LayerRendererCapabilities {
-    LayerRendererCapabilities()
+struct RendererCapabilities {
+    RendererCapabilities()
         : bestTextureFormat(0)
         , contextHasCachedFrontBuffer(false)
         , usingPartialSwap(false)
@@ -167,6 +144,7 @@ public:
     void willCommit();
     void commitComplete();
     PassOwnPtr<CCGraphicsContext> createContext();
+    PassOwnPtr<CCInputHandler> createInputHandler();
     virtual PassOwnPtr<CCLayerTreeHostImpl> createLayerTreeHostImpl(CCLayerTreeHostImplClient*);
     void didLoseContext();
     enum RecreateResult {
@@ -180,12 +158,10 @@ public:
     void deleteContentsTexturesOnImplThread(CCResourceProvider*);
     virtual void acquireLayerTextures();
     // Returns false if we should abort this frame due to initialization failure.
-    bool initializeLayerRendererIfNeeded();
+    bool initializeRendererIfNeeded();
     void updateLayers(CCTextureUpdateQueue&, size_t contentsMemoryLimitBytes);
 
     CCLayerTreeHostClient* client() { return m_client; }
-
-    int compositorIdentifier() const { return m_compositorIdentifier; }
 
     // Only used when compositing on the main thread.
     void composite();
@@ -202,7 +178,7 @@ public:
 
     void renderingStats(CCRenderingStats&) const;
 
-    const LayerRendererCapabilities& layerRendererCapabilities() const;
+    const RendererCapabilities& rendererCapabilities() const;
 
     // Test only hook
     void loseContext(int numTimes);
@@ -235,11 +211,19 @@ public:
 
     CCPrioritizedTextureManager* contentsTextureManager() const;
 
-    // This will cause contents texture manager to evict all textures, but
-    // without deleting them. This happens after all content textures have
-    // already been deleted on impl, after getting a 0 allocation limit.
-    // Set during a commit, but before updateLayers.
-    void evictAllContentTextures();
+    // Delete contents textures' backing resources until they use only bytesLimit bytes. This may
+    // be called on the impl thread while the main thread is running.
+    void reduceContentsTexturesMemoryOnImplThread(size_t bytesLimit, CCResourceProvider*);
+    // Retrieve the list of all contents textures' backings that have been evicted, to pass to the
+    // main thread to unlink them from their owning textures.
+    void getEvictedContentTexturesBackings(CCPrioritizedTextureManager::BackingVector&);
+    // Unlink the list of contents textures' backings from their owning textures on the main thread
+    // before updating layers.
+    void unlinkEvictedContentTexturesBackings(const CCPrioritizedTextureManager::BackingVector&);
+    // Deletes all evicted backings, unlinking them from their owning textures if needed.
+    // Returns true if this function had to unlink any backings from their owning texture when
+    // destroying them. If this was the case, the impl layer tree may contain invalid resources.
+    bool deleteEvictedContentTexturesBackings();
 
     bool visible() const { return m_visible; }
     void setVisible(bool);
@@ -263,6 +247,8 @@ public:
 
     void setFontAtlas(PassOwnPtr<CCFontAtlas>);
 
+    HeadsUpDisplayLayerChromium* hudLayer() const { return m_hudLayer.get(); }
+
 protected:
     CCLayerTreeHost(CCLayerTreeHostClient*, const CCLayerTreeSettings&);
     bool initialize();
@@ -271,7 +257,7 @@ private:
     typedef Vector<RefPtr<LayerChromium> > LayerList;
     typedef Vector<OwnPtr<CCPrioritizedTexture> > TextureList;
 
-    void initializeLayerRenderer();
+    void initializeRenderer();
 
     void update(LayerChromium*, CCTextureUpdateQueue&, const CCOcclusionTracker*);
     bool paintLayerContents(const LayerList&, CCTextureUpdateQueue&);
@@ -288,8 +274,6 @@ private:
     bool animateLayersRecursive(LayerChromium* current, double monotonicTime);
     void setAnimationEventsRecursive(const CCAnimationEventsVector&, LayerChromium*, double wallClockTime);
 
-    int m_compositorIdentifier;
-
     bool m_animating;
     bool m_needsAnimateLayers;
 
@@ -299,7 +283,7 @@ private:
     CCRenderingStats m_renderingStats;
 
     OwnPtr<CCProxy> m_proxy;
-    bool m_layerRendererInitialized;
+    bool m_rendererInitialized;
     bool m_contextLost;
     int m_numTimesRecreateShouldFail;
     int m_numFailedRecreateAttempts;

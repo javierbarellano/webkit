@@ -53,7 +53,6 @@
 #include "KURL.h"
 #include "MediaError.h"
 #include "Page.h"
-#include "PlatformString.h"
 #include "RenderWidget.h"
 #include "Settings.h"
 #include "TextBreakIterator.h"
@@ -75,6 +74,7 @@
 #include "platform/WebVector.h"
 #include "WebViewClient.h"
 #include "WebViewImpl.h"
+#include <wtf/text/WTFString.h>
 
 using namespace WebCore;
 
@@ -279,9 +279,8 @@ PlatformMenuDescription ContextMenuClientImpl::getCustomMenuFromDefaultItems(
         // a mouse on a word, Chrome just needs to find a spelling marker on the word instread of spellchecking it.
         if (selectedFrame->settings() && selectedFrame->settings()->asynchronousSpellCheckingEnabled()) {
             VisibleSelection selection = selectedFrame->selection()->selection();
-            if (selection.isCaretOrRange()) {
-                if (selection.isCaret())
-                    selection.expandUsingGranularity(WordGranularity);
+            if (selection.isCaret()) {
+                selection.expandUsingGranularity(WordGranularity);
                 RefPtr<Range> range = selection.toNormalizedRange();
                 Vector<DocumentMarker*> markers = selectedFrame->document()->markers()->markersInRange(range.get(), DocumentMarker::Spelling | DocumentMarker::Grammar);
                 if (markers.size() == 1) {

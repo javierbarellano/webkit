@@ -45,6 +45,7 @@
 #include "FrameTree.h"
 #include "FrameView.h"
 #include "HTMLFormElement.h"
+#include "HTTPStatusCodes.h"
 #include "IntentRequest.h"
 #include "MIMETypeRegistry.h"
 #include "NotImplemented.h"
@@ -297,6 +298,12 @@ void FrameLoaderClientEfl::dispatchDecidePolicyForResponse(FramePolicyFunction f
         return;
     }
 
+    // Ignore responses with an HTTP status code of 204 (No Content)
+    if (response.httpStatusCode() == HTTPNoContent) {
+        callPolicyFunction(function, PolicyIgnore);
+        return;
+    }
+
     if (canShowMIMEType(response.mimeType()))
         callPolicyFunction(function, PolicyUse);
     else
@@ -371,9 +378,9 @@ PassRefPtr<Frame> FrameLoaderClientEfl::createFrame(const KURL& url, const Strin
 
 void FrameLoaderClientEfl::redirectDataToPlugin(Widget* pluginWidget)
 {
-    ASSERT(!m_pluginView);
     m_pluginView = static_cast<PluginView*>(pluginWidget);
-    m_hasSentResponseToPlugin = false;
+    if (pluginWidget)
+        m_hasSentResponseToPlugin = false;
 }
 
 PassRefPtr<Widget> FrameLoaderClientEfl::createJavaAppletWidget(const IntSize&, HTMLAppletElement*, const KURL& baseURL,
@@ -611,7 +618,7 @@ void FrameLoaderClientEfl::dispatchDidChangeLocationWithinPage()
 {
     ewk_frame_uri_changed(m_frame);
 
-    if (ewk_view_frame_main_get(m_view) != m_frame)
+    if (!isLoadingMainFrame())
         return;
     ewk_view_uri_changed(m_view);
 }
@@ -624,7 +631,7 @@ void FrameLoaderClientEfl::dispatchWillClose()
 void FrameLoaderClientEfl::dispatchDidReceiveIcon()
 {
     // IconController loads icons only for the main frame.
-    ASSERT(ewk_view_frame_main_get(m_view) == m_frame);
+    ASSERT(isLoadingMainFrame());
 
     ewk_view_frame_main_icon_received(m_view);
 }
@@ -632,7 +639,7 @@ void FrameLoaderClientEfl::dispatchDidReceiveIcon()
 void FrameLoaderClientEfl::dispatchDidStartProvisionalLoad()
 {
     ewk_frame_load_provisional(m_frame);
-    if (ewk_view_frame_main_get(m_view) == m_frame)
+    if (isLoadingMainFrame())
         ewk_view_load_provisional(m_view);
 }
 
@@ -644,7 +651,7 @@ void FrameLoaderClientEfl::dispatchDidReceiveTitle(const StringWithDirection& ti
     ewkTitle.direction = (title.direction() == LTR) ? EWK_TEXT_DIRECTION_LEFT_TO_RIGHT : EWK_TEXT_DIRECTION_RIGHT_TO_LEFT;
     ewk_frame_title_set(m_frame, &ewkTitle);
 
-    if (ewk_view_frame_main_get(m_view) != m_frame)
+    if (!isLoadingMainFrame())
         return;
     ewk_view_title_set(m_view, &ewkTitle);
 }
@@ -660,7 +667,7 @@ void FrameLoaderClientEfl::dispatchDidCommitLoad()
 {
     ewk_frame_uri_changed(m_frame);
     ewk_frame_load_committed(m_frame);
-    if (ewk_view_frame_main_get(m_view) != m_frame)
+    if (!isLoadingMainFrame())
         return;
     ewk_view_title_set(m_view, 0);
     ewk_view_uri_changed(m_view);
@@ -834,7 +841,7 @@ void FrameLoaderClientEfl::dispatchDidFailProvisionalLoad(const ResourceError& e
     error.frame = m_frame;
 
     ewk_frame_load_provisional_failed(m_frame, &error);
-    if (ewk_view_frame_main_get(m_view) == m_frame)
+    if (isLoadingMainFrame())
         ewk_view_load_provisional_failed(m_view, &error);
 
     dispatchDidFailLoad(err);
@@ -865,6 +872,7 @@ void FrameLoaderClientEfl::download(ResourceHandle*, const ResourceRequest& requ
     Ewk_Download download;
 
     download.url = url.data();
+    download.suggested_name = 0;
     ewk_view_download_request(m_view, &download);
 }
 
@@ -942,15 +950,17 @@ void FrameLoaderClientEfl::setMainDocumentError(DocumentLoader* loader, const Re
     m_hasSentResponseToPlugin = false;
 }
 
-void FrameLoaderClientEfl::startDownload(const ResourceRequest& request, const String& /* suggestedName */)
+void FrameLoaderClientEfl::startDownload(const ResourceRequest& request, const String& suggestedName)
 {
     if (!m_view)
         return;
 
     CString url = request.url().string().utf8();
+    CString suggestedNameString = suggestedName.utf8();
     Ewk_Download download;
 
     download.url = url.data();
+    download.suggested_name = suggestedNameString.data();
     ewk_view_download_request(m_view, &download);
 }
 
@@ -1000,7 +1010,7 @@ void FrameLoaderClientEfl::transitionToCommittedForNewPage()
 
     ewk_frame_view_create_for_view(m_frame, m_view);
 
-    if (m_frame == ewk_view_frame_main_get(m_view)) {
+    if (isLoadingMainFrame()) {
         ewk_view_frame_view_creation_notify(m_view);
         ewk_view_frame_main_cleared(m_view);
     }

@@ -36,6 +36,7 @@
 #include "Page.h"
 #include "PageGroup.h"
 #include "PluginView.h"
+#include "ScriptCallStack.h"
 #include "ScriptSourceCode.h"
 #include "ScriptValue.h"
 #include "ScriptableDocumentParser.h"
@@ -111,7 +112,7 @@ JSDOMWindowShell* ScriptController::createWindowShell(DOMWrapperWorld* world)
 {
     ASSERT(!m_windowShells.contains(world));
     Structure* structure = JSDOMWindowShell::createStructure(*world->globalData(), jsNull());
-    Strong<JSDOMWindowShell> windowShell(*world->globalData(), JSDOMWindowShell::create(m_frame->domWindow(), structure, world));
+    Strong<JSDOMWindowShell> windowShell(*world->globalData(), JSDOMWindowShell::create(m_frame->document()->domWindow(), structure, world));
     Strong<JSDOMWindowShell> windowShell2(windowShell);
     m_windowShells.add(world, windowShell);
     world->didCreateWindowShell(this);
@@ -121,7 +122,7 @@ JSDOMWindowShell* ScriptController::createWindowShell(DOMWrapperWorld* world)
 ScriptValue ScriptController::evaluateInWorld(const ScriptSourceCode& sourceCode, DOMWrapperWorld* world)
 {
     const SourceCode& jsSourceCode = sourceCode.jsSourceCode();
-    String sourceURL = ustringToString(jsSourceCode.provider()->url());
+    String sourceURL = jsSourceCode.provider()->url();
 
     // evaluate code. Returns the JS return value or 0
     // if there was none, an error occurred or the type couldn't be converted.
@@ -144,7 +145,7 @@ ScriptValue ScriptController::evaluateInWorld(const ScriptSourceCode& sourceCode
     JSValue evaluationException;
 
     exec->globalData().timeoutChecker.start();
-    JSValue returnValue = JSMainThreadExecState::evaluate(exec, exec->dynamicGlobalObject()->globalScopeChain(), jsSourceCode, shell, &evaluationException);
+    JSValue returnValue = JSMainThreadExecState::evaluate(exec, jsSourceCode, shell, &evaluationException);
     exec->globalData().timeoutChecker.stop();
 
     InspectorInstrumentation::didEvaluateScript(cookie);
@@ -174,7 +175,7 @@ void ScriptController::getAllWorlds(Vector<RefPtr<DOMWrapperWorld> >& worlds)
     static_cast<WebCoreJSClientData*>(JSDOMWindow::commonJSGlobalData()->clientData)->getAllWorlds(worlds);
 }
 
-void ScriptController::clearWindowShell(bool goingIntoPageCache)
+void ScriptController::clearWindowShell(DOMWindow* newDOMWindow, bool goingIntoPageCache)
 {
     if (m_windowShells.isEmpty())
         return;
@@ -184,11 +185,14 @@ void ScriptController::clearWindowShell(bool goingIntoPageCache)
     for (ShellMap::iterator iter = m_windowShells.begin(); iter != m_windowShells.end(); ++iter) {
         JSDOMWindowShell* windowShell = iter->second.get();
 
+        if (windowShell->window()->impl() == newDOMWindow)
+            continue;
+
         // Clear the debugger from the current window before setting the new window.
         attachDebugger(windowShell, 0);
 
         windowShell->window()->willRemoveFromWindowShell();
-        windowShell->setWindow(m_frame->domWindow());
+        windowShell->setWindow(newDOMWindow);
 
         // An m_cacheableBindingRootObject persists between page navigations
         // so needs to know about the new JSDOMWindow.
@@ -218,7 +222,7 @@ JSDOMWindowShell* ScriptController::initScript(DOMWrapperWorld* world)
     windowShell->window()->updateDocument();
 
     if (m_frame->document())
-        windowShell->window()->setEvalEnabled(m_frame->document()->contentSecurityPolicy()->allowEval(0, ContentSecurityPolicy::SuppressReport));   
+        windowShell->window()->setEvalEnabled(m_frame->document()->contentSecurityPolicy()->allowEval(0, ContentSecurityPolicy::SuppressReport), m_frame->document()->contentSecurityPolicy()->evalDisabledErrorMessage());   
 
     if (Page* page = m_frame->page()) {
         attachDebugger(windowShell, page->debugger());
@@ -246,12 +250,12 @@ void ScriptController::enableEval()
     windowShell->window()->setEvalEnabled(true);
 }
 
-void ScriptController::disableEval()
+void ScriptController::disableEval(const String& errorMessage)
 {
     JSDOMWindowShell* windowShell = existingWindowShell(mainThreadNormalWorld());
     if (!windowShell)
         return;
-    windowShell->window()->setEvalEnabled(false);
+    windowShell->window()->setEvalEnabled(false, errorMessage);
 }
 
 bool ScriptController::processingUserGesture()
@@ -289,9 +293,6 @@ void ScriptController::attachDebugger(JSDOMWindowShell* shell, JSC::Debugger* de
 
 void ScriptController::updateDocument()
 {
-    if (!m_frame->document())
-        return;
-
     for (ShellMap::iterator iter = m_windowShells.begin(); iter != m_windowShells.end(); ++iter) {
         JSLockHolder lock(iter->first->globalData());
         iter->second->window()->updateDocument();
@@ -348,7 +349,7 @@ void ScriptController::collectIsolatedContexts(Vector<std::pair<JSC::ExecState*,
 {
     for (ShellMap::iterator iter = m_windowShells.begin(); iter != m_windowShells.end(); ++iter) {
         JSC::ExecState* exec = iter->second->window()->globalExec();
-        SecurityOrigin* origin = iter->second->window()->impl()->securityOrigin();
+        SecurityOrigin* origin = iter->second->window()->impl()->document()->securityOrigin();
         result.append(std::pair<ScriptState*, SecurityOrigin*>(exec, origin));
     }
 }

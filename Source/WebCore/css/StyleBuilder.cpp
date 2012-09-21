@@ -25,12 +25,15 @@
 #include "config.h"
 #include "StyleBuilder.h"
 
+#include "BasicShapeFunctions.h"
+#include "BasicShapes.h"
 #include "CSSAspectRatioValue.h"
 #include "CSSCalculationValue.h"
 #include "CSSCursorImageValue.h"
 #include "CSSPrimitiveValueMappings.h"
 #include "CSSToStyleMap.h"
 #include "CSSValueList.h"
+#include "ClipPathOperation.h"
 #include "CursorList.h"
 #include "Document.h"
 #include "Element.h"
@@ -44,12 +47,6 @@
 #include <wtf/StdLibExtras.h>
 #include <wtf/UnusedParam.h>
 
-#if ENABLE(CSS_EXCLUSIONS)
-#include "CSSWrapShapes.h"
-#include "WrapShapeFunctions.h"
-#include "WrapShapes.h"
-#endif
-
 using namespace std;
 
 namespace WebCore {
@@ -60,7 +57,7 @@ class ApplyPropertyExpanding {
 public:
 
     template <CSSPropertyID id>
-    static inline void applyInheritValue(StyleResolver* styleResolver)
+    static inline void applyInheritValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
         if (id == CSSPropertyInvalid)
             return;
@@ -68,20 +65,20 @@ public:
         const StyleBuilder& table = StyleBuilder::sharedStyleBuilder();
         const PropertyHandler& handler = table.propertyHandler(id);
         if (handler.isValid())
-            handler.applyInheritValue(styleResolver);
+            handler.applyInheritValue(propertyID, styleResolver);
     }
 
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        applyInheritValue<one>(styleResolver);
-        applyInheritValue<two>(styleResolver);
-        applyInheritValue<three>(styleResolver);
-        applyInheritValue<four>(styleResolver);
-        applyInheritValue<five>(styleResolver);
+        applyInheritValue<one>(propertyID, styleResolver);
+        applyInheritValue<two>(propertyID, styleResolver);
+        applyInheritValue<three>(propertyID, styleResolver);
+        applyInheritValue<four>(propertyID, styleResolver);
+        applyInheritValue<five>(propertyID, styleResolver);
     }
 
     template <CSSPropertyID id>
-    static inline void applyInitialValue(StyleResolver* styleResolver)
+    static inline void applyInitialValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
         if (id == CSSPropertyInvalid)
             return;
@@ -89,20 +86,20 @@ public:
         const StyleBuilder& table = StyleBuilder::sharedStyleBuilder();
         const PropertyHandler& handler = table.propertyHandler(id);
         if (handler.isValid())
-            handler.applyInitialValue(styleResolver);
+            handler.applyInitialValue(propertyID, styleResolver);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        applyInitialValue<one>(styleResolver);
-        applyInitialValue<two>(styleResolver);
-        applyInitialValue<three>(styleResolver);
-        applyInitialValue<four>(styleResolver);
-        applyInitialValue<five>(styleResolver);
+        applyInitialValue<one>(propertyID, styleResolver);
+        applyInitialValue<two>(propertyID, styleResolver);
+        applyInitialValue<three>(propertyID, styleResolver);
+        applyInitialValue<four>(propertyID, styleResolver);
+        applyInitialValue<five>(propertyID, styleResolver);
     }
 
     template <CSSPropertyID id>
-    static inline void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static inline void applyValue(CSSPropertyID propertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (id == CSSPropertyInvalid)
             return;
@@ -110,19 +107,19 @@ public:
         const StyleBuilder& table = StyleBuilder::sharedStyleBuilder();
         const PropertyHandler& handler = table.propertyHandler(id);
         if (handler.isValid())
-            handler.applyValue(styleResolver, value);
+            handler.applyValue(propertyID, styleResolver, value);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID propertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!expandValue)
             return;
 
-        applyValue<one>(styleResolver, value);
-        applyValue<two>(styleResolver, value);
-        applyValue<three>(styleResolver, value);
-        applyValue<four>(styleResolver, value);
-        applyValue<five>(styleResolver, value);
+        applyValue<one>(propertyID, styleResolver, value);
+        applyValue<two>(propertyID, styleResolver, value);
+        applyValue<three>(propertyID, styleResolver, value);
+        applyValue<four>(propertyID, styleResolver, value);
+        applyValue<five>(propertyID, styleResolver, value);
     }
     static PropertyHandler createHandler() { return PropertyHandler(&applyInheritValue, &applyInitialValue, &applyValue); }
 };
@@ -133,9 +130,9 @@ public:
     static void setValue(RenderStyle* style, SetterType value) { (style->*setterFunction)(value); }
     static GetterType value(RenderStyle* style) { return (style->*getterFunction)(); }
     static InitialType initial() { return (*initialFunction)(); }
-    static void applyInheritValue(StyleResolver* styleResolver) { setValue(styleResolver->style(), value(styleResolver->parentStyle())); }
-    static void applyInitialValue(StyleResolver* styleResolver) { setValue(styleResolver->style(), initial()); }
-    static void applyValue(StyleResolver*, CSSValue*) { }
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver) { setValue(styleResolver->style(), value(styleResolver->parentStyle())); }
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver) { setValue(styleResolver->style(), initial()); }
+    static void applyValue(CSSPropertyID, StyleResolver*, CSSValue*) { }
     static PropertyHandler createHandler() { return PropertyHandler(&applyInheritValue, &applyInitialValue, &applyValue); }
 };
 
@@ -143,7 +140,7 @@ template <typename GetterType, GetterType (RenderStyle::*getterFunction)() const
 class ApplyPropertyDefault {
 public:
     static void setValue(RenderStyle* style, SetterType value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (value->isPrimitiveValue())
             setValue(styleResolver->style(), *static_cast<CSSPrimitiveValue*>(value));
@@ -159,7 +156,7 @@ template <typename NumberType, NumberType (RenderStyle::*getterFunction)() const
 class ApplyPropertyNumber {
 public:
     static void setValue(RenderStyle* style, NumberType value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -180,7 +177,7 @@ public:
 template <StyleImage* (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(PassRefPtr<StyleImage>), StyleImage* (*initialFunction)(), CSSPropertyID property>
 class ApplyPropertyStyleImage {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value) { (styleResolver->style()->*setterFunction)(styleResolver->styleImage(property, value)); }
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value) { (styleResolver->style()->*setterFunction)(styleResolver->styleImage(property, value)); }
     static PropertyHandler createHandler()
     {
         PropertyHandler handler = ApplyPropertyDefaultBase<StyleImage*, getterFunction, PassRefPtr<StyleImage>, setterFunction, StyleImage*, initialFunction>::createHandler();
@@ -197,7 +194,7 @@ public:
     static bool hasAuto(RenderStyle* style) { return (style->*hasAutoFunction)(); }
     static void setAuto(RenderStyle* style) { (style->*setAutoFunction)(); }
 
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         if (hasAuto(styleResolver->parentStyle()))
             setAuto(styleResolver->style());
@@ -205,9 +202,9 @@ public:
             setValue(styleResolver->style(), value(styleResolver->parentStyle()));
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver) { setAuto(styleResolver->style()); }
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver) { setAuto(styleResolver->style()); }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -231,22 +228,22 @@ private:
         return value->convertToLength<FixedIntegerConversion | PercentConversion | FractionConversion | AutoConversion>(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom());
     }
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
         RenderStyle* parentStyle = styleResolver->parentStyle();
         if (!parentStyle->hasClip())
-            return applyInitialValue(styleResolver);
+            return applyInitialValue(propertyID, styleResolver);
         styleResolver->style()->setClip(parentStyle->clipTop(), parentStyle->clipRight(), parentStyle->clipBottom(), parentStyle->clipLeft());
         styleResolver->style()->setHasClip(true);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setClip(Length(), Length(), Length(), Length());
         styleResolver->style()->setHasClip(false);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -280,26 +277,26 @@ template <ColorInherit inheritColorFromParent,
           Color (*initialFunction)() = &defaultInitialColor>
 class ApplyPropertyColor {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         // Visited link style can never explicitly inherit from parent visited link style so no separate getters are needed.
         Color color = (styleResolver->parentStyle()->*getterFunction)();
         applyColorValue(styleResolver, color.isValid() ? color : (styleResolver->parentStyle()->*defaultFunction)());
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         applyColorValue(styleResolver, initialFunction());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID propertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
 
         CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
         if (inheritColorFromParent && primitiveValue->getIdent() == CSSValueCurrentcolor)
-            applyInheritValue(styleResolver);
+            applyInheritValue(propertyID, styleResolver);
         else {
             if (styleResolver->applyPropertyToRegularStyle())
                 (styleResolver->style()->*setterFunction)(styleResolver->colorFromPrimitiveValue(primitiveValue));
@@ -322,9 +319,9 @@ public:
 template <TextDirection (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(TextDirection), TextDirection (*initialFunction)()>
 class ApplyPropertyDirection {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID propertyID, StyleResolver* styleResolver, CSSValue* value)
     {
-        ApplyPropertyDefault<TextDirection, getterFunction, TextDirection, setterFunction, TextDirection, initialFunction>::applyValue(styleResolver, value);
+        ApplyPropertyDefault<TextDirection, getterFunction, TextDirection, setterFunction, TextDirection, initialFunction>::applyValue(propertyID, styleResolver, value);
         Element* element = styleResolver->element();
         if (element && styleResolver->element() == element->document()->documentElement())
             element->document()->setDirectionSetOnDocumentElement(true);
@@ -353,7 +350,7 @@ template <Length (RenderStyle::*getterFunction)() const,
 class ApplyPropertyLength {
 public:
     static void setValue(RenderStyle* style, Length value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -408,7 +405,7 @@ template <StringIdentBehavior identBehavior, const AtomicString& (RenderStyle::*
 class ApplyPropertyString {
 public:
     static void setValue(RenderStyle* style, const AtomicString& value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -430,7 +427,7 @@ template <LengthSize (RenderStyle::*getterFunction)() const, void (RenderStyle::
 class ApplyPropertyBorderRadius {
 public:
     static void setValue(RenderStyle* style, LengthSize value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -506,7 +503,7 @@ template <typename T,
           void (CSSToStyleMap::*mapFillFunction)(CSSPropertyID, FillLayer*, CSSValue*)>
 class ApplyPropertyFillLayer {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
         FillLayer* prevChild = 0;
@@ -530,7 +527,7 @@ public:
         }
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
         (currChild->*setFunction)((*initialFunction)(fillLayerType));
@@ -538,7 +535,7 @@ public:
             (currChild->*clearFunction)();
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
         FillLayer* prevChild = 0;
@@ -586,7 +583,7 @@ template <typename T,
 class ApplyPropertyComputeLength {
 public:
     static void setValue(RenderStyle* style, T value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         // note: CSSPropertyLetter/WordSpacing right now sets to zero if it's not a primitive value for some reason...
         if (!value->isPrimitiveValue())
@@ -633,21 +630,21 @@ public:
 template <typename T, T (FontDescription::*getterFunction)() const, void (FontDescription::*setterFunction)(T), T initialValue>
 class ApplyPropertyFont {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FontDescription fontDescription = styleResolver->fontDescription();
         (fontDescription.*setterFunction)((styleResolver->parentFontDescription().*getterFunction)());
         styleResolver->setFontDescription(fontDescription);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FontDescription fontDescription = styleResolver->fontDescription();
         (fontDescription.*setterFunction)(initialValue);
         styleResolver->setFontDescription(fontDescription);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -679,7 +676,7 @@ private:
         return size / 1.2f;
     }
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         float size = styleResolver->parentStyle()->fontDescription().specifiedSize();
 
@@ -693,7 +690,7 @@ public:
         return;
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FontDescription fontDescription = styleResolver->style()->fontDescription();
         float size = styleResolver->fontSizeForKeyword(styleResolver->document(), CSSValueMedium, fontDescription.useFixedDefaultSize());
@@ -707,7 +704,7 @@ public:
         return;
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -720,7 +717,7 @@ public:
         bool parentIsAbsoluteSize = false;
         float size = 0;
 
-        if (styleResolver->hasParentNode()) {
+        if (styleResolver->parentStyle()) {
             parentSize = styleResolver->parentStyle()->fontDescription().specifiedSize();
             parentIsAbsoluteSize = styleResolver->parentStyle()->fontDescription().isAbsoluteSize();
         }
@@ -782,7 +779,7 @@ public:
 
 class ApplyPropertyFontWeight {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -812,7 +809,7 @@ public:
 
 class ApplyPropertyFontVariantLigatures {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         const FontDescription& parentFontDescription = styleResolver->parentFontDescription();
         FontDescription fontDescription = styleResolver->fontDescription();
@@ -824,7 +821,7 @@ public:
         styleResolver->setFontDescription(fontDescription);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         FontDescription fontDescription = styleResolver->fontDescription();
 
@@ -835,7 +832,7 @@ public:
         styleResolver->setFontDescription(fontDescription);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         FontDescription::LigaturesState commonLigaturesState = FontDescription::NormalLigaturesState;
         FontDescription::LigaturesState discretionaryLigaturesState = FontDescription::NormalLigaturesState;
@@ -901,7 +898,7 @@ template <BorderImageType borderImageType,
           void (RenderStyle::*setterFunction)(const NinePieceImage&)>
 class ApplyPropertyBorderImage {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         NinePieceImage image;
         if (borderImageType == Mask)
@@ -924,7 +921,7 @@ private:
     static inline const NinePieceImage& getValue(RenderStyle* style) { return type == Image ? style->borderImage() : style->maskBoxImage(); }
     static inline void setValue(RenderStyle* style, const NinePieceImage& value) { return type == Image ? style->setBorderImage(value) : style->setMaskBoxImage(value); }
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         NinePieceImage image(getValue(styleResolver->style()));
         switch (modifier) {
@@ -944,7 +941,7 @@ public:
         setValue(styleResolver->style(), image);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         NinePieceImage image(getValue(styleResolver->style()));
         switch (modifier) {
@@ -968,7 +965,7 @@ public:
         setValue(styleResolver->style(), image);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         NinePieceImage image(getValue(styleResolver->style()));
         switch (modifier) {
@@ -994,7 +991,7 @@ public:
 template <CSSPropertyID id, StyleImage* (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(PassRefPtr<StyleImage>), StyleImage* (*initialFunction)()>
 class ApplyPropertyBorderImageSource {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value) { (styleResolver->style()->*setterFunction)(styleResolver->styleImage(id, value)); }
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value) { (styleResolver->style()->*setterFunction)(styleResolver->styleImage(id, value)); }
     static PropertyHandler createHandler()
     {
         PropertyHandler handler = ApplyPropertyDefaultBase<StyleImage*, getterFunction, PassRefPtr<StyleImage>, setterFunction, StyleImage*, initialFunction>::createHandler();
@@ -1006,8 +1003,8 @@ enum CounterBehavior {Increment = 0, Reset};
 template <CounterBehavior counterBehavior>
 class ApplyPropertyCounter {
 public:
-    static void emptyFunction(StyleResolver*) { }
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void emptyFunction(CSSPropertyID, StyleResolver*) { }
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         CounterDirectiveMap& map = styleResolver->style()->accessCounterDirectives();
         CounterDirectiveMap& parentMap = styleResolver->parentStyle()->accessCounterDirectives();
@@ -1017,24 +1014,13 @@ public:
         for (Iterator it = parentMap.begin(); it != end; ++it) {
             CounterDirectives& directives = map.add(it->first, CounterDirectives()).iterator->second;
             if (counterBehavior == Reset) {
-                directives.m_reset = it->second.m_reset;
-                directives.m_resetValue = it->second.m_resetValue;
+                directives.inheritReset(it->second);
             } else {
-                // Inheriting a counter-increment means taking the parent's current value for the counter
-                // and adding it to itself.
-                directives.m_increment = it->second.m_increment;
-                directives.m_incrementValue = 0;
-                if (directives.m_increment) {
-                    float incrementValue = directives.m_incrementValue;
-                    directives.m_incrementValue = clampToInteger(incrementValue + it->second.m_incrementValue);
-                } else {
-                    directives.m_increment = true;
-                    directives.m_incrementValue = it->second.m_incrementValue;
-                }
+                directives.inheritIncrement(it->second);
             }
         }
     }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isValueList())
             return;
@@ -1047,9 +1033,9 @@ public:
         Iterator end = map.end();
         for (Iterator it = map.begin(); it != end; ++it)
             if (counterBehavior == Reset)
-                it->second.m_reset = false;
+                it->second.clearReset();
             else
-                it->second.m_increment = false;
+                it->second.clearIncrement();
 
         int length = list ? list->length() : 0;
         for (int i = 0; i < length; ++i) {
@@ -1063,20 +1049,12 @@ public:
 
             AtomicString identifier = static_cast<CSSPrimitiveValue*>(pair->first())->getStringValue();
             int value = static_cast<CSSPrimitiveValue*>(pair->second())->getIntValue();
-            CounterDirectives& directives = map.add(identifier.impl(), CounterDirectives()).iterator->second;
+            CounterDirectives& directives = map.add(identifier, CounterDirectives()).iterator->second;
             if (counterBehavior == Reset) {
-                directives.m_reset = true;
-                directives.m_resetValue = value;
+                directives.setResetValue(value);
             } else {
-                if (directives.m_increment) {
-                    float incrementValue = directives.m_incrementValue;
-                    directives.m_incrementValue = clampToInteger(incrementValue + value);
-                } else {
-                    directives.m_increment = true;
-                    directives.m_incrementValue = value;
-                }
+                directives.addIncrementValue(value);
             }
-            
         }
     }
     static PropertyHandler createHandler() { return PropertyHandler(&applyInheritValue, &emptyFunction, &applyValue); }
@@ -1085,19 +1063,19 @@ public:
 
 class ApplyPropertyCursor {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setCursor(styleResolver->parentStyle()->cursor());
         styleResolver->style()->setCursorList(styleResolver->parentStyle()->cursors());
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->clearCursorList();
         styleResolver->style()->setCursor(RenderStyle::initialCursor());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         styleResolver->style()->clearCursorList();
         if (value->isValueList()) {
@@ -1129,7 +1107,7 @@ public:
 
 class ApplyPropertyTextAlign {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -1154,7 +1132,7 @@ public:
 
 class ApplyPropertyTextDecoration {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         ETextDecoration t = RenderStyle::initialTextDecoration();
         for (CSSValueListIterator i(value); i.hasMore(); i.advance()) {
@@ -1171,39 +1149,9 @@ public:
     }
 };
 
-class ApplyPropertyUnicodeBidi {
-public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
-    {
-        if (value->isValueList()) {
-            EUnicodeBidi rendererUnicodeBidi = RenderStyle::initialUnicodeBidi();
-            for (CSSValueListIterator i = value; i.hasMore(); i.advance()) {
-                CSSValue* item = i.value();
-                ASSERT(item->isPrimitiveValue());
-                EUnicodeBidi currentValue = *static_cast<CSSPrimitiveValue*>(item);
-                ASSERT(currentValue == Override || currentValue == Isolate);
-                if (currentValue != rendererUnicodeBidi && rendererUnicodeBidi != RenderStyle::initialUnicodeBidi())
-                    rendererUnicodeBidi = OverrideIsolate;
-                else
-                    rendererUnicodeBidi = currentValue;
-            }
-            styleResolver->style()->setUnicodeBidi(rendererUnicodeBidi);
-        }
-        if (!value->isPrimitiveValue())
-            return;
-        CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
-        styleResolver->style()->setUnicodeBidi(*primitiveValue);
-    }
-    static PropertyHandler createHandler()
-    {
-        PropertyHandler handler = ApplyPropertyDefaultBase<EUnicodeBidi, &RenderStyle::unicodeBidi, EUnicodeBidi, &RenderStyle::setUnicodeBidi, EUnicodeBidi, &RenderStyle::initialUnicodeBidi>::createHandler();
-        return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
-    }
-};
-
 class ApplyPropertyLineHeight {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -1212,7 +1160,7 @@ public:
         Length lineHeight;
 
         if (primitiveValue->getIdent() == CSSValueNormal)
-            lineHeight = Length(-100.0, Percent);
+            lineHeight = RenderStyle::initialLineHeight();
         else if (primitiveValue->isLength()) {
             double multiplier = styleResolver->style()->effectiveZoom();
             if (styleResolver->style()->textSizeAdjust()) {
@@ -1234,7 +1182,7 @@ public:
     }
     static PropertyHandler createHandler()
     {
-        PropertyHandler handler = ApplyPropertyDefaultBase<Length, &RenderStyle::lineHeight, Length, &RenderStyle::setLineHeight, Length, &RenderStyle::initialLineHeight>::createHandler();
+        PropertyHandler handler = ApplyPropertyDefaultBase<Length, &RenderStyle::specifiedLineHeight, Length, &RenderStyle::setLineHeight, Length, &RenderStyle::initialLineHeight>::createHandler();
         return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
     }
 };
@@ -1317,9 +1265,9 @@ private:
         return true;
     }
 public:
-    static void applyInheritValue(StyleResolver*) { }
-    static void applyInitialValue(StyleResolver*) { }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyInheritValue(CSSPropertyID, StyleResolver*) { }
+    static void applyInitialValue(CSSPropertyID, StyleResolver*) { }
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         styleResolver->style()->resetPageSizeType();
         Length width;
@@ -1390,21 +1338,21 @@ public:
 
 class ApplyPropertyTextEmphasisStyle {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setTextEmphasisFill(styleResolver->parentStyle()->textEmphasisFill());
         styleResolver->style()->setTextEmphasisMark(styleResolver->parentStyle()->textEmphasisMark());
         styleResolver->style()->setTextEmphasisCustomMark(styleResolver->parentStyle()->textEmphasisCustomMark());
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setTextEmphasisFill(RenderStyle::initialTextEmphasisFill());
         styleResolver->style()->setTextEmphasisMark(RenderStyle::initialTextEmphasisMark());
         styleResolver->style()->setTextEmphasisCustomMark(RenderStyle::initialTextEmphasisCustomMark());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (value->isValueList()) {
             CSSValueList* list = static_cast<CSSValueList*>(value);
@@ -1471,7 +1419,7 @@ public:
     static AnimationList* accessAnimations(RenderStyle* style) { return (style->*animationGetterFunction)(); }
     static const AnimationList* animations(RenderStyle* style) { return (style->*immutableAnimationGetterFunction)(); }
 
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         AnimationList* list = accessAnimations(styleResolver->style());
         const AnimationList* parentList = animations(styleResolver->parentStyle());
@@ -1488,17 +1436,19 @@ public:
             clear(list->animation(i));
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
         AnimationList* list = accessAnimations(styleResolver->style());
         if (list->isEmpty())
             list->append(Animation::create());
         setValue(list->animation(0), initial());
+        if (propertyID == CSSPropertyWebkitTransitionProperty)
+            list->animation(0)->setAnimationMode(Animation::AnimateAll);
         for (size_t i = 1; i < list->size(); ++i)
             clear(list->animation(i));
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         AnimationList* list = accessAnimations(styleResolver->style());
         size_t childIndex = 0;
@@ -1527,22 +1477,22 @@ public:
 
 class ApplyPropertyOutlineStyle {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        ApplyPropertyDefaultBase<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyInheritValue(styleResolver);
-        ApplyPropertyDefaultBase<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyInheritValue(styleResolver);
+        ApplyPropertyDefaultBase<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyInheritValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyInheritValue(propertyID, styleResolver);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        ApplyPropertyDefaultBase<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyInitialValue(styleResolver);
-        ApplyPropertyDefaultBase<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyInitialValue(styleResolver);
+        ApplyPropertyDefaultBase<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyInitialValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyInitialValue(propertyID, styleResolver);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID propertyID, StyleResolver* styleResolver, CSSValue* value)
     {
-        ApplyPropertyDefault<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyValue(styleResolver, value);
-        ApplyPropertyDefault<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyValue(styleResolver, value);
+        ApplyPropertyDefault<OutlineIsAuto, &RenderStyle::outlineStyleIsAuto, OutlineIsAuto, &RenderStyle::setOutlineStyleIsAuto, OutlineIsAuto, &RenderStyle::initialOutlineStyleIsAuto>::applyValue(propertyID, styleResolver, value);
+        ApplyPropertyDefault<EBorderStyle, &RenderStyle::outlineStyle, EBorderStyle, &RenderStyle::setOutlineStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::applyValue(propertyID, styleResolver, value);
     }
 
     static PropertyHandler createHandler() { return PropertyHandler(&applyInheritValue, &applyInitialValue, &applyValue); }
@@ -1550,7 +1500,7 @@ public:
 
 class ApplyPropertyResize {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -1580,7 +1530,7 @@ public:
 
 class ApplyPropertyVerticalAlign {
 public:
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -1602,7 +1552,7 @@ public:
 
 class ApplyPropertyAspectRatio {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         if (!styleResolver->parentStyle()->hasAspectRatio())
             return;
@@ -1611,14 +1561,14 @@ public:
         styleResolver->style()->setAspectRatioNumerator(styleResolver->parentStyle()->aspectRatioNumerator());
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setHasAspectRatio(RenderStyle::initialHasAspectRatio());
         styleResolver->style()->setAspectRatioDenominator(RenderStyle::initialAspectRatioDenominator());
         styleResolver->style()->setAspectRatioNumerator(RenderStyle::initialAspectRatioNumerator());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isAspectRatioValue()) {
             styleResolver->style()->setHasAspectRatio(false);
@@ -1645,19 +1595,19 @@ private:
     }
 
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         resetEffectiveZoom(styleResolver);
         styleResolver->setZoom(styleResolver->parentStyle()->zoom());
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         resetEffectiveZoom(styleResolver);
         styleResolver->setZoom(RenderStyle::initialZoom());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         ASSERT(value->isPrimitiveValue());
         CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
@@ -1703,7 +1653,7 @@ private:
         return true;
     }
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         EDisplay display = styleResolver->parentStyle()->display();
         if (!isValidDisplayValue(styleResolver, display))
@@ -1711,12 +1661,12 @@ public:
         styleResolver->style()->setDisplay(display);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         styleResolver->style()->setDisplay(RenderStyle::initialDisplay());
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isPrimitiveValue())
             return;
@@ -1735,26 +1685,48 @@ public:
     }
 };
 
+template <ClipPathOperation* (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(PassRefPtr<ClipPathOperation>), ClipPathOperation* (*initialFunction)()>
+class ApplyPropertyClipPath {
+public:
+    static void setValue(RenderStyle* style, PassRefPtr<ClipPathOperation> value) { (style->*setterFunction)(value); }
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
+    {
+        if (value->isPrimitiveValue()) {
+            CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
+            if (primitiveValue->getIdent() == CSSValueNone)
+                setValue(styleResolver->style(), 0);
+            else if (primitiveValue->isShape()) {
+                setValue(styleResolver->style(), ShapeClipPathOperation::create(basicShapeForValue(styleResolver, primitiveValue->getShapeValue())));
+            }
+        }
+    }
+    static PropertyHandler createHandler()
+    {
+        PropertyHandler handler = ApplyPropertyDefaultBase<ClipPathOperation*, getterFunction, PassRefPtr<ClipPathOperation>, setterFunction, ClipPathOperation*, initialFunction>::createHandler();
+        return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
+    }
+};
+
 #if ENABLE(CSS_EXCLUSIONS)
-template <WrapShape* (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(PassRefPtr<WrapShape>), WrapShape* (*initialFunction)()>
+template <BasicShape* (RenderStyle::*getterFunction)() const, void (RenderStyle::*setterFunction)(PassRefPtr<BasicShape>), BasicShape* (*initialFunction)()>
 class ApplyPropertyWrapShape {
 public:
-    static void setValue(RenderStyle* style, PassRefPtr<WrapShape> value) { (style->*setterFunction)(value); }
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void setValue(RenderStyle* style, PassRefPtr<BasicShape> value) { (style->*setterFunction)(value); }
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (value->isPrimitiveValue()) {
             CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
             if (primitiveValue->getIdent() == CSSValueAuto)
                 setValue(styleResolver->style(), 0);
             else if (primitiveValue->isShape()) {
-                RefPtr<WrapShape> wrapShape = wrapShapeForValue(styleResolver, primitiveValue->getShapeValue());
+                RefPtr<BasicShape> wrapShape = basicShapeForValue(styleResolver, primitiveValue->getShapeValue());
                 setValue(styleResolver->style(), wrapShape.release());
             }
         }
     }
     static PropertyHandler createHandler()
     {
-        PropertyHandler handler = ApplyPropertyDefaultBase<WrapShape*, getterFunction, PassRefPtr<WrapShape>, setterFunction, WrapShape*, initialFunction>::createHandler();
+        PropertyHandler handler = ApplyPropertyDefaultBase<BasicShape*, getterFunction, PassRefPtr<BasicShape>, setterFunction, BasicShape*, initialFunction>::createHandler();
         return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
     }
 };
@@ -1763,21 +1735,21 @@ public:
 #if ENABLE(CSS_IMAGE_RESOLUTION)
 class ApplyPropertyImageResolution {
 public:
-    static void applyInheritValue(StyleResolver* styleResolver)
+    static void applyInheritValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        ApplyPropertyDefaultBase<ImageResolutionSource, &RenderStyle::imageResolutionSource, ImageResolutionSource, &RenderStyle::setImageResolutionSource, ImageResolutionSource, &RenderStyle::initialImageResolutionSource>::applyInheritValue(styleResolver);
-        ApplyPropertyDefaultBase<ImageResolutionSnap, &RenderStyle::imageResolutionSnap, ImageResolutionSnap, &RenderStyle::setImageResolutionSnap, ImageResolutionSnap, &RenderStyle::initialImageResolutionSnap>::applyInheritValue(styleResolver);
-        ApplyPropertyDefaultBase<float, &RenderStyle::imageResolution, float, &RenderStyle::setImageResolution, float, &RenderStyle::initialImageResolution>::applyInheritValue(styleResolver);
+        ApplyPropertyDefaultBase<ImageResolutionSource, &RenderStyle::imageResolutionSource, ImageResolutionSource, &RenderStyle::setImageResolutionSource, ImageResolutionSource, &RenderStyle::initialImageResolutionSource>::applyInheritValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<ImageResolutionSnap, &RenderStyle::imageResolutionSnap, ImageResolutionSnap, &RenderStyle::setImageResolutionSnap, ImageResolutionSnap, &RenderStyle::initialImageResolutionSnap>::applyInheritValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<float, &RenderStyle::imageResolution, float, &RenderStyle::setImageResolution, float, &RenderStyle::initialImageResolution>::applyInheritValue(propertyID, styleResolver);
     }
 
-    static void applyInitialValue(StyleResolver* styleResolver)
+    static void applyInitialValue(CSSPropertyID propertyID, StyleResolver* styleResolver)
     {
-        ApplyPropertyDefaultBase<ImageResolutionSource, &RenderStyle::imageResolutionSource, ImageResolutionSource, &RenderStyle::setImageResolutionSource, ImageResolutionSource, &RenderStyle::initialImageResolutionSource>::applyInitialValue(styleResolver);
-        ApplyPropertyDefaultBase<ImageResolutionSnap, &RenderStyle::imageResolutionSnap, ImageResolutionSnap, &RenderStyle::setImageResolutionSnap, ImageResolutionSnap, &RenderStyle::initialImageResolutionSnap>::applyInitialValue(styleResolver);
-        ApplyPropertyDefaultBase<float, &RenderStyle::imageResolution, float, &RenderStyle::setImageResolution, float, &RenderStyle::initialImageResolution>::applyInitialValue(styleResolver);
+        ApplyPropertyDefaultBase<ImageResolutionSource, &RenderStyle::imageResolutionSource, ImageResolutionSource, &RenderStyle::setImageResolutionSource, ImageResolutionSource, &RenderStyle::initialImageResolutionSource>::applyInitialValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<ImageResolutionSnap, &RenderStyle::imageResolutionSnap, ImageResolutionSnap, &RenderStyle::setImageResolutionSnap, ImageResolutionSnap, &RenderStyle::initialImageResolutionSnap>::applyInitialValue(propertyID, styleResolver);
+        ApplyPropertyDefaultBase<float, &RenderStyle::imageResolution, float, &RenderStyle::setImageResolution, float, &RenderStyle::initialImageResolution>::applyInitialValue(propertyID, styleResolver);
     }
 
-    static void applyValue(StyleResolver* styleResolver, CSSValue* value)
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
         if (!value->isValueList())
             return;
@@ -1914,6 +1886,7 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyOutlineStyle, ApplyPropertyOutlineStyle::createHandler());
     setPropertyHandler(CSSPropertyOutlineWidth, ApplyPropertyComputeLength<unsigned short, &RenderStyle::outlineWidth, &RenderStyle::setOutlineWidth, &RenderStyle::initialOutlineWidth, NormalDisabled, ThicknessEnabled>::createHandler());
     setPropertyHandler(CSSPropertyOverflow, ApplyPropertyExpanding<ExpandValue, CSSPropertyOverflowX, CSSPropertyOverflowY>::createHandler());
+    setPropertyHandler(CSSPropertyOverflowWrap, ApplyPropertyDefault<EOverflowWrap, &RenderStyle::overflowWrap, EOverflowWrap, &RenderStyle::setOverflowWrap, EOverflowWrap, &RenderStyle::initialOverflowWrap>::createHandler());
     setPropertyHandler(CSSPropertyOverflowX, ApplyPropertyDefault<EOverflow, &RenderStyle::overflowX, EOverflow, &RenderStyle::setOverflowX, EOverflow, &RenderStyle::initialOverflowX>::createHandler());
     setPropertyHandler(CSSPropertyOverflowY, ApplyPropertyDefault<EOverflow, &RenderStyle::overflowY, EOverflow, &RenderStyle::setOverflowY, EOverflow, &RenderStyle::initialOverflowY>::createHandler());
     setPropertyHandler(CSSPropertyPadding, ApplyPropertyExpanding<SuppressValue, CSSPropertyPaddingTop, CSSPropertyPaddingRight, CSSPropertyPaddingBottom, CSSPropertyPaddingLeft>::createHandler());
@@ -1933,13 +1906,16 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyTabSize, ApplyPropertyDefault<unsigned, &RenderStyle::tabSize, unsigned, &RenderStyle::setTabSize, unsigned, &RenderStyle::initialTabSize>::createHandler());
     setPropertyHandler(CSSPropertyTextAlign, ApplyPropertyTextAlign::createHandler());
     setPropertyHandler(CSSPropertyTextDecoration, ApplyPropertyTextDecoration::createHandler());
+#if ENABLE(CSS3_TEXT_DECORATION)
     setPropertyHandler(CSSPropertyWebkitTextDecorationLine, ApplyPropertyTextDecoration::createHandler());
+    setPropertyHandler(CSSPropertyWebkitTextDecorationStyle, ApplyPropertyDefault<TextDecorationStyle, &RenderStyle::textDecorationStyle, TextDecorationStyle, &RenderStyle::setTextDecorationStyle, TextDecorationStyle, &RenderStyle::initialTextDecorationStyle>::createHandler());
+#endif // CSS3_TEXT_DECORATION
     setPropertyHandler(CSSPropertyTextIndent, ApplyPropertyLength<&RenderStyle::textIndent, &RenderStyle::setTextIndent, &RenderStyle::initialTextIndent>::createHandler());
     setPropertyHandler(CSSPropertyTextOverflow, ApplyPropertyDefault<TextOverflow, &RenderStyle::textOverflow, TextOverflow, &RenderStyle::setTextOverflow, TextOverflow, &RenderStyle::initialTextOverflow>::createHandler());
     setPropertyHandler(CSSPropertyTextRendering, ApplyPropertyFont<TextRenderingMode, &FontDescription::textRenderingMode, &FontDescription::setTextRenderingMode, AutoTextRendering>::createHandler());
     setPropertyHandler(CSSPropertyTextTransform, ApplyPropertyDefault<ETextTransform, &RenderStyle::textTransform, ETextTransform, &RenderStyle::setTextTransform, ETextTransform, &RenderStyle::initialTextTransform>::createHandler());
     setPropertyHandler(CSSPropertyTop, ApplyPropertyLength<&RenderStyle::top, &RenderStyle::setTop, &RenderStyle::initialOffset, AutoEnabled>::createHandler());
-    setPropertyHandler(CSSPropertyUnicodeBidi, ApplyPropertyUnicodeBidi::createHandler());
+    setPropertyHandler(CSSPropertyUnicodeBidi, ApplyPropertyDefault<EUnicodeBidi, &RenderStyle::unicodeBidi, EUnicodeBidi, &RenderStyle::setUnicodeBidi, EUnicodeBidi, &RenderStyle::initialUnicodeBidi>::createHandler());
     setPropertyHandler(CSSPropertyVerticalAlign, ApplyPropertyVerticalAlign::createHandler());
     setPropertyHandler(CSSPropertyVisibility, ApplyPropertyDefault<EVisibility, &RenderStyle::visibility, EVisibility, &RenderStyle::setVisibility, EVisibility, &RenderStyle::initialVisibility>::createHandler());
     setPropertyHandler(CSSPropertyWebkitAnimationDelay, ApplyPropertyAnimation<double, &Animation::delay, &Animation::setDelay, &Animation::isDelaySet, &Animation::clearDelay, &Animation::initialAnimationDelay, &CSSToStyleMap::mapAnimationDelay, &RenderStyle::accessAnimations, &RenderStyle::animations>::createHandler());
@@ -1957,6 +1933,9 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyWebkitBackgroundComposite, ApplyPropertyFillLayer<CompositeOperator, CSSPropertyWebkitBackgroundComposite, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isCompositeSet, &FillLayer::composite, &FillLayer::setComposite, &FillLayer::clearComposite, &FillLayer::initialFillComposite, &CSSToStyleMap::mapFillComposite>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBackgroundOrigin, CSSPropertyBackgroundOrigin);
     setPropertyHandler(CSSPropertyWebkitBackgroundSize, CSSPropertyBackgroundSize);
+#if ENABLE(CSS_COMPOSITING)
+    setPropertyHandler(CSSPropertyWebkitBlendMode, ApplyPropertyDefault<BlendMode, &RenderStyle::blendMode, BlendMode, &RenderStyle::setBlendMode, BlendMode, &RenderStyle::initialBlendMode>::createHandler());
+#endif
     setPropertyHandler(CSSPropertyWebkitBorderFit, ApplyPropertyDefault<EBorderFit, &RenderStyle::borderFit, EBorderFit, &RenderStyle::setBorderFit, EBorderFit, &RenderStyle::initialBorderFit>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBorderHorizontalSpacing, ApplyPropertyComputeLength<short, &RenderStyle::horizontalBorderSpacing, &RenderStyle::setHorizontalBorderSpacing, &RenderStyle::initialHorizontalBorderSpacing>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBorderImage, ApplyPropertyBorderImage<Image, CSSPropertyWebkitBorderImage, &RenderStyle::borderImage, &RenderStyle::setBorderImage>::createHandler());
@@ -1987,7 +1966,6 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyWebkitColumnSpan, ApplyPropertyDefault<ColumnSpan, &RenderStyle::columnSpan, ColumnSpan, &RenderStyle::setColumnSpan, ColumnSpan, &RenderStyle::initialColumnSpan>::createHandler());
     setPropertyHandler(CSSPropertyWebkitColumnRuleStyle, ApplyPropertyDefault<EBorderStyle, &RenderStyle::columnRuleStyle, EBorderStyle, &RenderStyle::setColumnRuleStyle, EBorderStyle, &RenderStyle::initialBorderStyle>::createHandler());
     setPropertyHandler(CSSPropertyWebkitColumnWidth, ApplyPropertyAuto<float, &RenderStyle::columnWidth, &RenderStyle::setColumnWidth, &RenderStyle::hasAutoColumnWidth, &RenderStyle::setHasAutoColumnWidth, ComputeLength>::createHandler());
-#if ENABLE(CSS3_FLEXBOX)
     setPropertyHandler(CSSPropertyWebkitAlignContent, ApplyPropertyDefault<EAlignContent, &RenderStyle::alignContent, EAlignContent, &RenderStyle::setAlignContent, EAlignContent, &RenderStyle::initialAlignContent>::createHandler());
     setPropertyHandler(CSSPropertyWebkitAlignItems, ApplyPropertyDefault<EAlignItems, &RenderStyle::alignItems, EAlignItems, &RenderStyle::setAlignItems, EAlignItems, &RenderStyle::initialAlignItems>::createHandler());
     setPropertyHandler(CSSPropertyWebkitAlignSelf, ApplyPropertyDefault<EAlignItems, &RenderStyle::alignSelf, EAlignItems, &RenderStyle::setAlignSelf, EAlignItems, &RenderStyle::initialAlignSelf>::createHandler());
@@ -2000,7 +1978,6 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyWebkitFlexWrap, ApplyPropertyDefault<EFlexWrap, &RenderStyle::flexWrap, EFlexWrap, &RenderStyle::setFlexWrap, EFlexWrap, &RenderStyle::initialFlexWrap>::createHandler());
     setPropertyHandler(CSSPropertyWebkitJustifyContent, ApplyPropertyDefault<EJustifyContent, &RenderStyle::justifyContent, EJustifyContent, &RenderStyle::setJustifyContent, EJustifyContent, &RenderStyle::initialJustifyContent>::createHandler());
     setPropertyHandler(CSSPropertyWebkitOrder, ApplyPropertyDefault<int, &RenderStyle::order, int, &RenderStyle::setOrder, int, &RenderStyle::initialOrder>::createHandler());
-#endif
 #if ENABLE(CSS_REGIONS)
     setPropertyHandler(CSSPropertyWebkitFlowFrom, ApplyPropertyString<MapNoneToNull, &RenderStyle::regionThread, &RenderStyle::setRegionThread, &RenderStyle::initialRegionThread>::createHandler());
     setPropertyHandler(CSSPropertyWebkitFlowInto, ApplyPropertyString<MapNoneToNull, &RenderStyle::flowThread, &RenderStyle::setFlowThread, &RenderStyle::initialFlowThread>::createHandler());
@@ -2075,6 +2052,8 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyWebkitUserDrag, ApplyPropertyDefault<EUserDrag, &RenderStyle::userDrag, EUserDrag, &RenderStyle::setUserDrag, EUserDrag, &RenderStyle::initialUserDrag>::createHandler());
     setPropertyHandler(CSSPropertyWebkitUserModify, ApplyPropertyDefault<EUserModify, &RenderStyle::userModify, EUserModify, &RenderStyle::setUserModify, EUserModify, &RenderStyle::initialUserModify>::createHandler());
     setPropertyHandler(CSSPropertyWebkitUserSelect, ApplyPropertyDefault<EUserSelect, &RenderStyle::userSelect, EUserSelect, &RenderStyle::setUserSelect, EUserSelect, &RenderStyle::initialUserSelect>::createHandler());
+    setPropertyHandler(CSSPropertyWebkitClipPath, ApplyPropertyClipPath<&RenderStyle::clipPath, &RenderStyle::setClipPath, &RenderStyle::initialClipPath>::createHandler());
+
 #if ENABLE(CSS_EXCLUSIONS)
     setPropertyHandler(CSSPropertyWebkitWrap, ApplyPropertyExpanding<SuppressValue, CSSPropertyWebkitWrapFlow, CSSPropertyWebkitWrapMargin, CSSPropertyWebkitWrapPadding>::createHandler());
     setPropertyHandler(CSSPropertyWebkitWrapFlow, ApplyPropertyDefault<WrapFlow, &RenderStyle::wrapFlow, WrapFlow, &RenderStyle::setWrapFlow, WrapFlow, &RenderStyle::initialWrapFlow>::createHandler());
@@ -2089,7 +2068,8 @@ StyleBuilder::StyleBuilder()
     setPropertyHandler(CSSPropertyWidth, ApplyPropertyLength<&RenderStyle::width, &RenderStyle::setWidth, &RenderStyle::initialSize, AutoEnabled, LegacyIntrinsicEnabled, IntrinsicEnabled, NoneDisabled, UndefinedDisabled>::createHandler());
     setPropertyHandler(CSSPropertyWordBreak, ApplyPropertyDefault<EWordBreak, &RenderStyle::wordBreak, EWordBreak, &RenderStyle::setWordBreak, EWordBreak, &RenderStyle::initialWordBreak>::createHandler());
     setPropertyHandler(CSSPropertyWordSpacing, ApplyPropertyComputeLength<int, &RenderStyle::wordSpacing, &RenderStyle::setWordSpacing, &RenderStyle::initialLetterWordSpacing, NormalEnabled, ThicknessDisabled, SVGZoomEnabled>::createHandler());
-    setPropertyHandler(CSSPropertyWordWrap, ApplyPropertyDefault<EWordWrap, &RenderStyle::wordWrap, EWordWrap, &RenderStyle::setWordWrap, EWordWrap, &RenderStyle::initialWordWrap>::createHandler());
+    // UAs must treat 'word-wrap' as an alternate name for the 'overflow-wrap' property. So using the same handlers.
+    setPropertyHandler(CSSPropertyWordWrap, ApplyPropertyDefault<EOverflowWrap, &RenderStyle::overflowWrap, EOverflowWrap, &RenderStyle::setOverflowWrap, EOverflowWrap, &RenderStyle::initialOverflowWrap>::createHandler());
     setPropertyHandler(CSSPropertyZIndex, ApplyPropertyAuto<int, &RenderStyle::zIndex, &RenderStyle::setZIndex, &RenderStyle::hasAutoZIndex, &RenderStyle::setHasAutoZIndex>::createHandler());
     setPropertyHandler(CSSPropertyZoom, ApplyPropertyZoom::createHandler());
 }

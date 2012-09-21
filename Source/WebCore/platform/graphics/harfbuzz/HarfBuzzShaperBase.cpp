@@ -61,7 +61,8 @@ static void normalizeSpacesAndMirrorChars(const UChar* source, UChar* destinatio
         UChar32 character;
         int nextPosition = position;
         U16_NEXT(source, nextPosition, length, character);
-        if (Font::treatAsSpace(character))
+        // Don't normalize tabs as they are not treated as spaces for word-end
+        if (Font::treatAsSpace(character) && character != '\t')
             character = ' ';
         else if (Font::treatAsZeroWidthSpace(character))
             character = zeroWidthSpace;
@@ -96,7 +97,7 @@ void HarfBuzzShaperBase::setNormalizedBuffer(NormalizeMode normalizeMode)
     for (int i = 0; i < m_run.length(); ++i) {
         UChar ch = m_run[i];
         if (::ublock_getCode(ch) == UBLOCK_COMBINING_DIACRITICAL_MARKS) {
-            icu::Normalizer::normalize(icu::UnicodeString(m_run.characters(),
+            icu::Normalizer::normalize(icu::UnicodeString(m_run.characters16(),
                                        m_run.length()), UNORM_NFC, 0 /* no options */,
                                        normalizedString, error);
             if (U_FAILURE(error))
@@ -108,7 +109,7 @@ void HarfBuzzShaperBase::setNormalizedBuffer(NormalizeMode normalizeMode)
     const UChar* sourceText;
     if (normalizedString.isEmpty()) {
         m_normalizedBufferLength = m_run.length();
-        sourceText = m_run.characters();
+        sourceText = m_run.characters16();
     } else {
         m_normalizedBufferLength = normalizedString.length();
         sourceText = normalizedString.getBuffer();
@@ -121,7 +122,7 @@ void HarfBuzzShaperBase::setNormalizedBuffer(NormalizeMode normalizeMode)
 bool HarfBuzzShaperBase::isWordEnd(unsigned index)
 {
     // This could refer a high-surrogate, but should work.
-    return index && isCodepointSpace(m_normalizedBuffer[index]) && !isCodepointSpace(m_normalizedBuffer[index - 1]);
+    return index && isCodepointSpace(m_normalizedBuffer[index]);
 }
 
 int HarfBuzzShaperBase::determineWordBreakSpacing()

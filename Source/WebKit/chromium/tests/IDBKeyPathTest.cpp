@@ -26,6 +26,10 @@
 #include "config.h"
 #include "IDBKeyPath.h"
 
+#include "IDBBindingUtilities.h"
+#include "IDBKey.h"
+#include "SerializedScriptValue.h"
+
 #include <gtest/gtest.h>
 #include <wtf/Vector.h>
 

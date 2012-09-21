@@ -30,6 +30,7 @@
 #ifndef CodeBlock_h
 #define CodeBlock_h
 
+#include "ArrayProfile.h"
 #include "BytecodeConventions.h"
 #include "CallLinkInfo.h"
 #include "CallReturnOffsetToBytecodeOffset.h"
@@ -63,7 +64,6 @@
 #include "Nodes.h"
 #include "RegExpObject.h"
 #include "StructureStubInfo.h"
-#include "UString.h"
 #include "UnconditionalFinalizer.h"
 #include "ValueProfile.h"
 #include "Watchpoint.h"
@@ -74,6 +74,7 @@
 #include <wtf/RefPtr.h>
 #include <wtf/SegmentedVector.h>
 #include <wtf/Vector.h>
+#include <wtf/text/WTFString.h>
 
 // Set ENABLE_BYTECODE_COMMENTS to 1 to enable recording bytecode generator
 // comments for the bytecodes that it generates. This will allow
@@ -117,9 +118,9 @@ namespace JSC {
     public:
         enum CopyParsedBlockTag { CopyParsedBlock };
     protected:
-        CodeBlock(CopyParsedBlockTag, CodeBlock& other, SymbolTable*);
+        CodeBlock(CopyParsedBlockTag, CodeBlock& other);
         
-        CodeBlock(ScriptExecutable* ownerExecutable, CodeType, JSGlobalObject*, PassRefPtr<SourceProvider>, unsigned sourceOffset, SymbolTable*, bool isConstructor, PassOwnPtr<CodeBlock> alternative);
+        CodeBlock(ScriptExecutable* ownerExecutable, CodeType, JSGlobalObject*, PassRefPtr<SourceProvider>, unsigned sourceOffset, bool isConstructor, PassOwnPtr<CodeBlock> alternative);
 
         WriteBarrier<JSGlobalObject> m_globalObject;
         Heap* m_heap;
@@ -228,9 +229,14 @@ namespace JSC {
         {
             return *(binarySearch<MethodCallLinkInfo, unsigned, getMethodCallLinkInfoBytecodeIndex>(m_methodCallLinkInfos.begin(), m_methodCallLinkInfos.size(), bytecodeIndex));
         }
+#endif // ENABLE(JIT)
 
+#if ENABLE(LLINT)
+        Instruction* adjustPCIfAtCallSite(Instruction*);
+#endif
         unsigned bytecodeOffset(ExecState*, ReturnAddressPtr);
 
+#if ENABLE(JIT)
         unsigned bytecodeOffsetForCallAtIndex(unsigned index)
         {
             if (!m_rareData)
@@ -250,6 +256,8 @@ namespace JSC {
         {
             m_incomingCalls.push(incoming);
         }
+#endif // ENABLE(JIT)
+
 #if ENABLE(LLINT)
         void linkIncomingCall(LLIntCallLinkInfo* incoming)
         {
@@ -258,7 +266,6 @@ namespace JSC {
 #endif // ENABLE(LLINT)
         
         void unlinkIncomingCalls();
-#endif // ENABLE(JIT)
 
 #if ENABLE(DFG_JIT) || ENABLE(LLINT)
         void setJITCodeMap(PassOwnPtr<CompactJITCodeMap> jitCodeMap)
@@ -441,7 +448,7 @@ namespace JSC {
         MacroAssemblerCodePtr getJITCodeWithArityCheck() { return m_jitCodeWithArityCheck; }
         JITCode::JITType getJITType() { return m_jitCode.jitType(); }
         ExecutableMemoryHandle* executableMemory() { return getJITCode().getExecutableMemory(); }
-        virtual JSObject* compileOptimized(ExecState*, ScopeChainNode*) = 0;
+        virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex) = 0;
         virtual void jettison() = 0;
         enum JITCompilationResult { AlreadyCompiled, CouldNotCompile, CompiledSuccessfully };
         JITCompilationResult jitCompile(ExecState* exec)
@@ -540,29 +547,16 @@ namespace JSC {
             return needsFullScopeChain() && codeType() != GlobalCode;
         }
         
-        bool argumentsAreCaptured() const
+        bool isCaptured(int operand, InlineCallFrame* inlineCallFrame = 0) const
         {
-            return needsActivation() || usesArguments();
-        }
-        
-        bool argumentIsCaptured(int) const
-        {
-            return argumentsAreCaptured();
-        }
-        
-        bool localIsCaptured(InlineCallFrame* inlineCallFrame, int operand) const
-        {
-            if (!inlineCallFrame)
-                return operand < m_numCapturedVars;
-            
-            return inlineCallFrame->capturedVars.get(operand);
-        }
-        
-        bool isCaptured(InlineCallFrame* inlineCallFrame, int operand) const
-        {
+            if (inlineCallFrame && !operandIsArgument(operand))
+                return inlineCallFrame->capturedVars.get(operand);
+
+            // Our estimate of argument capture is conservative.
             if (operandIsArgument(operand))
-                return argumentIsCaptured(operandToArgument(operand));
-            return localIsCaptured(inlineCallFrame, operand);
+                return needsActivation() || usesArguments();
+
+            return operand < m_numCapturedVars;
         }
 
         CodeType codeType() const { return m_codeType; }
@@ -579,7 +573,7 @@ namespace JSC {
 
         void clearEvalCache();
         
-        UString nameForRegister(int registerNumber);
+        String nameForRegister(int registerNumber);
         
         void addPropertyAccessInstruction(unsigned propertyAccessInstruction)
         {
@@ -751,8 +745,18 @@ namespace JSC {
         }
         
         unsigned executionEntryCount() const { return m_executionEntryCount; }
-#endif
 
+        unsigned numberOfArrayProfiles() const { return m_arrayProfiles.size(); }
+        const ArrayProfileVector& arrayProfiles() { return m_arrayProfiles; }
+        ArrayProfile* addArrayProfile(unsigned bytecodeOffset)
+        {
+            m_arrayProfiles.append(ArrayProfile(bytecodeOffset));
+            return &m_arrayProfiles.last();
+        }
+        ArrayProfile* getArrayProfile(unsigned bytecodeOffset);
+        ArrayProfile* getOrAddArrayProfile(unsigned bytecodeOffset);
+#endif
+        
         unsigned globalResolveInfoCount() const
         {
 #if ENABLE(JIT)    
@@ -917,7 +921,7 @@ namespace JSC {
             if (!codeOrigin.inlineCallFrame)
                 return globalObject();
             // FIXME: if we ever inline based on executable not function, this code will need to change.
-            return codeOrigin.inlineCallFrame->callee->scope()->globalObject.get();
+            return codeOrigin.inlineCallFrame->callee->scope()->globalObject();
         }
 
         // Jump Tables
@@ -935,8 +939,7 @@ namespace JSC {
         StringJumpTable& stringSwitchJumpTable(int tableIndex) { ASSERT(m_rareData); return m_rareData->m_stringSwitchJumpTables[tableIndex]; }
 
 
-        SymbolTable* symbolTable() { return m_symbolTable; }
-        SharedSymbolTable* sharedSymbolTable() { ASSERT(m_codeType == FunctionCode); return static_cast<SharedSymbolTable*>(m_symbolTable); }
+        SharedSymbolTable* symbolTable() { return m_symbolTable.get(); }
 
         EvalCodeCache& evalCodeCache() { createRareDataIfNecessary(); return m_rareData->m_evalCodeCache; }
 
@@ -1333,6 +1336,7 @@ namespace JSC {
         SegmentedVector<ValueProfile, 8> m_valueProfiles;
         SegmentedVector<RareCaseProfile, 8> m_rareCaseProfiles;
         SegmentedVector<RareCaseProfile, 8> m_specialFastCaseProfiles;
+        ArrayProfileVector m_arrayProfiles;
         unsigned m_executionEntryCount;
 #endif
 
@@ -1346,7 +1350,7 @@ namespace JSC {
         Vector<WriteBarrier<FunctionExecutable> > m_functionDecls;
         Vector<WriteBarrier<FunctionExecutable> > m_functionExprs;
 
-        SymbolTable* m_symbolTable;
+        WriteBarrier<SharedSymbolTable> m_symbolTable;
 
         OwnPtr<CodeBlock> m_alternative;
         
@@ -1408,18 +1412,14 @@ namespace JSC {
     class GlobalCodeBlock : public CodeBlock {
     protected:
         GlobalCodeBlock(CopyParsedBlockTag, GlobalCodeBlock& other)
-            : CodeBlock(CopyParsedBlock, other, &m_unsharedSymbolTable)
-            , m_unsharedSymbolTable(other.m_unsharedSymbolTable)
+            : CodeBlock(CopyParsedBlock, other)
         {
         }
         
         GlobalCodeBlock(ScriptExecutable* ownerExecutable, CodeType codeType, JSGlobalObject* globalObject, PassRefPtr<SourceProvider> sourceProvider, unsigned sourceOffset, PassOwnPtr<CodeBlock> alternative)
-            : CodeBlock(ownerExecutable, codeType, globalObject, sourceProvider, sourceOffset, &m_unsharedSymbolTable, false, alternative)
+            : CodeBlock(ownerExecutable, codeType, globalObject, sourceProvider, sourceOffset, false, alternative)
         {
         }
-
-    private:
-        SymbolTable m_unsharedSymbolTable;
     };
 
     class ProgramCodeBlock : public GlobalCodeBlock {
@@ -1436,7 +1436,7 @@ namespace JSC {
         
 #if ENABLE(JIT)
     protected:
-        virtual JSObject* compileOptimized(ExecState*, ScopeChainNode*);
+        virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
         virtual void jettison();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
@@ -1471,7 +1471,7 @@ namespace JSC {
         
 #if ENABLE(JIT)
     protected:
-        virtual JSObject* compileOptimized(ExecState*, ScopeChainNode*);
+        virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
         virtual void jettison();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
@@ -1486,30 +1486,18 @@ namespace JSC {
     class FunctionCodeBlock : public CodeBlock {
     public:
         FunctionCodeBlock(CopyParsedBlockTag, FunctionCodeBlock& other)
-            : CodeBlock(CopyParsedBlock, other, other.sharedSymbolTable())
+            : CodeBlock(CopyParsedBlock, other)
         {
-            // The fact that we have to do this is yucky, but is necessary because of the
-            // class hierarchy issues described in the comment block for the main
-            // constructor, below.
-            sharedSymbolTable()->ref();
         }
 
-        // Rather than using the usual RefCounted::create idiom for SharedSymbolTable we just use new
-        // as we need to initialise the CodeBlock before we could initialise any RefPtr to hold the shared
-        // symbol table, so we just pass as a raw pointer with a ref count of 1.  We then manually deref
-        // in the destructor.
         FunctionCodeBlock(FunctionExecutable* ownerExecutable, CodeType codeType, JSGlobalObject* globalObject, PassRefPtr<SourceProvider> sourceProvider, unsigned sourceOffset, bool isConstructor, PassOwnPtr<CodeBlock> alternative = nullptr)
-            : CodeBlock(ownerExecutable, codeType, globalObject, sourceProvider, sourceOffset, SharedSymbolTable::create().leakRef(), isConstructor, alternative)
+            : CodeBlock(ownerExecutable, codeType, globalObject, sourceProvider, sourceOffset, isConstructor, alternative)
         {
-        }
-        ~FunctionCodeBlock()
-        {
-            sharedSymbolTable()->deref();
         }
         
 #if ENABLE(JIT)
     protected:
-        virtual JSObject* compileOptimized(ExecState*, ScopeChainNode*);
+        virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
         virtual void jettison();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
@@ -1555,6 +1543,25 @@ namespace JSC {
         return isInlineCallFrameSlow();
     }
 #endif
+
+    inline JSValue ExecState::argumentAfterCapture(size_t argument)
+    {
+        if (argument >= argumentCount())
+             return jsUndefined();
+
+        if (!codeBlock())
+            return this[argumentOffset(argument)].jsValue();
+
+        if (argument >= static_cast<size_t>(codeBlock()->symbolTable()->parameterCount()))
+            return this[argumentOffset(argument)].jsValue();
+
+        const SlowArgument* slowArguments = codeBlock()->symbolTable()->slowArguments();
+        if (!slowArguments || slowArguments[argument].status == SlowArgument::Normal)
+            return this[argumentOffset(argument)].jsValue();
+
+        ASSERT(slowArguments[argument].status == SlowArgument::Captured);
+        return this[slowArguments[argument].indexIfCaptured].jsValue();
+    }
 
 #if ENABLE(DFG_JIT)
     inline void DFGCodeBlocks::mark(void* candidateCodeBlock)

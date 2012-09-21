@@ -45,7 +45,7 @@ EncodedJSValue JSC_HOST_CALL boundFunctionCall(ExecState* exec)
 
     MarkedArgumentBuffer args;
     for (unsigned i = 0; i < boundArgs->length(); ++i)
-        args.append(boundArgs->getIndex(i));
+        args.append(boundArgs->getIndexQuickly(i));
     for (unsigned i = 0; i < exec->argumentCount(); ++i)
         args.append(exec->argument(i));
 
@@ -65,7 +65,7 @@ EncodedJSValue JSC_HOST_CALL boundFunctionConstruct(ExecState* exec)
 
     MarkedArgumentBuffer args;
     for (unsigned i = 0; i < boundArgs->length(); ++i)
-        args.append(boundArgs->getIndex(i));
+        args.append(boundArgs->getIndexQuickly(i));
     for (unsigned i = 0; i < exec->argumentCount(); ++i)
         args.append(exec->argument(i));
 
@@ -76,7 +76,7 @@ EncodedJSValue JSC_HOST_CALL boundFunctionConstruct(ExecState* exec)
     return JSValue::encode(construct(exec, targetFunction, constructType, constructData, args));
 }
 
-JSBoundFunction* JSBoundFunction::create(ExecState* exec, JSGlobalObject* globalObject, JSObject* targetFunction, JSValue boundThis, JSValue boundArgs, int length, const UString& name)
+JSBoundFunction* JSBoundFunction::create(ExecState* exec, JSGlobalObject* globalObject, JSObject* targetFunction, JSValue boundThis, JSValue boundArgs, int length, const String& name)
 {
     ConstructData constructData;
     ConstructType constructType = JSC::getConstructData(targetFunction, constructData);
@@ -107,13 +107,13 @@ JSBoundFunction::JSBoundFunction(ExecState* exec, JSGlobalObject* globalObject, 
 {
 }
 
-void JSBoundFunction::finishCreation(ExecState* exec, NativeExecutable* executable, int length, const UString& name)
+void JSBoundFunction::finishCreation(ExecState* exec, NativeExecutable* executable, int length, const String& name)
 {
     Base::finishCreation(exec, executable, length, name);
     ASSERT(inherits(&s_info));
 
-    putDirectAccessor(exec->globalData(), exec->propertyNames().arguments, globalObject()->throwTypeErrorGetterSetter(exec), DontDelete | DontEnum | Accessor);
-    putDirectAccessor(exec->globalData(), exec->propertyNames().caller, globalObject()->throwTypeErrorGetterSetter(exec), DontDelete | DontEnum | Accessor);
+    putDirectAccessor(exec, exec->propertyNames().arguments, globalObject()->throwTypeErrorGetterSetter(exec), DontDelete | DontEnum | Accessor);
+    putDirectAccessor(exec, exec->propertyNames().caller, globalObject()->throwTypeErrorGetterSetter(exec), DontDelete | DontEnum | Accessor);
 }
 
 void JSBoundFunction::visitChildren(JSCell* cell, SlotVisitor& visitor)

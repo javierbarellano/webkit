@@ -151,7 +151,7 @@ bool CoordinatedGraphicsLayer::setChildren(const Vector<GraphicsLayer*>& childre
     bool ok = GraphicsLayer::setChildren(children);
     if (!ok)
         return false;
-    for (int i = 0; i < children.size(); ++i) {
+    for (unsigned i = 0; i < children.size(); ++i) {
         CoordinatedGraphicsLayer* child = toCoordinatedGraphicsLayer(children[i]);
         child->setCoordinatedGraphicsLayerClient(m_CoordinatedGraphicsLayerClient);
         child->didChangeLayerState();
@@ -512,7 +512,7 @@ void CoordinatedGraphicsLayer::syncAnimatedProperties()
     if (!m_shouldSyncAnimatedProperties)
         return;
 
-    m_shouldSyncAnimatedProperties = true;
+    m_shouldSyncAnimatedProperties = false;
     if (m_effectiveOpacity != opacity())
         m_CoordinatedGraphicsLayerClient->setLayerAnimatedOpacity(id(), m_effectiveOpacity);
     if (m_effectiveTransform != transform())
@@ -529,8 +529,10 @@ void CoordinatedGraphicsLayer::syncCanvas()
         return;
 
 #if USE(GRAPHICS_SURFACE)
-    uint32_t graphicsSurfaceToken = m_canvasPlatformLayer->copyToGraphicsSurface();
-    m_CoordinatedGraphicsLayerClient->syncCanvas(m_id, IntSize(size().width(), size().height()), graphicsSurfaceToken);
+    uint32_t frontBuffer = m_canvasPlatformLayer->copyToGraphicsSurface();
+    uint64_t token = m_canvasPlatformLayer->graphicsSurfaceToken();
+
+    m_CoordinatedGraphicsLayerClient->syncCanvas(m_id, IntSize(size().width(), size().height()), token, frontBuffer);
 #endif
     m_canvasNeedsDisplay = false;
 }

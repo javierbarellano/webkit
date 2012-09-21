@@ -41,16 +41,17 @@
 #include "DocumentThreadableLoaderClient.h"
 #include "Frame.h"
 #include "FrameLoader.h"
+#include "InspectorInstrumentation.h"
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "SchemeRegistry.h"
 #include "SecurityOrigin.h"
+#include "SubresourceLoader.h"
 #include "ThreadableLoaderClient.h"
 #include <wtf/Assertions.h>
 #include <wtf/UnusedParam.h>
 
 #if ENABLE(INSPECTOR)
-#include "InspectorInstrumentation.h"
 #include "ProgressTracker.h"
 #endif
 
@@ -270,7 +271,7 @@ void DocumentThreadableLoader::didReceiveResponse(unsigned long identifier, cons
     if (m_preflightRequestIdentifier) {
         DocumentLoader* loader = m_document->frame()->loader()->documentLoader();
         InspectorInstrumentationCookie cookie = InspectorInstrumentation::willReceiveResourceResponse(m_document->frame(), m_preflightRequestIdentifier, response);
-        InspectorInstrumentation::didReceiveResourceResponse(cookie, m_preflightRequestIdentifier, loader, response);
+        InspectorInstrumentation::didReceiveResourceResponse(cookie, m_preflightRequestIdentifier, loader, response, 0);
     }
 #endif
 
@@ -407,8 +408,15 @@ void DocumentThreadableLoader::loadRequest(const ResourceRequest& request, Secur
 #endif
         ASSERT(!m_resource);
         m_resource = m_document->cachedResourceLoader()->requestRawResource(newRequest, options);
-        if (m_resource)
+        if (m_resource) {
+#if ENABLE(INSPECTOR)
+            if (m_resource->loader()) {
+                unsigned long identifier = m_actualRequest ? m_preflightRequestIdentifier : m_resource->loader()->identifier();
+                InspectorInstrumentation::documentThreadableLoaderStartedLoadingForClient(m_document, identifier, m_client);
+            }
+#endif
             m_resource->addClient(this);
+        }
         return;
     }
     
@@ -419,6 +427,8 @@ void DocumentThreadableLoader::loadRequest(const ResourceRequest& request, Secur
     unsigned long identifier = std::numeric_limits<unsigned long>::max();
     if (m_document->frame())
         identifier = m_document->frame()->loader()->loadResourceSynchronously(request, m_options.allowCredentials, error, response, data);
+
+    InspectorInstrumentation::documentThreadableLoaderStartedLoadingForClient(m_document, identifier, m_client);
 
     // No exception for file:/// resources, see <rdar://problem/4962298>.
     // Also, if we have an HTTP response, then it wasn't a network error in fact.

@@ -3,12 +3,15 @@
 
 <p>A mixed case of a shadow element and content element.</p>
 <form>
-    <keygen id="host">foobar</keygen>
-    <input id="submit" type="submit" value="Submit">
+    <keygen id="host">
 </form>
 
 <script>
-var host = document.getElementById('host');
+if (window.internals)
+    internals.settings.setAuthorShadowDOMForAnyElementEnabled(true);
+
+host.appendChild(document.createTextNode('foobar'));
+
 var shadowRoot = new WebKitShadowRoot(host);
 shadowRoot.innerHTML = "<content></content><div style='margin: 20px'><shadow></shadow></div>"
 </script>

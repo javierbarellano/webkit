@@ -28,10 +28,10 @@
 
 #if USE(ACCELERATED_COMPOSITING)
 
-#include "cc/CCLayerImpl.h"
+#include "CCLayerImpl.h"
+#include "CCScrollbarGeometryFixedThumb.h"
 #include <public/WebRect.h>
 #include <public/WebScrollbar.h>
-#include <public/WebScrollbarThemeGeometry.h>
 #include <public/WebVector.h>
 
 namespace WebCore {
@@ -42,9 +42,9 @@ class CCScrollbarLayerImpl : public CCLayerImpl {
 public:
     static PassOwnPtr<CCScrollbarLayerImpl> create(int id);
 
-    WebKit::WebScrollbarThemeGeometry* scrollbarGeometry() const { return m_geometry.get(); }
-    void setScrollbarGeometry(PassOwnPtr<WebKit::WebScrollbarThemeGeometry>);
-    void setScrollbarData(const WebKit::WebScrollbar*);
+    CCScrollbarGeometryFixedThumb* scrollbarGeometry() const { return m_geometry.get(); }
+    void setScrollbarGeometry(PassOwnPtr<CCScrollbarGeometryFixedThumb>);
+    void setScrollbarData(WebKit::WebScrollbar*);
 
     void setBackTrackResourceId(CCResourceProvider::ResourceId id) { m_backTrackResourceId = id; }
     void setForeTrackResourceId(CCResourceProvider::ResourceId id) { m_foreTrackResourceId = id; }
@@ -61,7 +61,7 @@ public:
 
     WebKit::WebScrollbar::Orientation orientation() const { return m_orientation; }
 
-    virtual void appendQuads(CCQuadSink&, const CCSharedQuadState*, bool& hadMissingTiles) OVERRIDE;
+    virtual void appendQuads(CCQuadSink&, CCAppendQuadsData&) OVERRIDE;
 
     virtual void didLoseContext() OVERRIDE;
 
@@ -91,6 +91,8 @@ private:
         virtual WebScrollbar::ScrollbarOverlayStyle scrollbarOverlayStyle() const;
         virtual WebScrollbar::Orientation orientation() const;
         virtual bool isCustomScrollbar() const;
+        virtual bool isAlphaLocked() const OVERRIDE;
+        virtual void setIsAlphaLocked(bool) OVERRIDE;
 
     private:
         CCScrollbarLayerImpl* m_owner;
@@ -103,7 +105,7 @@ private:
     CCResourceProvider::ResourceId m_foreTrackResourceId;
     CCResourceProvider::ResourceId m_thumbResourceId;
 
-    OwnPtr<WebKit::WebScrollbarThemeGeometry> m_geometry;
+    OwnPtr<CCScrollbarGeometryFixedThumb> m_geometry;
 
     // Data to implement CCScrollbar
     WebKit::WebScrollbar::ScrollbarOverlayStyle m_scrollbarOverlayStyle;
@@ -122,6 +124,7 @@ private:
     bool m_enabled;
     bool m_isCustomScrollbar;
     bool m_isOverlayScrollbar;
+    bool m_isAlphaLocked;
 };
 
 }

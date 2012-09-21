@@ -63,15 +63,7 @@ void RenderObjectChildList::destroyLeftoverChildren()
     }
 }
 
-static RenderNamedFlowThread* renderNamedFlowThreadContainer(RenderObject* object)
-{
-    while (object && object->isAnonymousBlock() && !object->isRenderNamedFlowThread())
-        object = object->parent();
-
-    return object && object->isRenderNamedFlowThread() ? toRenderNamedFlowThread(object) : 0;
-}
-
-RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, RenderObject* oldChild, bool fullRemove)
+RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, RenderObject* oldChild, bool notifyRenderer)
 {
     ASSERT(oldChild->parent() == owner);
 
@@ -81,7 +73,7 @@ RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, Render
     // So that we'll get the appropriate dirty bit set (either that a normal flow child got yanked or
     // that a positioned child got yanked).  We also repaint, so that the area exposed when the child
     // disappears gets repainted properly.
-    if (!owner->documentBeingDestroyed() && fullRemove && oldChild->everHadLayout()) {
+    if (!owner->documentBeingDestroyed() && notifyRenderer && oldChild->everHadLayout()) {
         oldChild->setNeedsLayoutAndPrefWidthsRecalc();
         if (oldChild->isBody())
             owner->view()->repaint();
@@ -93,48 +85,6 @@ RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, Render
     if (oldChild->isBox())
         toRenderBox(oldChild)->deleteLineBoxWrapper();
 
-    if (!owner->documentBeingDestroyed() && fullRemove) {
-        // if we remove visible child from an invisible parent, we don't know the layer visibility any more
-        RenderLayer* layer = 0;
-        if (owner->style()->visibility() != VISIBLE && oldChild->style()->visibility() == VISIBLE && !oldChild->hasLayer()) {
-            if ((layer = owner->enclosingLayer()))
-                layer->dirtyVisibleContentStatus();
-        }
-
-         // Keep our layer hierarchy updated.
-        if (oldChild->firstChild() || oldChild->hasLayer()) {
-            if (!layer)
-                layer = owner->enclosingLayer();
-            oldChild->removeLayers(layer);
-        }
-
-        if (oldChild->isListItem())
-            toRenderListItem(oldChild)->updateListMarkerNumbers();
-
-        if (oldChild->isOutOfFlowPositioned() && owner->childrenInline())
-            owner->dirtyLinesFromChangedChild(oldChild);
-
-        if (oldChild->isRenderRegion())
-            toRenderRegion(oldChild)->detachRegion();
-
-        if (oldChild->isQuote())
-            toRenderQuote(oldChild)->detachQuote();
-
-        if (oldChild->inRenderFlowThread()) {
-            if (oldChild->isBox())
-                oldChild->enclosingRenderFlowThread()->removeRenderBoxRegionInfo(toRenderBox(oldChild));
-            oldChild->enclosingRenderFlowThread()->clearRenderObjectCustomStyle(oldChild);
-        }
-
-        if (RenderNamedFlowThread* containerFlowThread = renderNamedFlowThreadContainer(owner))
-            containerFlowThread->removeFlowChild(oldChild);
-
-#if ENABLE(SVG)
-        // Update cached boundaries in SVG renderers, if a child is removed.
-        owner->setNeedsBoundariesUpdate();
-#endif
-    }
-    
     // If oldChild is the start or end of the selection, then clear the selection to
     // avoid problems of invalid pointers.
     // FIXME: The FrameSelection should be responsible for this when it
@@ -142,7 +92,13 @@ RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, Render
     if (!owner->documentBeingDestroyed() && oldChild->isSelectionBorder())
         owner->view()->clearSelection();
 
-    // remove the child
+    if (!owner->documentBeingDestroyed() && notifyRenderer)
+        oldChild->willBeRemovedFromTree();
+
+    // WARNING: There should be no code running between willBeRemovedFromTree and the actual removal below.
+    // This is needed to avoid race conditions where willBeRemovedFromTree would dirty the tree's structure
+    // and the code running here would force an untimely rebuilding, leaving |oldChild| dangling.
+
     if (oldChild->previousSibling())
         oldChild->previousSibling()->setNextSibling(oldChild->nextSibling());
     if (oldChild->nextSibling())
@@ -169,7 +125,7 @@ RenderObject* RenderObjectChildList::removeChildNode(RenderObject* owner, Render
     return oldChild;
 }
 
-void RenderObjectChildList::appendChildNode(RenderObject* owner, RenderObject* newChild, bool fullAppend)
+void RenderObjectChildList::appendChildNode(RenderObject* owner, RenderObject* newChild, bool notifyRenderer)
 {
     ASSERT(newChild->parent() == 0);
     ASSERT(!owner->isBlockFlow() || (!newChild->isTableSection() && !newChild->isTableRow() && !newChild->isTableCell()));
@@ -185,40 +141,8 @@ void RenderObjectChildList::appendChildNode(RenderObject* owner, RenderObject* n
 
     setLastChild(newChild);
     
-    if (fullAppend) {
-        // Keep our layer hierarchy updated.  Optimize for the common case where we don't have any children
-        // and don't have a layer attached to ourselves.
-        RenderLayer* layer = 0;
-        if (newChild->firstChild() || newChild->hasLayer()) {
-            layer = owner->enclosingLayer();
-            newChild->addLayers(layer);
-        }
-
-        // if the new child is visible but this object was not, tell the layer it has some visible content
-        // that needs to be drawn and layer visibility optimization can't be used
-        if (owner->style()->visibility() != VISIBLE && newChild->style()->visibility() == VISIBLE && !newChild->hasLayer()) {
-            if (!layer)
-                layer = owner->enclosingLayer();
-            if (layer)
-                layer->setHasVisibleContent();
-        }
-
-        if (newChild->isListItem())
-            toRenderListItem(newChild)->updateListMarkerNumbers();
-
-        if (!newChild->isFloating() && owner->childrenInline())
-            owner->dirtyLinesFromChangedChild(newChild);
-
-        if (newChild->isRenderRegion())
-            toRenderRegion(newChild)->attachRegion();
-
-        // You can't attachQuote() otherwise the quote would be attached too early
-        // and get the wrong depth since generated content is inserted into anonymous
-        // renderers before going into the main render tree.
-
-        if (RenderNamedFlowThread* containerFlowThread = renderNamedFlowThreadContainer(owner))
-            containerFlowThread->addFlowChild(newChild);
-    }
+    if (!owner->documentBeingDestroyed() && notifyRenderer)
+        newChild->insertedIntoTree();
 
     if (!owner->documentBeingDestroyed()) {
         RenderCounter::rendererSubtreeAttached(newChild);
@@ -231,10 +155,10 @@ void RenderObjectChildList::appendChildNode(RenderObject* owner, RenderObject* n
         owner->document()->axObjectCache()->childrenChanged(owner);
 }
 
-void RenderObjectChildList::insertChildNode(RenderObject* owner, RenderObject* child, RenderObject* beforeChild, bool fullInsert)
+void RenderObjectChildList::insertChildNode(RenderObject* owner, RenderObject* child, RenderObject* beforeChild, bool notifyRenderer)
 {
     if (!beforeChild) {
-        appendChildNode(owner, child, fullInsert);
+        appendChildNode(owner, child, notifyRenderer);
         return;
     }
 
@@ -257,39 +181,8 @@ void RenderObjectChildList::insertChildNode(RenderObject* owner, RenderObject* c
 
     child->setParent(owner);
     
-    if (fullInsert) {
-        // Keep our layer hierarchy updated.  Optimize for the common case where we don't have any children
-        // and don't have a layer attached to ourselves.
-        RenderLayer* layer = 0;
-        if (child->firstChild() || child->hasLayer()) {
-            layer = owner->enclosingLayer();
-            child->addLayers(layer);
-        }
-
-        // if the new child is visible but this object was not, tell the layer it has some visible content
-        // that needs to be drawn and layer visibility optimization can't be used
-        if (owner->style()->visibility() != VISIBLE && child->style()->visibility() == VISIBLE && !child->hasLayer()) {
-            if (!layer)
-                layer = owner->enclosingLayer();
-            if (layer)
-                layer->setHasVisibleContent();
-        }
-
-        if (child->isListItem())
-            toRenderListItem(child)->updateListMarkerNumbers();
-
-        if (!child->isFloating() && owner->childrenInline())
-            owner->dirtyLinesFromChangedChild(child);
-
-        if (child->isRenderRegion())
-            toRenderRegion(child)->attachRegion();
-
-        // Calling attachQuote() here would be too early (before anonymous renderers are inserted)
-        // see appendChild() for more explanation.
-
-        if (RenderNamedFlowThread* containerFlowThread = renderNamedFlowThreadContainer(owner))
-            containerFlowThread->addFlowChild(child, beforeChild);
-    }
+    if (!owner->documentBeingDestroyed() && notifyRenderer)
+        child->insertedIntoTree();
 
     if (!owner->documentBeingDestroyed()) {
         RenderCounter::rendererSubtreeAttached(child);
@@ -447,6 +340,32 @@ static RenderObject* createRendererForBeforeAfterContent(RenderObject* owner, co
     return renderer;
 }
 
+static RenderObject* ensureBeforeAfterContainer(RenderObject* owner, PseudoId type, RenderStyle* pseudoElementStyle, Node* generatingNode, RenderObject* insertBefore)
+{
+    // Make a generated box that might be any display type now that we are able to drill down into children
+    // to find the original content properly.
+    RenderObject* generatedContentContainer = RenderObject::createObject(owner->document(), pseudoElementStyle);
+    ASSERT(generatingNode); // The styled object cannot be anonymous or else it could not have ':before' or ':after' pseudo elements.
+    generatedContentContainer->setNode(generatingNode); // This allows access to the generatingNode.
+    generatedContentContainer->setStyle(pseudoElementStyle);
+    if (!owner->isChildAllowed(generatedContentContainer, pseudoElementStyle)) {
+        // The generated content container is not allowed here -> abort.
+        generatedContentContainer->destroy();
+        return 0;
+    }
+
+    // When we don't have a first child and are part of a continuation chain,
+    // insertBefore is incorrectly set to zero above, which causes the :before
+    // child to end up at the end of continuation chain.
+    // See https://bugs.webkit.org/show_bug.cgi?id=78380.
+    if (!insertBefore && type == BEFORE && owner->virtualContinuation())
+        owner->addChildIgnoringContinuation(generatedContentContainer, 0);
+    else
+        owner->addChild(generatedContentContainer, insertBefore);
+
+    return generatedContentContainer;
+}
+
 void RenderObjectChildList::updateBeforeAfterContent(RenderObject* owner, PseudoId type, const RenderObject* styledObject)
 {
     // Double check that the document did in fact use generated content rules.  Otherwise we should not have been called.
@@ -507,7 +426,7 @@ void RenderObjectChildList::updateBeforeAfterContent(RenderObject* owner, Pseudo
         return;
 
     if (owner->isRenderInline() && !pseudoElementStyle->isDisplayInlineType() && !pseudoElementStyle->isFloating() &&
-        !(pseudoElementStyle->position() == AbsolutePosition || pseudoElementStyle->position() == FixedPosition))
+        !pseudoElementStyle->hasOutOfFlowPosition())
         // According to the CSS2 spec (the end of section 12.1), the only allowed
         // display values for the pseudo style are NONE and INLINE for inline flows.
         // FIXME: CSS2.1 lifted this restriction, but block display types will crash.
@@ -536,41 +455,30 @@ void RenderObjectChildList::updateBeforeAfterContent(RenderObject* owner, Pseudo
         insertBefore = insertBefore->nextSibling();
 
     // Generated content consists of a single container that houses multiple children (specified
-    // by the content property).  This generated content container gets the pseudo-element style set on it.
+    // by the content property). This generated content container gets the pseudo-element style set on it.
+    // For pseudo-elements that are regions, the container is the RenderRegion.
     RenderObject* generatedContentContainer = 0;
 
-    // Walk our list of generated content and create render objects for each.
-    for (const ContentData* content = pseudoElementStyle->contentData(); content; content = content->next()) {
-        RenderObject* renderer =  createRendererForBeforeAfterContent(owner, content, pseudoElementStyle);
+    if (!pseudoElementStyle->regionThread().isEmpty())
+        generatedContentContainer = ensureBeforeAfterContainer(owner, type, pseudoElementStyle, styledObject->node(), insertBefore);
+    else {
+        // Walk our list of generated content and create render objects for each.
+        for (const ContentData* content = pseudoElementStyle->contentData(); content; content = content->next()) {
+            RenderObject* renderer = createRendererForBeforeAfterContent(owner, content, pseudoElementStyle);
 
-        if (renderer) {
-            if (!generatedContentContainer) {
-                // Make a generated box that might be any display type now that we are able to drill down into children
-                // to find the original content properly.
-                generatedContentContainer = RenderObject::createObject(owner->document(), pseudoElementStyle);
-                ASSERT(styledObject->node()); // The styled object cannot be anonymous or else it could not have ':before' or ':after' pseudo elements.
-                generatedContentContainer->setNode(styledObject->node()); // This allows access to the generatingNode.
-                generatedContentContainer->setStyle(pseudoElementStyle);
-                if (!owner->isChildAllowed(generatedContentContainer, pseudoElementStyle)) {
-                    // The generated content container is not allowed here -> abort.
-                    generatedContentContainer->destroy();
-                    renderer->destroy();
-                    return;
+            if (renderer) {
+                if (!generatedContentContainer) {
+                    generatedContentContainer = ensureBeforeAfterContainer(owner, type, pseudoElementStyle, styledObject->node(), insertBefore);
+                    if (!generatedContentContainer) {
+                        renderer->destroy();
+                        return;
+                    }
                 }
-
-                // When we don't have a first child and are part of a continuation chain,
-                // insertBefore is incorrectly set to zero above, which causes the :before
-                // child to end up at the end of continuation chain.
-                // See https://bugs.webkit.org/show_bug.cgi?id=78380.
-                if (!insertBefore && type == BEFORE && owner->virtualContinuation())
-                    owner->addChildIgnoringContinuation(generatedContentContainer, 0);
+                if (generatedContentContainer->isChildAllowed(renderer, pseudoElementStyle))
+                    generatedContentContainer->addChild(renderer);
                 else
-                    owner->addChild(generatedContentContainer, insertBefore);
+                    renderer->destroy();
             }
-            if (generatedContentContainer->isChildAllowed(renderer, pseudoElementStyle))
-                generatedContentContainer->addChild(renderer);
-            else
-                renderer->destroy();
         }
     }
 

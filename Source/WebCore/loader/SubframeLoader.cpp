@@ -126,7 +126,11 @@ bool SubframeLoader::pluginIsLoadable(HTMLPlugInImageElement* pluginElement, con
             return false;
         }
 
-        if (!document()->contentSecurityPolicy()->allowObjectFromSource(url)) {
+        String declaredMimeType = document()->isPluginDocument() && document()->ownerElement() ?
+            document()->ownerElement()->fastGetAttribute(HTMLNames::typeAttr) :
+            pluginElement->fastGetAttribute(HTMLNames::typeAttr);
+        if (!document()->contentSecurityPolicy()->allowObjectFromSource(url)
+            || !document()->contentSecurityPolicy()->allowPluginType(mimeType, declaredMimeType, url)) {
             RenderEmbeddedObject* renderer = pluginElement->renderEmbeddedObject();
             renderer->setPluginUnavailabilityReason(RenderEmbeddedObject::PluginBlockedByContentSecurityPolicy);
             return false;
@@ -167,6 +171,9 @@ static String findPluginMIMETypeFromURL(Page* page, const String& url)
     String extension = url.substring(dotIndex + 1);
 
     PluginData* pluginData = page->pluginData();
+    if (!pluginData)
+        return String();
+
     for (size_t i = 0; i < pluginData->mimes().size(); ++i) {
         const MimeClassInfo& mimeClassInfo = pluginData->mimes()[i];
         for (size_t j = 0; j < mimeClassInfo.extensions.size(); ++j) {
@@ -293,7 +300,9 @@ PassRefPtr<Widget> SubframeLoader::createJavaAppletWidget(const IntSize& size, H
             return 0;
         }
 
-        if (!element->document()->contentSecurityPolicy()->allowObjectFromSource(codeBaseURL))
+        const char javaAppletMimeType[] = "application/x-java-applet";
+        if (!element->document()->contentSecurityPolicy()->allowObjectFromSource(codeBaseURL)
+            || !element->document()->contentSecurityPolicy()->allowPluginType(javaAppletMimeType, javaAppletMimeType, codeBaseURL))
             return 0;
     }
 

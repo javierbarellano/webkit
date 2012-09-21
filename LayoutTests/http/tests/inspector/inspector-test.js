@@ -129,15 +129,20 @@ InspectorTest.addObject = function(object, customFormatters, prefix, firstLinePr
     prefix = prefix || "";
     firstLinePrefix = firstLinePrefix || prefix;
     InspectorTest.addResult(firstLinePrefix + "{");
-    for (var prop in object) {
+    var propertyNames = Object.keys(object);
+    propertyNames.sort();
+    for (var i = 0; i < propertyNames.length; ++i) {
+        var prop = propertyNames[i];
         if (typeof object.hasOwnProperty === "function" && !object.hasOwnProperty(prop))
             continue;
         var prefixWithName = "    " + prefix + prop + " : ";
         var propValue = object[prop];
         if (customFormatters && customFormatters[prop]) {
             var formatterName = customFormatters[prop];
-            var formatter = InspectorTest.formatters[formatterName];
-            InspectorTest.addResult(prefixWithName + formatter(propValue));
+            if (formatterName !== "skip") {
+                var formatter = InspectorTest.formatters[formatterName];
+                InspectorTest.addResult(prefixWithName + formatter(propValue));
+            }
         } else
             InspectorTest.dump(propValue, customFormatters, "    " + prefix, prefixWithName);
     }
@@ -183,8 +188,7 @@ InspectorTest.navigate = function(url, callback)
 {
     InspectorTest._pageLoadedCallback = InspectorTest.safeWrap(callback);
 
-    if (WebInspector.panels.network)
-        WebInspector.panels.network._reset();
+    WebInspector.panel("network")._reset();
     InspectorTest.evaluateInConsole("window.location = '" + url + "'");
 }
 
@@ -202,8 +206,7 @@ InspectorTest._innerReloadPage = function(hardReload, callback)
 {
     InspectorTest._pageLoadedCallback = InspectorTest.safeWrap(callback);
 
-    if (WebInspector.panels.network)
-        WebInspector.panels.network._reset();
+    WebInspector.panel("network")._reset();
     PageAgent.reload(hardReload);
 }
 
@@ -371,8 +374,9 @@ InspectorTest.textContentWithLineBreaks = function(node)
 
 };
 
-var runTestCallId = 0;
-var completeTestCallId = 1;
+var initializeCallId = 0;
+var runTestCallId = 1;
+var completeTestCallId = 2;
 var frontendReopeningCount = 0;
 
 function reopenFrontend()
@@ -419,7 +423,7 @@ function runTest(enableWatchDogWhileDebugging)
     testRunner.dumpAsText();
     testRunner.waitUntilDone();
 
-    function runTestInFrontend(initializationFunctions, testFunction, completeTestCallId)
+    function initializeFrontend(initializationFunctions)
     {
         if (window.InspectorTest) {
             InspectorTest.pageLoaded();
@@ -427,8 +431,7 @@ function runTest(enableWatchDogWhileDebugging)
         }
 
         InspectorTest = {};
-        InspectorTest.completeTestCallId = completeTestCallId;
-
+    
         for (var i = 0; i < initializationFunctions.length; ++i) {
             try {
                 initializationFunctions[i]();
@@ -437,12 +440,20 @@ function runTest(enableWatchDogWhileDebugging)
                 InspectorTest.completeTest();
             }
         }
+    }
+
+    function runTestInFrontend(testFunction, completeTestCallId)
+    {
+        if (InspectorTest.completeTestCallId) 
+            return;
+
+        InspectorTest.completeTestCallId = completeTestCallId;
 
         WebInspector.showPanel("audits");
         try {
             testFunction();
         } catch (e) {
-            console.error("Exception during test execution: " + e);
+            console.error("Exception during test execution: " + e,  (e.stack ? e.stack : "") );
             InspectorTest.completeTest();
         }
     }
@@ -452,8 +463,12 @@ function runTest(enableWatchDogWhileDebugging)
         if (name.indexOf("initialize_") === 0 && typeof window[name] === "function" && name !== "initialize_InspectorTest")
             initializationFunctions.push(window[name].toString());
     }
-    var parameters = ["[" + initializationFunctions + "]", test, completeTestCallId];
-    var toEvaluate = "(" + runTestInFrontend + ")(" + parameters.join(", ") + ");";
+    var parameters = ["[" + initializationFunctions + "]"];
+    var toEvaluate = "(" + initializeFrontend + ")(" + parameters.join(", ") + ");";
+    testRunner.evaluateInWebInspector(initializeCallId, toEvaluate);
+
+    parameters = [test, completeTestCallId];
+    toEvaluate = "(" + runTestInFrontend + ")(" + parameters.join(", ") + ");";
     testRunner.evaluateInWebInspector(runTestCallId, toEvaluate);
 
     if (enableWatchDogWhileDebugging) {
@@ -515,3 +530,38 @@ function clearOutput()
         outputElement = null;
     }
 }
+
+function StandaloneTestRunnerStub()
+{
+}
+
+StandaloneTestRunnerStub.prototype = {
+    dumpAsText: function()
+    {
+    },
+
+    waitUntilDone: function()
+    {
+    },
+
+    closeWebInspector: function()
+    {
+        window.opener.postMessage(["closeWebInspector"], "*");
+    },
+
+    notifyDone: function()
+    {
+        var actual = document.body.innerText + "\n";
+        window.opener.postMessage(["notifyDone", actual], "*");
+    },
+
+    evaluateInWebInspector: function(callId, script)
+    {
+        window.opener.postMessage(["evaluateInWebInspector", callId, script], "*");
+    },
+
+    display: function() { }
+}
+
+if (!window.testRunner && window.opener)
+    window.testRunner = new StandaloneTestRunnerStub();

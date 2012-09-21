@@ -2,7 +2,7 @@ SET(DumpRenderTree_SOURCES
     ${TOOLS_DIR}/DumpRenderTree/DumpRenderTreeCommon.cpp
     ${TOOLS_DIR}/DumpRenderTree/CyclicRedundancyCheck.cpp
     ${TOOLS_DIR}/DumpRenderTree/GCController.cpp
-    ${TOOLS_DIR}/DumpRenderTree/LayoutTestController.cpp
+    ${TOOLS_DIR}/DumpRenderTree/TestRunner.cpp
     ${TOOLS_DIR}/DumpRenderTree/PixelDumpSupport.cpp
     ${TOOLS_DIR}/DumpRenderTree/WorkQueue.cpp
     ${TOOLS_DIR}/DumpRenderTree/cairo/PixelDumpSupportCairo.cpp
@@ -15,7 +15,7 @@ SET(DumpRenderTree_SOURCES
     ${TOOLS_DIR}/DumpRenderTree/efl/FontManagement.cpp
     ${TOOLS_DIR}/DumpRenderTree/efl/GCControllerEfl.cpp
     ${TOOLS_DIR}/DumpRenderTree/efl/JSStringUtils.cpp
-    ${TOOLS_DIR}/DumpRenderTree/efl/LayoutTestControllerEfl.cpp
+    ${TOOLS_DIR}/DumpRenderTree/efl/TestRunnerEfl.cpp
     ${TOOLS_DIR}/DumpRenderTree/efl/PixelDumpSupportEfl.cpp
     ${TOOLS_DIR}/DumpRenderTree/efl/TextInputController.cpp
     ${TOOLS_DIR}/DumpRenderTree/efl/WorkQueueItemEfl.cpp
@@ -32,16 +32,19 @@ SET(DumpRenderTree_LIBRARIES
     ${WebKit_LIBRARY_NAME}
     ${WTF_LIBRARY_NAME}
     ${CAIRO_LIBRARIES}
-    ${ECORE_X_LIBRARIES}
+    ${ECORE_LIBRARIES}
+    ${ECORE_EVAS_LIBRARIES}
+    ${ECORE_FILE_LIBRARIES}
+    ${ECORE_INPUT_LIBRARIES}
     ${EDJE_LIBRARIES}
-    ${EFLDEPS_LIBRARIES}
+    ${EINA_LIBRARIES}
     ${EVAS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
     ${LIBXML2_LIBRARIES}
     ${LIBXSLT_LIBRARIES}
     ${SQLITE_LIBRARIES}
-    ${Glib_LIBRARIES}
-    ${LIBSOUP24_LIBRARIES}
+    ${GLIB_LIBRARIES}
+    ${LIBSOUP_LIBRARIES}
 )
 
 SET(DumpRenderTree_INCLUDE_DIRECTORIES
@@ -96,20 +99,17 @@ SET(DumpRenderTree_INCLUDE_DIRECTORIES
     ${WEBCORE_DIR}/bindings/js
     ${WEBCORE_DIR}/testing/js
     ${CAIRO_INCLUDE_DIRS}
+    ${ECORE_INCLUDE_DIRS}
+    ${ECORE_INCLUDE_DIRS}
+    ${ECORE_EVAS_INCLUDE_DIRS}
+    ${ECORE_FILE_INCLUDE_DIRS}
+    ${ECORE_INPUT_INCLUDE_DIRS}
     ${EDJE_INCLUDE_DIRS}
-    ${EFLDEPS_INCLUDE_DIRS}
+    ${EINA_INCLUDE_DIRS}
     ${EVAS_INCLUDE_DIRS}
     ${FONTCONFIG_INCLUDE_DIR}
-    ${Glib_INCLUDE_DIRS}
-    ${LIBSOUP24_INCLUDE_DIRS}
-)
-
-SET(DumpRenderTree_LINK_FLAGS
-    ${ECORE_X_LDFLAGS}
-    ${EDJE_LDFLAGS}
-    ${EFLDEPS_LDFLAGS}
-    ${EVAS_LDFLAGS}
-    ${LIBSOUP24_LDFLAGS}
+    ${GLIB_INCLUDE_DIRS}
+    ${LIBSOUP_INCLUDE_DIRS}
 )
 
 # FIXME: DOWNLOADED_FONTS_DIR should not hardcode the directory
@@ -122,10 +122,8 @@ INCLUDE_DIRECTORIES(${DumpRenderTree_INCLUDE_DIRECTORIES})
 
 ADD_EXECUTABLE(DumpRenderTree ${DumpRenderTree_SOURCES})
 TARGET_LINK_LIBRARIES(DumpRenderTree ${DumpRenderTree_LIBRARIES})
-ADD_TARGET_PROPERTIES(DumpRenderTree LINK_FLAGS "${DumpRenderTree_LINK_FLAGS}")
 SET_TARGET_PROPERTIES(DumpRenderTree PROPERTIES FOLDER "Tools")
 
 ADD_EXECUTABLE(ImageDiff ${ImageDiff_SOURCES})
 TARGET_LINK_LIBRARIES(ImageDiff ${DumpRenderTree_LIBRARIES})
-ADD_TARGET_PROPERTIES(ImageDiff LINK_FLAGS "${DumpRenderTree_LINK_FLAGS}")
 SET_TARGET_PROPERTIES(ImageDiff PROPERTIES FOLDER "Tools")

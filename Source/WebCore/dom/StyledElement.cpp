@@ -59,6 +59,8 @@ struct PresentationAttributeCacheKey {
 };
 
 struct PresentationAttributeCacheEntry {
+    WTF_MAKE_FAST_ALLOCATED;
+public:
     PresentationAttributeCacheKey key;
     RefPtr<StylePropertySet> value;
 };
@@ -79,7 +81,7 @@ static PresentationAttributeCache& presentationAttributeCache()
 }
 
 class PresentationAttributeCacheCleaner {
-    WTF_MAKE_NONCOPYABLE(PresentationAttributeCacheCleaner);
+    WTF_MAKE_NONCOPYABLE(PresentationAttributeCacheCleaner); WTF_MAKE_FAST_ALLOCATED;
 public:
     PresentationAttributeCacheCleaner()
         : m_cleanTimer(this, &PresentationAttributeCacheCleaner::cleanCache)
@@ -137,7 +139,8 @@ StyledElement::StyledElement(const QualifiedName& name, Document* document, Cons
 
 StyledElement::~StyledElement()
 {
-    destroyInlineStyle();
+    if (attributeData() && attributeData()->isMutable())
+        mutableAttributeData()->detachCSSOMWrapperIfNeeded(this);
 }
 
 CSSStyleDeclaration* StyledElement::style()
@@ -147,8 +150,6 @@ CSSStyleDeclaration* StyledElement::style()
 
 void StyledElement::attributeChanged(const Attribute& attribute)
 {
-    parseAttribute(attribute);
-
     if (isPresentationAttribute(attribute.name())) {
         setAttributeStyleDirty();
         setNeedsStyleRecalc(InlineStyleChange);
@@ -157,36 +158,14 @@ void StyledElement::attributeChanged(const Attribute& attribute)
     Element::attributeChanged(attribute);
 }
 
-void StyledElement::classAttributeChanged(const AtomicString& newClassString)
-{
-    const UChar* characters = newClassString.characters();
-    unsigned length = newClassString.length();
-    unsigned i;
-    for (i = 0; i < length; ++i) {
-        if (isNotHTMLSpace(characters[i]))
-            break;
-    }
-    bool hasClass = i < length;
-    if (hasClass) {
-        const bool shouldFoldCase = document()->inQuirksMode();
-        ensureAttributeData()->setClass(newClassString, shouldFoldCase);
-    } else if (attributeData())
-        mutableAttributeData()->clearClass();
-
-    if (DOMTokenList* classList = optionalClassList())
-        static_cast<ClassList*>(classList)->reset(newClassString);
-
-    setNeedsStyleRecalc();
-}
-
 void StyledElement::styleAttributeChanged(const AtomicString& newStyleString, ShouldReparseStyleAttribute shouldReparse)
 {
     if (shouldReparse) {
         WTF::OrdinalNumber startLineNumber = WTF::OrdinalNumber::beforeFirst();
         if (document() && document()->scriptableDocumentParser() && !document()->isInDocumentWrite())
             startLineNumber = document()->scriptableDocumentParser()->lineNumber();
-        if (newStyleString.isNull())
-            destroyInlineStyle();
+        if (newStyleString.isNull() && attributeData())
+            mutableAttributeData()->destroyInlineStyle(this);
         else if (document()->contentSecurityPolicy()->allowInlineStyle(document()->url(), startLineNumber))
             ensureAttributeData()->updateInlineStyleAvoidingMutation(this, newStyleString);
         setIsStyleAttributeValid();
@@ -197,10 +176,10 @@ void StyledElement::styleAttributeChanged(const AtomicString& newStyleString, Sh
 
 void StyledElement::parseAttribute(const Attribute& attribute)
 {
-    if (attribute.name() == classAttr)
-        classAttributeChanged(attribute.value());
-    else if (attribute.name() == styleAttr)
+    if (attribute.name() == styleAttr)
         styleAttributeChanged(attribute.value());
+    else
+        Element::parseAttribute(attribute);
 }
 
 void StyledElement::inlineStyleChanged()
@@ -288,7 +267,7 @@ static unsigned computePresentationAttributeCacheHash(const PresentationAttribut
         return 0;
     ASSERT(key.attributesAndValues.size());
     unsigned attributeHash = StringHasher::hashMemory(key.attributesAndValues.data(), key.attributesAndValues.size() * sizeof(key.attributesAndValues[0]));
-    return WTF::intHash((static_cast<uint64_t>(key.tagName->existingHash()) << 32 | attributeHash));
+    return WTF::pairIntHash(key.tagName->existingHash(), attributeHash);
 }
 
 void StyledElement::updateAttributeStyle()

@@ -38,17 +38,17 @@
 #include "NotImplemented.h"
 #include "Pattern.h"
 #include "PlatformContextCairo.h"
-#include "PlatformString.h"
 #include "RefPtrCairo.h"
 #include <cairo.h>
 #include <wtf/Vector.h>
 #include <wtf/text/Base64.h>
+#include <wtf/text/WTFString.h>
 
 using namespace std;
 
 namespace WebCore {
 
-ImageBufferData::ImageBufferData(const IntSize& size)
+ImageBufferData::ImageBufferData(const IntSize&)
     : m_surface(0)
     , m_platformContext(0)
 {
@@ -96,11 +96,12 @@ void ImageBuffer::clip(GraphicsContext* context, const FloatRect& maskRect) cons
     context->platformContext()->pushImageMask(m_data.m_surface, maskRect);
 }
 
-void ImageBuffer::draw(GraphicsContext* context, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect,
+void ImageBuffer::draw(GraphicsContext* destinationContext, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect,
                        CompositeOperator op , bool useLowQualityScale)
 {
-    RefPtr<Image> image = copyImage(DontCopyBackingStore);
-    context->drawImage(image.get(), styleColorSpace, destRect, srcRect, op, DoNotRespectImageOrientation, useLowQualityScale);
+    BackingStoreCopy copyMode = destinationContext == context() ? CopyBackingStore : DontCopyBackingStore;
+    RefPtr<Image> image = copyImage(copyMode);
+    destinationContext->drawImage(image.get(), styleColorSpace, destRect, srcRect, op, DoNotRespectImageOrientation, useLowQualityScale);
 }
 
 void ImageBuffer::drawPattern(GraphicsContext* context, const FloatRect& srcRect, const AffineTransform& patternTransform,

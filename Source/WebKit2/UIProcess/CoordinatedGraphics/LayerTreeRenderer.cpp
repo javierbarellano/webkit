@@ -66,7 +66,7 @@ private:
     }
 };
 
-void LayerTreeRenderer::callOnMainTread(const Function<void()>& function)
+void LayerTreeRenderer::dispatchOnMainThread(const Function<void()>& function)
 {
     if (isMainThread())
         function();
@@ -191,7 +191,7 @@ void LayerTreeRenderer::didChangeScrollPosition(const IntPoint& position)
     m_pendingRenderedContentsScrollPosition = position;
 }
 
-void LayerTreeRenderer::syncCanvas(WebLayerID id, const WebCore::IntSize& canvasSize, uint32_t graphicsSurfaceToken)
+void LayerTreeRenderer::syncCanvas(WebLayerID id, const WebCore::IntSize& canvasSize, uint64_t graphicsSurfaceToken, uint32_t frontBuffer)
 {
     if (canvasSize.isEmpty() || !m_textureMapper)
         return;
@@ -208,7 +208,7 @@ void LayerTreeRenderer::syncCanvas(WebLayerID id, const WebCore::IntSize& canvas
     } else
         canvasBackingStore = it->second;
 
-    canvasBackingStore->setGraphicsSurface(graphicsSurfaceToken, canvasSize);
+    canvasBackingStore->setGraphicsSurface(graphicsSurfaceToken, canvasSize, frontBuffer);
     layer->setContentsToMedia(canvasBackingStore.get());
 #endif
 }
@@ -397,7 +397,7 @@ void LayerTreeRenderer::flushLayerChanges()
     commitTileOperations();
 
     // The pending tiles state is on its way for the screen, tell the web process to render the next one.
-    callOnMainThread(bind(&LayerTreeRenderer::renderNextFrame, this));
+    dispatchOnMainThread(bind(&LayerTreeRenderer::renderNextFrame, this));
 }
 
 void LayerTreeRenderer::renderNextFrame()
@@ -458,7 +458,7 @@ void LayerTreeRenderer::purgeGLResources()
 
     setActive(false);
 
-    callOnMainThread(bind(&LayerTreeRenderer::purgeBackingStores, this));
+    dispatchOnMainThread(bind(&LayerTreeRenderer::purgeBackingStores, this));
 }
 
 void LayerTreeRenderer::setAnimatedOpacity(uint32_t id, float opacity)

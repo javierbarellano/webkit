@@ -70,12 +70,12 @@ public:
     
     const BackForwardListItemVector& entries() const { return m_entries; }
 
-    uint32_t currentIndex() { return m_currentIndex; }
-    int backListCount();
-    int forwardListCount();
+    uint32_t currentIndex() const { return m_currentIndex; }
+    int backListCount() const;
+    int forwardListCount() const;
 
-    PassRefPtr<ImmutableArray> backListAsImmutableArrayWithLimit(unsigned limit);
-    PassRefPtr<ImmutableArray> forwardListAsImmutableArrayWithLimit(unsigned limit);
+    PassRefPtr<ImmutableArray> backListAsImmutableArrayWithLimit(unsigned limit) const;
+    PassRefPtr<ImmutableArray> forwardListAsImmutableArrayWithLimit(unsigned limit) const;
 
 #if USE(CF)
     CFDictionaryRef createCFDictionaryRepresentation(WebPageProxy::WebPageProxySessionStateFilterCallback, void* context) const;
@@ -85,7 +85,7 @@ public:
 #endif
 
 private:
-    WebBackForwardList(WebPageProxy*);
+    explicit WebBackForwardList(WebPageProxy*);
 
     virtual Type type() const { return APIType; }
 

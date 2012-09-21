@@ -36,7 +36,6 @@
 #include "PageCache.h"
 #include "Settings.h"
 #include "KURL.h"
-#include "PlatformString.h"
 #include "IconDatabase.h"
 #include "PluginDatabase.h"
 #include "Image.h"
@@ -44,6 +43,7 @@
 #include "ApplicationCacheStorage.h"
 #include "DatabaseTracker.h"
 #include "FileSystem.h"
+#include <wtf/text/WTFString.h>
 
 #include <QApplication>
 #include <QStandardPaths>
@@ -261,6 +261,12 @@ void QWebSettingsPrivate::apply()
         settings->setTiledBackingStoreEnabled(value);
 #endif
 
+#if ENABLE(SMOOTH_SCROLLING)
+        value = attributes.value(QWebSettings::ScrollAnimatorEnabled,
+                                      global->attributes.value(QWebSettings::ScrollAnimatorEnabled));
+        settings->setEnableScrollAnimator(value);
+#endif
+
         value = attributes.value(QWebSettings::SiteSpecificQuirksEnabled,
                                       global->attributes.value(QWebSettings::SiteSpecificQuirksEnabled));
         settings->setNeedsSiteSpecificQuirks(value);
@@ -473,6 +479,7 @@ QWebSettings* QWebSettings::globalSettings()
         This is disabled by default.
     \value SiteSpecificQuirksEnabled This setting enables WebKit's workaround for broken sites. It is
         enabled by default.
+    \value ScrollAnimatorEnabled This setting enables animated scrolling. It is disabled by default.
 */
 
 /*!
@@ -524,6 +531,7 @@ QWebSettings::QWebSettings()
     d->attributes.insert(QWebSettings::TiledBackingStoreEnabled, false);
     d->attributes.insert(QWebSettings::FrameFlatteningEnabled, false);
     d->attributes.insert(QWebSettings::SiteSpecificQuirksEnabled, true);
+    d->attributes.insert(QWebSettings::ScrollAnimatorEnabled, false);
     d->offlineStorageDefaultQuota = 5 * 1024 * 1024;
     d->defaultTextEncoding = QLatin1String("iso-8859-1");
     d->thirdPartyCookiePolicy = AlwaysAllowThirdPartyCookies;

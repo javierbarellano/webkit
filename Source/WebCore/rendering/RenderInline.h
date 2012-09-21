@@ -72,7 +72,7 @@ public:
 
     virtual void updateDragState(bool dragOn);
     
-    LayoutSize relativePositionedInlineOffset(const RenderBox* child) const;
+    LayoutSize offsetForInFlowPositionedInline(const RenderBox* child) const;
 
     virtual void addFocusRingRects(Vector<IntRect>&, const LayoutPoint&);
     void paintOutline(GraphicsContext*, const LayoutPoint&);
@@ -89,7 +89,7 @@ public:
 protected:
     virtual void willBeDestroyed();
 
-    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
+    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
 
 private:
     virtual RenderObjectChildList* virtualChildren() { return children(); }
@@ -122,9 +122,9 @@ private:
 
     virtual void paint(PaintInfo&, const LayoutPoint&);
 
-    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestPoint& pointInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) OVERRIDE;
+    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) OVERRIDE;
 
-    virtual bool requiresLayer() const { return isRelPositioned() || isTransparent() || hasMask() || hasFilter(); }
+    virtual bool requiresLayer() const { return isInFlowPositioned() || createsGroup() || hasClipPath(); }
 
     virtual LayoutUnit offsetLeft() const;
     virtual LayoutUnit offsetTop() const;
@@ -135,10 +135,12 @@ private:
     virtual LayoutRect rectWithOutlineForRepaint(RenderBoxModelObject* repaintContainer, LayoutUnit outlineWidth) const;
     virtual void computeRectForRepaint(RenderBoxModelObject* repaintContainer, LayoutRect&, bool fixed) const;
 
-    virtual void mapLocalToContainer(RenderBoxModelObject* repaintContainer, TransformState&, MapLocalToContainerFlags mode = ApplyContainerFlip, bool* wasFixed = 0) const OVERRIDE;
+    virtual void mapLocalToContainer(RenderBoxModelObject* repaintContainer, TransformState&, MapLocalToContainerFlags mode = ApplyContainerFlip | SnapOffsetForTransforms, bool* wasFixed = 0) const OVERRIDE;
     virtual const RenderObject* pushMappingToContainer(const RenderBoxModelObject* ancestorToStopAt, RenderGeometryMap&) const;
 
     virtual VisiblePosition positionForPoint(const LayoutPoint&);
+
+    virtual LayoutRect frameRectForStickyPositioning() const OVERRIDE { return linesBoundingBox(); }
 
     virtual IntRect borderBoundingBox() const
     {

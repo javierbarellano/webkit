@@ -37,6 +37,7 @@
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "HTMLParserIdioms.h"
+#include "InputTypeNames.h"
 #include "KeyboardEvent.h"
 #include "LocalizedNumber.h"
 #include "RenderTextControl.h"
@@ -198,11 +199,6 @@ void NumberInputType::handleKeydownEvent(KeyboardEvent* event)
     handleKeydownEventForSpinButton(event);
     if (!event->defaultHandled())
         TextFieldInputType::handleKeydownEvent(event);
-}
-
-void NumberInputType::handleWheelEvent(WheelEvent* event)
-{
-    handleWheelEventForSpinButton(event);
 }
 
 Decimal NumberInputType::parseToNumber(const String& src, const Decimal& defaultValue) const

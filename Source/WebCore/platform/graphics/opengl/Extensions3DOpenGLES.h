@@ -29,11 +29,17 @@
 
 #include "Extensions3DOpenGLCommon.h"
 
+#if PLATFORM(QT)
+// Takes care of declaring the GLES extensions.
+#include <qopengl.h>
+#else
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#endif
 
-#if PLATFORM(BLACKBERRY)
+#if OS(QNX) || PLATFORM(QT)
 // See https://bugs.webkit.org/show_bug.cgi?id=91030.
+// Newer Khorons headers do define these with a PROC suffix, but older headers don't.
 #define PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMG PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMGPROC
 #define PFNGLRENDERBUFFERSTORAGEMULTISAMPLEIMG PFNGLRENDERBUFFERSTORAGEMULTISAMPLEIMGPROC
 #endif
@@ -76,6 +82,9 @@ public:
     virtual void blitFramebuffer(long srcX0, long srcY0, long srcX1, long srcY1, long dstX0, long dstY0, long dstX1, long dstY1, unsigned long mask, unsigned long filter);
     virtual void renderbufferStorageMultisample(unsigned long target, unsigned long samples, unsigned long internalformat, unsigned long width, unsigned long height);
     virtual void copyTextureCHROMIUM(GC3Denum, Platform3DObject, Platform3DObject, GC3Dint, GC3Denum);
+    virtual void insertEventMarkerEXT(const String&);
+    virtual void pushGroupMarkerEXT(const String&);
+    virtual void popGroupMarkerEXT(void);
 
     virtual Platform3DObject createVertexArrayOES();
     virtual void deleteVertexArrayOES(Platform3DObject);

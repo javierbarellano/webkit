@@ -38,6 +38,7 @@
 #include "RenderSelectionInfo.h"
 #include "RenderWidget.h"
 #include "RenderWidgetProtector.h"
+#include "StyleInheritedData.h"
 #include "TransformState.h"
 
 #if USE(ACCELERATED_COMPOSITING)
@@ -86,16 +87,26 @@ RenderView::~RenderView()
 
 bool RenderView::hitTest(const HitTestRequest& request, HitTestResult& result)
 {
-    return layer()->hitTest(request, result);
+    return hitTest(request, result.hitTestLocation(), result);
 }
 
-void RenderView::computeLogicalHeight()
+bool RenderView::hitTest(const HitTestRequest& request, const HitTestLocation& location, HitTestResult& result)
+{
+    bool inside = layer()->hitTest(request, location, result);
+
+    // Next set up the correct :hover/:active state along the new chain.
+    document()->updateHoverActiveState(request, result);
+
+    return inside;
+}
+
+void RenderView::updateLogicalHeight()
 {
     if (!shouldUsePrintingLayout() && m_frameView)
         setLogicalHeight(viewLogicalHeight());
 }
 
-void RenderView::computeLogicalWidth()
+void RenderView::updateLogicalWidth()
 {
     if (!shouldUsePrintingLayout() && m_frameView)
         setLogicalWidth(viewLogicalWidth());
@@ -217,12 +228,9 @@ void RenderView::mapAbsoluteToLocalPoint(bool fixed, bool useTransforms, Transfo
 
 bool RenderView::requiresColumns(int desiredColumnCount) const
 {
-    if (m_frameView) {
-        if (Frame* frame = m_frameView->frame()) {
-            if (Page* page = frame->page())
-                return frame == page->mainFrame() && page->pagination().mode != Page::Pagination::Unpaginated;
-        }
-    }
+    if (m_frameView)
+        return m_frameView->pagination().mode != Pagination::Unpaginated;
+
     return RenderBlock::requiresColumns(desiredColumnCount);
 }
 
@@ -230,24 +238,17 @@ void RenderView::calcColumnWidth()
 {
     int columnWidth = contentLogicalWidth();
     if (m_frameView && style()->hasInlineColumnAxis()) {
-        if (Frame* frame = m_frameView->frame()) {
-            if (Page* page = frame->page()) {
-                if (int pageLength = page->pagination().pageLength)
-                    columnWidth = pageLength;
-            }
-        }
+        if (int pageLength = m_frameView->pagination().pageLength)
+            columnWidth = pageLength;
     }
     setDesiredColumnCountAndWidth(1, columnWidth);
 }
 
 ColumnInfo::PaginationUnit RenderView::paginationUnit() const
 {
-    if (m_frameView) {
-        if (Frame* frame = m_frameView->frame()) {
-            if (Page* page = frame->page())
-                return (frame == page->mainFrame() && page->pagination().behavesLikeColumns) ? ColumnInfo::Column : ColumnInfo::Page;
-        }
-    }
+    if (m_frameView)
+        return m_frameView->pagination().behavesLikeColumns ? ColumnInfo::Column : ColumnInfo::Page;
+
     return ColumnInfo::Page;
 }
 
@@ -257,6 +258,11 @@ void RenderView::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     ASSERT(!needsLayout());
     // RenderViews should never be called to paint with an offset not on device pixels.
     ASSERT(LayoutPoint(IntPoint(paintOffset.x(), paintOffset.y())) == paintOffset);
+
+    // This avoids painting garbage between columns if there is a column gap.
+    if (m_frameView && m_frameView->pagination().mode != Pagination::Unpaginated)
+        paintInfo.context->fillRect(paintInfo.rect, m_frameView->baseBackgroundColor(), ColorSpaceDeviceRGB);
+
     paintObject(paintInfo, paintOffset);
 }
 
@@ -324,7 +330,7 @@ void RenderView::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&)
         frameView()->setCannotBlitToWindow(); // The parent must show behind the child.
     else {
         Color baseColor = frameView()->baseBackgroundColor();
-        if (baseColor.alpha() > 0) {
+        if (baseColor.alpha()) {
             CompositeOperator previousOperator = paintInfo.context->compositeOperation();
             paintInfo.context->setCompositeOperation(CompositeCopy);
             paintInfo.context->fillRect(paintInfo.rect, baseColor, style()->colorSpace());
@@ -799,14 +805,8 @@ int RenderView::viewLogicalHeight() const
     int height = style()->isHorizontalWritingMode() ? viewHeight() : viewWidth();
 
     if (hasColumns() && !style()->hasInlineColumnAxis()) {
-        if (Frame* frame = m_frameView->frame()) {
-            if (Page* page = frame->page()) {
-                if (frame == page->mainFrame()) {
-                    if (int pageLength = page->pagination().pageLength)
-                        height = pageLength;
-                }
-            }
-        }
+        if (int pageLength = m_frameView->pagination().pageLength)
+            height = pageLength;
     }
 
     return height;
@@ -824,11 +824,6 @@ void RenderView::pushLayoutState(RenderObject* root)
     ASSERT(m_layoutState == 0);
 
     m_layoutState = new (renderArena()) LayoutState(root);
-}
-
-void RenderView::pushLayoutState(RenderFlowThread* flowThread, bool regionsChanged)
-{
-    m_layoutState = new (renderArena()) LayoutState(m_layoutState, flowThread, regionsChanged);
 }
 
 bool RenderView::shouldDisableLayoutStateForSubtree(RenderObject* renderer) const
@@ -928,13 +923,8 @@ CustomFilterGlobalContext* RenderView::customFilterGlobalContext()
 void RenderView::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
 {
     RenderBlock::styleDidChange(diff, oldStyle);
-    
-    for (RenderObject* renderer = firstChild(); renderer; renderer = renderer->nextSibling()) {
-        if (renderer->isRenderNamedFlowThread()) {
-            RenderNamedFlowThread* flowRenderer = toRenderNamedFlowThread(renderer);
-            flowRenderer->setStyle(RenderFlowThread::createFlowThreadStyle(style()));
-        }
-    }
+    if (hasRenderNamedFlowThreads())
+        flowThreadController()->styleDidChange();
 }
 
 bool RenderView::hasRenderNamedFlowThreads() const
@@ -955,21 +945,6 @@ RenderBlock::IntervalArena* RenderView::intervalArena()
     if (!m_intervalArena)
         m_intervalArena = IntervalArena::create();
     return m_intervalArena.get();
-}
-
-void RenderView::setFixedPositionedObjectsNeedLayout()
-{
-    ASSERT(m_frameView);
-
-    ListHashSet<RenderBox*>* positionedObjects = this->positionedObjects();
-    if (!positionedObjects)
-        return;
-
-    ListHashSet<RenderBox*>::const_iterator end = positionedObjects->end();
-    for (ListHashSet<RenderBox*>::const_iterator it = positionedObjects->begin(); it != end; ++it) {
-        RenderBox* currBox = *it;
-        currBox->setNeedsLayout(true);
-    }
 }
 
 } // namespace WebCore

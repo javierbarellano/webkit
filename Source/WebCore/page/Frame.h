@@ -66,7 +66,6 @@ namespace WebCore {
     class FrameDestructionObserver;
     class FrameView;
     class HTMLTableCellElement;
-    class MemoryObjectInfo;
     class RegularExpression;
     class RenderPart;
     class TiledBackingStore;
@@ -127,13 +126,6 @@ namespace WebCore {
         void injectUserScripts(UserScriptInjectionTime);
         
         String layerTreeAsText(bool showDebugInfo = false) const;
-
-        // Unlike most accessors in this class, domWindow() always creates a new DOMWindow if m_domWindow is null.
-        // Callers that don't need a new DOMWindow to be created should use existingDOMWindow().
-        DOMWindow* domWindow() const;
-        DOMWindow* existingDOMWindow() { return m_domWindow.get(); }
-        void setDOMWindow(DOMWindow*);
-        void clearDOMWindow();
 
         static Frame* frameForWidget(const Widget*);
 
@@ -213,8 +205,6 @@ namespace WebCore {
         mutable FrameTree m_treeNode;
         mutable FrameLoader m_loader;
         mutable NavigationScheduler m_navigationScheduler;
-
-        mutable RefPtr<DOMWindow> m_domWindow;
 
         HTMLFrameOwnerElement* m_ownerElement;
         RefPtr<FrameView> m_view;

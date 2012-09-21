@@ -62,7 +62,6 @@ class RenderArena;
 class RenderObject;
 class RenderStyle;
 class TouchEvent;
-class WheelEvent;
 
 typedef int ExceptionCode;
 
@@ -194,7 +193,6 @@ public:
     virtual void handleKeypressEvent(KeyboardEvent*);
     virtual void handleKeyupEvent(KeyboardEvent*);
     virtual void handleBeforeTextInsertedEvent(BeforeTextInsertedEvent*);
-    virtual void handleWheelEvent(WheelEvent*);
 #if ENABLE(TOUCH_EVENTS)
     virtual void handleTouchEvent(TouchEvent*);
 #endif
@@ -202,6 +200,7 @@ public:
     // Helpers for event handlers.
     virtual bool shouldSubmitImplicitly(Event*);
     virtual PassRefPtr<HTMLFormElement> formForSubmission() const;
+    virtual bool hasCustomFocusLogic() const;
     virtual bool isKeyboardFocusable(KeyboardEvent*) const;
     virtual bool isMouseFocusable() const;
     virtual bool shouldUseInputMethod() const;
@@ -213,6 +212,9 @@ public:
 #if ENABLE(TOUCH_EVENTS)
     virtual bool hasTouchEventHandler() const;
 #endif
+
+    virtual void blur();
+    virtual void focus(bool restorePreviousSelection);
 
     // Shadow tree handling
 
@@ -229,6 +231,7 @@ public:
     virtual HTMLElement* speechButtonElement() const { return 0; }
 #endif
     virtual HTMLElement* sliderThumbElement() const { return 0; }
+    virtual HTMLElement* sliderTrackElement() const { return 0; }
     virtual HTMLElement* placeholderElement() const;
 
     // Miscellaneous functions
@@ -322,36 +325,6 @@ private:
     // Raw pointer because the HTMLInputElement object owns this InputType object.
     HTMLInputElement* m_element;
 };
-
-namespace InputTypeNames {
-
-const AtomicString& button();
-const AtomicString& checkbox();
-#if ENABLE(INPUT_TYPE_COLOR)
-const AtomicString& color();
-#endif
-const AtomicString& date();
-const AtomicString& datetime();
-const AtomicString& datetimelocal();
-const AtomicString& email();
-const AtomicString& file();
-const AtomicString& hidden();
-const AtomicString& image();
-const AtomicString& month();
-const AtomicString& number();
-const AtomicString& password();
-const AtomicString& radio();
-const AtomicString& range();
-const AtomicString& reset();
-const AtomicString& search();
-const AtomicString& submit();
-const AtomicString& telephone();
-const AtomicString& text();
-const AtomicString& time();
-const AtomicString& url();
-const AtomicString& week();
-
-} // namespace WebCore::InputTypeNames
 
 } // namespace WebCore
 

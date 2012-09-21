@@ -35,39 +35,18 @@
 #include "Document.h"
 #include "ExceptionCode.h"
 #include "Frame.h"
-#include "GenericBinding.h"
 #include "MessagePort.h"
 #include "ScriptExecutionContext.h"
 #include "ScriptState.h"
+#include "V8AbstractEventListener.h"
 #include "V8ArrayBuffer.h"
 #include "V8Binding.h"
 #include "V8MessagePort.h"
-#include "V8Proxy.h"
 #include "WorkerContext.h"
-#include "WorkerContextExecutionProxy.h"
 #include <v8.h>
 #include <wtf/ArrayBuffer.h>
-#include <wtf/Assertions.h>
 
 namespace WebCore {
-
-V8AuxiliaryContext::V8AuxiliaryContext()
-{
-    auxiliaryContext()->Enter();
-}
-
-V8AuxiliaryContext::~V8AuxiliaryContext()
-{
-    auxiliaryContext()->Exit();
-}
-
-v8::Persistent<v8::Context>& V8AuxiliaryContext::auxiliaryContext()
-{
-    v8::Persistent<v8::Context>& context = V8PerIsolateData::current()->auxiliaryContext();
-    if (context.IsEmpty())
-        context = v8::Context::New();
-    return context;
-}
 
 // Use an array to hold dependents. It works like a ref-counted scheme.
 // A value can be added more than once to the DOM object.
@@ -107,16 +86,22 @@ bool extractTransferables(v8::Local<v8::Value> value, MessagePortArray& ports, A
         v8::Local<v8::Value> transferrable = transferrables->Get(i);
         // Validation of non-null objects, per HTML5 spec 10.3.3.
         if (isUndefinedOrNull(transferrable)) {
-            V8Proxy::setDOMException(DATA_CLONE_ERR, isolate);
+            setDOMException(INVALID_STATE_ERR, isolate);
             return false;
         }
         // Validation of Objects implementing an interface, per WebIDL spec 4.1.15.
-        if (V8MessagePort::HasInstance(transferrable))
-            ports.append(V8MessagePort::toNative(v8::Handle<v8::Object>::Cast(transferrable)));
-        else if (V8ArrayBuffer::HasInstance(transferrable))
+        if (V8MessagePort::HasInstance(transferrable)) {
+            RefPtr<MessagePort> port = V8MessagePort::toNative(v8::Handle<v8::Object>::Cast(transferrable));
+            // Check for duplicate MessagePorts.
+            if (ports.contains(port)) {
+                setDOMException(INVALID_STATE_ERR, isolate);
+                return false;
+            }
+            ports.append(port.release());
+        } else if (V8ArrayBuffer::HasInstance(transferrable))
             arrayBuffers.append(V8ArrayBuffer::toNative(v8::Handle<v8::Object>::Cast(transferrable)));
         else {
-            V8Proxy::throwTypeError();
+            throwTypeError();
             return false;
         }
     }
@@ -130,7 +115,7 @@ bool getMessagePortArray(v8::Local<v8::Value> value, MessagePortArray& ports, v8
     if (!result)
         return false;
     if (arrayBuffers.size() > 0) {
-        V8Proxy::throwTypeError("MessagePortArray argument must contain only MessagePorts");
+        throwTypeError("MessagePortArray argument must contain only MessagePorts");
         return false;
     }
     return true;
@@ -168,16 +153,6 @@ void transferHiddenDependency(v8::Handle<v8::Object> object,
         createHiddenDependency(object, newValue, cacheIndex);
 }
 
-Frame* callingOrEnteredFrame()
-{
-    return activeFrame(BindingState::instance());
-}
-
-KURL completeURL(const String& relativeURL)
-{
-    return completeURL(BindingState::instance(), relativeURL);
-}
-
 ScriptExecutionContext* getScriptExecutionContext()
 {
 #if ENABLE(WORKERS)
@@ -185,15 +160,7 @@ ScriptExecutionContext* getScriptExecutionContext()
         return controller->workerContext();
 #endif
 
-    if (Frame* frame = currentFrame(BindingState::instance()))
-        return frame->document()->scriptExecutionContext();
-
-    return 0;
-}
-
-void setTypeMismatchException(v8::Isolate* isolate)
-{
-    V8Proxy::setDOMException(TYPE_MISMATCH_ERR, isolate);
+    return currentDocument(BindingState::instance());
 }
 
 } // namespace WebCore

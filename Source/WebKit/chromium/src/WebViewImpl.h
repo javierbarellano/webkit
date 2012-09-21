@@ -52,7 +52,6 @@
 #include "WebViewBenchmarkSupportImpl.h"
 #include <public/WebFloatQuad.h>
 #include <public/WebLayer.h>
-#include <public/WebLayerTreeView.h>
 #include <public/WebLayerTreeViewClient.h>
 #include <public/WebPoint.h>
 #include <public/WebRect.h>
@@ -94,7 +93,7 @@ class ContextMenuClientImpl;
 class DeviceOrientationClientProxy;
 class DragScrollTimer;
 class GeolocationClientProxy;
-class WebHelperPluginImpl;
+class LinkHighlight;
 class NonCompositedContentHost;
 class PrerendererClientImpl;
 class SpeechInputClientImpl;
@@ -106,15 +105,17 @@ class WebDevToolsAgentClient;
 class WebDevToolsAgentPrivate;
 class WebFrameImpl;
 class WebGestureEvent;
-class WebPagePopupImpl;
-class WebPrerendererClient;
-class WebViewBenchmarkSupport;
+class WebHelperPluginImpl;
 class WebImage;
 class WebKeyboardEvent;
+class WebLayerTreeView;
 class WebMouseEvent;
 class WebMouseWheelEvent;
+class WebPagePopupImpl;
+class WebPrerendererClient;
 class WebSettingsImpl;
 class WebTouchEvent;
+class WebViewBenchmarkSupport;
 
 class WebViewImpl : public WebView
                   , public WebLayerTreeViewClient
@@ -143,7 +144,7 @@ public:
     virtual void setCompositorSurfaceReady();
     virtual void animate(double);
     virtual void layout(); // Also implements WebLayerTreeViewClient::layout()
-    virtual void paint(WebCanvas*, const WebRect&);
+    virtual void paint(WebCanvas*, const WebRect&, PaintOptions = ReadbackFromCompositorIfAvailable);
     virtual void themeChanged();
     virtual void composite(bool finish);
     virtual void setNeedsRedraw();
@@ -162,9 +163,11 @@ public:
     virtual WebTextInputInfo textInputInfo();
     virtual WebTextInputType textInputType();
     virtual bool setEditableSelectionOffsets(int start, int end);
+    virtual bool setCompositionFromExistingText(int compositionStart, int compositionEnd, const WebVector<WebCompositionUnderline>& underlines);
+    virtual void extendSelectionAndDelete(int before, int after);
     virtual bool isSelectionEditable() const;
     virtual WebColor backgroundColor() const;
-    virtual bool selectionBounds(WebRect& start, WebRect& end) const;
+    virtual bool selectionBounds(WebRect& anchor, WebRect& focus) const;
     virtual bool selectionTextDirection(WebTextDirection& start, WebTextDirection& end) const;
     virtual bool caretOrSelectionRange(size_t* location, size_t* length);
     virtual void setTextDirection(WebTextDirection direction);
@@ -224,6 +227,7 @@ public:
     virtual float maximumPageScaleFactor() const;
     virtual void saveScrollAndScaleState();
     virtual void restoreScrollAndScaleState();
+    virtual void resetScrollAndScaleState();
     virtual void setIgnoreViewportTagMaximumScale(bool);
 
     virtual float deviceScaleFactor() const;
@@ -302,11 +306,6 @@ public:
     virtual void transferActiveWheelFlingAnimation(const WebActiveWheelFlingParameters&);
     virtual WebViewBenchmarkSupport* benchmarkSupport();
 
-    virtual WebVector<WebFloatQuad> getTouchHighlightQuads(const WebPoint&,
-                                                           int padding,
-                                                           WebTouchCandidatesInfo& outTouchInfo,
-                                                           WebColor& outTapHighlightColor);
-
     // WebLayerTreeViewClient
     virtual void willBeginFrame();
     virtual void didBeginFrame();
@@ -316,6 +315,7 @@ public:
     virtual void didRebindGraphicsContext(bool success) OVERRIDE;
     virtual WebCompositorOutputSurface* createOutputSurface() OVERRIDE;
     virtual void didRecreateOutputSurface(bool success) OVERRIDE;
+    virtual WebInputHandler* createInputHandler() OVERRIDE;
     virtual void willCommit();
     virtual void didCommit();
     virtual void didCommitAndDrawFrame();
@@ -391,7 +391,7 @@ public:
     void mouseContextMenu(const WebMouseEvent&);
     void mouseDoubleClick(const WebMouseEvent&);
 
-    bool detectContentIntentOnTouch(const WebPoint&, WebInputEvent::Type);
+    bool detectContentOnTouch(const WebPoint&, WebInputEvent::Type);
     void startPageScaleAnimation(const WebCore::IntPoint& targetPosition, bool useAnchor, float newScale, double durationInSeconds);
 
     void numberOfWheelEventHandlersChanged(unsigned);
@@ -561,6 +561,8 @@ public:
 
 #if ENABLE(GESTURE_EVENTS)
     void computeScaleAndScrollForHitRect(const WebRect& hitRect, AutoZoomType, float& scale, WebPoint& scroll);
+    WebCore::Node* bestTouchLinkNode(WebCore::IntPoint touchEventLocation);
+    void enableTouchHighlight(WebCore::IntPoint touchEventLocation);
 #endif
     void animateZoomAroundPoint(const WebCore::IntPoint&, AutoZoomType);
 
@@ -583,6 +585,12 @@ public:
     virtual void requestPointerUnlock();
     virtual bool isPointerLocked();
 #endif
+
+#if ENABLE(GESTURE_EVENTS)
+    // Exposed for tests.
+    LinkHighlight* linkHighlight() { return m_linkHighlight.get(); }
+#endif
+
 
 private:
     bool computePageScaleFactorLimits();
@@ -813,8 +821,8 @@ private:
 #if USE(ACCELERATED_COMPOSITING)
     WebCore::IntRect m_rootLayerScrollDamage;
     OwnPtr<NonCompositedContentHost> m_nonCompositedContentHost;
-    WebLayerTreeView m_layerTreeView;
-    WebLayer m_rootLayer;
+    OwnPtr<WebLayerTreeView> m_layerTreeView;
+    WebLayer* m_rootLayer;
     WebCore::GraphicsLayer* m_rootGraphicsLayer;
     bool m_isAcceleratedCompositingActive;
     bool m_compositorCreationFailed;
@@ -822,6 +830,7 @@ private:
     bool m_recreatingGraphicsContext;
     bool m_compositorSurfaceReady;
     float m_deviceScaleInCompositor;
+    int m_inputHandlerIdentifier;
 #endif
     static const WebInputEvent* m_currentInputEvent;
 
@@ -843,13 +852,16 @@ private:
 #if ENABLE(MEDIA_STREAM)
     UserMediaClientImpl m_userMediaClientImpl;
 #endif
-#if ENABLE(REGISTER_PROTOCOL_HANDLER)
-    OwnPtr<RegisterProtocolHandlerClientImpl> m_registerProtocolHandlerClient;
+#if ENABLE(NAVIGATOR_CONTENT_UTILS)
+    OwnPtr<NavigatorContentUtilsClientImpl> m_navigatorContentUtilsClient;
 #endif
     OwnPtr<WebCore::ActivePlatformGestureAnimation> m_gestureAnimation;
     WebPoint m_lastWheelPosition;
     WebPoint m_lastWheelGlobalPosition;
     int m_flingModifier;
+#if ENABLE(GESTURE_EVENTS)
+    OwnPtr<LinkHighlight> m_linkHighlight;
+#endif
 };
 
 } // namespace WebKit

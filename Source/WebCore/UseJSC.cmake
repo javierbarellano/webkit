@@ -49,7 +49,6 @@ LIST(APPEND WebCore_SOURCES
     bindings/js/JSClipboardCustom.cpp
     bindings/js/JSConsoleCustom.cpp
     bindings/js/JSCoordinatesCustom.cpp
-    bindings/js/JSCustomVoidCallback.cpp
     bindings/js/JSCustomXPathNSResolver.cpp
     bindings/js/JSDictionary.cpp
     bindings/js/JSDOMBinding.cpp
@@ -252,8 +251,6 @@ ENDIF ()
 
 if (ENABLE_FILE_SYSTEM)
     LIST(APPEND WebCore_SOURCES
-        bindings/js/JSDirectoryEntryCustom.cpp
-        bindings/js/JSDirectoryEntrySyncCustom.cpp
         bindings/js/JSEntryCustom.cpp
         bindings/js/JSEntrySyncCustom.cpp
     )
@@ -277,7 +274,6 @@ IF (ENABLE_WEB_AUDIO)
     LIST(APPEND WebCore_SOURCES
         bindings/js/JSAudioBufferSourceNodeCustom.cpp
         bindings/js/JSAudioContextCustom.cpp
-        bindings/js/JSConvolverNodeCustom.cpp
         bindings/js/JSJavaScriptAudioNodeCustom.cpp
     )
 ENDIF ()
@@ -288,8 +284,16 @@ IF (ENABLE_WEB_INTENTS)
     )
 ENDIF ()
 
+IF (ENABLE_UNDO_MANAGER)
+    LIST (APPEND WebCore_SOURCES
+        bindings/js/DOMTransaction.cpp
+        bindings/js/JSUndoManagerCustom.cpp
+    )
+ENDIF ()
+
 LIST(APPEND SCRIPTS_BINDINGS
     ${WEBCORE_DIR}/bindings/scripts/CodeGenerator.pm
+    ${WEBCORE_DIR}/bindings/scripts/CodeGeneratorJS.pm
 )
 
 SET(IDL_INCLUDES "")
@@ -301,10 +305,7 @@ FOREACH (_include ${WebCoreTestSupport_IDL_INCLUDES})
     LIST(APPEND IDL_INCLUDES --include=${WEBCORE_DIR}/${_include})
 ENDFOREACH ()
 
-SET(FEATURE_DEFINES_JAVASCRIPT "LANGUAGE_JAVASCRIPT=1")
-FOREACH (_feature ${FEATURE_DEFINES})
-    SET(FEATURE_DEFINES_JAVASCRIPT "${FEATURE_DEFINES_JAVASCRIPT} ${_feature}")
-ENDFOREACH ()
+SET(FEATURE_DEFINES_JAVASCRIPT "LANGUAGE_JAVASCRIPT=1 ${FEATURE_DEFINES_WITH_SPACE_SEPARATOR}")
 
 # Create JavaScript C++ code given an IDL input
 FOREACH (_idl ${WebCore_IDL_FILES})

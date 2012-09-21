@@ -51,6 +51,7 @@
 #include "HTMLShadowElement.h"
 #include "HiddenInputType.h"
 #include "ImageInputType.h"
+#include "InputTypeNames.h"
 #include "KeyboardEvent.h"
 #include "LocalizedStrings.h"
 #include "MonthInputType.h"
@@ -68,6 +69,7 @@
 #include "ShadowRoot.h"
 #include "SubmitInputType.h"
 #include "TelephoneInputType.h"
+#include "TextBreakIterator.h"
 #include "TextInputType.h"
 #include "TimeInputType.h"
 #include "URLInputType.h"
@@ -423,10 +425,6 @@ void InputType::handleBeforeTextInsertedEvent(BeforeTextInsertedEvent*)
 {
 }
 
-void InputType::handleWheelEvent(WheelEvent*)
-{
-}
-
 #if ENABLE(TOUCH_EVENTS)
 void InputType::handleTouchEvent(TouchEvent*)
 {
@@ -450,6 +448,16 @@ PassRefPtr<HTMLFormElement> InputType::formForSubmission() const
 RenderObject* InputType::createRenderer(RenderArena*, RenderStyle* style) const
 {
     return RenderObject::createObject(element(), style);
+}
+
+void InputType::blur()
+{
+    element()->defaultBlur();
+}
+
+void InputType::focus(bool restorePreviousSelection)
+{
+    element()->defaultFocus(restorePreviousSelection);
 }
 
 void InputType::createShadowSubtree()
@@ -511,6 +519,11 @@ Chrome* InputType::chrome() const
 }
 
 bool InputType::canSetStringValue() const
+{
+    return true;
+}
+
+bool InputType::hasCustomFocusLogic() const
 {
     return true;
 }
@@ -972,7 +985,7 @@ void InputType::applyStep(int count, AnyStepHandling anyStepHandling, TextFieldE
     setValueAsDecimal(newValue, eventBehavior, ec);
 
     if (AXObjectCache::accessibilityEnabled())
-         element()->document()->axObjectCache()->postNotification(element()->renderer(), AXObjectCache::AXValueChanged, true);
+         element()->document()->axObjectCache()->postNotification(element(), AXObjectCache::AXValueChanged, true);
 }
 
 bool InputType::getAllowedValueStep(Decimal* step) const
@@ -1101,150 +1114,4 @@ void InputType::stepUpFromRenderer(int n)
     }
 }
 
-namespace InputTypeNames {
-
-// The type names must be lowercased because they will be the return values of
-// input.type and input.type must be lowercase according to DOM Level 2.
-
-const AtomicString& button()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("button"));
-    return name;
-}
-
-const AtomicString& checkbox()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("checkbox"));
-    return name;
-}
-
-#if ENABLE(INPUT_TYPE_COLOR)
-const AtomicString& color()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("color"));
-    return name;
-}
-#endif
-
-const AtomicString& date()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("date"));
-    return name;
-}
-
-const AtomicString& datetime()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("datetime"));
-    return name;
-}
-
-const AtomicString& datetimelocal()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("datetime-local"));
-    return name;
-}
-
-const AtomicString& email()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("email"));
-    return name;
-}
-
-const AtomicString& file()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("file"));
-    return name;
-}
-
-const AtomicString& hidden()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("hidden"));
-    return name;
-}
-
-const AtomicString& image()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("image"));
-    return name;
-}
-
-const AtomicString& month()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("month"));
-    return name;
-}
-
-const AtomicString& number()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("number"));
-    return name;
-}
-
-const AtomicString& password()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("password"));
-    return name;
-}
-
-const AtomicString& radio()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("radio"));
-    return name;
-}
-
-const AtomicString& range()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("range"));
-    return name;
-}
-
-const AtomicString& reset()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("reset"));
-    return name;
-}
-
-const AtomicString& search()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("search"));
-    return name;
-}
-
-const AtomicString& submit()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("submit"));
-    return name;
-}
-
-const AtomicString& telephone()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("tel"));
-    return name;
-}
-
-const AtomicString& text()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("text"));
-    return name;
-}
-
-const AtomicString& time()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("time"));
-    return name;
-}
-
-const AtomicString& url()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("url"));
-    return name;
-}
-
-const AtomicString& week()
-{
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("week"));
-    return name;
-}
-
-} // namespace WebCore::InputTypeNames
 } // namespace WebCore

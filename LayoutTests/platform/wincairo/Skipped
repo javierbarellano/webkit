@@ -915,10 +915,6 @@ animations/3d/transform-origin-vs-functions.html
 compositing/reflections/animation-inside-reflection.html
 compositing/reflections/nested-reflection-animated.html
 
-# Sometimes fail http://webkit.org/b/48454
-compositing/tiling/huge-layer-resize.html
-compositing/tiling/huge-layer-with-layer-children-resize.html
-
 # http://webkit.org/b/48455
 transitions/cancel-transition.html
 
@@ -1223,7 +1219,6 @@ fast/text/international/bidi-linebreak-003.html
 fast/text/international/bidi-listbox-atsui.html
 fast/text/international/bidi-listbox.html
 fast/text/international/hindi-spacing.html
-http/tests/loading/gmail-assert-on-load.html
 http/tests/misc/window-dot-stop.html
 http/tests/security/dataTransfer-set-data-file-url.html
 http/tests/xmlhttprequest/abort-should-cancel-load.html
@@ -1350,6 +1345,7 @@ fast/dom/Geolocation
 
 # This port doesn't support Notifications.
 fast/notifications
+http/tests/notifications
 
 # These media tests regressed on the bots.  Skipping to make the bots green again.
 # https://bugs.webkit.org/show_bug.cgi?id=28281
@@ -1476,6 +1472,7 @@ http/tests/security/xss-DENIED-window-open-javascript-url.html
 # Skip frame flattening tests until it can be tested by this DRT
 # https://bugs.webkit.org/show_bug.cgi?id=32717
 fast/frames/flattening/
+fast/text-autosizing/narrow-iframe-flattened.html
 
 # https://bugs.webkit.org/show_bug.cgi?id=34933
 media/video-display-aspect-ratio.html
@@ -1484,7 +1481,6 @@ media/video-display-aspect-ratio.html
 http/tests/misc/image-checks-for-accept.html
 
 # Tests timeout: https://bugs.webkit.org/show_bug.cgi?id=35041
-http/tests/websocket/tests/hixie76/frame-lengths.html
 http/tests/websocket/tests/hixie76/simple-stress.html
 
 # Needs platform specific API implemented in DRT, maybe not relevant for non-Mac and non-Windows ports
@@ -1827,6 +1823,8 @@ plugins/iframe-shims.html
 # Requires WebP support.
 fast/canvas/canvas-toDataURL-webp.html
 fast/images/webp-image-decoding.html
+http/tests/images/webp-partial-load.html
+http/tests/images/webp-progressive-load.html
 
 # Missing layoutTestController.findString() http://webkit.org/b/50234
 editing/text-iterator/findString.html
@@ -2129,11 +2127,14 @@ fast/sub-pixel/float-wrap-with-subpixel-top.html
 fast/sub-pixel/inline-block-should-not-wrap.html
 fast/sub-pixel/inline-block-with-margin.html
 fast/sub-pixel/inline-block-with-padding.html
+fast/sub-pixel/large-sizes.html
 fast/sub-pixel/layout-boxes-with-zoom.html
 fast/sub-pixel/position-right-aligns-with-container.html
 fast/sub-pixel/selection/selection-gaps-at-fractional-offsets.html
 fast/sub-pixel/size-of-box-with-zoom.html
 fast/sub-pixel/table-rows-no-gaps.html
+fast/sub-pixel/sub-pixel-accumulates-to-layers.html
+fast/sub-pixel/selection/selection-rect-in-sub-pixel-table.html
 
 #Battery Status API is not implemented.
 batterystatus
@@ -2160,3 +2161,6 @@ fast/text/shaping
 
 # ENABLE(WIDGET_REGION) is disabled
 fast/css/widget-region-parser.html
+
+# ENABLE(INPUT_TYPE_TIME_MULTIPLE_FIELDS) is disabled
+fast/forms/time-multiple-fields

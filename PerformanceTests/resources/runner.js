@@ -27,6 +27,8 @@ PerfTestRunner.random = Math.random = function() {
     return (randomSeed & 0xfffffff) / 0x10000000;
 };
 
+PerfTestRunner.now = window.performance && window.performance.webkitNow ? function () { return window.performance.webkitNow(); } : Date.now;
+
 PerfTestRunner.log = function (text) {
     if (this._logLines) {
         this._logLines.push(text);
@@ -130,7 +132,7 @@ PerfTestRunner._runLoop = function () {
         this.logStatistics(this._results, this.unit, "Time:");
         if (this._jsHeapResults.length) {
             this.logStatistics(this._jsHeapResults, "bytes", "JS Heap:");
-            this.logStatistics(this._fastMallocHeapResults, "bytes", "FastMalloc:");
+            this.logStatistics(this._mallocHeapResults, "bytes", "Malloc:");
         }
         if (this._logLines) {
             var logLines = this._logLines;
@@ -145,7 +147,7 @@ PerfTestRunner._runLoop = function () {
 }
 
 PerfTestRunner._runner = function () {
-    var start = Date.now();
+    var start = this.now();
     var totalTime = 0;
 
     for (var i = 0; i < this._loopsPerRun; ++i) {
@@ -158,7 +160,7 @@ PerfTestRunner._runner = function () {
     }
 
     // Assume totalTime can never be zero when _runFunction returns a number.
-    var time = totalTime ? totalTime : Date.now() - start;
+    var time = totalTime ? totalTime : this.now() - start;
 
     this.ignoreWarmUpAndLog(time);
     this._runLoop();
@@ -168,11 +170,11 @@ PerfTestRunner.storeHeapResults = function() {
     if (!window.internals)
         return;
     this._jsHeapResults.push(this.getUsedJSHeap());
-    this._fastMallocHeapResults.push(this.getUsedFastMallocHeap());
+    this._mallocHeapResults.push(this.getUsedMallocHeap());
 }
 
-PerfTestRunner.getUsedFastMallocHeap = function() {
-    var stats = window.internals.fastMallocStatistics();
+PerfTestRunner.getUsedMallocHeap = function() {
+    var stats = window.internals.mallocStatistics();
     return stats.committedVMBytes - stats.freeListBytes;
 }
 
@@ -186,8 +188,8 @@ PerfTestRunner.getAndPrintMemoryStatistics = function() {
     var jsMemoryStats = PerfTestRunner.computeStatistics([PerfTestRunner.getUsedJSHeap()], "bytes");
     PerfTestRunner.printStatistics(jsMemoryStats, "JS Heap:");
 
-    var fastMallocMemoryStats = PerfTestRunner.computeStatistics([PerfTestRunner.getUsedFastMallocHeap()], "bytes");
-    PerfTestRunner.printStatistics(fastMallocMemoryStats, "FastMalloc:");
+    var mallocMemoryStats = PerfTestRunner.computeStatistics([PerfTestRunner.getUsedMallocHeap()], "bytes");
+    PerfTestRunner.printStatistics(mallocMemoryStats, "Malloc:");
 }
 
 PerfTestRunner.ignoreWarmUpAndLog = function (result) {
@@ -208,7 +210,7 @@ PerfTestRunner.initAndStartLoop = function() {
     this.customRunFunction = null;
     this._results = [];
     this._jsHeapResults = [];
-    this._fastMallocHeapResults = [];
+    this._mallocHeapResults = [];
     this._logLines = window.testRunner ? [] : null;
     this.log("Running " + this._runCount + " times");
     this._runLoop();
@@ -258,10 +260,10 @@ PerfTestRunner._perSecondRunner = function () {
 }
 
 PerfTestRunner._perSecondRunnerIterator = function (callsPerIteration) {
-    var startTime = Date.now();
+    var startTime = this.now();
     for (var i = 0; i < callsPerIteration; i++)
         this._test.run();
-    return Date.now() - startTime;
+    return this.now() - startTime;
 }
 
 if (window.testRunner) {

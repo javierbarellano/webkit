@@ -80,6 +80,7 @@
 #include "ProgressTracker.h"
 #include "RenderView.h"
 #include "ResourceHandle.h"
+#include "RuntimeEnabledFeatures.h"
 #include "ScriptValue.h"
 #include "Settings.h"
 #include "webkit/WebKitDOMDocumentPrivate.h"
@@ -427,7 +428,7 @@ static IntPoint getLocationForKeyboardGeneratedContextMenu(Frame* frame)
     if (!selection->selection().isNonOrphanedCaretOrRange()
          || (selection->selection().isCaret() && !selection->selection().isContentEditable())) {
         if (Node* focusedNode = getFocusedNode(frame))
-            return focusedNode->getPixelSnappedRect().location();
+            return focusedNode->pixelSnappedBoundingBox().location();
 
         // There was no selection and no focused node, so just put the context
         // menu into the corner of the view, offset slightly.
@@ -679,8 +680,10 @@ static gboolean webkit_web_view_draw(GtkWidget* widget, cairo_t* cr)
 
     WebKitWebViewPrivate* priv = WEBKIT_WEB_VIEW(widget)->priv;
 #if USE(TEXTURE_MAPPER)
-    if (priv->acceleratedCompositingContext->renderLayersToWindow(cr, clipRect))
+    if (priv->acceleratedCompositingContext->renderLayersToWindow(cr, clipRect)) {
+        GTK_WIDGET_CLASS(webkit_web_view_parent_class)->draw(widget, cr);
         return FALSE;
+    }
 #endif
 
     cairo_rectangle_list_t* rectList = cairo_copy_clip_rectangle_list(cr);
@@ -875,15 +878,16 @@ static void resizeWebViewFromAllocation(WebKitWebView* webView, GtkAllocation* a
     WebKit::ChromeClient* chromeClient = static_cast<WebKit::ChromeClient*>(page->chrome()->client());
     chromeClient->widgetSizeChanged(oldSize, IntSize(allocation->width, allocation->height));
     chromeClient->adjustmentWatcher()->updateAdjustmentsFromScrollbars();
-
-#if USE(ACCELERATED_COMPOSITING)
-    webView->priv->acceleratedCompositingContext->resizeRootLayer(IntSize(allocation->width, allocation->height));
-#endif
 }
 
 static void webkit_web_view_size_allocate(GtkWidget* widget, GtkAllocation* allocation)
 {
+    GtkAllocation oldAllocation;
+    gtk_widget_get_allocation(widget, &oldAllocation);
+
     GTK_WIDGET_CLASS(webkit_web_view_parent_class)->size_allocate(widget, allocation);
+    if (allocation->width == oldAllocation.width && allocation->height == oldAllocation.height)
+        return;
 
     WebKitWebView* webView = WEBKIT_WEB_VIEW(widget);
     if (!gtk_widget_get_mapped(widget)) {
@@ -989,6 +993,9 @@ static void webkit_web_view_realize(GtkWidget* widget)
                             | GDK_BUTTON_PRESS_MASK
                             | GDK_BUTTON_RELEASE_MASK
                             | GDK_SCROLL_MASK
+#if GTK_CHECK_VERSION(3, 3, 18)
+                            | GDK_SMOOTH_SCROLL_MASK
+#endif
                             | GDK_POINTER_MOTION_MASK
                             | GDK_KEY_PRESS_MASK
                             | GDK_KEY_RELEASE_MASK
@@ -1003,10 +1010,6 @@ static void webkit_web_view_realize(GtkWidget* widget)
 #endif
     GdkWindow* window = gdk_window_new(gtk_widget_get_parent_window(widget), &attributes, attributes_mask);
 
-#if USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
-    WebKitWebViewPrivate* priv = WEBKIT_WEB_VIEW(widget)->priv;
-    priv->hasNativeWindow = gdk_window_ensure_native(window);
-#endif
     gtk_widget_set_window(widget, window);
     gdk_window_set_user_data(window, widget);
 
@@ -1606,7 +1609,7 @@ static gboolean webkit_web_view_query_tooltip(GtkWidget *widget, gint x, gint y,
                 String title = static_cast<Element*>(titleNode)->title();
                 if (!title.isEmpty()) {
                     if (FrameView* view = coreFrame->view()) {
-                        GdkRectangle area = view->contentsToWindow(node->getPixelSnappedRect());
+                        GdkRectangle area = view->contentsToWindow(node->pixelSnappedBoundingBox());
                         gtk_tooltip_set_tip_area(tooltip, &area);
                     }
                     gtk_tooltip_set_text(tooltip, title.utf8().data());
@@ -3430,6 +3433,10 @@ static void webkit_web_view_update_settings(WebKitWebView* webView)
     coreSettings->setWebGLEnabled(settingsPrivate->enableWebgl);
 #endif
 
+#if ENABLE(MEDIA_STREAM)
+    WebCore::RuntimeEnabledFeatures::setMediaStreamEnabled(settingsPrivate->enableMediaStream);
+#endif
+
 #if USE(ACCELERATED_COMPOSITING)
     coreSettings->setAcceleratedCompositingEnabled(settingsPrivate->enableAcceleratedCompositing);
 #endif
@@ -3440,6 +3447,10 @@ static void webkit_web_view_update_settings(WebKitWebView* webView)
 
 #if ENABLE(SMOOTH_SCROLLING)
     coreSettings->setEnableScrollAnimator(settingsPrivate->enableSmoothScrolling);
+#endif
+
+#if ENABLE(CSS_SHADERS)
+    coreSettings->setCSSCustomFilterEnabled(settingsPrivate->enableCSSShaders);
 #endif
 
     // Use mock scrollbars if in DumpRenderTree mode (i.e. testing layout tests).
@@ -3583,6 +3594,11 @@ static void webkit_web_view_settings_notify(WebKitWebSettings* webSettings, GPar
         settings->setEnableScrollAnimator(g_value_get_boolean(&value));
 #endif
 
+#if ENABLE(CSS_SHADERS)
+    else if (name == g_intern_string("enable-css-shaders"))
+        settings->setCSSCustomFilterEnabled(g_value_get_boolean(&value));
+#endif
+
     else if (!g_object_class_find_property(G_OBJECT_GET_CLASS(webSettings), name))
         g_warning("Unexpected setting '%s'", name);
     g_value_unset(&value);
@@ -3630,9 +3646,9 @@ static void webkit_web_view_init(WebKitWebView* webView)
     WebCore::provideUserMediaTo(priv->corePage, priv->userMediaClient.get());
 #endif
 
-#if ENABLE(REGISTER_PROTOCOL_HANDLER)
-    priv->registerProtocolHandlerClient = WebKit::RegisterProtocolHandlerClient::create();
-    WebCore::provideRegisterProtocolHandlerTo(priv->corePage, priv->registerProtocolHandlerClient.get());
+#if ENABLE(NAVIGATOR_CONTENT_UTILS)
+    priv->navigatorContentUtilsClient = WebKit::NavigatorContentUtilsClient::create();
+    WebCore::provideNavigatorContentUtilsTo(priv->corePage, priv->navigatorContentUtilsClient.get());
 #endif
 
     if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled()) {

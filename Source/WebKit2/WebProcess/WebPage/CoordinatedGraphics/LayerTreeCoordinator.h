@@ -85,7 +85,7 @@ public:
 #if ENABLE(CSS_FILTERS)
     virtual void syncLayerFilters(WebLayerID, const WebCore::FilterOperations&);
 #endif
-    virtual void syncCanvas(WebLayerID, const WebCore::IntSize& canvasSize, uint32_t graphicsSurfaceToken) OVERRIDE;
+    virtual void syncCanvas(WebLayerID, const WebCore::IntSize& canvasSize, uint64_t graphicsSurfaceToken, uint32_t frontBuffer) OVERRIDE;
     virtual void attachLayer(WebCore::CoordinatedGraphicsLayer*);
     virtual void detachLayer(WebCore::CoordinatedGraphicsLayer*);
     virtual void syncFixedLayers();
@@ -113,6 +113,11 @@ private:
     void didPerformScheduledLayerFlush();
     void syncDisplayState();
 
+    void layerFlushTimerFired(WebCore::Timer<LayerTreeCoordinator>*);
+
+    void scheduleReleaseInactiveAtlases();
+    void releaseInactiveAtlasesTimerFired(WebCore::Timer<LayerTreeCoordinator>*);
+
     OwnPtr<WebCore::GraphicsLayer> m_rootLayer;
 
     // The layer which contains all non-composited content.
@@ -122,8 +127,9 @@ private:
     OwnPtr<WebCore::GraphicsLayer> m_pageOverlayLayer;
 
     HashSet<WebCore::CoordinatedGraphicsLayer*> m_registeredLayers;
+    Vector<WebLayerID> m_detachedLayers;
     HashMap<int64_t, int> m_directlyCompositedImageRefCounts;
-    Vector<UpdateAtlas> m_updateAtlases;
+    Vector<OwnPtr<UpdateAtlas> > m_updateAtlases;
 
     bool m_notifyAfterScheduledLayerFlush;
     bool m_isValid;
@@ -137,8 +143,8 @@ private:
     LayerTreeContext m_layerTreeContext;
     bool m_shouldSyncFrame;
     bool m_shouldSyncRootLayer;
-    void layerFlushTimerFired(WebCore::Timer<LayerTreeCoordinator>*);
     WebCore::Timer<LayerTreeCoordinator> m_layerFlushTimer;
+    WebCore::Timer<LayerTreeCoordinator> m_releaseInactiveAtlasesTimer;
     bool m_layerFlushSchedulingEnabled;
     uint64_t m_forceRepaintAsyncCallbackID;
 };

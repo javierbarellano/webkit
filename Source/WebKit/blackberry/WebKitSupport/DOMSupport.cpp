@@ -33,12 +33,13 @@
 #include "RenderTextControl.h"
 #include "TextIterator.h"
 #include "VisibleSelection.h"
-#include "WTFString.h"
 
 #include "htmlediting.h"
 #include "visible_units.h"
 
 #include <limits>
+
+#include <wtf/text/WTFString.h>
 
 using WTF::Vector;
 
@@ -115,6 +116,18 @@ WTF::String inputElementText(Element* element)
     return elementText;
 }
 
+WTF::String webWorksContext(const WebCore::Element* element)
+{
+    if (!element)
+        return WTF::String();
+
+    DEFINE_STATIC_LOCAL(QualifiedName, webworksContextAttr, (nullAtom, "data-webworks-context", nullAtom));
+    if (element->fastHasAttribute(webworksContextAttr))
+        return element->fastGetAttribute(webworksContextAttr);
+
+    return WTF::String();
+}
+
 bool isElementTypePlugin(const Element* element)
 {
     if (!element)
@@ -157,11 +170,11 @@ bool isDateTimeInputField(const Element* element)
     const HTMLInputElement* inputElement = static_cast<const HTMLInputElement*>(element);
 
     // The following types have popup's.
-    if (inputElement->isDateControl()
-        || inputElement->isDateTimeControl()
-        || inputElement->isDateTimeLocalControl()
-        || inputElement->isTimeControl()
-        || inputElement->isMonthControl())
+    if (inputElement->isDateField()
+        || inputElement->isDateTimeField()
+        || inputElement->isDateTimeLocalField()
+        || inputElement->isTimeField()
+        || inputElement->isMonthField())
             return true;
 
     return false;
@@ -198,6 +211,11 @@ AttributeState elementSupportsAutocomplete(const Element* element)
     return elementAttributeState(element, HTMLNames::autocompleteAttr);
 }
 
+AttributeState elementSupportsSpellCheck(const Element* element)
+{
+    return elementAttributeState(element, HTMLNames::spellcheckAttr);
+}
+
 AttributeState elementAttributeState(const Element* element, const QualifiedName& attributeName)
 {
     // First we check the input item itself. If the attribute is not defined,
@@ -231,10 +249,7 @@ bool isTextBasedContentEditableElement(Element* element)
     if (!element)
         return false;
 
-    if (element->isTextFormControl() && static_cast<HTMLTextFormControlElement*>(element)->readOnly())
-        return false;
-
-    if (!element->isEnabledFormControl())
+    if (element->isReadOnlyNode() || !element->isEnabledFormControl())
         return false;
 
     if (isPopupInputField(element))
@@ -427,7 +442,7 @@ bool elementPatternMatches(const char* pattern, const HTMLInputElement* inputEle
                 return true;
 
             // Is the regex specifying a character count?
-            if (patternAttribute[patternString.length()] != '{' || !patternAttribute.endsWith('}'))
+            if (patternAttribute[patternString.length()] != '{' || !patternAttribute.endsWith("}"))
                 return false;
 
             // Make sure the number in the regex is actually a number.

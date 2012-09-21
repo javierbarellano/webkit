@@ -25,17 +25,17 @@
 
 #include "config.h"
 
-#include "cc/CCLayerTreeHostCommon.h"
+#include "CCLayerTreeHostCommon.h"
 
+#include "CCLayerImpl.h"
+#include "CCLayerIterator.h"
+#include "CCLayerSorter.h"
+#include "CCMathUtil.h"
+#include "CCRenderSurface.h"
 #include "FloatQuad.h"
 #include "IntRect.h"
 #include "LayerChromium.h"
 #include "RenderSurfaceChromium.h"
-#include "cc/CCLayerImpl.h"
-#include "cc/CCLayerIterator.h"
-#include "cc/CCLayerSorter.h"
-#include "cc/CCMathUtil.h"
-#include "cc/CCRenderSurface.h"
 #include <public/WebTransformationMatrix.h>
 
 using WebKit::WebTransformationMatrix;
@@ -502,10 +502,10 @@ static void calculateDrawTransformsInternal(LayerType* layer, LayerType* rootLay
     // The drawTransform that gets computed below is effectively the layer's drawTransform, unless
     // the layer itself creates a renderSurface. In that case, the renderSurface re-parents the transforms.
     WebTransformationMatrix drawTransform = combinedTransform;
+    // M[draw] = M[parent] * LT * Tr[anchor2center] * Tr[center2origin]
+    drawTransform.translate(-layer->bounds().width() / 2.0, -layer->bounds().height() / 2.0);
     if (!layer->contentBounds().isEmpty() && !layer->bounds().isEmpty()) {
-        // M[draw] = M[parent] * LT * Tr[anchor2center] * Tr[center2anchor]
-        drawTransform.translate(-layer->bounds().width() / 2.0, -layer->bounds().height() / 2.0);
-        // M[draw] = M[parent] * LT * Tr[anchor2origin] * S[content2layer]
+        // M[draw] = M[parent] * LT * Tr[anchor2origin] * S[layer2content]
         drawTransform.scaleNonUniform(layer->bounds().width() / static_cast<double>(layer->contentBounds().width()),
                                       layer->bounds().height() / static_cast<double>(layer->contentBounds().height()));
     }
@@ -613,15 +613,12 @@ static void calculateDrawTransformsInternal(LayerType* layer, LayerType* rootLay
             // Layers that are not their own renderTarget will render into the target of their nearest ancestor.
             layer->setRenderTarget(layer->parent()->renderTarget());
         } else {
-            // FIXME: This root layer special case code should eventually go away. But before that is truly possible,
-            //        tests (or code) related to CCOcclusionTracker need to be adjusted so that they do not require
-            //        the rootLayer to clip; the root layer's RenderSurface would already clip and should be enough.
+            // FIXME: This root layer special case code should eventually go away. https://bugs.webkit.org/show_bug.cgi?id=92290
             ASSERT(!layer->parent());
             ASSERT(layer->renderSurface());
             ASSERT(ancestorClipsSubtree);
             layer->renderSurface()->setClipRect(clipRectFromAncestor);
-            subtreeShouldBeClipped = true;
-            clipRectForSubtree = clipRectFromAncestor;
+            subtreeShouldBeClipped = false;
         }
     }
 

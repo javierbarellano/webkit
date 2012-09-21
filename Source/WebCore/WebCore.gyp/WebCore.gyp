@@ -46,8 +46,6 @@
     # binary and increasing the speed of gdb.
     'enable_svg%': 1,
 
-    # If set to 1, links against the cc library from the chromium repository
-    # instead of the compositor implementation files in platform/graphics/chromium
     'use_libcc_for_compositor%': 0,
 
     'enable_wexit_time_destructors': 1,
@@ -66,8 +64,8 @@
       '../Modules/indexeddb',
       '../Modules/mediasource',
       '../Modules/mediastream',
+      '../Modules/navigatorcontentutils',
       '../Modules/notifications',
-      '../Modules/protocolhandler',
       '../Modules/quota',
       '../Modules/speech',
       '../Modules/webaudio',
@@ -115,6 +113,7 @@
       '../platform/chromium/support',
       '../platform/graphics',
       '../platform/graphics/chromium',
+      '../platform/graphics/chromium/cc',
       '../platform/graphics/filters',
       '../platform/graphics/filters/arm',
       '../platform/graphics/gpu',
@@ -164,7 +163,6 @@
     'bindings_idl_files!': [
       # Custom bindings in bindings/v8/custom exist for these.
       '../dom/EventListener.idl',
-      '../html/VoidCallback.idl',
 
       # Bindings with custom Objective-C implementations.
       '../page/AbstractView.idl',
@@ -439,6 +437,54 @@
       ]
     },
     {
+      'target_name': 'inspector_overlay_page',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'generateInspectorOverlayPage',
+          'inputs': [
+            '../inspector/InspectorOverlayPage.html',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/webkit/InspectorOverlayPage.h',
+          ],
+          'msvs_cygwin_shell': 0,
+          'action': [
+            '<(perl_exe)',
+            '../inspector/xxd.pl',
+            'InspectorOverlayPage_html',
+            '<@(_inputs)',
+            '<@(_outputs)'
+          ],
+          'message': 'Generating InspectorOverlayPage.h from InspectorOverlayPage.html',
+        },
+      ]
+    },
+    {
+      'target_name': 'injected_canvas_script_source',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'generateInjectedScriptCanvasModuleSource',
+          'inputs': [
+            '../inspector/InjectedScriptCanvasModuleSource.js',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/webkit/InjectedScriptCanvasModuleSource.h',
+          ],
+          'msvs_cygwin_shell': 0,
+          'action': [
+            '<(perl_exe)',
+            '../inspector/xxd.pl',
+            'InjectedScriptCanvasModuleSource_js',
+            '<@(_inputs)',
+            '<@(_outputs)'
+          ],
+          'message': 'Generating InjectedScriptCanvasModuleSource.h from InjectedScriptCanvasModuleSource.js',
+        },
+      ]
+    },
+    {
       'target_name': 'injected_script_source',
       'type': 'none',
       'actions': [
@@ -459,30 +505,6 @@
             '<@(_outputs)'
           ],
           'message': 'Generating InjectedScriptSource.h from InjectedScriptSource.js',
-        },
-      ]
-    },
-    {
-      'target_name': 'injected_webgl_script_source',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'generateInjectedScriptWebGLModuleSource',
-          'inputs': [
-            '../inspector/InjectedScriptWebGLModuleSource.js',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/webkit/InjectedScriptWebGLModuleSource.h',
-          ],
-          'msvs_cygwin_shell': 0,
-          'action': [
-            '<(perl_exe)',
-            '../inspector/xxd.pl',
-            'InjectedScriptWebGLModuleSource_js',
-            '<@(_inputs)',
-            '<@(_outputs)'
-          ],
-          'message': 'Generating InjectedScriptWebGLModuleSource.h from InjectedScriptWebGLModuleSource.js',
         },
       ]
     },
@@ -903,10 +925,29 @@
           ],
         },
         {
+          'action_name': 'PickerCommon',
+          'inputs': [
+            '../Resources/pagepopups/pickerCommon.css',
+            '../Resources/pagepopups/pickerCommon.js',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/webkit/PickerCommon.h',
+            '<(SHARED_INTERMEDIATE_DIR)/webkit/PickerCommon.cpp',
+          ],
+          'action': [
+            'python',
+            '../make-file-arrays.py',
+            '--condition=ENABLE(CALENDAR_PICKER)',
+            '--out-h=<(SHARED_INTERMEDIATE_DIR)/webkit/PickerCommon.h',
+            '--out-cpp=<(SHARED_INTERMEDIATE_DIR)/webkit/PickerCommon.cpp',
+            '<@(_inputs)',
+          ],
+        },
+        {
           'action_name': 'CalendarPicker',
           'inputs': [
-            '../Resources/calendarPicker.css',
-            '../Resources/calendarPicker.js',
+            '../Resources/pagepopups/calendarPicker.css',
+            '../Resources/pagepopups/calendarPicker.js',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/webkit/CalendarPicker.h',
@@ -924,7 +965,7 @@
         {
           'action_name': 'CalendarPickerMac',
           'inputs': [
-            '../Resources/calendarPickerMac.css',
+            '../Resources/pagepopups/calendarPickerMac.css',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/webkit/CalendarPickerMac.h',
@@ -942,8 +983,8 @@
         {
           'action_name': 'ColorSuggestionPicker',
           'inputs': [
-            '../Resources/colorSuggestionPicker.css',
-            '../Resources/colorSuggestionPicker.js',
+            '../Resources/pagepopups/colorSuggestionPicker.css',
+            '../Resources/pagepopups/colorSuggestionPicker.js',
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/webkit/ColorSuggestionPicker.h',
@@ -1103,8 +1144,8 @@
               '--include', '../Modules/intents',
               '--include', '../Modules/mediasource',
               '--include', '../Modules/mediastream',
+              '--include', '../Modules/navigatorcontentutils',
               '--include', '../Modules/notifications',
-              '--include', '../Modules/protocolhandler',
               '--include', '../Modules/webaudio',
               '--include', '../Modules/webdatabase',
               '--include', '../css',
@@ -1157,9 +1198,10 @@
       'hard_dependency': 1,
       'dependencies': [
         'webcore_bindings_sources',
+        'inspector_overlay_page',
         'inspector_protocol_sources',
+        'injected_canvas_script_source',
         'injected_script_source',
-        'injected_webgl_script_source',
         'debugger_script_source',
         '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
@@ -1213,6 +1255,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/webkit/EventTargetHeaders.h',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/EventTargetInterfaces.h',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/ExceptionCodeDescription.cpp',
+        '<(SHARED_INTERMEDIATE_DIR)/webkit/PickerCommon.cpp',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/UserAgentStyleSheetsData.cpp',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/V8HTMLElementWrapperFactory.cpp',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/XLinkNames.cpp',
@@ -1284,14 +1327,14 @@
       'type': 'none',
       'dependencies': [
         'debugger_script_source',
+        'injected_canvas_script_source',
         'injected_script_source',
-        'injected_webgl_script_source',
+        'inspector_overlay_page',
         'inspector_protocol_sources',
         'webcore_bindings_sources',
         '../../ThirdParty/glu/glu.gyp:libtess',
         '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
-        '../../Platform/Platform.gyp/Platform.gyp:webkit_platform',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
         '<(chromium_src_dir)/third_party/iccjpeg/iccjpeg.gyp:iccjpeg',
@@ -1311,7 +1354,6 @@
       'export_dependent_settings': [
         '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
-        '../../Platform/Platform.gyp/Platform.gyp:webkit_platform',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
         '<(chromium_src_dir)/third_party/iccjpeg/iccjpeg.gyp:iccjpeg',
@@ -1336,6 +1378,7 @@
           'WEBCORE_NAVIGATOR_VENDOR="Google Inc."',
         ],
         'include_dirs': [
+          '../../Platform/chromium',
           '<(INTERMEDIATE_DIR)',
           '<@(webcore_include_dirs)',
           '<(chromium_src_dir)/gpu',
@@ -1430,6 +1473,8 @@
               # such as:
               # com.google.Chrome[] objc[]: Class ScrollbarPrefsObserver is implemented in both .../Google Chrome.app/Contents/Versions/.../Google Chrome Helper.app/Contents/MacOS/../../../Google Chrome Framework.framework/Google Chrome Framework and /System/Library/Frameworks/WebKit.framework/Versions/A/Frameworks/WebCore.framework/Versions/A/WebCore. One of the two will be used. Which one is undefined.
               'WebCascadeList=ChromiumWebCoreObjCWebCascadeList',
+              'WebCoreFlippedView=ChromiumWebCoreObjCWebCoreFlippedView',
+              'WebCoreTextFieldCell=ChromiumWebCoreObjCWebCoreTextFieldCell',
               'WebScrollbarPrefsObserver=ChromiumWebCoreObjCWebScrollbarPrefsObserver',
               'WebCoreRenderThemeNotificationObserver=ChromiumWebCoreObjCWebCoreRenderThemeNotificationObserver',
               'WebFontCache=ChromiumWebCoreObjCWebFontCache',
@@ -1448,7 +1493,7 @@
                 'postbuild_name': 'Check Objective-C Rename',
                 'variables': {
                   'class_whitelist_regex':
-                      'ChromiumWebCoreObjC|TCMVisibleView|RTCMFlippedView|WebCoreTextFieldCell',
+                      'ChromiumWebCoreObjC|TCMVisibleView|RTCMFlippedView',
                   'category_whitelist_regex':
                       'TCMInterposing|ScrollAnimatorChromiumMacExt',
                 },
@@ -1578,7 +1623,7 @@
       'hard_dependency': 1,
       'sources': [
         '<@(webcore_privateheader_files)',
-        '<@(webcore_files)',
+        '<@(webcore_platform_files)',
 
         # For WebCoreSystemInterface, Mac-only.
         '../../WebKit/mac/WebCoreSupport/WebSystemInterface.mm',
@@ -1594,7 +1639,6 @@
         ['exclude', 'platform/LinkHash\\.cpp$'],
         ['exclude', 'platform/MIMETypeRegistry\\.cpp$'],
         ['exclude', 'platform/Theme\\.cpp$'],
-        ['exclude', 'platform/graphics/ANGLEWebKitBridge\\.(cpp|h)$'],
         # *NEON.cpp files need special compile options.
         # They are moved to the webcore_arm_neon target.
         ['exclude', 'platform/graphics/filters/arm/.*NEON\\.(cpp|h)'],
@@ -1680,6 +1724,11 @@
               'action': ['cp', '<@(_inputs)', '<@(_outputs)'],
             },
           ],
+          'sources': [
+            '../editing/SmartReplaceCF.cpp',
+            '../rendering/RenderThemeMac.mm',
+            '../../WebKit/mac/WebCoreSupport/WebSystemInterface.mm',
+          ],
           'sources/': [
             # Additional files from the WebCore Mac build that are presently
             # used in the WebCore Chromium Mac build too.
@@ -1715,6 +1764,8 @@
             ['include', 'platform/mac/ScrollbarThemeMac\\.mm$'],
             ['include', 'platform/mac/ScrollAnimatorMac\\.mm$'],
             ['include', 'platform/mac/ScrollElasticityController\\.mm$'],
+            ['include', 'platform/mac/ThemeMac\\.h$'],
+            ['include', 'platform/mac/ThemeMac\\.mm$'],
             ['include', 'platform/mac/WebCoreSystemInterface\\.mm$'],
             ['include', 'platform/mac/WebCoreTextRenderer\\.mm$'],
             ['include', 'platform/text/mac/ShapeArabic\\.c$'],
@@ -1795,6 +1846,10 @@
           'sources/': [
             ['exclude', 'Posix\\.cpp$'],
 
+            ['include', '/opentype/'],
+            ['include', '/SkiaFontWin\\.cpp$'],
+            ['include', '/TransparencyWin\\.cpp$'],
+
             # The Chromium Win currently uses GlyphPageTreeNodeChromiumWin.cpp from
             # platform/graphics/chromium, included by regex above, instead.
             ['exclude', 'platform/graphics/skia/FontCacheSkia\\.cpp$'],
@@ -1840,6 +1895,19 @@
             ['exclude', 'Android\\.cpp$'],
           ],
         }],
+      ],
+    },
+    {
+      'target_name': 'webcore_platform_geometry',
+      'type': 'static_library',
+      'dependencies': [
+        'webcore_prerequisites',
+      ],
+      'defines': [
+        'WEBKIT_IMPLEMENTATION=1',
+      ],
+      'sources': [
+        '<@(webcore_platform_geometry_files)',
       ],
     },
     {
@@ -1990,7 +2058,6 @@
 
         ['exclude', 'Modules/filesystem/LocalFileSystem\\.cpp$'],
         ['exclude', 'Modules/indexeddb/IDBFactoryBackendInterface\\.cpp$'],
-        ['exclude', 'Modules/indexeddb/IDBKeyPathBackendImpl\\.cpp$'],
         ['exclude', 'Modules/webdatabase/DatabaseTrackerClient\\.h$'],
         ['exclude', 'Modules/webdatabase/DatabaseTracker\\.cpp$'],
         ['exclude', 'Modules/webdatabase/OriginQuotaManager\\.(cpp|h)$'],
@@ -2033,19 +2100,6 @@
         ['OS=="win" and buildtype=="Official"', {
           'msvs_shard': 10,
         }],
-        ['OS=="win"', {
-          'sources/': [
-            ['exclude', 'Posix\\.cpp$'],
-            ['include', '/opentype/'],
-            ['include', '/SkiaFontWin\\.cpp$'],
-            ['include', '/TransparencyWin\\.cpp$'],
-          ],
-        },{ # OS!="win"
-          'sources/': [
-            ['exclude', 'Win\\.cpp$'],
-            ['exclude', '/(Windows|Uniscribe)[^/]*\\.cpp$']
-          ],
-        }],
         ['os_posix == 1 and OS != "mac" and gcc_version == 42', {
           # Due to a bug in gcc 4.2.1 (the current version on hardy), we get
           # warnings about uninitialized this.
@@ -2087,11 +2141,11 @@
         'webcore_dom',
         'webcore_html',
         'webcore_platform',
+        'webcore_platform_geometry',
         'webcore_remaining',
         'webcore_rendering',
         # Exported.
         'webcore_bindings',
-        '../../Platform/Platform.gyp/Platform.gyp:webkit_platform',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
@@ -2101,7 +2155,6 @@
       ],
       'export_dependent_settings': [
         'webcore_bindings',
-        '../../Platform/Platform.gyp/Platform.gyp:webkit_platform',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
@@ -2157,11 +2210,7 @@
             'webcore_svg',
           ],
         }],
-        ['use_libcc_for_compositor==1', {
-          'dependencies': [
-            '<(chromium_src_dir)/cc/cc.gyp:cc'
-          ],
-        }, { # use_libcc_for_compositor==0
+        ['use_libcc_for_compositor==0', {
           'dependencies': [
             'webcore_chromium_compositor'
           ],
@@ -2186,8 +2235,8 @@
       ],
       'sources': [
         '<@(webcore_test_support_files)',
-        '<(SHARED_INTERMEDIATE_DIR)/webcore/bindings/V8FastMallocStatistics.cpp',
-        '<(SHARED_INTERMEDIATE_DIR)/webkit/bindings/V8FastMallocStatistics.h',
+        '<(SHARED_INTERMEDIATE_DIR)/webcore/bindings/V8MallocStatistics.cpp',
+        '<(SHARED_INTERMEDIATE_DIR)/webkit/bindings/V8MallocStatistics.h',
         '<(SHARED_INTERMEDIATE_DIR)/webcore/bindings/V8Internals.cpp',
         '<(SHARED_INTERMEDIATE_DIR)/webkit/bindings/V8Internals.h',
         '<(SHARED_INTERMEDIATE_DIR)/webcore/bindings/V8InternalSettings.cpp',

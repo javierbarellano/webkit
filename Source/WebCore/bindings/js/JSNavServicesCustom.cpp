@@ -11,7 +11,8 @@
 #include "JSNavServices.h"
 #include "JSNavService.h"
 
-#include "UString.h"
+// #include "UString.h"
+// #include <wtf/text/CString.h>
 #include "JSValue.h"
 #include "CallFrame.h"
 
@@ -20,7 +21,7 @@ namespace WebCore {
 
 JSC::JSValue JSNavServices::item(JSC::ExecState* exec)
 {
-    JSC::UString sArg = exec->argument(0).toString(exec)->value(exec);
+    WTF::String sArg = exec->argument(0).toWTFString(exec);
     uint32_t index = atoi(sArg.ascii().data());
 
 	NavService *srv = impl()->item(index);

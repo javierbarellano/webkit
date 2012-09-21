@@ -214,6 +214,11 @@ void ResourceLoader::clearResourceData()
         m_resourceData->clear();
 }
 
+bool ResourceLoader::isSubresourceLoader()
+{
+    return false;
+}
+
 void ResourceLoader::willSendRequest(ResourceRequest& request, const ResourceResponse& redirectResponse)
 {
     // Protect this in this delegate method since the additional processing can do
@@ -530,13 +535,13 @@ AsyncFileStream* ResourceLoader::createAsyncFileStream(FileStreamClient* client)
 
 void ResourceLoader::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::Loader);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::Loader);
     info.addMember(m_handle.get());
-    info.addInstrumentedMember(m_frame);
-    info.addInstrumentedMember(m_documentLoader);
+    info.addMember(m_frame);
+    info.addMember(m_documentLoader);
     info.addMember(m_request);
     info.addMember(m_originalRequest);
-    info.addInstrumentedMember(m_resourceData);
+    info.addMember(m_resourceData);
     info.addMember(m_deferredRequest);
     info.addMember(m_options);
 }

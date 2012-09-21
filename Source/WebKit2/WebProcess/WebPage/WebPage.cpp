@@ -140,6 +140,7 @@
 
 #if ENABLE(WEB_INTENTS)
 #include "IntentData.h"
+#include <WebCore/Intent.h>
 #endif
 
 #if ENABLE(VIBRATION)
@@ -306,16 +307,15 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 
     m_page->setCanStartMedia(false);
 
-    updatePreferences(parameters.store);
-
     m_pageGroup = WebProcess::shared().webPageGroup(parameters.pageGroupData);
     m_page->setGroupName(m_pageGroup->identifier());
     m_page->setDeviceScaleFactor(parameters.deviceScaleFactor);
 
-    platformInitialize();
-
     m_drawingArea = DrawingArea::create(this, parameters);
     m_drawingArea->setPaintingEnabled(false);
+
+    updatePreferences(parameters.store);
+    platformInitialize();
 
     m_mainFrame = WebFrame::createMainFrame(this);
 
@@ -432,8 +432,8 @@ PassRefPtr<Plugin> WebPage::createPlugin(WebFrame* frame, HTMLPlugInElement* plu
     bool blocked;
 
     if (!WebProcess::shared().connection()->sendSync(
-            Messages::WebContext::GetPluginPath(parameters.mimeType, parameters.url.string()), 
-            Messages::WebContext::GetPluginPath::Reply(pluginPath, blocked), 0)) {
+            Messages::WebProcessProxy::GetPluginPath(parameters.mimeType, parameters.url.string()),
+            Messages::WebProcessProxy::GetPluginPath::Reply(pluginPath, blocked), 0)) {
         return 0;
     }
 
@@ -484,7 +484,7 @@ EditorState WebPage::editorState() const
     size_t location = 0;
     size_t length = 0;
 
-    Element* selectionRoot = frame->selection()->rootEditableElement();
+    Element* selectionRoot = frame->selection()->rootEditableElementRespectingShadowTree();
     Element* scope = selectionRoot ? selectionRoot : frame->document()->documentElement();
 
     if (!scope)
@@ -514,7 +514,7 @@ EditorState WebPage::editorState() const
     }
 
     if (selectionRoot)
-        result.editorRect = frame->view()->contentsToWindow(selectionRoot->getPixelSnappedRect());
+        result.editorRect = frame->view()->contentsToWindow(selectionRoot->pixelSnappedBoundingBox());
 
     RefPtr<Range> range;
     if (result.hasComposition && (range = frame->editor()->compositionRange())) {
@@ -901,6 +901,10 @@ void WebPage::setResizesToContentsUsingLayoutSize(const IntSize& targetLayoutSiz
     m_page->settings()->setAcceleratedCompositingForFixedPositionEnabled(true);
     m_page->settings()->setFixedElementsLayoutRelativeToFrame(true);
     m_page->settings()->setFixedPositionCreatesStackingContext(true);
+#if ENABLE(SMOOTH_SCROLLING)
+    // Ensure we don't do animated scrolling in the WebProcess when scrolling is delegated.
+    m_page->settings()->setEnableScrollAnimator(false);
+#endif
 
     // Always reset even when empty. This also takes care of the relayout.
     setFixedLayoutSize(targetLayoutSize);
@@ -1114,33 +1118,40 @@ void WebPage::setFixedLayoutSize(const IntSize& size)
         return;
 
     view->setFixedLayoutSize(size);
-    view->forceLayout();
+    // Do not force it until the first layout, this would then become our first layout prematurely.
+    if (view->didFirstLayout())
+        view->forceLayout();
+}
+
+void WebPage::setSuppressScrollbarAnimations(bool suppressAnimations)
+{
+    m_page->setShouldSuppressScrollbarAnimations(suppressAnimations);
 }
 
 void WebPage::setPaginationMode(uint32_t mode)
 {
-    Page::Pagination pagination = m_page->pagination();
-    pagination.mode = static_cast<Page::Pagination::Mode>(mode);
+    Pagination pagination = m_page->pagination();
+    pagination.mode = static_cast<Pagination::Mode>(mode);
     m_page->setPagination(pagination);
 }
 
 void WebPage::setPaginationBehavesLikeColumns(bool behavesLikeColumns)
 {
-    Page::Pagination pagination = m_page->pagination();
+    Pagination pagination = m_page->pagination();
     pagination.behavesLikeColumns = behavesLikeColumns;
     m_page->setPagination(pagination);
 }
 
 void WebPage::setPageLength(double pageLength)
 {
-    Page::Pagination pagination = m_page->pagination();
+    Pagination pagination = m_page->pagination();
     pagination.pageLength = pageLength;
     m_page->setPagination(pagination);
 }
 
 void WebPage::setGapBetweenPages(double gap)
 {
-    Page::Pagination pagination = m_page->pagination();
+    Pagination pagination = m_page->pagination();
     pagination.gap = gap;
     m_page->setPagination(pagination);
 }
@@ -1224,7 +1235,11 @@ PassRefPtr<WebImage> WebPage::scaledSnapshotWithOptions(const IntRect& rect, dou
     if (options & SnapshotOptionsExcludeSelectionHighlighting)
         shouldPaintSelection = FrameView::ExcludeSelection;
 
-    frameView->paintContentsForSnapshot(graphicsContext.get(), rect, shouldPaintSelection);
+    FrameView::CoordinateSpaceForSnapshot coordinateSpace = FrameView::DocumentCoordinates;
+    if (options & SnapshotOptionsInViewCoordinates)
+        coordinateSpace = FrameView::ViewCoordinates;
+
+    frameView->paintContentsForSnapshot(graphicsContext.get(), rect, shouldPaintSelection, coordinateSpace);
 
     return snapshot.release();
 }
@@ -1340,8 +1355,14 @@ static bool handleMouseEvent(const WebMouseEvent& mouseEvent, WebPage* page, boo
 
             return handled;
         }
-        case PlatformEvent::MouseReleased:
-            return frame->eventHandler()->handleMouseReleaseEvent(platformMouseEvent);
+        case PlatformEvent::MouseReleased: {
+            bool handled = frame->eventHandler()->handleMouseReleaseEvent(platformMouseEvent);
+#if PLATFORM(QT)
+            if (!handled)
+                handled = page->handleMouseReleaseEvent(platformMouseEvent);
+#endif
+            return handled;
+        }
         case PlatformEvent::MouseMoved:
             if (onlyUpdateScrollbars)
                 return frame->eventHandler()->passMouseMovedEventToScrollbars(platformMouseEvent);
@@ -1551,7 +1572,9 @@ void WebPage::highlightPotentialActivation(const IntPoint& point, const IntSize&
         // pages has a global click handler and we do not want to highlight the body.
         // Instead find the enclosing link or focusable element, or the last enclosing inline element.
         for (Node* node = adjustedNode; node; node = node->parentOrHostNode()) {
-            if (node->isMouseFocusable() || node->isLink()) {
+            if (node->isDocumentNode() || node->isFrameOwnerElement())
+                break;
+            if (node->isMouseFocusable() || node->willRespondToMouseClickEvents()) {
                 activationNode = node;
                 break;
             }
@@ -1959,6 +1982,12 @@ void WebPage::deliverIntentToFrame(uint64_t frameID, const IntentData& intentDat
 
     frame->deliverIntent(intentData);
 }
+
+void WebPage::deliverCoreIntentToFrame(uint64_t frameID, Intent* coreIntent)
+{
+    if (WebFrame* frame = WebProcess::shared().webFrame(frameID))
+        frame->deliverIntent(coreIntent);
+}
 #endif
 
 void WebPage::preferencesDidChange(const WebPreferencesStore& store)
@@ -2046,15 +2075,10 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     settings->setMockScrollbarsEnabled(store.getBoolValueForKey(WebPreferencesKey::mockScrollbarsEnabledKey()));
     settings->setHyperlinkAuditingEnabled(store.getBoolValueForKey(WebPreferencesKey::hyperlinkAuditingEnabledKey()));
     settings->setRequestAnimationFrameEnabled(store.getBoolValueForKey(WebPreferencesKey::requestAnimationFrameEnabledKey()));
-
-    // <rdar://problem/10697417>: It is necessary to force compositing when accelerate drawing
-    // is enabled on Mac so that scrollbars are always in their own layers.
-#if PLATFORM(MAC)
-    if (settings->acceleratedDrawingEnabled())
-        settings->setForceCompositingMode(LayerTreeHost::supportsAcceleratedCompositing());
-    else
+#if ENABLE(SMOOTH_SCROLLING)
+    settings->setEnableScrollAnimator(store.getBoolValueForKey(WebPreferencesKey::scrollAnimatorEnabledKey()));
 #endif
-        settings->setForceCompositingMode(store.getBoolValueForKey(WebPreferencesKey::forceCompositingModeKey()) && LayerTreeHost::supportsAcceleratedCompositing());
+    settings->setInteractiveFormValidationEnabled(store.getBoolValueForKey(WebPreferencesKey::interactiveFormValidationEnabledKey()));
 
 #if ENABLE(SQL_DATABASE)
     AbstractDatabase::setIsAvailable(store.getBoolValueForKey(WebPreferencesKey::databasesEnabledKey()));
@@ -2091,7 +2115,7 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 #endif
 
     settings->setShouldRespectImageOrientation(store.getBoolValueForKey(WebPreferencesKey::shouldRespectImageOrientationKey()));
-    settings->setThirdPartyStorageBlockingEnabled(store.getBoolValueForKey(WebPreferencesKey::thirdPartyStorageBlockingEnabledKey()));
+    settings->setStorageBlockingPolicy(static_cast<SecurityOrigin::StorageBlockingPolicy>(store.getUInt32ValueForKey(WebPreferencesKey::storageBlockingPolicyKey())));
 
     settings->setDiagnosticLoggingEnabled(store.getBoolValueForKey(WebPreferencesKey::diagnosticLoggingEnabledKey()));
 
@@ -2100,7 +2124,7 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     platformPreferencesDidChange(store);
 
     if (m_drawingArea)
-        m_drawingArea->updatePreferences();
+        m_drawingArea->updatePreferences(store);
 }
 
 #if ENABLE(INSPECTOR)
@@ -3219,7 +3243,7 @@ static bool pageContainsAnyHorizontalScrollbars(Frame* mainFrame)
 
         for (HashSet<ScrollableArea*>::const_iterator it = scrollableAreas->begin(), end = scrollableAreas->end(); it != end; ++it) {
             ScrollableArea* scrollableArea = *it;
-            if (!scrollableArea->isOnActivePage())
+            if (!scrollableArea->scrollbarsCanBeActive())
                 continue;
 
             if (hasEnabledHorizontalScrollbar(scrollableArea))

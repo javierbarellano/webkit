@@ -31,7 +31,7 @@
 
 class tst_publicapi : public QObject {
     Q_OBJECT
-private slots:
+private Q_SLOTS:
     void publicAPI();
 };
 
@@ -44,6 +44,7 @@ static QStringList expectedAPI = QStringList()
     << "QQuickWebView.AcceptRequest --> NavigationRequestAction"
     << "QQuickWebView.IgnoreRequest --> NavigationRequestAction"
     << "QQuickWebView.LoadStartedStatus --> LoadStatus"
+    << "QQuickWebView.LoadStoppedStatus --> LoadStatus"
     << "QQuickWebView.LoadSucceededStatus --> LoadStatus"
     << "QQuickWebView.LoadFailedStatus --> LoadStatus"
     << "QQuickWebView.NoErrorDomain --> ErrorDomain"

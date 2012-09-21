@@ -22,8 +22,7 @@
 #include "CSSValueList.h"
 
 #include "CSSParserValues.h"
-#include "MemoryInstrumentation.h"
-#include "PlatformString.h"
+#include "WebCoreMemoryInstrumentation.h"
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -41,25 +40,15 @@ CSSValueList::CSSValueList(ValueListSeparator listSeparator)
     m_valueListSeparator = listSeparator;
 }
 
-CSSValueList::CSSValueList(CSSParserValueList* list)
+CSSValueList::CSSValueList(CSSParserValueList* parserValues)
     : CSSValue(ValueListClass)
 {
     m_valueListSeparator = SpaceSeparator;
-    if (list) {
-        size_t size = list->size();
-        for (unsigned i = 0; i < size; ++i)
-            append(list->valueAt(i)->createCSSValue());
+    if (parserValues) {
+        m_values.reserveInitialCapacity(parserValues->size());
+        for (unsigned i = 0; i < parserValues->size(); ++i)
+            m_values.uncheckedAppend(parserValues->valueAt(i)->createCSSValue());
     }
-}
-
-void CSSValueList::append(PassRefPtr<CSSValue> val)
-{
-    m_values.append(val);
-}
-
-void CSSValueList::prepend(PassRefPtr<CSSValue> val)
-{
-    m_values.prepend(val);
 }
 
 bool CSSValueList::removeAll(CSSValue* val)
@@ -199,7 +188,7 @@ PassRefPtr<CSSValueList> CSSValueList::cloneForCSSOM() const
 
 void CSSValueList::reportDescendantMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     info.addInstrumentedVector(m_values);
 }
 

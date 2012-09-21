@@ -83,11 +83,11 @@ public:
 
     bool complete() const;
 
-    // FIXME: Why do we have two names for the same thing?
-    bool hasPendingLoadEvent() const { return m_imageLoader.hasPendingLoadEvent(); }
-    bool hasPendingActivity() const { return m_imageLoader.hasPendingLoadEvent(); }
+    bool hasPendingActivity() const { return m_imageLoader.hasPendingActivity(); }
 
     virtual bool canContainRangeEndPoint() const { return false; }
+
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
 
 protected:
     HTMLImageElement(const QualifiedName&, Document*, HTMLFormElement* = 0);
@@ -96,6 +96,8 @@ protected:
 
 private:
     virtual void createShadowSubtree();
+
+    virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
 
     // Implementation of ImageLoaderClient
     Element* sourceElement() { return this; }

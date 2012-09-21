@@ -28,13 +28,15 @@
 
 #if ENABLE(INPUT_TYPE_TIME_MULTIPLE_FIELDS)
 #include "DateTimeFieldElement.h"
-#include "TextControlInnerElements.h"
+#include "SpinButtonElement.h"
 
 namespace WebCore {
 
 class DateComponents;
 class DateTimeEditLayouter;
+class DateTimeFieldsState;
 class KeyboardEvent;
+class Localizer;
 class MouseEvent;
 class StepRange;
 
@@ -42,7 +44,7 @@ class StepRange;
 // representing date and time, such as
 //  - Year, Month, Day Of Month
 //  - Hour, Minute, Second, Millisecond, AM/PM
-class DateTimeEditElement : public HTMLDivElement, public DateTimeFieldElement::FieldEventHandler, private SpinButtonElement::StepActionHandler {
+class DateTimeEditElement : public HTMLDivElement, public DateTimeFieldElement::FieldOwner, private SpinButtonElement::SpinButtonOwner {
     WTF_MAKE_NONCOPYABLE(DateTimeEditElement);
 
 public:
@@ -51,24 +53,28 @@ public:
     class EditControlOwner {
     public:
         virtual ~EditControlOwner();
-        virtual void editControlMouseFocus() = 0;
+        virtual void didBlurFromControl() = 0;
+        virtual void didFocusOnControl() = 0;
         virtual void editControlValueChanged() = 0;
         virtual bool isEditControlOwnerDisabled() const = 0;
         virtual bool isEditControlOwnerReadOnly() const = 0;
     };
 
-    static PassRefPtr<DateTimeEditElement> create(Document*, EditControlOwner&, const StepRange&);
+    static PassRefPtr<DateTimeEditElement> create(Document*, EditControlOwner&);
 
     virtual ~DateTimeEditElement();
     void addField(PassRefPtr<DateTimeFieldElement>);
+    void blurByOwner();
     virtual void defaultEventHandler(Event*) OVERRIDE;
     void disabledStateChanged();
-    void layout(const StepRange&);
+    void focusByOwner();
     void readOnlyStateChanged();
     void removeEditControlOwner() { m_editControlOwner = 0; }
-    void resetLayout();
-    void setEmptyValue(const DateComponents&  dateForReadOnlyField);
-    void setValueAsDate(const DateComponents&);
+    void resetFields();
+    void setEmptyValue(const StepRange&, const DateComponents&  dateForReadOnlyField, Localizer&);
+    void setValueAsDate(const StepRange&, const DateComponents&, Localizer&);
+    void setValueAsDateTimeFieldsState(const DateTimeFieldsState&, const DateComponents& dateForReadOnlyField);
+    DateTimeFieldsState valueAsDateTimeFieldsState() const;
     double valueAsDouble() const;
 
 private:
@@ -88,27 +94,31 @@ private:
     DateTimeEditElement(Document*, EditControlOwner&);
 
     DateTimeFieldElement* fieldAt(size_t) const;
-    void focusFieldAt(size_t);
-    void handleKeyboardEvent(KeyboardEvent*);
-    void handleMouseEvent(MouseEvent*);
+    size_t fieldIndexOf(const DateTimeFieldElement&) const;
+    DateTimeFieldElement* focusedField() const;
+    size_t focusedFieldIndex() const;
     bool isDisabled() const;
     bool isReadOnly() const;
-    size_t nextFieldIndex() const;
-    size_t previousFieldIndex() const;
+    void layout(const StepRange&, const DateComponents&, Localizer&);
     void updateUIState();
 
-    // DateTimeFieldElement::FieldEventHandler functions.
+    // DateTimeFieldElement::FieldOwner functions.
+    virtual void didBlurFromField() OVERRIDE FINAL;
+    virtual void didFocusOnField() OVERRIDE FINAL;
     virtual void fieldValueChanged() OVERRIDE FINAL;
-    virtual void focusOnNextField() OVERRIDE FINAL;
+    virtual bool focusOnNextField(const DateTimeFieldElement&) OVERRIDE FINAL;
+    virtual bool focusOnPreviousField(const DateTimeFieldElement&) OVERRIDE FINAL;
 
-    // SpinButtonElement::StepActionHandler functions.
+    // SpinButtonElement::SpinButtonOwner functions.
+    virtual void focusAndSelectSpinButtonOwner() OVERRIDE FINAL;
+    virtual bool shouldSpinButtonRespondToMouseEvents() OVERRIDE FINAL;
+    virtual bool shouldSpinButtonRespondToWheelEvents() OVERRIDE FINAL;
     virtual void spinButtonStepDown() OVERRIDE FINAL;
     virtual void spinButtonStepUp() OVERRIDE FINAL;
 
     Vector<DateTimeFieldElement*, maximumNumberOfFields> m_fields;
     EditControlOwner* m_editControlOwner;
     SpinButtonElement* m_spinButton;
-    size_t m_focusFieldIndex;
 };
 
 } // namespace WebCore

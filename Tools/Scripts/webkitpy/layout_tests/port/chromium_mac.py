@@ -39,7 +39,7 @@ _log = logging.getLogger(__name__)
 
 
 class ChromiumMacPort(chromium.ChromiumPort):
-    SUPPORTED_OS_VERSIONS = ('snowleopard', 'lion', 'future')
+    SUPPORTED_OS_VERSIONS = ('snowleopard', 'lion', 'mountainlion', 'future')
     port_name = 'chromium-mac'
 
     FALLBACK_PATHS = {
@@ -50,6 +50,11 @@ class ChromiumMacPort(chromium.ChromiumPort):
             'mac',
         ],
         'lion': [
+            'chromium-mac',
+            'chromium',
+            'mac',
+        ],
+        'mountainlion': [  # FIXME: we don't treat ML different from Lion yet.
             'chromium-mac',
             'chromium',
             'mac',
@@ -73,10 +78,6 @@ class ChromiumMacPort(chromium.ChromiumPort):
         chromium.ChromiumPort.__init__(self, host, port_name, **kwargs)
         self._version = port_name[port_name.index('chromium-mac-') + len('chromium-mac-'):]
         assert self._version in self.SUPPORTED_OS_VERSIONS
-
-    def baseline_search_path(self):
-        fallback_paths = self.FALLBACK_PATHS
-        return map(self._webkit_baseline_path, fallback_paths[self._version])
 
     def _modules_to_search_for_symbols(self):
         return [self._build_path('ffmpegsumo.so')]

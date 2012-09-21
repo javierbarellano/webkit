@@ -35,8 +35,10 @@
 
 #include "DOMStringList.h"
 #include "IDBCallbacksProxy.h"
+#include "IDBDatabaseCallbacksProxy.h"
 #include "IDBFactoryBackendImpl.h"
 #include "SecurityOrigin.h"
+#include "WebIDBDatabaseCallbacks.h"
 #include "WebIDBDatabaseError.h"
 #include <wtf/OwnPtr.h>
 
@@ -63,17 +65,12 @@ void WebIDBFactoryImpl::getDatabaseNames(WebIDBCallbacks* callbacks, const WebSe
     m_idbFactoryBackend->getDatabaseNames(IDBCallbacksProxy::create(adoptPtr(callbacks)), origin, 0, dataDir);
 }
 
-
-void WebIDBFactoryImpl::open(const WebString& name, WebIDBCallbacks* callbacks, const WebSecurityOrigin& origin, WebFrame*, const WebString& dataDir)
+void WebIDBFactoryImpl::open(const WebString& name, long long version, WebIDBCallbacks* callbacks, WebIDBDatabaseCallbacks* databaseCallbacks, const WebSecurityOrigin& origin, WebFrame*, const WebString& dataDir)
 {
-    m_idbFactoryBackend->open(name, IDBCallbacksProxy::create(adoptPtr(callbacks)).get(), origin, 0, dataDir);
-}
-
-void WebIDBFactoryImpl::open(const WebString& name, long long version, WebIDBCallbacks* callbacks, const WebSecurityOrigin& origin, WebFrame*, const WebString& dataDir)
-{
-    // FIXME: Pass version along when WebCore::IDBFactoryBackendInterface
-    // has an open method that accepts it.
-    m_idbFactoryBackend->open(name, IDBCallbacksProxy::create(adoptPtr(callbacks)).get(), origin, 0, dataDir);
+    RefPtr<IDBCallbacksProxy> callbacksProxy = IDBCallbacksProxy::create(adoptPtr(callbacks));
+    RefPtr<IDBDatabaseCallbacksProxy> databaseCallbacksProxy = IDBDatabaseCallbacksProxy::create(adoptPtr(databaseCallbacks));
+    callbacksProxy->setDatabaseCallbacks(databaseCallbacksProxy);
+    m_idbFactoryBackend->open(name, version, callbacksProxy.get(), databaseCallbacksProxy.get(), origin, 0, dataDir);
 }
 
 void WebIDBFactoryImpl::deleteDatabase(const WebString& name, WebIDBCallbacks* callbacks, const WebSecurityOrigin& origin, WebFrame*, const WebString& dataDir)

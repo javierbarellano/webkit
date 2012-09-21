@@ -57,6 +57,7 @@
 
 #include "FrameLoaderClientImpl.h"
 #include "PlatformMessagePortChannel.h"
+#include "WebFileSystemCallbacks.h"
 #include "WebFrameClient.h"
 #include "WebFrameImpl.h"
 #include "WebMessagePortChannel.h"
@@ -93,8 +94,9 @@ void WebWorkerClientImpl::startWorkerContext(const KURL& scriptURL, const String
     if (document->page())
         settings = document->page()->group().groupSettings();
     RefPtr<DedicatedWorkerThread> thread = DedicatedWorkerThread::create(scriptURL, userAgent, settings, sourceCode, *this, *this, startMode,
-                                                                         m_scriptExecutionContext->contentSecurityPolicy()->deprecatedHeader(),
-                                                                         m_scriptExecutionContext->contentSecurityPolicy()->deprecatedHeaderType());
+                                                                         document->contentSecurityPolicy()->deprecatedHeader(),
+                                                                         document->contentSecurityPolicy()->deprecatedHeaderType(),
+                                                                         document->topDocument()->securityOrigin());
     m_proxy->workerThreadCreated(thread);
     thread->start();
     InspectorInstrumentation::didStartWorkerContext(m_scriptExecutionContext.get(), m_proxy, scriptURL);
@@ -102,6 +104,7 @@ void WebWorkerClientImpl::startWorkerContext(const KURL& scriptURL, const String
 
 void WebWorkerClientImpl::terminateWorkerContext()
 {
+    m_webFrame = 0;
     m_proxy->terminateWorkerContext();
 }
 
@@ -208,7 +211,11 @@ bool WebWorkerClientImpl::allowFileSystem()
 void WebWorkerClientImpl::openFileSystem(WebFileSystem::Type type, long long size, bool create, 
                                          WebFileSystemCallbacks* callbacks)
 {
-     m_webFrame->client()->openFileSystem(m_webFrame, type, size, create, callbacks);
+    if (m_proxy->askedToTerminate()) {
+        callbacks->didFail(WebFileErrorAbort);
+        return;
+    }
+    m_webFrame->client()->openFileSystem(m_webFrame, type, size, create, callbacks);
 }
 
 bool WebWorkerClientImpl::allowDatabase(WebFrame*, const WebString& name, const WebString& displayName, unsigned long estimatedSize) 

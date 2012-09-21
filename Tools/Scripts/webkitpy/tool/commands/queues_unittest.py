@@ -158,12 +158,14 @@ class AbstractPatchQueueTest(CommandsTest):
         queue._options = Mock()
         queue._options.port = None
         self.assertEquals(queue._next_patch(), None)
-        tool.status_server = MockStatusServer(work_items=[2, 10000])
+        tool.status_server = MockStatusServer(work_items=[2, 10000, 10001])
         expected_stdout = "MOCK: fetch_attachment: 2 is not a known attachment id\n"  # A mock-only message to prevent us from making mistakes.
         expected_stderr = "MOCK: release_work_item: None 2\n"
-        patch_id = OutputCapture().assert_outputs(self, queue._next_patch, expected_stdout=expected_stdout, expected_stderr=expected_stderr)
-        self.assertEquals(patch_id, None)  # 2 is an invalid patch id
-        self.assertEquals(queue._next_patch().id(), 10000)
+        patch = OutputCapture().assert_outputs(self, queue._next_patch, expected_stdout=expected_stdout, expected_stderr=expected_stderr)
+        # The patch.id() == 2 is ignored because it doesn't exist.
+        self.assertEquals(patch.id(), 10000)
+        self.assertEquals(queue._next_patch().id(), 10001)
+        self.assertEquals(queue._next_patch(), None)    # When the queue is empty
 
     def test_upload_results_archive_for_patch(self):
         queue = AbstractPatchQueue()
@@ -324,7 +326,7 @@ MOCK run_and_throw_if_fail: ['echo', '--status-host=example.com', 'apply-attachm
 MOCK: update_status: commit-queue Applied patch
 MOCK run_and_throw_if_fail: ['echo', '--status-host=example.com', 'validate-changelog', '--non-interactive', 10000, '--port=%(port_name)s'], cwd=/mock-checkout
 MOCK: update_status: commit-queue ChangeLog validated
-MOCK run_and_throw_if_fail: ['echo', '--status-host=example.com', 'build', '--no-clean', '--no-update', '--build-style=both', '--port=%(port_name)s'], cwd=/mock-checkout
+MOCK run_and_throw_if_fail: ['echo', '--status-host=example.com', 'build', '--no-clean', '--no-update', '--build-style=release', '--port=%(port_name)s'], cwd=/mock-checkout
 MOCK: update_status: commit-queue Built patch
 MOCK run_and_throw_if_fail: ['echo', '--status-host=example.com', 'build-and-test', '--no-clean', '--no-update', '--test', '--non-interactive', '--port=%(port_name)s'], cwd=/mock-checkout
 MOCK: update_status: commit-queue Passed tests

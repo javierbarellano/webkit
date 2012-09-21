@@ -33,7 +33,6 @@
 
 #include "Storage.h"
 #include "V8Binding.h"
-#include "V8Proxy.h"
 
 namespace WebCore {
 
@@ -108,7 +107,7 @@ static v8::Handle<v8::Value> storageSetter(v8::Local<v8::String> v8Name, v8::Loc
     ExceptionCode ec = 0;
     storage->setItem(name, value, ec);
     if (ec)
-        return V8Proxy::setDOMException(ec, info.GetIsolate());
+        return setDOMException(ec, info.GetIsolate());
 
     return v8Value;
 }

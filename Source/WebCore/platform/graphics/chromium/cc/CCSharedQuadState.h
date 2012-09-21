@@ -43,9 +43,10 @@ struct CCSharedQuadState {
     float opacity;
     bool opaque;
 
-    static PassOwnPtr<CCSharedQuadState> create(int id, const WebKit::WebTransformationMatrix& quadTransform, const IntRect& visibleContentRect, const IntRect& clippedRectInTarget, float opacity, bool opaque);
-    CCSharedQuadState(int id, const WebKit::WebTransformationMatrix& quadTransform, const IntRect& visibleContentRect, const IntRect& clippedRectInTarget, float opacity, bool opaque);
-    bool isLayerAxisAlignedIntRect() const;
+    static PassOwnPtr<CCSharedQuadState> create(const WebKit::WebTransformationMatrix& quadTransform, const IntRect& visibleContentRect, const IntRect& clippedRectInTarget, float opacity, bool opaque);
+    CCSharedQuadState(const WebKit::WebTransformationMatrix& quadTransform, const IntRect& visibleContentRect, const IntRect& clippedRectInTarget, float opacity, bool opaque);
+
+    PassOwnPtr<CCSharedQuadState> copy() const;
 };
 
 }

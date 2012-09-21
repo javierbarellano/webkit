@@ -21,6 +21,7 @@
 #define qt_instance_h
 
 #include "BridgeJSC.h"
+#include "JSWeakObjectMapRefPrivate.h"
 #include <QPointer>
 #include "Weak.h"
 #include "runtime_root.h"
@@ -34,6 +35,27 @@ namespace Bindings {
 class QtClass;
 class QtField;
 class QtRuntimeMethod;
+
+class WeakMapImpl : public RefCounted<WeakMapImpl> {
+public:
+    WeakMapImpl(JSContextGroupRef);
+    ~WeakMapImpl();
+
+    JSGlobalContextRef m_context;
+    JSWeakObjectMapRef m_map;
+};
+
+class WeakMap {
+public:
+    ~WeakMap();
+
+    void set(JSContextRef, void* key, JSObjectRef);
+    JSObjectRef get(void* key);
+    void remove(void* key);
+
+private:
+    RefPtr<WeakMapImpl> m_impl;
+};
 
 class QtInstance : public Instance {
 public:
@@ -81,6 +103,7 @@ private:
 
     friend class QtClass;
     friend class QtField;
+    friend class QtRuntimeMethod;
     QtInstance(QObject*, PassRefPtr<RootObject>, ValueOwnership); // Factory produced only..
     mutable QtClass* m_class;
     QPointer<QObject> m_object;

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006, 2012 Apple Computer, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,7 +19,8 @@
  */
 
 #include "config.h"
-#include "PlatformString.h"
+
+#include <wtf/text/WTFString.h>
 
 #if USE(CF)
 
@@ -45,7 +46,7 @@ String::String(CFStringRef str)
 CFStringRef String::createCFString() const
 {
     if (!m_impl)
-        return static_cast<CFStringRef>(CFRetain(CFSTR("")));
+        return CFSTR("");
 
     return m_impl->createCFString();
 }

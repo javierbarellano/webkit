@@ -26,6 +26,7 @@
 #ifndef APIClientTraits_h
 #define APIClientTraits_h
 
+#include "WKBundle.h"
 #include "WKBundlePage.h"
 #include "WKContext.h"
 #include "WKPage.h"
@@ -36,6 +37,10 @@ template <typename ClientInterface> struct APIClientTraits {
     static const size_t interfaceSizesByVersion[1];
 };
 template <typename ClientInterface> const size_t APIClientTraits<ClientInterface>::interfaceSizesByVersion[] = { sizeof(ClientInterface) };
+
+template<> struct APIClientTraits<WKBundleClient> {
+    static const size_t interfaceSizesByVersion[2];
+};
 
 template<> struct APIClientTraits<WKBundlePageLoaderClient> {
     static const size_t interfaceSizesByVersion[4];
@@ -49,6 +54,10 @@ template<> struct APIClientTraits<WKBundlePageFullScreenClient> {
     static const size_t interfaceSizesByVersion[2];
 };
 
+template<> struct APIClientTraits<WKBundlePageUIClient> {
+    static const size_t interfaceSizesByVersion[3];
+};
+
 template<> struct APIClientTraits<WKPageContextMenuClient> {
     static const size_t interfaceSizesByVersion[3];
 };
@@ -58,7 +67,7 @@ template<> struct APIClientTraits<WKPageLoaderClient> {
 };
 
 template<> struct APIClientTraits<WKPageUIClient> {
-    static const size_t interfaceSizesByVersion[2];
+    static const size_t interfaceSizesByVersion[3];
 };
 
 template<> struct APIClientTraits<WKBundlePageFormClient> {

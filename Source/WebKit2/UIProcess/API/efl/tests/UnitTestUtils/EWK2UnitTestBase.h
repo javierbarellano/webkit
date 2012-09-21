@@ -20,6 +20,7 @@
 #ifndef EWK2UnitTestBase_h
 #define EWK2UnitTestBase_h
 
+#include <EWebKit2.h>
 #include <Ecore_Evas.h>
 #include <Evas.h>
 #include <gtest/gtest.h>
@@ -28,7 +29,10 @@ namespace EWK2UnitTest {
 
 class EWK2UnitTestBase : public ::testing::Test {
 public:
+    Ecore_Evas* backingStore() { return m_ecoreEvas; }
+    Evas* canvas() { return ecore_evas_get(m_ecoreEvas); }
     Evas_Object* webView() { return m_webView; }
+    Ewk_View_Smart_Class* ewkViewClass() { return &m_ewkViewClass; }
 
 protected:
     EWK2UnitTestBase();
@@ -37,11 +41,14 @@ protected:
     virtual void TearDown();
 
     void loadUrlSync(const char* url);
-    void waitUntilTitleChangedTo(const char* expectedTitle);
+    bool waitUntilLoadFinished(double timeoutSeconds = -1);
+    bool waitUntilTitleChangedTo(const char* expectedTitle, double timeoutSeconds = -1);
+    void mouseClick(int x, int y);
 
 private:
     Evas_Object* m_webView;
     Ecore_Evas* m_ecoreEvas;
+    Ewk_View_Smart_Class m_ewkViewClass;
 };
 
 } // namespace EWK2UnitTest

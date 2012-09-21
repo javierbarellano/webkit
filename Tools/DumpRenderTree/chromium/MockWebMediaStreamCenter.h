@@ -32,7 +32,7 @@
 #define MockWebMediaStreamCenter_h
 
 #if ENABLE(MEDIA_STREAM)
-#include "platform/WebMediaStreamCenter.h"
+#include <public/WebMediaStreamCenter.h>
 
 namespace WebKit {
 class WebMediaStreamCenterClient;
@@ -45,6 +45,8 @@ public:
     virtual void queryMediaStreamSources(const WebKit::WebMediaStreamSourcesRequest&) OVERRIDE;
     virtual void didEnableMediaStreamTrack(const WebKit::WebMediaStreamDescriptor&, const WebKit::WebMediaStreamComponent&) OVERRIDE;
     virtual void didDisableMediaStreamTrack(const WebKit::WebMediaStreamDescriptor&, const WebKit::WebMediaStreamComponent&) OVERRIDE;
+    virtual bool didAddMediaStreamTrack(const WebKit::WebMediaStreamDescriptor&, const WebKit::WebMediaStreamComponent&) OVERRIDE;
+    virtual bool didRemoveMediaStreamTrack(const WebKit::WebMediaStreamDescriptor&, const WebKit::WebMediaStreamComponent&) OVERRIDE;
     virtual void didStopLocalMediaStream(const WebKit::WebMediaStreamDescriptor&) OVERRIDE;
     virtual void didCreateMediaStream(WebKit::WebMediaStreamDescriptor&) OVERRIDE;
     virtual WebKit::WebString constructSDP(const WebKit::WebICECandidateDescriptor&) OVERRIDE;

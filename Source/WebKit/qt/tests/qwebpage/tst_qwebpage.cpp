@@ -82,12 +82,12 @@ public:
     tst_QWebPage();
     virtual ~tst_QWebPage();
 
-public slots:
+public Q_SLOTS:
     void init();
     void cleanup();
     void cleanupFiles();
 
-private slots:
+private Q_SLOTS:
     void initTestCase();
     void cleanupTestCase();
     void thirdPartyCookiePolicy();
@@ -139,6 +139,7 @@ private slots:
     void errorPageExtensionLoadFinished();
     void userAgentApplicationName();
     void userAgentNewlineStripping();
+    void undoActionHaveCustomText();
 
     void viewModes();
 
@@ -262,7 +263,7 @@ public:
     JSTestPage(QObject* parent = 0)
     : QWebPage(parent) {}
 
-public slots:
+public Q_SLOTS:
     bool shouldInterruptJavaScript() {
         return true;
     }
@@ -395,7 +396,7 @@ public:
     TestPage(QObject* parent = 0) : QWebPage(parent) {}
 
     struct Navigation {
-        QWeakPointer<QWebFrame> frame;
+        QPointer<QWebFrame> frame;
         QNetworkRequest request;
         NavigationType type;
     };
@@ -893,7 +894,7 @@ void tst_QWebPage::createPluginWithPluginsDisabled()
 class PluginCounterPage : public QWebPage {
 public:
     int m_count;
-    QWeakPointer<QObject> m_widget;
+    QPointer<QObject> m_widget;
     QObject* m_pluginParent;
     PluginCounterPage(QObject* parent = 0)
         : QWebPage(parent)
@@ -2946,7 +2947,7 @@ void tst_QWebPage::findText()
     foreach (QString subString, words) {
         m_page->findText(subString, QWebPage::FindWrapsAroundDocument);
         QCOMPARE(m_page->selectedText(), subString);
-        QCOMPARE(m_page->selectedHtml().trimmed().replace(regExp, ""), QString("<span>%1</span>").arg(subString));
+        QCOMPARE(m_page->selectedHtml().trimmed().replace(regExp, ""), subString);
         m_page->findText("");
         QVERIFY(m_page->selectedText().isEmpty());
         QVERIFY(m_page->selectedHtml().isEmpty());
@@ -3170,10 +3171,10 @@ public:
         connect(m_page, SIGNAL(repaintRequested(QRect)), this, SLOT(onRepaintRequested(QRect)));
     }
 
-signals:
+Q_SIGNALS:
     void finished();
 
-private slots:
+private Q_SLOTS:
     void onRepaintRequested(const QRect& rect)
     {
         QCOMPARE(m_recursionCount, 0);
@@ -3238,7 +3239,7 @@ public Q_SLOTS:
         if (progress == 100)
             emit lastLoadProgress();
     }
-signals:
+Q_SIGNALS:
     void lastLoadProgress();
 };
 
@@ -3258,6 +3259,20 @@ void tst_QWebPage::loadSignalsOrder()
     waitForSignal(&loadSpy, SIGNAL(started()));
     page.mainFrame()->load(url);
     QTRY_VERIFY(loadSpy.isFinished());
+}
+
+void tst_QWebPage::undoActionHaveCustomText()
+{
+    m_page->mainFrame()->setHtml("<div id=test contenteditable></div>");
+    m_page->mainFrame()->evaluateJavaScript("document.getElementById('test').focus()");
+
+    m_page->mainFrame()->evaluateJavaScript("document.execCommand('insertText', true, 'Test');");
+    QString typingActionText = m_page->action(QWebPage::Undo)->text();
+
+    m_page->mainFrame()->evaluateJavaScript("document.execCommand('indent', true);");
+    QString alignActionText = m_page->action(QWebPage::Undo)->text();
+
+    QVERIFY(typingActionText != alignActionText);
 }
 
 QTEST_MAIN(tst_QWebPage)

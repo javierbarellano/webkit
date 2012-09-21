@@ -55,7 +55,7 @@ protected:
     InspectorServerQt();
     virtual ~InspectorServerQt();
 
-private slots:
+private Q_SLOTS:
     void newConnection();
 
 private:
@@ -72,10 +72,10 @@ public:
 
     InspectorServerRequestHandlerQt(QTcpSocket *tcpConnection, InspectorServerQt *server);
     virtual ~InspectorServerRequestHandlerQt();
-    virtual int webSocketSend(QByteArray payload);
+    virtual int webSocketSend(const QString& message);
     virtual int webSocketSend(const char *payload, size_t length);
 
-private slots:
+private Q_SLOTS:
     void tcpReadyRead();
     void tcpConnectionDisconnected();
     void webSocketReadyRead();
@@ -89,6 +89,7 @@ private:
     int m_contentLength;
     bool m_endOfHeaders;
     QByteArray m_data;
+    QByteArray m_fragmentedPayload;
     InspectorClientQt* m_inspectorClient;
 
     void handleInspectorRequest(QStringList words);

@@ -25,8 +25,8 @@
 #ifndef CCScheduler_h
 #define CCScheduler_h
 
-#include "cc/CCFrameRateController.h"
-#include "cc/CCSchedulerStateMachine.h"
+#include "CCFrameRateController.h"
+#include "CCSchedulerStateMachine.h"
 
 #include <wtf/Noncopyable.h>
 #include <wtf/PassOwnPtr.h>
@@ -52,13 +52,12 @@ struct CCScheduledActionDrawAndSwapResult {
 
 class CCSchedulerClient {
 public:
-    virtual bool canDraw() = 0;
     virtual bool hasMoreResourceUpdates() const = 0;
 
     virtual void scheduledActionBeginFrame() = 0;
     virtual CCScheduledActionDrawAndSwapResult scheduledActionDrawAndSwapIfPossible() = 0;
     virtual CCScheduledActionDrawAndSwapResult scheduledActionDrawAndSwapForced() = 0;
-    virtual void scheduledActionUpdateMoreResources() = 0;
+    virtual void scheduledActionUpdateMoreResources(double monotonicTimeLimit) = 0;
     virtual void scheduledActionCommit() = 0;
     virtual void scheduledActionBeginContextRecreation() = 0;
     virtual void scheduledActionAcquireLayerTexturesForMainThread() = 0;
@@ -80,6 +79,7 @@ public:
     void setCanBeginFrame(bool);
 
     void setVisible(bool);
+    void setCanDraw(bool);
 
     void setNeedsCommit();
 
@@ -97,6 +97,7 @@ public:
     void beginFrameAborted();
 
     void setMaxFramesPending(int);
+    void setSwapBuffersCompleteSupported(bool);
     void didSwapBuffersComplete();
 
     void didLoseContext();
@@ -113,7 +114,6 @@ public:
 private:
     CCScheduler(CCSchedulerClient*, PassOwnPtr<CCFrameRateController>);
 
-    CCSchedulerStateMachine::Action nextAction();
     void processScheduledActions();
 
     CCSchedulerClient* m_client;

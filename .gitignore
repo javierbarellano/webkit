@@ -386,3 +386,4 @@ tags
 # Ignore Eclipse files:
 .project
 .cproject
+.settings

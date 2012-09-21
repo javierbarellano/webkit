@@ -34,6 +34,8 @@
  */
 WebInspector.DebuggerModel = function()
 {
+    InspectorBackend.registerDebuggerDispatcher(new WebInspector.DebuggerDispatcher(this));
+
     this._debuggerPausedDetails = null;
     /**
      * @type {Object.<string, WebInspector.Script>}
@@ -44,8 +46,19 @@ WebInspector.DebuggerModel = function()
     this._canSetScriptSource = false;
     this._breakpointsActive = true;
 
-    InspectorBackend.registerDebuggerDispatcher(new WebInspector.DebuggerDispatcher(this));
+    WebInspector.settings.pauseOnExceptionStateString = WebInspector.settings.createSetting("pauseOnExceptionStateString", WebInspector.DebuggerModel.PauseOnExceptionsState.DontPauseOnExceptions);
+    WebInspector.settings.pauseOnExceptionStateString.addChangeListener(this._pauseOnExceptionStateChanged, this);
+
+    if (!Capabilities.debuggerCausesRecompilation || WebInspector.settings.debuggerEnabled.get())
+        this.enableDebugger();
 }
+
+// Keep these in sync with WebCore::ScriptDebugServer
+WebInspector.DebuggerModel.PauseOnExceptionsState = {
+    DontPauseOnExceptions : "none",
+    PauseOnAllExceptions : "all",
+    PauseOnUncaughtExceptions: "uncaught"
+};
 
 /**
  * @constructor
@@ -81,12 +94,25 @@ WebInspector.DebuggerModel.BreakReason = {
     DOM: "DOM",
     EventListener: "EventListener",
     XHR: "XHR",
-    Exception: "exception"
+    Exception: "exception",
+    Assert: "assert",
+    CSPViolation: "CSPViolation"
 }
 
 WebInspector.DebuggerModel.prototype = {
+    /**
+     * @return {boolean}
+     */
+    debuggerEnabled: function()
+    {
+        return !!this._debuggerEnabled;
+    },
+
     enableDebugger: function()
     {
+        if (this._debuggerEnabled)
+            return;
+
         function callback(error, result)
         {
             this._canSetScriptSource = result;
@@ -97,6 +123,9 @@ WebInspector.DebuggerModel.prototype = {
 
     disableDebugger: function()
     {
+        if (!this._debuggerEnabled)
+            return;
+
         DebuggerAgent.disable(this._debuggerWasDisabled.bind(this));
     },
 
@@ -110,11 +139,19 @@ WebInspector.DebuggerModel.prototype = {
 
     _debuggerWasEnabled: function()
     {
+        this._debuggerEnabled = true;
+        this._pauseOnExceptionStateChanged();
         this.dispatchEventToListeners(WebInspector.DebuggerModel.Events.DebuggerWasEnabled);
+    },
+
+    _pauseOnExceptionStateChanged: function()
+    {
+        DebuggerAgent.setPauseOnExceptions(WebInspector.settings.pauseOnExceptionStateString.get());
     },
 
     _debuggerWasDisabled: function()
     {
+        this._debuggerEnabled = false;
         this.dispatchEventToListeners(WebInspector.DebuggerModel.Events.DebuggerWasDisabled);
     },
 
@@ -359,19 +396,6 @@ WebInspector.DebuggerModel.prototype = {
     },
 
     /**
-     * @param {string} sourceURL
-     * @param {string} source
-     * @param {number} startingLine
-     * @param {number} errorLine
-     * @param {string} errorMessage
-     */
-    _failedToParseScriptSource: function(sourceURL, source, startingLine, errorLine, errorMessage)
-    {
-        var script = new WebInspector.Script("", sourceURL, startingLine, 0, 0, 0, false);
-        this.dispatchEventToListeners(WebInspector.DebuggerModel.Events.FailedToParseScriptSource, script);
-    },
-
-    /**
      * @param {WebInspector.Script} script
      * @param {number} lineNumber
      * @param {number} columnNumber
@@ -612,6 +636,7 @@ WebInspector.DebuggerDispatcher.prototype = {
      * @param {number} endLine
      * @param {number} endColumn
      * @param {boolean=} isContentScript
+     * @param {string=} sourceMapURL
      */
     scriptParsed: function(scriptId, sourceURL, startLine, startColumn, endLine, endColumn, isContentScript, sourceMapURL)
     {
@@ -627,7 +652,6 @@ WebInspector.DebuggerDispatcher.prototype = {
      */
     scriptFailedToParse: function(sourceURL, source, startingLine, errorLine, errorMessage)
     {
-        this._debuggerModel._failedToParseScriptSource(sourceURL, source, startingLine, errorLine, errorMessage);
     },
 
     /**

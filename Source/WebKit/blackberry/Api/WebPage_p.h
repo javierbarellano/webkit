@@ -41,7 +41,11 @@
 
 #include <BlackBerryPlatformMessage.h>
 
+#define DEFAULT_MAX_LAYOUT_WIDTH 1024
+#define DEFAULT_MAX_LAYOUT_HEIGHT 768
+
 namespace WebCore {
+class AuthenticationChallengeClient;
 class AutofillManager;
 class DOMWrapperWorld;
 class Document;
@@ -91,7 +95,7 @@ class WebPagePrivate : public PageClientBlackBerry
 #endif
                      , public Platform::GuardedPointerBase {
 public:
-    enum ViewMode { Mobile, Desktop, FixedDesktop };
+    enum ViewMode { Desktop, FixedDesktop };
     enum LoadState { None /* on instantiation of page */, Provisional, Committed, Finished, Failed };
 
     WebPagePrivate(WebPage*, WebPageClient*, const WebCore::IntRect&);
@@ -130,8 +134,6 @@ public:
 
     // Scale the page to the given scale and anchor about the point which is specified in untransformed content coordinates.
     bool zoomAboutPoint(double scale, const WebCore::FloatPoint& anchor, bool enforceScaleClamping = true, bool forceRendering = false, bool isRestoringZoomLevel = false);
-    bool scheduleZoomAboutPoint(double scale, const WebCore::FloatPoint& anchor, bool enforceScaleClamping = true, bool forceRendering = false);
-    void unscheduleZoomAboutPoint();
     WebCore::IntPoint calculateReflowedScrollPosition(const WebCore::FloatPoint& anchorOffset, double inverseScale);
     void setTextReflowAnchorPoint(const Platform::IntPoint& focalPoint);
 
@@ -147,10 +149,10 @@ public:
     WebCore::IntPoint scrollPosition() const;
     WebCore::IntPoint maximumScrollPosition() const;
     void setScrollPosition(const WebCore::IntPoint&);
-    bool scrollBy(int deltaX, int deltaY, bool scrollMainFrame = true);
+    void scrollBy(int deltaX, int deltaY);
 
-    void enqueueRenderingOfClippedContentOfScrollableNodeAfterInRegionScrolling(WebCore::Node*);
-    void notifyInRegionScrollStatusChanged(bool status);
+    void enqueueRenderingOfClippedContentOfScrollableAreaAfterInRegionScrolling();
+    void notifyInRegionScrollStopped();
     void setScrollOriginPoint(const Platform::IntPoint&);
     void setHasInRegionScrollableAreas(bool);
 
@@ -177,6 +179,7 @@ public:
     WebCore::IntSize absoluteVisibleOverflowSize() const;
 
     // Virtual functions inherited from PageClientBlackBerry.
+    virtual int playerID() const;
     virtual void setCursor(WebCore::PlatformCursor);
     virtual Platform::NetworkStreamFactory* networkStreamFactory();
     virtual Platform::Graphics::Window* platformWindow() const;
@@ -198,7 +201,7 @@ public:
     virtual int showAlertDialog(WebPageClient::AlertType atype);
     virtual bool isActive() const;
     virtual bool isVisible() const { return m_visible; }
-    virtual bool authenticationChallenge(const WebCore::KURL&, const WebCore::ProtectionSpace&, WebCore::Credential&);
+    virtual void authenticationChallenge(const WebCore::KURL&, const WebCore::ProtectionSpace&, const WebCore::Credential&, WebCore::AuthenticationChallengeClient*);
     virtual SaveCredentialType notifyShouldSaveCredential(bool);
     virtual void syncProxyCredential(const WebCore::Credential&);
 
@@ -291,7 +294,7 @@ public:
     WebCore::Node* bestNodeForZoomUnderPoint(const WebCore::IntPoint&);
     WebCore::Node* bestChildNodeForClickRect(WebCore::Node* parentNode, const WebCore::IntRect& clickRect);
     WebCore::Node* nodeForZoomUnderPoint(const WebCore::IntPoint&);
-    WebCore::Node* adjustedBlockZoomNodeForZoomLimits(WebCore::Node*);
+    WebCore::Node* adjustedBlockZoomNodeForZoomAndExpandingRatioLimits(WebCore::Node*);
     WebCore::IntRect rectForNode(WebCore::Node*);
     WebCore::IntRect blockZoomRectForNode(WebCore::Node*);
     WebCore::IntRect adjustRectOffsetForFrameOffset(const WebCore::IntRect&, const WebCore::Node*);
@@ -406,20 +409,20 @@ public:
 
     // Thread safe.
     void resetCompositingSurface();
-    void drawLayersOnCommit(); // Including backing store blit.
 
     // Compositing thread.
     void setRootLayerCompositingThread(WebCore::LayerCompositingThread*);
     void commitRootLayer(const WebCore::IntRect&, const WebCore::IntSize&, bool);
     bool isAcceleratedCompositingActive() const { return m_compositor; }
     WebPageCompositorPrivate* compositor() const { return m_compositor.get(); }
-    void setCompositor(PassRefPtr<WebPageCompositorPrivate>, EGLContext compositingContext);
-    void setCompositorHelper(PassRefPtr<WebPageCompositorPrivate>, EGLContext compositingContext);
+    void setCompositor(PassRefPtr<WebPageCompositorPrivate>);
+    void setCompositorHelper(PassRefPtr<WebPageCompositorPrivate>);
     void setCompositorBackgroundColor(const WebCore::Color&);
     bool createCompositor();
     void destroyCompositor();
     void syncDestroyCompositorOnCompositingThread();
-    void destroyLayerResources();
+    void releaseLayerResources();
+    void releaseLayerResourcesCompositingThread();
     void suspendRootLayerCommit();
     void resumeRootLayerCommit();
     void blitVisibleContents();
@@ -445,7 +448,6 @@ public:
     static WebCore::RenderLayer* enclosingPositionedAncestorOrSelfIfPositioned(WebCore::RenderLayer*);
     static WebCore::RenderLayer* enclosingFixedPositionedAncestorOrSelfIfFixedPositioned(WebCore::RenderLayer*);
 
-    static WebCore::IntSize defaultMaxLayoutSize();
     static const String& defaultUserAgent();
 
     void setVisible(bool);
@@ -460,6 +462,8 @@ public:
 
     void applySizeOverride(int overrideWidth, int overrideHeight);
     void setTextZoomFactor(float);
+
+    WebCore::IntSize screenSize() const;
 
     WebPage* m_webPage;
     WebPageClient* m_client;
@@ -522,6 +526,7 @@ public:
     double m_scaleBeforeFullScreen;
     int m_xScrollOffsetBeforeFullScreen;
 #endif
+    bool m_isTogglingFullScreenState;
 #endif
 
     Platform::BlackBerryCursor m_currentCursor;
@@ -541,15 +546,6 @@ public:
     RefPtr<WebCore::Node> m_currentBlockZoomNode;
     RefPtr<WebCore::Node> m_currentBlockZoomAdjustedNode;
     bool m_shouldReflowBlock;
-
-    // Delayed zoomAboutPoint.
-    OwnPtr<WebCore::Timer<WebPagePrivate> > m_delayedZoomTimer;
-    struct {
-        double scale;
-        WebCore::FloatPoint anchor;
-        bool enforceScaleClamping;
-        bool forceRendering;
-    } m_delayedZoomArguments;
 
     double m_lastUserEventTimestamp; // Used to detect user scrolling.
 
@@ -613,6 +609,8 @@ public:
     WebString m_cachedColorInput;
     WebCore::KURL m_cachedManualScript;
     bool m_cachedFocused;
+
+    bool m_enableQnxJavaScriptObject;
 
     class DeferredTaskBase {
     public:

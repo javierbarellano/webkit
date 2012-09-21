@@ -21,7 +21,7 @@
 
 #include "BlobRegistryImpl.h"
 #include "CookieManager.h"
-#include <LocaleHandler.h>
+#include "ReadOnlyLatin1String.h"
 #include <network/NetworkRequest.h>
 #include <wtf/HashMap.h>
 #include <wtf/text/CString.h>
@@ -148,8 +148,10 @@ void ResourceRequest::initializePlatformRequest(NetworkRequest& platformRequest,
     if (isInitial)
         platformRequest.setRequestInitial(timeoutInterval());
     else {
-        platformRequest.setRequestUrl(url().string().utf8().data(),
-                httpMethod().latin1().data(),
+        ReadOnlyLatin1String latin1URL(url().string());
+        ReadOnlyLatin1String latin1HttpMethod(httpMethod());
+        platformRequest.setRequestUrl(latin1URL.data(), latin1URL.length(),
+                latin1HttpMethod.data(), latin1HttpMethod.length(),
                 platformCachePolicyForRequest(*this),
                 platformTargetTypeForRequest(*this),
                 timeoutInterval());
@@ -198,12 +200,19 @@ void ResourceRequest::initializePlatformRequest(NetworkRequest& platformRequest,
             String key = it->first;
             String value = it->second;
             if (!key.isEmpty()) {
-                // We need to check the encoding and encode the cookie's value using latin1 or utf8 to support unicode characters.
-                // We wo't use the old cookies of resourceRequest for new location because these cookies may be changed by redirection.
-                if (!equalIgnoringCase(key, "Cookie"))
-                    platformRequest.addHeader(key.latin1().data(), value.latin1().data());
-                else if (!cookieHeaderMayBeDirty)
-                    platformRequest.addHeader(key.latin1().data(), value.containsOnlyLatin1() ? value.latin1().data() : value.utf8().data());
+                if (equalIgnoringCase(key, "Cookie")) {
+                    // We won't use the old cookies of resourceRequest for new location because these cookies may be changed by redirection.
+                    if (cookieHeaderMayBeDirty)
+                        continue;
+                    // We need to check the encoding and encode the cookie's value using latin1 or utf8 to support unicode data.
+                    if (!value.containsOnlyLatin1()) {
+                        platformRequest.addHeader("Cookie", value.utf8().data());
+                        continue;
+                    }
+                }
+                ReadOnlyLatin1String latin1Key(key);
+                ReadOnlyLatin1String latin1Value(value);
+                platformRequest.addHeader(latin1Key.data(), latin1Key.length(), latin1Value.data(), latin1Value.length());
             }
         }
 
@@ -216,17 +225,8 @@ void ResourceRequest::initializePlatformRequest(NetworkRequest& platformRequest,
                 platformRequest.addHeader("Cookie", cookiePairs.containsOnlyLatin1() ? cookiePairs.latin1().data() : cookiePairs.utf8().data());
         }
 
-        if (!httpHeaderFields().contains("Accept-Language")) {
-            // Locale has the form "en-US". Construct accept language like "en-US, en;q=0.8".
-            std::string locale = BlackBerry::Platform::LocaleHandler::instance()->language();
-            // POSIX locale has '_' instead of '-'.
-            // Replace to conform to HTTP spec.
-            size_t underscore = locale.find('_');
-            if (underscore != std::string::npos)
-                locale.replace(underscore, 1, "-");
-            std::string acceptLanguage = locale + ", " + locale.substr(0, 2) + ";q=0.8";
-            platformRequest.addHeader("Accept-Language", acceptLanguage.c_str());
-        }
+        if (!httpHeaderFields().contains("Accept-Language"))
+            platformRequest.addAcceptLanguageHeader();
     }
 }
 

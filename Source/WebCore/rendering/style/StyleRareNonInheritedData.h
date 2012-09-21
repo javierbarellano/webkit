@@ -25,13 +25,14 @@
 #ifndef StyleRareNonInheritedData_h
 #define StyleRareNonInheritedData_h
 
+#include "BasicShapes.h"
+#include "ClipPathOperation.h"
 #include "CounterDirectives.h"
 #include "CursorData.h"
 #include "DataRef.h"
 #include "FillLayer.h"
 #include "LineClampValue.h"
 #include "NinePieceImage.h"
-#include "WrapShapes.h"
 #include <wtf/OwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/Vector.h>
@@ -39,7 +40,6 @@
 namespace WebCore {
 
 class AnimationList;
-class MemoryObjectInfo;
 class ShadowData;
 class StyleDeprecatedFlexibleBoxData;
 #if ENABLE(CSS_FILTERS)
@@ -97,9 +97,6 @@ public:
     float m_aspectRatioDenominator;
     float m_aspectRatioNumerator;
 
-    short m_counterIncrement;
-    short m_counterReset;
-
     float m_perspective;
     Length m_perspectiveOriginX;
     Length m_perspectiveOriginY;
@@ -137,11 +134,13 @@ public:
 
     LengthSize m_pageSize;
 
-    RefPtr<WrapShape> m_wrapShapeInside;
-    RefPtr<WrapShape> m_wrapShapeOutside;
+    RefPtr<BasicShape> m_wrapShapeInside;
+    RefPtr<BasicShape> m_wrapShapeOutside;
     Length m_wrapMargin;
     Length m_wrapPadding;
-    
+
+    RefPtr<ClipPathOperation> m_clipPath;
+
     Color m_visitedLinkBackgroundColor;
     Color m_visitedLinkOutlineColor;
     Color m_visitedLinkBorderLeftColor;
@@ -176,13 +175,21 @@ public:
     unsigned m_borderFit : 1; // EBorderFit
     unsigned m_textCombine : 1; // CSS3 text-combine properties
 
+#if ENABLE(CSS3_TEXT_DECORATION)
+    unsigned m_textDecorationStyle : 3; // TextDecorationStyle
+#endif // CSS3_TEXT_DECORATION
     unsigned m_wrapFlow: 3; // WrapFlow
     unsigned m_wrapThrough: 1; // WrapThrough
 
 #if USE(ACCELERATED_COMPOSITING)
     unsigned m_runningAcceleratedAnimation : 1;
 #endif
+
     unsigned m_hasAspectRatio : 1; // Whether or not an aspect ratio has been specified.
+
+#if ENABLE(CSS_COMPOSITING)
+    unsigned m_effectiveBlendMode: 5; // EBlendMode
+#endif
 
 private:
     StyleRareNonInheritedData();

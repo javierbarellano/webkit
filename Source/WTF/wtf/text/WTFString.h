@@ -1,6 +1,6 @@
 /*
  * (C) 1999 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -58,6 +58,7 @@ namespace WebKit {
 namespace WTF {
 
 class CString;
+class MemoryObjectInfo;
 struct StringHash;
 
 // Declarations of string operations
@@ -102,7 +103,8 @@ enum FloatConversionFlags {
     ShouldTruncateTrailingZeros = 1 << 2
 };
 
-template<bool isSpecialCharacter(UChar)> bool isAllSpecialCharacters(const UChar*, size_t);
+template<bool isSpecialCharacter(UChar), typename CharacterType>
+bool isAllSpecialCharacters(const CharacterType*, size_t);
 
 class String {
 public:
@@ -196,8 +198,13 @@ public:
         return m_impl->characters16();
     }
 
-    template <typename CharType>
-    inline const CharType* getCharacters() const;
+    // Return characters8() or characters16() depending on CharacterType.
+    template <typename CharacterType>
+    inline const CharacterType* getCharacters() const;
+
+    // Like getCharacters() and upconvert if CharacterType is UChar on a 8bit string.
+    template <typename CharacterType>
+    inline const CharacterType* getCharactersWithUpconvert() const;
 
     bool is8Bit() const { return m_impl->is8Bit(); }
 
@@ -219,15 +226,17 @@ public:
         return (*m_impl)[index];
     }
 
-    static String number(short);
-    WTF_EXPORT_STRING_API static String number(unsigned short);
     WTF_EXPORT_STRING_API static String number(int);
-    WTF_EXPORT_STRING_API static String number(unsigned);
+    WTF_EXPORT_STRING_API static String number(unsigned int);
     WTF_EXPORT_STRING_API static String number(long);
     WTF_EXPORT_STRING_API static String number(unsigned long);
     WTF_EXPORT_STRING_API static String number(long long);
     WTF_EXPORT_STRING_API static String number(unsigned long long);
+
     WTF_EXPORT_STRING_API static String number(double, unsigned = ShouldRoundSignificantFigures | ShouldTruncateTrailingZeros, unsigned precision = 6);
+
+    // Number to String conversion following the ECMAScript definition.
+    WTF_EXPORT_STRING_API static String numberToStringECMAScript(double);
 
     // Find a single character or string, also with match function & latin1 forms.
     size_t find(UChar c, unsigned start = 0) const
@@ -310,7 +319,7 @@ public:
     WTF_EXPORT_STRING_API void remove(unsigned pos, int len = 1);
 
     WTF_EXPORT_STRING_API String substring(unsigned pos, unsigned len = UINT_MAX) const;
-    String substringSharingImpl(unsigned pos, unsigned len = UINT_MAX) const;
+    WTF_EXPORT_STRING_API String substringSharingImpl(unsigned pos, unsigned len = UINT_MAX) const;
     String left(unsigned len) const { return substring(0, len); }
     String right(unsigned len) const { return substring(length() - len, len); }
 
@@ -404,6 +413,8 @@ public:
     operator BlackBerry::WebKit::WebString() const;
 #endif
 
+    WTF_EXPORT_STRING_API static String make8BitFrom16BitSource(const UChar*, size_t);
+
     // String::fromUTF8 will return a null string if
     // the input data contains invalid UTF-8 sequences.
     WTF_EXPORT_STRING_API static String fromUTF8(const LChar*, size_t);
@@ -437,6 +448,16 @@ public:
     WTF_EXPORT_STRING_API void show() const;
 #endif
 
+    // Workaround for a compiler bug. Use operator[] instead.
+    UChar characterAt(unsigned index) const
+    {
+        if (!m_impl || index >= m_impl->length())
+            return 0;
+        return (*m_impl)[index];
+    }
+
+    WTF_EXPORT_STRING_API void reportMemoryUsage(MemoryObjectInfo*) const;
+
 private:
     RefPtr<StringImpl> m_impl;
 };
@@ -446,7 +467,9 @@ QDataStream& operator<<(QDataStream& stream, const String& str);
 QDataStream& operator>>(QDataStream& stream, String& str);
 #endif
 
+#ifdef WTF_DEPRECATED_STRING_OPERATORS
 inline String& operator+=(String& a, const String& b) { a.append(b); return a; }
+#endif
 
 inline bool operator==(const String& a, const String& b) { return equal(a.impl(), b.impl()); }
 inline bool operator==(const String& a, const LChar* b) { return equal(a.impl(), b); }
@@ -509,6 +532,19 @@ inline const UChar* String::getCharacters<UChar>() const
 {
     ASSERT(!is8Bit());
     return characters16();
+}
+
+template<>
+inline const LChar* String::getCharactersWithUpconvert<LChar>() const
+{
+    ASSERT(is8Bit());
+    return characters8();
+}
+
+template<>
+inline const UChar* String::getCharactersWithUpconvert<UChar>() const
+{
+    return characters();
 }
 
 inline bool String::containsOnlyLatin1() const
@@ -578,7 +614,8 @@ inline void appendNumber(Vector<CharacterType>& vector, unsigned char number)
     }
 }
 
-template<bool isSpecialCharacter(UChar)> inline bool isAllSpecialCharacters(const UChar* characters, size_t length)
+template<bool isSpecialCharacter(UChar), typename CharacterType>
+inline bool isAllSpecialCharacters(const CharacterType* characters, size_t length)
 {
     for (size_t i = 0; i < length; ++i) {
         if (!isSpecialCharacter(characters[i]))
@@ -587,9 +624,17 @@ template<bool isSpecialCharacter(UChar)> inline bool isAllSpecialCharacters(cons
     return true;
 }
 
-template<bool isSpecialCharacter(UChar)> inline bool String::isAllSpecialCharacters() const
+template<bool isSpecialCharacter(UChar)>
+inline bool String::isAllSpecialCharacters() const
 {
-    return WTF::isAllSpecialCharacters<isSpecialCharacter>(characters(), length());
+    size_t len = length();
+
+    if (!len)
+        return true;
+
+    if (is8Bit())
+        return WTF::isAllSpecialCharacters<isSpecialCharacter, LChar>(characters8(), len);
+    return WTF::isAllSpecialCharacters<isSpecialCharacter, UChar>(characters(), len);
 }
 
 // StringHash is the default hash for String

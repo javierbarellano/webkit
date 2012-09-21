@@ -61,7 +61,7 @@ public:
     NavService* find(std::string uuid)
     {
     	for (int i=0; i<(int)m_services.size(); i++)
-    		if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
+//    		if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
     			return m_services[i].get();
 
     	return NULL;

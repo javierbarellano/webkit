@@ -105,7 +105,7 @@ def run(port, options, args, regular_output=sys.stderr, buildbot_output=sys.stdo
         unexpected_result_count = -1
 
         manager = Manager(port, options, printer)
-        printer.print_config()
+        printer.print_config(port.results_directory())
 
         unexpected_result_count = manager.run(args)
         _log.debug("Testing completed, Exit status: %d" % unexpected_result_count)
@@ -331,6 +331,8 @@ def parse_args(args=None):
         optparse.make_option("--additional-expectations", action="append", default=[],
             help="Path to a test_expectations file that will override previous expectations. "
                  "Specify multiple times for multiple sets of overrides."),
+        optparse.make_option("--compare-port", action="store", default=None,
+            help="Use the specified port's baselines first"),
         optparse.make_option("--no-show-results", action="store_false",
             default=True, dest="show_results",
             help="Don't launch a browser with results after the tests "

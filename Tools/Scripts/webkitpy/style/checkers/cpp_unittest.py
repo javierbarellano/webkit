@@ -2086,13 +2086,13 @@ class CppStyleTest(CppStyleTestBase):
         # Here is an example where the linter gets confused, even though
         # the code doesn't violate the style guide.
         self.assert_multi_line_lint(
-            '''class Foo
-            #ifdef DERIVE_FROM_GOO
-              : public Goo {
-            #else
-              : public Hoo {
-            #endif
-              };''',
+            'class Foo\n'
+            '#ifdef DERIVE_FROM_GOO\n'
+            '    : public Goo {\n'
+            '#else\n'
+            '    : public Hoo {\n'
+            '#endif\n'
+            '};',
             'Failed to find complete declaration of class Foo'
             '  [build/class] [5]')
 
@@ -2734,6 +2734,15 @@ class OrderOfIncludesTest(CppStyleTestBase):
                                          '\n'
                                          '#include "wtf/Assertions.h"\n',
                                          'wtf includes should be <wtf/file.h> instead of "wtf/file.h".'
+                                         '  [build/include] [4]')
+
+    def test_check_cc_includes(self):
+        self.assert_language_rules_check('bar/chromium/foo.cpp',
+                                         '#include "config.h"\n'
+                                         '#include "foo.h"\n'
+                                         '\n'
+                                         '#include "cc/CCProxy.h"\n',
+                                         'cc includes should be "CCFoo.h" instead of "cc/CCFoo.h".'
                                          '  [build/include] [4]')
 
     def test_classify_include(self):
@@ -3812,7 +3821,7 @@ class WebKitStyleTest(CppStyleTestBase):
             'More than one command on the same line  [whitespace/newline] [4]')
         # Ignore preprocessor if's.
         self.assert_multi_line_lint(
-            '    #if (condition) || (condition2)\n',
+            '#if (condition) || (condition2)\n',
             '')
 
         # 2. An else statement should go on the same line as a preceding
@@ -3851,6 +3860,9 @@ class WebKitStyleTest(CppStyleTestBase):
         # self.assert_multi_line_lint(
         #     '#define TEST_ASSERT(expression) do { if (!(expression)) { TestsController::shared().testFailed(__FILE__, __LINE__, #expression); return; } } while (0 )\n',
         #     'Mismatching spaces inside () in if  [whitespace/parens] [5]')
+        self.assert_multi_line_lint(
+            'WTF_MAKE_NONCOPYABLE(ClassName); WTF_MAKE_FAST_ALLOCATED;\n',
+            '')
         self.assert_multi_line_lint(
             'if (condition) {\n'
             '    doSomething();\n'
@@ -4367,12 +4379,24 @@ class WebKitStyleTest(CppStyleTestBase):
             'if (UNLIKELY(foo == 0))',
             '')
         self.assert_lint(
+            'if ((a - b) == 0.5)',
+            '')
+        self.assert_lint(
+            'if (0.5 == (a - b))',
+            '')
+        self.assert_lint(
             'if (LIKELY(foo == NULL))',
             'Use 0 instead of NULL.  [readability/null] [5]')
         self.assert_lint(
             'if (UNLIKELY(foo == NULL))',
             'Use 0 instead of NULL.  [readability/null] [5]')
 
+    def test_directive_indentation(self):
+        self.assert_lint(
+            "    #if FOO",
+            "preprocessor directives (e.g., #ifdef, #define, #import) should never be indented."
+            "  [whitespace/indent] [4]",
+            "foo.cpp")
 
     def test_using_std(self):
         self.assert_lint(
@@ -4442,7 +4466,7 @@ class WebKitStyleTest(CppStyleTestBase):
                          'length_' + name_underscore_error_message)
         self.assert_lint('unsigned _length;',
                          '_length' + name_underscore_error_message)
-        self.assert_lint('unsigned int _length;',
+        self.assert_lint('unsigned long _length;',
                          '_length' + name_underscore_error_message)
         self.assert_lint('unsigned long long _length;',
                          '_length' + name_underscore_error_message)

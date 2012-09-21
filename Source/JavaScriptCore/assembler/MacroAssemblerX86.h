@@ -84,6 +84,11 @@ public:
         m_assembler.orl_im(imm.m_value, address.m_ptr);
     }
     
+    void or32(RegisterID reg, AbsoluteAddress address)
+    {
+        m_assembler.orl_rm(reg, address.m_ptr);
+    }
+    
     void sub32(TrustedImm32 imm, AbsoluteAddress address)
     {
         m_assembler.subl_im(imm.m_value, address.m_ptr);
@@ -175,6 +180,7 @@ public:
 
     DataLabelPtr moveWithPatch(TrustedImmPtr initialValue, RegisterID dest)
     {
+        padBeforePatch();
         m_assembler.movl_i32r(initialValue.asIntptr(), dest);
         return DataLabelPtr(this);
     }
@@ -191,6 +197,7 @@ public:
 
     Jump branchPtrWithPatch(RelationalCondition cond, RegisterID left, DataLabelPtr& dataLabel, TrustedImmPtr initialRightValue = TrustedImmPtr(0))
     {
+        padBeforePatch();
         m_assembler.cmpl_ir_force32(initialRightValue.asIntptr(), left);
         dataLabel = DataLabelPtr(this);
         return Jump(m_assembler.jCC(x86Condition(cond)));
@@ -198,6 +205,7 @@ public:
 
     Jump branchPtrWithPatch(RelationalCondition cond, Address left, DataLabelPtr& dataLabel, TrustedImmPtr initialRightValue = TrustedImmPtr(0))
     {
+        padBeforePatch();
         m_assembler.cmpl_im_force32(initialRightValue.asIntptr(), left.offset, left.base);
         dataLabel = DataLabelPtr(this);
         return Jump(m_assembler.jCC(x86Condition(cond)));
@@ -205,6 +213,7 @@ public:
 
     DataLabelPtr storePtrWithPatch(TrustedImmPtr initialValue, ImplicitAddress address)
     {
+        padBeforePatch();
         m_assembler.movl_i32m(initialValue.asIntptr(), address.offset, address.base);
         return DataLabelPtr(this);
     }

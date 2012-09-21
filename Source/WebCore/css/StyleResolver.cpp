@@ -82,7 +82,6 @@
 #include "MatrixTransformOperation.h"
 #include "MediaList.h"
 #include "MediaQueryEvaluator.h"
-#include "MemoryInstrumentation.h"
 #include "NodeRenderStyle.h"
 #include "NodeRenderingContext.h"
 #include "Page.h"
@@ -96,6 +95,7 @@
 #include "RenderScrollbarTheme.h"
 #include "RenderStyleConstants.h"
 #include "RenderTheme.h"
+#include "RenderView.h"
 #include "RotateTransformOperation.h"
 #include "SVGDocumentExtensions.h"
 #include "SVGFontFaceElement.h"
@@ -118,6 +118,7 @@
 #include "TransformationMatrix.h"
 #include "TranslateTransformOperation.h"
 #include "UserAgentStyleSheets.h"
+#include "WebCoreMemoryInstrumentation.h"
 #include "WebKitCSSKeyframeRule.h"
 #include "WebKitCSSKeyframesRule.h"
 #include "WebKitCSSRegionRule.h"
@@ -146,9 +147,11 @@
 #endif
 
 #if ENABLE(CSS_SHADERS)
+#include "CustomFilterArrayParameter.h"
 #include "CustomFilterNumberParameter.h"
 #include "CustomFilterOperation.h"
 #include "CustomFilterParameter.h"
+#include "CustomFilterTransformParameter.h"
 #include "StyleCachedShader.h"
 #include "StyleCustomFilterProgram.h"
 #include "StylePendingShader.h"
@@ -165,6 +168,7 @@
 #if PLATFORM(BLACKBERRY)
 #define FIXED_POSITION_CREATES_STACKING_CONTEXT 1
 #endif
+
 
 using namespace std;
 
@@ -249,7 +253,7 @@ struct SameSizeAsRuleData {
 COMPILE_ASSERT(sizeof(RuleData) == sizeof(SameSizeAsRuleData), RuleData_should_stay_small);
 
 class RuleSet {
-    WTF_MAKE_NONCOPYABLE(RuleSet);
+    WTF_MAKE_NONCOPYABLE(RuleSet); WTF_MAKE_FAST_ALLOCATED;
 public:
     static PassOwnPtr<RuleSet> create() { return adoptPtr(new RuleSet); }
 
@@ -376,6 +380,8 @@ StyleResolver::StyleResolver(Document* document, bool matchAuthorAndUserStyles)
     , m_fontDirty(false)
     , m_matchAuthorAndUserStyles(matchAuthorAndUserStyles)
     , m_sameOriginOnly(false)
+    , m_distributedToInsertionPoint(false)
+    , m_hasUnknownPseudoElements(false)
     , m_fontSelector(CSSFontSelector::create(document))
     , m_applyPropertyToRegularStyle(true)
     , m_applyPropertyToVisitedLinkStyle(false)
@@ -738,7 +744,7 @@ void StyleResolver::Features::clear()
 
 void StyleResolver::Features::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     info.addHashSet(idsInRules);
     info.addHashSet(attrsInRules);
     info.addVector(siblingRules);
@@ -885,8 +891,7 @@ void StyleResolver::collectMatchingRules(RuleSet* rules, int& firstRuleIndex, in
     // then sort the buffer.
     if (m_element->hasID())
         collectMatchingRulesForList(rules->idRules(m_element->idForStyleResolution().impl()), firstRuleIndex, lastRuleIndex, options);
-    if (m_element->hasClass()) {
-        ASSERT(m_styledElement);
+    if (m_styledElement && m_styledElement->hasClass()) {
         for (size_t i = 0; i < m_styledElement->classNames().size(); ++i)
             collectMatchingRulesForList(rules->classRules(m_styledElement->classNames()[i].impl()), firstRuleIndex, lastRuleIndex, options);
     }
@@ -1069,6 +1074,9 @@ void StyleResolver::collectMatchingRulesForList(const Vector<RuleData>* rules, i
 {
     if (!rules)
         return;
+
+    TreeScope* treeScope = m_element->treeScope();
+
     // In some cases we may end up looking up style for random elements in the middle of a recursive tree resolve.
     // Ancestor identifier filter won't be up-to-date in that case and we can't use the fast path.
     bool canUseFastReject = m_checker.parentStackIsConsistent(m_parentNode);
@@ -1091,13 +1099,12 @@ void StyleResolver::collectMatchingRulesForList(const Vector<RuleData>* rules, i
             // b) the tree scope allows author rules
             // c) the rules comes from a scoped style sheet within the same tree scope
             // d) the rule contains shadow-ID pseudo elements
-            TreeScope* treeScope = m_element->treeScope();
             if (!MatchingUARulesScope::isMatchingUARules()
                 && !treeScope->applyAuthorStyles()
 #if ENABLE(STYLE_SCOPED)
                 && (!options.scope || options.scope->treeScope() != treeScope)
 #endif
-                && !m_checker.hasUnknownPseudoElements()) {
+                && !m_hasUnknownPseudoElements) {
 
                 InspectorInstrumentation::didMatchRule(cookie, false);
                 continue;
@@ -1115,7 +1122,7 @@ void StyleResolver::collectMatchingRulesForList(const Vector<RuleData>* rules, i
             }
             // If we're matching normal rules, set a pseudo bit if
             // we really just matched a pseudo-element.
-            if (m_dynamicPseudo != NOPSEUDO && m_checker.pseudoStyle() == NOPSEUDO) {
+            if (m_dynamicPseudo != NOPSEUDO && m_pseudoStyle == NOPSEUDO) {
                 if (m_checker.mode() == SelectorChecker::CollectingRules) {
                     InspectorInstrumentation::didMatchRule(cookie, false);
                     continue;
@@ -1212,7 +1219,7 @@ inline void StyleResolver::initElement(Element* e)
 
 inline void StyleResolver::initForStyleResolve(Element* e, RenderStyle* parentStyle, PseudoId pseudoID)
 {
-    m_checker.setPseudoStyle(pseudoID);
+    m_pseudoStyle = pseudoID;
 
     if (e) {
         NodeRenderingContext context(e);
@@ -1220,9 +1227,11 @@ inline void StyleResolver::initForStyleResolve(Element* e, RenderStyle* parentSt
         m_parentStyle = context.resetStyleInheritance()? 0 :
             parentStyle ? parentStyle :
             m_parentNode ? m_parentNode->renderStyle() : 0;
+        m_distributedToInsertionPoint = context.insertionPoint();
     } else {
         m_parentNode = 0;
         m_parentStyle = parentStyle;
+        m_distributedToInsertionPoint = false;
     }
 
     Node* docElement = e ? e->document()->documentElement() : 0;
@@ -1600,6 +1609,46 @@ void StyleResolver::matchUARules(MatchResult& result)
     }
 }
 
+static void setStylesForPaginationMode(Pagination::Mode paginationMode, RenderStyle* style)
+{
+    if (paginationMode == Pagination::Unpaginated)
+        return;
+        
+    switch (paginationMode) {
+    case Pagination::LeftToRightPaginated:
+        style->setColumnAxis(HorizontalColumnAxis);
+        if (style->isHorizontalWritingMode())
+            style->setColumnProgression(style->isLeftToRightDirection() ? NormalColumnProgression : ReverseColumnProgression);
+        else
+            style->setColumnProgression(style->isFlippedBlocksWritingMode() ? ReverseColumnProgression : NormalColumnProgression);
+        break;
+    case Pagination::RightToLeftPaginated:
+        style->setColumnAxis(HorizontalColumnAxis);
+        if (style->isHorizontalWritingMode())
+            style->setColumnProgression(style->isLeftToRightDirection() ? ReverseColumnProgression : NormalColumnProgression);
+        else
+            style->setColumnProgression(style->isFlippedBlocksWritingMode() ? NormalColumnProgression : ReverseColumnProgression);
+        break;
+    case Pagination::TopToBottomPaginated:
+        style->setColumnAxis(VerticalColumnAxis);
+        if (style->isHorizontalWritingMode())
+            style->setColumnProgression(style->isFlippedBlocksWritingMode() ? ReverseColumnProgression : NormalColumnProgression);
+        else
+            style->setColumnProgression(style->isLeftToRightDirection() ? NormalColumnProgression : ReverseColumnProgression);
+        break;
+    case Pagination::BottomToTopPaginated:
+        style->setColumnAxis(VerticalColumnAxis);
+        if (style->isHorizontalWritingMode())
+            style->setColumnProgression(style->isFlippedBlocksWritingMode() ? NormalColumnProgression : ReverseColumnProgression);
+        else
+            style->setColumnProgression(style->isLeftToRightDirection() ? ReverseColumnProgression : NormalColumnProgression);
+        break;
+    case Pagination::Unpaginated:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+}
+
 PassRefPtr<RenderStyle> StyleResolver::styleForDocument(Document* document, CSSFontSelector* fontSelector)
 {
     Frame* frame = document->frame();
@@ -1645,44 +1694,15 @@ PassRefPtr<RenderStyle> StyleResolver::styleForDocument(Document* document, CSSF
     }
 
     if (frame) {
-        if (Page* page = frame->page()) {
-            const Page::Pagination& pagination = page->pagination();
-            if (pagination.mode != Page::Pagination::Unpaginated) {
-                switch (pagination.mode) {
-                case Page::Pagination::LeftToRightPaginated:
-                    documentStyle->setColumnAxis(HorizontalColumnAxis);
-                    if (documentStyle->isHorizontalWritingMode())
-                        documentStyle->setColumnProgression(documentStyle->isLeftToRightDirection() ? NormalColumnProgression : ReverseColumnProgression);
-                    else
-                        documentStyle->setColumnProgression(documentStyle->isFlippedBlocksWritingMode() ? ReverseColumnProgression : NormalColumnProgression);
-                    break;
-                case Page::Pagination::RightToLeftPaginated:
-                    documentStyle->setColumnAxis(HorizontalColumnAxis);
-                    if (documentStyle->isHorizontalWritingMode())
-                        documentStyle->setColumnProgression(documentStyle->isLeftToRightDirection() ? ReverseColumnProgression : NormalColumnProgression);
-                    else
-                        documentStyle->setColumnProgression(documentStyle->isFlippedBlocksWritingMode() ? NormalColumnProgression : ReverseColumnProgression);
-                    break;
-                case Page::Pagination::TopToBottomPaginated:
-                    documentStyle->setColumnAxis(VerticalColumnAxis);
-                    if (documentStyle->isHorizontalWritingMode())
-                        documentStyle->setColumnProgression(documentStyle->isFlippedBlocksWritingMode() ? ReverseColumnProgression : NormalColumnProgression);
-                    else
-                        documentStyle->setColumnProgression(documentStyle->isLeftToRightDirection() ? NormalColumnProgression : ReverseColumnProgression);
-                    break;
-                case Page::Pagination::BottomToTopPaginated:
-                    documentStyle->setColumnAxis(VerticalColumnAxis);
-                    if (documentStyle->isHorizontalWritingMode())
-                        documentStyle->setColumnProgression(documentStyle->isFlippedBlocksWritingMode() ? NormalColumnProgression : ReverseColumnProgression);
-                    else
-                        documentStyle->setColumnProgression(documentStyle->isLeftToRightDirection() ? ReverseColumnProgression : NormalColumnProgression);
-                    break;
-                case Page::Pagination::Unpaginated:
-                    ASSERT_NOT_REACHED();
-                    break;
-                }
-
+        if (FrameView* frameView = frame->view()) {
+            const Pagination& pagination = frameView->pagination();
+            if (pagination.mode != Pagination::Unpaginated) {
+                setStylesForPaginationMode(pagination.mode, documentStyle.get());
                 documentStyle->setColumnGap(pagination.gap);
+                if (RenderView* view = document->renderView()) {
+                    if (view->hasColumns())
+                        view->updateColumnInfoFromStyle(documentStyle.get());
+                }
             }
         }
     }
@@ -1741,7 +1761,7 @@ PassRefPtr<RenderStyle> StyleResolver::styleForElement(Element* element, RenderS
     initElement(element);
     initForStyleResolve(element, defaultParent);
     m_regionForStyling = regionForStyling;
-    if (sharingBehavior == AllowStyleSharing) {
+    if (sharingBehavior == AllowStyleSharing && !m_distributedToInsertionPoint) {
         RenderStyle* sharedStyle = locateSharedStyle();
         if (sharedStyle)
             return sharedStyle;
@@ -2014,9 +2034,7 @@ static EDisplay equivalentBlockDisplay(EDisplay display, bool isFloating, bool s
     case BLOCK:
     case TABLE:
     case BOX:
-#if ENABLE(CSS3_FLEXBOX)
     case FLEX:
-#endif
     case GRID:
         return display;
 
@@ -2029,10 +2047,8 @@ static EDisplay equivalentBlockDisplay(EDisplay display, bool isFloating, bool s
         return TABLE;
     case INLINE_BOX:
         return BOX;
-#if ENABLE(CSS3_FLEXBOX)
     case INLINE_FLEX:
         return FLEX;
-#endif
     case INLINE_GRID:
         return GRID;
 
@@ -2064,7 +2080,12 @@ static bool doesNotInheritTextDecoration(RenderStyle* style, Element* e)
 {
     return style->display() == TABLE || style->display() == INLINE_TABLE || style->display() == RUN_IN
         || style->display() == INLINE_BLOCK || style->display() == INLINE_BOX || isAtShadowBoundary(e)
-        || style->isFloating() || style->isOutOfFlowPositioned();
+        || style->isFloating() || style->hasOutOfFlowPosition();
+}
+
+static bool isDisplayFlexibleBox(EDisplay display)
+{
+    return display == FLEX || display == INLINE_FLEX;
 }
 
 void StyleResolver::adjustRenderStyle(RenderStyle* style, RenderStyle* parentStyle, Element *e)
@@ -2125,7 +2146,7 @@ void StyleResolver::adjustRenderStyle(RenderStyle* style, RenderStyle* parentSty
             style->setDisplay(BLOCK);
 
         // Absolute/fixed positioned elements, floating elements and the document element need block-like outside display.
-        if (style->position() == AbsolutePosition || style->position() == FixedPosition || style->isFloating() || (e && e->document()->documentElement() == e))
+        if (style->hasOutOfFlowPosition() || style->isFloating() || (e && e->document()->documentElement() == e))
             style->setDisplay(equivalentBlockDisplay(style->display(), style->isFloating(), m_checker.strictParsing()));
 
         // FIXME: Don't support this mutation for pseudo styles like first-letter or first-line, since it's not completely
@@ -2154,27 +2175,33 @@ void StyleResolver::adjustRenderStyle(RenderStyle* style, RenderStyle* parentSty
         if (style->writingMode() != TopToBottomWritingMode && (style->display() == BOX || style->display() == INLINE_BOX))
             style->setWritingMode(TopToBottomWritingMode);
 
-        if (e && e->parentNode() && e->parentNode()->renderer() && e->parentNode()->renderer()->isFlexibleBox()) {
+        if (isDisplayFlexibleBox(parentStyle->display())) {
             style->setFloating(NoFloat);
             style->setDisplay(equivalentBlockDisplay(style->display(), style->isFloating(), m_checker.strictParsing()));
         }
     }
 
     // Make sure our z-index value is only applied if the object is positioned.
-    if (style->position() == StaticPosition)
+    if (style->position() == StaticPosition && !isDisplayFlexibleBox(parentStyle->display()))
         style->setHasAutoZIndex();
 
     // Auto z-index becomes 0 for the root element and transparent objects. This prevents
     // cases where objects that should be blended as a single unit end up with a non-transparent
     // object wedged in between them. Auto z-index also becomes 0 for objects that specify transforms/masks/reflections.
-    if (style->hasAutoZIndex() && ((e && e->document()->documentElement() == e) || style->opacity() < 1.0f
-        || style->hasTransformRelatedProperty() || style->hasMask() || style->boxReflect() || style->hasFilter()
+    if (style->hasAutoZIndex() && ((e && e->document()->documentElement() == e)
+        || style->opacity() < 1.0f
+        || style->hasTransformRelatedProperty()
+        || style->hasMask()
+        || style->boxReflect()
+        || style->hasFilter()
+        || style->hasBlendMode()
+        || style->position() == StickyPosition
 #ifdef FIXED_POSITION_CREATES_STACKING_CONTEXT
         || style->position() == FixedPosition
 #else
         || (style->position() == FixedPosition && e && e->document()->page() && e->document()->page()->settings()->fixedPositionCreatesStackingContext())
 #endif
-#if ENABLE(OVERFLOW_SCROLLING)
+#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
         // Touch overflow scrolling creates a stacking context.
         || ((style->overflowX() != OHIDDEN || style->overflowY() != OHIDDEN) && style->useTouchOverflowScrolling())
 #endif
@@ -2197,10 +2224,19 @@ void StyleResolver::adjustRenderStyle(RenderStyle* style, RenderStyle* parentSty
         style->setOverflowY(OMARQUEE);
     else if (style->overflowY() == OMARQUEE && style->overflowX() != OMARQUEE)
         style->setOverflowX(OMARQUEE);
-    else if (style->overflowX() == OVISIBLE && style->overflowY() != OVISIBLE)
+    else if (style->overflowX() == OVISIBLE && style->overflowY() != OVISIBLE) {
+        // FIXME: Once we implement pagination controls, overflow-x should default to hidden
+        // if overflow-y is set to -webkit-paged-x or -webkit-page-y. For now, we'll let it
+        // default to auto so we can at least scroll through the pages.
         style->setOverflowX(OAUTO);
-    else if (style->overflowY() == OVISIBLE && style->overflowX() != OVISIBLE)
+    } else if (style->overflowY() == OVISIBLE && style->overflowX() != OVISIBLE)
         style->setOverflowY(OAUTO);
+
+    // Call setStylesForPaginationMode() if a pagination mode is set for any non-root elements. If these
+    // styles are specified on a root element, then they will be incorporated in
+    // StyleResolver::styleForDocument().
+    if ((style->overflowY() == OPAGEDX || style->overflowY() == OPAGEDY) && !(e->hasTagName(htmlTag) || e->hasTagName(bodyTag)))
+        setStylesForPaginationMode(WebCore::paginationModeForRenderStyle(style), style);
 
     // Table rows, sections and the table itself will support overflow:hidden and will ignore scroll/auto.
     // FIXME: Eventually table sections will support auto and scroll.
@@ -2366,11 +2402,11 @@ PassRefPtr<CSSRuleList> StyleResolver::pseudoStyleRulesForElement(Element* e, Ps
 inline bool StyleResolver::checkSelector(const RuleData& ruleData, const ContainerNode* scope)
 {
     m_dynamicPseudo = NOPSEUDO;
-    m_checker.clearHasUnknownPseudoElements();
+    m_hasUnknownPseudoElements = false;
 
     if (ruleData.hasFastCheckableSelector()) {
         // We know this selector does not include any pseudo elements.
-        if (m_checker.pseudoStyle() != NOPSEUDO)
+        if (m_pseudoStyle != NOPSEUDO)
             return false;
         // We know a sufficiently simple single part selector matches simply because we found it from the rule hash.
         // This is limited to HTML only so we don't need to check the namespace.
@@ -2389,10 +2425,11 @@ inline bool StyleResolver::checkSelector(const RuleData& ruleData, const Contain
     context.elementStyle = style();
     context.elementParentStyle = m_parentNode ? m_parentNode->renderStyle() : 0;
     context.scope = scope;
-    SelectorChecker::SelectorMatch match = m_checker.checkSelector(context, m_dynamicPseudo);
+    context.pseudoStyle = m_pseudoStyle;
+    SelectorChecker::SelectorMatch match = m_checker.checkSelector(context, m_dynamicPseudo, m_hasUnknownPseudoElements);
     if (match != SelectorChecker::SelectorMatches)
         return false;
-    if (m_checker.pseudoStyle() != NOPSEUDO && m_checker.pseudoStyle() != m_dynamicPseudo)
+    if (m_pseudoStyle != NOPSEUDO && m_pseudoStyle != m_dynamicPseudo)
         return false;
     return true;
 }
@@ -2402,8 +2439,8 @@ bool StyleResolver::checkRegionSelector(CSSSelector* regionSelector, Element* re
     if (!regionSelector || !regionElement)
         return false;
 
-    m_checker.clearHasUnknownPseudoElements();
-    m_checker.setPseudoStyle(NOPSEUDO);
+    m_hasUnknownPseudoElements = false;
+    m_pseudoStyle = NOPSEUDO;
 
     for (CSSSelector* s = regionSelector; s; s = CSSSelectorList::next(s))
         if (m_checker.checkSelector(s, regionElement))
@@ -2516,7 +2553,7 @@ RuleData::RuleData(StyleRule* rule, unsigned selectorIndex, unsigned position, b
 
 void RuleData::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
 }
 
 RuleSet::RuleSet()
@@ -2534,7 +2571,7 @@ static void reportAtomRuleMap(MemoryClassInfo* info, const RuleSet::AtomRuleMap&
 
 void RuleSet::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     reportAtomRuleMap(&info, m_idRules);
     reportAtomRuleMap(&info, m_classRules);
     reportAtomRuleMap(&info, m_tagRules);
@@ -2548,8 +2585,8 @@ void RuleSet::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 
 void RuleSet::RuleSetSelectorPair::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
-    info.addInstrumentedMember(ruleSet);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
+    info.addMember(ruleSet);
 }
 
 static inline void collectFeaturesFromSelector(StyleResolver::Features& features, const CSSSelector* selector)
@@ -3322,8 +3359,15 @@ static bool createGridPosition(CSSValue* value, Length& position)
 #if ENABLE(CSS_VARIABLES)
 static bool hasVariableReference(CSSValue* value)
 {
-    if (value->isPrimitiveValue() && static_cast<CSSPrimitiveValue*>(value)->isVariableName())
-        return true;
+    if (value->isPrimitiveValue()) {
+        CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
+        if (CSSCalcValue* calcValue = primitiveValue->cssCalcValue())
+            return calcValue->hasVariableReference();
+        return primitiveValue->isVariableName();
+    }
+
+    if (value->isCalculationValue())
+        return static_cast<CSSCalcValue*>(value)->hasVariableReference();
 
     for (CSSValueListIterator i = value; i.hasMore(); i.advance()) {
         if (hasVariableReference(i.value()))
@@ -3395,11 +3439,11 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     const PropertyHandler& handler = m_styleBuilder.propertyHandler(id);
     if (handler.isValid()) {
         if (isInherit)
-            handler.applyInheritValue(this);
+            handler.applyInheritValue(id, this);
         else if (isInitial)
-            handler.applyInitialValue(this);
+            handler.applyInitialValue(id, this);
         else
-            handler.applyValue(this, value);
+            handler.applyValue(id, this, value);
         return;
     }
 
@@ -3660,7 +3704,7 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyFont:
         if (isInherit) {
             FontDescription fontDescription = m_parentStyle->fontDescription();
-            m_style->setLineHeight(m_parentStyle->lineHeight());
+            m_style->setLineHeight(m_parentStyle->specifiedLineHeight());
             m_lineHeightValue = 0;
             setFontDescription(fontDescription);
         } else if (isInitial) {
@@ -4005,7 +4049,7 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
         return;
     }
 #endif
-#if ENABLE(OVERFLOW_SCROLLING)
+#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
     case CSSPropertyWebkitOverflowScrolling: {
         HANDLE_INHERIT_AND_INITIAL(useTouchOverflowScrolling, UseTouchOverflowScrolling);
         if (!primitiveValue)
@@ -4265,6 +4309,7 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyOutlineStyle:
     case CSSPropertyOutlineWidth:
     case CSSPropertyOverflow:
+    case CSSPropertyOverflowWrap:
     case CSSPropertyOverflowX:
     case CSSPropertyOverflowY:
     case CSSPropertyPadding:
@@ -4340,7 +4385,6 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyWebkitColumns:
     case CSSPropertyWebkitColumnSpan:
     case CSSPropertyWebkitColumnWidth:
-#if ENABLE(CSS3_FLEXBOX)
     case CSSPropertyWebkitAlignContent:
     case CSSPropertyWebkitAlignItems:
     case CSSPropertyWebkitAlignSelf:
@@ -4353,7 +4397,6 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyWebkitFlexWrap:
     case CSSPropertyWebkitJustifyContent:
     case CSSPropertyWebkitOrder:
-#endif
 #if ENABLE(CSS_REGIONS)
     case CSSPropertyWebkitFlowFrom:
     case CSSPropertyWebkitFlowInto:
@@ -4404,7 +4447,10 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
 #endif
     case CSSPropertyWebkitRtlOrdering:
     case CSSPropertyWebkitTextCombine:
+#if ENABLE(CSS3_TEXT_DECORATION)
     case CSSPropertyWebkitTextDecorationLine:
+    case CSSPropertyWebkitTextDecorationStyle:
+#endif // CSS3_TEXT_DECORATION
     case CSSPropertyWebkitTextEmphasisColor:
     case CSSPropertyWebkitTextEmphasisPosition:
     case CSSPropertyWebkitTextEmphasisStyle:
@@ -4424,6 +4470,7 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyWebkitUserDrag:
     case CSSPropertyWebkitUserModify:
     case CSSPropertyWebkitUserSelect:
+    case CSSPropertyWebkitClipPath:
 #if ENABLE(CSS_EXCLUSIONS)
     case CSSPropertyWebkitWrap:
     case CSSPropertyWebkitWrapFlow:
@@ -5206,7 +5253,22 @@ static bool sortParametersByNameComparator(const RefPtr<CustomFilterParameter>& 
     return codePointCompareLessThan(a->name(), b->name());
 }
 
-PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterNumberParamter(const String& name, CSSValueList* values)
+PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterArrayParameter(const String& name, CSSValueList* values)
+{
+    RefPtr<CustomFilterArrayParameter> arrayParameter = CustomFilterArrayParameter::create(name);
+    for (unsigned i = 0, length = values->length(); i < length; ++i) {
+        CSSValue* value = values->itemWithoutBoundsCheck(i);
+        if (!value->isPrimitiveValue())
+            return 0;
+        CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
+        if (primitiveValue->primitiveType() != CSSPrimitiveValue::CSS_NUMBER)
+            return 0;
+        arrayParameter->addValue(primitiveValue->getDoubleValue());
+    }
+    return arrayParameter.release();
+}
+
+PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterNumberParameter(const String& name, CSSValueList* values)
 {
     RefPtr<CustomFilterNumberParameter> numberParameter = CustomFilterNumberParameter::create(name);
     for (unsigned i = 0; i < values->length(); ++i) {
@@ -5219,6 +5281,55 @@ PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterNumberParamter
         numberParameter->addValue(primitiveValue->getDoubleValue());
     }
     return numberParameter.release();
+}
+
+PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterTransformParameter(const String& name, CSSValueList* values)
+{
+    RefPtr<CustomFilterTransformParameter> transformParameter = CustomFilterTransformParameter::create(name);
+    TransformOperations operations;
+    createTransformOperations(values, style(), m_rootElementStyle, operations);
+    transformParameter->setOperations(operations);
+    return transformParameter.release();
+}
+
+PassRefPtr<CustomFilterParameter> StyleResolver::parseCustomFilterParameter(const String& name, CSSValue* parameterValue)
+{
+    // FIXME: Implement other parameters types parsing.
+    // booleans: https://bugs.webkit.org/show_bug.cgi?id=76438
+    // textures: https://bugs.webkit.org/show_bug.cgi?id=71442
+    // mat2, mat3, mat4: https://bugs.webkit.org/show_bug.cgi?id=71444
+    // Number parameters are wrapped inside a CSSValueList and all
+    // the other functions values inherit from CSSValueList.
+    if (!parameterValue->isValueList())
+        return 0;
+
+    CSSValueList* values = static_cast<CSSValueList*>(parameterValue);
+    if (!values->length())
+        return 0;
+
+    if (parameterValue->isWebKitCSSArrayFunctionValue())
+        return parseCustomFilterArrayParameter(name, values);
+
+    // If the first value of the list is a transform function,
+    // then we could safely assume that all the remaining items
+    // are transforms. parseCustomFilterTransformParameter will
+    // return 0 if that assumption is incorrect.
+    if (values->itemWithoutBoundsCheck(0)->isWebKitCSSTransformValue())
+        return parseCustomFilterTransformParameter(name, values);
+
+    // We can have only arrays of booleans or numbers, so use the first value to choose between those two.
+    // We need up to 4 values (all booleans or all numbers).
+    if (!values->itemWithoutBoundsCheck(0)->isPrimitiveValue() || values->length() > 4)
+        return 0;
+    
+    CSSPrimitiveValue* firstPrimitiveValue = static_cast<CSSPrimitiveValue*>(values->itemWithoutBoundsCheck(0));
+    if (firstPrimitiveValue->primitiveType() == CSSPrimitiveValue::CSS_NUMBER)
+        return parseCustomFilterNumberParameter(name, values);
+
+    // FIXME: Implement the boolean array parameter here.
+    // https://bugs.webkit.org/show_bug.cgi?id=76438
+
+    return 0;
 }
 
 bool StyleResolver::parseCustomFilterParameterList(CSSValue* parametersValue, CustomFilterParameterList& parameterList)
@@ -5246,34 +5357,9 @@ bool StyleResolver::parseCustomFilterParameterList(CSSValue* parametersValue, Cu
         if (!iterator.hasMore())
             return false;
         
-        // FIXME: Implement other parameters types parsing.
-        // booleans: https://bugs.webkit.org/show_bug.cgi?id=76438
-        // textures: https://bugs.webkit.org/show_bug.cgi?id=71442
-        // 3d-transforms: https://bugs.webkit.org/show_bug.cgi?id=71443
-        // mat2, mat3, mat4: https://bugs.webkit.org/show_bug.cgi?id=71444
-        RefPtr<CustomFilterParameter> parameter;
-        if (iterator.value()->isValueList()) {
-            CSSValueList* values = static_cast<CSSValueList*>(iterator.value());
-            iterator.advance();
-            
-            // We can have only arrays of booleans or numbers, so use the first value to choose between those two.
-            // Make sure we have at least one value. We need up to 4 values (all booleans or all numbers).
-            if (!values->length() || values->length() > 4)
-                return false;
-            
-            if (!values->itemWithoutBoundsCheck(0)->isPrimitiveValue())
-                return false;
-            
-            CSSPrimitiveValue* firstPrimitiveValue = static_cast<CSSPrimitiveValue*>(values->itemWithoutBoundsCheck(0));
-            if (firstPrimitiveValue->primitiveType() == CSSPrimitiveValue::CSS_NUMBER)
-                parameter = parseCustomFilterNumberParamter(name, values);
-            // FIXME: Implement the boolean array parameter here.
-            // https://bugs.webkit.org/show_bug.cgi?id=76438
-        }
-        
+        RefPtr<CustomFilterParameter> parameter = parseCustomFilterParameter(name, iterator.value());
         if (!parameter)
             return false;
-        
         parameterList.append(parameter.release());
     }
     
@@ -5672,39 +5758,39 @@ void StyleResolver::loadPendingResources()
 
 void StyleResolver::MatchedProperties::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
-    info.addInstrumentedMember(properties);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
+    info.addMember(properties);
 }
 
 void StyleResolver::MatchedPropertiesCacheItem::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     info.addInstrumentedVector(matchedProperties);
 }
 
 void MediaQueryResult::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
-    info.addInstrumentedMember(m_expression);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
+    info.addMember(m_expression);
 }
 
 void StyleResolver::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
     info.addMember(m_style);
-    info.addInstrumentedMember(m_authorStyle);
-    info.addInstrumentedMember(m_userStyle);
-    info.addInstrumentedMember(m_siblingRuleSet);
-    info.addInstrumentedMember(m_uncommonAttributeRuleSet);
+    info.addMember(m_authorStyle);
+    info.addMember(m_userStyle);
+    info.addMember(m_siblingRuleSet);
+    info.addMember(m_uncommonAttributeRuleSet);
     info.addHashMap(m_keyframesRuleMap);
     info.addHashMap(m_matchedPropertiesCache);
     info.addInstrumentedMapValues(m_matchedPropertiesCache);
     info.addVector(m_matchedRules);
 
-    info.addInstrumentedMember(m_ruleList);
+    info.addMember(m_ruleList);
     info.addHashMap(m_pendingImageProperties);
     info.addInstrumentedMapValues(m_pendingImageProperties);
-    info.addInstrumentedMember(m_lineHeightValue);
+    info.addMember(m_lineHeightValue);
     info.addInstrumentedVector(m_viewportDependentMediaQueryResults);
     info.addHashMap(m_styleRuleToCSSOMWrapperMap);
     info.addInstrumentedMapEntries(m_styleRuleToCSSOMWrapperMap);
@@ -5719,10 +5805,10 @@ void StyleResolver::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 #endif
 
     // FIXME: move this to a place where it would be called only once?
-    info.addInstrumentedMember(defaultStyle);
-    info.addInstrumentedMember(defaultQuirksStyle);
-    info.addInstrumentedMember(defaultPrintStyle);
-    info.addInstrumentedMember(defaultViewSourceStyle);
+    info.addMember(defaultStyle);
+    info.addMember(defaultQuirksStyle);
+    info.addMember(defaultPrintStyle);
+    info.addMember(defaultViewSourceStyle);
 }
 
 } // namespace WebCore

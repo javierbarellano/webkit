@@ -375,6 +375,7 @@ private:
 };
 
 class WebGLRenderingContextLostCallback : public GraphicsContext3D::ContextLostCallback {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit WebGLRenderingContextLostCallback(WebGLRenderingContext* cb) : m_context(cb) { }
     virtual void onContextLost() { m_context->forceLostContext(WebGLRenderingContext::RealLostContext); }
@@ -384,6 +385,7 @@ private:
 };
 
 class WebGLRenderingContextErrorMessageCallback : public GraphicsContext3D::ErrorMessageCallback {
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     explicit WebGLRenderingContextErrorMessageCallback(WebGLRenderingContext* cb) : m_context(cb) { }
     virtual void onErrorMessage(const String& message, GC3Dint) { m_context->printGLErrorToConsole(message); }
@@ -418,6 +420,10 @@ PassOwnPtr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasElemen
         canvas->dispatchEvent(WebGLContextEvent::create(eventNames().webglcontextcreationerrorEvent, false, true, "Could not create a WebGL context."));
         return nullptr;
     }
+
+    Extensions3D* extensions = context->getExtensions();
+    if (extensions->supports("GL_EXT_debug_marker"))
+        extensions->pushGroupMarkerEXT("WebGLRenderingContext");
 
     return adoptPtr(new WebGLRenderingContext(canvas, context, attributes));
 }
@@ -597,6 +603,9 @@ void WebGLRenderingContext::markContextChanged()
         return;
 
     m_context->markContextChanged();
+
+    if (m_drawingBuffer)
+        m_drawingBuffer->markContentsChanged();
 
     m_layerCleared = false;
 #if USE(ACCELERATED_COMPOSITING)
@@ -5169,13 +5178,14 @@ void WebGLRenderingContext::printWarningToConsole(const String& message)
 {
     if (!canvas())
         return;
+    // FIXME: This giant cascade of null checks seems a bit paranoid.
     Document* document = canvas()->document();
     if (!document)
         return;
     Frame* frame = document->frame();
     if (!frame)
         return;
-    DOMWindow* window = frame->domWindow();
+    DOMWindow* window = document->domWindow();
     if (!window)
         return;
     Console* console = window->console();
@@ -5554,7 +5564,20 @@ void WebGLRenderingContext::maybeRestoreContext(Timer<WebGLRenderingContext>*)
         break;
     }
 
-    RefPtr<GraphicsContext3D> context(GraphicsContext3D::create(m_attributes, canvas()->document()->view()->root()->hostWindow()));
+    Document* document = canvas()->document();
+    if (!document)
+        return;
+    FrameView* view = document->view();
+    if (!view)
+        return;
+    ScrollView* root = view->root();
+    if (!root)
+        return;
+    HostWindow* hostWindow = root->hostWindow();
+    if (!hostWindow)
+        return;
+
+    RefPtr<GraphicsContext3D> context(GraphicsContext3D::create(m_attributes, hostWindow));
     if (!context) {
         if (m_contextLostMode == RealLostContext)
             m_restoreTimer.startOneShot(secondsBetweenRestoreAttempts);

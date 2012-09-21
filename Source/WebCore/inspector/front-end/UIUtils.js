@@ -60,22 +60,38 @@ WebInspector._elementDragStart = function(elementDragStart, elementDrag, element
     if (elementDragStart && !elementDragStart(event))
         return;
 
-    // Install glass pane
-    if (WebInspector._elementDraggingGlassPane)
+    if (WebInspector._elementDraggingGlassPane) {
         WebInspector._elementDraggingGlassPane.dispose();
+        delete WebInspector._elementDraggingGlassPane;
+    }
 
-    WebInspector._elementDraggingGlassPane = new WebInspector.GlassPane();
+    var targetDocument = event.target.ownerDocument;
 
     WebInspector._elementDraggingEventListener = elementDrag;
     WebInspector._elementEndDraggingEventListener = elementDragEnd;
+    WebInspector._mouseOutWhileDraggingTargetDocument = targetDocument;
 
-    var targetDocument = event.target.ownerDocument;
     targetDocument.addEventListener("mousemove", WebInspector._elementDraggingEventListener, true);
     targetDocument.addEventListener("mouseup", WebInspector._elementDragEnd, true);
+    targetDocument.addEventListener("mouseout", WebInspector._mouseOutWhileDragging, true);
 
     targetDocument.body.style.cursor = cursor;
 
     event.preventDefault();
+}
+
+WebInspector._mouseOutWhileDragging = function()
+{
+    WebInspector._unregisterMouseOutWhileDragging();
+    WebInspector._elementDraggingGlassPane = new WebInspector.GlassPane();
+}
+
+WebInspector._unregisterMouseOutWhileDragging = function()
+{
+    if (!WebInspector._mouseOutWhileDraggingTargetDocument)
+        return;
+    WebInspector._mouseOutWhileDraggingTargetDocument.removeEventListener("mouseout", WebInspector._mouseOutWhileDragging, true);
+    delete WebInspector._mouseOutWhileDraggingTargetDocument;
 }
 
 WebInspector._elementDragEnd = function(event)
@@ -83,6 +99,7 @@ WebInspector._elementDragEnd = function(event)
     var targetDocument = event.target.ownerDocument;
     targetDocument.removeEventListener("mousemove", WebInspector._elementDraggingEventListener, true);
     targetDocument.removeEventListener("mouseup", WebInspector._elementDragEnd, true);
+    WebInspector._unregisterMouseOutWhileDragging();
 
     targetDocument.body.style.removeProperty("cursor");
 
@@ -680,30 +697,6 @@ Number.withThousandsSeparator = function(num)
     return str;
 }
 
-WebInspector._missingLocalizedStrings = {};
-
-/**
- * @param {string} string
- * @param {...*} vararg
- */
-WebInspector.UIString = function(string, vararg)
-{
-    if (Preferences.localizeUI) {
-        if (window.localizedStrings && string in window.localizedStrings)
-            string = window.localizedStrings[string];
-        else {
-            if (!(string in WebInspector._missingLocalizedStrings)) {
-                console.warn("Localized string \"" + string + "\" not found.");
-                WebInspector._missingLocalizedStrings[string] = true;
-            }
-    
-            if (Preferences.showMissingLocalizedStrings)
-                string += " (not localized)";
-        }
-    }
-    return String.vsprintf(string, Array.prototype.slice.call(arguments, 1));
-}
-
 WebInspector.useLowerCaseMenuTitles = function()
 {
     return WebInspector.platform() === "windows" && Preferences.useLowerCaseMenuTitlesOnWindows;
@@ -1038,27 +1031,49 @@ WebInspector.revertDomChanges = function(domChanges)
     }
 }
 
-/**
- * @param {WebInspector.ContextMenu} contextMenu
- * @param {Node} contextNode
- * @param {Event} event
- */
-WebInspector.populateHrefContextMenu = function(contextMenu, contextNode, event)
+WebInspector._coalescingLevel = 0;
+
+WebInspector.startBatchUpdate = function()
 {
-    var anchorElement = event.target.enclosingNodeOrSelfWithClass("webkit-html-resource-link") || event.target.enclosingNodeOrSelfWithClass("webkit-html-external-link");
-    if (!anchorElement)
-        return false;
+    if (!WebInspector._coalescingLevel)
+        WebInspector._postUpdateHandlers = new Map();
+    WebInspector._coalescingLevel++;
+}
 
-    var resourceURL = WebInspector.resourceURLForRelatedNode(contextNode, anchorElement.href);
-    if (!resourceURL)
-        return false;
+WebInspector.endBatchUpdate = function()
+{
+    if (--WebInspector._coalescingLevel)
+        return;
 
-    // Add resource-related actions.
-    contextMenu.appendItem(WebInspector.openLinkExternallyLabel(), WebInspector.openResource.bind(WebInspector, resourceURL, false));
-    if (WebInspector.resourceForURL(resourceURL))
-        contextMenu.appendItem(WebInspector.UIString(WebInspector.useLowerCaseMenuTitles() ? "Open link in Resources panel" : "Open Link in Resources Panel"), WebInspector.openResource.bind(null, resourceURL, true));
-    contextMenu.appendItem(WebInspector.copyLinkAddressLabel(), InspectorFrontendHost.copyText.bind(InspectorFrontendHost, resourceURL));
-    return true;
+    var handlers = WebInspector._postUpdateHandlers;
+    delete WebInspector._postUpdateHandlers;
+
+    var keys = handlers.keys();
+    for (var i = 0; i < keys.length; ++i) {
+        var object = keys[i];
+        var methods = handlers.get(object).keys();
+        for (var j = 0; j < methods.length; ++j)
+            methods[j].call(object);
+    }
+}
+
+/**
+ * @param {Object} object
+ * @param {function()} method
+ */
+WebInspector.invokeOnceAfterBatchUpdate = function(object, method)
+{
+    if (!WebInspector._coalescingLevel) {
+        method.call(object);
+        return;
+    }
+    
+    var methods = WebInspector._postUpdateHandlers.get(object);
+    if (!methods) {
+        methods = new Map();
+        WebInspector._postUpdateHandlers.put(object, methods);
+    }
+    methods.put(method);
 }
 
 ;(function() {

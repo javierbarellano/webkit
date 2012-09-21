@@ -31,10 +31,11 @@
 
 #include "FlowThreadController.h"
 
+#include "NamedFlowCollection.h"
 #include "RenderFlowThread.h"
 #include "RenderNamedFlowThread.h"
+#include "StyleInheritedData.h"
 #include "WebKitNamedFlow.h"
-#include "WebKitNamedFlowCollection.h"
 #include <wtf/text/AtomicString.h>
 
 namespace WebCore {
@@ -48,6 +49,7 @@ FlowThreadController::FlowThreadController(RenderView* view)
     : m_view(view)
     , m_currentRenderFlowThread(0)
     , m_isRenderNamedFlowThreadOrderDirty(false)
+    , m_autoLogicalHeightRegionsCount(0)
 {
 }
 
@@ -67,7 +69,7 @@ RenderNamedFlowThread* FlowThreadController::ensureRenderFlowThreadWithName(cons
         }
     }
 
-    WebKitNamedFlowCollection* namedFlows = m_view->document()->namedFlows();
+    NamedFlowCollection* namedFlows = m_view->document()->namedFlows();
 
     // Sanity check for the absence of a named flow in the "CREATED" state with the same name.
     ASSERT(!namedFlows->flowByName(name));
@@ -84,9 +86,37 @@ RenderNamedFlowThread* FlowThreadController::ensureRenderFlowThreadWithName(cons
     return flowRenderer;
 }
 
+void FlowThreadController::styleDidChange()
+{
+    RenderStyle* viewStyle = m_view->style();
+    for (RenderNamedFlowThreadList::iterator iter = m_renderNamedFlowThreadList->begin(); iter != m_renderNamedFlowThreadList->end(); ++iter) {
+        RenderNamedFlowThread* flowRenderer = *iter;
+        flowRenderer->setStyle(RenderFlowThread::createFlowThreadStyle(viewStyle));
+    }
+}
+
 void FlowThreadController::layoutRenderNamedFlowThreads()
 {
     ASSERT(m_renderNamedFlowThreadList);
+
+    ASSERT(isAutoLogicalHeightRegionsFlagConsistent());
+
+    // Remove the left-over flow threads.
+    RenderNamedFlowThreadList toRemoveList;
+    for (RenderNamedFlowThreadList::iterator iter = m_renderNamedFlowThreadList->begin(); iter != m_renderNamedFlowThreadList->end(); ++iter) {
+        RenderNamedFlowThread* flowRenderer = *iter;
+        if (flowRenderer->isMarkedForDestruction())
+            toRemoveList.add(flowRenderer);
+    }
+
+    if (toRemoveList.size() > 0)
+        setIsRenderNamedFlowThreadOrderDirty(true);
+
+    for (RenderNamedFlowThreadList::iterator iter = toRemoveList.begin(); iter != toRemoveList.end(); ++iter) {
+        RenderNamedFlowThread* flowRenderer = *iter;
+        m_renderNamedFlowThreadList->remove(flowRenderer);
+        flowRenderer->destroy();
+    }
 
     if (isRenderNamedFlowThreadOrderDirty()) {
         // Arrange the thread list according to dependencies.
@@ -129,10 +159,21 @@ void FlowThreadController::unregisterNamedFlowContentNode(Node* contentNode)
     m_mapNamedFlowContentNodes.remove(contentNode);
 }
 
-void FlowThreadController::removeFlowThread(RenderNamedFlowThread* flowThread)
+#ifndef NDEBUG
+bool FlowThreadController::isAutoLogicalHeightRegionsFlagConsistent() const
 {
-    m_renderNamedFlowThreadList->remove(flowThread);
-    setIsRenderNamedFlowThreadOrderDirty(true);
+    if (!hasRenderNamedFlowThreads())
+        return !hasAutoLogicalHeightRegions();
+
+    // Count the number of auto height regions
+    unsigned autoLogicalHeightRegions = 0;
+    for (RenderNamedFlowThreadList::iterator iter = m_renderNamedFlowThreadList->begin(); iter != m_renderNamedFlowThreadList->end(); ++iter) {
+        RenderNamedFlowThread* flowRenderer = *iter;
+        autoLogicalHeightRegions += flowRenderer->autoLogicalHeightRegionsCount();
+    }
+
+    return autoLogicalHeightRegions == m_autoLogicalHeightRegionsCount;
 }
+#endif
 
 } // namespace WebCore

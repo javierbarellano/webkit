@@ -105,6 +105,24 @@ NotificationClient::Permission WebNotificationManager::policyForOrigin(WebCore::
     return NotificationClient::PermissionNotAllowed;
 }
 
+void WebNotificationManager::removeAllPermissionsForTesting()
+{
+#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
+    m_permissionsMap.clear();
+#endif
+}
+
+uint64_t WebNotificationManager::notificationIDForTesting(Notification* notification)
+{
+#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
+    if (!notification)
+        return 0;
+    return m_notificationMap.get(notification);
+#else
+    return 0;
+#endif
+}
+
 bool WebNotificationManager::show(Notification* notification, WebPage* page)
 {
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
@@ -119,9 +137,9 @@ bool WebNotificationManager::show(Notification* notification, WebPage* page)
     it->second.append(notificationID);
 
 #if ENABLE(NOTIFICATIONS)
-    m_process->connection()->send(Messages::WebPageProxy::ShowNotification(notification->title(), notification->body(), notification->iconURL().string(), notification->tag(), notification->scriptExecutionContext()->securityOrigin()->toString(), notificationID), page->pageID());
+    m_process->connection()->send(Messages::WebPageProxy::ShowNotification(notification->title(), notification->body(), notification->iconURL().string(), notification->tag(), notification->lang(), notification->dir(), notification->scriptExecutionContext()->securityOrigin()->toString(), notificationID), page->pageID());
 #else
-    m_process->connection()->send(Messages::WebPageProxy::ShowNotification(notification->title(), notification->body(), notification->iconURL().string(), notification->replaceId(), notification->scriptExecutionContext()->securityOrigin()->toString(), notificationID), page->pageID());
+    m_process->connection()->send(Messages::WebPageProxy::ShowNotification(notification->title(), notification->body(), notification->iconURL().string(), notification->replaceId(), notification->lang(), notification->dir(), notification->scriptExecutionContext()->securityOrigin()->toString(), notificationID), page->pageID());
 #endif
     return true;
 #else

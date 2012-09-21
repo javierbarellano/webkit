@@ -34,7 +34,6 @@
 #include "HTMLStyleElement.h"
 #include "StyleSheetList.h"
 #include "V8Binding.h"
-#include "V8Proxy.h"
 #include "V8StyleSheet.h"
 
 namespace WebCore {
@@ -52,7 +51,7 @@ v8::Handle<v8::Value> V8StyleSheetList::namedPropertyGetter(v8::Local<v8::String
     if (!item)
         return v8Undefined();
 
-    return toV8(item->sheet(), info.GetIsolate());
+    return toV8(item->sheet(), info.Holder(), info.GetIsolate());
 }
 
 } // namespace WebCore

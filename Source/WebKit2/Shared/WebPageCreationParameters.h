@@ -67,7 +67,9 @@ struct WebPageCreationParameters {
     bool useFixedLayout;
     WebCore::IntSize fixedLayoutSize;
 
-    WebCore::Page::Pagination::Mode paginationMode;
+    bool suppressScrollbarAnimations;
+
+    WebCore::Pagination::Mode paginationMode;
     bool paginationBehavesLikeColumns;
     double pageLength;
     double gapBetweenPages;

@@ -45,7 +45,6 @@
 #include "V8DOMWrapper.h"
 #include "V8Element.h"
 #include "V8NPUtils.h"
-#include "V8Proxy.h"
 #include "V8Range.h"
 #include <wtf/ArrayBufferView.h>
 // FIXME: Remove the USE(JSC) ifdefs because we don't support USE(JSC) anymore.
@@ -290,7 +289,7 @@ static NPObject* makeIntArrayImpl(const WebVector<int>& data)
     for (size_t i = 0; i < data.size(); ++i)
         result->Set(i, v8::Number::New(data[i]));
 
-    DOMWindow* window = V8Proxy::retrieveWindow(v8::Context::GetCurrent());
+    DOMWindow* window = toDOMWindow(v8::Context::GetCurrent());
     return npCreateV8ScriptObject(0, result, window);
 }
 
@@ -301,7 +300,7 @@ static NPObject* makeStringArrayImpl(const WebVector<WebString>& data)
     for (size_t i = 0; i < data.size(); ++i)
         result->Set(i, data[i].data() ? v8::String::New(reinterpret_cast<const uint16_t*>((data[i].data())), data[i].length()) : v8::String::New(""));
 
-    DOMWindow* window = V8Proxy::retrieveWindow(v8::Context::GetCurrent());
+    DOMWindow* window = toDOMWindow(v8::Context::GetCurrent());
     return npCreateV8ScriptObject(0, result, window);
 }
 

@@ -25,29 +25,29 @@
 #ifndef CCLayerTreeHostImpl_h
 #define CCLayerTreeHostImpl_h
 
+#include "CCAnimationEvents.h"
+#include "CCInputHandler.h"
+#include "CCLayerSorter.h"
+#include "CCRenderPass.h"
+#include "CCRenderPassSink.h"
+#include "CCRenderer.h"
 #include "SkColor.h"
-#include "cc/CCAnimationEvents.h"
-#include "cc/CCInputHandler.h"
-#include "cc/CCLayerSorter.h"
-#include "cc/CCRenderPass.h"
-#include "cc/CCRenderer.h"
 #include <public/WebCompositorOutputSurfaceClient.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-class CCActiveGestureAnimation;
 class CCCompletionEvent;
 class CCDebugRectHistory;
 class CCFrameRateCounter;
+class CCHeadsUpDisplayLayerImpl;
 class CCLayerImpl;
 class CCLayerTreeHostImplTimeSourceAdapter;
 class CCPageScaleAnimation;
 class CCRenderPassDrawQuad;
 class CCResourceProvider;
-class LayerRendererChromium;
-struct LayerRendererCapabilities;
+struct RendererCapabilities;
 struct CCRenderingStats;
 
 // CCLayerTreeHost->CCProxy callback interface.
@@ -56,9 +56,11 @@ public:
     virtual void didLoseContextOnImplThread() = 0;
     virtual void onSwapBuffersCompleteOnImplThread() = 0;
     virtual void onVSyncParametersChanged(double monotonicTimebase, double intervalInSeconds) = 0;
+    virtual void onCanDrawStateChanged(bool canDraw) = 0;
     virtual void setNeedsRedrawOnImplThread() = 0;
     virtual void setNeedsCommitOnImplThread() = 0;
     virtual void postAnimationEventsToMainThreadOnImplThread(PassOwnPtr<CCAnimationEventsVector>, double wallClockTime) = 0;
+    virtual void releaseContentsTexturesOnImplThread() = 0;
 };
 
 // CCLayerTreeHostImpl owns the CCLayerImpl tree as well as associated rendering state
@@ -74,23 +76,23 @@ public:
 
     // CCInputHandlerClient implementation
     virtual CCInputHandlerClient::ScrollStatus scrollBegin(const IntPoint&, CCInputHandlerClient::ScrollInputType) OVERRIDE;
-    virtual void scrollBy(const IntSize&) OVERRIDE;
+    virtual void scrollBy(const IntPoint&, const IntSize&) OVERRIDE;
     virtual void scrollEnd() OVERRIDE;
     virtual void pinchGestureBegin() OVERRIDE;
     virtual void pinchGestureUpdate(float, const IntPoint&) OVERRIDE;
     virtual void pinchGestureEnd() OVERRIDE;
     virtual void startPageScaleAnimation(const IntSize& targetPosition, bool anchorPoint, float pageScale, double startTime, double duration) OVERRIDE;
-    virtual CCActiveGestureAnimation* activeGestureAnimation() OVERRIDE { return m_activeGestureAnimation.get(); }
-    // To clear an active animation, pass nullptr.
-    virtual void setActiveGestureAnimation(PassOwnPtr<CCActiveGestureAnimation>) OVERRIDE;
     virtual void scheduleAnimation() OVERRIDE;
 
-    struct FrameData {
+    struct FrameData : public CCRenderPassSink {
         Vector<IntRect> occludingScreenSpaceRects;
         CCRenderPassList renderPasses;
         CCRenderPassIdHashMap renderPassesById;
         CCLayerList* renderSurfaceLayerList;
         CCLayerList willDrawLayers;
+
+        // CCRenderPassSink implementation.
+        virtual void appendRenderPass(PassOwnPtr<CCRenderPass>) OVERRIDE;
     };
 
     // Virtual for testing.
@@ -128,10 +130,10 @@ public:
     void finishAllRendering();
     int sourceAnimationFrameNumber() const;
 
-    bool initializeLayerRenderer(PassOwnPtr<CCGraphicsContext>, TextureUploaderOption);
+    bool initializeRenderer(PassOwnPtr<CCGraphicsContext>, TextureUploaderOption);
     bool isContextLost();
-    CCRenderer* layerRenderer() { return m_layerRenderer.get(); }
-    const LayerRendererCapabilities& layerRendererCapabilities() const;
+    CCRenderer* renderer() { return m_renderer.get(); }
+    const RendererCapabilities& rendererCapabilities() const;
 
     bool swapBuffers();
 
@@ -139,6 +141,9 @@ public:
 
     void setRootLayer(PassOwnPtr<CCLayerImpl>);
     CCLayerImpl* rootLayer() { return m_rootLayerImpl.get(); }
+
+    void setHudLayer(CCHeadsUpDisplayLayerImpl* layerImpl) { m_hudLayerImpl = layerImpl; }
+    CCHeadsUpDisplayLayerImpl* hudLayer() { return m_hudLayerImpl; }
 
     // Release ownership of the current layer tree and replace it with an empty
     // tree. Returns the root layer of the detached tree.
@@ -152,7 +157,9 @@ public:
     int sourceFrameNumber() const { return m_sourceFrameNumber; }
     void setSourceFrameNumber(int frameNumber) { m_sourceFrameNumber = frameNumber; }
 
-    bool contentsTexturesWerePurgedSinceLastCommit() const { return m_contentsTexturesWerePurgedSinceLastCommit; }
+    bool contentsTexturesPurged() const { return m_contentsTexturesPurged; }
+    void setContentsTexturesPurged();
+    void resetContentsTexturesPurged();
     size_t memoryAllocationLimitBytes() const { return m_memoryAllocationLimitBytes; }
 
     void setViewportSize(const IntSize& layoutViewportSize, const IntSize& deviceViewportSize);
@@ -219,7 +226,6 @@ protected:
     CCLayerTreeHostImpl(const CCLayerTreeSettings&, CCLayerTreeHostImplClient*);
 
     void animatePageScale(double monotonicTime);
-    void animateGestures(double monotonicTime);
     void animateScrollbars(double monotonicTime);
 
     // Exposed for testing.
@@ -262,17 +268,19 @@ private:
 
     OwnPtr<CCGraphicsContext> m_context;
     OwnPtr<CCResourceProvider> m_resourceProvider;
-    OwnPtr<CCRenderer> m_layerRenderer;
+    OwnPtr<CCRenderer> m_renderer;
     OwnPtr<CCLayerImpl> m_rootLayerImpl;
     CCLayerImpl* m_rootScrollLayerImpl;
     CCLayerImpl* m_currentlyScrollingLayerImpl;
+    CCHeadsUpDisplayLayerImpl* m_hudLayerImpl;
     int m_scrollingLayerIdFromPreviousTree;
+    bool m_scrollDeltaIsInScreenSpace;
     CCLayerTreeSettings m_settings;
     IntSize m_layoutViewportSize;
     IntSize m_deviceViewportSize;
     float m_deviceScaleFactor;
     bool m_visible;
-    bool m_contentsTexturesWerePurgedSinceLastCommit;
+    bool m_contentsTexturesPurged;
     size_t m_memoryAllocationLimitBytes;
 
     float m_pageScale;
@@ -289,7 +297,6 @@ private:
     IntPoint m_previousPinchAnchor;
 
     OwnPtr<CCPageScaleAnimation> m_pageScaleAnimation;
-    OwnPtr<CCActiveGestureAnimation> m_activeGestureAnimation;
 
     // This is used for ticking animations slowly when hidden.
     OwnPtr<CCLayerTreeHostImplTimeSourceAdapter> m_timeSourceClientAdapter;

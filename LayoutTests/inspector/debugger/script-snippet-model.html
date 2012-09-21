@@ -14,9 +14,34 @@ function test()
     // FIXME: Remove once snippets are taken out of experiments.
     WebInspector.experimentsSettings.snippetsSupport = {};
     WebInspector.experimentsSettings.snippetsSupport.isEnabled = function() { return true; };
-    WebInspector.scriptSnippetModel = new WebInspector.ScriptSnippetModel();
+    var workspace = new WebInspector.Workspace();
+    var workspaceController = new WebInspector.WorkspaceController(workspace);
+    WebInspector.scriptSnippetModel = new WebInspector.ScriptSnippetModel(workspace);
 
     InspectorTest.runDebuggerTestSuite([
+        function testWorkspaceReset(next)
+        {
+            resetSnippetsSettings();
+            var snippetJavaScriptSource = WebInspector.scriptSnippetModel.createScriptSnippet();
+            var snippetName = "TestSnippet" + Math.random();
+            InspectorTest.addResult("Snippet created.");
+            WebInspector.scriptSnippetModel.renameScriptSnippet(snippetJavaScriptSource, snippetName);
+            workspace.addEventListener(WebInspector.UISourceCodeProvider.Events.UISourceCodeAdded, uiSourceCodeAdded);
+            InspectorTest.addResult("Resetting snippet script mapping.");
+            workspaceController._mainFrameNavigated();
+
+            function uiSourceCodeAdded(event)
+            {
+                InspectorTest.assertEquals(1, workspace.uiSourceCodes().length, "Only one snippet uiSourceCode should be present after project navigation.");
+                var uiSourceCode = event.data;
+                if (uiSourceCode.url.indexOf(snippetName) === -1)
+                    return;
+                InspectorTest.addResult("Snippet uiSourceCode was recreated.");
+                workspace.removeEventListener(WebInspector.UISourceCodeProvider.Events.UISourceCodeAdded, uiSourceCodeAdded);
+                next();
+            }
+        },
+
         function testEvaluate(next)
         {
             resetSnippetsSettings();
@@ -32,8 +57,7 @@ function test()
             WebInspector.scriptSnippetModel.renameScriptSnippet(snippetJavaScriptSource2, "Snippet2");
             content = "";
             content += "// This snippet creates a function that does nothing and returns it.\n";
-            content += "function doesNothing()\n";
-            content += "{\n";
+            content += "function doesNothing() {\n";
             content += "    var  i = 2+2;\n";
             content += "};\n";
             content += "doesNothing;\n";

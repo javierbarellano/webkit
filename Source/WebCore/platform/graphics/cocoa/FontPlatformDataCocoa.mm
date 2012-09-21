@@ -24,9 +24,9 @@
 #import "config.h"
 #import "FontPlatformData.h"
 
-#import "PlatformString.h"
 #import "WebCoreSystemInterface.h"
 #import <AppKit/NSFont.h>
+#import <wtf/text/WTFString.h>
 
 #if PLATFORM(CHROMIUM) && OS(DARWIN)
 #import "HarfBuzzNGFace.h"
@@ -247,15 +247,7 @@ static CTFontDescriptorRef cascadeToLastResortAndDisableSwashesFontDescriptor()
 // Adding a cascade list breaks the font on Leopard
 static bool canSetCascadeListForCustomFont()
 {
-#if PLATFORM(CHROMIUM)
-    static SInt32 systemVersion;
-    if (!systemVersion) {
-        if (Gestalt(gestaltSystemVersion, &systemVersion) != noErr)
-            return false;
-    }
-
-    return systemVersion >= 0x1060;
-#elif PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     return true;
 #else
     return false;

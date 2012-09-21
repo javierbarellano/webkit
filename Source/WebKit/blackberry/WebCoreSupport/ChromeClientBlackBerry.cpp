@@ -23,7 +23,6 @@
 #include "BackingStore.h"
 #include "BackingStoreClient.h"
 #include "BackingStore_p.h"
-#include "CString.h"
 #include "ColorChooser.h"
 #include "DatabaseTracker.h"
 #include "Document.h"
@@ -50,7 +49,6 @@
 #include "PageGroupLoadDeferrer.h"
 #include "PagePopupBlackBerry.h"
 #include "PagePopupClient.h"
-#include "PlatformString.h"
 #include "PopupMenuBlackBerry.h"
 #include "RenderView.h"
 #include "SVGZoomAndPan.h"
@@ -70,6 +68,9 @@
 #include <BlackBerryPlatformSettings.h>
 #include <BlackBerryPlatformWindow.h>
 
+#include <wtf/text/CString.h>
+#include <wtf/text/WTFString.h>
+
 #define DEBUG_OVERFLOW_DETECTION 0
 
 using namespace BlackBerry::WebKit;
@@ -78,12 +79,9 @@ using BlackBerry::Platform::Graphics::Window;
 
 namespace WebCore {
 
-static CString frameOrigin(Frame* frame)
+static CString toOriginString(Frame* frame)
 {
-    DOMWindow* window = frame->domWindow();
-    SecurityOrigin* origin = window->securityOrigin();
-    CString latinOrigin = origin->toString().latin1();
-    return latinOrigin;
+    return frame->document()->securityOrigin()->toString().latin1();
 }
 
 ChromeClientBlackBerry::ChromeClientBlackBerry(WebPagePrivate* pagePrivate)
@@ -94,8 +92,10 @@ ChromeClientBlackBerry::ChromeClientBlackBerry(WebPagePrivate* pagePrivate)
 void ChromeClientBlackBerry::addMessageToConsole(MessageSource, MessageType, MessageLevel, const String& message, unsigned int lineNumber, const String& sourceID)
 {
 #if !defined(PUBLIC_BUILD) || !PUBLIC_BUILD
-    if (m_webPagePrivate->m_dumpRenderTree)
+    if (m_webPagePrivate->m_dumpRenderTree) {
         m_webPagePrivate->m_dumpRenderTree->addMessageToConsole(message, lineNumber, sourceID);
+        return;
+    }
 #endif
 
     m_webPagePrivate->m_client->addMessageToConsole(message.characters(), message.length(), sourceID.characters(), sourceID.length(), lineNumber);
@@ -111,7 +111,7 @@ void ChromeClientBlackBerry::runJavaScriptAlert(Frame* frame, const String& mess
 #endif
 
     TimerBase::fireTimersInNestedEventLoop();
-    CString latinOrigin = frameOrigin(frame);
+    CString latinOrigin = toOriginString(frame);
     m_webPagePrivate->m_client->runJavaScriptAlert(message.characters(), message.length(), latinOrigin.data(), latinOrigin.length());
 }
 
@@ -123,7 +123,7 @@ bool ChromeClientBlackBerry::runJavaScriptConfirm(Frame* frame, const String& me
 #endif
 
     TimerBase::fireTimersInNestedEventLoop();
-    CString latinOrigin = frameOrigin(frame);
+    CString latinOrigin = toOriginString(frame);
     return m_webPagePrivate->m_client->runJavaScriptConfirm(message.characters(), message.length(), latinOrigin.data(), latinOrigin.length());
 }
 
@@ -137,7 +137,7 @@ bool ChromeClientBlackBerry::runJavaScriptPrompt(Frame* frame, const String& mes
 #endif
 
     TimerBase::fireTimersInNestedEventLoop();
-    CString latinOrigin = frameOrigin(frame);
+    CString latinOrigin = toOriginString(frame);
     WebString clientResult;
     if (m_webPagePrivate->m_client->runJavaScriptPrompt(message.characters(), message.length(), defaultValue.characters(), defaultValue.length(), latinOrigin.data(), latinOrigin.length(), clientResult)) {
         result = clientResult;
@@ -386,7 +386,7 @@ bool ChromeClientBlackBerry::runBeforeUnloadConfirmPanel(const String& message, 
 #endif
 
     TimerBase::fireTimersInNestedEventLoop();
-    CString latinOrigin = frameOrigin(frame);
+    CString latinOrigin = toOriginString(frame);
     return m_webPagePrivate->m_client->runBeforeUnloadConfirmPanel(message.characters(), message.length(), latinOrigin.data(), latinOrigin.length());
 }
 
@@ -735,6 +735,11 @@ bool ChromeClientBlackBerry::supportsFullScreenForElement(const WebCore::Element
 
 void ChromeClientBlackBerry::enterFullScreenForElement(WebCore::Element* element)
 {
+    // To avoid glitches on the screen when entering fullscreen, lets suspend the
+    // Backing Store screen updates and only resume at the next call of WebPagePrivate::setViewportSize.
+    m_webPagePrivate->m_isTogglingFullScreenState = true;
+    m_webPagePrivate->m_backingStore->d->suspendScreenAndBackingStoreUpdates();
+
     element->document()->webkitWillEnterFullScreenForElement(element);
     m_webPagePrivate->enterFullScreenForElement(element);
     element->document()->webkitDidEnterFullScreenForElement(element);
@@ -743,6 +748,9 @@ void ChromeClientBlackBerry::enterFullScreenForElement(WebCore::Element* element
 
 void ChromeClientBlackBerry::exitFullScreenForElement(WebCore::Element*)
 {
+    m_webPagePrivate->m_isTogglingFullScreenState = true;
+    m_webPagePrivate->m_backingStore->d->suspendScreenAndBackingStoreUpdates();
+
     // The element passed into this function is not reliable, i.e. it could
     // be null. In addition the parameter may be disappearing in the future.
     // So we use the reference to the element we saved above.
@@ -768,7 +776,7 @@ void ChromeClientBlackBerry::fullScreenRendererChanged(RenderBox* fullScreenRend
 void ChromeClientBlackBerry::requestWebGLPermission(Frame* frame)
 {
     if (frame) {
-        CString latinOrigin = frameOrigin(frame);
+        CString latinOrigin = toOriginString(frame);
         m_webPagePrivate->m_client->requestWebGLPermission(latinOrigin.data());
     }
 }
@@ -826,6 +834,12 @@ PassOwnPtr<ColorChooser> ChromeClientBlackBerry::createColorChooser(ColorChooser
     return nullptr;
 }
 
+#if ENABLE(NAVIGATOR_CONTENT_UTILS)
+void ChromeClientBlackBerry::registerProtocolHandler(const String& scheme, const String& baseURL, const String& url, const String& title)
+{
+    m_webPagePrivate->m_client->registerProtocolHandler(scheme, baseURL, url, title);
+}
+
 #if ENABLE(CUSTOM_SCHEME_HANDLER)
 ChromeClient::CustomHandlersState ChromeClientBlackBerry::isProtocolHandlerRegistered(const String& scheme, const String& baseURL, const String& url)
 {
@@ -837,12 +851,6 @@ void ChromeClientBlackBerry::unregisterProtocolHandler(const String& scheme, con
     m_webPagePrivate->m_client->unregisterProtocolHandler(scheme, baseURL, url);
 }
 #endif
-
-#if ENABLE(REGISTER_PROTOCOL_HANDLER)
-void ChromeClientBlackBerry::registerProtocolHandler(const String& scheme, const String& baseURL, const String& url, const String& title)
-{
-    m_webPagePrivate->m_client->registerProtocolHandler(scheme, baseURL, url, title);
-}
 #endif
 
 } // namespace WebCore

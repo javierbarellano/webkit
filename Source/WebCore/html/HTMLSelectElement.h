@@ -179,6 +179,7 @@ private:
     int nextSelectableListIndexPageAway(int startIndex, SkipDirection) const;
 
     virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
 
     // m_listItems contains HTMLOptionElement, HTMLOptGroupElement, and HTMLHRElement objects.
     mutable Vector<HTMLElement*> m_listItems;
@@ -197,25 +198,24 @@ private:
     mutable bool m_shouldRecalcListItems;
 };
 
-HTMLSelectElement* toHTMLSelectElement(Node*);
-const HTMLSelectElement* toHTMLSelectElement(const Node*);
-void toHTMLSelectElement(const HTMLSelectElement*); // This overload will catch anyone doing an unnecessary cast.
-
-#ifdef NDEBUG
-
-// The debug versions of these, with assertions, are not inlined.
+inline bool isHTMLSelectElement(const Node* node)
+{
+    return node->hasTagName(HTMLNames::selectTag);
+}
 
 inline HTMLSelectElement* toHTMLSelectElement(Node* node)
 {
+    ASSERT(!node || isHTMLSelectElement(node));
     return static_cast<HTMLSelectElement*>(node);
 }
 
 inline const HTMLSelectElement* toHTMLSelectElement(const Node* node)
 {
+    ASSERT(!node || isHTMLSelectElement(node));
     return static_cast<const HTMLSelectElement*>(node);
 }
 
-#endif
+void toHTMLSelectElement(const HTMLSelectElement*); // This overload will catch anyone doing an unnecessary cast.
 
 } // namespace
 

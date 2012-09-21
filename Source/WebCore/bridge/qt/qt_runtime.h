@@ -76,25 +76,6 @@ private:
     QPointer<QObject> m_childObject;
 };
 
-
-template <typename T> class QtArray : public Array
-{
-public:
-    QtArray(QList<T> list, QMetaType::Type type, PassRefPtr<RootObject>);
-    virtual ~QtArray();
-
-    RootObject* rootObject() const;
-
-    virtual void setValueAt(ExecState*, unsigned index, JSValue) const;
-    virtual JSValue valueAt(ExecState*, unsigned index) const;
-    virtual unsigned int getLength() const {return m_length;}
-
-private:
-    mutable QList<T> m_list; // setValueAt is const!
-    unsigned int m_length;
-    QMetaType::Type m_type;
-};
-
 class QtRuntimeMethod {
 public:
     enum MethodFlags {
@@ -102,7 +83,7 @@ public:
         AllowPrivate = 2
     };
 
-    QtRuntimeMethod(JSContextRef, JSValueRef* exception, QObject*, const QByteArray& identifier, int signalIndex, int flags, QtInstance*);
+    QtRuntimeMethod(JSContextRef, QObject*, const QByteArray& identifier, int signalIndex, int flags, QtInstance*);
     ~QtRuntimeMethod();
 
     static JSValueRef call(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception);
@@ -114,8 +95,7 @@ public:
     const QByteArray& name() { return m_identifier; }
 
 private:
-    static const JSStaticFunction connectFunction;
-    static const JSStaticFunction disconnectFunction;
+    static QtRuntimeMethod* toRuntimeMethod(JSContextRef, JSObjectRef);
 
     static JSValueRef connectOrDisconnect(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception, bool connect);
     QPointer<QObject> m_object;
@@ -141,10 +121,7 @@ public:
 
 private:
     JSGlobalContextRef m_context;
-    RefPtr<QtInstance> m_senderInstance;
-
-    // We use this as key in active connections multimap.
-    QObject* m_originalSender;
+    RefPtr<RootObject> m_rootObject;
 
     int m_signalIndex;
     JSObjectRef m_receiver;
@@ -155,13 +132,13 @@ private:
 };
 
 
-typedef QVariant (*ConvertToVariantFunction)(JSObject* object, int *distance, HashSet<JSObject*>* visitedObjects);
+typedef QVariant (*ConvertToVariantFunction)(JSObject* object, int *distance, HashSet<JSObjectRef>* visitedObjects);
 typedef JSValue (*ConvertToJSValueFunction)(ExecState* exec, WebCore::JSDOMGlobalObject* globalObject, const QVariant& variant);
 
 void registerCustomType(int qtMetaTypeId, ConvertToVariantFunction, ConvertToJSValueFunction);
 
-QVariant convertValueToQVariant(ExecState* exec, JSValue value, QMetaType::Type hint, int *distance);
-JSValue convertQVariantToValue(ExecState* exec, PassRefPtr<RootObject> root, const QVariant& variant);
+QVariant convertValueToQVariant(JSContextRef, JSValueRef, QMetaType::Type hint, int *distance, JSValueRef* exception);
+JSValueRef convertQVariantToValue(JSContextRef, PassRefPtr<RootObject>, const QVariant&, JSValueRef* exception);
 
 void setException(JSContextRef, JSValueRef* exception, const QString& text);
 

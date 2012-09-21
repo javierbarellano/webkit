@@ -25,9 +25,8 @@
 #ifndef CCDelayBasedTimeSource_h
 #define CCDelayBasedTimeSource_h
 
-#include "cc/CCTimeSource.h"
-#include "cc/CCTimer.h"
-
+#include "CCTimeSource.h"
+#include "CCTimer.h"
 #include <wtf/PassRefPtr.h>
 
 namespace WebCore {
@@ -51,18 +50,18 @@ public:
     virtual bool active() const OVERRIDE { return m_state != STATE_INACTIVE; }
 
     // Get the last and next tick times.
-    // If not active, nextTickTime will return 0.
     virtual double lastTickTime() OVERRIDE;
-    virtual double nextTickTime() OVERRIDE;
+    virtual double nextTickTimeIfActivated() OVERRIDE;
 
     // CCTimerClient implementation.
     virtual void onTimerFired() OVERRIDE;
 
     // Virtual for testing.
-    virtual double monotonicallyIncreasingTime() const;
+    virtual double monotonicTimeNow() const;
 
 protected:
     CCDelayBasedTimeSource(double interval, CCThread*);
+    double nextTickTarget(double now);
     void postNextTickTask(double now);
 
     enum State {

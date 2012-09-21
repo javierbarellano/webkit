@@ -42,6 +42,7 @@
 #include "Console.h"
 #include "Cursor.h"
 #include "DatabaseTracker.h"
+#include "DateTimeChooserImpl.h"
 #include "Document.h"
 #include "DocumentLoader.h"
 #include "ExternalPopupMenu.h"
@@ -71,9 +72,6 @@
 #include "SecurityOrigin.h"
 #include "Settings.h"
 #include "TextFieldDecorationElement.h"
-#if USE(V8)
-#include "V8Proxy.h"
-#endif
 #include "WebAccessibilityObject.h"
 #if ENABLE(INPUT_TYPE_COLOR)
 #include "WebColorChooser.h"
@@ -655,6 +653,8 @@ void ChromeClientImpl::dispatchViewportPropertiesDidChange(const ViewportArgumen
         args, settings->layoutFallbackWidth(), deviceRect.width, deviceRect.height,
         dpi / ViewportArguments::deprecatedTargetDPI, IntSize(deviceRect.width, deviceRect.height));
 
+    restrictScaleFactorToInitialScaleIfNotUserScalable(computed);
+
     if (m_webView->ignoreViewportTagMaximumScale()) {
         computed.maximumScale = max(computed.maximumScale, m_webView->maxPageScaleFactor);
         computed.userScalable = true;
@@ -704,6 +704,13 @@ PassOwnPtr<WebColorChooser> ChromeClientImpl::createWebColorChooser(WebColorChoo
     if (!client)
         return nullptr;
     return adoptPtr(client->createColorChooser(chooserClient, initialColor));
+}
+#endif
+
+#if ENABLE(CALENDAR_PICKER)
+PassOwnPtr<WebCore::DateTimeChooser> ChromeClientImpl::openDateTimeChooser(WebCore::DateTimeChooserClient* pickerClient, const WebCore::DateTimeChooserParameters& parameters)
+{
+    return adoptPtr(new DateTimeChooserImpl(this, pickerClient, parameters));
 }
 #endif
 
@@ -1122,18 +1129,18 @@ void ChromeClientImpl::dashboardRegionsChanged()
 }
 #endif
 
-#if ENABLE(REGISTER_PROTOCOL_HANDLER)
-PassOwnPtr<RegisterProtocolHandlerClientImpl> RegisterProtocolHandlerClientImpl::create(WebViewImpl* webView)
+#if ENABLE(NAVIGATOR_CONTENT_UTILS)
+PassOwnPtr<NavigatorContentUtilsClientImpl> NavigatorContentUtilsClientImpl::create(WebViewImpl* webView)
 {
-    return adoptPtr(new RegisterProtocolHandlerClientImpl(webView));
+    return adoptPtr(new NavigatorContentUtilsClientImpl(webView));
 }
 
-RegisterProtocolHandlerClientImpl::RegisterProtocolHandlerClientImpl(WebViewImpl* webView)
+NavigatorContentUtilsClientImpl::NavigatorContentUtilsClientImpl(WebViewImpl* webView)
     : m_webView(webView)
 {
 }
 
-void RegisterProtocolHandlerClientImpl::registerProtocolHandler(const String& scheme, const String& baseURL, const String& url, const String& title) 
+void NavigatorContentUtilsClientImpl::registerProtocolHandler(const String& scheme, const String& baseURL, const String& url, const String& title)
 { 
     m_webView->client()->registerProtocolHandler(scheme, baseURL, url, title);
 } 

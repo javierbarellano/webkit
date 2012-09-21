@@ -36,7 +36,6 @@ public:
     virtual bool supportsDataListUI(const AtomicString& type) const OVERRIDE;
 
 protected:
-    virtual bool paintTextField(RenderObject*, const PaintInfo&, const IntRect&);
 #if ENABLE(VIDEO)
     virtual void adjustMediaSliderThumbSize(RenderStyle*) const;
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
@@ -59,6 +58,7 @@ protected:
     virtual String formatMediaControlsCurrentTime(float currentTime, float duration) const;
     virtual String formatMediaControlsRemainingTime(float currentTime, float duration) const;
     virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual bool paintMediaToggleClosedCaptionsButton(RenderObject*, const PaintInfo&, const IntRect&);
 #endif
 
     virtual bool usesTestModeFocusRingColor() const;

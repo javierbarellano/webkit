@@ -212,10 +212,10 @@ Node::InsertionNotificationRequest SVGSMILElement::insertedInto(ContainerNode* r
     if (!fastHasAttribute(SVGNames::beginAttr))
         m_beginTimes.append(SMILTimeWithOrigin());
 
-    if (m_isWaitingForFirstInterval) {
+    if (m_isWaitingForFirstInterval)
         resolveFirstInterval();
-        reschedule();
-    }
+
+    reschedule();
 
     return InsertionDone;
 }
@@ -410,6 +410,9 @@ bool SVGSMILElement::isSupportedAttribute(const QualifiedName& attrName)
         supportedAttributes.add(SVGNames::minAttr);
         supportedAttributes.add(SVGNames::maxAttr);
         supportedAttributes.add(SVGNames::attributeNameAttr);
+        supportedAttributes.add(SVGNames::fromAttr);
+        supportedAttributes.add(SVGNames::toAttr);
+        supportedAttributes.add(SVGNames::byAttr);
         supportedAttributes.add(XLinkNames::hrefAttr);
     }
     return supportedAttributes.contains<QualifiedName, SVGAttributeHashTranslator>(attrName);

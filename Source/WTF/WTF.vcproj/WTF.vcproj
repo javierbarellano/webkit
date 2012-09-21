@@ -424,6 +424,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\wtf\text\IntegerToStringConversion.h"
+				>
+			</File>
+			<File
 				RelativePath="..\wtf\text\StringBuffer.h"
 				>
 			</File>
@@ -897,6 +901,10 @@
 			>
 		</File>
 		<File
+		        RelativePath="..\wtf\MemoryInstrumentation.h"
+			>
+		</File>
+		<File
 			RelativePath="..\wtf\MessageQueue.h"
 			>
 		</File>
@@ -1082,6 +1090,10 @@
 		</File>
 		<File
 			RelativePath="..\wtf\RetainPtr.h"
+			>
+		</File>
+		<File
+			RelativePath="..\wtf\SaturatedArithmetic.h"
 			>
 		</File>
 		<File

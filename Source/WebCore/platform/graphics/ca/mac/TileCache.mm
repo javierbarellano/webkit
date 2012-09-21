@@ -108,9 +108,13 @@ void TileCache::setNeedsDisplayInRect(const IntRect& rect)
     scaledRect.scale(m_scale);
 
     // Find the tiles that need to be invalidated.
+    IntRect coveredRect = intersection(enclosingIntRect(scaledRect), m_tileCoverageRect);
+    if (coveredRect.isEmpty())
+        return;
+
     TileIndex topLeft;
     TileIndex bottomRight;
-    getTileIndexRangeForRect(intersection(enclosingIntRect(scaledRect), m_tileCoverageRect), topLeft, bottomRight);
+    getTileIndexRangeForRect(coveredRect, topLeft, bottomRight);
 
     for (int y = topLeft.y(); y <= bottomRight.y(); ++y) {
         for (int x = topLeft.x(); x <= bottomRight.x(); ++x) {
@@ -231,6 +235,11 @@ void TileCache::setCanHaveScrollbars(bool canHaveScrollbars)
 
     m_canHaveScrollbars = canHaveScrollbars;
     scheduleTileRevalidation(0);
+}
+
+void TileCache::forceRepaint()
+{
+    setNeedsDisplay();
 }
 
 void TileCache::setTileDebugBorderWidth(float borderWidth)

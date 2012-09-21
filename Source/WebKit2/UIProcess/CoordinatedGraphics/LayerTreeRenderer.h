@@ -68,7 +68,7 @@ public:
     void setContentsSize(const WebCore::FloatSize&);
     void setVisibleContentsRect(const WebCore::FloatRect&);
     void didChangeScrollPosition(const WebCore::IntPoint& position);
-    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, uint32_t graphicsSurfaceToken);
+    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, uint64_t graphicsSurfaceToken, uint32_t frontBuffer);
 
     void detach();
     void appendUpdate(const Function<void()>&);
@@ -104,7 +104,7 @@ private:
     virtual bool showDebugBorders(const WebCore::GraphicsLayer*) const { return false; }
     virtual bool showRepaintCounter(const WebCore::GraphicsLayer*) const { return false; }
     void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect&) { }
-    void callOnMainTread(const Function<void()>&);
+    void dispatchOnMainThread(const Function<void()>&);
     void adjustPositionForFixedLayers();
 
     typedef HashMap<WebLayerID, WebCore::GraphicsLayer*> LayerMap;

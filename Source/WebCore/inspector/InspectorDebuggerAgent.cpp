@@ -197,6 +197,12 @@ bool InspectorDebuggerAgent::isPaused()
     return scriptDebugServer().isPaused();
 }
 
+void InspectorDebuggerAgent::addMessageToConsole(MessageSource source, MessageType type)
+{
+    if (scriptDebugServer().pauseOnExceptionsState() != ScriptDebugServer::DontPauseOnExceptions && source == ConsoleAPIMessageSource && type == AssertMessageType)
+        breakProgram(InspectorFrontend::Debugger::Reason::Assert, 0);
+}
+
 static PassRefPtr<InspectorObject> buildObjectForBreakpointCookie(const String& url, int lineNumber, int columnNumber, const String& condition, bool isRegex)
 {
     RefPtr<InspectorObject> breakpointObject = InspectorObject::create();
@@ -574,6 +580,15 @@ void InspectorDebuggerAgent::setOverlayMessage(ErrorString*, const String*)
 {
 }
 
+void InspectorDebuggerAgent::scriptExecutionBlockedByCSP(const String& directiveText)
+{
+    if (scriptDebugServer().pauseOnExceptionsState() != ScriptDebugServer::DontPauseOnExceptions) {
+        RefPtr<InspectorObject> directive = InspectorObject::create();
+        directive->setString("directiveText", directiveText);
+        breakProgram(InspectorFrontend::Debugger::Reason::CSPViolation, directive.release());
+    }
+}
+
 PassRefPtr<Array<TypeBuilder::Debugger::CallFrame> > InspectorDebuggerAgent::currentCallFrames()
 {
     if (!m_pausedScriptState)
@@ -588,7 +603,7 @@ PassRefPtr<Array<TypeBuilder::Debugger::CallFrame> > InspectorDebuggerAgent::cur
 
 String InspectorDebuggerAgent::sourceMapURLForScript(const Script& script)
 {
-    DEFINE_STATIC_LOCAL(String, sourceMapHttpHeader, ("X-SourceMap"));
+    DEFINE_STATIC_LOCAL(String, sourceMapHttpHeader, (ASCIILiteral("X-SourceMap")));
 
     String sourceMapURL = ContentSearchUtils::findSourceMapURL(script.source);
     if (!sourceMapURL.isEmpty())

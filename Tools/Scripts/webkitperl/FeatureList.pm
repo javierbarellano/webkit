@@ -49,7 +49,7 @@ my (
     $blobSupport,
     $channelMessagingSupport,
     $cspNextSupport,
-    $css3FlexboxSupport,
+    $css3TextDecorationSupport,
     $cssBoxDecorationBreakSupport,
     $cssExclusionsSupport,
     $cssFiltersSupport,
@@ -91,6 +91,7 @@ my (
     $inspectorSupport,
     $javascriptDebuggerSupport,
     $legacyNotificationsSupport,
+    $legacyVendorPrefixSupport,
     $legacyWebKitBlobBuilderSupport,
     $linkPrefetchSupport,
     $linkPrerenderSupport,
@@ -136,6 +137,7 @@ my (
     $webSocketsSupport,
     $webTimingSupport,
     $workersSupport,
+    $xhrResponseBlobSupport,
     $xsltSupport,
 );
 
@@ -167,8 +169,8 @@ my @features = (
     { option => "css-filters", desc => "Toggle CSS Filters support",
       define => "ENABLE_CSS_FILTERS", default => isAppleWebKit() || isBlackBerry(), value => \$cssFiltersSupport },
 
-    { option => "css3-flexbox", desc => "Toggle CSS3 Flexbox support",
-      define => "ENABLE_CSS3_FLEXBOX", default => 1, value => \$css3FlexboxSupport },
+    { option => "css3-text-decoration", desc => "Toggle CSS3 Text Decoration support",
+      define => "ENABLE_CSS3_TEXT_DECORATION", default => isEfl(), value => \$css3TextDecorationSupport },
 
     { option => "css-hierarchies", desc => "Toggle CSS Hierarchy support",
       define => "ENABLE_CSS_HIERARCHIES", default => 0, value => \$cssHierarchiesSupport },
@@ -219,7 +221,7 @@ my @features = (
       define => "ENABLE_DISCOVERY", default => 1, value => \$discoverySupport },
 
     { option => "download-attribute", desc => "Toggle Download Attribute support",
-      define => "ENABLE_DOWNLOAD_ATTRIBUTE", default => isBlackBerry(), value => \$downloadAttributeSupport },
+      define => "ENABLE_DOWNLOAD_ATTRIBUTE", default => (isBlackBerry() || isEfl()), value => \$downloadAttributeSupport },
 
     { option => "file-system", desc => "Toggle File System support",
       define => "ENABLE_FILE_SYSTEM", default => isBlackBerry(), value => \$fileSystemSupport },
@@ -284,6 +286,9 @@ my @features = (
     { option => "legacy-notifications", desc => "Toggle Legacy Notifications support",
       define => "ENABLE_LEGACY_NOTIFICATIONS", default => isBlackBerry(), value => \$legacyNotificationsSupport },
 
+    { option => "legacy-vendor-prefixes", desc => "Toggle Legacy Vendor Prefix support",
+      define => "ENABLE_LEGACY_VENDOR_PREFIXES", default => !isChromium(), value => \$legacyVendorPrefixSupport },
+
     { option => "legacy-webkit-blob-builder", desc => "Toggle Legacy WebKit Blob Builder support",
       define => "ENABLE_LEGACY_WEBKIT_BLOB_BUILDER", default => (isGtk() || isChromium() || isBlackBerry() || isEfl()), value => \$legacyWebKitBlobBuilderSupport },
 
@@ -320,6 +325,9 @@ my @features = (
     { option => "mutation-observers", desc => "Toggle Mutation Observers support",
       define => "ENABLE_MUTATION_OBSERVERS", default => 1, value => \$mutationObserversSupport },
 
+    { option => "navigator-content-utils", desc => "Toggle Navigator Content Utils support",
+      define => "ENABLE_NAVIGATOR_CONTENT_UTILS", default => (isBlackBerry() || isEfl()), value => \$registerProtocolHandlerSupport },
+
     { option => "netscape-plugin-api", desc => "Toggle Netscape Plugin API support",
       define => "ENABLE_NETSCAPE_PLUGIN_API", default => !isEfl(), value => \$netscapePluginAPISupport },
 
@@ -340,9 +348,6 @@ my @features = (
 
     { option => "quota", desc => "Toggle Quota support",
       define => "ENABLE_QUOTA", default => 0, value => \$quotaSupport },
-
-    { option => "register-protocol-handler", desc => "Toggle Register Protocol Handler support",
-      define => "ENABLE_REGISTER_PROTOCOL_HANDLER", default => (isBlackBerry() || isEfl()), value => \$registerProtocolHandlerSupport },
 
     { option => "request-animation-frame", desc => "Toggle Request Animation Frame support",
       define => "ENABLE_REQUEST_ANIMATION_FRAME", default => (isAppleMacWebKit() || isGtk() || isEfl() || isBlackBerry()), value => \$requestAnimationFrameSupport },
@@ -396,7 +401,7 @@ my @features = (
       define => "ENABLE_VIDEO", default => (isAppleWebKit() || isGtk() || isBlackBerry() || isEfl()), value => \$videoSupport },
 
     { option => "video-track", desc => "Toggle Video Track support",
-      define => "ENABLE_VIDEO_TRACK", default => (isAppleWebKit() || isGtk() || isEfl()), value => \$videoTrackSupport },
+      define => "ENABLE_VIDEO_TRACK", default => (isAppleWebKit() || isGtk() || isEfl() || isBlackBerry()), value => \$videoTrackSupport },
 
     { option => "webgl", desc => "Toggle WebGL support",
       define => "ENABLE_WEBGL", default => (isAppleMacWebKit() || isGtk()), value => \$webglSupport },
@@ -418,6 +423,9 @@ my @features = (
 
     { option => "workers", desc => "Toggle Workers support",
       define => "ENABLE_WORKERS", default => (isAppleWebKit() || isGtk() || isBlackBerry() || isEfl()), value => \$workersSupport },
+
+    { option => "xhr-response-blob", desc => "Toggle XHR Response BLOB support",
+      define => "ENABLE_XHR_RESPONSE_BLOB", default => isBlackBerry(), value => \$xhrResponseBlobSupport },
 
     { option => "xslt", desc => "Toggle XSLT support",
       define => "ENABLE_XSLT", default => 1, value => \$xsltSupport },

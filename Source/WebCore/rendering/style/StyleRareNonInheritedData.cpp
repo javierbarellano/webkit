@@ -23,7 +23,6 @@
 #include "StyleRareNonInheritedData.h"
 
 #include "ContentData.h"
-#include "MemoryInstrumentation.h"
 #include "RenderCounter.h"
 #include "RenderStyle.h"
 #include "ShadowData.h"
@@ -31,6 +30,7 @@
 #include "StyleTransformData.h"
 #include "StyleImage.h"
 #include "StyleResolver.h"
+#include "WebCoreMemoryInstrumentation.h"
 
 namespace WebCore {
 
@@ -38,8 +38,6 @@ StyleRareNonInheritedData::StyleRareNonInheritedData()
     : opacity(RenderStyle::initialOpacity())
     , m_aspectRatioDenominator(RenderStyle::initialAspectRatioDenominator())
     , m_aspectRatioNumerator(RenderStyle::initialAspectRatioNumerator())
-    , m_counterIncrement(0)
-    , m_counterReset(0)
     , m_perspective(RenderStyle::initialPerspective())
     , m_perspectiveOriginX(RenderStyle::initialPerspectiveOriginX())
     , m_perspectiveOriginY(RenderStyle::initialPerspectiveOriginY())
@@ -50,6 +48,7 @@ StyleRareNonInheritedData::StyleRareNonInheritedData()
     , m_wrapShapeOutside(RenderStyle::initialWrapShapeOutside())
     , m_wrapMargin(RenderStyle::initialWrapMargin())
     , m_wrapPadding(RenderStyle::initialWrapPadding())
+    , m_clipPath(RenderStyle::initialClipPath())
     , m_visitedLinkBackgroundColor(RenderStyle::initialBackgroundColor())
     , m_order(RenderStyle::initialOrder())
     , m_flowThread(RenderStyle::initialFlowThread())
@@ -72,12 +71,18 @@ StyleRareNonInheritedData::StyleRareNonInheritedData()
     , m_appearance(RenderStyle::initialAppearance())
     , m_borderFit(RenderStyle::initialBorderFit())
     , m_textCombine(RenderStyle::initialTextCombine())
+#if ENABLE(CSS3_TEXT_DECORATION)
+    , m_textDecorationStyle(RenderStyle::initialTextDecorationStyle())
+#endif // CSS3_TEXT_DECORATION
     , m_wrapFlow(RenderStyle::initialWrapFlow())
     , m_wrapThrough(RenderStyle::initialWrapThrough())
 #if USE(ACCELERATED_COMPOSITING)
     , m_runningAcceleratedAnimation(false)
 #endif
     , m_hasAspectRatio(false)
+#if ENABLE(CSS_COMPOSITING)
+    , m_effectiveBlendMode(RenderStyle::initialBlendMode())
+#endif
 {
     m_maskBoxImage.setMaskDefaults();
 }
@@ -87,8 +92,6 @@ StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonInherited
     , opacity(o.opacity)
     , m_aspectRatioDenominator(o.m_aspectRatioDenominator)
     , m_aspectRatioNumerator(o.m_aspectRatioNumerator)
-    , m_counterIncrement(o.m_counterIncrement)
-    , m_counterReset(o.m_counterReset)
     , m_perspective(o.m_perspective)
     , m_perspectiveOriginX(o.m_perspectiveOriginX)
     , m_perspectiveOriginY(o.m_perspectiveOriginY)
@@ -116,6 +119,7 @@ StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonInherited
     , m_wrapShapeOutside(o.m_wrapShapeOutside)
     , m_wrapMargin(o.m_wrapMargin)
     , m_wrapPadding(o.m_wrapPadding)
+    , m_clipPath(o.m_clipPath)
     , m_visitedLinkBackgroundColor(o.m_visitedLinkBackgroundColor)
     , m_visitedLinkOutlineColor(o.m_visitedLinkOutlineColor)
     , m_visitedLinkBorderLeftColor(o.m_visitedLinkBorderLeftColor)
@@ -143,12 +147,18 @@ StyleRareNonInheritedData::StyleRareNonInheritedData(const StyleRareNonInherited
     , m_appearance(o.m_appearance)
     , m_borderFit(o.m_borderFit)
     , m_textCombine(o.m_textCombine)
+#if ENABLE(CSS3_TEXT_DECORATION)
+    , m_textDecorationStyle(o.m_textDecorationStyle)
+#endif // CSS3_TEXT_DECORATION
     , m_wrapFlow(o.m_wrapFlow)
     , m_wrapThrough(o.m_wrapThrough)
 #if USE(ACCELERATED_COMPOSITING)
     , m_runningAcceleratedAnimation(o.m_runningAcceleratedAnimation)
 #endif
     , m_hasAspectRatio(o.m_hasAspectRatio)
+#if ENABLE(CSS_COMPOSITING)
+    , m_effectiveBlendMode(RenderStyle::initialBlendMode())
+#endif
 {
 }
 
@@ -161,8 +171,6 @@ bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) c
     return opacity == o.opacity
         && m_aspectRatioDenominator == o.m_aspectRatioDenominator
         && m_aspectRatioNumerator == o.m_aspectRatioNumerator
-        && m_counterIncrement == o.m_counterIncrement
-        && m_counterReset == o.m_counterReset
         && m_perspective == o.m_perspective
         && m_perspectiveOriginX == o.m_perspectiveOriginX
         && m_perspectiveOriginY == o.m_perspectiveOriginY
@@ -193,6 +201,7 @@ bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) c
         && m_wrapShapeOutside == o.m_wrapShapeOutside
         && m_wrapMargin == o.m_wrapMargin
         && m_wrapPadding == o.m_wrapPadding
+        && m_clipPath == o.m_clipPath
         && m_visitedLinkBackgroundColor == o.m_visitedLinkBackgroundColor
         && m_visitedLinkOutlineColor == o.m_visitedLinkOutlineColor
         && m_visitedLinkBorderLeftColor == o.m_visitedLinkBorderLeftColor
@@ -220,10 +229,16 @@ bool StyleRareNonInheritedData::operator==(const StyleRareNonInheritedData& o) c
         && m_appearance == o.m_appearance
         && m_borderFit == o.m_borderFit
         && m_textCombine == o.m_textCombine
+#if ENABLE(CSS3_TEXT_DECORATION)
+        && m_textDecorationStyle == o.m_textDecorationStyle
+#endif // CSS3_TEXT_DECORATION
         && m_wrapFlow == o.m_wrapFlow
         && m_wrapThrough == o.m_wrapThrough
 #if USE(ACCELERATED_COMPOSITING)
         && !m_runningAcceleratedAnimation && !o.m_runningAcceleratedAnimation
+#endif
+#if ENABLE(CSS_COMPOSITING)
+        && m_effectiveBlendMode == o.m_effectiveBlendMode
 #endif
         && m_hasAspectRatio == o.m_hasAspectRatio;
 }
@@ -289,7 +304,7 @@ bool StyleRareNonInheritedData::transitionDataEquivalent(const StyleRareNonInher
 
 void StyleRareNonInheritedData::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
-    MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::CSS);
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CSS);
 #if ENABLE(DASHBOARD_SUPPORT)
     info.addVector(m_dashboardRegions);
 #endif
@@ -311,6 +326,7 @@ void StyleRareNonInheritedData::reportMemoryUsage(MemoryObjectInfo* memoryObject
     info.addMember(m_transitions);
     info.addMember(m_wrapShapeInside);
     info.addMember(m_wrapShapeOutside);
+    info.addMember(m_clipPath);
     info.addMember(m_flowThread);
     info.addMember(m_regionThread);
 }

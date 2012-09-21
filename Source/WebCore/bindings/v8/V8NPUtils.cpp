@@ -33,13 +33,12 @@
 
 #include "DOMWindow.h"
 #include "Frame.h"
-#include "PlatformString.h"
 #include "npruntime_impl.h"
 #include "npruntime_priv.h"
 #include "NPV8Object.h"
 #include "V8Binding.h"
 #include "V8NPObject.h"
-#include "V8Proxy.h"
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -69,7 +68,7 @@ void convertV8ObjectToNPVariant(v8::Local<v8::Value> object, NPObject* owner, NP
         str->WriteUtf8(utf8Chars, length, 0, v8::String::HINT_MANY_WRITES_EXPECTED);
         STRINGN_TO_NPVARIANT(utf8Chars, length-1, *result);
     } else if (object->IsObject()) {
-        DOMWindow* window = V8Proxy::retrieveWindow(v8::Context::GetCurrent());
+        DOMWindow* window = toDOMWindow(v8::Context::GetCurrent());
         NPObject* npobject = npCreateV8ScriptObject(0, v8::Handle<v8::Object>::Cast(object), window);
         if (npobject)
             _NPN_RegisterObject(npobject, owner);

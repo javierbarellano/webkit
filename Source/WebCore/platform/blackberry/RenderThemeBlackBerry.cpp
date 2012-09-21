@@ -123,7 +123,7 @@ float RenderThemeBlackBerry::defaultFontSize = 16;
 // sizes (e.g. 15px). So we just use Arial for now.
 const String& RenderThemeBlackBerry::defaultGUIFont()
 {
-    DEFINE_STATIC_LOCAL(String, fontFace, ("Arial"));
+    DEFINE_STATIC_LOCAL(String, fontFace, (ASCIILiteral("Arial")));
     return fontFace;
 }
 
@@ -763,8 +763,12 @@ bool RenderThemeBlackBerry::paintSliderThumb(RenderObject* object, const PaintIn
 void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle* style, Element* element) const
 {
     float fullScreenMultiplier = determineFullScreenMultiplier(element);
+    HTMLMediaElement* mediaElement = toParentMediaElement(element);
+    if (!mediaElement)
+        return;
 
     // We use multiples of mediaControlsHeight to make all objects scale evenly
+    Length zero(0, Fixed);
     Length controlsHeight(mediaControlsHeight * fullScreenMultiplier, Fixed);
     Length timeWidth(mediaControlsHeight * 3 / 2 * fullScreenMultiplier, Fixed);
     Length volumeHeight(mediaControlsHeight * 4 * fullScreenMultiplier, Fixed);
@@ -784,7 +788,7 @@ void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle*
         style->setWidth(timeWidth);
         style->setHeight(controlsHeight);
         style->setPaddingRight(padding);
-        style->setBlendedFontSize(fontSize);
+        style->setFontSize(static_cast<int>(fontSize));
         break;
     case MediaVolumeSliderContainerPart:
         style->setWidth(controlsHeight);
@@ -793,6 +797,28 @@ void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle*
         break;
     default:
         break;
+    }
+
+    if (!isfinite(mediaElement->duration())) {
+        // Live streams have infinite duration with no timeline. Force the mute
+        // and fullscreen buttons to the right. This is needed when webkit does
+        // not render the timeline container because it has a webkit-box-flex
+        // of 1 and normally allows those buttons to be on the right.
+        switch (style->appearance()) {
+        case MediaEnterFullscreenButtonPart:
+        case MediaExitFullscreenButtonPart:
+            style->setPosition(AbsolutePosition);
+            style->setBottom(zero);
+            style->setRight(controlsHeight);
+            break;
+        case MediaMuteButtonPart:
+            style->setPosition(AbsolutePosition);
+            style->setBottom(zero);
+            style->setRight(zero);
+            break;
+        default:
+            break;
+        }
     }
 }
 
@@ -895,12 +921,7 @@ bool RenderThemeBlackBerry::paintMediaSliderTrack(RenderObject* object, const Pa
         return false;
 
     float fullScreenMultiplier = determineFullScreenMultiplier(mediaElement);
-    float loaded = 0;
-    // FIXME: replace loaded with commented out one when buffer bug is fixed (see comment in
-    // MediaPlayerPrivateMMrenderer::percentLoaded).
-    // loaded = mediaElement->percentLoaded();
-    if (mediaElement->player() && mediaElement->player()->implementation())
-        loaded = static_cast<MediaPlayerPrivate *>(mediaElement->player()->implementation())->percentLoaded();
+    float loaded = mediaElement->percentLoaded();
     float position = mediaElement->duration() > 0 ? (mediaElement->currentTime() / mediaElement->duration()) : 0;
 
     int x = ceil(rect.x() + 2 * fullScreenMultiplier - fullScreenMultiplier / 2);

@@ -61,7 +61,6 @@
 #include "V8HiddenPropertyName.h"
 #include "V8HTMLCollection.h"
 #include "V8Node.h"
-#include "V8Proxy.h"
 #include "V8Utilities.h"
 #include "WindowFeatures.h"
 #include <wtf/ArrayBuffer.h>
@@ -79,7 +78,7 @@ v8::Handle<v8::Value> WindowSetTimeoutImpl(const v8::Arguments& args, bool singl
     ScriptExecutionContext* scriptContext = static_cast<ScriptExecutionContext*>(imp->document());
 
     if (!scriptContext)
-        return V8Proxy::setDOMException(INVALID_ACCESS_ERR, args.GetIsolate());
+        return setDOMException(INVALID_ACCESS_ERR, args.GetIsolate());
 
     v8::Handle<v8::Value> function = args[0];
     WTF::String functionString;
@@ -121,7 +120,8 @@ v8::Handle<v8::Value> WindowSetTimeoutImpl(const v8::Arguments& args, bool singl
         }
 
         // params is passed to action, and released in action's destructor
-        OwnPtr<ScheduledAction> action = adoptPtr(new ScheduledAction(V8Proxy::context(imp->frame()), v8::Handle<v8::Function>::Cast(function), paramCount, params));
+        ASSERT(imp->frame());
+        OwnPtr<ScheduledAction> action = adoptPtr(new ScheduledAction(imp->frame()->script()->currentWorldContext(), v8::Handle<v8::Function>::Cast(function), paramCount, params));
 
         // FIXME: We should use OwnArrayPtr for params.
         delete[] params;
@@ -131,7 +131,8 @@ v8::Handle<v8::Value> WindowSetTimeoutImpl(const v8::Arguments& args, bool singl
         RefPtr<ScriptCallStack> callStack(createScriptCallStackForInspector());
         if (imp->document() && !imp->document()->contentSecurityPolicy()->allowEval(callStack.release()))
             return v8Integer(0, args.GetIsolate());
-        id = DOMTimer::install(scriptContext, adoptPtr(new ScheduledAction(V8Proxy::context(imp->frame()), functionString)), timeout, singleShot);
+        ASSERT(imp->frame());
+        id = DOMTimer::install(scriptContext, adoptPtr(new ScheduledAction(imp->frame()->script()->currentWorldContext(), functionString)), timeout, singleShot);
     }
 
     // Try to do the idle notification before the timeout expires to get better
@@ -154,7 +155,8 @@ v8::Handle<v8::Value> V8DOMWindow::eventAccessorGetter(v8::Local<v8::String> nam
     if (!BindingSecurity::shouldAllowAccessToFrame(BindingState::instance(), frame))
         return v8::Undefined();
 
-    v8::Local<v8::Context> context = V8Proxy::context(frame);
+    ASSERT(frame);
+    v8::Local<v8::Context> context = frame->script()->currentWorldContext();
     if (context.IsEmpty())
         return v8::Undefined();
 
@@ -175,7 +177,8 @@ void V8DOMWindow::eventAccessorSetter(v8::Local<v8::String> name, v8::Local<v8::
     if (!BindingSecurity::shouldAllowAccessToFrame(BindingState::instance(), frame))
         return;
 
-    v8::Local<v8::Context> context = V8Proxy::context(frame);
+    ASSERT(frame);
+    v8::Local<v8::Context> context = frame->script()->currentWorldContext();
     if (context.IsEmpty())
         return;
 
@@ -303,7 +306,7 @@ static v8::Handle<v8::Value> handlePostMessageCallback(const v8::Arguments& args
 
     // If called directly by WebCore we don't have a calling context.
     if (!source)
-        return V8Proxy::throwTypeError(0, args.GetIsolate());
+        return throwTypeError(0, args.GetIsolate());
 
     // This function has variable arguments and can be:
     // Per current spec:
@@ -345,7 +348,7 @@ static v8::Handle<v8::Value> handlePostMessageCallback(const v8::Arguments& args
 
     ExceptionCode ec = 0;
     window->postMessage(message.release(), &portArray, targetOrigin, source, ec);
-    return V8Proxy::setDOMException(ec, args.GetIsolate());
+    return setDOMException(ec, args.GetIsolate());
 }
 
 v8::Handle<v8::Value> V8DOMWindow::postMessageCallback(const v8::Arguments& args)
@@ -354,11 +357,13 @@ v8::Handle<v8::Value> V8DOMWindow::postMessageCallback(const v8::Arguments& args
     return handlePostMessageCallback(args);
 }
 
+#if ENABLE(LEGACY_VENDOR_PREFIXES)
 v8::Handle<v8::Value> V8DOMWindow::webkitPostMessageCallback(const v8::Arguments& args)
 {
     INC_STATS("DOM.DOMWindow.webkitPostMessage()");
     return handlePostMessageCallback(args);
 }
+#endif
 
 // FIXME(fqian): returning string is cheating, and we should
 // fix this by calling toString function on the receiver.
@@ -402,7 +407,7 @@ private:
 
 inline void DialogHandler::dialogCreated(DOMWindow* dialogFrame)
 {
-    m_dialogContext = V8Proxy::context(dialogFrame->frame());
+    m_dialogContext = dialogFrame->frame() ? dialogFrame->frame()->script()->currentWorldContext() : v8::Local<v8::Context>();
     if (m_dialogContext.IsEmpty())
         return;
     if (m_dialogArguments.IsEmpty())
@@ -462,7 +467,7 @@ v8::Handle<v8::Value> V8DOMWindow::openCallback(const v8::Arguments& args)
     if (!openedWindow)
         return v8::Undefined();
 
-    return toV8(openedWindow.release(), args.GetIsolate());
+    return toV8(openedWindow.release(), args.Holder(), args.GetIsolate());
 }
 
 v8::Handle<v8::Value> V8DOMWindow::indexedPropertyGetter(uint32_t index, const v8::AccessorInfo& info)
@@ -479,11 +484,10 @@ v8::Handle<v8::Value> V8DOMWindow::indexedPropertyGetter(uint32_t index, const v
 
     Frame* child = frame->tree()->scopedChild(index);
     if (child)
-        return toV8(child->domWindow(), info.GetIsolate());
+        return toV8(child->document()->domWindow(), info.Holder(), info.GetIsolate());
 
     return v8Undefined();
 }
-
 
 v8::Handle<v8::Value> V8DOMWindow::namedPropertyGetter(v8::Local<v8::String> name, const v8::AccessorInfo& info)
 {
@@ -499,10 +503,10 @@ v8::Handle<v8::Value> V8DOMWindow::namedPropertyGetter(v8::Local<v8::String> nam
         return v8Undefined();
 
     // Search sub-frames.
-    AtomicString propName = v8ValueToAtomicWebCoreString(name);
+    AtomicString propName = toWebCoreAtomicString(name);
     Frame* child = frame->tree()->scopedChild(propName);
     if (child)
-        return toV8(child->domWindow(), info.GetIsolate());
+        return toV8(child->document()->domWindow(), info.Holder(), info.GetIsolate());
 
     // Search IDL functions defined in the prototype
     if (!info.Holder()->GetRealNamedProperty(name).IsEmpty())
@@ -516,8 +520,8 @@ v8::Handle<v8::Value> V8DOMWindow::namedPropertyGetter(v8::Local<v8::String> nam
             RefPtr<HTMLCollection> items = doc->windowNamedItems(propName);
             if (!items->isEmpty()) {
                 if (items->hasExactlyOneItem())
-                    return toV8(items->item(0), info.GetIsolate());
-                return toV8(items.release(), info.GetIsolate());
+                    return toV8(items->item(0), info.Holder(), info.GetIsolate());
+                return toV8(items.release(), info.Holder(), info.GetIsolate());
             }
         }
     }
@@ -597,8 +601,10 @@ bool V8DOMWindow::indexedSecurityCheck(v8::Local<v8::Object> host, uint32_t inde
     return BindingSecurity::shouldAllowAccessToFrame(BindingState::instance(), target, DoNotReportSecurityError);
 }
 
-v8::Handle<v8::Value> toV8(DOMWindow* window, v8::Isolate* isolate)
+v8::Handle<v8::Value> toV8(DOMWindow* window, v8::Handle<v8::Object> creationContext, v8::Isolate* isolate)
 {
+    // Notice that we explicitly ignore creationContext because the DOMWindow is its own creationContext.
+
     if (!window)
         return v8NullWithCheck(isolate);
     // Initializes environment of a frame, and return the global object
@@ -621,7 +627,7 @@ v8::Handle<v8::Value> toV8(DOMWindow* window, v8::Isolate* isolate)
     }
 
     // Otherwise, return the global object associated with this frame.
-    v8::Handle<v8::Context> context = V8Proxy::context(frame);
+    v8::Handle<v8::Context> context = frame->script()->currentWorldContext();
     if (context.IsEmpty())
         return v8Undefined();
 

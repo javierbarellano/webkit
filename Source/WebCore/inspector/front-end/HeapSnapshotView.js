@@ -31,6 +31,7 @@
 /**
  * @constructor
  * @extends {WebInspector.View}
+ * @param {WebInspector.ProfilesPanel} parent
  */
 WebInspector.HeapSnapshotView = function(parent, profile)
 {
@@ -121,7 +122,7 @@ WebInspector.HeapSnapshotView = function(parent, profile)
     this._profileUid = profile.uid;
 
     this.baseSelectElement = document.createElement("select");
-    this.baseSelectElement.className = "status-bar-item hidden";
+    this.baseSelectElement.className = "status-bar-item";
     this.baseSelectElement.addEventListener("change", this._changeBase.bind(this), false);
     this._updateBaseOptions();
 
@@ -171,7 +172,17 @@ WebInspector.HeapSnapshotView.prototype = {
 
     get statusBarItems()
     {
-        return [this.viewSelectElement, this.baseSelectElement, this.filterSelectElement, this.helpButton.element];
+        /**
+         * @param {boolean=} hidden
+         */
+        function appendArrowImage(element, hidden)
+        {
+            var span = document.createElement("span");
+            span.className = "status-bar-select-container" + (hidden ? " hidden" : "");
+            span.appendChild(element);
+            return span;
+        }
+        return [appendArrowImage(this.viewSelectElement), appendArrowImage(this.baseSelectElement, true), appendArrowImage(this.filterSelectElement), this.helpButton.element];
     },
 
     get profile()
@@ -407,7 +418,7 @@ WebInspector.HeapSnapshotView.prototype = {
 
     _profiles: function()
     {
-        return WebInspector.panels.profiles.getProfiles(WebInspector.HeapSnapshotProfileType.TypeId);
+        return this.parent.getProfiles(WebInspector.HeapSnapshotProfileType.TypeId);
     },
 
     processLoadedSnapshot: function(profile, snapshot)
@@ -420,10 +431,11 @@ WebInspector.HeapSnapshotView.prototype = {
 
     /**
      * @param {WebInspector.ContextMenu} contextMenu
+     * @param {Event} event
      */
     populateContextMenu: function(contextMenu, event)
     {
-        this.dataGrid.populateContextMenu(contextMenu, event);
+        this.dataGrid.populateContextMenu(this.parent, contextMenu, event);
     },
 
     _selectionChanged: function(event)
@@ -518,6 +530,19 @@ WebInspector.HeapSnapshotView.prototype = {
         this._changeView(event.target.selectedIndex);
     },
 
+    _updateSelectorsVisibility: function()
+    {
+        if (this.currentView === this.diffView)
+            this.baseSelectElement.parentElement.removeStyleClass("hidden");
+        else
+            this.baseSelectElement.parentElement.addStyleClass("hidden");
+
+        if (this.currentView === this.constructorsView)
+            this.filterSelectElement.parentElement.removeStyleClass("hidden");
+        else
+            this.filterSelectElement.parentElement.addStyleClass("hidden");
+    },
+
     _changeView: function(selectedIndex)
     {
         if (selectedIndex === this.views.current)
@@ -532,17 +557,9 @@ WebInspector.HeapSnapshotView.prototype = {
         this.refreshVisibleData();
         this.dataGrid.updateWidths();
 
-        if (this.currentView === this.diffView)
-            this.baseSelectElement.removeStyleClass("hidden");
-        else
-            this.baseSelectElement.addStyleClass("hidden");
+        this._updateSelectorsVisibility();
 
         this._updateDataSourceAndView();
-
-        if (this.currentView === this.constructorsView)
-            this.filterSelectElement.removeStyleClass("hidden");
-        else
-            this.filterSelectElement.addStyleClass("hidden");
 
         if (!this.currentQuery || !this._searchFinishedCallback || !this._searchResults)
             return;
@@ -720,8 +737,6 @@ WebInspector.HeapSnapshotView.prototype = {
 
 WebInspector.HeapSnapshotView.prototype.__proto__ = WebInspector.View.prototype;
 
-WebInspector.settings.showHeapSnapshotObjectsHiddenProperties = WebInspector.settings.createSetting("showHeaSnapshotObjectsHiddenProperties", false);
-
 /**
  * @constructor
  * @extends {WebInspector.ProfileType}
@@ -741,11 +756,12 @@ WebInspector.HeapSnapshotProfileType.prototype = {
 
     /**
      * @override
+     * @param {WebInspector.ProfilesPanel} profilesPanel
      * @return {boolean}
      */
-    buttonClicked: function()
+    buttonClicked: function(profilesPanel)
     {
-        WebInspector.panels.profiles.takeHeapSnapshot();
+        profilesPanel.takeHeapSnapshot();
         return false;
     },
 
@@ -783,35 +799,6 @@ WebInspector.HeapSnapshotProfileType.prototype = {
 
 WebInspector.HeapSnapshotProfileType.prototype.__proto__ = WebInspector.ProfileType.prototype;
 
-
-/**
- * @interface
- */
-WebInspector.OutputStream = function()
-{
-}
-
-WebInspector.OutputStream.prototype = {
-    startTransfer: function()
-    {
-    },
-
-    /**
-     * @param {string} chunk
-     */
-    transferChunk: function(chunk)
-    {
-    },
-
-    finishTransfer: function()
-    {
-    },
-
-    dispose: function()
-    {
-    }
-};
-
 /**
  * @constructor
  * @extends {WebInspector.ProfileHeader}
@@ -846,10 +833,11 @@ WebInspector.HeapProfileHeader.prototype = {
 
     /**
      * @override
+     * @param {WebInspector.ProfilesPanel} profilesPanel
      */
-    createView: function()
+    createView: function(profilesPanel)
     {
-        return new WebInspector.HeapSnapshotView(WebInspector.panels.profiles, this);
+        return new WebInspector.HeapSnapshotView(profilesPanel, this);
     },
 
     snapshotProxy: function()
@@ -971,7 +959,7 @@ WebInspector.HeapProfileHeader.prototype = {
      */
     _createFileWriter: function(fileName, delegate)
     {
-        return new WebInspector.ChunkedFileWriter(fileName, delegate);
+        return new WebInspector.FileOutputStream(fileName, delegate);
     },
 
     /**
@@ -1046,73 +1034,6 @@ WebInspector.HeapSnapshotLoadFromFileDelegate.prototype = {
         default:
             this._snapshotHeader.sidebarElement.subtitle = WebInspector.UIString("'%s' error %d", source.fileName(), e.target.error.code);
         }
-    }
-}
-
-/**
- * @constructor
- * @implements {WebInspector.OutputStream}
- * @param {!string} fileName
- * @param {!WebInspector.OutputStreamDelegate} delegate
- */
-WebInspector.ChunkedFileWriter = function(fileName, delegate)
-{
-    this._fileName = fileName;
-    this._delegate = delegate;
-}
-
-WebInspector.ChunkedFileWriter.prototype = {
-    /**
-     * @override
-     */
-    startTransfer: function()
-    {
-        WebInspector.fileManager.addEventListener(WebInspector.FileManager.EventTypes.SavedURL, this._onTransferStarted, this);
-        WebInspector.fileManager.save(this._fileName, "", true);
-    },
-
-    /**
-     * @override
-     * @param {string} chunk
-     */
-    transferChunk: function(chunk)
-    {
-        WebInspector.fileManager.append(this._fileName, chunk);
-    },
-
-    /**
-     * @override
-     */
-    finishTransfer: function()
-    {
-        WebInspector.fileManager.removeEventListener(WebInspector.FileManager.EventTypes.AppendedToURL, this._onChunkTransferred, this);
-        this._delegate.onTransferFinished(this);
-    },
-
-    dispose: function()
-    {
-    },
-
-    /**
-     * @param {WebInspector.Event} event
-     */
-    _onTransferStarted: function(event)
-    {
-        if (event.data !== this._fileName)
-            return;
-        this._delegate.onTransferStarted(this);
-        WebInspector.fileManager.removeEventListener(WebInspector.FileManager.EventTypes.SavedURL, this._onTransferStarted, this);
-        WebInspector.fileManager.addEventListener(WebInspector.FileManager.EventTypes.AppendedToURL, this._onChunkTransferred, this);
-    },
-
-    /**
-     * @param {WebInspector.Event} event
-     */
-    _onChunkTransferred: function(event)
-    {
-        if (event.data !== this._fileName)
-            return;
-        this._delegate.onChunkTransferred(this);
     }
 }
 

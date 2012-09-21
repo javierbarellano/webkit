@@ -246,6 +246,7 @@ public:
 
     // This method is called whenever an attribute is added, changed or removed.
     virtual void attributeChanged(const Attribute&);
+    virtual void parseAttribute(const Attribute&);
 
     // Only called by the parser immediately after element construction.
     void parserSetAttributes(const Vector<Attribute>&, FragmentScriptingPermission);
@@ -274,6 +275,7 @@ public:
     ElementShadow* shadow() const;
     ElementShadow* ensureShadow();
     virtual void willAddAuthorShadowRoot() { }
+    virtual bool areAuthorShadowsAllowed() const { return true; }
 
     ShadowRoot* userAgentShadowRoot() const;
 
@@ -302,7 +304,7 @@ public:
 
     virtual void focus(bool restorePreviousSelection = true);
     virtual void updateFocusAppearance(bool restorePreviousSelection);
-    void blur();
+    virtual void blur();
 
     String innerText();
     String outerText();
@@ -424,29 +426,25 @@ public:
     PassRefPtr<RenderStyle> styleForRenderer();
 
     RenderRegion* renderRegion() const;
+#if ENABLE(CSS_REGIONS)
     const AtomicString& webkitRegionOverset() const;
+    Vector<RefPtr<Range> > webkitGetRegionFlowRanges() const;
+#endif
 
     bool hasID() const;
     bool hasClass() const;
+    const SpaceSplitString& classNames() const;
 
     IntSize savedLayerScrollOffset() const;
     void setSavedLayerScrollOffset(const IntSize&);
 
     virtual void reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     {
-        MemoryClassInfo info(memoryObjectInfo, this, MemoryInstrumentation::DOM);
+        MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
         ContainerNode::reportMemoryUsage(memoryObjectInfo);
-        info.addInstrumentedMember(m_tagName);
-        info.addInstrumentedMember(m_attributeData);
+        info.addMember(m_tagName);
+        info.addMember(m_attributeData);
     }
-
-#if ENABLE(UNDO_MANAGER)
-    bool undoScope() const;
-    void setUndoScope(bool);
-    PassRefPtr<UndoManager> undoManager();
-    void disconnectUndoManager();
-    void disconnectUndoManagersInSubtree();
-#endif
 
 protected:
     Element(const QualifiedName& tagName, Document* document, ConstructionType type)
@@ -468,6 +466,11 @@ protected:
 
     PassRefPtr<HTMLCollection> ensureCachedHTMLCollection(CollectionType);
     HTMLCollection* cachedHTMLCollection(CollectionType);
+
+    // classAttributeChanged() exists to share code between
+    // parseAttribute (called via setAttribute()) and
+    // svgAttributeChanged (called when element.className.baseValue is set)
+    void classAttributeChanged(const AtomicString& newClassString);
 
 private:
     void updateInvalidAttributes() const;
@@ -520,7 +523,7 @@ private:
     ElementRareData* elementRareData() const;
     ElementRareData* ensureElementRareData();
 
-    OwnPtr<ElementAttributeData> m_attributeData;
+    RefPtr<ElementAttributeData> m_attributeData;
 };
     
 inline Element* toElement(Node* node)
@@ -693,6 +696,13 @@ inline const AtomicString& Element::getNameAttribute() const
 inline void Element::setIdAttribute(const AtomicString& value)
 {
     setAttribute(document()->idAttributeName(), value);
+}
+
+inline const SpaceSplitString& Element::classNames() const
+{
+    ASSERT(hasClass());
+    ASSERT(attributeData());
+    return attributeData()->classNames();
 }
 
 inline size_t Element::attributeCount() const

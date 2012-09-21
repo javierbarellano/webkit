@@ -80,6 +80,7 @@ InternalSettings::Backup::Backup(Page* page, Settings* settings)
     , m_originalAuthorShadowDOMForAnyElementEnabled(RuntimeEnabledFeatures::authorShadowDOMForAnyElementEnabled())
 #endif
     , m_originalEditingBehavior(settings->editingBehaviorType())
+    , m_originalUnifiedSpellCheckerEnabled(settings->unifiedTextCheckerEnabled())
     , m_originalFixedPositionCreatesStackingContext(settings->fixedPositionCreatesStackingContext())
     , m_originalSyncXHRInDocumentsEnabled(settings->syncXHRInDocumentsEnabled())
 #if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
@@ -96,6 +97,9 @@ InternalSettings::Backup::Backup(Page* page, Settings* settings)
 #if ENABLE(DIALOG_ELEMENT)
     , m_originalDialogElementEnabled(RuntimeEnabledFeatures::dialogElementEnabled())
 #endif
+    , m_canStartMedia(page->canStartMedia())
+    , m_originalMockScrollbarsEnabled(settings->mockScrollbarsEnabled())
+    , m_langAttributeAwareFormControlUIEnabled(RuntimeEnabledFeatures::langAttributeAwareFormControlUIEnabled())
 {
 }
 
@@ -110,6 +114,7 @@ void InternalSettings::Backup::restoreTo(Page* page, Settings* settings)
     RuntimeEnabledFeatures::setAuthorShadowDOMForAnyElementEnabled(m_originalAuthorShadowDOMForAnyElementEnabled);
 #endif
     settings->setEditingBehaviorType(m_originalEditingBehavior);
+    settings->setUnifiedTextCheckerEnabled(m_originalUnifiedSpellCheckerEnabled);
     settings->setFixedPositionCreatesStackingContext(m_originalFixedPositionCreatesStackingContext);
     settings->setSyncXHRInDocumentsEnabled(m_originalSyncXHRInDocumentsEnabled);
 #if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
@@ -127,6 +132,9 @@ void InternalSettings::Backup::restoreTo(Page* page, Settings* settings)
 #if ENABLE(DIALOG_ELEMENT)
     RuntimeEnabledFeatures::setDialogElementEnabled(m_originalDialogElementEnabled);
 #endif
+    page->setCanStartMedia(m_canStartMedia);
+    settings->setMockScrollbarsEnabled(m_originalMockScrollbarsEnabled);
+    RuntimeEnabledFeatures::setLangAttributeAwareFormControlUIEnabled(m_langAttributeAwareFormControlUIEnabled);
 }
 
 InternalSettings* InternalSettings::from(Page* page)
@@ -158,8 +166,9 @@ void InternalSettings::reset()
 {
     TextRun::setAllowsRoundingHacks(false);
     setUserPreferredLanguages(Vector<String>());
-    page()->setPagination(Page::Pagination());
+    page()->setPagination(Pagination());
     page()->setPageScaleFactor(1, IntPoint(0, 0));
+    setUsesOverlayScrollbars(false);
 #if ENABLE(PAGE_POPUP)
     m_pagePopupDriver.clear();
     if (page()->chrome())
@@ -226,6 +235,11 @@ void InternalSettings::setMockScrollbarsEnabled(bool enabled, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
     settings()->setMockScrollbarsEnabled(enabled);
+}
+
+void InternalSettings::setUsesOverlayScrollbars(bool flag)
+{
+    settings()->setUsesOverlayScrollbars(flag);
 }
 
 void InternalSettings::setPasswordEchoEnabled(bool enabled, ExceptionCode& ec)
@@ -433,6 +447,12 @@ bool InternalSettings::cssVariablesEnabled(ExceptionCode& ec)
     return settings()->cssVariablesEnabled();
 }
 
+void InternalSettings::setCanStartMedia(bool enabled, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    m_page->setCanStartMedia(enabled);
+}
+
 void InternalSettings::setMediaPlaybackRequiresUserGesture(bool enabled, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
@@ -557,17 +577,17 @@ void InternalSettings::setPagination(const String& mode, int gap, int pageLength
         return;
     }
 
-    Page::Pagination pagination;
+    Pagination pagination;
     if (mode == "Unpaginated")
-        pagination.mode = Page::Pagination::Unpaginated;
+        pagination.mode = Pagination::Unpaginated;
     else if (mode == "LeftToRightPaginated")
-        pagination.mode = Page::Pagination::LeftToRightPaginated;
+        pagination.mode = Pagination::LeftToRightPaginated;
     else if (mode == "RightToLeftPaginated")
-        pagination.mode = Page::Pagination::RightToLeftPaginated;
+        pagination.mode = Pagination::RightToLeftPaginated;
     else if (mode == "TopToBottomPaginated")
-        pagination.mode = Page::Pagination::TopToBottomPaginated;
+        pagination.mode = Pagination::TopToBottomPaginated;
     else if (mode == "BottomToTopPaginated")
-        pagination.mode = Page::Pagination::BottomToTopPaginated;
+        pagination.mode = Pagination::BottomToTopPaginated;
     else {
         ec = SYNTAX_ERR;
         return;
@@ -620,10 +640,23 @@ void InternalSettings::setMemoryInfoEnabled(bool enabled, ExceptionCode& ec)
     settings()->setMemoryInfoEnabled(enabled);
 }
 
-void InternalSettings::setThirdPartyStorageBlockingEnabled(bool enabled, ExceptionCode& ec)
+void InternalSettings::setStorageBlockingPolicy(const String& mode, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    settings()->setThirdPartyStorageBlockingEnabled(enabled);
+
+    if (mode == "AllowAll")
+        settings()->setStorageBlockingPolicy(SecurityOrigin::AllowAllStorage);
+    else if (mode == "BlockThirdParty")
+        settings()->setStorageBlockingPolicy(SecurityOrigin::BlockThirdPartyStorage);
+    else if (mode == "BlockAll")
+        settings()->setStorageBlockingPolicy(SecurityOrigin::BlockAllStorage);
+    else
+        ec = SYNTAX_ERR;
+}
+
+void InternalSettings::setLangAttributeAwareFormControlUIEnabled(bool enabled)
+{
+    RuntimeEnabledFeatures::setLangAttributeAwareFormControlUIEnabled(enabled);
 }
 
 }

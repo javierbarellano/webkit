@@ -415,6 +415,9 @@ public:
     // Returns true if a user gesture is currently being processed.
     virtual bool isProcessingUserGesture() const = 0;
 
+    // Returns true if a consumable gesture exists and has been successfully consumed.
+    virtual bool consumeUserGesture() const = 0;
+
     // Returns true if this frame is in the process of opening a new frame
     // with a suppressed opener.
     virtual bool willSuppressOpenerInNewFrame() const = 0;
@@ -432,8 +435,6 @@ public:
     virtual bool hasMarkedText() const = 0;
 
     virtual WebRange markedRange() const = 0;
-
-    virtual void setSelectionToRange(const WebRange&) = 0;
 
     // Returns the frame rectangle in window coordinate space of the given text
     // range.
@@ -471,10 +472,11 @@ public:
     // there is ranged selection.
     virtual bool selectWordAroundCaret() = 0;
 
-    virtual void selectRange(const WebPoint& start, const WebPoint& end) = 0;
+    // Select a range of text, as if by drag-selecting from base to extent
+    // with character granularity.
+    virtual void selectRange(const WebPoint& base, const WebPoint& extent) = 0;
 
     virtual void selectRange(const WebRange&) = 0;
-
 
     // Printing ------------------------------------------------------------
 

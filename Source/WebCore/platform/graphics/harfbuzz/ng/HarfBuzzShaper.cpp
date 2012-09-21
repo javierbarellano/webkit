@@ -155,7 +155,8 @@ static void normalizeCharacters(const UChar* source, UChar* destination, int len
         UChar32 character;
         int nextPosition = position;
         U16_NEXT(source, nextPosition, length, character);
-        if (Font::treatAsSpace(character))
+        // Don't normalize tabs as they are not treated as spaces for word-end
+        if (Font::treatAsSpace(character) && character != '\t')
             character = ' ';
         else if (Font::treatAsZeroWidthSpaceInComplexScript(character))
             character = zeroWidthSpace;
@@ -172,7 +173,7 @@ HarfBuzzShaper::HarfBuzzShaper(const Font* font, const TextRun& run)
 {
     m_normalizedBuffer = adoptArrayPtr(new UChar[m_run.length() + 1]);
     m_normalizedBufferLength = m_run.length();
-    normalizeCharacters(m_run.characters(), m_normalizedBuffer.get(), m_normalizedBufferLength);
+    normalizeCharacters(m_run.characters16(), m_normalizedBuffer.get(), m_normalizedBufferLength);
     setPadding(m_run.expansion());
     setFontFeatures();
 }
@@ -403,8 +404,8 @@ int HarfBuzzShaper::offsetForPosition(float targetX)
 FloatRect HarfBuzzShaper::selectionRect(const FloatPoint& point, int height, int from, int to)
 {
     float currentX = 0;
-    float fromX;
-    float toX;
+    float fromX = 0;
+    float toX = 0;
     bool foundFromX = false;
     bool foundToX = false;
 

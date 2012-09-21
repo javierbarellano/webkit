@@ -48,7 +48,7 @@ public:
         connect(this, SIGNAL(statusChanged(QQuickView::Status)), SLOT(handleStatusChanged(QQuickView::Status)));
     }
 
-private slots:
+private Q_SLOTS:
     void handleStatusChanged(QQuickView::Status status)
     {
         if (status != QQuickView::Ready)
@@ -107,7 +107,7 @@ WKPageRef PlatformWebView::page()
 
 void PlatformWebView::focus()
 {
-    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->setFocus(true);
 }
 
 WKRect PlatformWebView::windowFrame()

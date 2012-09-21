@@ -46,7 +46,7 @@ class AffineTransform;
 class AnimationController;
 class Cursor;
 class Document;
-class HitTestPoint;
+class HitTestLocation;
 class HitTestResult;
 class InlineBox;
 class InlineFlowBox;
@@ -59,6 +59,7 @@ class RenderBlock;
 class RenderFlowThread;
 class RenderGeometryMap;
 class RenderLayer;
+class RenderNamedFlowThread;
 class RenderTable;
 class RenderTheme;
 class TransformState;
@@ -110,7 +111,8 @@ enum PlaceGeneratedRunInFlag {
 enum MapLocalToContainerMode {
     IsFixed = 1 << 0,
     UseTransforms = 1 << 1,
-    ApplyContainerFlip = 1 << 2
+    ApplyContainerFlip = 1 << 2,
+    SnapOffsetForTransforms = 1 << 3
 };
 typedef unsigned MapLocalToContainerFlags;
 
@@ -226,6 +228,8 @@ public:
     // Function to return our enclosing flow thread if we are contained inside one.
     RenderFlowThread* enclosingRenderFlowThread() const;
 
+    RenderNamedFlowThread* enclosingRenderNamedFlowThread() const;
+
     virtual bool isEmpty() const { return firstChild() == 0; }
 
 #ifndef NDEBUG
@@ -307,6 +311,9 @@ public:
     virtual bool isBlockFlow() const { return false; }
     virtual bool isBoxModelObject() const { return false; }
     virtual bool isCounter() const { return false; }
+#if ENABLE(DIALOG_ELEMENT)
+    virtual bool isDialog() const { return false; }
+#endif
     virtual bool isQuote() const { return false; }
 
 #if ENABLE(DETAILS_ELEMENT)
@@ -506,9 +513,13 @@ public:
     virtual RenderBoxModelObject* virtualContinuation() const { return 0; }
 
     bool isFloating() const { return m_bitfields.floating(); }
+
     bool isOutOfFlowPositioned() const { return m_bitfields.positioned(); } // absolute or fixed positioning
-    bool isInFlowPositioned() const { return m_bitfields.relPositioned(); } // relative positioning
+    bool isInFlowPositioned() const { return m_bitfields.relPositioned() || m_bitfields.stickyPositioned(); } // relative or sticky positioning
     bool isRelPositioned() const { return m_bitfields.relPositioned(); } // relative positioning
+    bool isStickyPositioned() const { return m_bitfields.stickyPositioned(); }
+    bool isPositioned() const { return m_bitfields.positioned() || m_bitfields.relPositioned() || m_bitfields.stickyPositioned(); }
+
     bool isText() const  { return m_bitfields.isText(); }
     bool isBox() const { return m_bitfields.isBox(); }
     bool isInline() const { return m_bitfields.isInline(); } // inline object
@@ -551,12 +562,19 @@ public:
 
     bool hasTransform() const { return m_bitfields.hasTransform(); }
     bool hasMask() const { return style() && style()->hasMask(); }
+    bool hasClipPath() const { return style() && style()->clipPath(); }
     bool hasHiddenBackface() const { return style() && style()->backfaceVisibility() == BackfaceVisibilityHidden; }
 
 #if ENABLE(CSS_FILTERS)
     bool hasFilter() const { return style() && style()->hasFilter(); }
 #else
     bool hasFilter() const { return false; }
+#endif
+
+#if ENABLE(CSS_COMPOSITING)
+    bool hasBlendMode() const { return style() && style()->hasBlendMode(); }
+#else
+    bool hasBlendMode() const { return false; }
 #endif
 
     inline bool preservesNewline() const;
@@ -572,7 +590,7 @@ public:
     RenderView* view() const;
 
     // Returns true if this renderer is rooted, and optionally returns the hosting view (the root of the hierarchy).
-    bool isRooted(RenderView** = 0);
+    bool isRooted(RenderView** = 0) const;
 
     Node* node() const { return isAnonymous() ? 0 : m_node; }
 
@@ -614,6 +632,7 @@ public:
 
     void setPositioned(bool b = true)  { m_bitfields.setPositioned(b);  }
     void setRelPositioned(bool b = true) { m_bitfields.setRelPositioned(b); }
+    void setStickyPositioned(bool b = true) { m_bitfields.setStickyPositioned(b); }
     void setFloating(bool b = true) { m_bitfields.setFloating(b); }
     void setInline(bool b = true) { m_bitfields.setIsInline(b); }
     void setHasBoxDecorations(bool b = true) { m_bitfields.setPaintBackground(b); }
@@ -650,9 +669,9 @@ public:
 
     bool isComposited() const;
 
-    bool hitTest(const HitTestRequest&, HitTestResult&, const HitTestPoint& pointInContainer, const LayoutPoint& accumulatedOffset, HitTestFilter = HitTestAll);
+    bool hitTest(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestFilter = HitTestAll);
     virtual void updateHitTestResult(HitTestResult&, const LayoutPoint&);
-    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestPoint& pointInContainer, const LayoutPoint& accumulatedOffset, HitTestAction);
+    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction);
 
     virtual VisiblePosition positionForPoint(const LayoutPoint&);
     VisiblePosition createVisiblePosition(int offset, EAffinity);
@@ -683,12 +702,12 @@ public:
     // Convert a local quad to absolute coordinates, taking transforms into account.
     FloatQuad localToAbsoluteQuad(const FloatQuad& quad, bool fixed = false, bool* wasFixed = 0) const
     {
-        return localToContainerQuad(quad, 0, fixed, wasFixed);
+        return localToContainerQuad(quad, 0, false, fixed, wasFixed);
     }
 
     // Convert a local quad into the coordinate system of container, taking transforms into account.
-    FloatQuad localToContainerQuad(const FloatQuad&, RenderBoxModelObject* repaintContainer, bool fixed = false, bool* wasFixed = 0) const;
-    FloatPoint localToContainerPoint(const FloatPoint&, RenderBoxModelObject* repaintContainer, bool fixed = false, bool* wasFixed = 0) const;
+    FloatQuad localToContainerQuad(const FloatQuad&, RenderBoxModelObject* repaintContainer, bool snapOffsetForTransforms = true, bool fixed = false, bool* wasFixed = 0) const;
+    FloatPoint localToContainerPoint(const FloatPoint&, RenderBoxModelObject* repaintContainer, bool snapOffsetForTransforms = true, bool fixed = false, bool* wasFixed = 0) const;
 
     // Return the offset from the container() renderer (excluding transforms). In multi-column layout,
     // different offsets apply at different points, so return the offset that applies to the given point.
@@ -706,6 +725,8 @@ public:
     virtual void absoluteQuads(Vector<FloatQuad>&, bool* /*wasFixed*/ = 0) const { }
 
     void absoluteFocusRingQuads(Vector<FloatQuad>&);
+
+    static FloatRect absoluteBoundingBoxRectForRange(const Range*);
 
     // the rect that will be painted if this object is passed as the paintingRoot
     LayoutRect paintingRootRect(LayoutRect& topLevelRect);
@@ -735,14 +756,14 @@ public:
     RenderBoxModelObject* containerForRepaint() const;
     // Actually do the repaint of rect r for this object which has been computed in the coordinate space
     // of repaintContainer. If repaintContainer is 0, repaint via the view.
-    void repaintUsingContainer(RenderBoxModelObject* repaintContainer, const LayoutRect&, bool immediate = false);
+    void repaintUsingContainer(RenderBoxModelObject* repaintContainer, const IntRect&, bool immediate = false) const;
     
     // Repaint the entire object.  Called when, e.g., the color of a border changes, or when a border
     // style changes.
-    void repaint(bool immediate = false);
+    void repaint(bool immediate = false) const;
 
     // Repaint a specific subrectangle within a given object.  The rect |r| is in the object's coordinate space.
-    void repaintRectangle(const LayoutRect&, bool immediate = false);
+    void repaintRectangle(const LayoutRect&, bool immediate = false) const;
 
     // Repaint only if our old bounds and new bounds are different. The caller may pass in newBounds and newOutlineBox if they are known.
     bool repaintAfterLayoutIfNeeded(RenderBoxModelObject* repaintContainer, const LayoutRect& oldBounds, const LayoutRect& oldOutlineBox, const LayoutRect* newBoundsPtr = 0, const LayoutRect* newOutlineBoxPtr = 0);
@@ -894,6 +915,9 @@ public:
     bool shouldUseTransformFromContainer(const RenderObject* container) const;
     void getTransformFromContainer(const RenderObject* container, const LayoutSize& offsetInContainer, TransformationMatrix&) const;
     
+    // return true if this object requires a new stacking context
+    bool createsGroup() const { return isTransparent() || hasMask() || hasFilter() || hasBlendMode(); } 
+    
     virtual void addFocusRingRects(Vector<IntRect>&, const LayoutPoint&) { };
 
     LayoutRect absoluteOutlineBounds() const
@@ -921,7 +945,7 @@ protected:
     void paintFocusRing(GraphicsContext*, const LayoutPoint&, RenderStyle*);
     void paintOutline(GraphicsContext*, const LayoutRect&);
     void addPDFURLRect(GraphicsContext*, const LayoutRect&);
-
+    
     virtual LayoutRect viewRect() const;
 
     void adjustRectForOutlineAndShadow(LayoutRect&) const;
@@ -933,6 +957,9 @@ protected:
     virtual LayoutRect outlineBoundsForRepaint(RenderBoxModelObject* /*repaintContainer*/, LayoutPoint* /*cachedOffsetToRepaintContainer*/ = 0) const { return LayoutRect(); }
 
     virtual bool canBeReplacedWithInlineRunIn() const;
+
+    virtual void insertedIntoTree();
+    virtual void willBeRemovedFromTree();
 
 private:
     RenderStyle* firstLineStyleSlowCase() const;
@@ -978,6 +1005,7 @@ private:
             , m_floating(false)
             , m_positioned(false)
             , m_relPositioned(false)
+            , m_stickyPositioned(false)
             , m_paintBackground(false)
             , m_isAnonymous(node == node->document())
             , m_isText(false)
@@ -1012,6 +1040,7 @@ private:
 
         ADD_BOOLEAN_BITFIELD(positioned, Positioned);
         ADD_BOOLEAN_BITFIELD(relPositioned, RelPositioned);
+        ADD_BOOLEAN_BITFIELD(stickyPositioned, StickyPositioned);
         ADD_BOOLEAN_BITFIELD(paintBackground, PaintBackground); // if the box has something to paint in the
         // background painting phase (background, border, etc)
 

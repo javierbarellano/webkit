@@ -30,12 +30,8 @@
 #include "FakeWebGraphicsContext3D.h"
 #include "GraphicsContext3DPrivate.h"
 #include "ImageBuffer.h"
-#include "LayerChromium.h"
-#include "cc/CCGraphicsContext.h"
-#include "cc/CCRenderingStats.h"
-#include "cc/CCTextureUpdateQueue.h"
+#include "WebCompositorInitializer.h"
 #include <public/Platform.h>
-#include <public/WebCompositor.h>
 #include <public/WebThread.h>
 
 #include <gmock/gmock.h>
@@ -75,10 +71,8 @@ protected:
     void fullLifecycleTest(ThreadMode threadMode, DeferralMode deferralMode)
     {
         RefPtr<GraphicsContext3D> mainContext = GraphicsContext3DPrivate::createGraphicsContextFromWebContext(adoptPtr(new MockCanvasContext));
-        OwnPtr<CCGraphicsContext> ccImplContext = FakeWebCompositorOutputSurface::create(adoptPtr(new MockCanvasContext));
 
         MockCanvasContext& mainMock = *static_cast<MockCanvasContext*>(GraphicsContext3DPrivate::extractWebGraphicsContext3D(mainContext.get()));
-        MockCanvasContext& implMock = *static_cast<MockCanvasContext*>(ccImplContext->context3D());
 
         MockWebTextureUpdater updater;
 
@@ -87,7 +81,7 @@ protected:
         OwnPtr<WebThread> thread;
         if (threadMode == Threaded)
             thread = adoptPtr(WebKit::Platform::current()->createThread("Canvas2DLayerBridgeTest"));
-        WebCompositor::initialize(thread.get());
+        WebKitTests::WebCompositorInitializer initializer(thread.get());
 
         WebGLId backTextureId = 1;
         WebGLId frontTextureId = 1;
@@ -115,9 +109,6 @@ protected:
             EXPECT_CALL(mainMock, flush());
         }
         bridge.clear();
-        ::testing::Mock::VerifyAndClearExpectations(&implMock);
-
-        WebCompositor::shutdown();
     }
 };
 
