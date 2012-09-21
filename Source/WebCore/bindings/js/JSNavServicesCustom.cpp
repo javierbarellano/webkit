@@ -21,7 +21,7 @@ namespace WebCore {
 
 JSC::JSValue JSNavServices::item(JSC::ExecState* exec)
 {
-//    WTF::String sArg = exec->argument(0).toString(exec)->value(exec);
+    WTF::String sArg = exec->argument(0).toWTFString(exec);
     uint32_t index = atoi(sArg.ascii().data());
 
 	NavService *srv = impl()->item(index);
