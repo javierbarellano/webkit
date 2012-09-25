@@ -23,21 +23,21 @@ function okCnn(services) {
 }
 
 function CDSAddDev() {
+	window.console.log("CDSAddDev() called...");
 	CDSAdded = true;
 	srvsCDS = services;
 	srvsCDS.onadddev = null;
 	
-	window.console.log("CDSAddDev() called...");
 	if (CnnAdded)
 		finishJSTest();
 }
 
 function CnnAddDev() {
+	window.console.log("CnnAddDev() called...");
 	CnnAdded = true;
 	srvsCnn = services;
 	srvsCnn.onadddev = null;
 	
-	window.console.log("CnnAddDev() called...");
 	if (CDSAdded)
 		finishJSTest();
 }

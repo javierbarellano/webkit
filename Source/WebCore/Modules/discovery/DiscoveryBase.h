@@ -65,7 +65,7 @@ protected:
 
 	char url_[1024];
 
-	std::string cur_type_;
+	//std::string cur_type_;
 
 	NavDsc *navDsc_;
 

@@ -40,7 +40,7 @@ namespace WebCore
 
 DiscoveryBase::DiscoveryBase()
 {
-	cur_type_ = "Bad Type, Don't use!";
+	//cur_type_ = "Bad Type, Don't use!";
 	m_udpSocket = NULL;
 	canReceiveAnotherDev_ = false;
 	threadDone_ = true;

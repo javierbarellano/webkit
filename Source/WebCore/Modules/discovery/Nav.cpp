@@ -30,11 +30,6 @@ Mutex *Nav::m_main = NULL;
 
 Nav::Nav(Frame* frame)
 : DOMWindowProperty(frame) {
-	m_errorCBIsSet = false;
-	m_UPnPserviceAddedCBIsSet = false;
-	m_UPnPserviceRemovedCBIsSet = false;
-	m_ZCserviceAddedCBIsSet = false;
-	m_ZCserviceRemovedCBIsSet = false;
 
 	if (!m_main)
 		m_main = new Mutex();
@@ -55,6 +50,10 @@ Nav* Nav::from(Navigator* navigator)
         provideTo(navigator, name, adoptPtr(supplement));
     }
     return supplement;
+}
+
+NavServices* Nav::getNavServices(std::string type) {
+	return m_services[type].get();
 }
 
 void Nav::getNetworkServices(
@@ -90,15 +89,11 @@ void Nav::getNetworkServices(
 
 	if (errorcb)
 	{
-		nv->m_errorCB = errorcb;
-		nv->m_errorCBIsSet = true;
 		if (protoType == UPNP_PROTO)
 			nd->onUPnPDiscovery(sType, disAPI);
 		else if (protoType == ZC_PROTO)
 			nd->onZCDiscovery(sType, disAPI);
 	}
-	else
-		nv->m_errorCBIsSet = false;
 
 	std::map<std::string, UPnPDevice> devs;
 	std::map<std::string, ZCDevice> zcdevs;
@@ -118,21 +113,11 @@ void Nav::getNetworkServices(
 
 	nv->setServices(strType, sType, devs, zcdevs, protoType);
 
-	successcb->handleEvent(nv->m_srvcs.get());
+	successcb->handleEvent(nv->getNavServices(strType));
 
 	printf("Nav::getNetworkServices() Done.\n");
 }
 
-
-void Nav::onError(int error)
-{
-	if (m_errorCBIsSet)
-	{
-		// Applies to getNetworkServices() only
-		PassRefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NETWORK_ERR);
-		m_errorCB->handleEvent(err.get());
-	}
-}
 
 void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
 {
@@ -156,7 +141,7 @@ void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
 void Nav::sendEventInternal(void *ptr)
 {
 	Nav *nv = (Nav*)ptr;
-	NavServices* srvs = nv->m_srvcs.get();
+	NavServices* srvs = nv->getNavServices(nv->m_curType);
 
 	for (int i=0; i<srvs->length(); i++) {
 		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
@@ -180,12 +165,12 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 	Nav *nv = (Nav*)ptr;
 	//m_frame->existingDOMWindow()->dispatchEvent(Event::create(eventNames().focusEvent, true, true));
 
-	NavServices* srvs = nv->m_srvcs.get();
+	NavServices* srvs = nv->getNavServices(nv->m_curType);
 	printf("UPnPDevAddedInternal(): sending event.\n");
 
 	bool prevented = srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
 
-	printf("UPnPDevAddedInternal(): sent event. ref=%d prevented: %s\n", nv->m_srvcs->refCount(), prevented ? "true":"false");
+	printf("UPnPDevAddedInternal(): sent event. ref=%d prevented: %s\n", nv->m_services[nv->m_curType]->refCount(), prevented ? "true":"false");
 
 
 }
@@ -215,7 +200,7 @@ void Nav::UPnPDevDropped(std::string type)
 void Nav::UPnPDevDroppedInternal(void *ptr)
 {
 	Nav *nv = (Nav*)ptr;
-	PassRefPtr<NavServices> srvs = nv->m_srvcs;
+	PassRefPtr<NavServices> srvs = nv->m_services[nv->m_curType];
 	srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
 }
 
@@ -258,11 +243,11 @@ void Nav::setServices(
 		)
 {
 
-	if (m_srvcs)
-		m_srvcs.release();
+	if (m_services[strType])
+		m_services[strType].release();
 
-	m_srvcs = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-	m_srvcs->suspendIfNeeded();
+	m_services[strType] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
+	m_services[strType]->suspendIfNeeded();
 
 	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
 
@@ -305,7 +290,7 @@ void Nav::setServices(
 	}
 
 	// Write devices to service object
-	m_srvcs->setServices(vDevs);
+	m_services[strType]->setServices(vDevs);
 
 	printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
 }

@@ -7,6 +7,7 @@ function getNetworkServices(type, okCallback, errCallback) {
 
 var srvs;
 function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() called ok callback.");
 	srvs = services;
 	srvs.ondevadded = addDevCB;
 }
@@ -20,7 +21,7 @@ function addDevCB() {
 		testFailed('GetNetworkServices() should have called dummyCB.');
 	}
 	
-	testPassed("navigator.getNetworkServices() called ok callback.");
+	testPassed("Add Device callback called.");
 	srvs.ondevadded = null;
 	finishJSTest();
 }
