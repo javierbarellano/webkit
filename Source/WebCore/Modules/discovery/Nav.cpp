@@ -119,43 +119,11 @@ void Nav::getNetworkServices(
 }
 
 
-void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
-{
-	std::string name = "";
-	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
-
-	m_event->setPropertyset(WTF::String(body.c_str()));
-	m_event->setUuid(WTF::String(uuid.c_str()));
-	m_event->setServiceType(WTF::String(stype.c_str()));
-	m_event->setFriendlyName(WTF::String(name.c_str()));
-
-	m_curType = stype;
-	m_eventType = SENDEVENT_UPNP_EVENT;
-
-	m_main->lock();
-	callOnMainThread(Nav::sendEventInternal,this);
-	m_main->unlock();
-
-}
-
-void Nav::sendEventInternal(void *ptr)
-{
-	Nav *nv = (Nav*)ptr;
-	NavServices* srvs = nv->getNavServices(nv->m_curType);
-
-	for (int i=0; i<srvs->length(); i++) {
-		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
-			NavService* srv = srvs->item(i);
-			srv->dispatchEvent(Event::create(eventNames().upnpeventEvent, true, true));
-		}
-	}
-}
-
 void Nav::UPnPDevAdded(std::string type)
 {
 	m_main->lock();
-	m_curType = type;
-	printf("Nav::UPnPDevAdded(%s)\n", type.c_str());
+	m_curType.push(type);
+	//printf("Nav::UPnPDevAdded() pushing: %s\n", type.c_str());
 	callOnMainThread(Nav::UPnPDevAddedInternal,this);
 	m_main->unlock();
 
@@ -165,12 +133,16 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 	Nav *nv = (Nav*)ptr;
 	//m_frame->existingDOMWindow()->dispatchEvent(Event::create(eventNames().focusEvent, true, true));
 
-	NavServices* srvs = nv->getNavServices(nv->m_curType);
-	printf("UPnPDevAddedInternal(): sending event.\n");
+	nv->m_main->lock();
+	std::string type(nv->m_curType.front());
+	nv->m_curType.pop();
+	nv->m_main->unlock();
 
-	bool prevented = srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	//printf("UPnPDevAddedInternal(): Popping(%s)\n",type.c_str());
 
-	printf("UPnPDevAddedInternal(): sent event. ref=%d prevented: %s\n", nv->m_services[nv->m_curType]->refCount(), prevented ? "true":"false");
+	NavServices* srvs = nv->getNavServices(type);
+	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
 
 
 }
@@ -178,7 +150,7 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 void Nav::ZCDevAdded(std::string type)
 {
 	m_main->lock();
-	m_curType = type;
+	m_curType.push(type);
 	printf("Nav::ZCDevAdded(%s)\n", type.c_str());
 	callOnMainThread(Nav::ZCDevAddedInternal,this);
 	m_main->unlock();
@@ -193,21 +165,26 @@ void Nav::ZCDevAddedInternal(void *ptr)
 void Nav::UPnPDevDropped(std::string type)
 {
 	m_main->lock();
-	m_curType = type;
+	m_curType.push(type);
 	callOnMainThread(Nav::UPnPDevDroppedInternal,this);
 	m_main->unlock();
 }
 void Nav::UPnPDevDroppedInternal(void *ptr)
 {
 	Nav *nv = (Nav*)ptr;
-	PassRefPtr<NavServices> srvs = nv->m_services[nv->m_curType];
-	srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+	nv->m_main->lock();
+	std::string type(nv->m_curType.front());
+	nv->m_curType.pop();
+	nv->m_main->unlock();
+
+	//PassRefPtr<NavServices> srvs = nv->m_services[type];
+	//srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
 }
 
 void Nav::ZCDevDropped(std::string type)
 {
 	m_main->lock();
-	m_curType = type;
+	m_curType.push(type);
 	callOnMainThread(Nav::ZCDevDroppedInternal,this);
 	m_main->unlock();
 }
@@ -216,6 +193,43 @@ void Nav::ZCDevDroppedInternal(void *ptr)
 	UPnPDevDroppedInternal(ptr);
 }
 
+
+void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
+{
+	std::string name = "";
+	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
+
+	m_event->setPropertyset(WTF::String(body.c_str()));
+	m_event->setUuid(WTF::String(uuid.c_str()));
+	m_event->setServiceType(WTF::String(stype.c_str()));
+	m_event->setFriendlyName(WTF::String(name.c_str()));
+
+	m_eventType = SENDEVENT_UPNP_EVENT;
+
+	m_main->lock();
+	callOnMainThread(Nav::sendEventInternal,this);
+	m_main->unlock();
+
+}
+
+void Nav::sendEventInternal(void *ptr)
+{
+	Nav *nv = (Nav*)ptr;
+
+	nv->m_main->lock();
+	std::string type(nv->m_curType.front());
+	nv->m_curType.pop();
+	nv->m_main->unlock();
+
+	NavServices* srvs = nv->getNavServices(type);
+
+	for (int i=0; i<srvs->length(); i++) {
+		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
+			NavService* srv = srvs->item(i);
+			srv->dispatchEvent(Event::create(eventNames().upnpeventEvent, true, true));
+		}
+	}
+}
 
 Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType)
 {
@@ -242,6 +256,8 @@ void Nav::setServices(
 		ProtocolType protoType
 		)
 {
+
+	printf("setServices(%s)\n",strType.c_str());
 
 	if (m_services[strType])
 		m_services[strType].release();
