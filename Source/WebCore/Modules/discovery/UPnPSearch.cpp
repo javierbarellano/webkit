@@ -182,8 +182,10 @@ void UPnPSearch::createConnect(const char *type)
 // static
 std::map<std::string, UPnPDevice> UPnPSearch::discoverInternalDevs(const char *type, IDiscoveryAPI *api)
 {
+
 	createConnect(type);
 	instance_->api_ = api;
+    instance_->internal_type_ = type;
 
 	if (instance_->internalDevs_.find(std::string(type)) != instance_->internalDevs_.end())
 	{

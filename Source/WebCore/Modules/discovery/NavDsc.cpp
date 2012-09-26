@@ -88,20 +88,13 @@ void NavDsc::lostZCDev(std::string type)
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
 {
+    printf("startUPnPInternalDiscovery(%s).\n", type);
+
 	std::map<std::string, UPnPDevice> empty;
 	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverInternalDevs(type, api);
 
 	if (devs.size()==0)
 		return devs;
-
-	// We have devices to look at
-
-	if (!m_frame)
-		return empty;
-
-	Page* page = m_frame->page();
-	if (!page)
-		return empty;
 
 	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
 	{
@@ -111,12 +104,8 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char 
 		devs[(*it).first] = d;
 	}
 
-
 	return devs;
-
 }
-
-
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 {
