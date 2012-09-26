@@ -9,6 +9,7 @@
 #define UPNPSEARCH_H_
 
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -118,10 +119,12 @@ private:
 	
 	bool notInBadList(std::string sUUid);
 
-	bool isCurrentType(const char* type);
+	bool isCurrentType(const char* type, std::vector<std::string> &regType);
 	bool isInternalType(const char* type);
 
 	static UPnPSearch* instance_;
+
+	std::set<std::string> regTypes_;
 
 	// key == service type
 	// dev key == UUID

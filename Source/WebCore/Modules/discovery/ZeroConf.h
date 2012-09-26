@@ -54,7 +54,7 @@ public:
     // Called when Socket Stream has an error.
     virtual void UDPdidFail(UDPSocketHandle*, UDPSocketError&);
 
-	void initQuery();
+	void initQuery(const char *type);
 
 	// White list imp
 	virtual bool hostPortOk(const char* host, int port);
@@ -78,6 +78,8 @@ private:
 
 	ZeroConf(const char *type);
 	virtual ~ZeroConf();
+
+	std::string daapType_;
 
 	// Return pos
 	int parseRec(const char* resp, size_t respLen, int pos, int numRecs, std::string& name);

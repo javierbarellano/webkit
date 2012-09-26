@@ -66,7 +66,7 @@ public:
 			PassRefPtr<NavServiceErrorCB> errorCB );
 
 
-    virtual void onError(int error);
+    virtual void onError(int error){}
 
     virtual void UPnPDevAdded(std::string type);
     static void UPnPDevAddedInternal(void *ptr);
@@ -109,35 +109,15 @@ private:
     		ProtocolType protoType);
 
     ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
+    NavServices* getNavServices(std::string type);
 
     static Mutex *m_main;
 
     // Home Networking Data
-    mutable RefPtr<NavServiceErrorCB> m_errorCB;
-    bool m_errorCBIsSet;
 
-    std::map<std::string, RefPtr<NavDscCB> > m_uacb;
-    mutable RefPtr<NavDscCB> m_UPnPserviceAddedCB;
-    bool m_UPnPserviceAddedCBIsSet;
+    std::map<std::string, RefPtr<NavServices> > m_services;
 
-    std::map<std::string, RefPtr<NavServiceOkCB> > m_urcb;
-    mutable RefPtr<NavServiceOkCB> m_UPnPserviceRemovedCB;
-    bool m_UPnPserviceRemovedCBIsSet;
-
-    std::map<std::string, RefPtr<NavDscCB> > m_zacb;
-    mutable RefPtr<NavDscCB> m_ZCserviceAddedCB;
-    bool m_ZCserviceAddedCBIsSet;
-
-    std::map<std::string, RefPtr<NavServiceOkCB> > m_zrcb;
-    mutable RefPtr<NavServiceOkCB> m_ZCserviceRemovedCB;
-    bool m_ZCserviceRemovedCBIsSet;
-
-    std::map<std::string, RefPtr<NavEventCB> > m_ecb;
-    mutable RefPtr<NavEventCB> m_eventCB;
-
-    //std::map<std::string, RefPtr<NavServices> > m_services;
-
-    mutable RefPtr<NavServices> m_srvcs;
+    //mutable RefPtr<NavServices> m_srvcs;
     std::vector<RefPtr<NavService> > m_srv;
 
 };

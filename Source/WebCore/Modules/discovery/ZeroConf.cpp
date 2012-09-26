@@ -119,8 +119,6 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
 	if (!instance_)
 		instance_ = new ZeroConf(type);
 
-	instance_->cur_type_ = std::string(type);
-
  	if (!instance_->m_udpSocket)
  	{
 		KURL url(ParsedURLString, String(instance_->url_));
@@ -156,10 +154,10 @@ ZeroConf::ZeroConf(const char *type) :
 
  	strcpy(url_, "udp://224.0.0.251:5353");
 
- 	if (type) {
- 		cur_type_ = std::string(type);
- 	 	initQuery();
- 	}
+ 	std::string t(type ? type:"_daap");
+ 	daapType_ = t;
+
+ 	initQuery(type);
 }
 
 ZeroConf::~ZeroConf()
@@ -289,9 +287,9 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 	//printf("ZC parseRec(): url: %s\n", zcd.url.c_str());
 
 	ZCDevMap dm;
-	if (devs_.find(cur_type_) != devs_.end())
+	if (devs_.find(daapType_) != devs_.end())
 	{
-		dm = devs_.find(cur_type_)->second;
+		dm = devs_.find(daapType_)->second;
 	}
 
 	if (dm.devMap.find(zcd.friendlyName) == dm.devMap.end())
@@ -299,11 +297,11 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 		zcd.isOkToUse = true;
 
 		dm.devMap[zcd.friendlyName] = zcd;
-		devs_[cur_type_] = dm;
+		devs_[daapType_] = dm;
 
 		printf("Adding dev: %s\n", zcd.friendlyName.c_str());
 		if (navDsc_)
-			navDsc_->foundZCDev(cur_type_);
+			navDsc_->foundZCDev(daapType_);
 	}
 
 	return true;
@@ -425,15 +423,16 @@ int ZeroConf::cxSupport(const char* resp, int pos, std::string& subName, int cur
 
 }
 
-void ZeroConf::initQuery()
+void ZeroConf::initQuery(const char *type)
 {
-   queryLen_ = prfixLen_ + postfixLen_ + cur_type_.length()+1;
+	std::string sType(type);
+   queryLen_ = prfixLen_ + postfixLen_ + sType.length()+1;
    query_ = new char[queryLen_];
 
    memcpy(query_, prefix_, prfixLen_);
-   query_[prfixLen_]=(char)cur_type_.length();
-   memcpy(&query_[prfixLen_+1],                    cur_type_.c_str(), cur_type_.length());
-   memcpy(&query_[prfixLen_+1+cur_type_.length()], postfix_, postfixLen_);
+   query_[prfixLen_]=(char)sType.length();
+   memcpy(&query_[prfixLen_+1],                    sType.c_str(), sType.length());
+   memcpy(&query_[prfixLen_+1+sType.length()], postfix_, postfixLen_);
 }
 
 // Called by CrossOriginAccessControl.cpp

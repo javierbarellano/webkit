@@ -114,6 +114,9 @@ UPnPSearch::UPnPSearch(const char *type) :
 		DiscoveryBase()
 {
 	internal_type_ = "";
+	if (type)
+		regTypes_.insert(std::string(type));
+
 	api_ = NULL;
 	navDsc_ = NULL;
 	tcpSocket_ = new std::map<long, KURL>();
@@ -162,7 +165,7 @@ void UPnPSearch::createConnect(const char *type)
 	if (!instance_)
 		instance_ = new UPnPSearch(type);
 
-	instance_->cur_type_ = std::string(type);
+	//instance_->cur_type_ = std::string(type);
 
 	if (!instance_->m_udpSocket)
 	{
@@ -198,6 +201,8 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
 {
 	createConnect(type);
 	instance_->navDsc_ = navDsc;
+
+	instance_->regTypes_.insert(std::string(type));
 
 	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
 	{
@@ -365,12 +370,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 //	USN: uuid:380D0BFB-2B2A-448C-99A8-0018DD018C56::upnp:rootdevice
 //	Content-Length: 0
 
-	if (cur_type_.length()==0 && internal_type_.length()==0) {
-		printf("No service type set!\n");
-		return false;
-	}
-
-
 	std::string sResp(resp);
 
 	size_t loc = sResp.find("OCATION:");
@@ -404,17 +403,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	sUuid = sUuid.substr(0,uuidEnd);
 
 	UPnPDevMap dm;
-	if (cur_type_.length()>0 && devs_.find(cur_type_) != devs_.end()) {
-		dm = devs_.find(cur_type_)->second;
-		if (dm.devMap.find(sUuid) != dm.devMap.end())
-			return false;  // Already in the list
-	}
-
-	if (internal_type_.length()>0 && internalDevs_.find(internal_type_) != internalDevs_.end()) {
-		dm = internalDevs_.find(internal_type_)->second;
-		if (dm.devMap.find(sUuid) != dm.devMap.end())
-			return false;  // Already in the list
-	}
 
 	// Now get the friendly name, ugh...
 	std::string path;
@@ -441,7 +429,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	//printf("parseDev() - Host: %s, Port: %s, Path: %s\n",host.c_str(), port.c_str(), path.c_str());
 
 	char bf[8000];
-	unsigned int len = (unsigned int)sizeof(bf)-1;
+	size_t len = sizeof(bf)-1;
 	HTTPget(host.c_str(), atoi(port.c_str()), path.c_str(), bf, &len);
 	
 	if (!len) {
@@ -450,16 +438,17 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	}
 
 	bf[len] = 0;
+	std::vector<std::string> foundTypes;
 	//printf("Parse(%s): len=%d\n%s\n", sLoc.c_str(), (int)len, bf);
 
 	// Look for the service type that was given to us from JavaScript
 	// Form is something like:
 	//    urn:schemas-upnp-org:service:ContentDirectory:1
-	if (!isCurrentType(bf) && !isInternalType(bf))
+	if (!isCurrentType(bf, foundTypes) && !isInternalType(bf))
 	{
 		if (notInBadList(sUuid)) {
 			badDevs_.push_back(sUuid);
-			printf("%s has no '%s' or '%s' service!!!!\n",host.c_str(), cur_type_.c_str(), internal_type_.c_str());
+			printf("%s doesn't include a registered service.\n",host.c_str());
 		}
 		return false;
 	}
@@ -523,7 +512,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 			strncpy(srvBody, srv, srvEnd - srv);
 			srvBody[srvEnd - srv] = 0;
 
-			if (isCurrentType(srvBody) || isInternalType(srvBody))
+			if (isCurrentType(srvBody, foundTypes) || isInternalType(srvBody))
 			{
 				char *eUrl = strstr(srvBody, "<eventSubURL>")+13;
 				char *eUrlEnd = strstr(srvBody, "</eventSubURL>");
@@ -548,12 +537,15 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 	dm.devMap[sUuid] = d;
 
-	if (isCurrentType(bf))
+	foundTypes.clear();
+	if (isCurrentType(bf, foundTypes))
 	{
-		devs_[cur_type_] = dm;
-		printf("Adding device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
-		if (navDsc_)
-			navDsc_->foundUPnPDev(cur_type_);
+		for (int i=0; i<foundTypes.size(); i++) {
+			devs_[foundTypes.at(i)] = dm;
+			printf("Adding device: %s : %s, %s found %d types.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str(), (int)foundTypes.size());
+			if (navDsc_)
+				navDsc_->foundUPnPDev(foundTypes.at(i));
+		}
 	}
 
 	if (isInternalType(bf))
@@ -567,10 +559,18 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	return true;
 }
 
-bool UPnPSearch::isCurrentType(const char* type)
+bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regType)
 {
-	if (cur_type_.length() > 0 && strstr(type,cur_type_.c_str()))
-		return true;
+	if (regTypes_.size() > 0) {
+		std::set<std::string>::iterator i = regTypes_.begin();
+		while (i != regTypes_.end()) {
+			if (strstr(type,i->c_str())) {
+				regType.push_back(*i);
+			}
+			i++;
+		}
+		return regType.size()>0;
+	}
 
 	return false;
 }
@@ -627,7 +627,7 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
  	url << host << ":" << port;
 
  	char bf[8024];
- 	unsigned int len = (unsigned int)sizeof(bf);
+ 	size_t len = sizeof(bf);
  	DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), (unsigned int)ss.str().length(), bf, &len);
  	bf[len] = 0;
  	printf("eventServer() returned:\n%s\n", bf);
