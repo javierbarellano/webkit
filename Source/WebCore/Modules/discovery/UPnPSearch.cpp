@@ -541,10 +541,14 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	if (isCurrentType(bf, foundTypes))
 	{
 		for (int i=0; i<foundTypes.size(); i++) {
-			devs_[foundTypes.at(i)] = dm;
-			printf("Adding device: %s : %s, %s found %d types.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str(), (int)foundTypes.size());
-			if (navDsc_)
-				navDsc_->foundUPnPDev(foundTypes.at(i));
+			if (devs_.find(foundTypes.at(i))==devs_.end() ||
+				devs_[foundTypes.at(i)].devMap.find(sUuid)==devs_[foundTypes.at(i)].devMap.end()) {
+
+				devs_[foundTypes.at(i)] = dm;
+				printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+				if (navDsc_)
+					navDsc_->foundUPnPDev(foundTypes.at(i));
+			}
 		}
 	}
 

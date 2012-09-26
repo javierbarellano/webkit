@@ -10,6 +10,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <queue>
 
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
@@ -86,7 +87,7 @@ public:
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
 
     // Events
-	std::string m_curType;
+	std::queue<std::string> m_curType;
 	int m_eventType;
 	RefPtr<NavEvent> m_event;
 
