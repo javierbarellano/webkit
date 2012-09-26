@@ -123,7 +123,6 @@ void Nav::UPnPDevAdded(std::string type)
 {
 	m_main->lock();
 	m_curType.push(type);
-	//printf("Nav::UPnPDevAdded() pushing: %s\n", type.c_str());
 	callOnMainThread(Nav::UPnPDevAddedInternal,this);
 	m_main->unlock();
 
@@ -131,20 +130,16 @@ void Nav::UPnPDevAdded(std::string type)
 void Nav::UPnPDevAddedInternal(void *ptr)
 {
 	Nav *nv = (Nav*)ptr;
-	//m_frame->existingDOMWindow()->dispatchEvent(Event::create(eventNames().focusEvent, true, true));
 
 	nv->m_main->lock();
 	std::string type(nv->m_curType.front());
 	nv->m_curType.pop();
 	nv->m_main->unlock();
 
-	//printf("UPnPDevAddedInternal(): Popping(%s)\n",type.c_str());
 
 	NavServices* srvs = nv->getNavServices(type);
 	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
 	printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
-
-
 }
 
 void Nav::ZCDevAdded(std::string type)
@@ -177,8 +172,8 @@ void Nav::UPnPDevDroppedInternal(void *ptr)
 	nv->m_curType.pop();
 	nv->m_main->unlock();
 
-	//PassRefPtr<NavServices> srvs = nv->m_services[type];
-	//srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+	PassRefPtr<NavServices> srvs = nv->m_services[type];
+	srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
 }
 
 void Nav::ZCDevDropped(std::string type)
@@ -227,6 +222,7 @@ void Nav::sendEventInternal(void *ptr)
 		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
 			NavService* srv = srvs->item(i);
 			srv->dispatchEvent(Event::create(eventNames().upnpeventEvent, true, true));
+			break;
 		}
 	}
 }
