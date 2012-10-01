@@ -639,7 +639,7 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
 
  	char bf[8024];
  	size_t len = sizeof(bf);
- 	DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), (unsigned int)ss.str().length(), bf, &len);
+ 	DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), ss.str().length(), bf, &len);
  	bf[len] = 0;
  	printf("eventServer() returned:\n%s\n", bf);
 }
