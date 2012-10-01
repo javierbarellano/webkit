@@ -489,6 +489,7 @@
 #if ENABLE(UNDO_MANAGER)
 #include "JSUndoManager.cpp"
 #endif
+#include "JSUPnPEvent.cpp"
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
 #include "JSWebKitAnimation.cpp"

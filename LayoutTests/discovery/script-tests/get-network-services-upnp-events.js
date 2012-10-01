@@ -7,10 +7,16 @@ function getNetworkServices(type, okCallback, errCallback) {
 
 var srvs;
 var srv;
+var event;
 
-function eventCB(event) {
+function eventCB(evnt) {
 	testPassed("navigator.getNetworkServices() called eventCB callback.");
-	srv.onupnpevent = null;
+	event = evnt;
+	shouldBe("event.propertyset.length>0", "true");
+	shouldBe("event.friendlyName.length>0", "true");
+	shouldBe("event.serviceType.length>0", "true");
+	shouldBe("event.uuid.length>0", "true");
+	srv.onupnp = null;
 	finishJSTest();
 }
 
@@ -22,7 +28,7 @@ function okSecondCallCB(services) {
 	shouldBe("srvs.servicesAvailable>=1", "true");
 
 	srv = srvs.item(0);
-	srv.onupnpevent = eventCB;
+	srv.onupnp = eventCB;
 }
 
 function okAddDev(services) {

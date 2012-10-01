@@ -155,6 +155,7 @@ SET(WebCore_IDL_FILES
     Modules/discovery/NavServiceErrorCB.idl
     Modules/discovery/NavServiceOkCB.idl
     Modules/discovery/NavServices.idl
+    Modules/discovery/UPnPEvent.idl
 
     Modules/filesystem/DirectoryEntry.idl
     Modules/filesystem/DirectoryEntrySync.idl

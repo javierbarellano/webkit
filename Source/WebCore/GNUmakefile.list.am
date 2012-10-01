@@ -1055,6 +1055,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSUint8ClampedArray.h \
 	DerivedSources/WebCore/JSUndoManager.cpp \
 	DerivedSources/WebCore/JSUndoManager.h \
+	DerivedSources/WebCore/JSUPnPEvent.cpp \
+	DerivedSources/WebCore/JSUPnPEvent.h \
 	DerivedSources/WebCore/JSValidityState.cpp \
 	DerivedSources/WebCore/JSValidityState.h \
 	DerivedSources/WebCore/JSVoidCallback.cpp \
@@ -1186,6 +1188,7 @@ dom_binding_idls += \
 	$(WebCore)/Modules/discovery/NavEventCB.idl \
 	$(WebCore)/Modules/discovery/NavServiceError.idl \
 	$(WebCore)/Modules/discovery/NavDscCB.idl \
+	$(WebCore)/Modules/discovery/UPnPEvent.idl \
 	$(WebCore)/Modules/filesystem/DOMFileSystem.idl \
 	$(WebCore)/Modules/filesystem/DOMFileSystemSync.idl \
 	$(WebCore)/Modules/filesystem/DOMWindowFileSystem.idl \

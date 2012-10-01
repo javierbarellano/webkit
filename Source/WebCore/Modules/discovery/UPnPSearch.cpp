@@ -155,7 +155,11 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 		{
 			name.append(dm.devMap[uuid].friendlyName);
 		}
+		else
+			printf("getUPnPFriendlyName() UUID(%s) not found! dm.devMao.size=%d\n", uuid.c_str(), (int)dm.devMap.size());
 	}
+	else
+		printf("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
 
 }
 
@@ -535,7 +539,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	d.isOkToUse = true;
 	d.uuid = sUuid;
 
-	dm.devMap[sUuid] = d;
 
 	foundTypes.clear();
 	if (isCurrentType(bf, foundTypes))
@@ -544,6 +547,8 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 			if (devs_.find(foundTypes.at(i))==devs_.end() ||
 				devs_[foundTypes.at(i)].devMap.find(sUuid)==devs_[foundTypes.at(i)].devMap.end()) {
 
+				dm = devs_[foundTypes.at(i)];
+				dm.devMap[sUuid] = d;
 				devs_[foundTypes.at(i)] = dm;
 				printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 				if (navDsc_)
@@ -554,7 +559,9 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 	if (isInternalType(bf))
 	{
-		internalDevs_[internal_type_] = dm;
+		dm = internalDevs_[internal_type_];
+		dm.devMap[sUuid] = d;
+
 		printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 		if (api_)
 			api_->serverListUpdate(internal_type_, &dm.devMap);

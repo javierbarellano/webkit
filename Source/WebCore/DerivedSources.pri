@@ -93,6 +93,7 @@ IDL_BINDINGS += \
     $$PWD/Modules/discovery/NavServiceError.idl \
     $$PWD/Modules/discovery/NavDscCB.idl \
     $$PWD/Modules/discovery/Nav.idl \
+    $$PWD/Modules/discovery/UPnPEvent.idl \
     $$PWD/Modules/filesystem/DOMFileSystem.idl \
     $$PWD/Modules/filesystem/DOMFileSystemSync.idl \
     $$PWD/Modules/filesystem/DOMWindowFileSystem.idl \

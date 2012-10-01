@@ -12,6 +12,7 @@
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/NavDsc.h"
+#include "Modules/discovery/UPnPEvent.h"
 
 #include "NavServiceError.h"
 #include "NavServiceErrorCB.h"
@@ -194,17 +195,19 @@ void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
 	std::string name = "";
 	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
 
-	m_event->setPropertyset(WTF::String(body.c_str()));
-	m_event->setUuid(WTF::String(uuid.c_str()));
-	m_event->setServiceType(WTF::String(stype.c_str()));
-	m_event->setFriendlyName(WTF::String(name.c_str()));
+	//printf("Nav::sendEvent(%s)\n",uuid.c_str());
+	RefPtr<NavEvent> evnt = NavEvent::create();
 
-	m_eventType = SENDEVENT_UPNP_EVENT;
+	evnt->setPropertyset(WTF::String(body.c_str()));
+	evnt->setUuid(WTF::String(uuid.c_str()));
+	evnt->setServiceType(WTF::String(stype.c_str()));
+	evnt->setFriendlyName(WTF::String(name.c_str()));
 
 	m_main->lock();
+	m_event.push(evnt);
+	m_curType.push(stype);
 	callOnMainThread(Nav::sendEventInternal,this);
 	m_main->unlock();
-
 }
 
 void Nav::sendEventInternal(void *ptr)
@@ -214,17 +217,27 @@ void Nav::sendEventInternal(void *ptr)
 	nv->m_main->lock();
 	std::string type(nv->m_curType.front());
 	nv->m_curType.pop();
+
+	RefPtr<NavEvent> evnt = nv->m_event.front();
+	nv->m_event.pop();
 	nv->m_main->unlock();
 
 	NavServices* srvs = nv->getNavServices(type);
+	NavService* srv = srvs->find(std::string(evnt->uuid().ascii().data()));
 
-	for (int i=0; i<srvs->length(); i++) {
-		if (srvs->item(i)->uuid() == nv->m_event->uuid()) {
-			NavService* srv = srvs->item(i);
-			srv->dispatchEvent(Event::create(eventNames().upnpeventEvent, true, true));
-			break;
-		}
+	if (srv) {
+		//printf("Nav::sendEventInternal(%s) SENDING... Name: %s\n",type.c_str(), srv->name().ascii().data());
+		struct UPnPEventInit init;
+		init.friendlyName = evnt->friendlyName();
+		init.propertyset = evnt->propertyset();
+		init.serviceType = evnt->serviceType();
+		init.uuid = evnt->uuid();
+		srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
 	}
+	else
+		printf("Nav::sendEventInternal() srv == NULL !!!!!!\n");
+
+	evnt.release();
 }
 
 Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType)

@@ -53,7 +53,7 @@ public:
     virtual const AtomicString& interfaceName() const;
     virtual ScriptExecutionContext* scriptExecutionContext() const;
 
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(upnpevent);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(upnp);
 
     using RefCounted<NavService>::ref;
     using RefCounted<NavService>::deref;

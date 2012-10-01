@@ -7,6 +7,10 @@
 *.o
 *.Po
 
+GNUmakefile
+ck.sh
+libtool
+Debug/
 Source/JavaScriptCore/.deps/*
 Source/JavaScriptCore/API/.deps/*
 Source/JavaScriptCore/API/tests/.deps/*

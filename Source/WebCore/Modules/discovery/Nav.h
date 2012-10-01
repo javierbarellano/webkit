@@ -89,7 +89,7 @@ public:
     // Events
 	std::queue<std::string> m_curType;
 	int m_eventType;
-	RefPtr<NavEvent> m_event;
+	std::queue<RefPtr<NavEvent> > m_event;
 
 	enum EventType {
 		ADDED_UPNP_EVENT,
