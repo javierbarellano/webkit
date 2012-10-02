@@ -228,12 +228,38 @@ void UPnPSearch::UDPdidSendData(UDPSocketHandle* handle, int amountSent)
 // Called when data are received.
 void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, int dLen, const char *hostPort, int hpLen)
 {
-	char bf[8000];//fix me malloc()
-	memcpy(bf, data, dLen);
-	bf[dLen] = 0;
+    if (dLen > 0) {
 
-	if (dLen > 0)
-		parseDev(bf, dLen, NULL);
+        std::map<std::string,std::string> headers = parseUDPMessage(data, dLen);
+
+        std::string usn = getTokenValue(headers, "USN");
+        std::string location = getTokenValue(headers, "LOCATION");
+        std::string st = getTokenValue(headers, "NTS");
+
+        std::string uuid;
+        size_t pos = usn.find_first_of(':');
+        if (pos != std::string::npos) {
+            uuid = usn.substr(pos+1);
+        }
+
+        std::string line1 = getTokenValue(headers,"LINE1");
+        pos = line1.find("NOTIFY");
+
+        if (pos != std::string::npos) {
+
+            // This is a NOTIFY message
+            if (st == "ssdp:alive") {
+                parseDev(data, dLen, NULL);
+            } else if (st == "ssdp:byebye"){
+                // We don't know which list(s) the device is on, so check them both.
+                removeDevice(&devs_, uuid);
+                removeDevice(&internalDevs_, uuid);
+            }
+        } else {
+            // Not a NOTIFY. Treat as an M_SEARCH reply
+            parseDev(data, dLen, NULL);
+        }
+    }
 }
 
 void UPnPSearch::UDPdidClose(UDPSocketHandle* handle)
@@ -370,39 +396,34 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 //	USN: uuid:380D0BFB-2B2A-448C-99A8-0018DD018C56::upnp:rootdevice
 //	Content-Length: 0
 
-	std::string sResp(resp);
+    std::map<std::string,std::string> headers = parseUDPMessage(resp, respLen);
 
-	size_t loc = sResp.find("OCATION:");
-	if (loc == std::string::npos)
-		loc = sResp.find("ocation:");
-	if (loc == std::string::npos)
-	{
-		printf("No Location header found!\n");
-		return false;
-	}
+    std::string sLoc = getTokenValue(headers, "LOCATION");
+    if ( sLoc.empty()) {
+        printf("No Location header found!\n");
+        return false;
+    }
 
-	size_t uuid = sResp.find("UUID:");
-	if (uuid == std::string::npos)
-		uuid = sResp.find("uuid:");
-	if (uuid == std::string::npos)
-	{
-		printf("No UUID header found!\n");
-		return false;
-	}
+    std::string usn = getTokenValue(headers, "USN");
+    if ( usn.empty()) {
+        printf("No USN header found!\n");
+        return false;
+    }
 
-	loc += 8;
-	if (sResp.at(loc)== ' ') loc++;
+    std::string sUuid;
+    size_t pos = usn.find_first_of(':');
+    if (pos != std::string::npos) {
+        sUuid = usn.substr(pos+1);
+    }
 
-	std::string sLoc = sResp.substr(loc);
-	size_t locEnd = sLoc.find_first_of('\r');
-	sLoc = sLoc.substr(0,locEnd);
+    UPnPDevMap dm;
 
-	uuid += 5;
-	std::string sUuid = sResp.substr(uuid);
-	size_t uuidEnd = sUuid.find_first_of(':');
-	sUuid = sUuid.substr(0,uuidEnd);
-
-	UPnPDevMap dm;
+    /* This KURL works..
+    String urlString(sLoc.c_str());
+    KURL kurl(WebCore::ParsedURLString, urlString);
+    std::string host = kurl.host().ascii().data();
+    int port = kurl.port();
+    */
 
 	// Now get the friendly name, ugh...
 	std::string path;
@@ -724,6 +745,40 @@ void UPnPSearch::HNdidFail(HNEventServerHandle* hServer, HNEventError& err)
 	//printf("UPnPSearch: didFail(): HNEventServerHandle error: %d\n", err.getErr());
 	//navDsc_->onUPnPError(err.getErr());
 }
+
+bool UPnPSearch::removeDevice(std::map<std::string, UPnPDevMap>* devices, std::string uuid)
+{
+    bool found = false;
+
+    for (std::map<std::string, UPnPDevMap>::iterator i = devices->begin(); i != devices->end(); i++)
+    {
+        UPnPDevMap dm = (*i).second;
+        std::string type = (*i).first;
+        for (std::map<std::string, UPnPDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
+        {
+
+            UPnPDevice dv = (*k).second;
+
+            if (dv.uuid == uuid) {
+
+                found = true;
+                dm.devMap.erase((*k).first);
+                if ((void*)devices == (void*)&internalDevs_ && api_) {
+                    api_->serverListUpdate(type, &dm.devMap);
+                }
+
+                break;
+            }
+
+        }
+        if (found) {
+            break;
+        }
+    }
+
+    return found;
+}
+
 
 
 
