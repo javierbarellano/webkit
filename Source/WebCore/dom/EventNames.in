@@ -23,6 +23,7 @@ ProgressEvent
 TextEvent
 UIEvent
 UIEvents interfaceName=UIEvent
+UPnPEvent
 WebKitAnimationEvent
 WebKitTransitionEvent
 WheelEvent

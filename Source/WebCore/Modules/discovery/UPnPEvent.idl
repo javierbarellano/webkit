@@ -1,0 +1,17 @@
+
+
+module events {
+
+    interface [
+        Conditional=DISCOVERY,
+        JSNoStaticTables,
+        ConstructorTemplate=Event
+    ] UPnPEvent : Event {
+
+        readonly attribute [InitializedByEventConstructor] DOMString propertyset;
+        readonly attribute [InitializedByEventConstructor] DOMString uuid;
+        readonly attribute [InitializedByEventConstructor] DOMString friendlyName;
+        readonly attribute [InitializedByEventConstructor] DOMString serviceType;
+    };
+
+}
