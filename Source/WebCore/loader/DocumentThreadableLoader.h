@@ -94,6 +94,7 @@ namespace WebCore {
         void makeCrossOriginAccessRequestWithPreflight(const ResourceRequest& request);
         void preflightSuccess();
         void preflightFailure(const String& url, const String& errorDescription);
+        void makeRequest(const ResourceRequest& request);
 
         void loadRequest(const ResourceRequest&, SecurityCheckPolicy);
         bool isAllowedRedirect(const KURL&);
