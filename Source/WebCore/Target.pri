@@ -662,6 +662,7 @@ SOURCES += \
     html/HTMLTextAreaElement.cpp \
     html/HTMLTextFormControlElement.cpp \
     html/HTMLTitleElement.cpp \
+    html/HTMLTrackElement.cpp \
     html/HTMLUListElement.cpp \
     html/HTMLViewSourceDocument.cpp \
     html/HiddenInputType.cpp \
@@ -734,6 +735,15 @@ SOURCES += \
     html/shadow/SliderThumbElement.cpp \
     html/shadow/SpinButtonElement.cpp \
     html/shadow/TextControlInnerElements.cpp \
+    html/track/LoadableTextTrack.cpp \
+    html/track/TextTrack.cpp \
+    html/track/TextTrackCue.cpp \
+    html/track/TextTrackCueList.cpp \
+    html/track/TextTrackList.cpp \
+    html/track/TrackBase.cpp \
+    html/track/TrackEvent.cpp \
+    html/track/WebVTTParser.cpp \
+    html/track/WebVTTTokenizer.cpp \
     inspector/ConsoleMessage.cpp \
     inspector/ContentSearchUtils.cpp \
     inspector/DOMEditor.cpp \
@@ -811,6 +821,7 @@ SOURCES += \
     loader/cache/CachedShader.cpp \
     loader/cache/CachedSVGDocument.cpp \
     loader/cache/CachedSVGDocument.h \
+    loader/cache/CachedTextTrack.cpp \
     loader/cache/CachedXSLStyleSheet.cpp \
     loader/CrossOriginAccessControl.cpp \
     loader/CrossOriginPreflightResultCache.cpp \
@@ -850,6 +861,7 @@ SOURCES += \
     loader/SubresourceLoader.cpp \
     loader/SubstituteData.cpp \
     loader/TextResourceDecoder.cpp \
+    loader/TextTrackLoader.cpp \
     loader/ThreadableLoader.cpp \
     page/animation/AnimationBase.cpp \
     page/animation/AnimationController.cpp \
