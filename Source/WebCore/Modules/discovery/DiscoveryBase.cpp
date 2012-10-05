@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_RCVBUF 8192
+
 // Utility methods. Should we find a shared location for these?
 // trim from start
 static inline std::string& ltrim(std::string &s) {
@@ -59,8 +61,9 @@ namespace WebCore
 DiscoveryBase::DiscoveryBase()
 {
 	//cur_type_ = "Bad Type, Don't use!";
-	m_udpSocket = NULL;
-	canReceiveAnotherDev_ = false;
+    m_udpSocket = NULL;
+    m_mcastSocket = NULL;
+    canReceiveAnotherDev_ = false;
 	threadDone_ = true;
 	socketHandle_ = NULL;
 	serverHandle_ = NULL;
@@ -228,7 +231,7 @@ std::string DiscoveryBase::getTokenValue( std::map<std::string,std::string> map,
 std::map<std::string,std::string> DiscoveryBase::parseUDPMessage( const char *data, int dLen )
 {
     //char* buffer = new char(dLen+1);
-    char buffer[10000];
+    char buffer[MAX_RCVBUF];
     memcpy(buffer, data, dLen);
     buffer[dLen] = 0;
 

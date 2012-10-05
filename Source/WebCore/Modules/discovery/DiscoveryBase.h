@@ -52,7 +52,8 @@ public:
 	bool m_stillRunning;
 	bool m_droppedStillRunning;
 
-	mutable RefPtr<UDPSocketHandle> m_udpSocket;
+    mutable RefPtr<UDPSocketHandle> m_udpSocket;
+    mutable RefPtr<UDPSocketHandle> m_mcastSocket;
 
 	bool stopDicovery_;
 	bool threadDone_;
@@ -73,8 +74,9 @@ protected:
 
 	NavDsc *navDsc_;
 
-	ThreadIdentifier m_tID;
-	ThreadIdentifier m_tDroppedID;
+    ThreadIdentifier m_tID;
+    ThreadIdentifier m_tNotifyID;
+    ThreadIdentifier m_tDroppedID;
 
 };
 

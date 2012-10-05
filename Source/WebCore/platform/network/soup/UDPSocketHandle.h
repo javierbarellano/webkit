@@ -118,15 +118,41 @@ private:
 		printf("HOST: %s, port: %d\n", cHost.data(), url.port());
 
 		bzero(&m_servaddr,sizeof(m_servaddr));
-		m_servaddr.sin_family = AF_INET;
+        m_servaddr.sin_family = AF_INET;
 		m_servaddr.sin_addr.s_addr=inet_addr(cHost.data());
 		m_servaddr.sin_port=htons(url.port());
 
 		m_url = url;
 		m_client = client;
 		m_isMulticast = isMulticastGroup;
-	}
 
+        // Setup multicast group
+        if (m_isMulticast) {
+
+            struct ip_mreq imr;
+
+            imr.imr_multiaddr.s_addr = inet_addr(cHost.data());
+            imr.imr_interface.s_addr = htonl(INADDR_ANY);
+
+            if (setsockopt(m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(struct ip_mreq)) < 0) {
+                printf("UDPSocketHandle::setsockopt - IP_ADD_MEMBERSHIP failed\n");
+            } else {
+
+                int reuse = 1;
+                setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, (int *) &reuse, sizeof(reuse));
+
+                char loop = 0;
+                setsockopt(m_socket, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(char));
+
+                const struct sockaddr* addr_in = (sockaddr*)&m_servaddr;
+                if (bind(m_socket, addr_in, sizeof(m_servaddr)) < 0) {
+                    int lastError = errno;
+                    printf("UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
+                    fprintf( stderr,"UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
+                }
+            }
+        }
+    }
 
 	// Private Data
 private:
