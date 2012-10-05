@@ -35,14 +35,35 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_RCVBUF 8192
+
+// Utility methods. Should we find a shared location for these?
+// trim from start
+static inline std::string& ltrim(std::string &s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+        return s;
+}
+
+// trim from end
+static inline std::string& rtrim(std::string &s) {
+        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+        return s;
+}
+
+// trim from both ends
+static inline std::string& trim(std::string &s) {
+        return ltrim(rtrim(s));
+}
+
 namespace WebCore
 {
 
 DiscoveryBase::DiscoveryBase()
 {
 	//cur_type_ = "Bad Type, Don't use!";
-	m_udpSocket = NULL;
-	canReceiveAnotherDev_ = false;
+    m_udpSocket = NULL;
+    m_mcastSocket = NULL;
+    canReceiveAnotherDev_ = false;
 	threadDone_ = true;
 	socketHandle_ = NULL;
 	serverHandle_ = NULL;
@@ -193,6 +214,58 @@ void DiscoveryBase::hexDump(const char *data, int len, int pos)
 
 	printf("%s",ss.str().c_str());
 }
+
+// Here to lookup a token in a map returned from parseUDPMessage
+std::string DiscoveryBase::getTokenValue( std::map<std::string,std::string> map, std::string token )
+{
+    std::string value;
+    std::map<std::string,std::string>::iterator iter = map.find(token);
+
+    if (iter != map.end()) {
+        value = (*iter).second;
+    }
+    return value;
+}
+
+// Here to parse a received message into a dictionary of token/value pairs
+std::map<std::string,std::string> DiscoveryBase::parseUDPMessage( const char *data, int dLen )
+{
+    //char* buffer = new char(dLen+1);
+    char buffer[MAX_RCVBUF];
+    memcpy(buffer, data, dLen);
+    buffer[dLen] = 0;
+
+    std::map<std::string,std::string> map;
+
+    int lineCount = 0;
+    char* p = strtok(buffer,"\r\n");
+    while (p != 0) {
+
+        std::string tokenValue = p;
+        if ( ++lineCount == 1 ) {
+            map["LINE1"] = p;
+        }
+
+        size_t pos = tokenValue.find_first_of(':');
+        if (pos != std::string::npos) {
+
+            std::string token = tokenValue.substr(0,pos);
+            trim(token);
+            std::transform(token.begin(), token.end(), token.begin(), toupper);
+
+            std::string value = tokenValue.substr(pos+1);
+            trim(value);
+
+            map[token] = value;
+        }
+
+        p = strtok(NULL,"\r\n");
+    }
+
+    //delete buffer;
+    return map;
+}
+
 
 
 
