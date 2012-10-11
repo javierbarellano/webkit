@@ -121,8 +121,8 @@ private:
 
 	bool isCurrentType(const char* type, std::vector<std::string> &regType);
 	bool isInternalType(const char* type);
-
-	static UPnPSearch* instance_;
+    bool removeDevice(std::map<std::string, UPnPDevMap>* devices, std::string uuid);
+    static UPnPSearch* instance_;
 
 	std::set<std::string> regTypes_;
 

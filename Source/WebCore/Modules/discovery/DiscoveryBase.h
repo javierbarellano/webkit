@@ -52,14 +52,19 @@ public:
 	bool m_stillRunning;
 	bool m_droppedStillRunning;
 
-	mutable RefPtr<UDPSocketHandle> m_udpSocket;
+    mutable RefPtr<UDPSocketHandle> m_udpSocket;
+    mutable RefPtr<UDPSocketHandle> m_mcastSocket;
 
 	bool stopDicovery_;
 	bool threadDone_;
 
 protected:
 
-	virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort)=0;
+    virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort)=0;
+
+    // Added these to parse message headers (Sven 9/1/12)
+    std::map<std::string,std::string> parseUDPMessage( const char *data, int dLen );
+    std::string getTokenValue( std::map<std::string,std::string> map, std::string token );
 
 	bool canReceiveAnotherDev_;
 
@@ -69,8 +74,9 @@ protected:
 
 	NavDsc *navDsc_;
 
-	ThreadIdentifier m_tID;
-	ThreadIdentifier m_tDroppedID;
+    ThreadIdentifier m_tID;
+    ThreadIdentifier m_tNotifyID;
+    ThreadIdentifier m_tDroppedID;
 
 };
 
