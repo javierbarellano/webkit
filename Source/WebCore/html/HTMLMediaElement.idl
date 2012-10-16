@@ -84,7 +84,10 @@ module html {
         setter raises (DOMException);
     attribute boolean muted;
     attribute [Reflect=muted] boolean defaultMuted;
-
+    
+    attribute boolean webkitHasSubtitles;
+    //attribute boolean webkitSubtitlesVisible;
+    
     // WebKit extensions
     attribute boolean webkitPreservesPitch;
 

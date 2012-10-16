@@ -317,6 +317,8 @@ public:
     bool hasClosedCaptions() const;
     void setClosedCaptionsVisible(bool closedCaptionsVisible);
 
+    bool hasSubtitles() const;
+
     bool autoplay() const;    
     void setAutoplay(bool);
 

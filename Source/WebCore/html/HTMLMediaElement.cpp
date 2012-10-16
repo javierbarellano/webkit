@@ -668,7 +668,7 @@ void HTMLMediaElement::load(ExceptionCode& ec)
 
 void HTMLMediaElement::prepareForLoad()
 {
-    LOG(Media, "HTMLMediaElement::prepareForLoad");
+   LOG(Media, "HTMLMediaElement::prepareForLoad");
 
     // Perform the cleanup required for the resource load algorithm to run.
     stopPeriodicTimers();
@@ -2491,7 +2491,7 @@ bool HTMLMediaElement::controls() const
 
 void HTMLMediaElement::setControls(bool b)
 {
-    LOG(Media, "HTMLMediaElement::setControls(%s)", boolString(b));
+   LOG(Media, "HTMLMediaElement::setControls(%s)", boolString(b));
     setBooleanAttribute(controlsAttr, b);
 }
 
@@ -2541,7 +2541,7 @@ void HTMLMediaElement::setMuted(bool muted)
 
 void HTMLMediaElement::togglePlayState()
 {
-    LOG(Media, "HTMLMediaElement::togglePlayState - canPlay() is %s", boolString(canPlay()));
+   LOG(Media, "HTMLMediaElement::togglePlayState - canPlay() is %s", boolString(canPlay()));
 
     // We can safely call the internal play/pause methods, which don't check restrictions, because
     // this method is only called from the built-in media controller
@@ -3947,6 +3947,22 @@ bool HTMLMediaElement::hasClosedCaptions() const
             return true;
     }
 #endif
+    return false;
+}
+
+bool HTMLMediaElement::hasSubtitles() const
+{
+    if (m_player && m_player->hasSubtitles())
+        return true;
+
+//#if ENABLE(VIDEO_TRACK)
+//    if (RuntimeEnabledFeatures::webkitVideoTrackEnabled() && m_textTracks)
+//    for (unsigned i = 0; i < m_textTracks->length(); ++i) {
+//        if (m_textTracks->item(i)->kind() == TextTrack::captionsKeyword()
+//            || m_textTracks->item(i)->kind() == TextTrack::subtitlesKeyword())
+//            return true;
+//    }
+//#endif
     return false;
 }
 
