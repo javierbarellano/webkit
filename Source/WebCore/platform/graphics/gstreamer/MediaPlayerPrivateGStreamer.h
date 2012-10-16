@@ -126,6 +126,8 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             MediaPlayer::MovieLoadType movieLoadType() const;
 
+            unsigned getNumberOfTextTracks() const;
+
         private:
             MediaPlayerPrivateGStreamer(MediaPlayer*);
 

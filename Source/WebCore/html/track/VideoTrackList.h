@@ -23,8 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#ifndef TextTrackList_h
-#define TextTrackList_h
+#ifndef VideoTrackList_h
+#define VideoTrackList_h
 
 #if ENABLE(VIDEO_TRACK)
 
@@ -39,28 +39,27 @@
 namespace WebCore {
 
 class HTMLMediaElement;
-class TextTrack;
-class TextTrackList;
+class VideoTrack;
 
-class TextTrackList : public RefCounted<TextTrackList>, public EventTarget {
+class VideoTrackList : public RefCounted<VideoTrackList>, public EventTarget {
 public:
-    static PassRefPtr<TextTrackList> create(HTMLMediaElement* owner, ScriptExecutionContext* context)
+    static PassRefPtr<VideoTrackList> create(HTMLMediaElement* owner, ScriptExecutionContext* context)
     {
-        return adoptRef(new TextTrackList(owner, context));
+        return adoptRef(new VideoTrackList(owner, context));
     }
-    ~TextTrackList();
+    ~VideoTrackList();
 
     unsigned length() const;
-    unsigned getTrackIndex(TextTrack*);
+    unsigned getTrackIndex(VideoTrack*);
 
-    TextTrack* item(unsigned index);
-    void append(PassRefPtr<TextTrack>);
-    void remove(TextTrack*);
+    VideoTrack* item(unsigned index);
+    void append(PassRefPtr<VideoTrack>);
+    void remove(VideoTrack*);
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
-    using RefCounted<TextTrackList>::ref;
-    using RefCounted<TextTrackList>::deref;
+    using RefCounted<VideoTrackList>::ref;
+    using RefCounted<VideoTrackList>::deref;
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
@@ -71,7 +70,7 @@ public:
     bool isFiringEventListeners() { return m_dispatchingEvents; }
 
 private:
-    TextTrackList(HTMLMediaElement*, ScriptExecutionContext*);
+    VideoTrackList(HTMLMediaElement*, ScriptExecutionContext*);
 
     // EventTarget
     virtual void refEventTarget() { ref(); }
@@ -79,19 +78,19 @@ private:
     virtual EventTargetData* eventTargetData() { return &m_eventTargetData; }
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
-    void scheduleAddTrackEvent(PassRefPtr<TextTrack>);
-    void asyncEventTimerFired(Timer<TextTrackList>*);
+    void scheduleAddTrackEvent(PassRefPtr<VideoTrack>);
+    void asyncEventTimerFired(Timer<VideoTrackList>*);
 
     ScriptExecutionContext* m_context;
     HTMLMediaElement* m_owner;
 
     Vector<RefPtr<Event> > m_pendingEvents;
-    Timer<TextTrackList> m_pendingEventTimer;
+    Timer<VideoTrackList> m_pendingEventTimer;
 
     EventTargetData m_eventTargetData;
-    Vector<RefPtr<TextTrack> > m_addTrackTracks;
-    Vector<RefPtr<TextTrack> > m_elementTracks;
-    Vector<RefPtr<TextTrack> > m_inbandTracks;
+    Vector<RefPtr<VideoTrack> > m_addTrackTracks;
+    Vector<RefPtr<VideoTrack> > m_elementTracks;
+    Vector<RefPtr<VideoTrack> > m_inbandTracks;
     
     int m_dispatchingEvents;
 };

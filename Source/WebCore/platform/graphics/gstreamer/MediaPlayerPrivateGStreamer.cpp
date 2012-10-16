@@ -100,7 +100,7 @@ static int greatestCommonDivisor(int a, int b)
 
 static gboolean mediaPlayerPrivateMessageCallback(GstBus*, GstMessage* message, MediaPlayerPrivateGStreamer* player)
 {
-    return player->handleMessage(message);
+	return player->handleMessage(message);
 }
 
 static void mediaPlayerPrivateSourceChangedCallback(GObject*, GParamSpec*, MediaPlayerPrivateGStreamer* player)
@@ -612,6 +612,18 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
+
+/*void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
+{
+    m_textTimerHandler = 0;
+
+    gint textTracks = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-text", &textTracks, NULL);
+
+    m_hasText = textTracks > 0;
+    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
+}*/
 
 void MediaPlayerPrivateGStreamer::audioChanged()
 {

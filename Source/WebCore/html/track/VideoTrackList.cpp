@@ -27,54 +27,56 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "TextTrackList.h"
+#include "VideoTrackList.h"
 
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
-#include "LoadableTextTrack.h"
 #include "ScriptExecutionContext.h"
-#include "TextTrack.h"
+#include "VideoTrack.h"
 #include "TrackEvent.h"
 
 using namespace WebCore;
 
-TextTrackList::TextTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
+VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
     , m_owner(owner)
-    , m_pendingEventTimer(this, &TextTrackList::asyncEventTimerFired)
+    , m_pendingEventTimer(this, &VideoTrackList::asyncEventTimerFired)
     , m_dispatchingEvents(0)
 {
     ASSERT(context->isDocument());
 }
 
-TextTrackList::~TextTrackList()
+VideoTrackList::~VideoTrackList()
 {
 }
 
-unsigned TextTrackList::length() const
+unsigned VideoTrackList::length() const
 {
     return m_addTrackTracks.size() + m_elementTracks.size();
 }
 
-unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
+unsigned VideoTrackList::getTrackIndex(VideoTrack *VideoTrack)
 {
-    if (textTrack->trackType() == TextTrack::TrackElement)
-        return static_cast<LoadableTextTrack*>(textTrack)->trackElementIndex();
+    if (VideoTrack->trackType() == VideoTrack::TrackElement)
+        return static_cast<LoadableVideoTrack*>(VideoTrack)->trackElementIndex();
 
-    if (textTrack->trackType() == TextTrack::AddTrack)
-        return m_elementTracks.size() + m_addTrackTracks.find(textTrack);
+    if (VideoTrack->trackType() == VideoTrack::AddTrack)
+        return m_elementTracks.size() + m_addTrackTracks.find(VideoTrack);
+
+    if (VideoTrack->trackType() == VideoTrack::InBand)
+        return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(VideoTrack);
 
     ASSERT_NOT_REACHED();
 
     return -1;
 }
 
-TextTrack* TextTrackList::item(unsigned index)
+VideoTrack* VideoTrackList::item(unsigned index)
 {
     // 4.8.10.12.1 Text track model
     // The text tracks are sorted as follows:
     // 1. The text tracks corresponding to track element children of the media element, in tree order.
-    // 2. Any text tracks added using the addTextTrack() method, in the order they were added, oldest first.
+    // 2. Any text tracks added using the addVideoTrack() method, in the order they were added, oldest first.
     // 3. Any media-resource-specific text tracks (text tracks corresponding to data in the media
     // resource), in the order defined by the media resource's format specification.
 
@@ -92,15 +94,15 @@ TextTrack* TextTrackList::item(unsigned index)
     return 0;
 }
 
-void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
+void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 {
-    RefPtr<TextTrack> track = prpTrack;
+    RefPtr<VideoTrack> track = prpTrack;
 
-    if (track->trackType() == TextTrack::AddTrack)
+    if (track->trackType() == VideoTrack::AddTrack)
         m_addTrackTracks.append(track);
-    else if (track->trackType() == TextTrack::TrackElement) {
+    else if (track->trackType() == VideoTrack::TrackElement) {
         // Insert tracks added for <track> element in tree order.
-        size_t index = static_cast<LoadableTextTrack*>(track.get())->trackElementIndex();
+        size_t index = static_cast<LoadableVideoTrack*>(track.get())->trackElementIndex();
         m_elementTracks.insert(index, track);
 
         // Invalidate the cached index for all the following tracks.
@@ -109,7 +111,8 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
 
         for (size_t i = 0; i < m_addTrackTracks.size(); ++i)
             m_addTrackTracks[i]->invalidateTrackIndex();
-    } else if (track->trackType() == TextTrack::InBand) {
+
+    } else if (track->trackType() == VideoTrack::InBand) {
     	m_inbandTracks.append(track);
     } else
         ASSERT_NOT_REACHED();
@@ -120,15 +123,15 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
     scheduleAddTrackEvent(track.release());
 }
 
-void TextTrackList::remove(TextTrack* track)
+void VideoTrackList::remove(VideoTrack* track)
 {
-    Vector<RefPtr<TextTrack> >* tracks = 0;
+    Vector<RefPtr<VideoTrack> >* tracks = 0;
 
-    if (track->trackType() == TextTrack::TrackElement)
+    if (track->trackType() == VideoTrack::TrackElement)
         tracks = &m_elementTracks;
-    else if (track->trackType() == TextTrack::AddTrack)
+    else if (track->trackType() == VideoTrack::AddTrack)
         tracks = &m_addTrackTracks;
-    else if (track->trackType() == TextTrack::InBand)
+    else if (track->trackType() == VideoTrack::InBand)
         tracks = &m_inbandTracks;
     else
         ASSERT_NOT_REACHED();
@@ -143,22 +146,22 @@ void TextTrackList::remove(TextTrack* track)
     tracks->remove(index);
 }
 
-const AtomicString& TextTrackList::interfaceName() const
+const AtomicString& VideoTrackList::interfaceName() const
 {
-    return eventNames().interfaceForTextTrackList;
+    return eventNames().interfaceForVideoTrackList;
 }
 
-void TextTrackList::scheduleAddTrackEvent(PassRefPtr<TextTrack> track)
+void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
 {
     // 4.8.10.12.3 Sourcing out-of-band text tracks
     // 4.8.10.12.3 Sourcing out-of-band text tracks
     // 4.8.10.12.4 Text track API
     // ... then queue a task to fire an event with the name addtrack, that does not 
     // bubble and is not cancelable, and that uses the TrackEvent interface, with 
-    // the track attribute initialized to the text track's TextTrack object, at 
-    // the media element's textTracks attribute's TextTrackList object.
+    // the track attribute initialized to the text track's VideoTrack object, at
+    // the media element's VideoTracks attribute's VideoTrackList object.
 
-    RefPtr<TextTrack> trackRef = track;
+    RefPtr<VideoTrack> trackRef = track;
     TrackEventInit initializer;
     initializer.track = trackRef;
     initializer.bubbles = false;
@@ -169,7 +172,7 @@ void TextTrackList::scheduleAddTrackEvent(PassRefPtr<TextTrack> track)
         m_pendingEventTimer.startOneShot(0);
 }
 
-void TextTrackList::asyncEventTimerFired(Timer<TextTrackList>*)
+void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)
 {
     Vector<RefPtr<Event> > pendingEvents;
     ExceptionCode ec = 0;
@@ -182,7 +185,7 @@ void TextTrackList::asyncEventTimerFired(Timer<TextTrackList>*)
     --m_dispatchingEvents;
 }
 
-Node* TextTrackList::owner() const
+Node* VideoTrackList::owner() const
 {
     return m_owner;
 }

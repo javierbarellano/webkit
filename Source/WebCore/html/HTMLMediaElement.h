@@ -43,6 +43,7 @@
 #include "PODIntervalTree.h"
 #include "TextTrack.h"
 #include "TextTrackCue.h"
+#include "VideoTrack.h"
 #endif
 
 namespace WebCore {
@@ -59,6 +60,7 @@ class MediaControls;
 class MediaError;
 class KURL;
 class TextTrackList;
+class VideoTrackList;
 class TimeRanges;
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
 class Widget;
@@ -253,6 +255,13 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
+
+    // VideoTrack
+    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, const String& label, const String& language, ExceptionCode&);
+    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, const String& label, ExceptionCode& ec) { return addVideoTrack(kind, label, emptyString(), ec); }
+    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, ExceptionCode& ec) { return addVideoTrack(kind, emptyString(), emptyString(), ec); }
+
+    VideoTrackList* videoTracks();
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
