@@ -31,11 +31,31 @@
 
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
+#include "HTMLNames.h"
 #include "ScriptExecutionContext.h"
 #include "VideoTrack.h"
 #include "TrackEvent.h"
 
 using namespace WebCore;
+
+static size_t videoTrackElementIndex(VideoTrack *track)
+{
+	HTMLMediaElement *m_trackElement = track->mediaElement();
+    ASSERT(m_trackElement);
+    ASSERT(m_trackElement->parentNode());
+
+    size_t index = 0;
+    for (Node* node = m_trackElement->parentNode()->firstChild(); node; node = node->nextSibling()) {
+        if (!node->hasTagName(HTMLNames::videoTag) || !node->inDocument())
+            continue;
+        if (node == m_trackElement)
+            return index;
+        ++index;
+    }
+    ASSERT_NOT_REACHED();
+
+    return 0;
+}
 
 VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
@@ -58,7 +78,7 @@ unsigned VideoTrackList::length() const
 unsigned VideoTrackList::getTrackIndex(VideoTrack *VideoTrack)
 {
     if (VideoTrack->trackType() == VideoTrack::TrackElement)
-        return static_cast<LoadableVideoTrack*>(VideoTrack)->trackElementIndex();
+        return videoTrackElementIndex(VideoTrack);
 
     if (VideoTrack->trackType() == VideoTrack::AddTrack)
         return m_elementTracks.size() + m_addTrackTracks.find(VideoTrack);
@@ -102,7 +122,7 @@ void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
         m_addTrackTracks.append(track);
     else if (track->trackType() == VideoTrack::TrackElement) {
         // Insert tracks added for <track> element in tree order.
-        size_t index = static_cast<LoadableVideoTrack*>(track.get())->trackElementIndex();
+        size_t index = videoTrackElementIndex(track.get());
         m_elementTracks.insert(index, track);
 
         // Invalidate the cached index for all the following tracks.

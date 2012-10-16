@@ -742,6 +742,8 @@ SOURCES += \
     html/track/TextTrackList.cpp \
     html/track/TrackBase.cpp \
     html/track/TrackEvent.cpp \
+    html/track/VideoTrack.cpp \
+    html/track/VideoTrackList.cpp \
     html/track/WebVTTParser.cpp \
     html/track/WebVTTTokenizer.cpp \
     inspector/ConsoleMessage.cpp \
@@ -3845,7 +3847,10 @@ enable?(VIDEO_TRACK) {
         bindings/js/JSTrackCustom.cpp \
         bindings/js/JSTrackCustom.h \
         bindings/js/JSTrackEventCustom.cpp \
-        bindings/js/JSTextTrackListCustom.cpp
+        bindings/js/JSTextTrackListCustom.cpp \
+        bindings/js/JSVideoTrackCustom.cpp \
+        bindings/js/JSVideoTrackCustom.h \
+        bindings/js/JSVideoTrackListCustom.cpp
 }
 
 enable?(WEB_SOCKETS) {

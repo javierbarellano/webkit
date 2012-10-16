@@ -660,6 +660,7 @@ private:
     float m_lastTextTrackUpdateTime;
 
     RefPtr<TextTrackList> m_textTracks;
+    RefPtr<VideoTrackList> m_videoTracks;
     Vector<RefPtr<TextTrack> > m_textTracksWhenResourceSelectionBegan;
 
     CueIntervalTree m_cueTree;

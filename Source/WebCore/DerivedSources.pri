@@ -646,6 +646,8 @@ enable?(VIDEO_TRACK) {
     $$PWD/html/track/TextTrackCueList.idl \
     $$PWD/html/track/TextTrackList.idl \
     $$PWD/html/track/TrackEvent.idl \
+    $$PWD/html/track/VideoTrack.idl \
+    $$PWD/html/track/VideoTrackList.idl \
 }
 
 enable?(MEDIA_SOURCE) {

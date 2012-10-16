@@ -100,6 +100,7 @@
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
 #include "TextTrackList.h"
+#include "VideoTrackList.h"
 #endif
 
 #if ENABLE(WEB_AUDIO)
@@ -2709,6 +2710,17 @@ TextTrackList* HTMLMediaElement::textTracks()
         m_textTracks = TextTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
     return m_textTracks.get();
+}
+
+VideoTrackList* HTMLMediaElement::videoTracks()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return 0;
+
+    if (!m_videoTracks)
+    	m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    return m_videoTracks.get();
 }
 
 HTMLTrackElement* HTMLMediaElement::showingTrackWithSameKind(HTMLTrackElement* trackElement) const

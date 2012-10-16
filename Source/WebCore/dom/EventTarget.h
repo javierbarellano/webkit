@@ -70,6 +70,7 @@ namespace WebCore {
     class SourceBufferList;
     class TextTrack;
     class TextTrackCue;
+    class VideoTrack;
     class WebSocket;
     class WebKitNamedFlow;
     class Worker;
