@@ -46,7 +46,7 @@ static size_t videoTrackElementIndex(VideoTrack *track)
 
     size_t index = 0;
     for (Node* node = m_trackElement->parentNode()->firstChild(); node; node = node->nextSibling()) {
-        if (!node->hasTagName(HTMLNames::videoTag) || !node->inDocument())
+        if (!node->hasTagName(HTMLNames::sourceTag) || !node->inDocument())
             continue;
         if (node == m_trackElement)
             return index;
