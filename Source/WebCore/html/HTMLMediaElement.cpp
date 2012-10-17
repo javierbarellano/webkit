@@ -1364,7 +1364,69 @@ void HTMLMediaElement::textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue> c
     updateActiveTextTrackCues(currentTime());
 }
 
-#endif
+bool HTMLMediaElement::videoTracksAreReady() const
+{
+    // Video track model
+    // ...
+    // The video tracks of a media element are ready if all the video tracks whose mode was not
+    // in the disabled state when the element's resource selection algorithm last started now
+    // have a video track readiness state of loaded or failed to load.
+    for (unsigned i = 0; i < m_videoTracksWhenResourceSelectionBegan.size(); ++i) {
+        if (m_videoTracksWhenResourceSelectionBegan[i]->readinessState() == VideoTrack::Loading)
+            return false;
+    }
+
+    return true;
+}
+
+void HTMLMediaElement::videoTrackReadyStateChanged(VideoTrack* track)
+{
+    if (m_player && m_videoTracksWhenResourceSelectionBegan.contains(track)) {
+        if (track->readinessState() != VideoTrack::Loading)
+            setReadyState(m_player->readyState());
+    }
+}
+
+void HTMLMediaElement::videoTrackModeChanged(VideoTrack* track)
+{
+    if (track->trackType() == VideoTrack::TrackElement) {
+        // Sourcing out-of-band video tracks
+        // ... when a video track corresponding to a track element is created with video track
+        // mode set to disabled and subsequently changes its video track mode to hidden, showing,
+        // or showing by default for the first time, the user agent must immediately and synchronously
+        // run the following algorithm ...
+
+        for (Node* node = firstChild(); node; node = node->nextSibling()) {
+            if (!node->hasTagName(trackTag))
+                continue;
+            HTMLVideoElement* trackElement = static_cast<HTMLVideoElement*>(node);
+            if (trackElement->track() != track)
+                continue;
+
+            // Mark this track as "configured" so configureVideoTracks won't change the mode again.
+            trackElement->setHasBeenConfigured(true);
+            if (track->mode() != VideoTrack::disabledKeyword()) {
+                if (trackElement->readyState() == MediaControllerInterface::HAVE_NOTHING)
+                    trackElement->scheduleLoad();
+
+                // If this is the first added track, create the list of video tracks.
+                if (!m_videoTracks)
+                  m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+            }
+            break;
+        }
+    }
+
+    configureVideoTrackDisplay();
+}
+
+void HTMLMediaElement::videoTrackKindChanged(VideoTrack* track)
+{
+    if (track->kind() != VideoTrack::captionsKeyword() && track->kind() != VideoTrack::subtitlesKeyword() && track->mode() == VideoTrack::showingKeyword())
+        track->setMode(VideoTrack::hiddenKeyword());
+}
+
+#endif // Conditional on ENABLE_VIDEO_TRACK
 
 bool HTMLMediaElement::isSafeToLoadURL(const KURL& url, InvalidURLAction actionIfInvalid)
 {
@@ -4167,6 +4229,31 @@ void HTMLMediaElement::configureTextTrackDisplay()
     m_closedCaptionsVisible = m_haveVisibleTextTrack;
 
     if (!m_haveVisibleTextTrack && !hasMediaControls())
+        return;
+    if (!hasMediaControls() && !createMediaControls())
+        return;
+
+    updateClosedCaptionsControls();
+}
+
+void HTMLMediaElement::configureVideoTrackDisplay()
+{
+    ASSERT(m_videoTracks);
+
+    bool haveVisibleVideoTrack = false;
+    for (unsigned i = 0; i < m_videoTracks->length(); ++i) {
+        if (m_videoTracks->item(i)->mode() == VideoTrack::showingKeyword()) {
+        	haveVisibleVideoTrack = true;
+            break;
+        }
+    }
+
+    if (m_haveVisibleVideoTrack == haveVisibleVideoTrack)
+        return;
+    m_haveVisibleVideoTrack = haveVisibleVideoTrack;
+    m_closedCaptionsVisible = m_haveVisibleVideoTrack;
+
+    if (!m_haveVisibleVideoTrack && !hasMediaControls())
         return;
     if (!hasMediaControls() && !createMediaControls())
         return;

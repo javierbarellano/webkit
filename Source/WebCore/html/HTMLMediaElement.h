@@ -245,6 +245,7 @@ public:
     bool userIsInterestedInThisTrackKind(String) const;
     bool textTracksAreReady() const;
     void configureTextTrackDisplay();
+    void configureVideoTrackDisplay();
     void updateClosedCaptionsControls();
 
     // TextTrackClient
@@ -262,6 +263,10 @@ public:
     PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, ExceptionCode& ec) { return addVideoTrack(kind, emptyString(), emptyString(), ec); }
 
     VideoTrackList* videoTracks();
+    bool videoTracksAreReady() const;
+    void videoTrackReadyStateChanged(VideoTrack* track);
+    void videoTrackModeChanged(VideoTrack* track);
+    void videoTrackKindChanged(VideoTrack* track);
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -668,6 +673,12 @@ private:
     CueList m_currentlyActiveCues;
     int m_ignoreTrackDisplayUpdate;
     bool m_disableCaptions;
+
+    bool m_haveVisibleVideoTrack : 1;
+    float m_lastVideoTrackUpdateTime;
+
+    Vector<RefPtr<VideoTrack> > m_videoTracksWhenResourceSelectionBegan;
+
 #endif
 
 #if ENABLE(WEB_AUDIO)
