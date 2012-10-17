@@ -34,8 +34,9 @@
 namespace WebCore {
 
 class HTMLImageLoader;
+class LoadableVideoTrack;
 
-class HTMLVideoElement : public HTMLMediaElement, public ImageLoaderClientBase<HTMLVideoElement> {
+class HTMLVideoElement : public HTMLMediaElement, public ImageLoaderClientBase<HTMLVideoElement>, public VideoTrackClient {
 public:
     static PassRefPtr<HTMLVideoElement> create(const QualifiedName&, Document*, bool);
 
@@ -56,6 +57,14 @@ public:
     void webkitEnterFullScreen(ExceptionCode& ec) { webkitEnterFullscreen(ec); }
     void webkitExitFullScreen() { webkitExitFullscreen(); }
 
+    void scheduleLoad();
+
+    VideoTrack* track();
+
+    enum ReadyState { NONE = 0, LOADING = 1, LOADED = 2, TRACK_ERROR = 3 };
+    ReadyState getReadyState() { return m_readyState;}
+    void setReadyState(ReadyState rs) { m_readyState = rs; }
+
 #if ENABLE(MEDIA_STATISTICS)
     // Statistics
     unsigned webkitDecodedFrameCount() const;
@@ -67,6 +76,15 @@ public:
 
     bool shouldDisplayPosterImage() const { return displayMode() == Poster || displayMode() == PosterWaitingForVideo; }
 
+    bool hasBeenConfigured() const { return m_hasBeenConfigured; }
+    void setHasBeenConfigured(bool flag) { m_hasBeenConfigured = flag; }
+
+    enum LoadStatus { Failure, Success };
+    virtual void didCompleteLoad(LoadableVideoTrack*, LoadStatus);
+
+    virtual void videoTrackKindChanged(VideoTrack*){}
+    virtual void videoTrackModeChanged(VideoTrack*){}
+    virtual void videoReadyStateChanged(VideoTrack*){}
 private:
     HTMLVideoElement(const QualifiedName&, Document*, bool);
 
@@ -89,7 +107,15 @@ private:
     virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
     virtual void setDisplayMode(DisplayMode);
 
+    LoadableVideoTrack* ensureTrack();
+    virtual bool canLoadUrl(const KURL&);
+
+    HTMLMediaElement* mediaElement() const;
+
+    RefPtr<LoadableVideoTrack> m_track;
     OwnPtr<HTMLImageLoader> m_imageLoader;
+    bool m_hasBeenConfigured;
+    ReadyState m_readyState;
 
 };
 

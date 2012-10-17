@@ -38,11 +38,14 @@ namespace WebCore {
 
 class HTMLMediaElement;
 class VideoTrack;
+class KURL;
+
 
 class VideoTrackClient {
 public:
     virtual ~VideoTrackClient() { }
     virtual void videoTrackKindChanged(VideoTrack*) = 0;
+    virtual void videoTrackModeChanged(VideoTrack*) = 0;
     virtual void videoReadyStateChanged(VideoTrack*) = 0;
 };
 
@@ -62,6 +65,19 @@ public:
 
     String kind() const { return m_kind; }
     void setKind(const String&);
+
+    static const AtomicString& disabledKeyword();
+    static const AtomicString& hiddenKeyword();
+    static const AtomicString& showingKeyword();
+
+    String mode() const;
+    void setMode(const String&);
+
+    void scheduleLoad(KURL& url){}
+
+
+    bool showingByDefault() const { return m_showingByDefault; }
+    void setShowingByDefault(bool showing) { m_showingByDefault = showing; }
 
     static const AtomicString& alternativeKeyword();
     static const AtomicString& captionsKeyword();
@@ -97,6 +113,7 @@ public:
 
 protected:
     VideoTrack(ScriptExecutionContext*, VideoTrackClient*, const String& id, const String& kind, const String& label, const String& language, VideoTrackType);
+    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, const String& kind);
 
 private:
     HTMLMediaElement* m_mediaElement;
@@ -104,10 +121,12 @@ private:
     String m_kind;
     String m_label;
     String m_language;
+    String m_mode;
     bool m_selected;
     VideoTrackClient* m_client;
     VideoTrackType m_trackType;
     ReadinessState m_readinessState;
+    bool m_showingByDefault;
     int m_trackIndex;
 };
 
