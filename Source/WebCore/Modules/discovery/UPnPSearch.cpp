@@ -273,7 +273,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
 
             // This is a NOTIFY message
             if (st == "ssdp:alive") {
-                fprintf(stderr,"\nReceived NOTIFY:alive\n");
+                fprintf(stderr,"\nReceived NOTIFY:alive - %s\n", location.c_str());
                 parseDev(data, dLen, NULL);
             } else if (st == "ssdp:byebye"){
                 fprintf(stderr,"\nReceived NOTIFY:byebye\n");
@@ -284,7 +284,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         } else {
             // Not a NOTIFY. Must be an M_SEARCH reply
             parseDev(data, dLen, NULL);
-            fprintf(stderr,"\nReceived M-SEARCH reply\n");
+            fprintf(stderr,"\nReceived M-SEARCH reply - %s\n", location.c_str());
         }
     }
 }
