@@ -865,7 +865,6 @@ SOURCES += \
     loader/TextResourceDecoder.cpp \
     loader/TextTrackLoader.cpp \
     loader/ThreadableLoader.cpp \
-    loader/VideoTrackLoader.cpp \
     page/animation/AnimationBase.cpp \
     page/animation/AnimationController.cpp \
     page/animation/CompositeAnimation.cpp \

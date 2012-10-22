@@ -93,15 +93,6 @@ VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client
     setKind(kind);
 }
 
-VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)
-: TrackBase(context, TrackBase::TextTrack)
-, m_mediaElement(0)
-, m_client(client)
-, m_readinessState(NotLoaded)
-, m_trackIndex(invalidTrackIndex)
-{
-    setKind(kind);
-}
 VideoTrack::~VideoTrack()
 {
     clearClient();
@@ -136,51 +127,6 @@ void VideoTrack::setKind(const String& kind)
 
     if (m_client && oldKind != m_kind)
         m_client->videoTrackKindChanged(this);
-}
-
-const AtomicString& VideoTrack::disabledKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, open, ("disabled", AtomicString::ConstructFromLiteral));
-    return open;
-}
-
-const AtomicString& VideoTrack::hiddenKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, closed, ("hidden", AtomicString::ConstructFromLiteral));
-    return closed;
-}
-
-const AtomicString& VideoTrack::showingKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, ended, ("showing", AtomicString::ConstructFromLiteral));
-    return ended;
-}
-
-void VideoTrack::setMode(const String& mode)
-{
-    // On setting, if the new value isn't equal to what the attribute would currently
-    // return, the new value must be processed as follows ...
-    if (mode != disabledKeyword() && mode != hiddenKeyword() && mode != showingKeyword())
-        return;
-
-    if (m_mode == mode)
-        return;
-
-    //  ... Note: If the mode had been showing by default, this will change it to showing,
-    // even though the value of mode would appear not to change.
-    m_mode = mode;
-    setShowingByDefault(false);
-
-    if (m_client)
-        m_client->videoTrackModeChanged(this);
-}
-
-String VideoTrack::mode() const
-{
-    // The text track "showing" and "showing by default" modes return the string "showing".
-    if (m_showingByDefault)
-        return showingKeyword();
-    return m_mode;
 }
 
 int VideoTrack::trackIndex()
