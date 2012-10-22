@@ -276,7 +276,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
                 fprintf(stderr,"\nReceived NOTIFY:alive - %s\n", location.c_str());
                 parseDev(data, dLen, NULL);
             } else if (st == "ssdp:byebye"){
-                fprintf(stderr,"\nReceived NOTIFY:byebye\n");
+                //fprintf(stderr,"\nReceived NOTIFY:byebye\n");
                 // We don't know which list(s) the device is on, so check them both.
                 removeDevice(&devs_, uuid);
                 removeDevice(&internalDevs_, uuid);
@@ -325,7 +325,7 @@ void UPnPSearch::checkForDroppedDevs()
                 std::string reply = bf;
                 if (len == 0 || (reply.find("HTTP/1.1 404") != std::string::npos )) {
                     // Found one that dropped
-                    fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                    //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
                     dropMe.push_back((*k).first);
                 }
             }
@@ -368,7 +368,7 @@ void UPnPSearch::checkForDroppedInternalDevs()
                 std::string reply = bf;
                 if (len == 0 || (reply.find("HTTP/1.1 404") != std::string::npos )) {
                     // Found one that dropped
-                    fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                    //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
                     dropMe.push_back((*k).first);
                 }
             }
@@ -600,12 +600,12 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
             if (devs_.find(foundType)==devs_.end() || devs_[foundType].devMap.find(sUuid)==devs_[foundType].devMap.end()) {
 
                 dm = devs_[foundType];
-                char* action = (char*)"Adding";
+                //char* action = (char*)"Adding";
 
                 std::map<std::string, UPnPDevice>::iterator it;
                 it = dm.devMap.find(sUuid);
                 if (it != dm.devMap.end()) {
-                    action = (char*)"Updating";
+                    //action = (char*)"Updating";
                     if (!dm.devMap[sUuid].changed(d)) {
                         continue;
                     }
@@ -613,7 +613,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 				dm.devMap[sUuid] = d;
                 devs_[foundType] = dm;
-                fprintf(stderr,"%s device: %s : %s, %s.\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+                //fprintf(stderr,"%s device: %s : %s, %s.\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
                 if (navDsc_) {
                     navDsc_->foundUPnPDev(foundType);
                 }
@@ -640,7 +640,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
             dm.devMap[sUuid] = d;
             internalDevs_[internal_type_] = dm;  // By value, so copy in new contents.
 
-            fprintf(stderr,"%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+            //fprintf(stderr,"%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
             fflush(stderr);
             if (api_) {
                 api_->serverListUpdate(internal_type_, &dm.devMap);
