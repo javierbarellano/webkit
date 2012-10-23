@@ -293,11 +293,15 @@ HTMLMediaElement::~HTMLMediaElement()
     document()->unregisterForMediaVolumeCallbacks(this);
     document()->unregisterForPrivateBrowsingStateChangedCallbacks(this);
 #if ENABLE(VIDEO_TRACK)
-    if (m_textTracks)
-        m_textTracks->clearOwner();
     if (m_textTracks) {
+        m_textTracks->clearOwner();
         for (unsigned i = 0; i < m_textTracks->length(); ++i)
             m_textTracks->item(i)->clearClient();
+    }
+    if (m_videoTracks) {
+        m_videoTracks->clearOwner();
+        for (unsigned i = 0; i < m_videoTracks->length(); ++i)
+            m_videoTracks->item(i)->clearClient();
     }
 #endif
 
@@ -451,7 +455,8 @@ void HTMLMediaElement::finishParsingChildren()
     for (Node* node = firstChild(); node; node = node->nextSibling()) {
         if (node->hasTagName(trackTag)) {
             scheduleLoad(TextTrackResource);
-            break;
+        } else if (node->hasTagName(sourceTag)){
+            videoTracks()->append(VideoTrack::create(document(), 0, "", "", "", ""));
         }
     }
 #endif
@@ -2718,7 +2723,7 @@ VideoTrackList* HTMLMediaElement::videoTracks()
         return 0;
 
     if (!m_videoTracks)
-    	m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+        m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
     return m_videoTracks.get();
 }
