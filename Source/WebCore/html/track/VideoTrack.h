@@ -78,7 +78,7 @@ public:
     void setLanguage(const String& language) { m_language = language; }
 
     bool selected() const { return m_selected; }
-    void setSelected(bool selected) { m_selected = selected; }
+    void setSelected(bool selected);
 
     enum ReadinessState { NotLoaded = 0, Loading = 1, Loaded = 2, FailedToLoad = 3 };
     ReadinessState readinessState() const { return m_readinessState; }

@@ -85,6 +85,7 @@ VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client
     , m_mediaElement(0)
     , m_label(label)
     , m_language(language)
+    , m_selected(false)
     , m_client(client)
     , m_trackType(type)
     , m_readinessState(NotLoaded)
@@ -142,6 +143,25 @@ int VideoTrack::trackIndex()
 void VideoTrack::invalidateTrackIndex()
 {
     m_trackIndex = invalidTrackIndex;
+}
+
+void VideoTrack::setSelected(bool selected) {
+    if(!selected) {
+        m_selected = false;
+        return;
+    }
+
+    // Deselect all other videos on this media element
+    VideoTrackList *list = m_mediaElement->videoTracks();
+    for(unsigned i = 0; i < list->length(); ++i) {
+        VideoTrack* item = list->item(i);
+        if(item != this) {
+            item->setSelected(false);
+        }
+    }
+    // TODO: Actually switch the video playing
+
+    m_selected = true;
 }
 
 } // namespace WebCore
