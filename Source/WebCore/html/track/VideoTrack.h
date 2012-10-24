@@ -48,9 +48,9 @@ public:
 
 class VideoTrack : public TrackBase {
 public:
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, const String& src)
     {
-        return adoptRef(new VideoTrack(context, client, id, kind, label, language, AddTrack));
+        return adoptRef(new VideoTrack(context, client, src, AddTrack));
     }
     virtual ~VideoTrack();
 
@@ -96,7 +96,7 @@ public:
     bool isRendered();
 
 protected:
-    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, const String& id, const String& kind, const String& label, const String& language, VideoTrackType);
+    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, const String& src, VideoTrackType);
 
 private:
     HTMLMediaElement* m_mediaElement;
@@ -105,6 +105,7 @@ private:
     String m_label;
     String m_language;
     bool m_selected;
+    String m_src;
     VideoTrackClient* m_client;
     VideoTrackType m_trackType;
     ReadinessState m_readinessState;

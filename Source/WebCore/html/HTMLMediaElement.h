@@ -81,6 +81,7 @@ typedef Vector<CueIntervalTree::IntervalType> CueList;
 class HTMLMediaElement : public HTMLElement, public MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
     , private TextTrackClient
+    //, private VideoTrackClient
 #endif
 {
 public:

@@ -456,7 +456,8 @@ void HTMLMediaElement::finishParsingChildren()
         if (node->hasTagName(trackTag)) {
             scheduleLoad(TextTrackResource);
         } else if (node->hasTagName(sourceTag)){
-            videoTracks()->append(VideoTrack::create(document(), 0, "", "", "", ""));
+            HTMLSourceElement* element = static_cast<HTMLSourceElement*>(node);
+            videoTracks()->append(VideoTrack::create(document(), 0, element->src()));
         }
     }
 #endif

@@ -80,18 +80,16 @@ const AtomicString& VideoTrack::commentaryKeyword()
     return subtitles;
 }
 
-VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& id, const String& kind, const String& label, const String& language, VideoTrackType type)
+VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& src, VideoTrackType type)
     : TrackBase(context, TrackBase::TextTrack)
     , m_mediaElement(0)
-    , m_label(label)
-    , m_language(language)
     , m_selected(false)
+    , m_src(src)
     , m_client(client)
     , m_trackType(type)
     , m_readinessState(NotLoaded)
     , m_trackIndex(invalidTrackIndex)
 {
-    setKind(kind);
 }
 
 VideoTrack::~VideoTrack()
@@ -162,6 +160,7 @@ void VideoTrack::setSelected(bool selected) {
     // TODO: Actually switch the video playing
 
     m_selected = true;
+    m_mediaElement->setSrc(m_src);
 }
 
 } // namespace WebCore
