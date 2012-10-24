@@ -124,7 +124,7 @@ void VideoTrack::setKind(const String& kind)
     if (isValidKindKeyword(kind))
         m_kind = kind;
     else
-        m_kind = subtitlesKeyword();
+        m_kind = "";
 
     if (m_client && oldKind != m_kind)
         m_client->videoTrackKindChanged(this);
