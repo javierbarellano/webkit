@@ -18,6 +18,7 @@ typedef struct sUPnPDevice
 	std::string host;
 	std::string port;
 	std::string uuid;
+    int  contactAttempts;
 	bool isOkToUse;
 
     bool changed(const sUPnPDevice& other)
