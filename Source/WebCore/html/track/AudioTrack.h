@@ -51,10 +51,6 @@ public:
     {
         return adoptRef(new AudioTrack(context, client, index, enabled, id, kind, label, language));
     }
-    static PassRefPtr<AudioTrack> create(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled)
-    {
-        return adoptRef(new AudioTrack(context, client, index, enabled, "", "", "", ""));
-    }
     virtual ~AudioTrack();
 
     void setMediaElement(HTMLMediaElement* element) { m_mediaElement = element; }
@@ -67,10 +63,10 @@ public:
     void setKind(const String&);
 
     static const AtomicString& alternativeKeyword();
-    static const AtomicString& captionsKeyword();
+    static const AtomicString& descriptionKeyword();
     static const AtomicString& mainKeyword();
-    static const AtomicString& signKeyword();
-    static const AtomicString& subtitlesKeyword();
+    static const AtomicString& mainDescKeyword();
+    static const AtomicString& translationKeyword();
     static const AtomicString& commentaryKeyword();
     static bool isValidKindKeyword(const String&);
 

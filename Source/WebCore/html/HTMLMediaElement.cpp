@@ -3383,11 +3383,7 @@ void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
 {
-    RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled);
-    track->setId(id);
-    track->setKind(kind);
-    track->setLabel(label);
-    track->setLanguage(language);
+    RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
     audioTracks()->append(track);
     track.release();
 }
@@ -3410,11 +3406,7 @@ void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
 {
-    RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected);
-    track->setId(id);
-    track->setKind(kind);
-    track->setLabel(label);
-    track->setLanguage(language);
+    RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
     videoTracks()->append(track);
     track.release();
 }

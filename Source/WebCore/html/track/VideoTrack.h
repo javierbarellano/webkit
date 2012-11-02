@@ -51,10 +51,6 @@ public:
     {
         return adoptRef(new VideoTrack(context, client, index, selected, id, kind, label, language));
     }
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected)
-    {
-        return adoptRef(new VideoTrack(context, client, index, selected, "", "", "", ""));
-    }
     virtual ~VideoTrack();
 
     void setMediaElement(HTMLMediaElement* element) { m_mediaElement = element; }
