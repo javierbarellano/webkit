@@ -55,6 +55,7 @@ public:
     VideoTrack* item(unsigned index);
     void append(PassRefPtr<VideoTrack>);
     void remove(VideoTrack*);
+    void clear();
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -88,9 +89,7 @@ private:
     Timer<VideoTrackList> m_pendingEventTimer;
 
     EventTargetData m_eventTargetData;
-    Vector<RefPtr<VideoTrack> > m_addTrackTracks;
-    Vector<RefPtr<VideoTrack> > m_elementTracks;
-    Vector<RefPtr<VideoTrack> > m_inbandTracks;
+    Vector<RefPtr<VideoTrack> > m_tracks;
     
     int m_dispatchingEvents;
 };

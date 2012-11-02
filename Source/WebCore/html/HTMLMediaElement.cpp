@@ -455,9 +455,7 @@ void HTMLMediaElement::finishParsingChildren()
     for (Node* node = firstChild(); node; node = node->nextSibling()) {
         if (node->hasTagName(trackTag)) {
             scheduleLoad(TextTrackResource);
-        } else if (node->hasTagName(sourceTag)){
-            HTMLSourceElement* element = static_cast<HTMLSourceElement*>(node);
-            videoTracks()->append(VideoTrack::create(document(), 0, element->src()));
+            break;
         }
     }
 #endif
@@ -3363,6 +3361,35 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
         renderer()->updateFromElement();
     endProcessingMediaPlayerCallback();
 }
+
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
+{
+    if(m_videoTracks)
+        m_videoTracks->clear();
+}
+
+void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+{
+    RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected);
+    track->setId(id);
+    track->setKind(kind);
+    track->setLabel(label);
+    track->setLanguage(language);
+    videoTracks()->append(track);
+    track.release();
+}
+
+void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
+{
+    int index = videoTracks()->getTrackIndex(track);
+    if(selected) {
+        m_player->setCurrentVideo(index);
+    } else if(index == m_player->currentVideo()) {
+        // disable video
+    }
+}
+#endif
 
 #if USE(ACCELERATED_COMPOSITING)
 bool HTMLMediaElement::mediaPlayerRenderingCanBeAccelerated(MediaPlayer*)

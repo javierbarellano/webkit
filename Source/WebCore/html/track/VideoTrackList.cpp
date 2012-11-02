@@ -38,25 +38,6 @@
 
 using namespace WebCore;
 
-static size_t videoTrackElementIndex(VideoTrack *track)
-{
-	HTMLMediaElement *m_trackElement = track->mediaElement();
-    ASSERT(m_trackElement);
-    ASSERT(m_trackElement->parentNode());
-
-    size_t index = 0;
-    for (Node* node = m_trackElement->parentNode()->firstChild(); node; node = node->nextSibling()) {
-        if (!node->hasTagName(HTMLNames::sourceTag) || !node->inDocument())
-            continue;
-        if (node == m_trackElement)
-            return index;
-        ++index;
-    }
-    ASSERT_NOT_REACHED();
-
-    return 0;
-}
-
 VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
     , m_owner(owner)
@@ -72,44 +53,17 @@ VideoTrackList::~VideoTrackList()
 
 unsigned VideoTrackList::length() const
 {
-    return m_addTrackTracks.size() + m_elementTracks.size();
+    return m_tracks.size();
 }
 
-unsigned VideoTrackList::getTrackIndex(VideoTrack *VideoTrack)
-{
-    if (VideoTrack->trackType() == VideoTrack::TrackElement)
-        return videoTrackElementIndex(VideoTrack);
-
-    if (VideoTrack->trackType() == VideoTrack::AddTrack)
-        return m_elementTracks.size() + m_addTrackTracks.find(VideoTrack);
-
-    if (VideoTrack->trackType() == VideoTrack::InBand)
-        return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(VideoTrack);
-
-    ASSERT_NOT_REACHED();
-
-    return -1;
+unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
+    return m_tracks.find(track);
 }
 
 VideoTrack* VideoTrackList::item(unsigned index)
 {
-    // 4.8.10.12.1 Text track model
-    // The text tracks are sorted as follows:
-    // 1. The text tracks corresponding to track element children of the media element, in tree order.
-    // 2. Any text tracks added using the addVideoTrack() method, in the order they were added, oldest first.
-    // 3. Any media-resource-specific text tracks (text tracks corresponding to data in the media
-    // resource), in the order defined by the media resource's format specification.
-
-    if (index < m_elementTracks.size())
-        return m_elementTracks[index].get();
-
-    index -= m_elementTracks.size();
-    if (index < m_addTrackTracks.size())
-        return m_addTrackTracks[index].get();
-
-    index -= m_addTrackTracks.size();
-    if (index < m_inbandTracks.size())
-        return m_inbandTracks[index].get();
+    if (index < m_tracks.size())
+        return m_tracks[index].get();
 
     return 0;
 }
@@ -118,24 +72,9 @@ void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 {
     RefPtr<VideoTrack> track = prpTrack;
 
-    if (track->trackType() == VideoTrack::AddTrack)
-        m_addTrackTracks.append(track);
-    else if (track->trackType() == VideoTrack::TrackElement) {
-        // Insert tracks added for <track> element in tree order.
-        size_t index = videoTrackElementIndex(track.get());
-        m_elementTracks.insert(index, track);
-
-        // Invalidate the cached index for all the following tracks.
-        for (size_t i = index; i < m_elementTracks.size(); ++i)
-            m_elementTracks[i]->invalidateTrackIndex();
-
-        for (size_t i = 0; i < m_addTrackTracks.size(); ++i)
-            m_addTrackTracks[i]->invalidateTrackIndex();
-
-    } else if (track->trackType() == VideoTrack::InBand) {
-    	m_inbandTracks.append(track);
-    } else
-        ASSERT_NOT_REACHED();
+    // Insert tracks added for <track> element in tree order.
+    //size_t index = track->trackIndex();
+    m_tracks.append(track); // TODO: Use order correctly
 
     ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
     track->setMediaElement(m_owner);
@@ -145,25 +84,19 @@ void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 
 void VideoTrackList::remove(VideoTrack* track)
 {
-    Vector<RefPtr<VideoTrack> >* tracks = 0;
-
-    if (track->trackType() == VideoTrack::TrackElement)
-        tracks = &m_elementTracks;
-    else if (track->trackType() == VideoTrack::AddTrack)
-        tracks = &m_addTrackTracks;
-    else if (track->trackType() == VideoTrack::InBand)
-        tracks = &m_inbandTracks;
-    else
-        ASSERT_NOT_REACHED();
-
-    size_t index = tracks->find(track);
+    size_t index = m_tracks.find(track);
     if (index == notFound)
         return;
 
     ASSERT(track->mediaElement() == m_owner);
     track->setMediaElement(0);
 
-    tracks->remove(index);
+    m_tracks.remove(index);
+}
+
+void VideoTrackList::clear()
+{
+    m_tracks.clear();
 }
 
 const AtomicString& VideoTrackList::interfaceName() const

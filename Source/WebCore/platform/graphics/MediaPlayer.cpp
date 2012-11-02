@@ -92,7 +92,10 @@ public:
 
     virtual void prepareToPlay() { }
     virtual void play() { }
-    virtual void pause() { }    
+    virtual void pause() { }
+
+    virtual int currentVideo() const { return -1; }
+    virtual void setCurrentVideo(int) { }
 
     virtual PlatformMedia platformMedia() const { return NoPlatformMedia; }
 #if USE(ACCELERATED_COMPOSITING)
@@ -105,7 +108,6 @@ public:
     virtual bool hasAudio() const { return false; }
 
     virtual void setVisible(bool) { }
-
     virtual float duration() const { return 0; }
 
     virtual float currentTime() const { return 0; }
@@ -462,6 +464,16 @@ void MediaPlayer::play()
 void MediaPlayer::pause()
 {
     m_private->pause();
+}
+
+int MediaPlayer::currentVideo() const
+{
+    return m_private->currentVideo();
+}
+
+void MediaPlayer::setCurrentVideo(int video)
+{
+    m_private->setCurrentVideo(video);
 }
 
 #if ENABLE(MEDIA_SOURCE)

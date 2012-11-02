@@ -64,11 +64,15 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             void play();
             void pause();
 
+            int currentVideo() const;
+            void setCurrentVideo(int);
+
             bool paused() const;
             bool seeking() const;
 
             float duration() const;
             float currentTime() const;
+
             void seek(float);
 
             void setRate(float);
@@ -114,6 +118,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             void videoChanged();
             void audioChanged();
+            void videoTagsChanged(gint index);
             void notifyPlayerOfVideo();
             void notifyPlayerOfAudio();
 
@@ -126,7 +131,11 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             MediaPlayer::MovieLoadType movieLoadType() const;
 
+#if ENABLE(VIDEO_TRACK)
+            unsigned getNumberOfAudioTracks() const;
             unsigned getNumberOfTextTracks() const;
+            unsigned getNumberOfVideoTracks() const;
+#endif
 
         private:
             MediaPlayerPrivateGStreamer(MediaPlayer*);
@@ -140,6 +149,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             void updateAudioSink();
 
+            void seek(float, bool);
             float playbackPosition() const;
 
             void cacheDuration();

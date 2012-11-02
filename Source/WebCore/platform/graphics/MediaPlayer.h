@@ -148,6 +148,9 @@ public:
     // The MediaPlayer could not discover an engine which supports the requested resource.
     virtual void mediaPlayerResourceNotSupported(MediaPlayer*) { }
 
+    virtual void mediaPlayerClearVideoTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language) { }
+
 // Presentation-related methods
     // a new frame of video is available
     virtual void mediaPlayerRepaint(MediaPlayer*) { }
@@ -286,6 +289,9 @@ public:
 
     bool paused() const;
     bool seeking() const;
+
+    int currentVideo() const;
+    void setCurrentVideo(int);
 
     static float invalidTime() { return -1.0f;}
     float duration() const;

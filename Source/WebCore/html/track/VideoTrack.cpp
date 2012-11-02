@@ -80,15 +80,17 @@ const AtomicString& VideoTrack::commentaryKeyword()
     return subtitles;
 }
 
-VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& src, VideoTrackType type)
-    : TrackBase(context, TrackBase::TextTrack)
+VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+    : TrackBase(context, TrackBase::VideoTrack)
     , m_mediaElement(0)
-    , m_selected(false)
-    , m_src(src)
+    , m_id(id)
+    , m_kind(kind)
+    , m_label(label)
+    , m_language(language)
+    , m_selected(selected)
     , m_client(client)
-    , m_trackType(type)
     , m_readinessState(NotLoaded)
-    , m_trackIndex(invalidTrackIndex)
+    , m_trackIndex(index)
 {
 }
 
@@ -115,6 +117,11 @@ bool VideoTrack::isValidKindKeyword(const String& value)
     return false;
 }
 
+void VideoTrack::setId(const String& id)
+{
+    m_id = id;
+}
+
 void VideoTrack::setKind(const String& kind)
 {
     String oldKind = m_kind;
@@ -124,43 +131,47 @@ void VideoTrack::setKind(const String& kind)
     else
         m_kind = "";
 
-    if (m_client && oldKind != m_kind)
-        m_client->videoTrackKindChanged(this);
+    //if (m_client && oldKind != m_kind)
+    //    m_client->videoTrackKindChanged(this);
 }
 
 int VideoTrack::trackIndex()
 {
-    ASSERT(m_mediaElement);
-
-    if (m_trackIndex == invalidTrackIndex)
-        m_trackIndex = m_mediaElement->videoTracks()->getTrackIndex(this);
-
     return m_trackIndex;
 }
 
-void VideoTrack::invalidateTrackIndex()
-{
-    m_trackIndex = invalidTrackIndex;
-}
-
 void VideoTrack::setSelected(bool selected) {
+    if(selected == m_selected) return;
+
+    // Tell media player which track was selected
+    if(m_client)
+        m_client->videoTrackSelected(this, selected);
+
     if(!selected) {
         m_selected = false;
         return;
     }
 
-    // Deselect all other videos on this media element
-    VideoTrackList *list = m_mediaElement->videoTracks();
-    for(unsigned i = 0; i < list->length(); ++i) {
-        VideoTrack* item = list->item(i);
-        if(item != this) {
-            item->setSelected(false);
+    // 4.8.10.10.1
+    // If the track is in a VideoTrackList, then all the other VideoTrack
+    // objects in that list must be unselected. (If the track is no longer in
+    // a VideoTrackList object, then the track being selected or unselected
+    //has no effect beyond changing the value of the attribute on the
+    // VideoTrack object.)
+    if(m_mediaElement) {
+        VideoTrackList *list = m_mediaElement->videoTracks();
+        // TODO: Detect when we're not in the list
+        for(unsigned i = 0; i < list->length(); ++i) {
+            VideoTrack* item = list->item(i);
+            if(item != this && item->selected()) {
+                item->setSelected(false);
+
+                // There can only be on selected track
+                break;
+            }
         }
     }
-    // TODO: Actually switch the video playing
-
     m_selected = true;
-    m_mediaElement->setSrc(m_src);
 }
 
 } // namespace WebCore

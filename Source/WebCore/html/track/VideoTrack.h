@@ -42,15 +42,18 @@ class VideoTrack;
 class VideoTrackClient {
 public:
     virtual ~VideoTrackClient() { }
-    virtual void videoTrackKindChanged(VideoTrack*) = 0;
-    virtual void videoReadyStateChanged(VideoTrack*) = 0;
+    virtual void videoTrackSelected(VideoTrack*, bool) = 0;
 };
 
 class VideoTrack : public TrackBase {
 public:
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, const String& src)
+    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
     {
-        return adoptRef(new VideoTrack(context, client, src, AddTrack));
+        return adoptRef(new VideoTrack(context, client, index, selected, id, kind, label, language));
+    }
+    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected)
+    {
+        return adoptRef(new VideoTrack(context, client, index, selected, "", "", "", ""));
     }
     virtual ~VideoTrack();
 
@@ -87,16 +90,12 @@ public:
     virtual void clearClient() { m_client = 0; }
     VideoTrackClient* client() { return m_client; }
 
-    enum VideoTrackType { TrackElement, AddTrack, InBand };
-    VideoTrackType trackType() const { return m_trackType; }
-
     int trackIndex();
-    void invalidateTrackIndex();
 
     bool isRendered();
 
 protected:
-    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, const String& src, VideoTrackType);
+    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 
 private:
     HTMLMediaElement* m_mediaElement;
@@ -105,9 +104,7 @@ private:
     String m_label;
     String m_language;
     bool m_selected;
-    String m_src;
     VideoTrackClient* m_client;
-    VideoTrackType m_trackType;
     ReadinessState m_readinessState;
     int m_trackIndex;
 };

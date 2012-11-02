@@ -81,7 +81,7 @@ typedef Vector<CueIntervalTree::IntervalType> CueList;
 class HTMLMediaElement : public HTMLElement, public MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
     , private TextTrackClient
-    //, private VideoTrackClient
+    , private VideoTrackClient
 #endif
 {
 public:
@@ -257,12 +257,9 @@ public:
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
 
-    // VideoTrack
-    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, const String& label, const String& language, ExceptionCode&);
-    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, const String& label, ExceptionCode& ec) { return addVideoTrack(kind, label, emptyString(), ec); }
-    PassRefPtr<VideoTrack> addVideoTrack(const String& id, const String& kind, ExceptionCode& ec) { return addVideoTrack(kind, emptyString(), emptyString(), ec); }
-
     VideoTrackList* videoTracks();
+    virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
+    virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -490,6 +487,8 @@ private:
     bool ignoreTrackDisplayUpdateRequests() const { return m_ignoreTrackDisplayUpdate > 0; }
     void beginIgnoringTrackDisplayUpdateRequests() { ++m_ignoreTrackDisplayUpdate; }
     void endIgnoringTrackDisplayUpdateRequests() { ASSERT(m_ignoreTrackDisplayUpdate); --m_ignoreTrackDisplayUpdate; }
+
+    void videoTrackSelected(VideoTrack*, bool);
 #endif
 
     // These "internal" functions do not check user gesture restrictions.
