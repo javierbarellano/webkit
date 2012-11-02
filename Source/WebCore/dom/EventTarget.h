@@ -41,6 +41,7 @@
 namespace WebCore {
 
     class AudioContext;
+    class AudioTrack;
     class DedicatedWorkerContext;
     class DOMApplicationCache;
     class DOMWindow;

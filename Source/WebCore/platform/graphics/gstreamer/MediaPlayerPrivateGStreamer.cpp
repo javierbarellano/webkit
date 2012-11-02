@@ -428,6 +428,26 @@ void MediaPlayerPrivateGStreamer::pause()
         LOG_MEDIA_MESSAGE("Pause");
 }
 
+int MediaPlayerPrivateGStreamer::currentAudio() const
+{
+    gint audio;
+    g_object_get(m_playBin, "current-audio", &audio, NULL);
+    return audio;
+}
+
+void MediaPlayerPrivateGStreamer::setCurrentAudio(int audio)
+{
+    // No point setting the audio track if it's already set
+    if(audio == currentAudio())
+        return;
+
+    printf("Setting audio to %d\n", audio);
+    g_object_set(m_playBin, "current-audio", audio, NULL);
+
+    // Seek the to current time to fix the stream
+    seek(currentTime(), true);
+}
+
 int MediaPlayerPrivateGStreamer::currentVideo() const
 {
     gint video;
@@ -720,10 +740,39 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 {
     m_audioTimerHandler = 0;
 
-    gint audioTracks = 0;
+    gint numTracks = 0;
     if (m_playBin)
-        g_object_get(m_playBin, "n-audio", &audioTracks, NULL);
-    m_hasAudio = audioTracks > 0;
+        g_object_get(m_playBin, "n-audio", &numTracks, NULL);
+    m_hasAudio = numTracks > 0;
+
+#if ENABLE(VIDEO_TRACK)
+    printf("Clear video!\n");
+    m_player->mediaPlayerClient()->mediaPlayerClearAudioTracks(m_player);
+    if(m_hasAudio) {
+        int current = currentAudio();
+        for(gint i = 0; i < numTracks; ++i) {
+            GstTagList *tags = NULL;
+            String language;
+            String label;
+            g_signal_emit_by_name(m_playBin, "get-audio-tags", i, &tags);
+            if (tags) {
+                gchar *str;
+                if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &str)) {
+                    language = String(str);
+                    g_free(str);
+                }
+                if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &str)) {
+                    label = String(str);
+                    g_free(str);
+                }
+                gst_tag_list_free(tags);
+            }
+            printf("Got audio track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
+            m_player->mediaPlayerClient()->mediaPlayerAddAudioTrack(m_player, i, i == current, "", "", label, language);
+        }
+    }
+#endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 

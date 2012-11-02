@@ -40,6 +40,7 @@
 #endif
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrack.h"
 #include "PODIntervalTree.h"
 #include "TextTrack.h"
 #include "TextTrackCue.h"
@@ -52,6 +53,7 @@ namespace WebCore {
 class AudioSourceProvider;
 class MediaElementAudioSourceNode;
 #endif
+class AudioTrackList;
 class Event;
 class HTMLSourceElement;
 class HTMLTrackElement;
@@ -80,6 +82,7 @@ typedef Vector<CueIntervalTree::IntervalType> CueList;
 
 class HTMLMediaElement : public HTMLElement, public MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
+    , private AudioTrackClient
     , private TextTrackClient
     , private VideoTrackClient
 #endif
@@ -256,6 +259,10 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
+
+    AudioTrackList* audioTracks();
+    virtual void mediaPlayerClearAudioTracks(MediaPlayer*);
+    virtual void mediaPlayerAddAudioTrack(MediaPlayer*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
 
     VideoTrackList* videoTracks();
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
@@ -488,6 +495,7 @@ private:
     void beginIgnoringTrackDisplayUpdateRequests() { ++m_ignoreTrackDisplayUpdate; }
     void endIgnoringTrackDisplayUpdateRequests() { ASSERT(m_ignoreTrackDisplayUpdate); --m_ignoreTrackDisplayUpdate; }
 
+    void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
 #endif
 
@@ -659,6 +667,7 @@ private:
     bool m_haveVisibleTextTrack : 1;
     float m_lastTextTrackUpdateTime;
 
+    RefPtr<AudioTrackList> m_audioTracks;
     RefPtr<TextTrackList> m_textTracks;
     RefPtr<VideoTrackList> m_videoTracks;
     Vector<RefPtr<TextTrack> > m_textTracksWhenResourceSelectionBegan;

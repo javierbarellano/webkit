@@ -94,6 +94,9 @@ public:
     virtual void play() { }
     virtual void pause() { }
 
+    virtual int currentAudio() const { return -1; }
+    virtual void setCurrentAudio(int) { }
+
     virtual int currentVideo() const { return -1; }
     virtual void setCurrentVideo(int) { }
 
@@ -464,6 +467,16 @@ void MediaPlayer::play()
 void MediaPlayer::pause()
 {
     m_private->pause();
+}
+
+int MediaPlayer::currentAudio() const
+{
+    return m_private->currentAudio();
+}
+
+void MediaPlayer::setCurrentAudio(int track)
+{
+    m_private->setCurrentAudio(track);
 }
 
 int MediaPlayer::currentVideo() const

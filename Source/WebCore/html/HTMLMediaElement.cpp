@@ -96,6 +96,7 @@
 #endif
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
 #include "HTMLTrackElement.h"
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
@@ -2705,6 +2706,17 @@ PassRefPtr<TextTrack> HTMLMediaElement::addTextTrack(const String& kind, const S
     return textTrack.release();
 }
 
+AudioTrackList* HTMLMediaElement::audioTracks()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return 0;
+
+    if (!m_audioTracks)
+        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    return m_audioTracks.get();
+}
+
 TextTrackList* HTMLMediaElement::textTracks() 
 {
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
@@ -3363,6 +3375,33 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
 }
 
 #if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
+{
+    if(m_audioTracks)
+        m_audioTracks->clear();
+}
+
+void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+{
+    RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled);
+    track->setId(id);
+    track->setKind(kind);
+    track->setLabel(label);
+    track->setLanguage(language);
+    audioTracks()->append(track);
+    track.release();
+}
+
+void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
+{
+    int index = audioTracks()->getTrackIndex(track);
+    if(enabled) {
+        m_player->setCurrentAudio(index);
+    } else if(index == m_player->currentAudio()) {
+        // disable video
+    }
+}
+
 void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
 {
     if(m_videoTracks)

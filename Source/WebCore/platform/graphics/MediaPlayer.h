@@ -148,6 +148,9 @@ public:
     // The MediaPlayer could not discover an engine which supports the requested resource.
     virtual void mediaPlayerResourceNotSupported(MediaPlayer*) { }
 
+    virtual void mediaPlayerClearAudioTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddAudioTrack(MediaPlayer*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language) { }
+
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*) { }
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language) { }
 
@@ -289,6 +292,9 @@ public:
 
     bool paused() const;
     bool seeking() const;
+
+    int currentAudio() const;
+    void setCurrentAudio(int);
 
     int currentVideo() const;
     void setCurrentVideo(int);

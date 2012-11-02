@@ -64,6 +64,9 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             void play();
             void pause();
 
+            int currentAudio() const;
+            void setCurrentAudio(int);
+
             int currentVideo() const;
             void setCurrentVideo(int);
 

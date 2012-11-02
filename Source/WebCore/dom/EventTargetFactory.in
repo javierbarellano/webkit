@@ -1,6 +1,8 @@
 namespace="EventTarget"
 
 AudioContext conditional=WEB_AUDIO
+AudioTrack conditional=VIDEO_TRACK
+AudioTrackList conditional=VIDEO_TRACK
 BatteryManager conditional=BATTERY_STATUS
 DedicatedWorkerContext conditional=WORKERS
 DOMApplicationCache

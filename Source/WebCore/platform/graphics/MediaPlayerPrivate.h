@@ -55,6 +55,9 @@ public:
     virtual void play() = 0;
     virtual void pause() = 0;
 
+    virtual int currentAudio() const = 0;
+    virtual void setCurrentAudio(int) = 0;
+
     virtual int currentVideo() const = 0;
     virtual void setCurrentVideo(int) = 0;
 
