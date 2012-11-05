@@ -64,11 +64,11 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             void play();
             void pause();
 
-            int currentAudio() const;
-            void setCurrentAudio(int);
+            bool isAudioEnabled(int) const;
+            void setAudioEnabled(int, bool);
 
-            int currentVideo() const;
-            void setCurrentVideo(int);
+            bool isVideoSelected(int) const;
+            void setVideoSelected(int, bool);
 
             bool paused() const;
             bool seeking() const;

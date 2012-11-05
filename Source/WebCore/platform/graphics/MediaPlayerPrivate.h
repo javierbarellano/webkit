@@ -55,11 +55,11 @@ public:
     virtual void play() = 0;
     virtual void pause() = 0;
 
-    virtual int currentAudio() const = 0;
-    virtual void setCurrentAudio(int) = 0;
+    virtual bool isAudioEnabled(int) const = 0;
+    virtual void setAudioEnabled(int, bool) = 0;
 
-    virtual int currentVideo() const = 0;
-    virtual void setCurrentVideo(int) = 0;
+    virtual bool isVideoSelected(int) const = 0;
+    virtual void setVideoSelected(int, bool) = 0;
 
     virtual bool supportsFullscreen() const { return false; }
     virtual bool supportsSave() const { return false; }
