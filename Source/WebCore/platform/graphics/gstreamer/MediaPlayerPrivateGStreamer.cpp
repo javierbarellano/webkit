@@ -428,41 +428,70 @@ void MediaPlayerPrivateGStreamer::pause()
         LOG_MEDIA_MESSAGE("Pause");
 }
 
-int MediaPlayerPrivateGStreamer::currentAudio() const
+bool MediaPlayerPrivateGStreamer::isAudioEnabled(int checkTrack) const
 {
-    gint audio;
-    g_object_get(m_playBin, "current-audio", &audio, NULL);
-    return audio;
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_AUDIO)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-audio", &currentTrack, NULL);
+    return currentTrack == checkTrack;
 }
 
-void MediaPlayerPrivateGStreamer::setCurrentAudio(int audio)
+void MediaPlayerPrivateGStreamer::setAudioEnabled(int track, bool enabled)
 {
-    // No point setting the audio track if it's already set
-    if(audio == currentAudio())
+    // Check if the requested track is already in the right state
+    if(enabled == isAudioEnabled(track))
         return;
 
-    printf("Setting audio to %d\n", audio);
-    g_object_set(m_playBin, "current-audio", audio, NULL);
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(enabled) {
+        printf("Enabling audio track %d\n", track);
+        g_object_set(m_playBin, "current-audio", track, NULL);
+        flags |= GST_PLAY_FLAG_AUDIO;
+    } else {
+        printf("Disabling audio track %d\n", track);
+        flags &= ~GST_PLAY_FLAG_AUDIO;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
 
     // Seek the to current time to fix the stream
     seek(currentTime(), true);
 }
 
-int MediaPlayerPrivateGStreamer::currentVideo() const
+bool MediaPlayerPrivateGStreamer::isVideoSelected(int checkTrack) const
 {
-    gint video;
-    g_object_get(m_playBin, "current-video", &video, NULL);
-    return video;
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_VIDEO)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-video", &currentTrack, NULL);
+    return currentTrack == checkTrack;
 }
 
-void MediaPlayerPrivateGStreamer::setCurrentVideo(int video)
+void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
 {
-    // No point setting the video if it's already set
-    if(video == currentVideo())
+    // Check if the requested track is already in the right state
+    if(selected == isVideoSelected(track))
         return;
 
-    printf("Setting video to %d\n", video);
-    g_object_set(m_playBin, "current-video", video, NULL);
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(selected) {
+        printf("Selecting video track %d\n", track);
+        g_object_set(m_playBin, "current-video", track, NULL);
+        flags |= GST_PLAY_FLAG_VIDEO;
+    } else {
+        // This doesn't seem to work
+        printf("Deselecting video track %d\n", track);
+        flags &= ~GST_PLAY_FLAG_VIDEO;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
 
     // Seek the to current time to fix the stream
     seek(currentTime(), true);
@@ -700,7 +729,6 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
     printf("Clear video!\n");
     m_player->mediaPlayerClient()->mediaPlayerClearVideoTracks(m_player);
     if(m_hasVideo) {
-        int current = currentVideo();
         for(gint i = 0; i < numVideos; ++i) {
             GstTagList *tags = NULL;
             String language;
@@ -719,7 +747,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
                 gst_tag_list_free(tags);
             }
             printf("Got video track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
-            m_player->mediaPlayerClient()->mediaPlayerAddVideoTrack(m_player, i, i == current, "", "", label, language);
+            m_player->mediaPlayerClient()->mediaPlayerAddVideoTrack(m_player, i, isVideoSelected(i), "", "", label, language);
         }
     }
 #endif
@@ -749,7 +777,6 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
     printf("Clear video!\n");
     m_player->mediaPlayerClient()->mediaPlayerClearAudioTracks(m_player);
     if(m_hasAudio) {
-        int current = currentAudio();
         for(gint i = 0; i < numTracks; ++i) {
             GstTagList *tags = NULL;
             String language;
@@ -768,7 +795,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
                 gst_tag_list_free(tags);
             }
             printf("Got audio track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
-            m_player->mediaPlayerClient()->mediaPlayerAddAudioTrack(m_player, i, i == current, "", "", label, language);
+            m_player->mediaPlayerClient()->mediaPlayerAddAudioTrack(m_player, i, isAudioEnabled(i), "", "", label, language);
         }
     }
 #endif

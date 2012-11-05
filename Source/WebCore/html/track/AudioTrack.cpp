@@ -68,12 +68,6 @@ const AtomicString& AudioTrack::mainDescKeyword()
     return mainDesc;
 }
 
-const AtomicString& AudioTrack::signKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, sign, ("sign", AtomicString::ConstructFromLiteral));
-    return sign;
-}
-
 const AtomicString& AudioTrack::translationKeyword()
 {
     DEFINE_STATIC_LOCAL(const AtomicString, translation, ("translation", AtomicString::ConstructFromLiteral));
