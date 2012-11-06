@@ -81,7 +81,7 @@ const AtomicString& VideoTrack::commentaryKeyword()
 }
 
 VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& id, const String& kind, const String& label, const String& language, VideoTrackType type)
-    : TrackBase(context, TrackBase::TextTrack)
+    : TrackBase(context, TrackBase::VideoTrack)
     , m_mediaElement(0)
     , m_label(label)
     , m_language(language)
@@ -94,7 +94,7 @@ VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client
 }
 
 VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)
-: TrackBase(context, TrackBase::TextTrack)
+: TrackBase(context, TrackBase::VideoTrack)
 , m_mediaElement(0)
 , m_client(client)
 , m_readinessState(NotLoaded)

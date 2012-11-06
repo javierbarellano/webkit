@@ -4203,6 +4203,8 @@ void HTMLMediaElement::configureMediaControls()
     if (!hasMediaControls() && !createMediaControls())
         return;
 
+    configureVideoTrackDisplay();
+
     mediaControls()->show();
 #else
     if (m_player)
@@ -4238,7 +4240,9 @@ void HTMLMediaElement::configureTextTrackDisplay()
 
 void HTMLMediaElement::configureVideoTrackDisplay()
 {
-    ASSERT(m_videoTracks);
+    if (!m_videoTracks)
+      m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
 
     bool haveVisibleVideoTrack = false;
     for (unsigned i = 0; i < m_videoTracks->length(); ++i) {
@@ -4248,18 +4252,31 @@ void HTMLMediaElement::configureVideoTrackDisplay()
         }
     }
 
-    if (m_haveVisibleVideoTrack == haveVisibleVideoTrack)
-        return;
+//    if (m_haveVisibleVideoTrack == haveVisibleVideoTrack)
+//        return;
     m_haveVisibleVideoTrack = haveVisibleVideoTrack;
     m_closedCaptionsVisible = m_haveVisibleVideoTrack;
 
-    if (!m_haveVisibleVideoTrack && !hasMediaControls())
-        return;
-    if (!hasMediaControls() && !createMediaControls())
-        return;
+//    if (!m_haveVisibleVideoTrack && !hasMediaControls())
+//        return;
+//    if (!hasMediaControls() && !createMediaControls())
+//        return;
 
-    updateClosedCaptionsControls();
+    mediaControls()->showVideoTrackDisplay();
+
 }
+
+std::vector<std::string> HTMLMediaElement::getSelNames()
+{
+	std::vector<std::string> names;
+	names.push_back(std::string("first video track"));
+	names.push_back(std::string("second video track"));
+	names.push_back(std::string("third video track"));
+	names.push_back(std::string("lst vid track"));
+
+	return names;
+}
+
 
 void HTMLMediaElement::updateClosedCaptionsControls()
 {

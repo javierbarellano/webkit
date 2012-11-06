@@ -88,6 +88,7 @@ String AccessibilityMediaControl::controlTypeName() const
     DEFINE_STATIC_LOCAL(const String, mediaEnterFullscreenButtonName, (ASCIILiteral("EnterFullscreenButton")));
     DEFINE_STATIC_LOCAL(const String, mediaExitFullscreenButtonName, (ASCIILiteral("ExitFullscreenButton")));
     DEFINE_STATIC_LOCAL(const String, mediaMuteButtonName, (ASCIILiteral("MuteButton")));
+    DEFINE_STATIC_LOCAL(const String, mediaVideoTrackSelButtonName, (ASCIILiteral("VideoTrackSelButton")));
     DEFINE_STATIC_LOCAL(const String, mediaPlayButtonName, (ASCIILiteral("PlayButton")));
     DEFINE_STATIC_LOCAL(const String, mediaSeekBackButtonName, (ASCIILiteral("SeekBackButton")));
     DEFINE_STATIC_LOCAL(const String, mediaSeekForwardButtonName, (ASCIILiteral("SeekForwardButton")));
@@ -108,6 +109,8 @@ String AccessibilityMediaControl::controlTypeName() const
         return mediaExitFullscreenButtonName;
     case MediaMuteButton:
         return mediaMuteButtonName;
+    case MediaVideoTrackSelButton:
+        return mediaVideoTrackSelButtonName;
     case MediaPlayButton:
         return mediaPlayButtonName;
     case MediaSeekBackButton:
@@ -174,6 +177,7 @@ AccessibilityRole AccessibilityMediaControl::roleValue() const
     case MediaEnterFullscreenButton:
     case MediaExitFullscreenButton:
     case MediaMuteButton:
+    case MediaVideoTrackSelButton:
     case MediaPlayButton:
     case MediaSeekBackButton:
     case MediaSeekForwardButton:

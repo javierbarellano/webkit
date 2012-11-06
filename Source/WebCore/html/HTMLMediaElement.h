@@ -220,6 +220,9 @@ public:
     virtual void didAddTrack(HTMLTrackElement*);
     virtual void willRemoveTrack(HTMLTrackElement*);
 
+    // UI support for Video Tracks
+    virtual std::vector<std::string> getSelNames();
+
     struct TrackGroup {
         enum GroupKind { CaptionsAndSubtitles, Description, Chapter, Metadata, Other };
 

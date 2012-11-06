@@ -33,6 +33,7 @@
 
 #include "HTMLDivElement.h"
 #include "HTMLInputElement.h"
+#include "HTMLSelectElement.h"
 #include "MediaControllerInterface.h"
 #include "RenderBlock.h"
 
@@ -75,6 +76,7 @@ enum MediaControlElementType {
     MediaTextTrackDisplay,
     MediaExitFullscreenButton,
     MediaOverlayPlayButton,
+    MediaVideoTrackSelButton,
 };
 
 HTMLMediaElement* toParentMediaElement(Node*);
@@ -101,6 +103,27 @@ private:
     virtual bool isMediaControlElement() const { return true; }
 
     MediaControllerInterface* m_mediaController;   
+};
+
+// ----------------------------
+
+class MediaSelectElement : public HTMLSelectElement {
+public:
+    void hide();
+    void show();
+
+    virtual MediaControlElementType displayType() const = 0;
+
+    void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
+    MediaControllerInterface* mediaController() const { return m_mediaController; }
+
+protected:
+    MediaSelectElement(Document*);
+
+private:
+    virtual bool isMediaControlElement() const { return false; }
+
+    MediaControllerInterface* m_mediaController;
 };
 
 // ----------------------------
@@ -444,6 +467,28 @@ private:
     MediaControlFullscreenButtonElement(Document*, MediaControls*);
 
     virtual const AtomicString& shadowPseudoId() const;
+};
+
+// ----------------------------
+
+class MediaControlVideoTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlVideoTrackSelButtonElement> create(Document*, MediaControls* controls);
+    void changedVideoTrack();
+
+    //virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    virtual void updateDisplayType();
+    virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
+
+    void display();
+
+private:
+    MediaControlVideoTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+
+    MediaControls* m_controls;
 };
 
 // ----------------------------

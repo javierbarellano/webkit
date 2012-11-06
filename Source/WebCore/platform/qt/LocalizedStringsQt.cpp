@@ -168,6 +168,11 @@ String contextMenuItemTagMediaMute()
     return QCoreApplication::translate("QWebPage", "Mute", "Mute");
 }
 
+String contextMenuItemTagMediaVideoTrackSel()
+{
+    return QCoreApplication::translate("QWebPage", "video track", "Select a video track");
+}
+
 String contextMenuItemTagOpenFrameInNewWindow()
 {
     return QCoreApplication::translate("QWebPage", "Open Frame", "Open Frame in New Window context menu item");
@@ -495,6 +500,8 @@ String localizedMediaControlElementString(const String& name)
         return QCoreApplication::translate("QWebPage", "Mute Button", "Media controller element");
     if (name == "UnMuteButton")
         return QCoreApplication::translate("QWebPage", "Unmute Button", "Media controller element");
+    if (name == "VideoTrackSelButton")
+        return QCoreApplication::translate("QWebPage", "Video Track Button", "Video Track Selection element");
     if (name == "PlayButton")
         return QCoreApplication::translate("QWebPage", "Play Button", "Media controller element");
     if (name == "PauseButton")
@@ -535,6 +542,8 @@ String localizedMediaControlElementHelpText(const String& name)
         return QCoreApplication::translate("QWebPage", "Mute audio tracks", "Media controller element");
     if (name == "UnMuteButton")
         return QCoreApplication::translate("QWebPage", "Unmute audio tracks", "Media controller element");
+    if (name == "VideoTrackSelButton")
+        return QCoreApplication::translate("QWebPage", "Select video track", "Media controller element");
     if (name == "PlayButton")
         return QCoreApplication::translate("QWebPage", "Begin playback", "Media controller element");
     if (name == "PauseButton")

@@ -511,6 +511,11 @@ String contextMenuItemTagMediaMute()
     return WEB_UI_STRING("Mute", "Media Mute context menu item");
 }
     
+String contextMenuItemTagMediaVideoTrackSel()
+{
+    return WEB_UI_STRING("Video Track Selection", "Media Video Track Selection context menu item");
+}
+
 String contextMenuItemTagInspectElement()
 {
     return WEB_UI_STRING("Inspect Element", "Inspect Element context menu item");
@@ -804,6 +809,8 @@ String localizedMediaControlElementString(const String& name)
         return WEB_UI_STRING("mute", "accessibility role description for mute button");
     if (name == "UnMuteButton")
         return WEB_UI_STRING("unmute", "accessibility role description for turn mute off button");
+    if (name == "VideoTrackSelButton")
+        return WEB_UI_STRING("video track", "accessibility role description for video track selection button");
     if (name == "PlayButton")
         return WEB_UI_STRING("play", "accessibility role description for play button");
     if (name == "PauseButton")
@@ -853,6 +860,8 @@ String localizedMediaControlElementHelpText(const String& name)
         return WEB_UI_STRING("mute audio tracks", "accessibility help text for mute button");
     if (name == "UnMuteButton")
         return WEB_UI_STRING("unmute audio tracks", "accessibility help text for un mute button");
+    if (name == "VideoTrackSelButton")
+        return WEB_UI_STRING("video track", "accessibility help text for video track selection button");
     if (name == "PlayButton")
         return WEB_UI_STRING("begin playback", "accessibility help text for play button");
     if (name == "PauseButton")

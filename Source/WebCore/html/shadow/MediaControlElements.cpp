@@ -39,6 +39,8 @@
 #include "FloatConversion.h"
 #include "FloatPoint.h"
 #include "Frame.h"
+#include "HTMLOptionElement.h"
+#include "HTMLSelectElement.h"
 #include "HTMLDivElement.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
@@ -108,6 +110,24 @@ void MediaControlElement::show()
 }
 
 void MediaControlElement::hide()
+{
+    setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
+}
+
+// ----------------------------
+
+MediaSelectElement::MediaSelectElement(Document* document)
+    : HTMLSelectElement(selectTag, document, NULL)
+    , m_mediaController(0)
+{
+}
+
+void MediaSelectElement::show()
+{
+    removeInlineStyleProperty(CSSPropertyDisplay);
+}
+
+void MediaSelectElement::hide()
 {
     setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
 }
@@ -1105,6 +1125,70 @@ void MediaControlFullscreenButtonElement::setIsFullscreen(bool isFullscreen)
 
 // ----------------------------
 
+inline MediaControlVideoTrackSelButtonElement::MediaControlVideoTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlVideoTrackSelButtonElement> MediaControlVideoTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlVideoTrackSelButtonElement> button = adoptRef(new MediaControlVideoTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlVideoTrackSelButtonElement::updateDisplayType()
+{
+    if (RenderObject* object = renderer())
+        object->repaint();
+}
+
+void MediaControlVideoTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		renderer()->style()->setAppearance(MediaVideoTrackSelButtonPart);
+		Length h(29,Fixed);
+
+		std::vector<std::string> names = mediaController()->getSelNames();
+		int len = 0;
+		for (int i=0; i<(int)names.size(); i++)
+		{
+			if (names[i].length()>len) len = names[i].length();
+		}
+		Length w((len*124)/14,Fixed);
+		renderer()->style()->setHeight(h);
+		renderer()->style()->setWidth(w);
+
+		// Set up Select control
+	    ExceptionCode ec = 0;
+	    for (size_t i = 0; i < names.size(); ++i) {
+	        RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+	        appendChild(option, ec);
+	        String sOpt(names[i].c_str());
+	        option->appendChild(Text::create(document(), sOpt), ec);
+	    }
+		setSelectedIndex(1);
+	}
+
+}
+
+
+const AtomicString& MediaControlVideoTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-video-track-button"));
+    return id;
+}
+
+// ----------------------------
+
 inline MediaControlFullscreenVolumeMinButtonElement::MediaControlFullscreenVolumeMinButtonElement(Document* document)
     : MediaControlInputElement(document, MediaUnMuteButton)
 {
@@ -1397,6 +1481,7 @@ void MediaControlTextTrackContainerElement::updateSizes()
         setInlineStyleProperty(CSSPropertyFontSize, String::number(fontSize) + "px");
     }
 }
+
 
 #endif // ENABLE(VIDEO_TRACK)
 

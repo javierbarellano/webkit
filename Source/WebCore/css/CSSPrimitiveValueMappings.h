@@ -390,6 +390,9 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ControlPart e)
         case MediaMuteButtonPart:
             m_value.ident = CSSValueMediaMuteButton;
             break;
+        case MediaVideoTrackSelButtonPart:
+            m_value.ident = CSSValueMediaVideoTrackSelButton;
+            break;
         case MediaSeekBackButtonPart:
             m_value.ident = CSSValueMediaSeekBackButton;
             break;

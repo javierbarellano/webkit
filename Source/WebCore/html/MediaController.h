@@ -108,6 +108,8 @@ public:
     
     virtual void returnToRealtime();
 
+    virtual std::vector<std::string> getSelNames();
+
     bool isBlocked() const;
 
     // EventTarget

@@ -72,7 +72,8 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_fullScreenMaxVolumeButton(0)
     , m_panel(0)
 #if ENABLE(VIDEO_TRACK)
-    , m_textDisplayContainer(0)
+, m_textDisplayContainer(0)
+, m_videoTrackSelButton(0)
 #endif
     , m_hideFullscreenControlsTimer(this, &MediaControlRootElement::hideFullscreenControlsTimerFired)
     , m_isMouseOverControls(false)
@@ -201,6 +202,13 @@ PassRefPtr<MediaControlRootElement> MediaControlRootElement::create(Document* do
             return 0;
     }
 
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoTrackSelButton = MediaControlVideoTrackSelButtonElement::create(document, controls.get());
+    controls->m_videoTrackSelButton = videoTrackSelButton.get();
+    panel->appendChild(videoTrackSelButton.release(), ec, true);
+    if (ec)
+        return 0;
+
+
     RefPtr<MediaControlPanelMuteButtonElement> panelMuteButton = MediaControlPanelMuteButtonElement::create(document, controls.get());
     controls->m_panelMuteButton = panelMuteButton.get();
     panelVolumeControlContainer->appendChild(panelMuteButton.release(), ec, true);
@@ -268,6 +276,8 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_toggleClosedCaptionsButton->setMediaController(controller);
     if (m_panelMuteButton)
         m_panelMuteButton->setMediaController(controller);
+    if (m_videoTrackSelButton)
+    	m_videoTrackSelButton->setMediaController(controller);
     if (m_volumeSlider)
         m_volumeSlider->setMediaController(controller);
     if (m_volumeSliderMuteButton)
@@ -341,6 +351,8 @@ void MediaControlRootElement::reset()
         m_panelMuteButton->show();
     else
         m_panelMuteButton->hide();
+
+   m_videoTrackSelButton->show();
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -476,6 +488,11 @@ void MediaControlRootElement::changedMute()
         m_volumeSliderMuteButton->changedMute();
 }
 
+void MediaControlRootElement::changedVideoTrack()
+{
+    m_videoTrackSelButton->changedVideoTrack();
+}
+
 void MediaControlRootElement::changedVolume()
 {
     if (m_volumeSlider)
@@ -521,6 +538,7 @@ void MediaControlRootElement::exitedFullscreen()
     m_seekBackButton->show();
     m_seekForwardButton->show();
     m_returnToRealTimeButton->show();
+    m_videoTrackSelButton->show();
 
     m_panel->setCanBeDragged(false);
     m_fullScreenButton->setIsFullscreen(false);
@@ -651,6 +669,42 @@ void MediaControlRootElement::updateTextTrackDisplay()
 
     m_textDisplayContainer->updateDisplay();
 
+}
+void MediaControlRootElement::createVideoTrackDisplay()
+{
+    if (m_videoTrackSelButton)
+        return;
+
+    RefPtr<MediaControlRootElement> controls = adoptRef(new MediaControlRootElement(document()));
+
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), controls.get());
+    controls.release();
+    m_videoTrackSelButton = videoDisplayButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    ExceptionCode ec;
+    insertBefore(videoDisplayButton.release(), m_panel, ec, true);
+}
+
+void MediaControlRootElement::showVideoTrackDisplay()
+{
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    m_videoTrackSelButton->display();
+}
+
+void MediaControlRootElement::hideVideoTrackDisplay()
+{
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    m_videoTrackSelButton->hide();
+}
+
+void MediaControlRootElement::updateVideoTrackDisplay()
+{
+	showVideoTrackDisplay();
 }
 #endif
 
