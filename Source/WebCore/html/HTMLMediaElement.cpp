@@ -96,6 +96,7 @@
 #endif
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
 #include "HTMLTrackElement.h"
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
@@ -293,11 +294,15 @@ HTMLMediaElement::~HTMLMediaElement()
     document()->unregisterForMediaVolumeCallbacks(this);
     document()->unregisterForPrivateBrowsingStateChangedCallbacks(this);
 #if ENABLE(VIDEO_TRACK)
-    if (m_textTracks)
-        m_textTracks->clearOwner();
     if (m_textTracks) {
+        m_textTracks->clearOwner();
         for (unsigned i = 0; i < m_textTracks->length(); ++i)
             m_textTracks->item(i)->clearClient();
+    }
+    if (m_videoTracks) {
+        m_videoTracks->clearOwner();
+        for (unsigned i = 0; i < m_videoTracks->length(); ++i)
+            m_videoTracks->item(i)->clearClient();
     }
 #endif
 
@@ -1364,69 +1369,7 @@ void HTMLMediaElement::textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue> c
     updateActiveTextTrackCues(currentTime());
 }
 
-bool HTMLMediaElement::videoTracksAreReady() const
-{
-    // Video track model
-    // ...
-    // The video tracks of a media element are ready if all the video tracks whose mode was not
-    // in the disabled state when the element's resource selection algorithm last started now
-    // have a video track readiness state of loaded or failed to load.
-    for (unsigned i = 0; i < m_videoTracksWhenResourceSelectionBegan.size(); ++i) {
-        if (m_videoTracksWhenResourceSelectionBegan[i]->readinessState() == VideoTrack::Loading)
-            return false;
-    }
-
-    return true;
-}
-
-void HTMLMediaElement::videoTrackReadyStateChanged(VideoTrack* track)
-{
-    if (m_player && m_videoTracksWhenResourceSelectionBegan.contains(track)) {
-        if (track->readinessState() != VideoTrack::Loading)
-            setReadyState(m_player->readyState());
-    }
-}
-
-void HTMLMediaElement::videoTrackModeChanged(VideoTrack* track)
-{
-    if (track->trackType() == VideoTrack::TrackElement) {
-        // Sourcing out-of-band video tracks
-        // ... when a video track corresponding to a track element is created with video track
-        // mode set to disabled and subsequently changes its video track mode to hidden, showing,
-        // or showing by default for the first time, the user agent must immediately and synchronously
-        // run the following algorithm ...
-
-        for (Node* node = firstChild(); node; node = node->nextSibling()) {
-            if (!node->hasTagName(trackTag))
-                continue;
-            HTMLVideoElement* trackElement = static_cast<HTMLVideoElement*>(node);
-            if (trackElement->track() != track)
-                continue;
-
-            // Mark this track as "configured" so configureVideoTracks won't change the mode again.
-            trackElement->setHasBeenConfigured(true);
-            if (track->mode() != VideoTrack::disabledKeyword()) {
-                if (trackElement->readyState() == MediaControllerInterface::HAVE_NOTHING)
-                    trackElement->scheduleLoad();
-
-                // If this is the first added track, create the list of video tracks.
-                if (!m_videoTracks)
-                  m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-            }
-            break;
-        }
-    }
-
-    configureVideoTrackDisplay();
-}
-
-void HTMLMediaElement::videoTrackKindChanged(VideoTrack* track)
-{
-    if (track->kind() != VideoTrack::captionsKeyword() && track->kind() != VideoTrack::subtitlesKeyword() && track->mode() == VideoTrack::showingKeyword())
-        track->setMode(VideoTrack::hiddenKeyword());
-}
-
-#endif // Conditional on ENABLE_VIDEO_TRACK
+#endif
 
 bool HTMLMediaElement::isSafeToLoadURL(const KURL& url, InvalidURLAction actionIfInvalid)
 {
@@ -2763,6 +2706,17 @@ PassRefPtr<TextTrack> HTMLMediaElement::addTextTrack(const String& kind, const S
     return textTrack.release();
 }
 
+AudioTrackList* HTMLMediaElement::audioTracks()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return 0;
+
+    if (!m_audioTracks)
+        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    return m_audioTracks.get();
+}
+
 TextTrackList* HTMLMediaElement::textTracks() 
 {
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
@@ -2780,7 +2734,7 @@ VideoTrackList* HTMLMediaElement::videoTracks()
         return 0;
 
     if (!m_videoTracks)
-    	m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+        m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
     return m_videoTracks.get();
 }
@@ -3419,6 +3373,46 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
         renderer()->updateFromElement();
     endProcessingMediaPlayerCallback();
 }
+
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
+{
+    if(m_audioTracks)
+        m_audioTracks->clear();
+}
+
+void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+{
+    RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
+    audioTracks()->append(track);
+    track.release();
+}
+
+void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
+{
+    int index = audioTracks()->getTrackIndex(track);
+    m_player->setAudioEnabled(index, enabled);
+}
+
+void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
+{
+    if(m_videoTracks)
+        m_videoTracks->clear();
+}
+
+void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+{
+    RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
+    videoTracks()->append(track);
+    track.release();
+}
+
+void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
+{
+    int index = videoTracks()->getTrackIndex(track);
+    m_player->setVideoSelected(index, selected);
+}
+#endif
 
 #if USE(ACCELERATED_COMPOSITING)
 bool HTMLMediaElement::mediaPlayerRenderingCanBeAccelerated(MediaPlayer*)
@@ -4242,25 +4236,6 @@ void HTMLMediaElement::configureVideoTrackDisplay()
 {
     if (!m_videoTracks)
       m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-
-    bool haveVisibleVideoTrack = false;
-    for (unsigned i = 0; i < m_videoTracks->length(); ++i) {
-        if (m_videoTracks->item(i)->mode() == VideoTrack::showingKeyword()) {
-        	haveVisibleVideoTrack = true;
-            break;
-        }
-    }
-
-//    if (m_haveVisibleVideoTrack == haveVisibleVideoTrack)
-//        return;
-    m_haveVisibleVideoTrack = haveVisibleVideoTrack;
-    m_closedCaptionsVisible = m_haveVisibleVideoTrack;
-
-//    if (!m_haveVisibleVideoTrack && !hasMediaControls())
-//        return;
-//    if (!hasMediaControls() && !createMediaControls())
-//        return;
 
     mediaControls()->showVideoTrackDisplay();
 

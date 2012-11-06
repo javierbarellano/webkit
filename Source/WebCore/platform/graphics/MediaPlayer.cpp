@@ -92,7 +92,13 @@ public:
 
     virtual void prepareToPlay() { }
     virtual void play() { }
-    virtual void pause() { }    
+    virtual void pause() { }
+
+    virtual bool isAudioEnabled(int) const { return false; }
+    virtual void setAudioEnabled(int, bool) { }
+
+    virtual bool isVideoSelected(int) const { return false; }
+    virtual void setVideoSelected(int, bool) { }
 
     virtual PlatformMedia platformMedia() const { return NoPlatformMedia; }
 #if USE(ACCELERATED_COMPOSITING)
@@ -105,7 +111,6 @@ public:
     virtual bool hasAudio() const { return false; }
 
     virtual void setVisible(bool) { }
-
     virtual float duration() const { return 0; }
 
     virtual float currentTime() const { return 0; }
@@ -462,6 +467,26 @@ void MediaPlayer::play()
 void MediaPlayer::pause()
 {
     m_private->pause();
+}
+
+bool MediaPlayer::isAudioEnabled(int track) const
+{
+    return m_private->isAudioEnabled(track);
+}
+
+void MediaPlayer::setAudioEnabled(int track, bool enabled)
+{
+    m_private->setAudioEnabled(track, enabled);
+}
+
+bool MediaPlayer::isVideoSelected(int track) const
+{
+    return m_private->isVideoSelected(track);
+}
+
+void MediaPlayer::setVideoSelected(int track, bool selected)
+{
+    m_private->setVideoSelected(track, selected);
 }
 
 #if ENABLE(MEDIA_SOURCE)

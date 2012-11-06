@@ -33,68 +33,60 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "VideoTrack.h"
+#include "AudioTrack.h"
 
 #include "Event.h"
 #include "ExceptionCode.h"
 #include "HTMLMediaElement.h"
-#include "VideoTrackList.h"
+#include "AudioTrackList.h"
 
 namespace WebCore {
 
 static const int invalidTrackIndex = -1;
 
-const AtomicString& VideoTrack::alternativeKeyword()
+const AtomicString& AudioTrack::alternativeKeyword()
 {
     DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
     return alternative;
 }
 
-const AtomicString& VideoTrack::captionsKeyword()
+const AtomicString& AudioTrack::descriptionKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("captions", AtomicString::ConstructFromLiteral));
-    return captions;
+    DEFINE_STATIC_LOCAL(const AtomicString, description, ("description", AtomicString::ConstructFromLiteral));
+    return description;
 }
 
-const AtomicString& VideoTrack::mainKeyword()
+const AtomicString& AudioTrack::mainKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("main", AtomicString::ConstructFromLiteral));
-    return captions;
+    DEFINE_STATIC_LOCAL(const AtomicString, main, ("main", AtomicString::ConstructFromLiteral));
+    return main;
 }
 
-const AtomicString& VideoTrack::signKeyword()
+const AtomicString& AudioTrack::mainDescKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("sign", AtomicString::ConstructFromLiteral));
-    return captions;
+    DEFINE_STATIC_LOCAL(const AtomicString, mainDesc, ("main-desc", AtomicString::ConstructFromLiteral));
+    return mainDesc;
 }
 
-const AtomicString& VideoTrack::subtitlesKeyword()
+const AtomicString& AudioTrack::translationKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, subtitles, ("subtitles", AtomicString::ConstructFromLiteral));
-    return subtitles;
+    DEFINE_STATIC_LOCAL(const AtomicString, translation, ("translation", AtomicString::ConstructFromLiteral));
+    return translation;
 }
 
-const AtomicString& VideoTrack::commentaryKeyword()
+const AtomicString& AudioTrack::commentaryKeyword()
 {
     DEFINE_STATIC_LOCAL(const AtomicString, commentary, ("commentary", AtomicString::ConstructFromLiteral));
     return commentary;
 }
 
-VideoTrack::VideoTrack(
-		ScriptExecutionContext* context,
-		VideoTrackClient* client,
-		int index,
-		bool selected,
-		const String& id,
-		const String& kind,
-		const String& label,
-		const String& language)
-    : TrackBase(context, TrackBase::VideoTrack)
+AudioTrack::AudioTrack(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+    : TrackBase(context, TrackBase::AudioTrack)
     , m_mediaElement(0)
     , m_id(id)
     , m_label(label)
     , m_language(language)
-    , m_selected(selected)
+    , m_enabled(enabled)
     , m_client(client)
     , m_readinessState(NotLoaded)
     , m_trackIndex(index)
@@ -102,31 +94,22 @@ VideoTrack::VideoTrack(
     setKind(kind);
 }
 
-VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)
-: TrackBase(context, TrackBase::VideoTrack)
-, m_mediaElement(0)
-, m_client(client)
-, m_readinessState(NotLoaded)
-, m_trackIndex(invalidTrackIndex)
-{
-    setKind(kind);
-}
-VideoTrack::~VideoTrack()
+AudioTrack::~AudioTrack()
 {
     clearClient();
 }
 
-bool VideoTrack::isValidKindKeyword(const String& value)
+bool AudioTrack::isValidKindKeyword(const String& value)
 {
     if (equalIgnoringCase(value, alternativeKeyword()))
         return true;
-    if (equalIgnoringCase(value, captionsKeyword()))
+    if (equalIgnoringCase(value, descriptionKeyword()))
         return true;
     if (equalIgnoringCase(value, mainKeyword()))
         return true;
-    if (equalIgnoringCase(value, signKeyword()))
+    if (equalIgnoringCase(value, mainDescKeyword()))
         return true;
-    if (equalIgnoringCase(value, subtitlesKeyword()))
+    if (equalIgnoringCase(value, translationKeyword()))
         return true;
     if (equalIgnoringCase(value, commentaryKeyword()))
         return true;
@@ -134,12 +117,12 @@ bool VideoTrack::isValidKindKeyword(const String& value)
     return false;
 }
 
-void VideoTrack::setId(const String& id)
+void AudioTrack::setId(const String& id)
 {
     m_id = id;
 }
 
-void VideoTrack::setKind(const String& kind)
+void AudioTrack::setKind(const String& kind)
 {
     String oldKind = m_kind;
 
@@ -149,46 +132,46 @@ void VideoTrack::setKind(const String& kind)
         m_kind = "";
 
     //if (m_client && oldKind != m_kind)
-    //    m_client->videoTrackKindChanged(this);
+    //    m_client->audioTrackKindChanged(this);
 }
 
-int VideoTrack::trackIndex()
+int AudioTrack::trackIndex()
 {
     return m_trackIndex;
 }
 
-void VideoTrack::setSelected(bool selected) {
-    if(selected == m_selected) return;
+void AudioTrack::setEnabled(bool enabled) {
+    if(enabled == m_enabled) return;
 
     // Tell media player which track was selected
     if(m_client)
-        m_client->videoTrackSelected(this, selected);
+        m_client->audioTrackEnabled(this, enabled);
 
-    if(!selected) {
-        m_selected = false;
+    if(!enabled) {
+        m_enabled = false;
         return;
     }
 
     // 4.8.10.10.1
-    // If the track is in a VideoTrackList, then all the other VideoTrack
+    // If the track is in a AudioTrackList, then all the other AudioTrack
     // objects in that list must be unselected. (If the track is no longer in
-    // a VideoTrackList object, then the track being selected or unselected
+    // a AudioTrackList object, then the track being selected or unselected
     //has no effect beyond changing the value of the attribute on the
-    // VideoTrack object.)
+    // AudioTrack object.)
     if(m_mediaElement) {
-        VideoTrackList *list = m_mediaElement->videoTracks();
+        AudioTrackList *list = m_mediaElement->audioTracks();
         // TODO: Detect when we're not in the list
         for(unsigned i = 0; i < list->length(); ++i) {
-            VideoTrack* item = list->item(i);
-            if(item != this && item->selected()) {
-                item->setSelected(false);
+            AudioTrack* item = list->item(i);
+            if(item != this && item->enabled()) {
+                item->setEnabled(false);
 
                 // There can only be on selected track
                 break;
             }
         }
     }
-    m_selected = true;
+    m_enabled = true;
 }
 
 } // namespace WebCore

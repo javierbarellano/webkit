@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2011 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,48 +23,36 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#ifndef HTMLSourceElement_h
-#define HTMLSourceElement_h
+#ifndef JSAudioTrackCustom_h
+#define JSAudioTrackCustom_h
 
-#if ENABLE(VIDEO)
+#if ENABLE(VIDEO_TRACK)
+#include "JSAudioTrack.h"
 
-#include "HTMLElement.h"
-#include "Timer.h"
+#include "HTMLMediaElement.h"
+#include "HTMLTrackElement.h"
+
+using namespace JSC;
 
 namespace WebCore {
 
-class HTMLSourceElement : public HTMLElement {
-public:
-    static PassRefPtr<HTMLSourceElement> create(const QualifiedName&, Document*);
+inline void* root(AudioTrack* track)
+{
+    // If this track corresponds to a <track> element, return that element's root.
+    /*if (track->trackType() == AudioTrack::TrackElement) {
+        if (HTMLTrackElement* trackElement = static_cast<LoadableAudioTrack*>(track)->trackElement())
+            return root(trackElement);
+    }*/
 
-    String media() const;
-    String type() const;
-    String src() const;
-    void setSrc(const String&);    
-    void setMedia(const String&);
-    void setType(const String&);
-    
-    void scheduleErrorEvent();
-    void cancelPendingErrorEvent();
+    // No, return the media element's root if it has one.
+    if (track->mediaElement())
+        return root(track->mediaElement());
 
-private:
-    HTMLSourceElement(const QualifiedName&, Document*);
-    
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
-    virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
+    // No track element and no media element, return the text track.
+    return track;
+}
 
-    void errorEventTimerFired(Timer<HTMLSourceElement>*);
-
-#if ENABLE(MICRODATA)
-    virtual String itemValueText() const OVERRIDE;
-    virtual void setItemValueText(const String&, ExceptionCode&) OVERRIDE;
-#endif
-
-    Timer<HTMLSourceElement> m_errorEventTimer;
-};
-
-} //namespace
+}
 
 #endif
 #endif

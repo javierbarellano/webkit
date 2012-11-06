@@ -73,6 +73,11 @@ void HTMLSourceElement::removedFrom(ContainerNode* removalRoot)
     HTMLElement::removedFrom(removalRoot);
 }
 
+String HTMLSourceElement::src() const
+{
+    return getAttribute(srcAttr);
+}
+
 void HTMLSourceElement::setSrc(const String& url)
 {
     setAttribute(srcAttr, url);

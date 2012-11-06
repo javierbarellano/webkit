@@ -735,6 +735,8 @@ SOURCES += \
     html/shadow/SliderThumbElement.cpp \
     html/shadow/SpinButtonElement.cpp \
     html/shadow/TextControlInnerElements.cpp \
+    html/track/AudioTrack.cpp \
+    html/track/AudioTrackList.cpp \
     html/track/LoadableTextTrack.cpp \
     html/track/TextTrack.cpp \
     html/track/TextTrackCue.cpp \
@@ -865,7 +867,6 @@ SOURCES += \
     loader/TextResourceDecoder.cpp \
     loader/TextTrackLoader.cpp \
     loader/ThreadableLoader.cpp \
-    loader/VideoTrackLoader.cpp \
     page/animation/AnimationBase.cpp \
     page/animation/AnimationController.cpp \
     page/animation/CompositeAnimation.cpp \
@@ -3842,6 +3843,9 @@ enable?(JAVASCRIPT_DEBUGGER) {
 
 enable?(VIDEO_TRACK) {
     SOURCES += \
+        bindings/js/JSAudioTrackCustom.cpp \
+        bindings/js/JSAudioTrackCustom.h \
+        bindings/js/JSAudioTrackListCustom.cpp \
         bindings/js/JSTextTrackCueCustom.cpp \
         bindings/js/JSTextTrackCustom.cpp \
         bindings/js/JSTextTrackCustom.h \

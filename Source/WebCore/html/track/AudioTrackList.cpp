@@ -27,40 +27,40 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "VideoTrackList.h"
+#include "AudioTrackList.h"
 
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
 #include "ScriptExecutionContext.h"
-#include "VideoTrack.h"
+#include "AudioTrack.h"
 #include "TrackEvent.h"
 
 using namespace WebCore;
 
-VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
+AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
     , m_owner(owner)
-    , m_pendingEventTimer(this, &VideoTrackList::asyncEventTimerFired)
+    , m_pendingEventTimer(this, &AudioTrackList::asyncEventTimerFired)
     , m_dispatchingEvents(0)
 {
     ASSERT(context->isDocument());
 }
 
-VideoTrackList::~VideoTrackList()
+AudioTrackList::~AudioTrackList()
 {
 }
 
-unsigned VideoTrackList::length() const
+unsigned AudioTrackList::length() const
 {
     return m_tracks.size();
 }
 
-unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
+unsigned AudioTrackList::getTrackIndex(AudioTrack* track) {
     return m_tracks.find(track);
 }
 
-VideoTrack* VideoTrackList::item(unsigned index)
+AudioTrack* AudioTrackList::item(unsigned index)
 {
     if (index < m_tracks.size())
         return m_tracks[index].get();
@@ -68,9 +68,9 @@ VideoTrack* VideoTrackList::item(unsigned index)
     return 0;
 }
 
-void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
+void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
-    RefPtr<VideoTrack> track = prpTrack;
+    RefPtr<AudioTrack> track = prpTrack;
 
     // Insert tracks added for <track> element in tree order.
     //size_t index = track->trackIndex();
@@ -82,7 +82,7 @@ void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
     scheduleAddTrackEvent(track.release());
 }
 
-void VideoTrackList::remove(VideoTrack* track)
+void AudioTrackList::remove(AudioTrack* track)
 {
     size_t index = m_tracks.find(track);
     if (index == notFound)
@@ -94,27 +94,27 @@ void VideoTrackList::remove(VideoTrack* track)
     m_tracks.remove(index);
 }
 
-void VideoTrackList::clear()
+void AudioTrackList::clear()
 {
     m_tracks.clear();
 }
 
-const AtomicString& VideoTrackList::interfaceName() const
+const AtomicString& AudioTrackList::interfaceName() const
 {
-    return eventNames().interfaceForVideoTrackList;
+    return eventNames().interfaceForAudioTrackList;
 }
 
-void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
+void AudioTrackList::scheduleAddTrackEvent(PassRefPtr<AudioTrack> track)
 {
     // 4.8.10.12.3 Sourcing out-of-band text tracks
     // 4.8.10.12.3 Sourcing out-of-band text tracks
     // 4.8.10.12.4 Text track API
     // ... then queue a task to fire an event with the name addtrack, that does not 
     // bubble and is not cancelable, and that uses the TrackEvent interface, with 
-    // the track attribute initialized to the text track's VideoTrack object, at
-    // the media element's VideoTracks attribute's VideoTrackList object.
+    // the track attribute initialized to the text track's AudioTrack object, at
+    // the media element's AudioTracks attribute's AudioTrackList object.
 
-    RefPtr<VideoTrack> trackRef = track;
+    RefPtr<AudioTrack> trackRef = track;
     TrackEventInit initializer;
     initializer.track = trackRef;
     initializer.bubbles = false;
@@ -125,7 +125,7 @@ void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
         m_pendingEventTimer.startOneShot(0);
 }
 
-void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)
+void AudioTrackList::asyncEventTimerFired(Timer<AudioTrackList>*)
 {
     Vector<RefPtr<Event> > pendingEvents;
     ExceptionCode ec = 0;
@@ -138,7 +138,7 @@ void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)
     --m_dispatchingEvents;
 }
 
-Node* VideoTrackList::owner() const
+Node* AudioTrackList::owner() const
 {
     return m_owner;
 }

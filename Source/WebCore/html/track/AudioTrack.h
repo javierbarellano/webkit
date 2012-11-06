@@ -23,8 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VideoTrack_h
-#define VideoTrack_h
+#ifndef AudioTrack_h
+#define AudioTrack_h
 
 #if ENABLE(VIDEO_TRACK)
 
@@ -37,21 +37,21 @@
 namespace WebCore {
 
 class HTMLMediaElement;
-class VideoTrack;
+class AudioTrack;
 
-class VideoTrackClient {
+class AudioTrackClient {
 public:
-    virtual ~VideoTrackClient() { }
-    virtual void videoTrackSelected(VideoTrack*, bool) = 0;
+    virtual ~AudioTrackClient() { }
+    virtual void audioTrackEnabled(AudioTrack*, bool) = 0;
 };
 
-class VideoTrack : public TrackBase {
+class AudioTrack : public TrackBase {
 public:
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<AudioTrack> create(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
     {
-        return adoptRef(new VideoTrack(context, client, index, selected, id, kind, label, language));
+        return adoptRef(new AudioTrack(context, client, index, enabled, id, kind, label, language));
     }
-    virtual ~VideoTrack();
+    virtual ~AudioTrack();
 
     void setMediaElement(HTMLMediaElement* element) { m_mediaElement = element; }
     HTMLMediaElement* mediaElement() { return m_mediaElement; }
@@ -63,10 +63,10 @@ public:
     void setKind(const String&);
 
     static const AtomicString& alternativeKeyword();
-    static const AtomicString& captionsKeyword();
+    static const AtomicString& descriptionKeyword();
     static const AtomicString& mainKeyword();
-    static const AtomicString& signKeyword();
-    static const AtomicString& subtitlesKeyword();
+    static const AtomicString& mainDescKeyword();
+    static const AtomicString& translationKeyword();
     static const AtomicString& commentaryKeyword();
     static bool isValidKindKeyword(const String&);
 
@@ -76,35 +76,22 @@ public:
     String language() const { return m_language; }
     void setLanguage(const String& language) { m_language = language; }
 
-    bool selected() const { return m_selected; }
-    void setSelected(bool selected);
+    bool enabled() const { return m_enabled; }
+    void setEnabled(bool selected);
 
     enum ReadinessState { NotLoaded = 0, Loading = 1, Loaded = 2, FailedToLoad = 3 };
     ReadinessState readinessState() const { return m_readinessState; }
     void setReadinessState(ReadinessState state) { m_readinessState = state; }
 
     virtual void clearClient() { m_client = 0; }
-    VideoTrackClient* client() { return m_client; }
+    AudioTrackClient* client() { return m_client; }
 
     int trackIndex();
 
     bool isRendered();
 
 protected:
-    VideoTrack(
-    		ScriptExecutionContext*,
-    		VideoTrackClient*,
-    		int index,
-    		bool selected,
-    		const String& id,
-    		const String& kind,
-    		const String& label,
-    		const String& language);
-
-    VideoTrack(
-    		ScriptExecutionContext* context,
-    		VideoTrackClient* client,
-    		const String& kind);
+    AudioTrack(ScriptExecutionContext*, AudioTrackClient*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
 
 private:
     HTMLMediaElement* m_mediaElement;
@@ -112,8 +99,8 @@ private:
     String m_kind;
     String m_label;
     String m_language;
-    bool m_selected;
-    VideoTrackClient* m_client;
+    bool m_enabled;
+    AudioTrackClient* m_client;
     ReadinessState m_readinessState;
     int m_trackIndex;
 };
