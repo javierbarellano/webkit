@@ -80,6 +80,10 @@ class MediaControls : public HTMLDivElement {
     virtual void showVideoTrackDisplay() = 0;
     virtual void hideVideoTrackDisplay() = 0;
     virtual void updateVideoTrackDisplay() = 0;
+
+    virtual void showAudioTrackDisplay() = 0;
+    virtual void hideAudioTrackDisplay() = 0;
+    virtual void updateAudioTrackDisplay() = 0;
 #endif
 
     virtual void bufferingProgressed() = 0;

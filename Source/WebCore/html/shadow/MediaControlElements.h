@@ -77,6 +77,7 @@ enum MediaControlElementType {
     MediaExitFullscreenButton,
     MediaOverlayPlayButton,
     MediaVideoTrackSelButton,
+    MediaAudioTrackSelButton,
 };
 
 HTMLMediaElement* toParentMediaElement(Node*);
@@ -485,6 +486,28 @@ public:
 
 private:
     MediaControlVideoTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+
+    MediaControls* m_controls;
+};
+
+// ----------------------------
+
+class MediaControlAudioTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlAudioTrackSelButtonElement> create(Document*, MediaControls* controls);
+    void changedAudioTrack();
+
+    //virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    virtual void updateDisplayType();
+    virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
+
+    void display();
+
+private:
+    MediaControlAudioTrackSelButtonElement(Document* doc, MediaControls* controls);
 
     virtual const AtomicString& shadowPseudoId() const;
 

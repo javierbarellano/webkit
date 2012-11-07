@@ -178,7 +178,13 @@ void MediaController::setCurrentTime(float time, ExceptionCode& code)
     scheduleTimeupdateEvent();
 }
 
-std::vector<std::string> MediaController::getSelNames()
+std::vector<std::string> MediaController::getSelVideoTrackNames()
+{
+	std::vector<std::string> names;
+	return names;
+}
+
+std::vector<std::string> MediaController::getSelAudioTrackNames()
 {
 	std::vector<std::string> names;
 	return names;

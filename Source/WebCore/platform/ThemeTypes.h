@@ -58,7 +58,7 @@ enum ControlPart {
     ProgressBarValuePart, SliderHorizontalPart, SliderVerticalPart, SliderThumbHorizontalPart, SliderThumbVerticalPart,
     CaretPart, SearchFieldPart, SearchFieldDecorationPart, SearchFieldResultsDecorationPart, SearchFieldResultsButtonPart,
     SearchFieldCancelButtonPart, TextFieldPart, RelevancyLevelIndicatorPart, ContinuousCapacityLevelIndicatorPart, DiscreteCapacityLevelIndicatorPart,
-    RatingLevelIndicatorPart, MediaVideoTrackSelButtonPart, TextAreaPart, CapsLockIndicatorPart
+    RatingLevelIndicatorPart, MediaVideoTrackSelButtonPart, MediaAudioTrackSelButtonPart, TextAreaPart, CapsLockIndicatorPart
 };
 
 enum SelectionPart {

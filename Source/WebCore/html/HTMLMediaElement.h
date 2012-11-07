@@ -225,7 +225,8 @@ public:
     virtual void willRemoveTrack(HTMLTrackElement*);
 
     // UI support for Video Tracks
-    virtual std::vector<std::string> getSelNames();
+    virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual std::vector<std::string> getSelAudioTrackNames();
 
     struct TrackGroup {
         enum GroupKind { CaptionsAndSubtitles, Description, Chapter, Metadata, Other };
@@ -501,6 +502,7 @@ private:
     void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
     void configureVideoTrackDisplay();
+    void configureAudioTrackDisplay();
 #endif
 
     // These "internal" functions do not check user gesture restrictions.

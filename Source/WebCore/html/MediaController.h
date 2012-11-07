@@ -108,7 +108,8 @@ public:
     
     virtual void returnToRealtime();
 
-    virtual std::vector<std::string> getSelNames();
+    virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual std::vector<std::string> getSelAudioTrackNames();
 
     bool isBlocked() const;
 

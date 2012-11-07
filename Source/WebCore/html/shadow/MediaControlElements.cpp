@@ -1155,17 +1155,13 @@ void MediaControlVideoTrackSelButtonElement::display()
 {
 	if (renderer()) {
 		renderer()->style()->setAppearance(MediaVideoTrackSelButtonPart);
-		Length h(29,Fixed);
 
-		std::vector<std::string> names = mediaController()->getSelNames();
+		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
 		int len = 0;
 		for (int i=0; i<(int)names.size(); i++)
 		{
 			if (names[i].length()>len) len = names[i].length();
 		}
-		Length w((len*124)/14,Fixed);
-		renderer()->style()->setHeight(h);
-		renderer()->style()->setWidth(w);
 
 		// Set up Select control
 	    ExceptionCode ec = 0;
@@ -1184,6 +1180,66 @@ void MediaControlVideoTrackSelButtonElement::display()
 const AtomicString& MediaControlVideoTrackSelButtonElement::shadowPseudoId() const
 {
     DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-video-track-button"));
+    return id;
+}
+
+// ----------------------------
+
+inline MediaControlAudioTrackSelButtonElement::MediaControlAudioTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlAudioTrackSelButtonElement> MediaControlAudioTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlAudioTrackSelButtonElement> button = adoptRef(new MediaControlAudioTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlAudioTrackSelButtonElement::updateDisplayType()
+{
+    if (RenderObject* object = renderer())
+        object->repaint();
+}
+
+void MediaControlAudioTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		renderer()->style()->setAppearance(MediaAudioTrackSelButtonPart);
+
+		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
+		int len = 0;
+		for (int i=0; i<(int)names.size(); i++)
+		{
+			if (names[i].length()>len) len = names[i].length();
+		}
+
+		// Set up Select control
+	    ExceptionCode ec = 0;
+	    for (size_t i = 0; i < names.size(); ++i) {
+	        RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+	        appendChild(option, ec);
+	        String sOpt(names[i].c_str());
+	        option->appendChild(Text::create(document(), sOpt), ec);
+	    }
+		setSelectedIndex(1);
+	}
+
+}
+
+
+const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Audio-track-button"));
     return id;
 }
 

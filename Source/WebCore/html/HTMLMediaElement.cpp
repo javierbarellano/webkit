@@ -4198,6 +4198,7 @@ void HTMLMediaElement::configureMediaControls()
         return;
 
     configureVideoTrackDisplay();
+    configureAudioTrackDisplay();
 
     mediaControls()->show();
 #else
@@ -4241,13 +4242,32 @@ void HTMLMediaElement::configureVideoTrackDisplay()
 
 }
 
-std::vector<std::string> HTMLMediaElement::getSelNames()
+void HTMLMediaElement::configureAudioTrackDisplay()
+{
+    if (!m_audioTracks)
+    	m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    mediaControls()->showAudioTrackDisplay();
+
+}
+
+std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames()
 {
 	std::vector<std::string> names;
 	names.push_back(std::string("first video track"));
 	names.push_back(std::string("second video track"));
 	names.push_back(std::string("third video track"));
 	names.push_back(std::string("lst vid track"));
+
+	return names;
+}
+
+std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames()
+{
+	std::vector<std::string> names;
+	names.push_back(std::string("English"));
+	names.push_back(std::string("Spanish"));
+	names.push_back(std::string("German"));
 
 	return names;
 }

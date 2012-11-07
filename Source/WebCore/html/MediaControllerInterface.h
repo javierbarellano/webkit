@@ -95,7 +95,8 @@ public:
     virtual void returnToRealtime() = 0;
 
     // MediaSelectElements
-    virtual std::vector<std::string> getSelNames() = 0;
+    virtual std::vector<std::string> getSelVideoTrackNames() = 0;
+    virtual std::vector<std::string> getSelAudioTrackNames() = 0;
 };
 
 }

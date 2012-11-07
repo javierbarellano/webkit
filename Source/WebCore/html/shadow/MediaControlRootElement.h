@@ -39,6 +39,7 @@ class HTMLMediaElement;
 class Event;
 class MediaControlPanelMuteButtonElement;
 class MediaControlPanelVideoTrackSelButtonElement;
+class MediaControlPanelAudioTrackSelButtonElement;
 class MediaControlPlayButtonElement;
 class MediaControlSeekButtonElement;
 class MediaControlRewindButtonElement;
@@ -56,6 +57,7 @@ class MediaControlSeekBackButtonElement;
 class MediaControlSeekForwardButtonElement;
 class MediaControlMuteButtonElement;
 class MediaControlVideoTrackSelButtonElement;
+class MediaControlAudioTrackSelButtonElement;
 class MediaControlVolumeSliderElement;
 class MediaControlVolumeSliderMuteButtonElement;
 class MediaControlVolumeSliderContainerElement;
@@ -95,6 +97,7 @@ public:
     void changedVolume();
 
     void changedVideoTrack();
+    void changedAudioTrack();
 
     void enteredFullscreen();
     void exitedFullscreen();
@@ -117,7 +120,12 @@ public:
     void showVideoTrackDisplay();
     void hideVideoTrackDisplay();
     void updateVideoTrackDisplay();
- #endif
+
+    void createAudioTrackDisplay();
+    void showAudioTrackDisplay();
+    void hideAudioTrackDisplay();
+    void updateAudioTrackDisplay();
+#endif
 
     virtual bool shouldHideControls();
 
@@ -162,6 +170,7 @@ private:
 #if ENABLE(VIDEO_TRACK)
     MediaControlTextTrackContainerElement* m_textDisplayContainer;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
+    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
 #endif
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
     bool m_isMouseOverControls;
