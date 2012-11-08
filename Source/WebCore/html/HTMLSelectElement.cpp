@@ -103,6 +103,9 @@ void HTMLSelectElement::deselectItems(HTMLOptionElement* excludeElement)
 
 void HTMLSelectElement::optionSelectedByUser(int optionIndex, bool fireOnChangeNow, bool allowMultipleSelection)
 {
+	//printf("optionSelectedByUser(%d,%s,%s)\n", optionIndex, fireOnChangeNow ? "true":"false", allowMultipleSelection ? "true":"false");
+	selectChanged(optionIndex);
+
     // User interaction such as mousedown events can cause list box select elements to send change events.
     // This produces that same behavior for changes triggered by other code running on behalf of the user.
     if (!usesMenuList()) {

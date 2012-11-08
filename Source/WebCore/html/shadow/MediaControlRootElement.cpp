@@ -738,6 +738,11 @@ void MediaControlRootElement::createAudioTrackDisplay()
     insertBefore(audioDisplayButton.release(), m_panel, ec, true);
 }
 
+void MediaControlRootElement::setVideoTrackSelected(int index)
+{
+	m_videoTrackSelButton->setSelectedIndex(index);
+}
+
 void MediaControlRootElement::showAudioTrackDisplay()
 {
     if (!m_audioTrackSelButton)
@@ -757,6 +762,12 @@ void MediaControlRootElement::hideAudioTrackDisplay()
 void MediaControlRootElement::updateAudioTrackDisplay()
 {
 	showAudioTrackDisplay();
+}
+
+void MediaControlRootElement::setAudioTrackSelected(int index)
+{
+	printf("MediaControlRootElement::setAudioTrackSelected(%d)\n",index);
+	m_audioTrackSelButton->setSelectedIndex(index);
 }
 
 #endif

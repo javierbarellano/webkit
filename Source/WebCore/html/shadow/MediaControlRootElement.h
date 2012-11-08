@@ -120,11 +120,14 @@ public:
     void showVideoTrackDisplay();
     void hideVideoTrackDisplay();
     void updateVideoTrackDisplay();
+    void setVideoTrackSelected(int index);
 
     void createAudioTrackDisplay();
     void showAudioTrackDisplay();
     void hideAudioTrackDisplay();
     void updateAudioTrackDisplay();
+    void setAudioTrackSelected(int index);
+
 #endif
 
     virtual bool shouldHideControls();

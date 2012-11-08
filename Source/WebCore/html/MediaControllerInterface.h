@@ -97,6 +97,9 @@ public:
     // MediaSelectElements
     virtual std::vector<std::string> getSelVideoTrackNames() = 0;
     virtual std::vector<std::string> getSelAudioTrackNames() = 0;
+
+    virtual void selectVideoTrack(int index) = 0;
+    virtual void selectAudioTrack(int index) = 0;
 };
 
 }

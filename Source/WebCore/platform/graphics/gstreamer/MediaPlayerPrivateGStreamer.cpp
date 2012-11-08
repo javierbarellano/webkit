@@ -726,7 +726,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
     m_hasVideo = numVideos > 0;
 
 #if ENABLE(VIDEO_TRACK)
-    printf("Clear video!\n");
+    //printf("Clear video!\n");
     m_player->mediaPlayerClient()->mediaPlayerClearVideoTracks(m_player);
     if(m_hasVideo) {
         for(gint i = 0; i < numVideos; ++i) {
@@ -746,7 +746,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
                 }
                 gst_tag_list_free(tags);
             }
-            printf("Got video track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
+            //printf("Got video track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
             m_player->mediaPlayerClient()->mediaPlayerAddVideoTrack(m_player, i, isVideoSelected(i), "", "", label, language);
         }
     }
@@ -774,7 +774,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
     m_hasAudio = numTracks > 0;
 
 #if ENABLE(VIDEO_TRACK)
-    printf("Clear video!\n");
+    //printf("Clear audio!\n");
     m_player->mediaPlayerClient()->mediaPlayerClearAudioTracks(m_player);
     if(m_hasAudio) {
         for(gint i = 0; i < numTracks; ++i) {
@@ -794,7 +794,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
                 }
                 gst_tag_list_free(tags);
             }
-            printf("Got audio track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
+            //printf("Got audio track %d, language=%s, label=%s\n", i, language.utf8(false).data(), label.utf8(false).data());
             m_player->mediaPlayerClient()->mediaPlayerAddAudioTrack(m_player, i, isAudioEnabled(i), "", "", label, language);
         }
     }

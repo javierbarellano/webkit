@@ -484,6 +484,9 @@ public:
 
     void display();
 
+protected:
+    virtual void selectChanged(int newIndex);
+
 private:
     MediaControlVideoTrackSelButtonElement(Document* doc, MediaControls* controls);
 
@@ -505,6 +508,9 @@ public:
     virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
 
     void display();
+
+protected:
+    virtual void selectChanged(int newIndex);
 
 private:
     MediaControlAudioTrackSelButtonElement(Document* doc, MediaControls* controls);

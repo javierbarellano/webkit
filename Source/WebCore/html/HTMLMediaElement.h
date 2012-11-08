@@ -226,7 +226,10 @@ public:
 
     // UI support for Video Tracks
     virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual void selectVideoTrack(int index);
+
     virtual std::vector<std::string> getSelAudioTrackNames();
+    virtual void selectAudioTrack(int index);
 
     struct TrackGroup {
         enum GroupKind { CaptionsAndSubtitles, Description, Chapter, Metadata, Other };

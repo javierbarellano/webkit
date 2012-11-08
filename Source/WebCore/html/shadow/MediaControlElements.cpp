@@ -1148,7 +1148,10 @@ void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
 void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 {
     if (RenderObject* object = renderer())
+    {
+    	display();
         object->repaint();
+    }
 }
 
 void MediaControlVideoTrackSelButtonElement::display()
@@ -1157,23 +1160,30 @@ void MediaControlVideoTrackSelButtonElement::display()
 		renderer()->style()->setAppearance(MediaVideoTrackSelButtonPart);
 
 		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
-		int len = 0;
-		for (int i=0; i<(int)names.size(); i++)
-		{
-			if (names[i].length()>len) len = names[i].length();
-		}
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
 
-		// Set up Select control
-	    ExceptionCode ec = 0;
-	    for (size_t i = 0; i < names.size(); ++i) {
-	        RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
-	        appendChild(option, ec);
-	        String sOpt(names[i].c_str());
-	        option->appendChild(Text::create(document(), sOpt), ec);
-	    }
-		setSelectedIndex(1);
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
 	}
 
+}
+
+void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectVideoTrack(newIndex);
 }
 
 
@@ -1208,7 +1218,10 @@ void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
 void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 {
     if (RenderObject* object = renderer())
+    {
+    	display();
         object->repaint();
+    }
 }
 
 void MediaControlAudioTrackSelButtonElement::display()
@@ -1217,25 +1230,33 @@ void MediaControlAudioTrackSelButtonElement::display()
 		renderer()->style()->setAppearance(MediaAudioTrackSelButtonPart);
 
 		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
-		int len = 0;
-		for (int i=0; i<(int)names.size(); i++)
-		{
-			if (names[i].length()>len) len = names[i].length();
-		}
 
-		// Set up Select control
-	    ExceptionCode ec = 0;
-	    for (size_t i = 0; i < names.size(); ++i) {
-	        RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
-	        appendChild(option, ec);
-	        String sOpt(names[i].c_str());
-	        option->appendChild(Text::create(document(), sOpt), ec);
-	    }
-		setSelectedIndex(1);
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
+
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
 	}
 
 }
 
+
+void MediaControlAudioTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectAudioTrack(newIndex);
+}
 
 const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() const
 {

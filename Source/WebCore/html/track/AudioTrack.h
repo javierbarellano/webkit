@@ -47,7 +47,15 @@ public:
 
 class AudioTrack : public TrackBase {
 public:
-    static PassRefPtr<AudioTrack> create(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<AudioTrack> create(
+    		ScriptExecutionContext* context,
+    		AudioTrackClient* client,
+    		int index,
+    		bool enabled,
+    		const String& id,
+    		const String& kind,
+    		const String& label,
+    		const String& language)
     {
         return adoptRef(new AudioTrack(context, client, index, enabled, id, kind, label, language));
     }

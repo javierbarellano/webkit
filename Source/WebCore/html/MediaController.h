@@ -111,6 +111,9 @@ public:
     virtual std::vector<std::string> getSelVideoTrackNames();
     virtual std::vector<std::string> getSelAudioTrackNames();
 
+    virtual void selectVideoTrack(int index){}
+    virtual void selectAudioTrack(int index){}
+
     bool isBlocked() const;
 
     // EventTarget
