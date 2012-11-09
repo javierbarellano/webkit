@@ -42,23 +42,38 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_CONTACT_ATTEMPTS 3
+/* Note: The reason we try to contact the device multiple times is that there appears to be a bug in WebKit
+ * that causes UPnPSearch to timeout on a legitimate HTTPGet, if WebKit is elsewhere trying to load a non-existant page at the same time.
+ * Steps to duplicate:
+ * - Change MAX_CONTACT_ATTEMPTS to 1
+ * - Uncomment debug printouts for checkForDroppedInternalDevs
+ * - Rebuild WebKit and Discovery enabled browser (QtRUIBrowser)
+ * - Bring up a Discovery enabled browser
+ * - Bring up a RUI Server configured with a bad RUI uri. (I just changed http to https)
+ * - Observe debug messages for checkForDroppedInternalDevs
+ * - Select the RUI with a bad uri.
+ * - Observe that our HTTPGet to the running server times out.
+ */
+
 namespace WebCore {
 
 void droppedDevsThread(void *context)
 {
-	long lastSend = -1L;
-	UPnPSearch* upnp = (UPnPSearch*)context;
+    long lastSendSeconds = 0;
+    UPnPSearch* upnp = (UPnPSearch*)context;
 	upnp->m_droppedStillRunning = true;
 	
 	while (upnp->m_droppedStillRunning)
 	{
 		struct timeval now;
 		gettimeofday(&now, NULL);
-		long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
 
-		if (lastSend < 0L || (now_ms - lastSend) > 25000)
+        long elapsedSeconds = now.tv_sec - lastSendSeconds;
+
+        if (elapsedSeconds >= 10)
 		{
-			lastSend = now_ms;
+            lastSendSeconds = now.tv_sec;
 			upnp->checkForDroppedDevs();
 			upnp->checkForDroppedInternalDevs();
 		}
@@ -67,22 +82,39 @@ void droppedDevsThread(void *context)
 	}
 }
 
+/* The DLNA/UPnP specs are somewhat vague on frequency and timing of M-SEARCH messages. I think it says:
+ * - Because of unreliability of UDP, an M-SEARCH message should be repeated up to 10 times
+ * - Repeated M-SEARCH messages should occur within a 200 ms window.
+ * - There is no requirement for periodic M-SEARCH requests.
+ */
+
 void discoveryThread(void *context)
 {
-    long lastSend = -1L;
+    long lastSendSeconds = 0;
     UPnPSearch* upnp = (UPnPSearch*)context;
 
     upnp->m_stillRunning = true;
 
     while (upnp->m_stillRunning) {
+
         struct timeval now;
         gettimeofday(&now, NULL);
-        long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
 
-        if (lastSend < 0L || (now_ms - lastSend) > 120000)
-        {
-            lastSend = now_ms;
-            upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+        long elapsedSeconds = now.tv_sec - lastSendSeconds;
+
+        // Even though not required to, send a M-SEARCH set once per minute
+        if (elapsedSeconds >= 60) {
+
+            // Spec recommends more than one, but less than 10, in a 250ms window.
+            // We'll send 3 repeats, 75ms apart.
+
+            for ( int i=0; i < 3; i++ ) {
+
+                upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+                usleep(75L*1000L); // 75ms
+            }
+
+            lastSendSeconds = now.tv_sec;
         }
 
         upnp->m_udpSocket->receive();
@@ -237,8 +269,6 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
 	return std::map<std::string, UPnPDevice>();
 }
 
-
-
 // Called when Socket Stream is opened.
 void UPnPSearch::UDPdidOpenStream(UDPSocketHandle* handle)
 {
@@ -259,6 +289,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         std::string usn = getTokenValue(headers, "USN");
         std::string location = getTokenValue(headers, "LOCATION");
         std::string st = getTokenValue(headers, "NTS");
+        std::string type = getTokenValue(headers, "NT");
 
         std::string uuid;
         size_t pos = usn.find_first_of(':');
@@ -272,19 +303,24 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         if (pos != std::string::npos) {
 
             // This is a NOTIFY message
-            if (st == "ssdp:alive") {
-                //fprintf(stderr,"\nReceived NOTIFY:alive\n");
-                parseDev(data, dLen, NULL);
-            } else if (st == "ssdp:byebye"){
-                //fprintf(stderr,"\nReceived NOTIFY:byebye\n");
-                // We don't know which list(s) the device is on, so check them both.
-                removeDevice(&devs_, uuid);
-                removeDevice(&internalDevs_, uuid);
+
+            // We are only interested in root device notifications.
+            if ( type == "upnp:rootdevice")
+            {
+                if (st == "ssdp:alive") {
+                    fprintf(stderr,"Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
+                    parseDev(data, dLen, NULL);
+                } else if (st == "ssdp:byebye"){
+                    fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
+                    // We don't know which list(s) the device is on, so check them both.
+                    removeDevice(&devs_, uuid);
+                    removeDevice(&internalDevs_, uuid);
+                }
             }
-        } else {
+        } else if (location.size() > 0){
             // Not a NOTIFY. Must be an M_SEARCH reply
             parseDev(data, dLen, NULL);
-            //fprintf(stderr,"\nReceived M-SEARCH reply\n");
+            fprintf(stderr,"Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
         }
     }
 }
@@ -318,16 +354,31 @@ void UPnPSearch::checkForDroppedDevs()
 			{
 				KURL url(ParsedURLString, String(dv.descURL.c_str()));
 				char bf[8000];
-				size_t len = sizeof(bf)-1;
-				HTTPget(url, bf, &len);
+                bf[0] = 0;
+                size_t len = sizeof(bf)-1;
 
                 // Get Description of service to insure the device is still working
+                HTTPget(url, bf, &len);
+
                 std::string reply = bf;
-                if (len == 0 || (reply.find("HTTP/1.1 404") != std::string::npos )) {
-                    // Found one that dropped
-                    //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
-                    dropMe.push_back((*k).first);
+                int pos = reply.find("HTTP/1.1 404");
+                if (len == 0 || pos != std::string::npos) {
+
+                    // Unresponsive. See note at top of file for reason for retries
+                    dv.contactAttempts++;
+                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+
+                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
+                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                        dropMe.push_back((*k).first);
+                    }
+                } else {
+                    dv.contactAttempts = 0;
                 }
+
+                // Update device record.
+                dm.devMap[dv.uuid] = dv;
+                devs_[type] = dm;
             }
 		}
 
@@ -347,7 +398,7 @@ void UPnPSearch::checkForDroppedDevs()
 
 void UPnPSearch::checkForDroppedInternalDevs()
 {
-	//printf("checkForDroppedDevs() start\n");
+    //fprintf(stderr,"checkForDroppedInternalDevs() start\n");
 	for (std::map<std::string, UPnPDevMap>::iterator i = internalDevs_.begin(); i != internalDevs_.end(); i++)
 	{
 		std::vector<std::string> dropMe;
@@ -361,16 +412,31 @@ void UPnPSearch::checkForDroppedInternalDevs()
 			{
 				KURL url(ParsedURLString, String(dv.descURL.c_str()));
 				char bf[8000];
+                bf[0] = 0;
 				size_t len = sizeof(bf)-1;
-				HTTPget(url, bf, &len);
 
                 // Get Description of service to insure the device is still working
+                HTTPget(url, bf, &len);
+
                 std::string reply = bf;
-                if (len == 0 || (reply.find("HTTP/1.1 404") != std::string::npos )) {
-                    // Found one that dropped
-                    //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
-                    dropMe.push_back((*k).first);
+                int pos = reply.find("HTTP/1.1 404");
+                if (len == 0 || pos != std::string::npos) {
+
+                    // Unresponsive. See note at top of file for reason for retries
+                    dv.contactAttempts++;
+                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+
+                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
+                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                        dropMe.push_back((*k).first);
+                    }
+                } else {
+                    dv.contactAttempts = 0;
                 }
+
+                // Update device record.
+                dm.devMap[dv.uuid] = dv;
+                internalDevs_[type] = dm;
             }
 		}
 
@@ -590,6 +656,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	d.port = port;
 	d.isOkToUse = true;
 	d.uuid = sUuid;
+    d.contactAttempts = 0;
 
 
     foundTypes.clear();
