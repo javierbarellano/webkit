@@ -70,14 +70,6 @@ public:
     String kind() const { return m_kind; }
     void setKind(const String&);
 
-    static const AtomicString& alternativeKeyword();
-    static const AtomicString& descriptionKeyword();
-    static const AtomicString& mainKeyword();
-    static const AtomicString& mainDescKeyword();
-    static const AtomicString& translationKeyword();
-    static const AtomicString& commentaryKeyword();
-    static bool isValidKindKeyword(const String&);
-
     String label() const { return m_label; }
     void setLabel(const String& label) { m_label = label; }
 
