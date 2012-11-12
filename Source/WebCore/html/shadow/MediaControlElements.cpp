@@ -1157,8 +1157,6 @@ void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 void MediaControlVideoTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		renderer()->style()->setAppearance(MediaVideoTrackSelButtonPart);
-
 		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
 		if (names.size() > 0) {
 			int len = 0;
@@ -1227,8 +1225,6 @@ void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 void MediaControlAudioTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		renderer()->style()->setAppearance(MediaAudioTrackSelButtonPart);
-
 		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
 
 		if (names.size() > 0) {
