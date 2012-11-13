@@ -223,6 +223,9 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, const String& label, ExceptionCode& ec) { return addTextTrack(kind, label, emptyString(), ec); }
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
+    virtual std::vector<std::string> getSelTextTrackNames();
+    virtual void selectTextTrack(int index);
+
     TextTrackList* textTracks();
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
@@ -271,6 +274,7 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
+    virtual void mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
 
     AudioTrackList* audioTracks();
     virtual void mediaPlayerClearAudioTracks(MediaPlayer*);

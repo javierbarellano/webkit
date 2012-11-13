@@ -73,6 +73,7 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_panel(0)
 #if ENABLE(VIDEO_TRACK)
 , m_textDisplayContainer(0)
+, m_textTrackSelButton(0)
 , m_videoTrackSelButton(0)
 , m_audioTrackSelButton(0)
 #endif
@@ -215,6 +216,12 @@ PassRefPtr<MediaControlRootElement> MediaControlRootElement::create(Document* do
     if (ec)
         return 0;
 
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document, controls.get());
+    controls->m_textTrackSelButton = textTrackSelButton.get();
+    panel->appendChild(textTrackSelButton.release(), ec, true);
+    if (ec)
+        return 0;
+
     RefPtr<MediaControlPanelMuteButtonElement> panelMuteButton = MediaControlPanelMuteButtonElement::create(document, controls.get());
     controls->m_panelMuteButton = panelMuteButton.get();
     panelVolumeControlContainer->appendChild(panelMuteButton.release(), ec, true);
@@ -286,6 +293,8 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
     	m_videoTrackSelButton->setMediaController(controller);
     if (m_audioTrackSelButton)
     	m_audioTrackSelButton->setMediaController(controller);
+    if (m_textTrackSelButton)
+    	m_textTrackSelButton->setMediaController(controller);
     if (m_volumeSlider)
         m_volumeSlider->setMediaController(controller);
     if (m_volumeSliderMuteButton)
@@ -362,6 +371,7 @@ void MediaControlRootElement::reset()
 
     m_videoTrackSelButton->show();
     m_audioTrackSelButton->show();
+    m_textTrackSelButton->show();
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -505,6 +515,11 @@ void MediaControlRootElement::changedVideoTrack()
 void MediaControlRootElement::changedAudioTrack()
 {
     m_audioTrackSelButton->changedAudioTrack();
+}
+
+void MediaControlRootElement::changedTextTrack()
+{
+    m_textTrackSelButton->changedTextTrack();
 }
 
 void MediaControlRootElement::changedVolume()
@@ -667,7 +682,9 @@ void MediaControlRootElement::showTextTrackDisplay()
 {
     if (!m_textDisplayContainer)
         createTextTrackDisplay();
-    m_textDisplayContainer->show();
+
+    //m_textDisplayContainer->show();
+    m_textTrackSelButton->display();
 }
 
 void MediaControlRootElement::hideTextTrackDisplay()
@@ -766,7 +783,6 @@ void MediaControlRootElement::updateAudioTrackDisplay()
 
 void MediaControlRootElement::setAudioTrackSelected(int index)
 {
-	printf("MediaControlRootElement::setAudioTrackSelected(%d)\n",index);
 	m_audioTrackSelButton->setSelectedIndex(index);
 }
 

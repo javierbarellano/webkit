@@ -522,6 +522,31 @@ private:
 
 // ----------------------------
 
+class MediaControlTextTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlTextTrackSelButtonElement> create(Document*, MediaControls* controls);
+    void changedTextTrack();
+
+    //virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    virtual void updateDisplayType();
+    virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
+
+    void display();
+
+protected:
+    virtual void selectChanged(int newIndex);
+
+private:
+    MediaControlTextTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+
+    MediaControls* m_controls;
+};
+
+// ----------------------------
+
 class MediaControlFullscreenVolumeSliderElement : public MediaControlVolumeSliderElement {
 public:
     static PassRefPtr<MediaControlFullscreenVolumeSliderElement> create(Document*);

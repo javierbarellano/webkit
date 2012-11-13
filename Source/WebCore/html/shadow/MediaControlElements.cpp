@@ -1262,6 +1262,76 @@ const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() con
 
 // ----------------------------
 
+inline MediaControlTextTrackSelButtonElement::MediaControlTextTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlTextTrackSelButtonElement> button = adoptRef(new MediaControlTextTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlTextTrackSelButtonElement::changedTextTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlTextTrackSelButtonElement::updateDisplayType()
+{
+	show();
+    if (RenderObject* object = renderer())
+    {
+    	display();
+        object->repaint();
+    }
+}
+
+void MediaControlTextTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		std::vector<std::string> names = mediaController()->getSelTextTrackNames();
+
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
+
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
+	}
+
+}
+
+
+void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectTextTrack(newIndex);
+}
+
+const AtomicString& MediaControlTextTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Text-track-button"));
+    return id;
+}
+
+// ----------------------------
+
 inline MediaControlFullscreenVolumeMinButtonElement::MediaControlFullscreenVolumeMinButtonElement(Document* document)
     : MediaControlInputElement(document, MediaUnMuteButton)
 {

@@ -56,6 +56,7 @@ class MediaControlTimelineContainerElement;
 class MediaControlSeekBackButtonElement;
 class MediaControlSeekForwardButtonElement;
 class MediaControlMuteButtonElement;
+class MediaControlTextTrackSelButtonElement;
 class MediaControlVideoTrackSelButtonElement;
 class MediaControlAudioTrackSelButtonElement;
 class MediaControlVolumeSliderElement;
@@ -96,6 +97,7 @@ public:
     void changedMute();
     void changedVolume();
 
+    void changedTextTrack();
     void changedVideoTrack();
     void changedAudioTrack();
 
@@ -172,6 +174,7 @@ private:
     MediaControlPanelElement* m_panel;
 #if ENABLE(VIDEO_TRACK)
     MediaControlTextTrackContainerElement* m_textDisplayContainer;
+    MediaControlTextTrackSelButtonElement* m_textTrackSelButton;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
     MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
 #endif
