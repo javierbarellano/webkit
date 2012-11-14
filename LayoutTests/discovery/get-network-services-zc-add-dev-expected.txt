@@ -7,3 +7,4 @@ PASS navigator.getNetworkServices() called ok callback.
 PASS successfullyParsed is true
 
 TEST COMPLETE
+

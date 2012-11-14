@@ -172,13 +172,16 @@ private:
     MediaControlFullscreenVolumeSliderElement* m_fullScreenVolumeSlider;
     MediaControlFullscreenVolumeMaxButtonElement* m_fullScreenMaxVolumeButton;
     MediaControlPanelElement* m_panel;
-#if ENABLE(VIDEO_TRACK)
-    MediaControlTextTrackContainerElement* m_textDisplayContainer;
-    MediaControlTextTrackSelButtonElement* m_textTrackSelButton;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
     MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
+    MediaControlTextTrackSelButtonElement* m_textTrackSelButton;
+
+#if ENABLE(VIDEO_TRACK)
+    MediaControlTextTrackContainerElement* m_textDisplayContainer;
 #endif
+
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
+
     bool m_isMouseOverControls;
     bool m_isFullscreen;
 };

@@ -63,7 +63,7 @@ void Nav::getNetworkServices(
 		PassRefPtr<NavServiceOkCB> successcb,
 		PassRefPtr<NavServiceErrorCB> errorcb)
 {
-	printf("Nav::getNetworkServices() Start\n");
+	//printf("Nav::getNetworkServices() Start\n");
 
 	Nav *nv = from(n);
 	IDiscoveryAPI *disAPI = nv;
@@ -116,7 +116,7 @@ void Nav::getNetworkServices(
 
 	successcb->handleEvent(nv->getNavServices(strType));
 
-	printf("Nav::getNetworkServices() Done.\n");
+	//printf("Nav::getNetworkServices() Done.\n");
 }
 
 
@@ -140,14 +140,14 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 
 	NavServices* srvs = nv->getNavServices(type);
 	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
-	printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
+	//printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
 }
 
 void Nav::ZCDevAdded(std::string type)
 {
 	m_main->lock();
 	m_curType.push(type);
-	printf("Nav::ZCDevAdded(%s)\n", type.c_str());
+	//printf("Nav::ZCDevAdded(%s)\n", type.c_str());
 	callOnMainThread(Nav::ZCDevAddedInternal,this);
 	m_main->unlock();
 
@@ -266,7 +266,7 @@ void Nav::setServices(
 		)
 {
 
-	printf("setServices(%s)\n",strType.c_str());
+	//printf("setServices(%s)\n",strType.c_str());
 
 	if (m_services[strType])
 		m_services[strType].release();
@@ -317,7 +317,7 @@ void Nav::setServices(
 	// Write devices to service object
 	m_services[strType]->setServices(vDevs);
 
-	printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
+	//printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
 }
 };
 

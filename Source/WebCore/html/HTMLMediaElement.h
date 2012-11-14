@@ -223,21 +223,11 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, const String& label, ExceptionCode& ec) { return addTextTrack(kind, label, emptyString(), ec); }
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
-    virtual std::vector<std::string> getSelTextTrackNames();
-    virtual void selectTextTrack(int index);
-
     TextTrackList* textTracks();
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     virtual void didAddTrack(HTMLTrackElement*);
     virtual void willRemoveTrack(HTMLTrackElement*);
-
-    // UI support for Video Tracks
-    virtual std::vector<std::string> getSelVideoTrackNames();
-    virtual void selectVideoTrack(int index);
-
-    virtual std::vector<std::string> getSelAudioTrackNames();
-    virtual void selectAudioTrack(int index);
 
     struct TrackGroup {
         enum GroupKind { CaptionsAndSubtitles, Description, Chapter, Metadata, Other };
@@ -263,7 +253,6 @@ public:
 
     bool userIsInterestedInThisTrackKind(String) const;
     bool textTracksAreReady() const;
-    void configureTextTrackDisplay();
     void updateClosedCaptionsControls();
 
     // TextTrackClient
@@ -284,6 +273,19 @@ public:
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 #endif
+
+    void configureTextTrackDisplay();
+
+    virtual std::vector<std::string> getSelTextTrackNames();
+    virtual void selectTextTrack(int index);
+
+    // UI support for Video Tracks
+    virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual void selectVideoTrack(int index);
+
+    virtual std::vector<std::string> getSelAudioTrackNames();
+    virtual void selectAudioTrack(int index);
+
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     void allocateMediaPlayerIfNecessary();
@@ -513,9 +515,10 @@ private:
 
     void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
+#endif
+
     void configureVideoTrackDisplay();
     void configureAudioTrackDisplay();
-#endif
 
     // These "internal" functions do not check user gesture restrictions.
     void loadInternal();
