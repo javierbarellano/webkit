@@ -96,11 +96,11 @@ int VideoTrack::trackIndex()
 }
 
 void VideoTrack::setSelected(bool selected) {
-    if(selected == m_selected) return;
-
-    // Tell media player which track was selected
-    if(m_client)
-        m_client->videoTrackSelected(this, selected);
+    if(selected == m_selected) {
+        if(m_client && selected)
+            m_client->videoTrackSelected(this, selected);
+    	return;
+    }
 
     if(!selected) {
         m_selected = false;
@@ -127,6 +127,10 @@ void VideoTrack::setSelected(bool selected) {
         }
     }
     m_selected = true;
+
+    // Tell media player which track was selected
+    if(m_client)
+        m_client->videoTrackSelected(this, selected);
 }
 
 } // namespace WebCore

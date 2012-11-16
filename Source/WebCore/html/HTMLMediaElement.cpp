@@ -3391,6 +3391,7 @@ void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
 {
+	//printf("mediaPlayerAddAudioTrack(%d, %s)\n", index, label.ascii().data());
     RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
     audioTracks()->append(track);
     mediaControls()->updateAudioTrackDisplay();
@@ -3401,9 +3402,10 @@ void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
     int index = audioTracks()->getTrackIndex(track);
 
-    m_player->setAudioEnabled(index, enabled);
     if (enabled)
     	mediaControls()->setAudioTrackSelected(index);
+
+    //m_player->setAudioEnabled(index, enabled);
 }
 
 void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
@@ -3423,10 +3425,13 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
 void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
 {
     int index = videoTracks()->getTrackIndex(track);
-    m_player->setVideoSelected(index, selected);
+	if (index < 0)
+		return;
 
     if (selected)
     	mediaControls()->setVideoTrackSelected(index);
+
+    m_player->setVideoSelected(index, selected);
 }
 #endif
 
@@ -4310,7 +4315,7 @@ std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames()
 	for (int i=0; i<len; i++)
 	{
 		AudioTrack *at = audioTracks()->item(i);
-		names.push_back(std::string(at->language().ascii().data()));
+		names.push_back(std::string(at->label().ascii().data()));
 	}
 	return names;
 }
@@ -4318,7 +4323,7 @@ std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames()
 
 void HTMLMediaElement::selectAudioTrack(int index)
 {
-    m_player->setAudioEnabled(index, true);
+   // m_player->setAudioEnabled(index, true);
 }
 
 void HTMLMediaElement::updateClosedCaptionsControls()

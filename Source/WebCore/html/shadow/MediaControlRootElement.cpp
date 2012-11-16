@@ -757,7 +757,11 @@ void MediaControlRootElement::createAudioTrackDisplay()
 
 void MediaControlRootElement::setVideoTrackSelected(int index)
 {
+	if (index < 0)
+		return;
+
 	m_videoTrackSelButton->setSelectedIndex(index);
+	m_videoTrackSelButton->display();
 }
 
 void MediaControlRootElement::showAudioTrackDisplay()
@@ -783,6 +787,9 @@ void MediaControlRootElement::updateAudioTrackDisplay()
 
 void MediaControlRootElement::setAudioTrackSelected(int index)
 {
+	if (index < 0)
+		return;
+
 	m_audioTrackSelButton->setSelectedIndex(index);
 }
 

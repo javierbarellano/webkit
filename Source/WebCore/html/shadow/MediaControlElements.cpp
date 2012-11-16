@@ -1157,6 +1157,7 @@ void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 void MediaControlVideoTrackSelButtonElement::display()
 {
 	if (renderer()) {
+		int index = this->selectedIndex();
 		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
 		if (names.size() > 0) {
 			int len = 0;
@@ -1174,6 +1175,8 @@ void MediaControlVideoTrackSelButtonElement::display()
 				String sOpt(names[i].c_str());
 				option->appendChild(Text::create(document(), sOpt), ec);
 			}
+			if (index >= 0)
+				setSelectedIndex(index);
 		}
 	}
 

@@ -151,7 +151,7 @@ static void mediaPlayerPrivateVideoChangedCallback(GObject*, MediaPlayerPrivateG
 
 static void mediaPlayerPrivateAudioChangedCallback(GObject*, MediaPlayerPrivateGStreamer* player)
 {
-    player->audioChanged();
+	player->audioChanged();
 }
 
 static void mediaPlayerPrivateVideoTagsChangedCallback(GObject*, gint index, MediaPlayerPrivateGStreamer* player)
