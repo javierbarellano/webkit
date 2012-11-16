@@ -452,7 +452,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	{
 		if (notInBadList(sUuid)) {
 			badDevs_.push_back(sUuid);
-			printf("%s doesn't include a registered service.\n",host.c_str());
+			//printf("%s doesn't include a registered service.\n",host.c_str());
 		}
 		return false;
 	}
@@ -550,7 +550,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 				dm = devs_[foundTypes.at(i)];
 				dm.devMap[sUuid] = d;
 				devs_[foundTypes.at(i)] = dm;
-				printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+				//printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 				if (navDsc_)
 					navDsc_->foundUPnPDev(foundTypes.at(i));
 			}
@@ -562,7 +562,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		dm = internalDevs_[internal_type_];
 		dm.devMap[sUuid] = d;
 
-		printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+		//printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 		if (api_)
 			api_->serverListUpdate(internal_type_, &dm.devMap);
 	}
@@ -641,7 +641,7 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
  	size_t len = sizeof(bf);
  	DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), ss.str().length(), bf, &len);
  	bf[len] = 0;
- 	printf("eventServer() returned:\n%s\n", bf);
+ 	//printf("eventServer() returned:\n%s\n", bf);
 }
 
 // Called when Socket Stream is opened.
@@ -714,7 +714,7 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
  	}
  	std::string body = resp.substr(resp.find("<?xml"));
 
- 	printf("Got Event(%s, %s)\n", uuid.c_str(), type.c_str());
+ 	//printf("Got Event(%s, %s)\n", uuid.c_str(), type.c_str());
 
  	navDsc_->sendEvent(uuid, type, body);
 }

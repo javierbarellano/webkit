@@ -47,7 +47,15 @@ public:
 
 class AudioTrack : public TrackBase {
 public:
-    static PassRefPtr<AudioTrack> create(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<AudioTrack> create(
+    		ScriptExecutionContext* context,
+    		AudioTrackClient* client,
+    		int index,
+    		bool enabled,
+    		const String& id,
+    		const String& kind,
+    		const String& label,
+    		const String& language)
     {
         return adoptRef(new AudioTrack(context, client, index, enabled, id, kind, label, language));
     }
@@ -61,14 +69,6 @@ public:
 
     String kind() const { return m_kind; }
     void setKind(const String&);
-
-    static const AtomicString& alternativeKeyword();
-    static const AtomicString& descriptionKeyword();
-    static const AtomicString& mainKeyword();
-    static const AtomicString& mainDescKeyword();
-    static const AtomicString& translationKeyword();
-    static const AtomicString& commentaryKeyword();
-    static bool isValidKindKeyword(const String&);
 
     String label() const { return m_label; }
     void setLabel(const String& label) { m_label = label; }

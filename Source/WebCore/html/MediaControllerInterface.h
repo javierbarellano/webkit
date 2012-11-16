@@ -29,6 +29,8 @@
 #if ENABLE(VIDEO)
 
 #include <wtf/PassRefPtr.h>
+#include <vector>
+#include <string>
 
 namespace WebCore {
 
@@ -91,6 +93,15 @@ public:
     virtual bool hasCurrentSrc() const = 0;
 
     virtual void returnToRealtime() = 0;
+
+    // MediaSelectElements
+    virtual std::vector<std::string> getSelTextTrackNames() = 0;
+    virtual std::vector<std::string> getSelVideoTrackNames() = 0;
+    virtual std::vector<std::string> getSelAudioTrackNames() = 0;
+
+    virtual void selectTextTrack(int index) = 0;
+    virtual void selectVideoTrack(int index) = 0;
+    virtual void selectAudioTrack(int index) = 0;
 };
 
 }

@@ -44,43 +44,15 @@ namespace WebCore {
 
 static const int invalidTrackIndex = -1;
 
-const AtomicString& VideoTrack::alternativeKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
-    return alternative;
-}
-
-const AtomicString& VideoTrack::captionsKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("captions", AtomicString::ConstructFromLiteral));
-    return captions;
-}
-
-const AtomicString& VideoTrack::mainKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("main", AtomicString::ConstructFromLiteral));
-    return captions;
-}
-
-const AtomicString& VideoTrack::signKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("sign", AtomicString::ConstructFromLiteral));
-    return captions;
-}
-
-const AtomicString& VideoTrack::subtitlesKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, subtitles, ("subtitles", AtomicString::ConstructFromLiteral));
-    return subtitles;
-}
-
-const AtomicString& VideoTrack::commentaryKeyword()
-{
-    DEFINE_STATIC_LOCAL(const AtomicString, commentary, ("commentary", AtomicString::ConstructFromLiteral));
-    return commentary;
-}
-
-VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+VideoTrack::VideoTrack(
+		ScriptExecutionContext* context,
+		VideoTrackClient* client,
+		int index,
+		bool selected,
+		const String& id,
+		const String& kind,
+		const String& label,
+		const String& language)
     : TrackBase(context, TrackBase::VideoTrack)
     , m_mediaElement(0)
     , m_id(id)
@@ -94,27 +66,18 @@ VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client
     setKind(kind);
 }
 
+VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)
+: TrackBase(context, TrackBase::VideoTrack)
+, m_mediaElement(0)
+, m_client(client)
+, m_readinessState(NotLoaded)
+, m_trackIndex(invalidTrackIndex)
+{
+    setKind(kind);
+}
 VideoTrack::~VideoTrack()
 {
     clearClient();
-}
-
-bool VideoTrack::isValidKindKeyword(const String& value)
-{
-    if (equalIgnoringCase(value, alternativeKeyword()))
-        return true;
-    if (equalIgnoringCase(value, captionsKeyword()))
-        return true;
-    if (equalIgnoringCase(value, mainKeyword()))
-        return true;
-    if (equalIgnoringCase(value, signKeyword()))
-        return true;
-    if (equalIgnoringCase(value, subtitlesKeyword()))
-        return true;
-    if (equalIgnoringCase(value, commentaryKeyword()))
-        return true;
-
-    return false;
 }
 
 void VideoTrack::setId(const String& id)
@@ -124,15 +87,7 @@ void VideoTrack::setId(const String& id)
 
 void VideoTrack::setKind(const String& kind)
 {
-    String oldKind = m_kind;
-
-    if (isValidKindKeyword(kind))
-        m_kind = kind;
-    else
-        m_kind = "";
-
-    //if (m_client && oldKind != m_kind)
-    //    m_client->videoTrackKindChanged(this);
+    m_kind = kind;
 }
 
 int VideoTrack::trackIndex()

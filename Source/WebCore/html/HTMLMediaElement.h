@@ -80,7 +80,12 @@ typedef Vector<CueIntervalTree::IntervalType> CueList;
 // But it can't be until the Chromium WebMediaPlayerClientImpl class is fixed so it
 // no longer depends on typecasting a MediaPlayerClient to an HTMLMediaElement.
 
-class HTMLMediaElement : public HTMLElement, public MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
+class HTMLMediaElement : public HTMLElement
+	, public MediaPlayerClient
+	, public MediaPlayerSupportsTypeClient
+	, private MediaCanStartListener
+	, public ActiveDOMObject
+	, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
     , private AudioTrackClient
     , private TextTrackClient
@@ -248,7 +253,6 @@ public:
 
     bool userIsInterestedInThisTrackKind(String) const;
     bool textTracksAreReady() const;
-    void configureTextTrackDisplay();
     void updateClosedCaptionsControls();
 
     // TextTrackClient
@@ -259,6 +263,7 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
+    virtual void mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
 
     AudioTrackList* audioTracks();
     virtual void mediaPlayerClearAudioTracks(MediaPlayer*);
@@ -268,6 +273,19 @@ public:
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 #endif
+
+    void configureTextTrackDisplay();
+
+    virtual std::vector<std::string> getSelTextTrackNames();
+    virtual void selectTextTrack(int index);
+
+    // UI support for Video Tracks
+    virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual void selectVideoTrack(int index);
+
+    virtual std::vector<std::string> getSelAudioTrackNames();
+    virtual void selectAudioTrack(int index);
+
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     void allocateMediaPlayerIfNecessary();
@@ -498,6 +516,9 @@ private:
     void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
 #endif
+
+    void configureVideoTrackDisplay();
+    void configureAudioTrackDisplay();
 
     // These "internal" functions do not check user gesture restrictions.
     void loadInternal();

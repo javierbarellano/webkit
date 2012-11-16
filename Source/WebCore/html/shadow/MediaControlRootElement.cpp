@@ -71,8 +71,11 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_fullScreenVolumeSlider(0)
     , m_fullScreenMaxVolumeButton(0)
     , m_panel(0)
+, m_videoTrackSelButton(0)
+, m_audioTrackSelButton(0)
+, m_textTrackSelButton(0)
 #if ENABLE(VIDEO_TRACK)
-    , m_textDisplayContainer(0)
+, m_textDisplayContainer(0)
 #endif
     , m_hideFullscreenControlsTimer(this, &MediaControlRootElement::hideFullscreenControlsTimerFired)
     , m_isMouseOverControls(false)
@@ -201,6 +204,24 @@ PassRefPtr<MediaControlRootElement> MediaControlRootElement::create(Document* do
             return 0;
     }
 
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoTrackSelButton = MediaControlVideoTrackSelButtonElement::create(document, controls.get());
+    controls->m_videoTrackSelButton = videoTrackSelButton.get();
+    panel->appendChild(videoTrackSelButton.release(), ec, true);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioTrackSelButton = MediaControlAudioTrackSelButtonElement::create(document, controls.get());
+    controls->m_audioTrackSelButton = audioTrackSelButton.get();
+    panel->appendChild(audioTrackSelButton.release(), ec, true);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document, controls.get());
+    controls->m_textTrackSelButton = textTrackSelButton.get();
+    panel->appendChild(textTrackSelButton.release(), ec, true);
+    if (ec)
+        return 0;
+
     RefPtr<MediaControlPanelMuteButtonElement> panelMuteButton = MediaControlPanelMuteButtonElement::create(document, controls.get());
     controls->m_panelMuteButton = panelMuteButton.get();
     panelVolumeControlContainer->appendChild(panelMuteButton.release(), ec, true);
@@ -268,6 +289,12 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_toggleClosedCaptionsButton->setMediaController(controller);
     if (m_panelMuteButton)
         m_panelMuteButton->setMediaController(controller);
+    if (m_videoTrackSelButton)
+    	m_videoTrackSelButton->setMediaController(controller);
+    if (m_audioTrackSelButton)
+    	m_audioTrackSelButton->setMediaController(controller);
+    if (m_textTrackSelButton)
+    	m_textTrackSelButton->setMediaController(controller);
     if (m_volumeSlider)
         m_volumeSlider->setMediaController(controller);
     if (m_volumeSliderMuteButton)
@@ -341,6 +368,10 @@ void MediaControlRootElement::reset()
         m_panelMuteButton->show();
     else
         m_panelMuteButton->hide();
+
+    m_videoTrackSelButton->show();
+    m_audioTrackSelButton->show();
+    m_textTrackSelButton->show();
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -476,6 +507,21 @@ void MediaControlRootElement::changedMute()
         m_volumeSliderMuteButton->changedMute();
 }
 
+void MediaControlRootElement::changedVideoTrack()
+{
+    m_videoTrackSelButton->changedVideoTrack();
+}
+
+void MediaControlRootElement::changedAudioTrack()
+{
+    m_audioTrackSelButton->changedAudioTrack();
+}
+
+void MediaControlRootElement::changedTextTrack()
+{
+    m_textTrackSelButton->changedTextTrack();
+}
+
 void MediaControlRootElement::changedVolume()
 {
     if (m_volumeSlider)
@@ -521,6 +567,8 @@ void MediaControlRootElement::exitedFullscreen()
     m_seekBackButton->show();
     m_seekForwardButton->show();
     m_returnToRealTimeButton->show();
+    m_videoTrackSelButton->show();
+    m_audioTrackSelButton->show();
 
     m_panel->setCanBeDragged(false);
     m_fullScreenButton->setIsFullscreen(false);
@@ -634,7 +682,9 @@ void MediaControlRootElement::showTextTrackDisplay()
 {
     if (!m_textDisplayContainer)
         createTextTrackDisplay();
-    m_textDisplayContainer->show();
+
+    //m_textDisplayContainer->show();
+    m_textTrackSelButton->display();
 }
 
 void MediaControlRootElement::hideTextTrackDisplay()
@@ -652,6 +702,90 @@ void MediaControlRootElement::updateTextTrackDisplay()
     m_textDisplayContainer->updateDisplay();
 
 }
+void MediaControlRootElement::createVideoTrackDisplay()
+{
+    if (m_videoTrackSelButton)
+        return;
+
+    RefPtr<MediaControlRootElement> controls = adoptRef(new MediaControlRootElement(document()));
+
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), controls.get());
+    controls.release();
+    m_videoTrackSelButton = videoDisplayButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    ExceptionCode ec;
+    insertBefore(videoDisplayButton.release(), m_panel, ec, true);
+}
+
+void MediaControlRootElement::showVideoTrackDisplay()
+{
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    m_videoTrackSelButton->display();
+}
+
+void MediaControlRootElement::hideVideoTrackDisplay()
+{
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    m_videoTrackSelButton->hide();
+}
+
+void MediaControlRootElement::updateVideoTrackDisplay()
+{
+	showVideoTrackDisplay();
+}
+
+void MediaControlRootElement::createAudioTrackDisplay()
+{
+    if (m_audioTrackSelButton)
+        return;
+
+    RefPtr<MediaControlRootElement> controls = adoptRef(new MediaControlRootElement(document()));
+
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), controls.get());
+    controls.release();
+    m_audioTrackSelButton = audioDisplayButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    ExceptionCode ec;
+    insertBefore(audioDisplayButton.release(), m_panel, ec, true);
+}
+
+void MediaControlRootElement::setVideoTrackSelected(int index)
+{
+	m_videoTrackSelButton->setSelectedIndex(index);
+}
+
+void MediaControlRootElement::showAudioTrackDisplay()
+{
+    if (!m_audioTrackSelButton)
+        createAudioTrackDisplay();
+
+    m_audioTrackSelButton->display();
+}
+
+void MediaControlRootElement::hideAudioTrackDisplay()
+{
+    if (!m_audioTrackSelButton)
+        createAudioTrackDisplay();
+
+    m_audioTrackSelButton->hide();
+}
+
+void MediaControlRootElement::updateAudioTrackDisplay()
+{
+	showAudioTrackDisplay();
+}
+
+void MediaControlRootElement::setAudioTrackSelected(int index)
+{
+	m_audioTrackSelButton->setSelectedIndex(index);
+}
+
 #endif
 
 const AtomicString& MediaControlRootElement::shadowPseudoId() const

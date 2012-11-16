@@ -47,7 +47,15 @@ public:
 
 class VideoTrack : public TrackBase {
 public:
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<VideoTrack> create(
+    		ScriptExecutionContext* context,
+    		VideoTrackClient* client,
+    		int index,
+    		bool selected,
+    		const String& id,
+    		const String& kind,
+    		const String& label,
+    		const String& language)
     {
         return adoptRef(new VideoTrack(context, client, index, selected, id, kind, label, language));
     }
@@ -61,14 +69,6 @@ public:
 
     String kind() const { return m_kind; }
     void setKind(const String&);
-
-    static const AtomicString& alternativeKeyword();
-    static const AtomicString& captionsKeyword();
-    static const AtomicString& mainKeyword();
-    static const AtomicString& signKeyword();
-    static const AtomicString& subtitlesKeyword();
-    static const AtomicString& commentaryKeyword();
-    static bool isValidKindKeyword(const String&);
 
     String label() const { return m_label; }
     void setLabel(const String& label) { m_label = label; }
@@ -91,7 +91,20 @@ public:
     bool isRendered();
 
 protected:
-    VideoTrack(ScriptExecutionContext*, VideoTrackClient*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
+    VideoTrack(
+    		ScriptExecutionContext*,
+    		VideoTrackClient*,
+    		int index,
+    		bool selected,
+    		const String& id,
+    		const String& kind,
+    		const String& label,
+    		const String& language);
+
+    VideoTrack(
+    		ScriptExecutionContext* context,
+    		VideoTrackClient* client,
+    		const String& kind);
 
 private:
     HTMLMediaElement* m_mediaElement;

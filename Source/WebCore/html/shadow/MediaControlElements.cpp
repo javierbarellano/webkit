@@ -39,6 +39,8 @@
 #include "FloatConversion.h"
 #include "FloatPoint.h"
 #include "Frame.h"
+#include "HTMLOptionElement.h"
+#include "HTMLSelectElement.h"
 #include "HTMLDivElement.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
@@ -108,6 +110,24 @@ void MediaControlElement::show()
 }
 
 void MediaControlElement::hide()
+{
+    setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
+}
+
+// ----------------------------
+
+MediaSelectElement::MediaSelectElement(Document* document)
+    : HTMLSelectElement(selectTag, document, NULL)
+    , m_mediaController(0)
+{
+}
+
+void MediaSelectElement::show()
+{
+    removeInlineStyleProperty(CSSPropertyDisplay);
+}
+
+void MediaSelectElement::hide()
 {
     setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
 }
@@ -1105,6 +1125,213 @@ void MediaControlFullscreenButtonElement::setIsFullscreen(bool isFullscreen)
 
 // ----------------------------
 
+inline MediaControlVideoTrackSelButtonElement::MediaControlVideoTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlVideoTrackSelButtonElement> MediaControlVideoTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlVideoTrackSelButtonElement> button = adoptRef(new MediaControlVideoTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlVideoTrackSelButtonElement::updateDisplayType()
+{
+    if (RenderObject* object = renderer())
+    {
+    	display();
+        object->repaint();
+    }
+}
+
+void MediaControlVideoTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
+
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
+	}
+
+}
+
+void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectVideoTrack(newIndex);
+}
+
+
+const AtomicString& MediaControlVideoTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-video-track-button"));
+    return id;
+}
+
+// ----------------------------
+
+inline MediaControlAudioTrackSelButtonElement::MediaControlAudioTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlAudioTrackSelButtonElement> MediaControlAudioTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlAudioTrackSelButtonElement> button = adoptRef(new MediaControlAudioTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlAudioTrackSelButtonElement::updateDisplayType()
+{
+    if (RenderObject* object = renderer())
+    {
+    	display();
+        object->repaint();
+    }
+}
+
+void MediaControlAudioTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
+
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
+
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
+	}
+
+}
+
+
+void MediaControlAudioTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectAudioTrack(newIndex);
+}
+
+const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Audio-track-button"));
+    return id;
+}
+
+// ----------------------------
+
+inline MediaControlTextTrackSelButtonElement::MediaControlTextTrackSelButtonElement(Document* document, MediaControls* controls)
+    : MediaSelectElement(document)
+	, m_controls(controls)
+{
+}
+
+PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButtonElement::create(Document* document, MediaControls* controls)
+{
+	RefPtr<MediaControlTextTrackSelButtonElement> button = adoptRef(new MediaControlTextTrackSelButtonElement(document, controls));
+    button->hide();
+
+	return button.release();
+}
+
+
+void MediaControlTextTrackSelButtonElement::changedTextTrack()
+{
+    updateDisplayType();
+}
+
+void MediaControlTextTrackSelButtonElement::updateDisplayType()
+{
+	show();
+    if (RenderObject* object = renderer())
+    {
+    	display();
+        object->repaint();
+    }
+}
+
+void MediaControlTextTrackSelButtonElement::display()
+{
+	if (renderer()) {
+		std::vector<std::string> names = mediaController()->getSelTextTrackNames();
+
+		if (names.size() > 0) {
+			int len = 0;
+			for (int i=0; i<(int)names.size(); i++)
+			{
+				if (names[i].length()>len) len = names[i].length();
+			}
+
+			// Set up Select control
+			ExceptionCode ec = 0;
+			removeAllChildren();
+			for (size_t i = 0; i < names.size(); ++i) {
+				RefPtr<HTMLOptionElement> option = HTMLOptionElement::create(document());
+				appendChild(option, ec);
+				String sOpt(names[i].c_str());
+				option->appendChild(Text::create(document(), sOpt), ec);
+			}
+		}
+	}
+
+}
+
+
+void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
+{
+	mediaController()->selectTextTrack(newIndex);
+}
+
+const AtomicString& MediaControlTextTrackSelButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Text-track-button"));
+    return id;
+}
+
+// ----------------------------
+
 inline MediaControlFullscreenVolumeMinButtonElement::MediaControlFullscreenVolumeMinButtonElement(Document* document)
     : MediaControlInputElement(document, MediaUnMuteButton)
 {
@@ -1397,6 +1624,7 @@ void MediaControlTextTrackContainerElement::updateSizes()
         setInlineStyleProperty(CSSPropertyFontSize, String::number(fontSize) + "px");
     }
 }
+
 
 #endif // ENABLE(VIDEO_TRACK)
 

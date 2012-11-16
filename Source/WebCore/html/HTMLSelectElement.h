@@ -106,6 +106,7 @@ public:
     
 protected:
     HTMLSelectElement(const QualifiedName&, Document*, HTMLFormElement*);
+    virtual void selectChanged(int newIndex) {}
 
 private:
     virtual const AtomicString& formControlType() const;

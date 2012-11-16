@@ -681,6 +681,7 @@ relevancy-level-indicator
 continuous-capacity-level-indicator
 discrete-capacity-level-indicator
 rating-level-indicator
+media-video-track-sel-button
 textarea
 // An appearance value that should not be accepted by the parser:
 caps-lock-indicator

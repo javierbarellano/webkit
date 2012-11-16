@@ -38,6 +38,8 @@ class HTMLInputElement;
 class HTMLMediaElement;
 class Event;
 class MediaControlPanelMuteButtonElement;
+class MediaControlPanelVideoTrackSelButtonElement;
+class MediaControlPanelAudioTrackSelButtonElement;
 class MediaControlPlayButtonElement;
 class MediaControlSeekButtonElement;
 class MediaControlRewindButtonElement;
@@ -54,6 +56,9 @@ class MediaControlTimelineContainerElement;
 class MediaControlSeekBackButtonElement;
 class MediaControlSeekForwardButtonElement;
 class MediaControlMuteButtonElement;
+class MediaControlTextTrackSelButtonElement;
+class MediaControlVideoTrackSelButtonElement;
+class MediaControlAudioTrackSelButtonElement;
 class MediaControlVolumeSliderElement;
 class MediaControlVolumeSliderMuteButtonElement;
 class MediaControlVolumeSliderContainerElement;
@@ -92,6 +97,10 @@ public:
     void changedMute();
     void changedVolume();
 
+    void changedTextTrack();
+    void changedVideoTrack();
+    void changedAudioTrack();
+
     void enteredFullscreen();
     void exitedFullscreen();
 
@@ -108,6 +117,19 @@ public:
     void showTextTrackDisplay();
     void hideTextTrackDisplay();
     void updateTextTrackDisplay();
+
+    void createVideoTrackDisplay();
+    void showVideoTrackDisplay();
+    void hideVideoTrackDisplay();
+    void updateVideoTrackDisplay();
+    void setVideoTrackSelected(int index);
+
+    void createAudioTrackDisplay();
+    void showAudioTrackDisplay();
+    void hideAudioTrackDisplay();
+    void updateAudioTrackDisplay();
+    void setAudioTrackSelected(int index);
+
 #endif
 
     virtual bool shouldHideControls();
@@ -150,10 +172,16 @@ private:
     MediaControlFullscreenVolumeSliderElement* m_fullScreenVolumeSlider;
     MediaControlFullscreenVolumeMaxButtonElement* m_fullScreenMaxVolumeButton;
     MediaControlPanelElement* m_panel;
+    MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
+    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
+    MediaControlTextTrackSelButtonElement* m_textTrackSelButton;
+
 #if ENABLE(VIDEO_TRACK)
     MediaControlTextTrackContainerElement* m_textDisplayContainer;
 #endif
+
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
+
     bool m_isMouseOverControls;
     bool m_isFullscreen;
 };
