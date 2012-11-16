@@ -3401,11 +3401,12 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
     int index = audioTracks()->getTrackIndex(track);
-
-    if (enabled)
-    	mediaControls()->setAudioTrackSelected(index);
-
-    //m_player->setAudioEnabled(index, enabled);
+    if(enabled) {
+        m_player->setCurrentAudio(index);
+        mediaControls()->setAudioTrackSelected(index);
+    } else if(index == m_player->currentAudio()) {
+        // disable video
+    }
 }
 
 void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
@@ -3425,13 +3426,12 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
 void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
 {
     int index = videoTracks()->getTrackIndex(track);
-	if (index < 0)
-		return;
-
-    if (selected)
-    	mediaControls()->setVideoTrackSelected(index);
-
-    m_player->setVideoSelected(index, selected);
+    if(selected) {
+        m_player->setCurrentVideo(index);
+        mediaControls()->setVideoTrackSelected(index);
+    } else if(index == m_player->currentVideo()) {
+        // disable video
+    }
 }
 #endif
 

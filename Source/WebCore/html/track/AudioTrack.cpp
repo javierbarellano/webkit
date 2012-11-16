@@ -44,6 +44,48 @@ namespace WebCore {
 
 static const int invalidTrackIndex = -1;
 
+const AtomicString& AudioTrack::alternativeKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
+    return alternative;
+}
+
+const AtomicString& AudioTrack::descriptionKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, description, ("description", AtomicString::ConstructFromLiteral));
+    return description;
+}
+
+const AtomicString& AudioTrack::mainKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, main, ("main", AtomicString::ConstructFromLiteral));
+    return main;
+}
+
+const AtomicString& AudioTrack::mainDescKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, mainDesc, ("main-desc", AtomicString::ConstructFromLiteral));
+    return mainDesc;
+}
+
+const AtomicString& AudioTrack::signKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, sign, ("sign", AtomicString::ConstructFromLiteral));
+    return sign;
+}
+
+const AtomicString& AudioTrack::translationKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, translation, ("translation", AtomicString::ConstructFromLiteral));
+    return translation;
+}
+
+const AtomicString& AudioTrack::commentaryKeyword()
+{
+    DEFINE_STATIC_LOCAL(const AtomicString, commentary, ("commentary", AtomicString::ConstructFromLiteral));
+    return commentary;
+}
+
 AudioTrack::AudioTrack(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
     : TrackBase(context, TrackBase::AudioTrack)
     , m_mediaElement(0)
@@ -63,6 +105,24 @@ AudioTrack::~AudioTrack()
     clearClient();
 }
 
+bool AudioTrack::isValidKindKeyword(const String& value)
+{
+    if (equalIgnoringCase(value, alternativeKeyword()))
+        return true;
+    if (equalIgnoringCase(value, descriptionKeyword()))
+        return true;
+    if (equalIgnoringCase(value, mainKeyword()))
+        return true;
+    if (equalIgnoringCase(value, mainDescKeyword()))
+        return true;
+    if (equalIgnoringCase(value, translationKeyword()))
+        return true;
+    if (equalIgnoringCase(value, commentaryKeyword()))
+        return true;
+
+    return false;
+}
+
 void AudioTrack::setId(const String& id)
 {
     m_id = id;
@@ -70,7 +130,15 @@ void AudioTrack::setId(const String& id)
 
 void AudioTrack::setKind(const String& kind)
 {
-    m_kind = kind;
+    String oldKind = m_kind;
+
+    if (isValidKindKeyword(kind))
+        m_kind = kind;
+    else
+        m_kind = "";
+
+    //if (m_client && oldKind != m_kind)
+    //    m_client->audioTrackKindChanged(this);
 }
 
 int AudioTrack::trackIndex()
