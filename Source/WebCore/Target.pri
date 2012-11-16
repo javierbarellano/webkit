@@ -735,6 +735,7 @@ SOURCES += \
     html/shadow/SliderThumbElement.cpp \
     html/shadow/SpinButtonElement.cpp \
     html/shadow/TextControlInnerElements.cpp \
+    html/track/InBandTextTrack.cpp \
     html/track/LoadableTextTrack.cpp \
     html/track/TextTrack.cpp \
     html/track/TextTrackCue.cpp \

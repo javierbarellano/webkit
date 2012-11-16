@@ -89,6 +89,7 @@ private:
     Timer<TextTrackList> m_pendingEventTimer;
 
     EventTargetData m_eventTargetData;
+    Vector<RefPtr<TextTrack> > m_inbandTracks;
     Vector<RefPtr<TextTrack> > m_addTrackTracks;
     Vector<RefPtr<TextTrack> > m_elementTracks;
     

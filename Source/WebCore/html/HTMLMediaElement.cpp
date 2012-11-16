@@ -100,6 +100,7 @@
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
 #include "TextTrackList.h"
+#include "InBandTextTrack.h"
 #endif
 
 #if ENABLE(WEB_AUDIO)
@@ -1846,6 +1847,15 @@ void HTMLMediaElement::mediaPlayerKeyNeeded(MediaPlayer*, const String& keySyste
     RefPtr<Event> event = MediaKeyEvent::create(eventNames().webkitneedkeyEvent, initializer);
     event->setTarget(this);
     m_asyncEventQueue->enqueueEvent(event.release());
+}
+#endif
+
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language)
+{
+    printf("HTMLMediaElement::mediaPlayerTextTrackChanged\n");
+    PassRefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
+    textTracks()->append(track);
 }
 #endif
 
