@@ -120,10 +120,15 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             PlatformMedia platformMedia() const;
 
             void videoChanged();
+            void videoCapsChanged();
             void audioChanged();
-            void videoTagsChanged(gint index);
+            void videoTagsChanged();
+            void audioTagsChanged();
             void notifyPlayerOfVideo();
+            void notifyPlayerOfVideoCaps();
             void notifyPlayerOfAudio();
+            void notifyPlayerOfVideoTags();
+            void notifyPlayerOfAudioTags();
 
             void sourceChanged();
 
@@ -211,7 +216,10 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             bool m_hasVideo;
             bool m_hasAudio;
             guint m_audioTimerHandler;
+            guint m_audioTagsTimerHandler;
             guint m_videoTimerHandler;
+            guint m_videoCapsTimerHandler;
+            guint m_videoTagsTimerHandler;
             GRefPtr<GstElement> m_webkitAudioSink;
             mutable long m_totalBytes;
             GRefPtr<GstPad> m_videoSinkPad;

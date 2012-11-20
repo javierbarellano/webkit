@@ -72,11 +72,20 @@ void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
     RefPtr<AudioTrack> track = prpTrack;
 
-    // Insert tracks added for <track> element in tree order.
-    //size_t index = track->trackIndex();
-    m_tracks.append(track); // TODO: Use order correctly
+    // Insert tracks added in the correct order
+    int index = track->trackIndex();
+    bool inserted = false;
+    for(size_t i = 0; i < m_tracks.size(); ++i) {
+        if(m_tracks[i]->trackIndex() > index) {
+            m_tracks.insert(i, track);
+            inserted = true;
+            break;
+        }
+    }
+    if(!inserted) {
+        m_tracks.append(track);
+    }
 
-    printf("AudioTrackList::append(%d) len: %lu\n", track->trackIndex(), m_tracks.size());
     ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
     track->setMediaElement(m_owner);
 

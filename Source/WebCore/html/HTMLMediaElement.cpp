@@ -3391,6 +3391,17 @@ void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
 {
+    AudioTrack *existingTrack = audioTracks()->item(index);
+    if(existingTrack != NULL) {
+        existingTrack->setEnabled(enabled);
+        existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+        mediaControls()->updateAudioTrackDisplay();
+        return;
+    }
+
     RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
     audioTracks()->append(track);
     mediaControls()->updateAudioTrackDisplay();
@@ -3399,7 +3410,7 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
-    int index = audioTracks()->getTrackIndex(track);
+    int index = track->trackIndex();
     m_player->setAudioEnabled(index, enabled);
     if(enabled) {
         mediaControls()->setAudioTrackSelected(index);
@@ -3414,6 +3425,17 @@ void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
 {
+    VideoTrack *existingTrack = videoTracks()->item(index);
+    if(existingTrack != NULL) {
+        existingTrack->setSelected(selected);
+        existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+        mediaControls()->updateVideoTrackDisplay();
+        return;
+    }
+
     RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
     videoTracks()->append(track);
     mediaControls()->updateVideoTrackDisplay();

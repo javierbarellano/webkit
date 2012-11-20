@@ -42,8 +42,6 @@
 
 namespace WebCore {
 
-static const int invalidTrackIndex = -1;
-
 const AtomicString& AudioTrack::alternativeKeyword()
 {
     DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
@@ -141,11 +139,9 @@ int AudioTrack::trackIndex()
 }
 
 void AudioTrack::setEnabled(bool enabled) {
-	printf("AudioTrack::setEnabled(%s)\n",enabled ? "true":"false");
     if(enabled == m_enabled) return;
 
     // Tell media player which track was selected
-    printf("AudioTrack::setEnabled() client: %p\n",m_client);
     if(m_client)
         m_client->audioTrackEnabled(this, enabled);
 
@@ -154,7 +150,6 @@ void AudioTrack::setEnabled(bool enabled) {
         return;
     }
 
-    printf("AudioTrack::setEnabled() enabled\n");
     // 4.8.10.10.1
     // If the track is in a AudioTrackList, then all the other AudioTrack
     // objects in that list must be unselected. (If the track is no longer in
@@ -169,7 +164,7 @@ void AudioTrack::setEnabled(bool enabled) {
             if(item != this && item->enabled()) {
                 item->setEnabled(false);
 
-                // There can only be on selected track
+                // There can only be one selected track
                 break;
             }
         }
