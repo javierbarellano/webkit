@@ -135,6 +135,7 @@ void RenderFrameSet::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     int cols = frameSet()->totalCols();
     LayoutUnit borderThickness = frameSet()->border();
     
+
     LayoutUnit yPos = 0;
     for (int r = 0; r < rows; r++) {
         LayoutUnit xPos = 0;

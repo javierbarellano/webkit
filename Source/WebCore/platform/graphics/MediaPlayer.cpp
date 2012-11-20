@@ -124,6 +124,9 @@ public:
     virtual bool hasClosedCaptions() const { return false; }
     virtual void setClosedCaptionsVisible(bool) { };
 
+    virtual bool hasSubtitles() const { return false; }
+    virtual void setSubtitlesVisible(bool) { }
+
     virtual MediaPlayer::NetworkState networkState() const { return MediaPlayer::Empty; }
     virtual MediaPlayer::ReadyState readyState() const { return MediaPlayer::HaveNothing; }
 
@@ -656,6 +659,11 @@ void MediaPlayer::setMuted(bool muted)
 bool MediaPlayer::hasClosedCaptions() const
 {
     return m_private->hasClosedCaptions();
+}
+
+bool MediaPlayer::hasSubtitles() const
+{
+    return m_private->hasSubtitles();
 }
 
 void MediaPlayer::setClosedCaptionsVisible(bool closedCaptionsVisible)

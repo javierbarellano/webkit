@@ -199,6 +199,12 @@ public:
     bool muted() const;
     void setMuted(bool);
 
+// Subtitles
+    bool hasSubtitles() const;
+    bool webkitHasSubtitles() const { return hasSubtitles();}
+    void setWebkitHasSubtitles(bool hasSubtitles) { m_hasSubtitles = hasSubtitles;}
+    bool webkitSubtitlesVisible() const { return m_subtitlesVisible;}
+
     void togglePlayState();
     void beginScrubbing();
     void endScrubbing();
@@ -634,6 +640,9 @@ private:
 
     bool m_isFullscreen : 1;
     bool m_closedCaptionsVisible : 1;
+
+    bool m_subtitlesVisible : 1;
+    bool m_hasSubtitles : 1;
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     bool m_needWidgetUpdate : 1;
