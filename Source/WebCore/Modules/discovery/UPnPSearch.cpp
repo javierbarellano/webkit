@@ -308,10 +308,10 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
             if ( type == "upnp:rootdevice")
             {
                 if (st == "ssdp:alive") {
-                    fprintf(stderr,"Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
+                    //fprintf(stderr,"Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
                     parseDev(data, dLen, NULL);
                 } else if (st == "ssdp:byebye"){
-                    fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
+                    //fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
                     // We don't know which list(s) the device is on, so check them both.
                     removeDevice(&devs_, uuid);
                     removeDevice(&internalDevs_, uuid);
@@ -320,7 +320,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         } else if (location.size() > 0){
             // Not a NOTIFY. Must be an M_SEARCH reply
             parseDev(data, dLen, NULL);
-            fprintf(stderr,"Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
+            //fprintf(stderr,"Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
         }
     }
 }
@@ -519,13 +519,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
     UPnPDevMap dm;
 
-    /* This KURL works..
-    String urlString(sLoc.c_str());
-    KURL kurl(WebCore::ParsedURLString, urlString);
-    std::string host = kurl.host().ascii().data();
-    int port = kurl.port();
-    */
-
 	// Now get the friendly name, ugh...
 	std::string path;
 	std::string port;
@@ -545,10 +538,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		port = "80";
 		host = host.substr(0, host.find("/"));
 	}
-
-	//printf("parseDev() - New Dev. %s: %s\n", host.c_str(), sUuid.c_str());
-
-	//printf("parseDev() - Host: %s, Port: %s, Path: %s\n",host.c_str(), port.c_str(), path.c_str());
 
 	char bf[8000];
 	size_t len = sizeof(bf)-1;
@@ -575,19 +564,14 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		return false;
 	}
 
-	// Now look for something like: '<friendlyName>XPDESKTOP:</friendlyName>'
-	if (!strstr(bf,"<friendlyName>"))
+    // Now look for something like: '<friendlyName>XPDESKTOP:</friendlyName>'
+    std::string friendlyName = getElementValue(bf, (char*)"friendlyName");
+    if (friendlyName.length() == 0)
 	{
 		badDevs_.push_back(sUuid);
 		printf("%s has no friendlyName!!!!\n",host.c_str());
 		return false;
 	}
-
-	char friendlyName[512];
-	char *start = strstr(bf,"<friendlyName>")+14;
-	char *end = strstr(bf,"</friendlyName>");
-	strncpy(friendlyName, start,  end - start);
-	friendlyName[end - start] = 0;
 
 	// Now look for event url:
 	/*
@@ -610,49 +594,52 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 				<serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>
 				<serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>
 				<controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</controlURL>
-				<eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</eventSubURL>
+                <eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</eventSubURL>
 				<SCPDURL>/upnphost/udhisapi.dll?content=uuid:03bf5b96-fec6-41ab-8990-a5f7f2a17070</SCPDURL>
 			</service>
 		</serviceList>
 	 *
 	 */
-	char eventUrl[2048]; eventUrl[0]=0;
-	start = strstr(bf,"<serviceList>")+13;
-	if (start)
-	{
-		char *end   = strstr(bf,"</serviceList>");
-		char srvLst[4000];
-		strncpy(srvLst, start, end - start);
-		srvLst[end - start] = 0;
 
-		char * srvEnd = srvLst;
-		char * srv = strstr(srvEnd, "<service>")+9;
-		srvEnd = strstr(srvEnd+10, "</service>");
-		while (srv && srvEnd)
-		{
-			char srvBody[2048];
-			strncpy(srvBody, srv, srvEnd - srv);
-			srvBody[srvEnd - srv] = 0;
+    // Changed this to process each service list instead of just the first. No guarantees which device will have the service we want.
+    // TODO: This implementation assumes/limits one matching service per device description, which is not guaranteed.
+    std::vector<std::string> serviceLists = getElementArray(bf, (char*)"serviceList");
 
-			if (isCurrentType(srvBody, foundTypes) || isInternalType(srvBody))
-			{
-				char *eUrl = strstr(srvBody, "<eventSubURL>")+13;
-				char *eUrlEnd = strstr(srvBody, "</eventSubURL>");
-				strncpy(eventUrl, eUrl, eUrlEnd - eUrl);
-				eventUrl[eUrlEnd - eUrl] = 0;
-			}
+    std::string eventUrl;
 
-			srv = strstr(srvEnd, "<service>")+9;
-			srvEnd = strstr(srvEnd+10, "</service>");
-		}
-	}
+    // For each service list
+    if (serviceLists.size() > 0) {
+        std::vector<std::string>::iterator i = serviceLists.begin();
+        while (i != serviceLists.end()) {
 
+            std::string serviceList = *i;
+
+            std::vector<std::string> services = getElementArray(bf, (char*)"service");
+
+            // For each service
+            if (services.size() > 0) {
+                std::vector<std::string>::iterator j = services.begin();
+                while (j != services.end()) {
+
+                    std::string service = *j;
+
+                    // Check service type
+                    std::string serviceType = getElementValue(service.c_str(), (char*)"serviceType");
+                    if (isCurrentType(serviceType.c_str(), foundTypes) || isInternalType(serviceType.c_str())) {
+                        eventUrl = getElementValue(service.c_str(), "eventSubURL");
+                    }
+                    j++;
+                }
+            }
+            i++;
+        }
+    }
 
 	UPnPDevice d;
 	d.descURL = sLoc;
-	d.friendlyName = std::string(friendlyName);
-	d.eventURL = std::string(eventUrl);
-	d.host = host;
+    d.friendlyName = friendlyName;
+    d.eventURL = eventUrl;
+    d.host = host;
 	d.port = port;
 	d.isOkToUse = true;
 	d.uuid = sUuid;

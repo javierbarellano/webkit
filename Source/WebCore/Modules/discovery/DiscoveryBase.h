@@ -10,6 +10,7 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "platform/network/UDPSocketHandleClient.h"
 #include "../../../../Source/WebCore/platform/network/soup/UDPSocketHandle.h"
@@ -57,6 +58,9 @@ public:
 
 	bool stopDicovery_;
 	bool threadDone_;
+
+    std::string getElementValue(const char* buffer, const char* tag, char** ppos=0);
+    std::vector<std::string> getElementArray(const char* buffer, const char* tag, char** ppos=0);
 
 protected:
 

@@ -36,23 +36,27 @@
 #include <stdio.h>
 
 #define MAX_RCVBUF 8192
+#define MAX_TAG 256
 
-// Utility methods. Should we find a shared location for these?
+// Utility methods. Should we find a better location for these?
 // trim from start
-static inline std::string& ltrim(std::string &s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        return s;
+static std::string& ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+    return s;
 }
 
 // trim from end
-static inline std::string& rtrim(std::string &s) {
-        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-        return s;
+static std::string& rtrim(std::string &s)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+    return s;
 }
 
 // trim from both ends
-static inline std::string& trim(std::string &s) {
-        return ltrim(rtrim(s));
+static std::string& trim(std::string &s)
+{
+    return ltrim(rtrim(s));
 }
 
 namespace WebCore
@@ -76,6 +80,60 @@ DiscoveryBase::~DiscoveryBase()
 
 }
 
+// extremely primitive xml element parser. Returns value for FIRST occurance of tag or empty string if not found.
+std::string DiscoveryBase::getElementValue(const char* buffer, const char* tag, char** ppos)
+{
+    std::string result;
+
+    if ( strlen(tag) < (MAX_TAG-4)) {
+
+        char beginTag[MAX_TAG];
+        char endTag[MAX_TAG];
+
+        sprintf(beginTag, "<%s>", tag);
+        sprintf(endTag, "</%s>", tag);
+
+        char parsedValue[8192];
+        char* start = const_cast<char*>(strstr(buffer, beginTag));
+        char* end = const_cast<char*>(strstr(buffer,endTag));
+
+        if (start && end) {
+            start += strlen(beginTag);
+            if (ppos) {
+                *ppos = end + strlen(endTag);
+            }
+            strncpy(parsedValue, start,  end - start);
+            parsedValue[end - start] = 0;
+            result = std::string(parsedValue);
+            trim(result);
+        }
+    }
+
+    return result;
+}
+
+// extremely primitive xml element parser. Returns array of matching elements
+std::vector<std::string> DiscoveryBase::getElementArray(const char* buffer, const char* tag, char** ppos)
+{
+    std::vector<std::string> elements;
+
+    char* bufptr = const_cast<char*>(buffer);
+
+    while(true) {
+
+        std::string elem = getElementValue(bufptr, tag, &bufptr);
+        if (elem.length()) {
+            elements.push_back(elem);
+            if (ppos) {
+                *ppos = bufptr;
+            }
+        } else {
+            break;
+        }
+    }
+
+    return elements;
+}
 
 void DiscoveryBase::getHostPort(const char *url, char* host, int *port)
 {
@@ -112,6 +170,9 @@ void DiscoveryBase::socketSend(const char *host, int port, const char *toSend, s
 
 void DiscoveryBase::HTTPget(const char *host, int port, const char *path, char *bf, size_t *len)
 {
+    /* TODO: Review requirements for User-Agent string, i.e. DLNA-HTML5/1.0, (CertID 1122334455667788)
+     */
+
 	/*
 	GET /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
 	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
