@@ -332,8 +332,17 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     if (m_videoTimerHandler)
         g_source_remove(m_videoTimerHandler);
 
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
+
+    if (m_videoTagsTimerHandler)
+        g_source_remove(m_videoTagsTimerHandler);
+
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
+
+    if (m_audioTagsTimerHandler)
+        g_source_remove(m_audioTagsTimerHandler);
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
