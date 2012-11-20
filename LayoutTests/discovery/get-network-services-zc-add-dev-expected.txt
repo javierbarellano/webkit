@@ -1,9 +1,12 @@
-Tests navigator.getNetworkServices() works in happy case as expected.
+Tests navigator.getNetworkServices() for Zero Conf add device.
 
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
 PASS navigator.getNetworkServices() called ok callback.
+PASS srvs.length==0 is true
+PASS HomeNetworking called Device Added callback.
 PASS successfullyParsed is true
 
 TEST COMPLETE
+

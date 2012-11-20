@@ -299,7 +299,7 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 		dm.devMap[zcd.friendlyName] = zcd;
 		devs_[daapType_] = dm;
 
-		printf("Adding dev: %s\n", zcd.friendlyName.c_str());
+		//printf("Adding dev: %s\n", zcd.friendlyName.c_str());
 		if (navDsc_)
 			navDsc_->foundZCDev(daapType_);
 	}

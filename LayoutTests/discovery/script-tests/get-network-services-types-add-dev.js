@@ -11,8 +11,8 @@ var CnnAdded = false;
 var CDSAdded = false;
 
 function CDSAddDev() {
-	window.console.log("CDSAddDev() called...");
-	testPassed("navigator.getNetworkServices() called ondevadded CDS callback.");
+	//window.console.log("CDSAddDev() called...");
+	//testPassed("navigator.getNetworkServices() called ondevadded CDS callback.");
 	CDSAdded = true;
 	srvsCDS.ondevadded = null;
 	
@@ -21,8 +21,8 @@ function CDSAddDev() {
 }
 
 function CnnAddDev() {
-	window.console.log("CnnAddDev() called...");
-	testPassed("navigator.getNetworkServices() called ondevadded Cnn callback.");
+	//window.console.log("CnnAddDev() called...");
+	//testPassed("navigator.getNetworkServices() called ondevadded Cnn callback.");
 	CnnAdded = true;
 	srvsCnn.ondevadded = null;
 	
@@ -33,15 +33,18 @@ function CnnAddDev() {
 function okCDS(services) {
 	testPassed("navigator.getNetworkServices() called ok CDS callback.");
 	srvsCDS = services;
+	shouldBe("srvsCDS.length==0", "true");
+
 	srvsCDS.ondevadded = CDSAddDev;
-	window.console.log("okCDS() called...");
+	//window.console.log("okCDS() called...");
 }
 
 function okCnn(services) {
 	testPassed("navigator.getNetworkServices() called ok Cnn callback.");
 	srvsCnn = services;
+	shouldBe("srvsCnn.length==0", "true");
 	srvsCnn.ondevadded = CnnAddDev;
-	window.console.log("okCnn() called...");
+	//window.console.log("okCnn() called...");
 }
 
 function errShouldNotbeCalled(services) {

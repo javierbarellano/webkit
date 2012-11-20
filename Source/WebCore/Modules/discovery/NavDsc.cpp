@@ -88,7 +88,7 @@ void NavDsc::lostZCDev(std::string type)
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
 {
-    printf("startUPnPInternalDiscovery(%s).\n", type);
+    //printf("startUPnPInternalDiscovery(%s).\n", type);
 
 	std::map<std::string, UPnPDevice> empty;
 	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverInternalDevs(type, api);

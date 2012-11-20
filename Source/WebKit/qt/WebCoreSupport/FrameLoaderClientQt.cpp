@@ -33,6 +33,9 @@
 #include "config.h"
 #include "FrameLoaderClientQt.h"
 
+#include "Modules/discovery/UPnPSearch.h"
+#include "Modules/discovery/ZeroConf.h"
+
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
 #include "DocumentLoader.h"
@@ -1061,8 +1064,18 @@ void FrameLoaderClientQt::dispatchWillSendRequest(WebCore::DocumentLoader*, unsi
         QUrl testURL = m_webFrame->page()->mainFrame()->requestedUrl();
         QString testHost = testURL.host();
         QString testURLScheme = testURL.scheme().toLower();
+        int port = (int)newRequest.url().port();
+
+        UPnPSearch* upnp = WebCore::UPnPSearch::getInstance();
+        bool homeNetworkingOK = upnp->hostPortOk(host.toLocal8Bit().data(), port);
+
+        if (!homeNetworkingOK) {
+            ZeroConf* zc = WebCore::ZeroConf::getInstance();
+            homeNetworkingOK = zc->hostPortOk(host.toLocal8Bit().data(), port);
+        }
 
         if (!isLocalhost(host)
+        	&& !homeNetworkingOK
             && !hostIsUsedBySomeTestsToGenerateError(host)
             && ((testURLScheme != QLatin1String("http") && testURLScheme != QLatin1String("https")) || isLocalhost(testHost))) {
             printf("Blocked access to external URL %s\n", qPrintable(drtDescriptionSuitableForTestResult(newRequest.url())));
