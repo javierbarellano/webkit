@@ -3399,19 +3399,20 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
         mediaControls()->updateAudioTrackDisplay();
-        return;
+    }
+    else {
+        RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
+        audioTracks()->append(track);
+        track.release();
     }
 
-    RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
-    audioTracks()->append(track);
     mediaControls()->updateAudioTrackDisplay();
-    track.release();
 }
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
     int index = audioTracks()->getTrackIndex(track);
-    m_player->setAudioEnabled(index, enabled);
+    //m_player->setAudioEnabled(index, enabled);
     if(enabled) {
         mediaControls()->setAudioTrackSelected(index);
     }
