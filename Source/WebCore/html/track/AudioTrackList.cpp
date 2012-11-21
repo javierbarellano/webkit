@@ -86,7 +86,6 @@ void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
         m_tracks.append(track);
     }
 
-    printf("AudioTrackList::append(%d) len: %u\n", track->trackIndex(), (int)m_tracks.size());
     ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
     track->setMediaElement(m_owner);
 
