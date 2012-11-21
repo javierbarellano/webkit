@@ -42,8 +42,6 @@
 
 namespace WebCore {
 
-static const int invalidTrackIndex = -1;
-
 const AtomicString& AudioTrack::alternativeKeyword()
 {
     DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
@@ -166,7 +164,7 @@ void AudioTrack::setEnabled(bool enabled) {
             if(item != this && item->enabled()) {
                 item->setEnabled(false);
 
-                // There can only be on selected track
+                // There can only be one selected track
                 break;
             }
         }

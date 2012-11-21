@@ -72,11 +72,21 @@ void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
     RefPtr<AudioTrack> track = prpTrack;
 
-    // Insert tracks added for <track> element in tree order.
-    //size_t index = track->trackIndex();
-    m_tracks.append(track); // TODO: Use order correctly
+    // Insert tracks added in the correct order
+    int index = track->trackIndex();
+    bool inserted = false;
+    for(size_t i = 0; i < m_tracks.size(); ++i) {
+        if(m_tracks[i]->trackIndex() > index) {
+            m_tracks.insert(i, track);
+            inserted = true;
+            break;
+        }
+    }
+    if(!inserted) {
+        m_tracks.append(track);
+    }
 
-    //printf("AudioTrackList::append(%d) len: %d\n", track->trackIndex(), (int)m_tracks.size());
+    printf("AudioTrackList::append(%d) len: %u\n", track->trackIndex(), (int)m_tracks.size());
     ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
     track->setMediaElement(m_owner);
 
@@ -98,7 +108,7 @@ void AudioTrackList::remove(AudioTrack* track)
 void AudioTrackList::clear()
 {
 	//printf("AudioTrackList::clear()\n");
-    m_tracks.clear();
+    //m_tracks.clear();
 }
 
 const AtomicString& AudioTrackList::interfaceName() const
