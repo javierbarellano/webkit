@@ -107,8 +107,7 @@ void AudioTrackList::remove(AudioTrack* track)
 
 void AudioTrackList::clear()
 {
-	//printf("AudioTrackList::clear()\n");
-    //m_tracks.clear();
+    m_tracks.clear();
 }
 
 const AtomicString& AudioTrackList::interfaceName() const

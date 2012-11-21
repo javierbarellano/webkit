@@ -3398,9 +3398,7 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-        mediaControls()->updateAudioTrackDisplay();
-    }
-    else {
+    } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
         audioTracks()->append(track);
         track.release();
@@ -3411,8 +3409,8 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
-    int index = audioTracks()->getTrackIndex(track);
-    //m_player->setAudioEnabled(index, enabled);
+    int index = track->trackIndex();
+    m_player->setAudioEnabled(index, enabled);
     if(enabled) {
         mediaControls()->setAudioTrackSelected(index);
     }
