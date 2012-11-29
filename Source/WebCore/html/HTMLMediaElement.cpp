@@ -4295,9 +4295,16 @@ void HTMLMediaElement::configureAudioTrackDisplay()
 std::vector<std::string> HTMLMediaElement::getSelTextTrackNames()
 {
 	std::vector<std::string> names;
-	names.push_back(std::string("None"));
-	names.push_back(std::string("SubTitles"));
-	names.push_back(std::string("Closed Captions"));
+//	names.push_back(std::string("None"));
+//	names.push_back(std::string("SubTitles"));
+//	names.push_back(std::string("Closed Captions"));
+
+	int len = textTracks()->length();
+	for (int i=0; i<len; i++)
+	{
+		TextTrack *tt = textTracks()->item(i);
+		names.push_back(std::string(tt->label().ascii().data()));
+	}
 
 	return names;
 }
