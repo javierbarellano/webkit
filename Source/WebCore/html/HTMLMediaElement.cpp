@@ -3398,9 +3398,8 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-        mediaControls()->updateAudioTrackDisplay();
-    }
-    else {
+		mediaControls()->updateAudioTrackDisplay();
+    } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
         audioTracks()->append(track);
         track.release();
@@ -3411,7 +3410,7 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
-    int index = audioTracks()->getTrackIndex(track);
+    int index = track->trackIndex();
     m_player->setAudioEnabled(index, enabled);
     if(enabled) {
         mediaControls()->setAudioTrackSelected(index);
@@ -4295,16 +4294,9 @@ void HTMLMediaElement::configureAudioTrackDisplay()
 std::vector<std::string> HTMLMediaElement::getSelTextTrackNames()
 {
 	std::vector<std::string> names;
-//	names.push_back(std::string("None"));
-//	names.push_back(std::string("SubTitles"));
-//	names.push_back(std::string("Closed Captions"));
-
-	int len = textTracks()->length();
-	for (int i=0; i<len; i++)
-	{
-		TextTrack *tt = textTracks()->item(i);
-		names.push_back(std::string(tt->label().ascii().data()));
-	}
+	names.push_back(std::string("None"));
+	names.push_back(std::string("SubTitles"));
+	names.push_back(std::string("Closed Captions"));
 
 	return names;
 }
