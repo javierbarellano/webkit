@@ -14,5 +14,6 @@ function errShouldNotbeCalled(services) {
 	testFailed('GetNetworkServices() should have called ok Callback.');
 }
 
+getNetworkServices("upnp:reset", okNop, errShouldNotbeCalled);
 getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okNop, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

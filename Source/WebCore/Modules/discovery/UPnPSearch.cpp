@@ -158,6 +158,7 @@ UPnPSearch* UPnPSearch::create()
 UPnPSearch::UPnPSearch(const char *type) :
 		DiscoveryBase()
 {
+	devLock_ = new Mutex();
 	internal_type_ = "";
 	if (type)
 		regTypes_.insert(std::string(type));
@@ -184,6 +185,7 @@ UPnPSearch::~UPnPSearch()
 	devs_.clear();
 	delete tcpSocket_;
 	instance_ = NULL;
+	delete devLock_;
 }
 
 void UPnPSearch::closeServer()
@@ -193,6 +195,7 @@ void UPnPSearch::closeServer()
 
 void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::string& name)
 {
+	devLock_->lock();
 	if (devs_.find(type) != devs_.end())
 	{
 		UPnPDevMap dm = devs_[type];
@@ -205,6 +208,7 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 	}
 	else
 		printf("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
+	devLock_->unlock();
 
 }
 
@@ -258,13 +262,17 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
 	createConnect(type);
 	instance_->navDsc_ = navDsc;
 
+
+	instance_->devLock_->lock();
 	instance_->regTypes_.insert(std::string(type));
 
 	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
 	{
 		UPnPDevMap dm = instance_->devs_.find(std::string(type))->second;
+		instance_->devLock_->unlock();
 		return (dm.devMap);
 	}
+	instance_->devLock_->unlock();
 
 	return std::map<std::string, UPnPDevice>();
 }
@@ -313,8 +321,10 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
                 } else if (st == "ssdp:byebye"){
                     //fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
                     // We don't know which list(s) the device is on, so check them both.
+                	devLock_->lock();
                     removeDevice(&devs_, uuid);
                     removeDevice(&internalDevs_, uuid);
+                    devLock_->unlock();
                 }
             }
         } else if (location.size() > 0){
@@ -341,6 +351,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 void UPnPSearch::checkForDroppedDevs()
 {
 	//printf("checkForDroppedDevs() start\n");
+	devLock_->lock();
 	for (std::map<std::string, UPnPDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
 		std::vector<std::string> dropMe;
@@ -394,6 +405,7 @@ void UPnPSearch::checkForDroppedDevs()
 				navDsc_->lostUPnPDev(type);
 		}
 	}
+	devLock_->unlock();
 }
 
 void UPnPSearch::checkForDroppedInternalDevs()
@@ -465,6 +477,7 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 	char lhost[1000];
 	int lport;
 
+	devLock_->lock();
 	std::map<std::string, UPnPDevMap>::iterator it =  devs_.begin();
 	for (; it!=devs_.end(); it++)
 	{
@@ -478,10 +491,13 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 			getHostPort(url.c_str(),lhost, &lport);
 			//printf("hostPortOk(): host: %s, port: %d\n", lhost, lport);
 
-			if (lport== port && !strcmp(host,lhost))
+			if (lport== port && !strcmp(host,lhost)) {
+				devLock_->unlock();
 				return true;
+			}
 		}
 	}
+	devLock_->unlock();
 
 	return false;
 }
@@ -651,6 +667,8 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	{
 		for (int i=0; i<foundTypes.size(); i++) {
             std::string foundType = foundTypes.at(i);
+
+            devLock_->lock();
             if (devs_.find(foundType)==devs_.end() || devs_[foundType].devMap.find(sUuid)==devs_[foundType].devMap.end()) {
 
                 dm = devs_[foundType];
@@ -672,6 +690,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
                     navDsc_->foundUPnPDev(foundType);
                 }
 			}
+            devLock_->unlock();
 		}
 	}
 
@@ -707,6 +726,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regType)
 {
+	devLock_->lock();
 	if (regTypes_.size() > 0) {
 		std::set<std::string>::iterator i = regTypes_.begin();
 		while (i != regTypes_.end()) {
@@ -715,8 +735,10 @@ bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regTy
 			}
 			i++;
 		}
+		devLock_->unlock();
 		return regType.size()>0;
 	}
+	devLock_->unlock();
 
 	return false;
 }

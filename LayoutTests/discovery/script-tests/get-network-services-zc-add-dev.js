@@ -27,5 +27,6 @@ function addDevCB() {
 	finishJSTest();
 }
 
+getNetworkServices("zeroconf:reset", okAddDev, errShouldNotbeCalled);
 getNetworkServices("zeroconf:_daap", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

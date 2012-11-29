@@ -39,6 +39,7 @@
 namespace WebCore {
 
 NavDsc *NavDsc::instance = NULL;
+FILE *NavDsc::HN_FD_; // Used for logging
 
 // Static
 NavDsc *NavDsc::create(Frame * frame)
@@ -51,8 +52,6 @@ NavDsc *NavDsc::create(Frame * frame)
 
 NavDsc::NavDsc(Frame * frame) :
 		  m_frame(frame)
-		, m_UPnPnav(NULL)
-		, m_ZCnav(NULL)
 {
 }
 
@@ -66,24 +65,24 @@ NavDsc::~NavDsc()
 
 void NavDsc::foundUPnPDev(std::string type)
 {
-	if (m_UPnPnav)
-		m_UPnPnav->UPnPDevAdded(type);
+	if (m_UPnPnav[type])
+		m_UPnPnav[type]->UPnPDevAdded(type);
 }
 void NavDsc::foundZCDev(std::string type)
 {
-	if (m_ZCnav)
-		m_ZCnav->ZCDevAdded(type);
+	if (m_ZCnav[type])
+		m_ZCnav[type]->ZCDevAdded(type);
 }
 
 void NavDsc::lostUPnPDev(std::string type)
 {
-	if (m_UPnPnav)
-		m_UPnPnav->UPnPDevDropped(type);
+	if (m_UPnPnav[type])
+		m_UPnPnav[type]->UPnPDevDropped(type);
 }
 void NavDsc::lostZCDev(std::string type)
 {
-	if (m_ZCnav)
-		m_ZCnav->ZCDevDropped(type);
+	if (m_ZCnav[type])
+		m_ZCnav[type]->ZCDevDropped(type);
 }
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
@@ -235,28 +234,28 @@ std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type)
 
 void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
 {
-	if (m_UPnPnav)
+	if (m_UPnPnav[stype])
 	{
 		//printf("NavDsc::sendEvent() uuid: %s\n", uuid.c_str());
-		m_UPnPnav->sendEvent(uuid, stype, body);
+		m_UPnPnav[stype]->sendEvent(uuid, stype, body);
 	}
 }
 
 void NavDsc::onUPnPError(int error)
 {
-	if (m_UPnPnav)
+	if (m_UPnPnav.size())
 	{
 		printf("NavDsc::onUPnPError() error: %d\n", error);
-		m_UPnPnav->onError(error);
+		m_UPnPnav.begin()->second->onError(error);
 	}
 }
 
 void NavDsc::onZCError(int error)
 {
-	if (m_ZCnav)
+	if (m_ZCnav.size())
 	{
 		printf("NavDsc::onZCError() error: %d\n", error);
-		m_ZCnav->onError(error);
+		m_ZCnav.begin()->second->onError(error);
 	}
 }
 

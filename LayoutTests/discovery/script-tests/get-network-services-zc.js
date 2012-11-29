@@ -14,5 +14,6 @@ function errShouldNotbeCalled(services) {
 	testFailed('GetNetworkServices() should have called ok Callback.');
 }
 
+getNetworkServices("zeroconf:reset", okNop, errShouldNotbeCalled);
 getNetworkServices("zeroconf:_daap", okNop, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

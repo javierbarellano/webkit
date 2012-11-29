@@ -86,6 +86,8 @@ public:
 
     Vector<RefPtr<NavService> > m_services;
 
+    std::string m_serviceType;
+
 protected:
     virtual EventTargetData* eventTargetData();
     virtual EventTargetData* ensureEventTargetData();

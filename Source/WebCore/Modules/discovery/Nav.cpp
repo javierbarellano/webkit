@@ -27,13 +27,12 @@
 
 namespace WebCore {
 
-Mutex *Nav::m_main = NULL;
+long Nav::m_reqID = 0L;
 
 Nav::Nav(Frame* frame)
 : DOMWindowProperty(frame) {
 
-	if (!m_main)
-		m_main = new Mutex();
+	m_main = new Mutex();
 }
 
 Nav::~Nav() {
@@ -53,8 +52,22 @@ Nav* Nav::from(Navigator* navigator)
     return supplement;
 }
 
-NavServices* Nav::getNavServices(std::string type) {
-	return m_services[type].get();
+std::vector<NavServices*> Nav::getNavServices(std::string type) {
+	std::vector<NavServices*> ns;
+
+	std::map<long, RefPtr<NavServices> >::iterator it;
+	for (it=m_services.begin(); it!=m_services.end(); it++)
+	{
+		if ((*it).second.get()->m_serviceType == type)
+			ns.push_back((*it).second.get());
+	}
+
+
+	return ns;
+}
+
+NavServices* Nav::getNavServices(long id) {
+	return m_services[id].get();
 }
 
 void Nav::getNetworkServices(
@@ -67,6 +80,8 @@ void Nav::getNetworkServices(
 
 	Nav *nv = from(n);
 	IDiscoveryAPI *disAPI = nv;
+
+	long id = m_reqID++;
 
 	if (!nv->m_frame)
 		return;
@@ -99,12 +114,21 @@ void Nav::getNetworkServices(
 	std::map<std::string, UPnPDevice> devs;
 	std::map<std::string, ZCDevice> zcdevs;
 
-	if (protoType == UPNP_PROTO)
+	if (protoType == UPNP_PROTO) {
+		if (strstr(sType, "reset")) {
+			nv->m_services.clear();
+			nd->upnpReset();
+			return;
+		}
 		devs = nd->startUPnPDiscovery(sType);
-	else if (protoType == ZC_PROTO)
+	} else if (protoType == ZC_PROTO) {
+		if (strstr(sType, "reset")) {
+			nv->m_services.clear();
+			nd->zcReset();
+			return;
+		}
 		zcdevs = nd->startZeroConfDiscovery(sType);
-	else if (errorcb)
-	{
+	} else if (errorcb) {
 		RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
 		errorcb->handleEvent(err.get());
 		return;
@@ -112,9 +136,9 @@ void Nav::getNetworkServices(
 	else
 		return; // Error found and no error callback
 
-	nv->setServices(strType, sType, devs, zcdevs, protoType);
+	nv->setServices(id, strType, sType, devs, zcdevs, protoType);
 
-	successcb->handleEvent(nv->getNavServices(strType));
+	successcb->handleEvent(nv->getNavServices(id));
 
 	//printf("Nav::getNetworkServices() Done.\n");
 }
@@ -122,6 +146,7 @@ void Nav::getNetworkServices(
 
 void Nav::UPnPDevAdded(std::string type)
 {
+
 	m_main->lock();
 	m_curType.push(type);
 	callOnMainThread(Nav::UPnPDevAddedInternal,this);
@@ -138,8 +163,10 @@ void Nav::UPnPDevAddedInternal(void *ptr)
 	nv->m_main->unlock();
 
 
-	NavServices* srvs = nv->getNavServices(type);
-	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	std::vector<NavServices*> srvs = nv->getNavServices(type);
+	for (int i=0; i<srvs.size(); i++) {
+		srvs[i]->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	}
 	//printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
 }
 
@@ -173,8 +200,10 @@ void Nav::UPnPDevDroppedInternal(void *ptr)
 	nv->m_curType.pop();
 	nv->m_main->unlock();
 
-	PassRefPtr<NavServices> srvs = nv->m_services[type];
-	srvs->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+	std::vector<NavServices*> srvs = nv->getNavServices(type);
+	for (int i=0; i<srvs.size(); i++) {
+		srvs[i]->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+	}
 }
 
 void Nav::ZCDevDropped(std::string type)
@@ -222,20 +251,23 @@ void Nav::sendEventInternal(void *ptr)
 	nv->m_event.pop();
 	nv->m_main->unlock();
 
-	NavServices* srvs = nv->getNavServices(type);
-	NavService* srv = srvs->find(std::string(evnt->uuid().ascii().data()));
+	std::vector<NavServices*> srvs = nv->getNavServices(type);
 
-	if (srv) {
-		//printf("Nav::sendEventInternal(%s) SENDING... Name: %s\n",type.c_str(), srv->name().ascii().data());
-		struct UPnPEventInit init;
-		init.friendlyName = evnt->friendlyName();
-		init.propertyset = evnt->propertyset();
-		init.serviceType = evnt->serviceType();
-		init.uuid = evnt->uuid();
-		srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
+	for (int i=0; i<srvs.size(); i++) {
+		NavService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
+
+		if (srv) {
+			//printf("Nav::sendEventInternal(%s) SENDING... Name: %s\n",type.c_str(), srv->name().ascii().data());
+			struct UPnPEventInit init;
+			init.friendlyName = evnt->friendlyName();
+			init.propertyset = evnt->propertyset();
+			init.serviceType = evnt->serviceType();
+			init.uuid = evnt->uuid();
+			srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
+		}
+		else
+			printf("Nav::sendEventInternal() srv == NULL !!!!!!\n");
 	}
-	else
-		printf("Nav::sendEventInternal() srv == NULL !!!!!!\n");
 
 	evnt.release();
 }
@@ -258,6 +290,7 @@ Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType)
 }
 
 void Nav::setServices(
+		long id,
 		std::string strType,
 		const char* type,
 		std::map<std::string, UPnPDevice> devs,
@@ -268,11 +301,8 @@ void Nav::setServices(
 
 	//printf("setServices(%s)\n",strType.c_str());
 
-	if (m_services[strType])
-		m_services[strType].release();
-
-	m_services[strType] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-	m_services[strType]->suspendIfNeeded();
+	m_services[id] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
+	m_services[id]->suspendIfNeeded();
 
 	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
 
@@ -315,7 +345,8 @@ void Nav::setServices(
 	}
 
 	// Write devices to service object
-	m_services[strType]->setServices(vDevs);
+	m_services[id]->setServices(vDevs);
+	m_services[id]->m_serviceType = strType;
 
 	//printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
 }

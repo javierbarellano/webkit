@@ -86,6 +86,8 @@ public:
 
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
 
+    virtual void receiveID(long idFromHN) { m_hn_id = idFromHN; }
+
     // Events
 	std::queue<std::string> m_curType;
 	int m_eventType;
@@ -103,6 +105,7 @@ private:
     Nav(Frame*);
 
     void setServices(
+    		long id,
     		std::string strType,
     		const char* type,
     		std::map<std::string, UPnPDevice> devs,
@@ -110,16 +113,18 @@ private:
     		ProtocolType protoType);
 
     ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
-    NavServices* getNavServices(std::string type);
+    NavServices* getNavServices(long id);
+    std::vector<NavServices*> getNavServices(std::string type);
 
-    static Mutex *m_main;
+    Mutex *m_main;
+
+    static long m_reqID;
+
+    long m_hn_id;
 
     // Home Networking Data
 
-    std::map<std::string, RefPtr<NavServices> > m_services;
-
-    //mutable RefPtr<NavServices> m_srvcs;
-    std::vector<RefPtr<NavService> > m_srv;
+    std::map<long, RefPtr<NavServices> > m_services;
 
 };
 

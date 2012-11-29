@@ -8,6 +8,7 @@ function getNetworkServices(type, okCallback, errCallback) {
 var srvs;
 var resp;
 var req;
+
 function okAddDev(services) {
 	srvs = services;
 	srvs.ondevadded = addDevCB;
@@ -47,5 +48,6 @@ function addDevCB() {
 	getNetworkServices("zeroconf:_daap", okSecondCallCB, errShouldNotbeCalled)
 }
 
+getNetworkServices("zeroconf:reset", okAddDev, errShouldNotbeCalled);
 getNetworkServices("zeroconf:_daap", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

@@ -104,6 +104,8 @@ public:
 	
 	void checkForDroppedDevs();
 
+	void reset() {devLock_->lock(); regTypes_.clear(); devs_.clear(); internalDevs_.clear(); devLock_->unlock();}
+
 	std::string sendData_;
 
 protected:
@@ -129,6 +131,8 @@ private:
 	// key == service type
 	// dev key == UUID
 	std::map<std::string, UPnPDevMap> devs_;
+	Mutex *devLock_;
+
 
 	std::vector<std::string> badDevs_;
 

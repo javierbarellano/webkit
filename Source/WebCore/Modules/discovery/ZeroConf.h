@@ -61,6 +61,8 @@ public:
 
 	void checkForDroppedDevs();
 
+	void reset() { devLock_->lock(); devs_.clear(); devLock_->unlock(); }
+
 	char* query_;
 	int queryLen_;
 
@@ -93,6 +95,7 @@ private:
 	// key == service type
 	// dev key == UUID
 	std::map<std::string, ZCDevMap> devs_;
+	Mutex *devLock_;
 
 	long lastSend_;
 
