@@ -3412,7 +3412,7 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
     int index = audioTracks()->getTrackIndex(track);
-    //m_player->setAudioEnabled(index, enabled);
+    m_player->setAudioEnabled(index, enabled);
     if(enabled) {
         mediaControls()->setAudioTrackSelected(index);
     }
