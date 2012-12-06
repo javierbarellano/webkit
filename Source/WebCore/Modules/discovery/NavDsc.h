@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "wtf/ExportMacros.h"
+#include "wtf/Platform.h"
+
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"

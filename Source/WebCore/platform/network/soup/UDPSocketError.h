@@ -16,7 +16,8 @@ class UDPSocketError : public UDPSocketErrorBase
 {
 public:
 	UDPSocketError() { }
-    explicit UDPSocketError(int errorCode, const gchar* description)
+    //explicit UDPSocketError(int errorCode, const gchar* description)
+    explicit UDPSocketError(int errorCode, const char* description)
         : UDPSocketErrorBase(errorCode, String(), String(description))
     {
       err_ = 0;
