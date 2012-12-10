@@ -45,6 +45,7 @@ class Event;
 class Frame;
 class HTMLMediaElement;
 class MediaControls;
+class MouseEvent;
 
 // Must match WebKitSystemInterface.h
 enum MediaControlElementType {
@@ -115,11 +116,13 @@ public:
 
     virtual MediaControlElementType displayType() const = 0;
 
-    void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
+    virtual void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
     MediaControllerInterface* mediaController() const { return m_mediaController; }
 
 protected:
     MediaSelectElement(Document*);
+    void fixEventState(Event *event);
+    bool m_hasFocus;
 
 private:
     virtual bool isMediaControlElement() const { return false; }
@@ -224,7 +227,7 @@ public:
 
     MediaControlElementType displayType() const { return m_displayType; }
 
-    void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
+    virtual void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
     MediaControllerInterface* mediaController() const { return m_mediaController; }
 
 protected:
@@ -477,7 +480,7 @@ public:
     static PassRefPtr<MediaControlVideoTrackSelButtonElement> create(Document*, MediaControls* controls);
     void changedVideoTrack();
 
-    //virtual void defaultEventHandler(Event*);
+    virtual void defaultEventHandler(Event* event);
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
@@ -502,7 +505,7 @@ public:
     static PassRefPtr<MediaControlAudioTrackSelButtonElement> create(Document*, MediaControls* controls);
     void changedAudioTrack();
 
-    //virtual void defaultEventHandler(Event*);
+    virtual void defaultEventHandler(Event* event);
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
@@ -527,7 +530,7 @@ public:
     static PassRefPtr<MediaControlTextTrackSelButtonElement> create(Document*, MediaControls* controls);
     void changedTextTrack();
 
-    //virtual void defaultEventHandler(Event*);
+    virtual void defaultEventHandler(Event* event);
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}

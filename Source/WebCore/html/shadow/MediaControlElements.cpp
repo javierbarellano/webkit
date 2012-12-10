@@ -118,6 +118,7 @@ void MediaControlElement::hide()
 
 MediaSelectElement::MediaSelectElement(Document* document)
     : HTMLSelectElement(selectTag, document, NULL)
+	, m_hasFocus(false)
     , m_mediaController(0)
 {
 }
@@ -130,6 +131,27 @@ void MediaSelectElement::show()
 void MediaSelectElement::hide()
 {
     setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
+}
+
+void MediaSelectElement::fixEventState(Event *event)
+{
+	if ((event->type() == eventNames().focusEvent
+			|| event->type() == eventNames().focusinEvent
+			|| event->type() == eventNames().DOMFocusInEvent
+			|| event->type() == eventNames().blurEvent
+			|| event->type() == eventNames().mousedownEvent
+			|| event->type() == eventNames().mouseoutEvent)
+			&& event->isMouseEvent()
+			&& !m_hasFocus) {
+
+		//printf("VideoTrack:setDefaultHandled() event type: %s\n",event->type().string().ascii().data());
+		event->setDefaultHandled();
+		if (event->type() == eventNames().mouseoutEvent)
+			m_hasFocus = true;
+
+	} else if (m_hasFocus) {
+		m_hasFocus = false;
+	}
 }
 
 // ----------------------------
@@ -261,6 +283,7 @@ void MediaControlPanelElement::resetPosition()
 
 void MediaControlPanelElement::makeOpaque()
 {
+	//printf("makeOpaque()\n");
     if (m_opaque)
         return;
 
@@ -278,6 +301,8 @@ void MediaControlPanelElement::makeOpaque()
 
 void MediaControlPanelElement::makeTransparent()
 {
+	//printf("makeTransparent()\n");
+
     if (!m_opaque)
         return;
 
@@ -1139,6 +1164,11 @@ PassRefPtr<MediaControlVideoTrackSelButtonElement> MediaControlVideoTrackSelButt
 	return button.release();
 }
 
+void MediaControlVideoTrackSelButtonElement::defaultEventHandler(Event* event) {
+
+	MediaSelectElement::defaultEventHandler(event);
+	fixEventState(event);
+}
 
 void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
 {
@@ -1211,6 +1241,12 @@ PassRefPtr<MediaControlAudioTrackSelButtonElement> MediaControlAudioTrackSelButt
 }
 
 
+void MediaControlAudioTrackSelButtonElement::defaultEventHandler(Event* event) {
+
+	MediaSelectElement::defaultEventHandler(event);
+	fixEventState(event);
+}
+
 void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
 {
     updateDisplayType();
@@ -1279,6 +1315,12 @@ PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButton
 	return button.release();
 }
 
+
+void MediaControlTextTrackSelButtonElement::defaultEventHandler(Event* event) {
+
+	MediaSelectElement::defaultEventHandler(event);
+	fixEventState(event);
+}
 
 void MediaControlTextTrackSelButtonElement::changedTextTrack()
 {

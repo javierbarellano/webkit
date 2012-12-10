@@ -108,6 +108,8 @@ protected:
     HTMLSelectElement(const QualifiedName&, Document*, HTMLFormElement*);
     virtual void selectChanged(int newIndex) {}
 
+    virtual void defaultEventHandler(Event*);
+
 private:
     virtual const AtomicString& formControlType() const;
     
@@ -134,7 +136,6 @@ private:
 
     virtual void reset();
 
-    virtual void defaultEventHandler(Event*);
 
     void dispatchChangeEventForMenuList();
     
