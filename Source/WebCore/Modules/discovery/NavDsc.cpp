@@ -19,6 +19,7 @@
 
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/ZeroConf.h"
+#include "Modules/discovery/UPnPEvent.h"
 
 #include <unistd.h>
 #include <netdb.h>
@@ -28,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #include <pthread.h>
 #include <vector>
@@ -35,6 +37,10 @@
 
 #include "Modules/discovery/Nav.h"
 #include "NavDsc.h"
+
+#ifndef IMAX
+#define IMAX(a,b) ((a) < (b)) ? (b):(a)
+#endif
 
 namespace WebCore {
 
@@ -53,6 +59,8 @@ NavDsc *NavDsc::create(Frame * frame)
 NavDsc::NavDsc(Frame * frame) :
 		  m_frame(frame)
 {
+	m_resetSet = false;
+	m_main = new Mutex();
 }
 
 NavDsc::~NavDsc()
@@ -60,29 +68,237 @@ NavDsc::~NavDsc()
 	if (UPnPSearch::getInstance())
 		delete UPnPSearch::getInstance();
 
+	delete m_main;
 	instance = NULL;
+}
+
+void NavDsc::setServices(
+		std::string strType,
+		const char* type,
+		std::map<std::string, UPnPDevice> devs,
+		std::map<std::string, ZCDevice> zcdevs,
+		ProtocolType protoType
+		)
+{
+
+	//printf("setServices(%s)1\n",strType.c_str());
+	RefPtr<NavServices> ns = NavServices::create(m_frame->document(), NavServices::CONNECTED);
+	m_services[strType].push_back(ns);
+	int lastIndex = IMAX(0, m_services[strType].size() -1);
+
+	m_services[strType].at(lastIndex)->suspendIfNeeded();
+
+	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
+
+	if (protoType == UPNP_PROTO)
+	{
+		std::map<std::string, UPnPDevice>::iterator it;
+		for (it=devs.begin(); it!=devs.end(); it++)
+		{
+			UPnPDevice d((*it).second);
+			RefPtr<NavService> srv = NavService::create(m_frame->document());
+			srv->suspendIfNeeded();
+
+			srv->setServiceType(WTF::String(type));
+			srv->setPType(NavService::UPNP_TYPE);
+			srv->setUrl(WTF::String(d.descURL.c_str()));
+			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
+			srv->setName(WTF::String(d.friendlyName.c_str()));
+
+			vDevs->append(srv);
+		}
+
+	}
+	else if (protoType == ZC_PROTO)
+	{
+		std::map<std::string, ZCDevice>::iterator it;
+		for (it=zcdevs.begin(); it!=zcdevs.end(); it++)
+		{
+			ZCDevice d((*it).second);
+			RefPtr<NavService> srv = NavService::create(m_frame->document());
+			srv->suspendIfNeeded();
+
+			srv->setServiceType(WTF::String(type));
+			srv->setPType(NavService::ZCONF_TYPE);
+			srv->setUrl(WTF::String(d.url.c_str()));
+			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
+			srv->setName(WTF::String(d.friendlyName.c_str()));
+
+			vDevs->append(srv);
+		}
+	}
+
+	// Write devices to service object
+	m_services[strType].at(lastIndex)->setServices(vDevs);
+	m_services[strType].at(lastIndex)->m_serviceType = strType;
+
+	//printf("NavDsc::setServices() DONE. %d services total\n", (int)vDevs->size());
+}
+
+std::vector<NavServices*> NavDsc::getNavServices(std::string type) {
+	std::vector<RefPtr<NavServices> > ns = m_services[type];
+	//printf("getNavServices() len: %d, type: %s\n", ns.size(), type.c_str());
+	std::vector<NavServices*> pNS;
+
+	for (int i=0; i<ns.size(); i++)
+	{
+		if (ns.at(i).get())
+			pNS.push_back(ns.at(i).get());
+	}
+	//printf("getNavServices() found: %d devs\n", pNS.size());
+
+	return pNS;
+}
+
+bool NavDsc::has(std::vector<RefPtr<NavServices> > srvs, std::string uuid)
+{
+	String nsUUID(uuid.c_str());
+
+	for (int i=0; i<srvs.size(); i++) {
+		Vector<RefPtr<NavService> > ns = srvs.at(i)->m_services;
+		for (int k = 0; k < ns.size(); k++) {
+			if (ns.at(k)->uuid() == nsUUID)
+				return true;
+		}
+	}
+	return false;
 }
 
 void NavDsc::foundUPnPDev(std::string type)
 {
-	if (m_UPnPnav[type])
-		m_UPnPnav[type]->UPnPDevAdded(type);
+	m_main->lock();
+	m_curType.push(type);
+	callOnMainThread(NavDsc::UPnPDevAddedInternal,this);
+	m_main->unlock();
 }
 void NavDsc::foundZCDev(std::string type)
 {
-	if (m_ZCnav[type])
-		m_ZCnav[type]->ZCDevAdded(type);
+	m_main->lock();
+	m_curType.push(type);
+	//printf("NavDsc::ZCDevAdded(%s)\n", type.c_str());
+	callOnMainThread(NavDsc::ZCDevAddedInternal,this);
+	m_main->unlock();
 }
 
 void NavDsc::lostUPnPDev(std::string type)
 {
-	if (m_UPnPnav[type])
-		m_UPnPnav[type]->UPnPDevDropped(type);
+	m_main->lock();
+	m_curType.push(type);
+	callOnMainThread(NavDsc::UPnPDevDroppedInternal,this);
+	m_main->unlock();
 }
 void NavDsc::lostZCDev(std::string type)
 {
-	if (m_ZCnav[type])
-		m_ZCnav[type]->ZCDevDropped(type);
+	m_main->lock();
+	m_curType.push(type);
+	callOnMainThread(NavDsc::ZCDevDroppedInternal,this);
+	m_main->unlock();
+}
+
+void NavDsc::UPnPDevAddedInternal(void *ptr)
+{
+	NavDsc *nd = (NavDsc*)ptr;
+
+	if (nd->m_curType.size() == 0) {
+		//printf("UPnPDevAddedInternal: No Types, so cannot add dev\n");
+		return;
+	}
+
+	nd->m_main->lock();
+	std::string type(nd->m_curType.front());
+	nd->m_curType.pop();
+	nd->m_main->unlock();
+
+
+	std::vector<NavServices*> srvs = nd->getNavServices(type);
+	if (srvs.size() == 0) {
+		//printf("UPnPDevAddedInternal: No Devs, so cannot add dev\n");
+		return;
+	}
+
+	for (int i=0; i<srvs.size(); i++) {
+		srvs[i]->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+	}
+	//printf("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
+}
+
+void NavDsc::ZCDevAddedInternal(void *ptr)
+{
+	UPnPDevAddedInternal(ptr);
+}
+
+void NavDsc::UPnPDevDroppedInternal(void *ptr)
+{
+	NavDsc *nv = (NavDsc*)ptr;
+	nv->m_main->lock();
+	std::string type(nv->m_curType.front());
+	nv->m_curType.pop();
+	nv->m_main->unlock();
+
+	std::vector<NavServices*> srvs = nv->getNavServices(type);
+	for (int i=0; i<srvs.size(); i++) {
+		srvs[i]->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+	}
+}
+
+void NavDsc::ZCDevDroppedInternal(void *ptr)
+{
+	UPnPDevDroppedInternal(ptr);
+}
+
+
+void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
+{
+	std::string name = "";
+	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
+
+	//printf("NavDsc::sendEvent(%s)\n",uuid.c_str());
+	RefPtr<NavEvent> evnt = NavEvent::create();
+
+	evnt->setPropertyset(WTF::String(body.c_str()));
+	evnt->setUuid(WTF::String(uuid.c_str()));
+	evnt->setServiceType(WTF::String(stype.c_str()));
+	evnt->setFriendlyName(WTF::String(name.c_str()));
+
+	m_main->lock();
+	m_event.push(evnt);
+	m_curType.push(stype);
+	callOnMainThread(NavDsc::sendEventInternal,this);
+	m_main->unlock();
+}
+
+
+void NavDsc::sendEventInternal(void *ptr)
+{
+	NavDsc *nv = (NavDsc*)ptr;
+
+	nv->m_main->lock();
+	std::string type(nv->m_curType.front());
+	nv->m_curType.pop();
+
+	RefPtr<NavEvent> evnt = nv->m_event.front();
+	nv->m_event.pop();
+	nv->m_main->unlock();
+
+	std::vector<NavServices*> srvs = nv->getNavServices(type);
+
+	for (int i=0; i<srvs.size(); i++) {
+		NavService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
+
+		if (srv) {
+			//printf("NavDsc::sendEventInternal(%s) SENDING... Name: %s\n",type.c_str(), srv->name().ascii().data());
+			struct UPnPEventInit init;
+			init.friendlyName = evnt->friendlyName();
+			init.propertyset = evnt->propertyset();
+			init.serviceType = evnt->serviceType();
+			init.uuid = evnt->uuid();
+			srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
+		}
+		else
+			printf("NavDsc::sendEventInternal() srv == NULL !!!!!!\n");
+	}
+
+	evnt.release();
 }
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
@@ -92,9 +308,12 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char 
 	std::map<std::string, UPnPDevice> empty;
 	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverInternalDevs(type, api);
 
-	if (devs.size()==0)
-		return devs;
-
+	if (m_resetSet) {
+		UPnPSearch::getInstance()->reset();
+		m_services.clear();
+		devs.clear();
+		m_resetSet = false;
+	}
 	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
 	{
 		UPnPDevice d = (*it).second;
@@ -103,16 +322,18 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char 
 		devs[(*it).first] = d;
 	}
 
+	std::string strType(type);
+	std::map<std::string, ZCDevice> zcdevs;
+
+	setServices(strType, type, devs, zcdevs, UPNP_PROTO);
+
 	return devs;
 }
 
-std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
+std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb)
 {
 	std::map<std::string, UPnPDevice> empty;
 	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverDevs(type, this);
-
-	if (devs.size()==0)
-		return devs;
 
 	// We have devices to look at
 
@@ -123,6 +344,12 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 	if (!page)
 		return empty;
 	
+	if (m_resetSet) {
+		UPnPSearch::getInstance()->reset();
+		m_services.clear();
+		devs.clear();
+		m_resetSet = false;
+	}
 	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
 	{
 		UPnPDevice d = (*it).second;
@@ -132,48 +359,21 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type)
 	}
 
 
-// 	WebKit::ChromeClientImpl *cc = new WebKit::ChromeClientImpl(page->chrome()->client());
-//
-//	WTF::String msg("This web page wants to access the following servers:\n");
-//	std::vector<WTF::String> cbtext;
-//	int pos = 0;
-//	int cbMask = 0;
-//	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-//	{
-//		UPnPDevice d = (*it).second;
-//		cbtext.push_back(WTF::String(d.friendlyName.c_str()));
-//		cbMask |= ((d.isOkToUse ? 1:0)<<pos++);
-//	}
-//
-//	bool ok = cc->runJavaScriptDiscovery(m_frame, msg, cbtext, &cbMask);
-//
-//	int i=0;
-//	int count = 0;
-//	for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-//	{
-//		UPnPDevice d = (*it).second;
-//		d.isOkToUse = ok && (cbMask & (1<<i))!=0;
-//		i++;
-//		if (d.isOkToUse)
-//		{
-//			UPnPSearch::getInstance()->eventServer(d.eventURL, d.uuid, d.host, d.port);
-//			count++;
-//		}
-//		devs[(*it).first] = d;
-//	}
-//
+	std::string strType(type);
+	std::map<std::string, ZCDevice> zcdevs;
+	setServices(strType, type, devs, zcdevs, UPNP_PROTO);
+
+	std::vector<NavServices *> srvs = getNavServices(type);
+	successcb->handleEvent(srvs.at(srvs.size()-1));
 
 	return devs;
 
 }
 
-std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type)
+std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb)
 {
 	std::map<std::string, ZCDevice> empty;
-	std::map<std::string, ZCDevice> devs = ZeroConf::discoverDevs(type, this);
-
-	if (devs.size()==0)
-		return devs;
+	std::map<std::string, ZCDevice> zcdevs = ZeroConf::discoverDevs(type, this);
 
 	// We have devices to look at
 	if (!m_frame)
@@ -183,62 +383,21 @@ std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char *type)
 	if (!page)
 		return empty;
 
-//	for (std::map<std::string, ZCDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-//	{
-//		ZCDevice d = (*it).second;
-//		d.isOkToUse = true;
-//		devs[(*it).first] = d;
-//	}
-		
-//	WebKit::ChromeClientImpl *cc = new WebKit::ChromeClientImpl(page->chrome()->client());
-//
-//	std::string smsg("This web page wants to access the following servers:\n");
-//	std::map<std::string, ZCDevice>::iterator it = devs.begin();
-//	for (; it != devs.end(); it++)
-//	{
-//		ZCDevice d = (*it).second;
-//		smsg += d.friendlyName+"\n";
-//	}
-//	WTF::String msg(smsg.c_str());
-//
-//
-//	std::vector<WTF::String> cbtext;
-//	int pos = 0;
-//	int cbMask = 0;
-//	for (std::map<std::string, ZCDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-//	{
-//		ZCDevice d = (*it).second;
-//		cbtext.push_back(WTF::String(d.friendlyName.c_str()));
-//		cbMask |= ((d.isOkToUse ? 1:0)<<pos++);
-//	}
-//
-//	bool ok = cc->runJavaScriptDiscovery(m_frame, msg, cbtext, &cbMask);
-//
-//	int i=0;
-//	int count = 0;
-//	for (std::map<std::string, ZCDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-//	{
-//		ZCDevice d = (*it).second;
-//		d.isOkToUse = ok && (cbMask & (1<<i))!=0;
-//		i++;
-//		if (d.isOkToUse)
-//			count++;
-//		devs[(*it).first] = d;
-//	}
-//
-//	printf("GB:startDiscovery(): ZeroConf devs: %u\n", count);
-//
-	return devs;
-
-}
-
-void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
-{
-	if (m_UPnPnav[stype])
-	{
-		//printf("NavDsc::sendEvent() uuid: %s\n", uuid.c_str());
-		m_UPnPnav[stype]->sendEvent(uuid, stype, body);
+	std::string strType(type);
+	std::map<std::string, UPnPDevice> devs;
+	if (m_resetSet) {
+		ZeroConf::getInstance()->reset();
+		m_services.clear();
+		zcdevs.clear();
+		m_resetSet = false;
 	}
+	setServices(strType, type, devs, zcdevs, ZC_PROTO);
+
+	std::vector<NavServices *> srvs = getNavServices(type);
+	successcb->handleEvent(srvs.at(srvs.size()-1));
+
+	return zcdevs;
+
 }
 
 void NavDsc::onUPnPError(int error)

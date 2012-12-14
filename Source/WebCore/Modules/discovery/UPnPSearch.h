@@ -104,7 +104,7 @@ public:
 	
 	void checkForDroppedDevs();
 
-	void reset() {devLock_->lock(); regTypes_.clear(); devs_.clear(); internalDevs_.clear(); devLock_->unlock();}
+	void reset() {devLock_->lock(); devs_.clear(); internalDevs_.clear(); devLock_->unlock();}
 
 	std::string sendData_;
 

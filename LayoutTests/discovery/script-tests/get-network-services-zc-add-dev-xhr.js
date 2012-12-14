@@ -10,7 +10,9 @@ var resp;
 var req;
 
 function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
 	srvs.ondevadded = addDevCB;
 }
 
@@ -48,6 +50,5 @@ function addDevCB() {
 	getNetworkServices("zeroconf:_daap", okSecondCallCB, errShouldNotbeCalled)
 }
 
-getNetworkServices("zeroconf:reset", okAddDev, errShouldNotbeCalled);
-getNetworkServices("zeroconf:_daap", okAddDev, errShouldNotbeCalled);
+getNetworkServices("zeroconf:reset:_daap", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

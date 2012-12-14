@@ -26,6 +26,5 @@ function addDevCB() {
 	finishJSTest();
 }
 
-getNetworkServices("upnp:reset", okAddDev, errShouldNotbeCalled);
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

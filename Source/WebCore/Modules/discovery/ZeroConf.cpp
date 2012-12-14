@@ -102,7 +102,7 @@ void zcDiscoveryThread(void *context)
 		gettimeofday(&now, NULL);
 		long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
 
-		if (lastSend < 0L || (now_ms - lastSend) > 25000)
+		if (lastSend < 0L || (now_ms - lastSend) > 20000)
 		{
 			lastSend = now_ms;
 			zc->m_udpSocket->send(zc->query_, zc->queryLen_);
@@ -220,7 +220,7 @@ void ZeroConf::checkForDroppedDevs()
 				char bf[8000];
 				size_t len = sizeof(bf)-1;
 				std::string host = dv.url.substr(7);
-				host = host.substr(0, dv.url.find(":"));
+				host = host.substr(0, host.find(":"));
 				unsigned int port = atoi(dv.url.substr(dv.url.find(":",7)+1).c_str());
 				HTTPget(host.c_str(), port, (char*)"/databases/1/containers", bf, &len);
 

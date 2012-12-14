@@ -9,14 +9,16 @@ var srvsCDS = null;
 var srvsCnn = null;
 function okCDS(services) {
 	srvsCDS = services;
-	window.console.log("okCDS() called...");
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	shouldBe("srvsCDS.servicesAvailable==0", "true");
 	if (srvsCnn)
 		finishJSTest();
 }
 
 function okCnn(services) {
 	srvsCnn = services;
-	window.console.log("okCnn() called...");
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	shouldBe("srvsCnn.servicesAvailable==0", "true");
 	if (srvsCDS)
 		finishJSTest();
 }
@@ -25,7 +27,6 @@ function errShouldNotbeCalled(services) {
 	testFailed('GetNetworkServices() should have called ok Callback.');
 }
 
-getNetworkServices("upnp:reset", okCDS, errShouldNotbeCalled);
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okCDS, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okCDS, errShouldNotbeCalled);
 getNetworkServices("upnp:urn:schemas-upnp-org:service:ConnectionManager:1", okCnn, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

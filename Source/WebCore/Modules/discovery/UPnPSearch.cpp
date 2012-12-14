@@ -103,7 +103,7 @@ void discoveryThread(void *context)
         long elapsedSeconds = now.tv_sec - lastSendSeconds;
 
         // Even though not required to, send a M-SEARCH set once per minute
-        if (elapsedSeconds >= 60) {
+        if (elapsedSeconds >= 20) {
 
             // Spec recommends more than one, but less than 10, in a 250ms window.
             // We'll send 3 repeats, 75ms apart.
@@ -422,13 +422,18 @@ void UPnPSearch::checkForDroppedInternalDevs()
 			UPnPDevice dv = (*k).second;
 			if (dv.isOkToUse)
 			{
-				KURL url(ParsedURLString, String(dv.descURL.c_str()));
+				char host[1024];
+				char path[1024];
+				int port;
+				getHostPort(dv.descURL.c_str(),host, &port);
+				getPath(dv.descURL.c_str(),path);
+				//KURL url(ParsedURLString, String(dv.descURL.c_str()));
 				char bf[8000];
                 bf[0] = 0;
 				size_t len = sizeof(bf)-1;
 
                 // Get Description of service to insure the device is still working
-                HTTPget(url, bf, &len);
+                HTTPget(host, port, bf, path, &len);
 
                 std::string reply = bf;
                 int pos = reply.find("HTTP/1.1 404");

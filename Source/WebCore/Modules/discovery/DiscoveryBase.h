@@ -38,6 +38,7 @@ public:
 	virtual bool hostPortOk(const char* host, int port)=0;
 
 	virtual void getHostPort(const char *url, char* host, int *port);
+	virtual void getPath(const char *url,char* path);
 
 
 	bool canReceiveAnotherDev() {return canReceiveAnotherDev_;}

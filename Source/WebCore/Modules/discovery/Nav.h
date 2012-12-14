@@ -70,19 +70,14 @@ public:
     virtual void onError(int error){}
 
     virtual void UPnPDevAdded(std::string type);
-    static void UPnPDevAddedInternal(void *ptr);
 
     virtual void ZCDevAdded(std::string type);
-    static void ZCDevAddedInternal(void *ptr);
 
     virtual void UPnPDevDropped(std::string type);
-    static void UPnPDevDroppedInternal(void *ptr);
 
     virtual void ZCDevDropped(std::string type);
-    static void ZCDevDroppedInternal(void *ptr);
 
     virtual void sendEvent(std::string uuid, std::string stype, std::string body);
-    static void sendEventInternal(void *ptr);
 
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
 
@@ -104,17 +99,8 @@ public:
 private:
     Nav(Frame*);
 
-    void setServices(
-    		long id,
-    		std::string strType,
-    		const char* type,
-    		std::map<std::string, UPnPDevice> devs,
-    		std::map<std::string, ZCDevice> zcdevs,
-    		ProtocolType protoType);
 
-    ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
-    NavServices* getNavServices(long id);
-    std::vector<NavServices*> getNavServices(std::string type);
+    ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset);
 
     Mutex *m_main;
 
@@ -123,8 +109,6 @@ private:
     long m_hn_id;
 
     // Home Networking Data
-
-    std::map<long, RefPtr<NavServices> > m_services;
 
 };
 
