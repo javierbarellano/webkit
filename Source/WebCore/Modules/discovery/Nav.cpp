@@ -123,40 +123,10 @@ void Nav::getNetworkServices(
 
 void Nav::UPnPDevAdded(std::string type)
 {
-	m_main->lock();
-	m_curType.push(type);
-	callOnMainThread(Nav::UPnPDevAddedInternal,this);
-	m_main->unlock();
-
-}
-void Nav::UPnPDevAddedInternal(void *ptr)
-{
-	Nav *nv = (Nav*)ptr;
-
-	nv->m_main->lock();
-	std::string type(nv->m_curType.front());
-	nv->m_curType.pop();
-	nv->m_main->unlock();
-
-
-	NavServices* srvs = nv->getNavServices(type);
-	srvs->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
-	printf("UPnPDevAddedInternal(): sent event. %s\n", type.c_str());
 }
 
 void Nav::ZCDevAdded(std::string type)
 {
-	m_main->lock();
-	m_curType.push(type);
-	printf("Nav::ZCDevAdded(%s)\n", type.c_str());
-	callOnMainThread(Nav::ZCDevAddedInternal,this);
-	m_main->unlock();
-
-}
-
-void Nav::ZCDevAddedInternal(void *ptr)
-{
-	UPnPDevAddedInternal(ptr);
 }
 
 void Nav::UPnPDevDropped(std::string type)
@@ -199,68 +169,6 @@ Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType, bo
 	return protoType;
 }
 
-void Nav::setServices(
-		std::string strType,
-		const char* type,
-		std::map<std::string, UPnPDevice> devs,
-		std::map<std::string, ZCDevice> zcdevs,
-		ProtocolType protoType
-		)
-{
-
-	printf("setServices(%s)\n",strType.c_str());
-
-	if (m_services[strType])
-		m_services[strType].release();
-
-	m_services[strType] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-	m_services[strType]->suspendIfNeeded();
-
-	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
-
-	if (protoType == UPNP_PROTO)
-	{
-		std::map<std::string, UPnPDevice>::iterator it;
-		for (it=devs.begin(); it!=devs.end(); it++)
-		{
-			UPnPDevice d((*it).second);
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
-
-			srv->setServiceType(WTF::String(type));
-			srv->setPType(NavService::UPNP_TYPE);
-			srv->setUrl(WTF::String(d.descURL.c_str()));
-			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
-			srv->setName(WTF::String(d.friendlyName.c_str()));
-
-			vDevs->append(srv);
-		}
-
-	}
-	else if (protoType == ZC_PROTO)
-	{
-		std::map<std::string, ZCDevice>::iterator it;
-		for (it=zcdevs.begin(); it!=zcdevs.end(); it++)
-		{
-			ZCDevice d((*it).second);
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
-
-			srv->setServiceType(WTF::String(type));
-			srv->setPType(NavService::ZCONF_TYPE);
-			srv->setUrl(WTF::String(d.url.c_str()));
-			srv->setuuid(WTF::String((*it).first.c_str())); // UUID
-			srv->setName(WTF::String(d.friendlyName.c_str()));
-
-			vDevs->append(srv);
-		}
-	}
-
-	// Write devices to service object
-	m_services[strType]->setServices(vDevs);
-
-	printf("Nav::setServices() DONE. %d services total\n", (int)vDevs->size());
-}
 };
 
 #endif // DISCOVERY

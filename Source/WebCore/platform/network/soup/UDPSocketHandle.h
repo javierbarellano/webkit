@@ -111,8 +111,8 @@ private:
 		{
 			printf("-ERROR- socket() failed err: %d\n", errno);
 		}
-		else
-			printf("Socket(%d) set up.\n",m_socket);
+//		else
+//			printf("Socket(%d) set up.\n",m_socket);
 
 		WTF::CString cHost = url.host().ascii();
 		//printf("HOST: %s, port: %d\n", cHost.data(), url.port());

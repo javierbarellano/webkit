@@ -689,10 +689,11 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
                 }
 
 				dm.devMap[sUuid] = d;
-				devs_[foundTypes.at(i)] = dm;
-				printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
-				if (navDsc_)
-					navDsc_->foundUPnPDev(foundTypes.at(i));
+                devs_[foundType] = dm;
+                //fprintf(stderr,"%s device: %s : %s, %s.\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+                if (navDsc_) {
+                    navDsc_->foundUPnPDev(foundType);
+                }
 			}
             devLock_->unlock();
 		}
@@ -703,9 +704,26 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
         dm = internalDevs_[internal_type_];
         char* action = (char*)"Adding";
 
-		printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
-		if (api_)
-			api_->serverListUpdate(internal_type_, &dm.devMap);
+        std::map<std::string, UPnPDevice>::iterator it;
+        it = dm.devMap.find(sUuid);
+        if (it != dm.devMap.end()) {
+            action = (char*)"Updating";
+            if (!dm.devMap[sUuid].changed(d)) {
+                action = 0;
+            }
+        }
+
+        if (action != 0) {
+
+            dm.devMap[sUuid] = d;
+            internalDevs_[internal_type_] = dm;  // By value, so copy in new contents.
+
+            //fprintf(stderr,"%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+            fflush(stderr);
+            if (api_) {
+                api_->serverListUpdate(internal_type_, &dm.devMap);
+            }
+        }
 	}
 
 	return true;
