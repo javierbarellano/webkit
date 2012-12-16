@@ -632,6 +632,8 @@ bool RenderThemeQt::paintMediaMuteButton(RenderObject* o, const PaintInfo& paint
     if (!mediaElement)
         return false;
 
+    //printf("Mute r(%d, %d, %d, %d)\n", r.x(), r.y(), r.width(), r.height());
+
     QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
     if (p.isNull() || !p->isValid())
         return true;
@@ -641,10 +643,11 @@ bool RenderThemeQt::paintMediaMuteButton(RenderObject* o, const PaintInfo& paint
     paintMediaBackground(p->painter, r);
 
     WorldMatrixTransformer transformer(p->painter, o, r);
+    p->painter->setBrush(mediaElement->muted() ? Qt::darkRed : getMediaControlForegroundColor(o));
+
     const QPointF speakerPolygon[6] = { QPointF(20, 30), QPointF(50, 30), QPointF(80, 0),
             QPointF(80, 100), QPointF(50, 70), QPointF(20, 70)};
 
-    p->painter->setBrush(mediaElement->muted() ? Qt::darkRed : getMediaControlForegroundColor(o));
     p->painter->drawPolygon(speakerPolygon, 6);
 
     return false;
@@ -656,6 +659,8 @@ bool RenderThemeQt::paintMediaPlayButton(RenderObject* o, const PaintInfo& paint
     if (!mediaElement)
         return false;
 
+    //printf("Play r(%d, %d, %d, %d)\n", r.x(), r.y(), r.width(), r.height());
+
     QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
     if (p.isNull() || !p->isValid())
         return true;
@@ -666,7 +671,8 @@ bool RenderThemeQt::paintMediaPlayButton(RenderObject* o, const PaintInfo& paint
 
     WorldMatrixTransformer transformer(p->painter, o, r);
     p->painter->setBrush(getMediaControlForegroundColor(o));
-    if (mediaElement->canPlay()) {
+
+    if (mediaElement->paused()) {
         const QPointF playPolygon[3] = { QPointF(0, 0), QPointF(100, 50), QPointF(0, 100)};
         p->painter->drawPolygon(playPolygon, 3);
     } else {

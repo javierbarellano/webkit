@@ -42,23 +42,38 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_CONTACT_ATTEMPTS 3
+/* Note: The reason we try to contact the device multiple times is that there appears to be a bug in WebKit
+ * that causes UPnPSearch to timeout on a legitimate HTTPGet, if WebKit is elsewhere trying to load a non-existant page at the same time.
+ * Steps to duplicate:
+ * - Change MAX_CONTACT_ATTEMPTS to 1
+ * - Uncomment debug printouts for checkForDroppedInternalDevs
+ * - Rebuild WebKit and Discovery enabled browser (QtRUIBrowser)
+ * - Bring up a Discovery enabled browser
+ * - Bring up a RUI Server configured with a bad RUI uri. (I just changed http to https)
+ * - Observe debug messages for checkForDroppedInternalDevs
+ * - Select the RUI with a bad uri.
+ * - Observe that our HTTPGet to the running server times out.
+ */
+
 namespace WebCore {
 
 void droppedDevsThread(void *context)
 {
-	long lastSend = -1L;
-	UPnPSearch* upnp = (UPnPSearch*)context;
+    long lastSendSeconds = 0;
+    UPnPSearch* upnp = (UPnPSearch*)context;
 	upnp->m_droppedStillRunning = true;
 	
 	while (upnp->m_droppedStillRunning)
 	{
 		struct timeval now;
 		gettimeofday(&now, NULL);
-		long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
 
-		if (lastSend < 0L || (now_ms - lastSend) > 25000)
+        long elapsedSeconds = now.tv_sec - lastSendSeconds;
+
+        if (elapsedSeconds >= 10)
 		{
-			lastSend = now_ms;
+            lastSendSeconds = now.tv_sec;
 			upnp->checkForDroppedDevs();
 			upnp->checkForDroppedInternalDevs();
 		}
@@ -67,27 +82,57 @@ void droppedDevsThread(void *context)
 	}
 }
 
+/* The DLNA/UPnP specs are somewhat vague on frequency and timing of M-SEARCH messages. I think it says:
+ * - Because of unreliability of UDP, an M-SEARCH message should be repeated up to 10 times
+ * - Repeated M-SEARCH messages should occur within a 200 ms window.
+ * - There is no requirement for periodic M-SEARCH requests.
+ */
+
 void discoveryThread(void *context)
 {
-	long lastSend = -1L;
-	UPnPSearch* upnp = (UPnPSearch*)context;
-	
-	upnp->m_stillRunning = true;
-	
-	while (upnp->m_stillRunning) {
-		struct timeval now;
-		gettimeofday(&now, NULL);
-		long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
+    long lastSendSeconds = 0;
+    UPnPSearch* upnp = (UPnPSearch*)context;
 
-		if (lastSend < 0L || (now_ms - lastSend) > 25000)
-		{
-			lastSend = now_ms;
-			upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
-		}
-		
-		upnp->m_udpSocket->receive();
-		usleep(100L*1000L); // 100 ms
-	}
+    upnp->m_stillRunning = true;
+
+    while (upnp->m_stillRunning) {
+
+        struct timeval now;
+        gettimeofday(&now, NULL);
+
+        long elapsedSeconds = now.tv_sec - lastSendSeconds;
+
+        // Even though not required to, send a M-SEARCH set once per minute
+        if (elapsedSeconds >= 20) {
+
+            // Spec recommends more than one, but less than 10, in a 250ms window.
+            // We'll send 3 repeats, 75ms apart.
+
+            for ( int i=0; i < 3; i++ ) {
+
+                upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+                usleep(75L*1000L); // 75ms
+            }
+
+            lastSendSeconds = now.tv_sec;
+        }
+
+        upnp->m_udpSocket->receive();
+        usleep(100L*1000L); // 100 ms
+    }
+}
+
+void notifyThread(void *context)
+{
+    UPnPSearch* upnp = (UPnPSearch*)context;
+
+    upnp->m_stillRunning = true;
+
+    while (upnp->m_stillRunning) {
+
+        upnp->m_mcastSocket->receive();
+        usleep(1000L*1000L); // 1 sec
+    }
 }
 
 UPnPSearch* UPnPSearch::instance_ = NULL;
@@ -113,6 +158,7 @@ UPnPSearch* UPnPSearch::create()
 UPnPSearch::UPnPSearch(const char *type) :
 		DiscoveryBase()
 {
+	devLock_ = new Mutex();
 	internal_type_ = "";
 	if (type)
 		regTypes_.insert(std::string(type));
@@ -128,7 +174,7 @@ UPnPSearch::UPnPSearch(const char *type) :
 	lastSend_ = -1;
 	sendPending_ = false;
 
-	strcpy(url_, "udp://239.255.255.250:1900");
+    strcpy(url_, "udp://239.255.255.250:1900");
 }
 
 UPnPSearch::~UPnPSearch()
@@ -139,6 +185,7 @@ UPnPSearch::~UPnPSearch()
 	devs_.clear();
 	delete tcpSocket_;
 	instance_ = NULL;
+	delete devLock_;
 }
 
 void UPnPSearch::closeServer()
@@ -148,6 +195,7 @@ void UPnPSearch::closeServer()
 
 void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::string& name)
 {
+	devLock_->lock();
 	if (devs_.find(type) != devs_.end())
 	{
 		UPnPDevMap dm = devs_[type];
@@ -160,6 +208,7 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 	}
 	else
 		printf("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
+	devLock_->unlock();
 
 }
 
@@ -169,17 +218,24 @@ void UPnPSearch::createConnect(const char *type)
 	if (!instance_)
 		instance_ = new UPnPSearch(type);
 
-	//instance_->cur_type_ = std::string(type);
+    if (!instance_->m_udpSocket)
+    {
+        KURL url(ParsedURLString, String(instance_->url_));
 
-	if (!instance_->m_udpSocket)
-	{
-		KURL url(ParsedURLString, String(instance_->url_));
-		
-		// Constructor connects to socket
-		instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_) ;
-		instance_->m_tID = WTF::createThread(discoveryThread, instance_, "UPnP_discovery");
-		instance_->m_tDroppedID = WTF::createThread(droppedDevsThread, instance_, "DroppedUPnP");
-	}
+        // Constructor connects to socket
+        instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_) ;
+        instance_->m_tID = WTF::createThread(discoveryThread, instance_, "UPnP_discovery");
+        instance_->m_tDroppedID = WTF::createThread(droppedDevsThread, instance_, "DroppedUPnP");
+    }
+
+    if (!instance_->m_mcastSocket)
+    {
+        KURL url(ParsedURLString, String(instance_->url_));
+
+        // Constructor connects to socket
+        instance_->m_mcastSocket = UDPSocketHandle::create(url, true, instance_) ;
+        instance_->m_tNotifyID = WTF::createThread(notifyThread, instance_, "UPnP_notify");
+    }
 
 }
 
@@ -206,18 +262,20 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
 	createConnect(type);
 	instance_->navDsc_ = navDsc;
 
+
+	instance_->devLock_->lock();
 	instance_->regTypes_.insert(std::string(type));
 
 	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
 	{
 		UPnPDevMap dm = instance_->devs_.find(std::string(type))->second;
+		instance_->devLock_->unlock();
 		return (dm.devMap);
 	}
+	instance_->devLock_->unlock();
 
 	return std::map<std::string, UPnPDevice>();
 }
-
-
 
 // Called when Socket Stream is opened.
 void UPnPSearch::UDPdidOpenStream(UDPSocketHandle* handle)
@@ -232,12 +290,49 @@ void UPnPSearch::UDPdidSendData(UDPSocketHandle* handle, int amountSent)
 // Called when data are received.
 void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, int dLen, const char *hostPort, int hpLen)
 {
-	char bf[8000];//fix me malloc()
-	memcpy(bf, data, dLen);
-	bf[dLen] = 0;
+    if (dLen > 0) {
 
-	if (dLen > 0)
-		parseDev(bf, dLen, NULL);
+        std::map<std::string,std::string> headers = parseUDPMessage(data, dLen);
+
+        std::string usn = getTokenValue(headers, "USN");
+        std::string location = getTokenValue(headers, "LOCATION");
+        std::string st = getTokenValue(headers, "NTS");
+        std::string type = getTokenValue(headers, "NT");
+
+        std::string uuid;
+        size_t pos = usn.find_first_of(':');
+        if (pos != std::string::npos) {
+            uuid = usn.substr(pos+1);
+        }
+
+        std::string line1 = getTokenValue(headers,"LINE1");
+        pos = line1.find("NOTIFY");
+
+        if (pos != std::string::npos) {
+
+            // This is a NOTIFY message
+
+            // We are only interested in root device notifications.
+            if ( type == "upnp:rootdevice")
+            {
+                if (st == "ssdp:alive") {
+                    //fprintf(stderr,"Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
+                    parseDev(data, dLen, NULL);
+                } else if (st == "ssdp:byebye"){
+                    //fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
+                    // We don't know which list(s) the device is on, so check them both.
+                	devLock_->lock();
+                    removeDevice(&devs_, uuid);
+                    removeDevice(&internalDevs_, uuid);
+                    devLock_->unlock();
+                }
+            }
+        } else if (location.size() > 0){
+            // Not a NOTIFY. Must be an M_SEARCH reply
+            parseDev(data, dLen, NULL);
+            //fprintf(stderr,"Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
+        }
+    }
 }
 
 void UPnPSearch::UDPdidClose(UDPSocketHandle* handle)
@@ -256,6 +351,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 void UPnPSearch::checkForDroppedDevs()
 {
 	//printf("checkForDroppedDevs() start\n");
+	devLock_->lock();
 	for (std::map<std::string, UPnPDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
 		std::vector<std::string> dropMe;
@@ -269,33 +365,52 @@ void UPnPSearch::checkForDroppedDevs()
 			{
 				KURL url(ParsedURLString, String(dv.descURL.c_str()));
 				char bf[8000];
-				size_t len = sizeof(bf)-1;
-				HTTPget(url, bf, &len);
+                bf[0] = 0;
+                size_t len = sizeof(bf)-1;
 
-				// Get Description of servcie to insure the device is still working
- 				if (len > 0)
-					continue;
+                // Get Description of service to insure the device is still working
+                HTTPget(url, bf, &len);
 
-				// Found one that dropped
- 				dropMe.push_back((*k).first);
-			}
+                std::string reply = bf;
+                int pos = reply.find("HTTP/1.1 404");
+                if (len == 0 || pos != std::string::npos) {
+
+                    // Unresponsive. See note at top of file for reason for retries
+                    dv.contactAttempts++;
+                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+
+                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
+                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                        dropMe.push_back((*k).first);
+                    }
+                } else {
+                    dv.contactAttempts = 0;
+                }
+
+                // Update device record.
+                dm.devMap[dv.uuid] = dv;
+                devs_[type] = dm;
+            }
 		}
 
 		if (dropMe.size())
 		{
-			for (int d=0; d<(int)dropMe.size(); d++)
+            for (int d=0; d<(int)dropMe.size(); d++) {
 				dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
+                devs_[type] = dm;
+            }
 
 			devs_[type] = dm;
 			if (navDsc_)
 				navDsc_->lostUPnPDev(type);
 		}
 	}
+	devLock_->unlock();
 }
 
 void UPnPSearch::checkForDroppedInternalDevs()
 {
-	//printf("checkForDroppedDevs() start\n");
+    //fprintf(stderr,"checkForDroppedInternalDevs() start\n");
 	for (std::map<std::string, UPnPDevMap>::iterator i = internalDevs_.begin(); i != internalDevs_.end(); i++)
 	{
 		std::vector<std::string> dropMe;
@@ -307,28 +422,53 @@ void UPnPSearch::checkForDroppedInternalDevs()
 			UPnPDevice dv = (*k).second;
 			if (dv.isOkToUse)
 			{
-				KURL url(ParsedURLString, String(dv.descURL.c_str()));
+				char host[1024];
+				char path[1024];
+				int port;
+				getHostPort(dv.descURL.c_str(),host, &port);
+				getPath(dv.descURL.c_str(),path);
+				//KURL url(ParsedURLString, String(dv.descURL.c_str()));
 				char bf[8000];
+                bf[0] = 0;
 				size_t len = sizeof(bf)-1;
-				HTTPget(url, bf, &len);
 
-				// Get Description of servcie to insure the device is still working
- 				if (len > 0)
-					continue;
+                // Get Description of service to insure the device is still working
+                HTTPget(host, port, bf, path, &len);
 
-				// Found one that dropped
- 				dropMe.push_back((*k).first);
-			}
+                std::string reply = bf;
+                int pos = reply.find("HTTP/1.1 404");
+                if (len == 0 || pos != std::string::npos) {
+
+                    // Unresponsive. See note at top of file for reason for retries
+                    dv.contactAttempts++;
+                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+
+                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
+                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+                        dropMe.push_back((*k).first);
+                    }
+                } else {
+                    dv.contactAttempts = 0;
+                }
+
+                // Update device record.
+                dm.devMap[dv.uuid] = dv;
+                internalDevs_[type] = dm;
+            }
 		}
 
 		if (dropMe.size())
 		{
-			for (int d=0; d<(int)dropMe.size(); d++)
-				dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
+            for (int d=0; d<(int)dropMe.size(); d++) {
+                dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
+                internalDevs_[type] = dm;
+
+            }
 
 			internalDevs_[type] = dm;
-			if (api_)
+            if (api_) {
 				api_->serverListUpdate(type, &dm.devMap);
+            }
 		}
 	}
 }
@@ -342,6 +482,7 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 	char lhost[1000];
 	int lport;
 
+	devLock_->lock();
 	std::map<std::string, UPnPDevMap>::iterator it =  devs_.begin();
 	for (; it!=devs_.end(); it++)
 	{
@@ -355,10 +496,13 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 			getHostPort(url.c_str(),lhost, &lport);
 			//printf("hostPortOk(): host: %s, port: %d\n", lhost, lport);
 
-			if (lport== port && !strcmp(host,lhost))
+			if (lport== port && !strcmp(host,lhost)) {
+				devLock_->unlock();
 				return true;
+			}
 		}
 	}
+	devLock_->unlock();
 
 	return false;
 }
@@ -374,39 +518,27 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 //	USN: uuid:380D0BFB-2B2A-448C-99A8-0018DD018C56::upnp:rootdevice
 //	Content-Length: 0
 
-	std::string sResp(resp);
+    std::map<std::string,std::string> headers = parseUDPMessage(resp, respLen);
 
-	size_t loc = sResp.find("OCATION:");
-	if (loc == std::string::npos)
-		loc = sResp.find("ocation:");
-	if (loc == std::string::npos)
-	{
-		printf("No Location header found!\n");
-		return false;
-	}
+    std::string sLoc = getTokenValue(headers, "LOCATION");
+    if ( sLoc.empty()) {
+        printf("No Location header found!\n");
+        return false;
+    }
 
-	size_t uuid = sResp.find("UUID:");
-	if (uuid == std::string::npos)
-		uuid = sResp.find("uuid:");
-	if (uuid == std::string::npos)
-	{
-		printf("No UUID header found!\n");
-		return false;
-	}
+    std::string usn = getTokenValue(headers, "USN");
+    if ( usn.empty()) {
+        printf("No USN header found!\n");
+        return false;
+    }
 
-	loc += 8;
-	if (sResp.at(loc)== ' ') loc++;
+    std::string sUuid;
+    size_t pos = usn.find_first_of(':');
+    if (pos != std::string::npos) {
+        sUuid = usn.substr(pos+1);
+    }
 
-	std::string sLoc = sResp.substr(loc);
-	size_t locEnd = sLoc.find_first_of('\r');
-	sLoc = sLoc.substr(0,locEnd);
-
-	uuid += 5;
-	std::string sUuid = sResp.substr(uuid);
-	size_t uuidEnd = sUuid.find_first_of(':');
-	sUuid = sUuid.substr(0,uuidEnd);
-
-	UPnPDevMap dm;
+    UPnPDevMap dm;
 
 	// Now get the friendly name, ugh...
 	std::string path;
@@ -428,16 +560,12 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		host = host.substr(0, host.find("/"));
 	}
 
-	//printf("parseDev() - New Dev. %s: %s\n", host.c_str(), sUuid.c_str());
-
-	//printf("parseDev() - Host: %s, Port: %s, Path: %s\n",host.c_str(), port.c_str(), path.c_str());
-
 	char bf[8000];
 	size_t len = sizeof(bf)-1;
 	HTTPget(host.c_str(), atoi(port.c_str()), path.c_str(), bf, &len);
 	
 	if (!len) {
-		printf("Parse(): HTTPget(%s) len==0! Skipping...\n", sLoc.c_str());
+		//printf("Parse(): HTTPget(%s) len==0! Skipping...\n", sLoc.c_str());
 		return false;
 	}
 
@@ -457,19 +585,14 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 		return false;
 	}
 
-	// Now look for something like: '<friendlyName>XPDESKTOP:</friendlyName>'
-	if (!strstr(bf,"<friendlyName>"))
+    // Now look for something like: '<friendlyName>XPDESKTOP:</friendlyName>'
+    std::string friendlyName = getElementValue(bf, (char*)"friendlyName");
+    if (friendlyName.length() == 0)
 	{
 		badDevs_.push_back(sUuid);
 		printf("%s has no friendlyName!!!!\n",host.c_str());
 		return false;
 	}
-
-	char friendlyName[512];
-	char *start = strstr(bf,"<friendlyName>")+14;
-	char *end = strstr(bf,"</friendlyName>");
-	strncpy(friendlyName, start,  end - start);
-	friendlyName[end - start] = 0;
 
 	// Now look for event url:
 	/*
@@ -492,77 +615,95 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 				<serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>
 				<serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>
 				<controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</controlURL>
-				<eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</eventSubURL>
+                <eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</eventSubURL>
 				<SCPDURL>/upnphost/udhisapi.dll?content=uuid:03bf5b96-fec6-41ab-8990-a5f7f2a17070</SCPDURL>
 			</service>
 		</serviceList>
 	 *
 	 */
-	char eventUrl[2048]; eventUrl[0]=0;
-	start = strstr(bf,"<serviceList>")+13;
-	if (start)
-	{
-		char *end   = strstr(bf,"</serviceList>");
-		char srvLst[4000];
-		strncpy(srvLst, start, end - start);
-		srvLst[end - start] = 0;
 
-		char * srvEnd = srvLst;
-		char * srv = strstr(srvEnd, "<service>")+9;
-		srvEnd = strstr(srvEnd+10, "</service>");
-		while (srv && srvEnd)
-		{
-			char srvBody[2048];
-			strncpy(srvBody, srv, srvEnd - srv);
-			srvBody[srvEnd - srv] = 0;
+    // Changed this to process each service list instead of just the first. No guarantees which device will have the service we want.
+    // TODO: This implementation assumes/limits one matching service per device description, which is not guaranteed.
+    std::vector<std::string> serviceLists = getElementArray(bf, (char*)"serviceList");
 
-			if (isCurrentType(srvBody, foundTypes) || isInternalType(srvBody))
-			{
-				char *eUrl = strstr(srvBody, "<eventSubURL>")+13;
-				char *eUrlEnd = strstr(srvBody, "</eventSubURL>");
-				strncpy(eventUrl, eUrl, eUrlEnd - eUrl);
-				eventUrl[eUrlEnd - eUrl] = 0;
-			}
+    std::string eventUrl;
 
-			srv = strstr(srvEnd, "<service>")+9;
-			srvEnd = strstr(srvEnd+10, "</service>");
-		}
-	}
+    // For each service list
+    if (serviceLists.size() > 0) {
+        std::vector<std::string>::iterator i = serviceLists.begin();
+        while (i != serviceLists.end()) {
 
+            std::string serviceList = *i;
+
+            std::vector<std::string> services = getElementArray(bf, (char*)"service");
+
+            // For each service
+            if (services.size() > 0) {
+                std::vector<std::string>::iterator j = services.begin();
+                while (j != services.end()) {
+
+                    std::string service = *j;
+
+                    // Check service type
+                    std::string serviceType = getElementValue(service.c_str(), (char*)"serviceType");
+                    if (isCurrentType(serviceType.c_str(), foundTypes) || isInternalType(serviceType.c_str())) {
+                        eventUrl = getElementValue(service.c_str(), "eventSubURL");
+                    }
+                    j++;
+                }
+            }
+            i++;
+        }
+    }
 
 	UPnPDevice d;
 	d.descURL = sLoc;
-	d.friendlyName = std::string(friendlyName);
-	d.eventURL = std::string(eventUrl);
-	d.host = host;
+    d.friendlyName = friendlyName;
+    d.eventURL = eventUrl;
+    d.host = host;
 	d.port = port;
 	d.isOkToUse = true;
 	d.uuid = sUuid;
+    d.contactAttempts = 0;
 
 
-	foundTypes.clear();
+    foundTypes.clear();
 	if (isCurrentType(bf, foundTypes))
 	{
 		for (int i=0; i<foundTypes.size(); i++) {
-			if (devs_.find(foundTypes.at(i))==devs_.end() ||
-				devs_[foundTypes.at(i)].devMap.find(sUuid)==devs_[foundTypes.at(i)].devMap.end()) {
+            std::string foundType = foundTypes.at(i);
 
-				dm = devs_[foundTypes.at(i)];
+            devLock_->lock();
+            if (devs_.find(foundType)==devs_.end() || devs_[foundType].devMap.find(sUuid)==devs_[foundType].devMap.end()) {
+
+                dm = devs_[foundType];
+                //char* action = (char*)"Adding";
+
+                std::map<std::string, UPnPDevice>::iterator it;
+                it = dm.devMap.find(sUuid);
+                if (it != dm.devMap.end()) {
+                    //action = (char*)"Updating";
+                    if (!dm.devMap[sUuid].changed(d)) {
+                        continue;
+                    }
+                }
+
 				dm.devMap[sUuid] = d;
 				devs_[foundTypes.at(i)] = dm;
-				//printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+				printf("Adding device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 				if (navDsc_)
 					navDsc_->foundUPnPDev(foundTypes.at(i));
 			}
+            devLock_->unlock();
 		}
 	}
 
 	if (isInternalType(bf))
 	{
-		dm = internalDevs_[internal_type_];
-		dm.devMap[sUuid] = d;
+        dm = internalDevs_[internal_type_];
+        char* action = (char*)"Adding";
 
-		//printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+		printf("Adding internal device: %s : %s, %s\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
 		if (api_)
 			api_->serverListUpdate(internal_type_, &dm.devMap);
 	}
@@ -572,6 +713,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regType)
 {
+	devLock_->lock();
 	if (regTypes_.size() > 0) {
 		std::set<std::string>::iterator i = regTypes_.begin();
 		while (i != regTypes_.end()) {
@@ -580,8 +722,10 @@ bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regTy
 			}
 			i++;
 		}
+		devLock_->unlock();
 		return regType.size()>0;
 	}
+	devLock_->unlock();
 
 	return false;
 }
@@ -662,7 +806,7 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
 	memcpy(bf, data, dLen);
 	bf[dLen] = 0;
 
-	//printf("GOT Event:\n%s\n", bf);
+    //printf("GOT Event:\n%s\n", bf);
 
 	/*
 		NOTIFY /fd079abb-e638-46d4-bc74-5f62e453a95f/urn:schemas-upnp-org:service:ContentDirectory:1 HTTP/1.1
@@ -731,6 +875,41 @@ void UPnPSearch::HNdidFail(HNEventServerHandle* hServer, HNEventError& err)
 	//printf("UPnPSearch: didFail(): HNEventServerHandle error: %d\n", err.getErr());
 	//navDsc_->onUPnPError(err.getErr());
 }
+
+bool UPnPSearch::removeDevice(std::map<std::string, UPnPDevMap>* devices, std::string uuid)
+{
+    bool found = false;
+
+    for (std::map<std::string, UPnPDevMap>::iterator i = devices->begin(); i != devices->end(); i++)
+    {
+        UPnPDevMap dm = (*i).second;
+        std::string type = (*i).first;
+        for (std::map<std::string, UPnPDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
+        {
+
+            UPnPDevice dv = (*k).second;
+
+            if (dv.uuid == uuid) {
+
+                found = true;
+                dm.devMap.erase((*k).first);
+                (*devices)[type] = dm;
+                if ((void*)devices == (void*)&internalDevs_ && api_) {
+                    api_->serverListUpdate(type, &dm.devMap);
+                }
+
+                break;
+            }
+
+        }
+        if (found) {
+            break;
+        }
+    }
+
+    return found;
+}
+
 
 
 

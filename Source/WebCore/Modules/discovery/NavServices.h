@@ -86,6 +86,10 @@ public:
 
     Vector<RefPtr<NavService> > m_services;
 
+    std::string m_serviceType;
+
+    ScriptExecutionContext* getContext() { return m_context; }
+
 protected:
     virtual EventTargetData* eventTargetData();
     virtual EventTargetData* ensureEventTargetData();
@@ -94,6 +98,7 @@ private:
     NavServices(ScriptExecutionContext* context, ReadyState code)
     	: ActiveDOMObject(context, this)
     	, m_code(code)
+    	, m_context(context)
     {
     }
 
@@ -103,6 +108,8 @@ private:
     ReadyState m_code;
 
     EventTargetData m_eventTargetData;
+
+    ScriptExecutionContext* m_context;
 
 };
 

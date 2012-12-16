@@ -5,8 +5,12 @@ function getNetworkServices(type, okCallback, errCallback) {
 	navigator.getNetworkServices(type, okCallback, errCallback);
 }
 
+var srvs;
+
 function okNop(services) {
 	testPassed("navigator.getNetworkServices() called ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
 	finishJSTest();
 }
 
@@ -14,5 +18,5 @@ function errShouldNotbeCalled(services) {
 	testFailed('GetNetworkServices() should have called ok Callback.');
 }
 
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okNop, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okNop, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

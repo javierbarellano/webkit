@@ -34,6 +34,7 @@ function okSecondCallCB(services) {
 function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() called ok callback.");
 	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
 	srvs.ondevadded = addDevCB;
 }
 
@@ -51,5 +52,5 @@ function addDevCB() {
 	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
 }
 
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

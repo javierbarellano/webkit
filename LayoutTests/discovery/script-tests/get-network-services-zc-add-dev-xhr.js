@@ -8,8 +8,11 @@ function getNetworkServices(type, okCallback, errCallback) {
 var srvs;
 var resp;
 var req;
+
 function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
 	srvs.ondevadded = addDevCB;
 }
 
@@ -22,8 +25,8 @@ function okSecondCallCB(services) {
 	shouldBe("srvs.servicesAvailable>=1", "true");
 	if (srvs.servicesAvailable) {
 		var srv = srvs.item(0);
-		if (srv && srv.url)
-			window.console.log("okSecondCallCB():  srv.url: " + srv.url + "/databases");
+//		if (srv && srv.url)
+//			window.console.log("okSecondCallCB():  srv.url: " + srv.url + "/databases");
 
 		req = new XMLHttpRequest();
 
@@ -47,5 +50,5 @@ function addDevCB() {
 	getNetworkServices("zeroconf:_daap", okSecondCallCB, errShouldNotbeCalled)
 }
 
-getNetworkServices("zeroconf:_daap", okAddDev, errShouldNotbeCalled);
+getNetworkServices("zeroconf:reset:_daap", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

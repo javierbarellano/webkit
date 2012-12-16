@@ -2030,6 +2030,7 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
 
     GstElement* videoTee = gst_element_factory_make("tee", "videoTee");
     GstElement* queue = gst_element_factory_make("queue", 0);
+    GstElement* videoConvert = gst_element_factory_make("ffmpegcolorspace", "videoConvert");
 
     // Take ownership.
     gst_object_ref_sink(m_videoSinkBin);
@@ -2039,12 +2040,15 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
     // internal video sink. For fullscreen we create an autovideosink
     // and initially block the data flow towards it and configure it
 
-    gst_bin_add_many(GST_BIN(m_videoSinkBin), videoTee, queue, NULL);
+    gst_bin_add_many(GST_BIN(m_videoSinkBin), videoTee, queue, videoConvert, NULL);
 
     // Link a new src pad from tee to queue1.
     GRefPtr<GstPad> srcPad = adoptGRef(gst_element_get_request_pad(videoTee, "src%d"));
     GRefPtr<GstPad> sinkPad = adoptGRef(gst_element_get_static_pad(queue, "sink"));
     gst_pad_link(srcPad.get(), sinkPad.get());
+
+    // Link pad from queue to convert.
+    gst_element_link_many(queue, videoConvert, NULL);
 #endif
 
     GstElement* actualVideoSink = 0;
@@ -2089,7 +2093,7 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
 
 #ifndef GST_API_VERSION_1
     // Faster elements linking.
-    gst_element_link_pads_full(queue, "src", actualVideoSink, "sink", GST_PAD_LINK_CHECK_NOTHING);
+    gst_element_link_pads_full(videoConvert, "src", actualVideoSink, "sink", GST_PAD_LINK_CHECK_NOTHING);
 
     // Add a ghostpad to the bin so it can proxy to tee.
     GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(videoTee, "sink"));

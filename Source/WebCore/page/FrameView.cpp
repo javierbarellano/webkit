@@ -2118,7 +2118,11 @@ void FrameView::scheduleRelayout()
 {
     // FIXME: We should assert the page is not in the page cache, but that is causing
     // too many false assertions.  See <rdar://problem/7218118>.
+
+    /* I commented this out because of false assertions (as noted above).
+     * Steve Johnson - CableLabs 2012-10-05
     ASSERT(m_frame->view() == this);
+    */
 
     if (m_layoutRoot) {
         m_layoutRoot->markContainingBlocksForLayout(false);

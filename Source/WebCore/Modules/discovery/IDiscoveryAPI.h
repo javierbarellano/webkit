@@ -12,6 +12,8 @@
 #include <map>
 
 #include "Modules/discovery/UPnPDevice.h"
+//#include "Modules/discovery/UPnPData.h"
+
 
 
 namespace WebCore {
@@ -31,6 +33,10 @@ public:
 	virtual void onError(int error) = 0;
 
 	virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs) = 0;
+
+	virtual void receiveID(long idFromHN) = 0;
+
+	//UPnPData data_;
 
 };
 

@@ -33,6 +33,8 @@ function CnnAddDev() {
 function okCDS(services) {
 	testPassed("navigator.getNetworkServices() called ok CDS callback.");
 	srvsCDS = services;
+	shouldBe("srvsCDS.length==0", "true");
+
 	srvsCDS.ondevadded = CDSAddDev;
 	//window.console.log("okCDS() called...");
 }
@@ -40,6 +42,7 @@ function okCDS(services) {
 function okCnn(services) {
 	testPassed("navigator.getNetworkServices() called ok Cnn callback.");
 	srvsCnn = services;
+	shouldBe("srvsCnn.length==0", "true");
 	srvsCnn.ondevadded = CnnAddDev;
 	//window.console.log("okCnn() called...");
 }
@@ -48,6 +51,6 @@ function errShouldNotbeCalled(services) {
 	testFailed('GetNetworkServices() should have called ok Callback!');
 }
 
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okCDS, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okCDS, errShouldNotbeCalled);
 getNetworkServices("upnp:urn:schemas-upnp-org:service:ConnectionManager:1", okCnn, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

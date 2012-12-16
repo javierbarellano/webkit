@@ -9,7 +9,9 @@ var srvs;
 var resp;
 var req;
 function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
 	srvs.ondevadded = addDevCB;
 }
 
@@ -22,8 +24,8 @@ function okSecondCallCB(services) {
 	shouldBe("srvs.servicesAvailable>=1", "true");
 	if (srvs.servicesAvailable) {
 		var srv = srvs.item(0);
-		if (srv && srv.url)
-			window.console.log("okSecondCallCB():  srv.url: " + srv.url);
+//		if (srv && srv.url)
+//			window.console.log("okSecondCallCB():  srv.url: " + srv.url);
 
 		req = new XMLHttpRequest();
 
@@ -47,5 +49,5 @@ function addDevCB() {
 	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
 }
 
-getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

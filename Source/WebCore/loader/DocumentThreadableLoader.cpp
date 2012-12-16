@@ -88,9 +88,6 @@ DocumentThreadableLoader::DocumentThreadableLoader(Document* document, Threadabl
     // Setting an outgoing referer is only supported in the async code path.
     ASSERT(m_async || request.httpReferrer().isEmpty());
 
-    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests) {
-
-/* Gar's changes
     makeRequest(request);
 }
 
@@ -106,8 +103,7 @@ void DocumentThreadableLoader::makeRequest(const ResourceRequest& request)
     //printf("MakeRequest: host: %s, port: %d, OK:%s\n", cHost, (int)request.url().port(), (ok ? "true":"false"));
 
     if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests || ok) {
-// end Gar's changes
-*/
+
         loadRequest(request, DoSecurityCheck);
         return;
     }

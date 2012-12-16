@@ -102,7 +102,7 @@ void zcDiscoveryThread(void *context)
 		gettimeofday(&now, NULL);
 		long now_ms = (now.tv_sec*1000L + now.tv_usec/1000.0) + 0.5;
 
-		if (lastSend < 0L || (now_ms - lastSend) > 25000)
+		if (lastSend < 0L || (now_ms - lastSend) > 20000)
 		{
 			lastSend = now_ms;
 			zc->m_udpSocket->send(zc->query_, zc->queryLen_);
@@ -129,11 +129,14 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
  	}
  	instance_->navDsc_ = navDsc;
 
+ 	instance_->devLock_->lock();
  	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
  	{
  		ZCDevMap dm = instance_->devs_.find(std::string(type))->second;
+ 		instance_->devLock_->unlock();
  		return (dm.devMap);
  	}
+ 	instance_->devLock_->unlock();
 
 	return std::map<std::string, ZCDevice>();
 }
@@ -150,6 +153,7 @@ ZeroConf* ZeroConf::getInstance()
 ZeroConf::ZeroConf(const char *type) :
 				DiscoveryBase()
 {
+	devLock_ = new Mutex();
  	devs_.clear();
 
  	strcpy(url_, "udp://224.0.0.251:5353");
@@ -157,13 +161,14 @@ ZeroConf::ZeroConf(const char *type) :
  	std::string t(type ? type:"_daap");
  	daapType_ = t;
 
- 	initQuery(type);
+ 	initQuery(t.c_str());
 }
 
 ZeroConf::~ZeroConf()
 {
 	devs_.clear();
 	delete[] query_;
+	delete devLock_;
 }
 
 
@@ -200,6 +205,7 @@ void ZeroConf::UDPdidFail(UDPSocketHandle* handle, UDPSocketError& error)
 
 void ZeroConf::checkForDroppedDevs()
 {
+	devLock_->lock();
 	//printf("checkForDroppedDevs() start\n");
 	for (std::map<std::string, ZCDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
@@ -211,12 +217,15 @@ void ZeroConf::checkForDroppedDevs()
 			ZCDevice dv = (*k).second;
 			if (dv.isOkToUse)
 			{
-				std::string path = dv.url+"/databases/1/containers";
-				KURL url(ParsedURLString, String(path.c_str()));
 				char bf[8000];
 				size_t len = sizeof(bf)-1;
+				std::string host = dv.url.substr(7);
+				host = host.substr(0, host.find(":"));
+				unsigned int port = atoi(dv.url.substr(dv.url.find(":",7)+1).c_str());
+				HTTPget(host.c_str(), port, (char*)"/databases/1/containers", bf, &len);
+
+				//std::string path = dv.url+"/databases/1/containers";
 				//printf("Try: %s\n", path.c_str());
-				HTTPget(url, bf, &len);
 
 				// Get Description of servcie to insure the device is still working
  				if (len > 0)
@@ -236,6 +245,7 @@ void ZeroConf::checkForDroppedDevs()
 			navDsc_->lostZCDev(type);
 		}
 	}
+	devLock_->unlock();
 
 }
 
@@ -287,6 +297,7 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 	//printf("ZC parseRec(): url: %s\n", zcd.url.c_str());
 
 	ZCDevMap dm;
+	devLock_->lock();
 	if (devs_.find(daapType_) != devs_.end())
 	{
 		dm = devs_.find(daapType_)->second;
@@ -303,6 +314,7 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 		if (navDsc_)
 			navDsc_->foundZCDev(daapType_);
 	}
+	devLock_->unlock();
 
 	return true;
 }
@@ -442,6 +454,7 @@ bool ZeroConf::hostPortOk(const char* host, int port)
 	char lhost[1000];
 	int lport;
 
+	devLock_->lock();
 	std::map<std::string, ZCDevMap>::iterator it =  devs_.begin();
 	for (; it!=devs_.end(); it++)
 	{
@@ -454,10 +467,13 @@ bool ZeroConf::hostPortOk(const char* host, int port)
 
 			getHostPort(url.c_str(),lhost, &lport);
 
-			if (lport == port && !strcmp(host,lhost))
+			if (lport == port && !strcmp(host,lhost)) {
+				devLock_->unlock();
 				return true;
+			}
 		}
 	}
+	devLock_->unlock();
 
 	return false;
 }

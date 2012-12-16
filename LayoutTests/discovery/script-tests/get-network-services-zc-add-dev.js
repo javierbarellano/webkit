@@ -1,4 +1,4 @@
-description('Tests navigator.getNetworkServices() works in happy case as expected.');
+description('Tests navigator.getNetworkServices() for Zero Conf add device.');
 
 function getNetworkServices(type, okCallback, errCallback) {
 
@@ -7,7 +7,9 @@ function getNetworkServices(type, okCallback, errCallback) {
 
 var srvs;
 function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() called ok callback.");
 	srvs = services;
+	shouldBe("srvs.length==0", "true");
 	srvs.ondevadded = addDevCB;
 }
 
@@ -17,13 +19,13 @@ function errShouldNotbeCalled(services) {
 
 function addDevCB() {
 	if (srvs.ondevadded == null) {
-		testFailed('GetNetworkServices() should have called dummyCB.');
+		testFailed('addDevCB() called when srvs.ondevadded == null');
 	}
 	
-	testPassed("navigator.getNetworkServices() called ok callback.");
+	testPassed("HomeNetworking called Device Added callback.");
 	srvs.ondevadded = null;
 	finishJSTest();
 }
 
-getNetworkServices("zeroconf:_daap", okAddDev, errShouldNotbeCalled);
+getNetworkServices("zeroconf:reset:_daap", okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;

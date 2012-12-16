@@ -70,21 +70,18 @@ public:
     virtual void onError(int error){}
 
     virtual void UPnPDevAdded(std::string type);
-    static void UPnPDevAddedInternal(void *ptr);
 
     virtual void ZCDevAdded(std::string type);
-    static void ZCDevAddedInternal(void *ptr);
 
     virtual void UPnPDevDropped(std::string type);
-    static void UPnPDevDroppedInternal(void *ptr);
 
     virtual void ZCDevDropped(std::string type);
-    static void ZCDevDroppedInternal(void *ptr);
 
     virtual void sendEvent(std::string uuid, std::string stype, std::string body);
-    static void sendEventInternal(void *ptr);
 
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
+
+    virtual void receiveID(long idFromHN) { m_hn_id = idFromHN; }
 
     // Events
 	std::queue<std::string> m_curType;
@@ -102,24 +99,16 @@ public:
 private:
     Nav(Frame*);
 
-    void setServices(
-    		std::string strType,
-    		const char* type,
-    		std::map<std::string, UPnPDevice> devs,
-    		std::map<std::string, ZCDevice> zcdevs,
-    		ProtocolType protoType);
 
-    ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType);
-    NavServices* getNavServices(std::string type);
+    ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset);
 
-    static Mutex *m_main;
+    Mutex *m_main;
+
+    static long m_reqID;
+
+    long m_hn_id;
 
     // Home Networking Data
-
-    std::map<std::string, RefPtr<NavServices> > m_services;
-
-    //mutable RefPtr<NavServices> m_srvcs;
-    std::vector<RefPtr<NavService> > m_srv;
 
 };
 
