@@ -3379,7 +3379,8 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer* player, int index, b
 {
     RefPtr<TextTrack> track = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
     textTracks()->append(track);
-    mediaControls()->updateTextTrackDisplay();
+    if (hasMediaControls())
+    	mediaControls()->updateTextTrackDisplay();
     track.release();
 }
 
@@ -3398,14 +3399,16 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-		mediaControls()->updateAudioTrackDisplay();
+        if (hasMediaControls())
+        	mediaControls()->updateAudioTrackDisplay();
     } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
         audioTracks()->append(track);
         track.release();
     }
 
-    mediaControls()->updateAudioTrackDisplay();
+    if (hasMediaControls())
+    	mediaControls()->updateAudioTrackDisplay();
 }
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
@@ -3432,13 +3435,15 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-        mediaControls()->updateVideoTrackDisplay();
+        if (hasMediaControls())
+        	mediaControls()->updateVideoTrackDisplay();
         return;
     }
 
     RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
     videoTracks()->append(track);
-    mediaControls()->updateVideoTrackDisplay();
+    if (hasMediaControls())
+    	mediaControls()->updateVideoTrackDisplay();
     track.release();
 }
 
@@ -3447,7 +3452,8 @@ void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
     int index = videoTracks()->getTrackIndex(track);
     m_player->setVideoSelected(index, selected);
     if(selected) {
-        mediaControls()->setVideoTrackSelected(index);
+    	if (hasMediaControls())
+    		mediaControls()->setVideoTrackSelected(index);
     }
 }
 #endif
@@ -4265,7 +4271,8 @@ void HTMLMediaElement::configureMediaControls()
 #if ENABLE(VIDEO_TRACK)
 void HTMLMediaElement::configureTextTrackDisplay()
 {
-    mediaControls()->showTextTrackDisplay();
+	if (hasMediaControls())
+		mediaControls()->showTextTrackDisplay();
 //    ASSERT(m_textTracks);
 //
 //    bool haveVisibleTextTrack = false;
@@ -4294,7 +4301,8 @@ void HTMLMediaElement::configureVideoTrackDisplay()
     if (!m_videoTracks)
       m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
-    mediaControls()->showVideoTrackDisplay();
+    if (hasMediaControls())
+    	mediaControls()->showVideoTrackDisplay();
 
 }
 
@@ -4303,7 +4311,8 @@ void HTMLMediaElement::configureAudioTrackDisplay()
     if (!m_audioTracks)
     	m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
-    mediaControls()->showAudioTrackDisplay();
+    if (hasMediaControls())
+    	mediaControls()->showAudioTrackDisplay();
 
 }
 
