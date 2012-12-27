@@ -2097,6 +2097,7 @@ SET(WebCore_SOURCES
     rendering/RenderMarquee.cpp
     rendering/RenderMedia.cpp
     rendering/RenderMenuList.cpp
+    rendering/RenderMediaMenuList.cpp
     rendering/RenderMeter.cpp
     rendering/RenderMultiColumnBlock.cpp
     rendering/RenderMultiColumnFlowThread.cpp

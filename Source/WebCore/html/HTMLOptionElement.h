@@ -40,20 +40,20 @@ public:
        bool defaultSelected, bool selected, ExceptionCode&);
 
     virtual String text() const;
-    void setText(const String&, ExceptionCode&);
+    virtual void setText(const String&, ExceptionCode&);
 
-    int index() const;
+    virtual int index() const;
 
     String value() const;
     void setValue(const String&);
 
-    bool selected();
-    void setSelected(bool);
+    virtual bool selected();
+    virtual void setSelected(bool);
 
 #if ENABLE(DATALIST_ELEMENT)
     HTMLDataListElement* ownerDataListElement() const;
 #endif
-    HTMLSelectElement* ownerSelectElement() const;
+    virtual HTMLSelectElement* ownerSelectElement() const;
 
     String label() const;
     void setLabel(const String&);
@@ -65,11 +65,12 @@ public:
 
     String textIndentedToRespectGroupLabel() const;
 
-    void setSelectedState(bool);
+    virtual void setSelectedState(bool);
 
-private:
+protected:
     HTMLOptionElement(const QualifiedName&, Document*);
 
+//private:
     virtual bool supportsFocus() const;
     virtual bool isFocusable() const;
     virtual bool rendererIsNeeded(const NodeRenderingContext&) { return false; }

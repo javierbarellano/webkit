@@ -162,6 +162,7 @@ namespace WebCore {
     macro(cuechange) \
     macro(enter) \
     macro(exit) \
+    macro(trackselected) \
     \
     macro(webkitbeginfullscreen) \
     macro(webkitendfullscreen) \

@@ -74,6 +74,11 @@ RenderMenuList::~RenderMenuList()
     m_popup = 0;
 }
 
+void RenderMenuList::setPopUp(PopupMenuClient* client) {
+    if (!m_popup)
+        m_popup = document()->page()->chrome()->createPopupMenu(client);
+}
+
 bool RenderMenuList::canBeReplacedWithInlineRunIn() const
 {
     return false;
@@ -475,6 +480,7 @@ Color RenderMenuList::itemBackgroundColor(unsigned listIndex) const
     Color backgroundColor;
     if (element->renderStyle())
         backgroundColor = element->renderStyle()->visitedDependentColor(CSSPropertyBackgroundColor);
+
     // If the item has an opaque background color, return that.
     if (!backgroundColor.hasAlpha())
         return backgroundColor;

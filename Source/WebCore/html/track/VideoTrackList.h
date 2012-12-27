@@ -64,6 +64,7 @@ public:
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(trackselected);
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;

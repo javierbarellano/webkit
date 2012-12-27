@@ -40,7 +40,7 @@ namespace WebCore {
 class HTMLSelectElement;
 class RenderText;
 
-class RenderMenuList : public RenderDeprecatedFlexibleBox, private PopupMenuClient {
+class RenderMenuList : public RenderDeprecatedFlexibleBox, public PopupMenuClient {
 
 public:
     RenderMenuList(Element*);
@@ -48,19 +48,21 @@ public:
 
 public:
     bool popupIsVisible() const { return m_popupIsVisible; }
-    void showPopup();
+    virtual void showPopup();
     void hidePopup();
 
     void setOptionsChanged(bool changed) { m_optionsChanged = changed; }
 
-    void didSetSelectedIndex(int listIndex);
+    virtual void didSetSelectedIndex(int listIndex);
 
     String text() const;
 
-private:
+protected:
     HTMLSelectElement* selectElement() const;
 
     virtual bool isMenuList() const { return true; }
+
+    void setPopUp(PopupMenuClient* client);
 
     virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0);
     virtual void removeChild(RenderObject*);

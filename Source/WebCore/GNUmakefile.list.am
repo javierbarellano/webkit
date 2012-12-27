@@ -5061,6 +5061,8 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderMedia.h \
 	Source/WebCore/rendering/RenderMenuList.cpp \
 	Source/WebCore/rendering/RenderMenuList.h \
+	Source/WebCore/rendering/RenderMediaMenuList.cpp \
+	Source/WebCore/rendering/RenderMediaMenuList.h \
 	Source/WebCore/rendering/RenderMeter.cpp \
 	Source/WebCore/rendering/RenderMeter.h \
 	Source/WebCore/rendering/RenderMultiColumnBlock.cpp \

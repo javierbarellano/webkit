@@ -80,6 +80,9 @@ private:
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
     void scheduleAddTrackEvent(PassRefPtr<AudioTrack>);
+    static void addTrackEventOnContextThread(void* ptr);
+    mutable RefPtr<AudioTrack> m_trackAdded;
+
     void asyncEventTimerFired(Timer<AudioTrackList>*);
 
     ScriptExecutionContext* m_context;
