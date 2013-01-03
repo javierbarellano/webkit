@@ -95,6 +95,26 @@ audio::-webkit-media-controls-play-button, video::-webkit-media-controls-play-bu
     color: inherit;
 }
 
+audio::-webkit-media-controls-ff-button, video::-webkit-media-controls-ff-button {
+    -webkit-appearance: media-ff-button;
+    display: -webkit-box;
+    width: 16px;
+    height: 16px;
+    background-color: initial;
+    border: initial;
+    color: inherit;
+}
+
+audio::-webkit-media-controls-rev-button, video::-webkit-media-controls-rev-button {
+    -webkit-appearance: media-rev-button;
+    display: -webkit-box;
+    width: 16px;
+    height: 16px;
+    background-color: initial;
+    border: initial;
+    color: inherit;
+}
+
 audio::-webkit-media-controls-timeline-container, video::-webkit-media-controls-timeline-container {
     -webkit-appearance: media-controls-background;
     display: -webkit-box;

@@ -119,6 +119,9 @@ public:
     // the network state has changed
     virtual void mediaPlayerNetworkStateChanged(MediaPlayer*) { }
 
+    //Tell client what rates we support
+    virtual void playbackRatesSupported(float *rates, int count) {}
+
     // the ready state has changed
     virtual void mediaPlayerReadyStateChanged(MediaPlayer*) { }
 
@@ -249,6 +252,9 @@ public:
     IntSize naturalSize();
     bool hasVideo() const;
     bool hasAudio() const;
+
+    //Tell client what rates we support
+    void playbackRatesSupported(float *rates, int count) {m_mediaPlayerClient->playbackRatesSupported(rates, count);}
 
     void setFrameView(FrameView* frameView) { m_frameView = frameView; }
     FrameView* frameView() { return m_frameView; }

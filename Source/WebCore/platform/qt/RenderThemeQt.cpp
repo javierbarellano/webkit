@@ -683,6 +683,86 @@ bool RenderThemeQt::paintMediaPlayButton(RenderObject* o, const PaintInfo& paint
     return false;
 }
 
+bool RenderThemeQt::paintMediaFFButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
+{
+    HTMLMediaElement* mediaElement = toParentMediaElement(o);
+    if (!mediaElement)
+        return false;
+
+    //printf("FF r(%d, %d, %d, %d)\n", r.x(), r.y(), r.width(), r.height());
+
+    QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
+    if (p.isNull() || !p->isValid())
+        return true;
+
+    p->painter->setRenderHint(QPainter::Antialiasing, true);
+
+    paintMediaBackground(p->painter, r);
+
+    p->painter->setBrush(getMediaControlForegroundColor(o));
+    //p->painter->setBrush(QColor(255, 100, 40));
+
+    QPointF playPolygon[7];
+    double x=r.x()+r.width()*5/100;
+    double y=r.y()+r.height()*25/100;
+    double xc=r.x()+r.width()/2;
+    double yc=r.y()+r.height()/2;
+    double xe=r.x()+r.width()*95/100;
+    double ye=r.y()+r.height()*75/100;
+
+    playPolygon[0].setX(x);  playPolygon[0].setY(y);
+    playPolygon[1].setX(xc); playPolygon[1].setY(yc);
+    playPolygon[2].setX(xc); playPolygon[2].setY(y);
+    playPolygon[3].setX(xe); playPolygon[3].setY(yc);
+    playPolygon[4].setX(xc); playPolygon[4].setY(ye);
+    playPolygon[5].setX(xc); playPolygon[5].setY(yc);
+    playPolygon[6].setX(x);  playPolygon[6].setY(ye);
+
+	p->painter->drawPolygon(playPolygon, 7);
+
+    return false;
+}
+
+bool RenderThemeQt::paintMediaRevButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
+{
+    HTMLMediaElement* mediaElement = toParentMediaElement(o);
+    if (!mediaElement)
+        return false;
+
+    //printf("Rev r(%d, %d, %d, %d)\n", r.x(), r.y(), r.width(), r.height());
+
+    QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
+    if (p.isNull() || !p->isValid())
+        return true;
+
+    p->painter->setRenderHint(QPainter::Antialiasing, true);
+
+    paintMediaBackground(p->painter, r);
+
+    //WorldMatrixTransformer transformer(p->painter, o, r);
+    p->painter->setBrush(getMediaControlForegroundColor(o));
+
+    QPointF playPolygon[7];
+    double x=r.x()+r.width()*5/100;
+    double y=r.y()+r.height()*25/100;
+    double xc=r.x()+r.width()/2;
+    double yc=r.y()+r.height()/2;
+    double xe=r.x()+r.width()*95/100;
+    double ye=r.y()+r.height()*75/100;
+
+    playPolygon[0].setX(x);  playPolygon[0].setY(yc);
+    playPolygon[1].setX(xc); playPolygon[1].setY(y);
+    playPolygon[2].setX(xc); playPolygon[2].setY(yc);
+    playPolygon[3].setX(xe); playPolygon[3].setY(y);
+    playPolygon[4].setX(xe); playPolygon[4].setY(ye);
+    playPolygon[5].setX(xc); playPolygon[5].setY(yc);
+    playPolygon[6].setX(xc);  playPolygon[6].setY(ye);
+
+	p->painter->drawPolygon(playPolygon, 7);
+
+    return false;
+}
+
 bool RenderThemeQt::paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&)
 {
     // We don't want to paint this at the moment.

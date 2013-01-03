@@ -643,6 +643,8 @@ media-fullscreen-volume-slider
 media-fullscreen-volume-slider-thumb
 media-mute-button
 media-play-button
+media-ff-button
+media-rev-button
 media-overlay-play-button
 media-seek-back-button
 media-seek-forward-button
@@ -681,7 +683,6 @@ relevancy-level-indicator
 continuous-capacity-level-indicator
 discrete-capacity-level-indicator
 rating-level-indicator
-media-video-track-sel-button
 textarea
 // An appearance value that should not be accepted by the parser:
 caps-lock-indicator

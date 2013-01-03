@@ -109,7 +109,7 @@ MediaControlElementType mediaControlElementType(Node* node)
 {
     ASSERT(node->isMediaControlElement());
     HTMLElement* element = toHTMLElement(node);
-    if (element->hasTagName(inputTag))
+   if (element->hasTagName(inputTag))
         return static_cast<MediaControlInputElement*>(element)->displayType();
     return static_cast<MediaControlElement*>(element)->displayType();
 }
@@ -2201,12 +2201,15 @@ void MediaControlInputElement::hide()
 
 void MediaControlInputElement::setDisplayType(MediaControlElementType displayType)
 {
+
     if (displayType == m_displayType)
         return;
 
     m_displayType = displayType;
-    if (RenderObject* object = renderer())
+    if (RenderObject* object = renderer()) {
+
         object->repaint();
+    }
 }
 
 // ----------------------------
@@ -2325,6 +2328,86 @@ void MediaControlPlayButtonElement::updateDisplayType()
 const AtomicString& MediaControlPlayButtonElement::shadowPseudoId() const
 {
     DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-play-button"));
+    return id;
+}
+
+// ----------------------------
+
+inline MediaControlFFButtonElement::MediaControlFFButtonElement(Document* document)
+    : MediaControlInputElement(document, MediaFFButton)
+{
+}
+
+PassRefPtr<MediaControlFFButtonElement> MediaControlFFButtonElement::create(Document* document)
+{
+    RefPtr<MediaControlFFButtonElement> button = adoptRef(new MediaControlFFButtonElement(document));
+    button->createShadowSubtree();
+    button->setType("button");
+    return button.release();
+}
+
+void MediaControlFFButtonElement::defaultEventHandler(Event* event)
+{
+    updateDisplayType();
+    if (event->type() == eventNames().clickEvent) {
+        event->setDefaultHandled();
+    }
+    HTMLInputElement::defaultEventHandler(event);
+}
+
+MediaControlElementType MediaControlFFButtonElement::displayType()
+{
+    return MediaFFButton;
+}
+
+void MediaControlFFButtonElement::updateDisplayType()
+{
+	setDisplayType(MediaFFButton);
+}
+
+const AtomicString& MediaControlFFButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-ff-button"));
+    return id;
+}
+
+// ----------------------------
+
+inline MediaControlRevButtonElement::MediaControlRevButtonElement(Document* document)
+    : MediaControlInputElement(document, MediaRevButton)
+{
+}
+
+PassRefPtr<MediaControlRevButtonElement> MediaControlRevButtonElement::create(Document* document)
+{
+    RefPtr<MediaControlRevButtonElement> button = adoptRef(new MediaControlRevButtonElement(document));
+    button->createShadowSubtree();
+    button->setType("button");
+    return button.release();
+}
+
+void MediaControlRevButtonElement::defaultEventHandler(Event* event)
+{
+    if (event->type() == eventNames().clickEvent) {
+        updateDisplayType();
+        event->setDefaultHandled();
+    }
+    HTMLInputElement::defaultEventHandler(event);
+}
+
+MediaControlElementType MediaControlRevButtonElement::displayType() const
+{
+    return MediaRevButton;
+}
+
+void MediaControlRevButtonElement::updateDisplayType()
+{
+	setDisplayType(MediaRevButton);
+}
+
+const AtomicString& MediaControlRevButtonElement::shadowPseudoId() const
+{
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-rev-button"));
     return id;
 }
 

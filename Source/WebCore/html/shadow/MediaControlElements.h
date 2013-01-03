@@ -86,6 +86,8 @@ enum MediaControlElementType {
     MediaVideoTrackSelButton,
     MediaAudioTrackSelButton,
     MediaTextTrackSelButton,
+    MediaFFButton,
+    MediaRevButton,
 };
 
 HTMLMediaElement* toParentMediaElement(Node*);
@@ -505,6 +507,40 @@ public:
 
 private:
     MediaControlPlayButtonElement(Document*);
+
+    virtual const AtomicString& shadowPseudoId() const;
+};
+
+// ----------------------------
+
+class MediaControlFFButtonElement : public MediaControlInputElement {
+public:
+    static PassRefPtr<MediaControlFFButtonElement> create(Document*);
+
+    virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    MediaControlElementType displayType();
+    virtual void updateDisplayType();
+
+private:
+    MediaControlFFButtonElement(Document*);
+
+    virtual const AtomicString& shadowPseudoId() const;
+};
+
+// ----------------------------
+
+class MediaControlRevButtonElement : public MediaControlInputElement {
+public:
+    static PassRefPtr<MediaControlRevButtonElement> create(Document*);
+
+    virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    MediaControlElementType displayType() const;
+    virtual void updateDisplayType();
+
+private:
+    MediaControlRevButtonElement(Document*);
 
     virtual const AtomicString& shadowPseudoId() const;
 };

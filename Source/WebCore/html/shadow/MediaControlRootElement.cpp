@@ -53,6 +53,8 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_mediaController(0)
     , m_rewindButton(0)
     , m_playButton(0)
+	, m_ffButton(0)
+	, m_revButton(0)
     , m_returnToRealTimeButton(0)
     , m_statusDisplay(0)
     , m_currentTimeDisplay(0)
@@ -108,6 +110,18 @@ PassRefPtr<MediaControlRootElement> MediaControlRootElement::create(Document* do
     RefPtr<MediaControlPlayButtonElement> playButton = MediaControlPlayButtonElement::create(document);
     controls->m_playButton = playButton.get();
     panel->appendChild(playButton.release(), ec, true);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlFFButtonElement> ffButton = MediaControlFFButtonElement::create(document);
+    controls->m_ffButton = ffButton.get();
+    panel->appendChild(ffButton.release(), ec, true);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlRevButtonElement> revButton = MediaControlRevButtonElement::create(document);
+    controls->m_revButton = revButton.get();
+    panel->appendChild(revButton.release(), ec, true);
     if (ec)
         return 0;
 
@@ -269,6 +283,10 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_rewindButton->setMediaController(controller);
     if (m_playButton)
         m_playButton->setMediaController(controller);
+    if (m_ffButton)
+    	m_ffButton->setMediaController(controller);
+    if (m_revButton)
+    	m_revButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -384,6 +402,8 @@ void MediaControlRootElement::reset()
     }
 
     m_playButton->updateDisplayType();
+    m_ffButton->updateDisplayType();
+    m_revButton->updateDisplayType();
 
 #if ENABLE(FULLSCREEN_API)
     if (m_fullScreenVolumeSlider)
@@ -417,6 +437,8 @@ void MediaControlRootElement::reset()
 void MediaControlRootElement::playbackStarted()
 {
     m_playButton->updateDisplayType();
+    m_ffButton->updateDisplayType();
+    m_revButton->updateDisplayType();
     m_timeline->setPosition(m_mediaController->currentTime());
     updateTimeDisplay();
 
@@ -436,6 +458,8 @@ void MediaControlRootElement::playbackProgressed()
 void MediaControlRootElement::playbackStopped()
 {
     m_playButton->updateDisplayType();
+    m_ffButton->updateDisplayType();
+    m_revButton->updateDisplayType();
     m_timeline->setPosition(m_mediaController->currentTime());
     updateTimeDisplay();
     makeOpaque();

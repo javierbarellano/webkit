@@ -41,6 +41,8 @@ class MediaControlPanelMuteButtonElement;
 class MediaControlPanelVideoTrackSelButtonElement;
 class MediaControlPanelAudioTrackSelButtonElement;
 class MediaControlPlayButtonElement;
+class MediaControlFFButtonElement;
+class MediaControlRevButtonElement;
 class MediaControlSeekButtonElement;
 class MediaControlRewindButtonElement;
 class MediaControlReturnToRealtimeButtonElement;
@@ -154,6 +156,8 @@ private:
 
     MediaControlRewindButtonElement* m_rewindButton;
     MediaControlPlayButtonElement* m_playButton;
+    MediaControlFFButtonElement* m_ffButton;
+    MediaControlRevButtonElement* m_revButton;
     MediaControlReturnToRealtimeButtonElement* m_returnToRealTimeButton;
     MediaControlStatusDisplayElement* m_statusDisplay;
     MediaControlCurrentTimeDisplayElement* m_currentTimeDisplay;
