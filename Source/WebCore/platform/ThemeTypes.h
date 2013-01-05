@@ -54,11 +54,12 @@ enum ControlPart {
     /* 20 */ MediaOverlayPlayButtonPart, MediaSeekBackButtonPart, MediaSeekForwardButtonPart, MediaRewindButtonPart, MediaReturnToRealtimeButtonPart,
     /* 25 */ MediaToggleClosedCaptionsButtonPart, MediaSliderPart, MediaSliderThumbPart, MediaVolumeSliderContainerPart, MediaVolumeSliderPart,
     /* 30 */ MediaVolumeSliderThumbPart, MediaVolumeSliderMuteButtonPart, MediaControlsBackgroundPart, MediaControlsFullscreenBackgroundPart, MediaCurrentTimePart,
-    /* 35 */ MediaTimeRemainingPart, MenulistPart, MenulistButtonPart, MenulistTextPart, MenulistTextFieldPart,
-    /* 40 */ MeterPart, ProgressBarPart, ProgressBarValuePart, SliderHorizontalPart, SliderVerticalPart,
-    /* 45 */ SliderThumbHorizontalPart, SliderThumbVerticalPart, CaretPart, SearchFieldPart, SearchFieldDecorationPart,
-    /* 50 */ SearchFieldResultsDecorationPart, SearchFieldResultsButtonPart, SearchFieldCancelButtonPart, TextFieldPart, RelevancyLevelIndicatorPart,
-    /* 55 */ ContinuousCapacityLevelIndicatorPart, DiscreteCapacityLevelIndicatorPart, RatingLevelIndicatorPart, TextAreaPart, CapsLockIndicatorPart
+    /* 35 */ MediaTimeRemainingPart, MediaVideoTrackSelButtonPart, MediaAudioTrackSelButtonPart, MediaTextTrackSelButtonPart, MenulistPart,
+    /* 40 */ MenulistButtonPart, MenulistTextPart, MenulistTextFieldPart, MeterPart, ProgressBarPart,
+    /* 45 */ ProgressBarValuePart, SliderHorizontalPart, SliderVerticalPart, SliderThumbHorizontalPart, SliderThumbVerticalPart,
+    /* 50 */ CaretPart, SearchFieldPart, SearchFieldDecorationPart, SearchFieldResultsDecorationPart, SearchFieldResultsButtonPart,
+    /* 55 */ SearchFieldCancelButtonPart, TextFieldPart, RelevancyLevelIndicatorPart, ContinuousCapacityLevelIndicatorPart, DiscreteCapacityLevelIndicatorPart,
+    /* 60 */ RatingLevelIndicatorPart, TextAreaPart, CapsLockIndicatorPart
 };
 
 enum SelectionPart {

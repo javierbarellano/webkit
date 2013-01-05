@@ -98,8 +98,8 @@ audio::-webkit-media-controls-play-button, video::-webkit-media-controls-play-bu
 audio::-webkit-media-controls-ff-button, video::-webkit-media-controls-ff-button {
     -webkit-appearance: media-ff-button;
     display: -webkit-box;
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 26px;
     background-color: initial;
     border: initial;
     color: inherit;
@@ -108,8 +108,8 @@ audio::-webkit-media-controls-ff-button, video::-webkit-media-controls-ff-button
 audio::-webkit-media-controls-rev-button, video::-webkit-media-controls-rev-button {
     -webkit-appearance: media-rev-button;
     display: -webkit-box;
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 26px;
     background-color: initial;
     border: initial;
     color: inherit;
@@ -274,3 +274,29 @@ video::-webkit-media-text-track-display {
     position: absolute;
     color: rgba(255, 255, 255, 1);
 }
+
+video::-webkit-media-controls-video-track-sel-button {
+    -webkit-appearance: media-video-track-sel-button;
+	background-color: rgba(0, 0, 0, 0.8);
+    color: inherit;
+}
+
+video::-webkit-media-controls-text-track-sel-button {
+    -webkit-appearance: media-text-track-sel-button;
+	background-color: rgba(0, 0, 0, 0.8);
+    color: inherit;
+}
+
+audio::-webkit-media-controls-audio-track-sel-button, video::-webkit-media-controls-audio-track-sel-button {
+    -webkit-appearance: media-audio-track-sel-button;
+	background-color: rgba(0, 0, 0, 0.8);
+    color: inherit;
+}
+
+
+
+
+
+
+
+

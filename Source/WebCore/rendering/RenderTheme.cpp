@@ -336,6 +336,12 @@ bool RenderTheme::paint(RenderObject* o, const PaintInfo& paintInfo, const IntRe
             return paintMediaFFButton(o, paintInfo, r);
         case MediaRevButtonPart:
             return paintMediaRevButton(o, paintInfo, r);
+        case MediaVideoTrackSelButtonPart:
+        	return paintMediaVideoTrackSelButton(o, paintInfo, r);
+        case MediaAudioTrackSelButtonPart:
+        	return paintMediaAudioTrackSelButton(o, paintInfo, r);
+        case MediaTextTrackSelButtonPart:
+        	return paintMediaTextTrackSelButton(o, paintInfo, r);
         case MediaOverlayPlayButtonPart:
             return paintMediaOverlayPlayButton(o, paintInfo, r);
         case MediaMuteButtonPart:

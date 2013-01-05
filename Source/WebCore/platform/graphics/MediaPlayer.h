@@ -119,7 +119,7 @@ public:
     // the network state has changed
     virtual void mediaPlayerNetworkStateChanged(MediaPlayer*) { }
 
-    //Tell client what rates we support
+    // Tell client what rates we support
     virtual void playbackRatesSupported(float *rates, int count) {}
 
     // the ready state has changed

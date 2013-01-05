@@ -279,11 +279,12 @@ void MediaOptionElement::setRenderStyle(PassRefPtr<RenderStyle> newStyle)
 
 // ----------------------------
 
-MediaSelectElement::MediaSelectElement(Document* document)
+MediaSelectElement::MediaSelectElement(Document* document, MediaControlElementType displayType)
     : HTMLFormControlElementWithState(selectTag, document, NULL)
 	, m_hasFocus(false)
     , m_mediaController(0)
 {
+	m_displayType = displayType;
 }
 
 void MediaSelectElement::show()
@@ -294,6 +295,17 @@ void MediaSelectElement::show()
 void MediaSelectElement::hide()
 {
     setInlineStyleProperty(CSSPropertyDisplay, CSSValueNone);
+}
+
+void MediaSelectElement::setDisplayType(MediaControlElementType displayType)
+{
+
+    if (displayType == m_displayType)
+        return;
+
+    m_displayType = displayType;
+    if (RenderObject* object = renderer())
+        object->repaint();
 }
 
 void MediaSelectElement::fixEventState(Event *event)
@@ -315,6 +327,12 @@ void MediaSelectElement::fixEventState(Event *event)
 	} else if (m_hasFocus) {
 		m_hasFocus = false;
 	}
+}
+
+void MediaSelectElement::createShadowSubtree()
+{
+    ASSERT(!shadow());
+    ShadowRoot::create(this, ShadowRoot::UserAgentShadowRoot, ASSERT_NO_EXCEPTION);
 }
 
 const AtomicString& MediaSelectElement::formControlType() const
@@ -601,17 +619,6 @@ void MediaSelectElement::updateListItemSelectedStates()
     if (m_shouldRecalcListItems)
         recalcListItems();
 }
-
-//void MediaSelectElement::childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta)
-//{
-//    setRecalcListItems();
-//    setNeedsValidityCheck();
-//
-//    HTMLFormControlElementWithState::childrenChanged(changedByParser, beforeChange, afterChange, childCountDelta);
-//
-//    if (AXObjectCache::accessibilityEnabled() && renderer())
-//        renderer()->document()->axObjectCache()->childrenChanged(this);
-//}
 
 void MediaSelectElement::optionElementChildrenChanged()
 {
@@ -2902,7 +2909,7 @@ void MediaControlFullscreenButtonElement::setIsFullscreen(bool isFullscreen)
 // ----------------------------
 
 inline MediaControlVideoTrackSelButtonElement::MediaControlVideoTrackSelButtonElement(Document* document, MediaControls* controls)
-    : MediaSelectElement(document)
+    : MediaSelectElement(document, MediaVideoTrackSelButton)
 	, m_controls(controls)
 {
 }
@@ -2910,6 +2917,7 @@ inline MediaControlVideoTrackSelButtonElement::MediaControlVideoTrackSelButtonEl
 PassRefPtr<MediaControlVideoTrackSelButtonElement> MediaControlVideoTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
 	RefPtr<MediaControlVideoTrackSelButtonElement> button = adoptRef(new MediaControlVideoTrackSelButtonElement(document, controls));
+	button->createShadowSubtree();
     button->hide();
 
 	return button.release();
@@ -2928,18 +2936,14 @@ void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
 
 void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 {
-    if (RenderObject* object = renderer())
-    {
-    	display();
-        object->repaint();
-    }
+	setDisplayType(MediaVideoTrackSelButton);
 }
 
 void MediaControlVideoTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+		//setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+		//setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
 		int index = this->selectedIndex();
 		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
 		if (names.size() > 0) {
@@ -2986,14 +2990,14 @@ void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
 
 const AtomicString& MediaControlVideoTrackSelButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-video-track-button"));
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-video-track-sel-button"));
     return id;
 }
 
 // ----------------------------
 
 inline MediaControlAudioTrackSelButtonElement::MediaControlAudioTrackSelButtonElement(Document* document, MediaControls* controls)
-    : MediaSelectElement(document)
+    : MediaSelectElement(document, MediaAudioTrackSelButton)
 	, m_controls(controls)
 {
 }
@@ -3001,6 +3005,7 @@ inline MediaControlAudioTrackSelButtonElement::MediaControlAudioTrackSelButtonEl
 PassRefPtr<MediaControlAudioTrackSelButtonElement> MediaControlAudioTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
 	RefPtr<MediaControlAudioTrackSelButtonElement> button = adoptRef(new MediaControlAudioTrackSelButtonElement(document, controls));
+	button->createShadowSubtree();
     button->hide();
 
 	return button.release();
@@ -3020,18 +3025,20 @@ void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
 
 void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 {
-    if (RenderObject* object = renderer())
-    {
-    	display();
-        object->repaint();
-    }
+	setDisplayType(MediaAudioTrackSelButton);
+
+//    if (RenderObject* object = renderer())
+//    {
+//    	display();
+//        object->repaint();
+//    }
 }
 
 void MediaControlAudioTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+		//setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+		//setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
 		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
 
 		if (names.size() > 0) {
@@ -3075,14 +3082,14 @@ void MediaControlAudioTrackSelButtonElement::selectChanged(int newIndex)
 
 const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Audio-track-button"));
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-audio-track-sel-button"));
     return id;
 }
 
 // ----------------------------
 
 inline MediaControlTextTrackSelButtonElement::MediaControlTextTrackSelButtonElement(Document* document, MediaControls* controls)
-    : MediaSelectElement(document)
+    : MediaSelectElement(document, MediaTextTrackSelButton)
 	, m_controls(controls)
 {
 }
@@ -3090,6 +3097,7 @@ inline MediaControlTextTrackSelButtonElement::MediaControlTextTrackSelButtonElem
 PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
 	RefPtr<MediaControlTextTrackSelButtonElement> button = adoptRef(new MediaControlTextTrackSelButtonElement(document, controls));
+	button->createShadowSubtree();
     button->hide();
 
 	return button.release();
@@ -3109,19 +3117,21 @@ void MediaControlTextTrackSelButtonElement::changedTextTrack()
 
 void MediaControlTextTrackSelButtonElement::updateDisplayType()
 {
-	show();
-    if (RenderObject* object = renderer())
-    {
-    	display();
-        object->repaint();
-    }
+	setDisplayType(MediaTextTrackSelButton);
+
+//	show();
+//    if (RenderObject* object = renderer())
+//    {
+//    	display();
+//        object->repaint();
+//    }
 }
 
 void MediaControlTextTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+		//setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+		//setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
 		std::vector<std::string> names = mediaController()->getSelTextTrackNames();
 
 		if (names.size() > 0) {
@@ -3155,7 +3165,7 @@ void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
 
 const AtomicString& MediaControlTextTrackSelButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-Text-track-button"));
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-text-track-sel-button"));
     return id;
 }
 

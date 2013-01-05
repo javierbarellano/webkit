@@ -147,6 +147,9 @@ public:
     void show();
 
     virtual MediaControlElementType displayType() const = 0;
+    void setDisplayType(MediaControlElementType displayType);
+
+    void createShadowSubtree();
 
     virtual void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
     MediaControllerInterface* mediaController() const { return m_mediaController; }
@@ -216,7 +219,7 @@ public:
     // For use in the implementation of HTMLOptionElement.
     void optionSelectionStateChanged(HTMLOptionElement*, bool optionIsSelected);
 protected:
-    MediaSelectElement(Document*);
+    MediaSelectElement(Document*, MediaControlElementType displayType);
     virtual void selectChanged(int newIndex) {}
 
     virtual void defaultEventHandler(Event*);
@@ -312,6 +315,8 @@ private:
     bool m_multiple;
     bool m_activeSelectionState;
     mutable bool m_shouldRecalcListItems;
+    MediaControlElementType m_displayType;
+
 
     MediaControllerInterface* m_mediaController;
 };

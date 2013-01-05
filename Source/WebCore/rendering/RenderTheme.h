@@ -339,6 +339,9 @@ protected:
     virtual bool paintMediaTimeRemaining(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaFullScreenVolumeSliderTrack(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaFullScreenVolumeSliderThumb(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintMediaVideoTrackSelButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintMediaAudioTrackSelButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintMediaTextTrackSelButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
 public:
     // Methods for state querying
