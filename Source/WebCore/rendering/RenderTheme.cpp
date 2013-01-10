@@ -220,6 +220,9 @@ void RenderTheme::adjustStyle(StyleResolver* styleResolver, RenderStyle* style, 
         case MediaExitFullscreenButtonPart:
         case MediaMuteButtonPart:
         case MediaVolumeSliderContainerPart:
+        case MediaVideoTrackSelButtonPart:
+        case MediaAudioTrackSelButtonPart:
+        case MediaTextTrackSelButtonPart:
             return adjustMediaControlStyle(styleResolver, style, e);
         case MediaSliderPart:
         case MediaVolumeSliderPart:
@@ -1092,10 +1095,6 @@ bool RenderTheme::shouldHaveSpinButton(HTMLInputElement* inputElement) const
 }
 
 void RenderTheme::adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Element*) const
-{
-}
-
-void RenderTheme::adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const
 {
 }
 

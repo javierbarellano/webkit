@@ -70,6 +70,7 @@ public:
     
     virtual float defaultPlaybackRate() const { return m_defaultPlaybackRate; }
     virtual void setDefaultPlaybackRate(float);
+    virtual Vector<float> getSupportedPlayRates(){ return Vector<float>(); };
     
     virtual float playbackRate() const;
     virtual void setPlaybackRate(float);

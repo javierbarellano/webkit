@@ -42,6 +42,7 @@
 #include <wtf/Noncopyable.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringHash.h>
+#include <wtf/Vector.h>
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "GraphicsLayer.h"
@@ -118,9 +119,6 @@ public:
 
     // the network state has changed
     virtual void mediaPlayerNetworkStateChanged(MediaPlayer*) { }
-
-    // Tell client what rates we support
-    virtual void playbackRatesSupported(float *rates, int count) {}
 
     // the ready state has changed
     virtual void mediaPlayerReadyStateChanged(MediaPlayer*) { }
@@ -254,7 +252,12 @@ public:
     bool hasAudio() const;
 
     //Tell client what rates we support
-    void playbackRatesSupported(float *rates, int count) {m_mediaPlayerClient->playbackRatesSupported(rates, count);}
+    void playbackRatesSupported(float *rates, int count) {
+    	m_rates.clear();
+    	for (int i=0; i<count; i++)
+    		m_rates.append(rates[i]);
+    }
+    Vector<float> getPlayRates() { return m_rates; }
 
     void setFrameView(FrameView* frameView) { m_frameView = frameView; }
     FrameView* frameView() { return m_frameView; }
@@ -466,6 +469,8 @@ private:
     bool m_privateBrowsing;
     bool m_shouldPrepareToRender;
     bool m_contentMIMETypeWasInferredFromExtension;
+    Vector<float> m_rates;
+
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     WebMediaPlayerProxy* m_playerProxy;    // not owned or used, passed to m_private
 #endif

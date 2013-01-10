@@ -344,6 +344,7 @@ const AtomicString& MediaSelectElement::formControlType() const
 
 void MediaSelectElement::deselectItems(HTMLOptionElement* excludeElement)
 {
+	printf("deselectItems()\n");
     deselectItemsWithoutValidation(excludeElement);
     setNeedsValidityCheck();
 }
@@ -375,7 +376,8 @@ void MediaSelectElement::optionSelectedByUser(int optionIndex, bool fireOnChange
 
 bool MediaSelectElement::hasPlaceholderLabelOption() const
 {
-    // The select element has no placeholder label option if it has an attribute "multiple" specified or a display size of non-1.
+	printf("hasPlaceholderLabelOption()\n");
+   // The select element has no placeholder label option if it has an attribute "multiple" specified or a display size of non-1.
     //
     // The condition "size() > 1" is not compliant with the HTML5 spec as of Dec 3, 2010. "size() != 1" is correct.
     // Using "size() > 1" here because size() may be 0 in WebKit.
@@ -399,6 +401,7 @@ bool MediaSelectElement::hasPlaceholderLabelOption() const
 
 String MediaSelectElement::validationMessage() const
 {
+	printf("hasPlaceholderLabelOption()\n");
     if (!willValidate())
         return String();
 
@@ -436,7 +439,7 @@ void MediaSelectElement::listBoxSelectItem(int listIndex, bool allowMultiplySele
 
 bool MediaSelectElement::usesMenuList() const
 {
-    const Page* page = document()->page();
+   const Page* page = document()->page();
     RefPtr<RenderTheme> renderTheme = page ? page->theme() : RenderTheme::defaultTheme();
     if (renderTheme->delegatesMenuListRendering())
         return true;
@@ -446,13 +449,15 @@ bool MediaSelectElement::usesMenuList() const
 
 int MediaSelectElement::activeSelectionStartListIndex() const
 {
-    if (m_activeSelectionAnchorIndex >= 0)
+	printf("activeSelectionStartListIndex()\n");
+   if (m_activeSelectionAnchorIndex >= 0)
         return m_activeSelectionAnchorIndex;
     return optionToListIndex(selectedIndex());
 }
 
 int MediaSelectElement::activeSelectionEndListIndex() const
 {
+	printf("activeSelectionEndListIndex()\n");
     if (m_activeSelectionEndIndex >= 0)
         return m_activeSelectionEndIndex;
     return lastSelectedListIndex();
@@ -460,6 +465,7 @@ int MediaSelectElement::activeSelectionEndListIndex() const
 
 void MediaSelectElement::add(HTMLElement* element, HTMLElement* before, ExceptionCode& ec)
 {
+	printf("add()\n");
     // Make sure the element is ref'd and deref'd so we don't leak it.
     RefPtr<HTMLElement> protectNewChild(element);
 
@@ -472,6 +478,7 @@ void MediaSelectElement::add(HTMLElement* element, HTMLElement* before, Exceptio
 
 void MediaSelectElement::remove(int optionIndex)
 {
+	printf("remove()\n");
     int listIndex = optionToListIndex(optionIndex);
     if (listIndex < 0)
         return;
@@ -491,6 +498,7 @@ void MediaSelectElement::remove(int optionIndex)
 
 String MediaSelectElement::value() const
 {
+	printf("value()\n");
     const Vector<HTMLElement*>& items = listItems();
     for (unsigned i = 0; i < items.size(); i++) {
         if (items[i]->hasLocalName(optionTag) && static_cast<HTMLOptionElement*>(items[i])->selected())
@@ -501,6 +509,7 @@ String MediaSelectElement::value() const
 
 void MediaSelectElement::setValue(const String &value)
 {
+	printf("setValue()\n");
     // We clear the previously selected option(s) when needed, to guarantee calling setSelectedIndex() only once.
     if (value.isNull()) {
         setSelectedIndex(-1);
@@ -525,6 +534,7 @@ void MediaSelectElement::setValue(const String &value)
 
 bool MediaSelectElement::isPresentationAttribute(const QualifiedName& name) const
 {
+	printf("isPresentationAttribute()\n");
     if (name == alignAttr) {
         // Don't map 'align' attribute. This matches what Firefox, Opera and IE do.
         // See http://bugs.webkit.org/show_bug.cgi?id=12072
@@ -536,6 +546,7 @@ bool MediaSelectElement::isPresentationAttribute(const QualifiedName& name) cons
 
 void MediaSelectElement::parseAttribute(const Attribute& attribute)
 {
+	printf("parseAttribute()\n");
     if (attribute.name() == sizeAttr) {
         int oldSize = m_size;
         // Set the attribute value to a number.
@@ -578,6 +589,7 @@ bool MediaSelectElement::isKeyboardFocusable(KeyboardEvent* event) const
 
 bool MediaSelectElement::isMouseFocusable() const
 {
+	printf("isMouseFocusable()\n");
     if (renderer())
         return isFocusable();
     return HTMLFormControlElementWithState::isMouseFocusable();
@@ -585,6 +597,7 @@ bool MediaSelectElement::isMouseFocusable() const
 
 bool MediaSelectElement::canSelectAll() const
 {
+	printf("canSelectAll()\n");
     return !usesMenuList();
 }
 
@@ -597,6 +610,7 @@ RenderObject* MediaSelectElement::createRenderer(RenderArena* arena, RenderStyle
 
 bool MediaSelectElement::childShouldCreateRenderer(const NodeRenderingContext& childContext) const
 {
+	printf("childShouldCreateRenderer()\n");
     if (!HTMLFormControlElementWithState::childShouldCreateRenderer(childContext))
         return false;
     if (!usesMenuList())
@@ -606,11 +620,13 @@ bool MediaSelectElement::childShouldCreateRenderer(const NodeRenderingContext& c
 
 PassRefPtr<HTMLCollection> MediaSelectElement::selectedOptions()
 {
+	printf("selectedOptions()\n");
     return ensureCachedHTMLCollection(SelectedOptions);
 }
 
 PassRefPtr<HTMLOptionsCollection> MediaSelectElement::options()
 {
+	printf("options()\n");
     return static_cast<HTMLOptionsCollection*>(ensureCachedHTMLCollection(SelectOptions).get());
 }
 
@@ -631,12 +647,14 @@ void MediaSelectElement::optionElementChildrenChanged()
 
 void MediaSelectElement::accessKeyAction(bool sendMouseEvents)
 {
+	printf("accessKeyAction()\n");
     focus();
     dispatchSimulatedClick(0, sendMouseEvents);
 }
 
 void MediaSelectElement::setMultiple(bool multiple)
 {
+	printf("setMultiple()\n");
     bool oldMultiple = this->multiple();
     int oldSelectedIndex = selectedIndex();
     setAttribute(multipleAttr, multiple ? "" : 0);
@@ -649,21 +667,25 @@ void MediaSelectElement::setMultiple(bool multiple)
 
 void MediaSelectElement::setSize(int size)
 {
+	printf("setSize()\n");
     setAttribute(sizeAttr, String::number(size));
 }
 
 Node* MediaSelectElement::namedItem(const AtomicString& name)
 {
+	printf("namedItem()\n");
     return options()->namedItem(name);
 }
 
 Node* MediaSelectElement::item(unsigned index)
 {
+	printf("item()\n");
     return options()->item(index);
 }
 
 void MediaSelectElement::setOption(unsigned index, HTMLOptionElement* option, ExceptionCode& ec)
 {
+	printf("setOption()\n");
     ec = 0;
     if (index > maxSelectItems - 1)
         index = maxSelectItems - 1;
@@ -687,6 +709,7 @@ void MediaSelectElement::setOption(unsigned index, HTMLOptionElement* option, Ex
 
 void MediaSelectElement::setLength(unsigned newLen, ExceptionCode& ec)
 {
+	printf("setLength()\n");
     ec = 0;
     if (newLen > maxSelectItems)
         newLen = maxSelectItems;
@@ -752,11 +775,13 @@ int MediaSelectElement::nextValidIndex(int listIndex, SkipDirection direction, i
 
 int MediaSelectElement::nextSelectableListIndex(int startIndex) const
 {
+	printf("nextSelectableListIndex()\n");
     return nextValidIndex(startIndex, SkipForwards, 1);
 }
 
 int MediaSelectElement::previousSelectableListIndex(int startIndex) const
 {
+	printf("previousSelectableListIndex()\n");
     if (startIndex == -1)
         startIndex = listItems().size();
     return nextValidIndex(startIndex, SkipBackwards, 1);
@@ -764,6 +789,7 @@ int MediaSelectElement::previousSelectableListIndex(int startIndex) const
 
 int MediaSelectElement::firstSelectableListIndex() const
 {
+	printf("firstSelectableListIndex()\n");
     const Vector<HTMLElement*>& items = listItems();
     int index = nextValidIndex(items.size(), SkipBackwards, INT_MAX);
     if (static_cast<size_t>(index) == items.size())
@@ -773,12 +799,14 @@ int MediaSelectElement::firstSelectableListIndex() const
 
 int MediaSelectElement::lastSelectableListIndex() const
 {
+	printf("lastSelectableListIndex()\n");
     return nextValidIndex(-1, SkipForwards, INT_MAX);
 }
 
 // Returns the index of the next valid item one page away from |startIndex| in direction |direction|.
 int MediaSelectElement::nextSelectableListIndexPageAway(int startIndex, SkipDirection direction) const
 {
+	printf("nextSelectableListIndexPageAway()\n");
     const Vector<HTMLElement*>& items = listItems();
     // Can't use m_size because renderer forces a minimum size.
     int pageSize = 0;
@@ -795,6 +823,7 @@ int MediaSelectElement::nextSelectableListIndexPageAway(int startIndex, SkipDire
 
 void MediaSelectElement::selectAll()
 {
+	printf("selectAll()\n");
     ASSERT(!usesMenuList());
     if (!renderer() || !m_multiple)
         return;
@@ -849,6 +878,7 @@ void MediaSelectElement::setActiveSelectionEndIndex(int index)
 
 void MediaSelectElement::updateListBoxSelection(bool deselectOtherOptions)
 {
+	printf("updateListBoxSelection()\n");
     ASSERT(renderer() && (renderer()->isListBox() || m_multiple));
     ASSERT(!listItems().size() || m_activeSelectionAnchorIndex >= 0);
 
@@ -875,6 +905,7 @@ void MediaSelectElement::updateListBoxSelection(bool deselectOtherOptions)
 
 void MediaSelectElement::listBoxOnChange()
 {
+	printf("listBoxOnChange()\n");
     ASSERT(!usesMenuList() || m_multiple);
 
     const Vector<HTMLElement*>& items = listItems();
@@ -1053,6 +1084,7 @@ void MediaSelectElement::setSelectedIndex(int index)
 
 void MediaSelectElement::optionSelectionStateChanged(HTMLOptionElement* option, bool optionIsSelected)
 {
+	printf("optionSelectionStateChanged()\n");
     //ASSERT(option->ownerSelectElement() == this);
     if (optionIsSelected)
         selectOption(option->index());
@@ -1191,6 +1223,7 @@ FormControlState MediaSelectElement::saveFormControlState() const
 
 size_t MediaSelectElement::searchOptionsForValue(const String& value, size_t listIndexStart, size_t listIndexEnd) const
 {
+	printf("searchOptionsForValue()\n");
     const Vector<HTMLElement*>& items = listItems();
     size_t loopEndIndex = std::min(items.size(), listIndexEnd);
     for (size_t i = listIndexStart; i < loopEndIndex; ++i) {
@@ -1204,6 +1237,7 @@ size_t MediaSelectElement::searchOptionsForValue(const String& value, size_t lis
 
 void MediaSelectElement::restoreFormControlState(const FormControlState& state)
 {
+	printf("restoreFormControlState()\n");
     recalcListItems();
 
     const Vector<HTMLElement*>& items = listItems();
@@ -1241,6 +1275,7 @@ void MediaSelectElement::restoreFormControlState(const FormControlState& state)
 
 void MediaSelectElement::parseMultipleAttribute(const Attribute& attribute)
 {
+	printf("parseMultipleAttribute()\n");
     bool oldUsesMenuList = usesMenuList();
     m_multiple = !attribute.isNull();
     setNeedsValidityCheck();
@@ -1250,6 +1285,7 @@ void MediaSelectElement::parseMultipleAttribute(const Attribute& attribute)
 
 bool MediaSelectElement::appendFormData(FormDataList& list, bool)
 {
+	printf("appendFormData()\n");
     const AtomicString& name = this->name();
     if (name.isEmpty())
         return false;
@@ -1273,6 +1309,7 @@ bool MediaSelectElement::appendFormData(FormDataList& list, bool)
 
 void MediaSelectElement::reset()
 {
+	printf("reset()\n");
     HTMLOptionElement* firstOption = 0;
     HTMLOptionElement* selectedOption = 0;
 
@@ -1469,6 +1506,7 @@ void MediaSelectElement::menuListDefaultEventHandler(Event* event)
 
 void MediaSelectElement::updateSelectedState(int listIndex, bool multi, bool shift)
 {
+	printf("updateSelectedState()\n");
     ASSERT(listIndex >= 0);
 
     // Save the selection so it can be compared to the new selection when
@@ -1518,6 +1556,7 @@ void MediaSelectElement::updateSelectedState(int listIndex, bool multi, bool shi
 
 void MediaSelectElement::listBoxDefaultEventHandler(Event* event)
 {
+	printf("listBoxDefaultEventHandler()\n");
     const Vector<HTMLElement*>& listItems = this->listItems();
 
     if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
@@ -1695,6 +1734,7 @@ void MediaSelectElement::defaultEventHandler(Event* event)
 
 int MediaSelectElement::lastSelectedListIndex() const
 {
+	printf("lastSelectedListIndex()\n");
     const Vector<HTMLElement*>& items = listItems();
     for (size_t i = items.size(); i;) {
         HTMLElement* element = items[--i];
@@ -1792,6 +1832,7 @@ Node::InsertionNotificationRequest MediaSelectElement::insertedInto(ContainerNod
 
 void MediaSelectElement::accessKeySetSelectedIndex(int index)
 {
+	printf("accessKeySetSelectedIndex()\n");
     // First bring into focus the list box.
     if (!focused())
         accessKeyAction(false);
@@ -1819,6 +1860,7 @@ void MediaSelectElement::accessKeySetSelectedIndex(int index)
 
 unsigned MediaSelectElement::length() const
 {
+	printf("length()\n");
     unsigned options = 0;
 
     const Vector<HTMLElement*>& items = listItems();
@@ -3027,11 +3069,6 @@ void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 {
 	setDisplayType(MediaAudioTrackSelButton);
 
-//    if (RenderObject* object = renderer())
-//    {
-//    	display();
-//        object->repaint();
-//    }
 }
 
 void MediaControlAudioTrackSelButtonElement::display()
@@ -3119,12 +3156,6 @@ void MediaControlTextTrackSelButtonElement::updateDisplayType()
 {
 	setDisplayType(MediaTextTrackSelButton);
 
-//	show();
-//    if (RenderObject* object = renderer())
-//    {
-//    	display();
-//        object->repaint();
-//    }
 }
 
 void MediaControlTextTrackSelButtonElement::display()

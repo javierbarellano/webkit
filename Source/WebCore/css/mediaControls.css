@@ -277,20 +277,23 @@ video::-webkit-media-text-track-display {
 
 video::-webkit-media-controls-video-track-sel-button {
     -webkit-appearance: media-video-track-sel-button;
-	background-color: rgba(0, 0, 0, 0.8);
-    color: inherit;
+	background-color: transparent;
+    color: rgba(255,100,50,255);
+    padding: 2px 2px 2px 0px;
 }
 
 video::-webkit-media-controls-text-track-sel-button {
     -webkit-appearance: media-text-track-sel-button;
-	background-color: rgba(0, 0, 0, 0.8);
-    color: inherit;
+	background-color: transparent;
+    color: rgba(255,100,50,255);
+    padding: 2px 2px 2px 0px;
 }
 
 audio::-webkit-media-controls-audio-track-sel-button, video::-webkit-media-controls-audio-track-sel-button {
     -webkit-appearance: media-audio-track-sel-button;
-	background-color: rgba(0, 0, 0, 0.8);
-    color: inherit;
+	background-color: transparent;
+    color: rgba(255,100,50,255);
+    padding: 2px 2px 2px 0px;
 }
 
 

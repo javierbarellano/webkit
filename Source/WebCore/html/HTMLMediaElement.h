@@ -28,6 +28,8 @@
 
 #if ENABLE(VIDEO)
 
+#include <wtf/Vector.h>
+
 #include "HTMLElement.h"
 #include "ActiveDOMObject.h"
 #include "GenericEventQueue.h"
@@ -158,6 +160,13 @@ public:
     bool paused() const;
     float defaultPlaybackRate() const;
     void setDefaultPlaybackRate(float);
+    virtual Vector<float> getSupportedPlayRates() {
+    	if (m_player)
+    		m_playRates = m_player->getPlayRates();
+
+    	return m_playRates;
+    }
+
     float playbackRate() const;
     void setPlaybackRate(float);
     void updatePlaybackRate();
@@ -625,6 +634,8 @@ private:
     RefPtr<Node> m_nextChildNodeToConsider;
 
     OwnPtr<MediaPlayer> m_player;
+    Vector<float> m_playRates;
+
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     RefPtr<Widget> m_proxyWidget;
 #endif

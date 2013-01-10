@@ -97,6 +97,8 @@ public:
 #endif
 
 protected:
+    virtual void adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const;
+
     virtual bool paintCheckbox(RenderObject*, const PaintInfo&, const IntRect&);
     virtual void setCheckboxSize(RenderStyle*) const;
 
@@ -179,6 +181,8 @@ protected:
     IntRect convertToPaintingRect(RenderObject* inputRenderer, const RenderObject* partRenderer, IntRect partRect, const IntRect& localOffset) const;
 
     virtual QPalette colorPalette() const;
+
+    void paintSelect(QPainter *painter, RenderObject* o);
 
     Page* m_page;
 

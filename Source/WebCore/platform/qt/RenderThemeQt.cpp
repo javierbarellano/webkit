@@ -29,7 +29,9 @@
 
 #include "config.h"
 #include "RenderThemeQt.h"
+#include "MediaControlElements.h"
 
+#include "NamedNodeMap.h"
 #include "CSSValueKeywords.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
@@ -568,6 +570,22 @@ double RenderThemeQt::mediaControlsBaselineOpacity() const
     return 0.4;
 }
 
+void RenderThemeQt::adjustMediaControlStyle(StyleResolver* selector, RenderStyle* style, Element* element) const
+{
+    ControlPart part = style->appearance();
+
+	if (part == MediaVideoTrackSelButtonPart ||
+		part == MediaAudioTrackSelButtonPart ||
+		part == MediaTextTrackSelButtonPart) {
+
+		Length mw(style->width());
+		mw.setValue(Fixed, mw.intValue() + 150);
+		style->setMinWidth(mw);
+	}
+}
+
+
+
 void RenderThemeQt::paintMediaBackground(QPainter* painter, const IntRect& r) const
 {
     painter->setPen(Qt::NoPen);
@@ -681,6 +699,46 @@ bool RenderThemeQt::paintMediaPlayButton(RenderObject* o, const PaintInfo& paint
     return false;
 }
 
+void RenderThemeQt::paintSelect(QPainter *painter, RenderObject* o)
+{
+    painter->setBrush(getMediaControlForegroundColor(o));
+
+    QPen pen;
+    pen.setColor(getMediaControlForegroundColor(o));
+    pen.setWidth(2);
+    painter->setPen(pen);
+
+    QPointF outline[4];
+    outline[0].setX(0);  outline[0].setY(0);
+    outline[1].setX(0);  outline[1].setY(100);
+    outline[2].setX(100);  outline[2].setY(100);
+    outline[3].setX(100);  outline[3].setY(0);
+
+	painter->drawPolyline(outline, 4);
+
+    QPointF menu[4];
+    menu[0].setX(90);  menu[0].setY(0);
+    menu[1].setX(90);  menu[1].setY(100);
+    menu[2].setX(98);  menu[2].setY(100);
+    menu[3].setX(98);  menu[3].setY(0);
+
+    painter->drawPolygon(menu, 4);
+
+    QLineF arw[2];
+    arw[0].setP1(QPointF(91,65));
+    arw[0].setP2(QPointF(94,50));
+    arw[1].setP1(QPointF(94,50));
+    arw[1].setP2(QPointF(97,65));
+
+    QPen penArw;
+    penArw.setColor(QColor(0,0,0,255));
+    penArw.setWidth(2);
+    painter->setPen(penArw);
+
+    painter->drawLines(arw, 2);
+
+}
+
 bool RenderThemeQt::paintMediaVideoTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
 {
     HTMLMediaElement* mediaElement = toParentMediaElement(o);
@@ -694,17 +752,10 @@ bool RenderThemeQt::paintMediaVideoTrackSelButton(RenderObject* o, const PaintIn
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    p->painter->setBrush(getMediaControlForegroundColor(o));
 
     WorldMatrixTransformer transformer(p->painter, o, r);
 
-    QPointF outline[4];
-    outline[0].setX(0);  outline[0].setY(0);
-    outline[1].setX(0);  outline[1].setY(100);
-    outline[2].setX(100);  outline[2].setY(100);
-    outline[3].setX(100);  outline[3].setY(0);
-
-	p->painter->drawPolygon(outline, 4);
+    paintSelect(p->painter, o);
 
     return false;
 }
@@ -722,17 +773,9 @@ bool RenderThemeQt::paintMediaAudioTrackSelButton(RenderObject* o, const PaintIn
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    p->painter->setBrush(getMediaControlForegroundColor(o));
-
     WorldMatrixTransformer transformer(p->painter, o, r);
 
-    QPointF outline[4];
-    outline[0].setX(0);  outline[0].setY(0);
-    outline[1].setX(0);  outline[1].setY(100);
-    outline[2].setX(100);  outline[2].setY(100);
-    outline[3].setX(100);  outline[3].setY(0);
-
-	p->painter->drawPolygon(outline, 4);
+    paintSelect(p->painter, o);
 
     return false;
 }
@@ -750,17 +793,9 @@ bool RenderThemeQt::paintMediaTextTrackSelButton(RenderObject* o, const PaintInf
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    p->painter->setBrush(getMediaControlForegroundColor(o));
-
     WorldMatrixTransformer transformer(p->painter, o, r);
 
-    QPointF outline[4];
-    outline[0].setX(0);  outline[0].setY(0);
-    outline[1].setX(0);  outline[1].setY(100);
-    outline[2].setX(100);  outline[2].setY(100);
-    outline[3].setX(100);  outline[3].setY(0);
-
-	p->painter->drawPolygon(outline, 4);
+    paintSelect(p->painter, o);
 
     return false;
 }
@@ -771,6 +806,10 @@ bool RenderThemeQt::paintMediaFFButton(RenderObject* o, const PaintInfo& paintIn
     if (!mediaElement)
         return false;
 
+//    MediaControlFFButtonElement *ff = o->;
+//    if (ff->disabled())
+//    	printf("paintMediaFFButton() Disabled!\n");
+
     QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
     if (p.isNull() || !p->isValid())
         return true;
@@ -780,6 +819,7 @@ bool RenderThemeQt::paintMediaFFButton(RenderObject* o, const PaintInfo& paintIn
     paintMediaBackground(p->painter, r);
 
     WorldMatrixTransformer transformer(p->painter, o, r);
+
     p->painter->setBrush(getMediaControlForegroundColor(o));
 
     QPointF playPolygon[7];

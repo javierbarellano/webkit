@@ -58,6 +58,8 @@ public:
     virtual float defaultPlaybackRate() const = 0;
     virtual void setDefaultPlaybackRate(float) = 0;
     
+    virtual Vector<float> getSupportedPlayRates() = 0;
+
     virtual float playbackRate() const = 0;
     virtual void setPlaybackRate(float) = 0;
     
