@@ -44,14 +44,17 @@
 
 namespace WebCore {
 
-NavDsc *NavDsc::instance = NULL;
 FILE *NavDsc::HN_FD_; // Used for logging
+NavDsc *NavDsc::instance = 0;
 
 // Static
 NavDsc *NavDsc::create(Frame * frame)
 {
 	if (!instance)
 		instance = new NavDsc(frame);
+
+	if (frame)
+		instance->m_frame = frame;
 
 	return instance;
 }
@@ -301,7 +304,7 @@ void NavDsc::sendEventInternal(void *ptr)
 	evnt.release();
 }
 
-std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
+void NavDsc::startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api)
 {
     //printf("startUPnPInternalDiscovery(%s).\n", type);
 
@@ -325,9 +328,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPInternalDiscovery(const char 
 	std::string strType(type);
 	std::map<std::string, ZCDevice> zcdevs;
 
-	setServices(strType, type, devs, zcdevs, UPNP_PROTO);
-
-	return devs;
+    return;
 }
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb)

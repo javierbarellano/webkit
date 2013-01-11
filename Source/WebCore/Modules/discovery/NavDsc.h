@@ -51,11 +51,17 @@ public:
 
 	static NavDsc *create(Frame * frame);
 
-	static NavDsc *getInstance() { return instance;}
+	static NavDsc *getInstance() {
+
+		if (!instance)
+			instance = new NavDsc(NULL);
+
+		return instance;
+	}
 
 	virtual ~NavDsc();
 
-	std::map<std::string, UPnPDevice> startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
+    void startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
 
 
 	std::map<std::string, UPnPDevice> startUPnPDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb);

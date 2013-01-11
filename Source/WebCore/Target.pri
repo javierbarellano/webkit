@@ -64,7 +64,8 @@ SOURCES += \
     accessibility/AXObjectCache.cpp \
     bindings/generic/ActiveDOMCallback.cpp \
     bindings/generic/BindingSecurity.cpp \
-    bindings/generic/RuntimeEnabledFeatures.cpp
+    bindings/generic/RuntimeEnabledFeatures.cpp \
+    Modules/discovery/DiscoveryWrapper.cpp
 
 SOURCES += \
      bindings/ScriptControllerBase.cpp \
@@ -1311,7 +1312,8 @@ HEADERS += \
     bindings/ScriptControllerBase.h \
     bindings/generic/ActiveDOMCallback.h \
     bindings/generic/BindingSecurity.h \
-    bindings/generic/RuntimeEnabledFeatures.h
+    bindings/generic/RuntimeEnabledFeatures.h \
+    Modules/discovery/DiscoveryWrapper.h
 
 HEADERS += \
     bindings/js/BindingState.h \
