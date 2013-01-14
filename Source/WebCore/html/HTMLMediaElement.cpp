@@ -3394,7 +3394,8 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 {
     AudioTrack *existingTrack = audioTracks()->item(index);
     if(existingTrack != NULL) {
-        existingTrack->setEnabled(enabled);
+    	//printf("mediaPlayerAddAudioTrack() %d %s\n",index, enabled ? "true":"false");
+        //existingTrack->setEnabled(enabled);
         existingTrack->setId(id);
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
@@ -3430,7 +3431,8 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
 {
     VideoTrack *existingTrack = videoTracks()->item(index);
     if(existingTrack != NULL) {
-        existingTrack->setSelected(selected);
+
+        //existingTrack->setSelected(selected);
         existingTrack->setId(id);
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);

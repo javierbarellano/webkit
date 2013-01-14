@@ -103,6 +103,7 @@ audio::-webkit-media-controls-ff-button, video::-webkit-media-controls-ff-button
     background-color: initial;
     border: initial;
     color: inherit;
+    padding: 2px 2px 2px 0px;
 }
 
 audio::-webkit-media-controls-rev-button, video::-webkit-media-controls-rev-button {
@@ -113,6 +114,7 @@ audio::-webkit-media-controls-rev-button, video::-webkit-media-controls-rev-butt
     background-color: initial;
     border: initial;
     color: inherit;
+    padding: 2px 2px 2px 0px;
 }
 
 audio::-webkit-media-controls-timeline-container, video::-webkit-media-controls-timeline-container {

@@ -160,10 +160,10 @@ public:
     void optionSelectedByUser(int index, bool dispatchChangeEvent, bool allowMultipleSelection = false);
 
     // For ValidityState
-    virtual String validationMessage() const OVERRIDE;
+    //virtual String validationMessage() const OVERRIDE;
     virtual bool valueMissing() const OVERRIDE;
 
-    unsigned length() const;
+    //unsigned length() const;
 
     int size() const { return m_size; }
     bool multiple() const { return m_multiple; }
@@ -174,11 +174,11 @@ public:
     void remove(int index);
 //    void remove(HTMLOptionElement*);
 
-    String value() const;
-    void setValue(const String&);
+    //String value() const;
+    //void setValue(const String&);
 
     PassRefPtr<HTMLOptionsCollection> options();
-    PassRefPtr<HTMLCollection> selectedOptions();
+    //PassRefPtr<HTMLCollection> selectedOptions();
 
     void optionElementChildrenChanged();
 
@@ -191,27 +191,27 @@ public:
     virtual void accessKeyAction(bool sendMouseEvents);
     void accessKeySetSelectedIndex(int);
 
-    void setMultiple(bool);
+    //void setMultiple(bool);
 
-    void setSize(int);
+    //void setSize(int);
 
-    void setOption(unsigned index, HTMLOptionElement*, ExceptionCode&);
-    void setLength(unsigned, ExceptionCode&);
+    //void setOption(unsigned index, HTMLOptionElement*, ExceptionCode&);
+    //void setLength(unsigned, ExceptionCode&);
 
-    Node* namedItem(const AtomicString& name);
-    Node* item(unsigned index);
+    //Node* namedItem(const AtomicString& name);
+    //Node* item(unsigned index);
 
     void scrollToSelection();
 
     void listBoxSelectItem(int listIndex, bool allowMultiplySelections, bool shift, bool fireOnChangeNow = true);
 
-    bool canSelectAll() const;
-    void selectAll();
+    //bool canSelectAll() const;
+    //void selectAll();
     int listToOptionIndex(int listIndex) const;
     void listBoxOnChange();
     int optionToListIndex(int optionIndex) const;
-    int activeSelectionStartListIndex() const;
-    int activeSelectionEndListIndex() const;
+    //int activeSelectionStartListIndex() const;
+    //int activeSelectionEndListIndex() const;
     void setActiveSelectionAnchorIndex(int);
     void setActiveSelectionEndIndex(int);
     void updateListBoxSelection(bool deselectOtherOptions);
@@ -231,7 +231,7 @@ private:
     virtual const AtomicString& formControlType() const;
 
     virtual bool isKeyboardFocusable(KeyboardEvent*) const;
-    virtual bool isMouseFocusable() const;
+    //virtual bool isMouseFocusable() const;
 
     virtual void dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode);
     virtual void dispatchBlurEvent(PassRefPtr<Node> newFocusedNode);
@@ -242,23 +242,23 @@ private:
     virtual bool supportLabels() const OVERRIDE { return true; }
 
     virtual FormControlState saveFormControlState() const OVERRIDE;
-    virtual void restoreFormControlState(const FormControlState&) OVERRIDE;
+    //virtual void restoreFormControlState(const FormControlState&) OVERRIDE;
 
-    virtual void parseAttribute(const Attribute&) OVERRIDE;
-    virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
+    //virtual void parseAttribute(const Attribute&) OVERRIDE;
+    //virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
 
-    virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const OVERRIDE;
+    //virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const OVERRIDE;
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle *);
-    virtual bool appendFormData(FormDataList&, bool);
+    //virtual bool appendFormData(FormDataList&, bool);
 
-    virtual void reset();
+    //virtual void reset();
 
 
     void dispatchChangeEventForMenuList();
 
     void recalcListItems(bool updateSelectedStates = true) const;
 
-    void deselectItems(HTMLOptionElement* excludeElement = 0);
+    //void deselectItems(HTMLOptionElement* excludeElement = 0);
     void typeAheadFind(KeyboardEvent*);
     void saveLastSelection();
 
@@ -277,7 +277,7 @@ private:
     typedef unsigned SelectOptionFlags;
     void selectOption(int optionIndex, SelectOptionFlags = 0);
     void deselectItemsWithoutValidation(HTMLElement* elementToExclude = 0);
-    void parseMultipleAttribute(const Attribute&);
+    //void parseMultipleAttribute(const Attribute&);
     int lastSelectedListIndex() const;
     void updateSelectedState(int listIndex, bool multi, bool shift);
     void menuListDefaultEventHandler(Event*);
