@@ -54,6 +54,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             IntSize naturalSize() const;
             bool hasVideo() const { return m_hasVideo; }
+            bool hasText() const { return m_hasText; }
             bool hasAudio() const { return m_hasAudio; }
 
             void load(const String &url);
@@ -75,7 +76,6 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             float duration() const;
             float currentTime() const;
-
             void seek(float);
 
             void setRate(float);
@@ -129,6 +129,13 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             void notifyPlayerOfAudio();
             void notifyPlayerOfVideoTags();
             void notifyPlayerOfAudioTags();
+#if ENABLE(VIDEO_TRACK)
+            void textChanged();
+            void notifyPlayerOfText();
+            void textTagsChanged(int index);
+            void notifyPlayerOfTextTags();
+            void notifyPlayerOfTextBuffer();
+#endif
 
             void sourceChanged();
 
@@ -214,13 +221,22 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             guint m_volumeTimerHandler;
             guint m_muteTimerHandler;
             bool m_hasVideo;
+            bool m_hasText;
             bool m_hasAudio;
             guint m_audioTimerHandler;
             guint m_audioTagsTimerHandler;
+#if ENABLE(VIDEO_TRACK)
+            guint m_textTimerHandler;
+            guint m_textTagTimerHandler;
+            Vector<bool> m_changedTextTags;
+#endif
             guint m_videoTimerHandler;
             guint m_videoCapsTimerHandler;
             guint m_videoTagsTimerHandler;
             GRefPtr<GstElement> m_webkitAudioSink;
+#if ENABLE(VIDEO_TRACK)
+            GRefPtr<GstElement> m_textSink;
+#endif
             mutable long m_totalBytes;
             GRefPtr<GstPad> m_videoSinkPad;
             mutable IntSize m_videoSize;

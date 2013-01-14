@@ -737,6 +737,7 @@ SOURCES += \
     html/shadow/TextControlInnerElements.cpp \
     html/track/AudioTrack.cpp \
     html/track/AudioTrackList.cpp \
+    html/track/InBandTextTrack.cpp \
     html/track/LoadableTextTrack.cpp \
     html/track/TextTrack.cpp \
     html/track/TextTrackCue.cpp \

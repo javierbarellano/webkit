@@ -54,6 +54,7 @@ public:
 
 class TextTrack : public TrackBase {
 public:
+
     static PassRefPtr<TextTrack> create(ScriptExecutionContext* context, TextTrackClient* client, const String& kind, const String& label, const String& language)
     {
         return adoptRef(new TextTrack(context, client, kind, label, language, AddTrack));
