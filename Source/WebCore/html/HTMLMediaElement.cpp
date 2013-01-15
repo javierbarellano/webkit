@@ -3387,13 +3387,19 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
 }
 
 #if ENABLE(VIDEO_TRACK)
-void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language)
 {
     RefPtr<TextTrack> track = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
     textTracks()->append(track);
     if (hasMediaControls())
     	mediaControls()->updateTextTrackDisplay();
     track.release();
+}
+
+void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
+{
+    if(m_textTracks)
+        m_textTracks->clear();
 }
 
 void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)

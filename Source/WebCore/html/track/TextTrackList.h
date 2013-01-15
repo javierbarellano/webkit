@@ -55,6 +55,7 @@ public:
 
     TextTrack* item(unsigned index);
     void append(PassRefPtr<TextTrack>);
+    void clear();
     void remove(TextTrack*);
 
     // EventTarget

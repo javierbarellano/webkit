@@ -139,6 +139,13 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
     scheduleAddTrackEvent(track.release());
 }
 
+void TextTrackList::clear()
+{
+    m_addTrackTracks.clear();
+    m_elementTracks.clear();
+    m_inbandTracks.clear();
+}
+
 void TextTrackList::remove(TextTrack* track)
 {
     Vector<RefPtr<TextTrack> >* tracks = 0;

@@ -278,7 +278,8 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
-    virtual void mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
+    virtual void mediaPlayerClearTextTracks(MediaPlayer*);
+    virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language);
 
     AudioTrackList* audioTracks();
     virtual void mediaPlayerClearAudioTracks(MediaPlayer*);
