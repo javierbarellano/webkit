@@ -1108,10 +1108,8 @@ void MediaSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
         deselectItemsWithoutValidation(element);
 
     // For the menu list case, this is what makes the selected element appear.
-    if (RenderObject* renderer = this->renderer()) {
-        printf("selectOption() updateFromElement\n");
+    if (RenderObject* renderer = this->renderer())
     	renderer->updateFromElement();
-    }
 
     scrollToSelection();
 
@@ -3069,6 +3067,7 @@ void MediaControlAudioTrackSelButtonElement::display()
 	if (renderer()) {
 		//setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
 		//setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+		int index = this->selectedIndex();
 		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
 
 		if (names.size() > 0) {
@@ -3099,6 +3098,8 @@ void MediaControlAudioTrackSelButtonElement::display()
 				String sOpt(nam.c_str());
 				option->appendChild(Text::create(document(), sOpt), ec);
 			}
+			if (index >= 0)
+				setSelectedIndex(index);
 		}
 	}
 

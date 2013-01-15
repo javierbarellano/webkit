@@ -578,9 +578,10 @@ void RenderThemeQt::adjustMediaControlStyle(StyleResolver* selector, RenderStyle
 		part == MediaAudioTrackSelButtonPart ||
 		part == MediaTextTrackSelButtonPart) {
 
-		Length mw(style->width());
-		mw.setValue(Fixed, mw.intValue() + 150);
-		style->setMinWidth(mw);
+		//printf("adjustMediaControlStyle(%d) %f\n", part, style->minWidth().value());
+		//Length mw(style->width());
+		//mw.setValue(Fixed, mw.intValue() + 150);
+		//style->setMinWidth(mw);
 	}
 }
 
@@ -699,36 +700,48 @@ bool RenderThemeQt::paintMediaPlayButton(RenderObject* o, const PaintInfo& paint
     return false;
 }
 
-void RenderThemeQt::paintSelect(QPainter *painter, RenderObject* o)
+void RenderThemeQt::paintSelect(QPainter *painter, RenderObject* o, const IntRect& r)
 {
+	int lx = r.x();
+	int ly = r.y();
+	int hx = lx + r.width();
+	int hy = ly + r.height();
+
     painter->setBrush(getMediaControlForegroundColor(o));
 
     QPen pen;
     pen.setColor(getMediaControlForegroundColor(o));
-    pen.setWidth(2);
+    pen.setWidth(1);
     painter->setPen(pen);
 
-    QPointF outline[4];
-    outline[0].setX(0);  outline[0].setY(0);
-    outline[1].setX(0);  outline[1].setY(100);
-    outline[2].setX(100);  outline[2].setY(100);
-    outline[3].setX(100);  outline[3].setY(0);
+    QPointF outline[10];
+    outline[0].setX(lx+2);  outline[0].setY(ly+2);
+    outline[1].setX(lx+2);  outline[1].setY(hy-2);
+    outline[2].setX(hx-2);  outline[2].setY(hy-2);
+    outline[3].setX(hx-2);  outline[3].setY(ly+2);
+    outline[4].setX(lx+2);  outline[4].setY(ly+2);
 
-	painter->drawPolyline(outline, 4);
+    outline[5].setX(lx+0);  outline[5].setY(ly+0);
+    outline[6].setX(lx+0);  outline[6].setY(hy);
+    outline[7].setX(hx);    outline[7].setY(hy);
+    outline[8].setX(hx);    outline[8].setY(ly+0);
+    outline[9].setX(lx+0);  outline[9].setY(ly+0);
+
+	painter->drawPolygon(outline, 10);
 
     QPointF menu[4];
-    menu[0].setX(90);  menu[0].setY(0);
-    menu[1].setX(90);  menu[1].setY(100);
-    menu[2].setX(98);  menu[2].setY(100);
-    menu[3].setX(98);  menu[3].setY(0);
+    menu[0].setX(hx-16);  menu[0].setY(ly);
+    menu[1].setX(hx-16);  menu[1].setY(hy);
+    menu[2].setX(hx);  menu[2].setY(hy);
+    menu[3].setX(hx);  menu[3].setY(ly);
 
     painter->drawPolygon(menu, 4);
 
     QLineF arw[2];
-    arw[0].setP1(QPointF(91,65));
-    arw[0].setP2(QPointF(94,50));
-    arw[1].setP1(QPointF(94,50));
-    arw[1].setP2(QPointF(97,65));
+    arw[0].setP1(QPointF(hx-13,(ly+hy)/2-3));
+    arw[0].setP2(QPointF(hx-8 ,(ly+hy)/2+3));
+    arw[1].setP1(QPointF(hx-8 ,(ly+hy)/2+3));
+    arw[1].setP2(QPointF(hx-3 ,(ly+hy)/2-3));
 
     QPen penArw;
     penArw.setColor(QColor(0,0,0,255));
@@ -752,10 +765,9 @@ bool RenderThemeQt::paintMediaVideoTrackSelButton(RenderObject* o, const PaintIn
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
+    //WorldMatrixTransformer transformer(p->painter, o, r);
 
-    WorldMatrixTransformer transformer(p->painter, o, r);
-
-    paintSelect(p->painter, o);
+    paintSelect(p->painter, o, r);
 
     return false;
 }
@@ -773,9 +785,9 @@ bool RenderThemeQt::paintMediaAudioTrackSelButton(RenderObject* o, const PaintIn
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    WorldMatrixTransformer transformer(p->painter, o, r);
+    //WorldMatrixTransformer transformer(p->painter, o, r);
 
-    paintSelect(p->painter, o);
+    paintSelect(p->painter, o, r);
 
     return false;
 }
@@ -793,9 +805,9 @@ bool RenderThemeQt::paintMediaTextTrackSelButton(RenderObject* o, const PaintInf
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    WorldMatrixTransformer transformer(p->painter, o, r);
+    //WorldMatrixTransformer transformer(p->painter, o, r);
 
-    paintSelect(p->painter, o);
+    paintSelect(p->painter, o, r);
 
     return false;
 }

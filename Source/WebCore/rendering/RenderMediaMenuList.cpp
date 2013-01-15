@@ -46,7 +46,6 @@ RenderMediaMenuList::~RenderMediaMenuList()
 
 void RenderMediaMenuList::updateOptionsWidth()
 {
-	printf("updateOptionsWidth()\n");
     float maxOptionWidth = 0;
     const Vector<HTMLElement*>& listItems = mediaSelElement()->listItems();
     int size = listItems.size();
@@ -115,7 +114,6 @@ void RenderMediaMenuList::setTextFromOption(int optionIndex)
 
 void RenderMediaMenuList::showPopup()
 {
-	printf("showPopup()\n");
     if (m_popupIsVisible)
         return;
 
@@ -243,7 +241,6 @@ bool RenderMediaMenuList::itemIsEnabled(unsigned listIndex) const
 
 PopupMenuStyle RenderMediaMenuList::itemStyle(unsigned listIndex) const
 {
-	printf("itemStyle()\n");
     const Vector<HTMLElement*>& listItems = mediaSelElement()->listItems();
     if (listIndex >= listItems.size()) {
         // If we are making an out of bounds access, then we want to use the style
@@ -264,7 +261,6 @@ PopupMenuStyle RenderMediaMenuList::itemStyle(unsigned listIndex) const
 
 Color RenderMediaMenuList::itemBackgroundColor(unsigned listIndex) const
 {
-	printf("itemBackgroundColor()\n");
     const Vector<HTMLElement*>& listItems = mediaSelElement()->listItems();
     if (listIndex >= listItems.size())
         return style()->visitedDependentColor(CSSPropertyBackgroundColor);

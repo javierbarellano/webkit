@@ -164,7 +164,6 @@ void RenderMenuList::styleDidChange(StyleDifference diff, const RenderStyle* old
 
 void RenderMenuList::updateOptionsWidth()
 {
-	printf("RenderMenuList::updateOptionsWidth()\n");
     float maxOptionWidth = 0;
     const Vector<HTMLElement*>& listItems = selectElement()->listItems();
     int size = listItems.size();    
@@ -233,7 +232,6 @@ void RenderMenuList::setTextFromOption(int optionIndex)
 
 void RenderMenuList::setText(const String& s)
 {
-	printf("RenderMenuList::setText()\n");
     if (s.isEmpty()) {
         if (!m_buttonText || !m_buttonText->isBR()) {
             if (m_buttonText)
@@ -282,7 +280,6 @@ LayoutRect RenderMenuList::controlClipRect(const LayoutPoint& additionalOffset) 
 
 void RenderMenuList::computePreferredLogicalWidths()
 {
-	printf("RenderMenuList::computePreferredLogicalWidths()\n");
     m_minPreferredLogicalWidth = 0;
     m_maxPreferredLogicalWidth = 0;
     
@@ -313,7 +310,6 @@ void RenderMenuList::computePreferredLogicalWidths()
 
 void RenderMenuList::showPopup()
 {
-	printf("RenderMenuList::showPopup()\n");
     if (m_popupIsVisible)
         return;
 
@@ -339,14 +335,12 @@ void RenderMenuList::showPopup()
 
 void RenderMenuList::hidePopup()
 {
-	printf("RenderMenuList::hidePopup()\n");
     if (m_popup)
         m_popup->hide();
 }
 
 void RenderMenuList::valueChanged(unsigned listIndex, bool fireOnChange)
 {
-	printf("RenderMenuList::valueChanged()\n");
     // Check to ensure a page navigation has not occurred while
     // the popup was up.
     Document* doc = static_cast<Element*>(node())->document();
@@ -359,7 +353,6 @@ void RenderMenuList::valueChanged(unsigned listIndex, bool fireOnChange)
 
 void RenderMenuList::listBoxSelectItem(int listIndex, bool allowMultiplySelections, bool shift, bool fireOnChangeNow)
 {
-	printf("RenderMenuList::listBoxSelectItem()\n");
     selectElement()->listBoxSelectItem(listIndex, allowMultiplySelections, shift, fireOnChangeNow);
 }
 
@@ -370,13 +363,11 @@ bool RenderMenuList::multiple() const
 
 void RenderMenuList::didSetSelectedIndex(int listIndex)
 {
-	printf("RenderMenuList::didSetSelectedIndex()\n");
     didUpdateActiveOption(selectElement()->listToOptionIndex(listIndex));
 }
 
 void RenderMenuList::didUpdateActiveOption(int optionIndex)
 {
-	printf("RenderMenuList::didUpdateActiveOption()\n");
     if (!AXObjectCache::accessibilityEnabled())
         return;
 
@@ -397,7 +388,6 @@ void RenderMenuList::didUpdateActiveOption(int optionIndex)
 
 String RenderMenuList::itemText(unsigned listIndex) const
 {
-	printf("RenderMenuList::itemText()\n");
     HTMLSelectElement* select = selectElement();
     const Vector<HTMLElement*>& listItems = select->listItems();
     if (listIndex >= listItems.size())
@@ -443,7 +433,6 @@ String RenderMenuList::itemToolTip(unsigned listIndex) const
 
 bool RenderMenuList::itemIsEnabled(unsigned listIndex) const
 {
-	printf("RenderMenuList::itemIsEnabled()\n");
     const Vector<HTMLElement*>& listItems = selectElement()->listItems();
     if (listIndex >= listItems.size())
         return false;
@@ -464,7 +453,6 @@ bool RenderMenuList::itemIsEnabled(unsigned listIndex) const
 
 PopupMenuStyle RenderMenuList::itemStyle(unsigned listIndex) const
 {
-	printf("RenderMenuList::itemStyle()\n");
     const Vector<HTMLElement*>& listItems = selectElement()->listItems();
     if (listIndex >= listItems.size()) {
         // If we are making an out of bounds access, then we want to use the style
@@ -485,7 +473,6 @@ PopupMenuStyle RenderMenuList::itemStyle(unsigned listIndex) const
 
 Color RenderMenuList::itemBackgroundColor(unsigned listIndex) const
 {
-	printf("RenderMenuList::itemBackgroundColor()\n");
     const Vector<HTMLElement*>& listItems = selectElement()->listItems();
     if (listIndex >= listItems.size())
         return style()->visitedDependentColor(CSSPropertyBackgroundColor);
@@ -510,7 +497,6 @@ Color RenderMenuList::itemBackgroundColor(unsigned listIndex) const
 
 PopupMenuStyle RenderMenuList::menuStyle() const
 {
-	printf("RenderMenuList::menuStyle()\n");
     RenderStyle* s = m_innerBlock ? m_innerBlock->style() : style();
     return PopupMenuStyle(s->visitedDependentColor(CSSPropertyColor), s->visitedDependentColor(CSSPropertyBackgroundColor), s->font(), s->visibility() == VISIBLE,
         s->display() == NONE, s->textIndent(), style()->direction(), isOverride(style()->unicodeBidi()));
@@ -544,14 +530,12 @@ int RenderMenuList::clientInsetRight() const
 
 LayoutUnit RenderMenuList::clientPaddingLeft() const
 {
-	printf("RenderMenuList::clientPaddingLeft()\n");
     return paddingLeft() + m_innerBlock->paddingLeft();
 }
 
 const int endOfLinePadding = 2;
 LayoutUnit RenderMenuList::clientPaddingRight() const
 {
-	printf("RenderMenuList::clientPaddingRight()\n");
     if (style()->appearance() == MenulistPart || style()->appearance() == MenulistButtonPart) {
         // For these appearance values, the theme applies padding to leave room for the
         // drop-down button. But leaving room for the button inside the popup menu itself
@@ -567,13 +551,11 @@ LayoutUnit RenderMenuList::clientPaddingRight() const
 
 int RenderMenuList::listSize() const
 {
-	printf("RenderMenuList::listSize()\n");
     return selectElement()->listItems().size();
 }
 
 int RenderMenuList::selectedIndex() const
 {
-	printf("RenderMenuList::selectedIndex()\n");
     HTMLSelectElement* select = selectElement();
     return select->optionToListIndex(select->selectedIndex());
 }
@@ -597,7 +579,6 @@ bool RenderMenuList::itemIsLabel(unsigned listIndex) const
 
 bool RenderMenuList::itemIsSelected(unsigned listIndex) const
 {
-	printf("RenderMenuList::itemIsSelected()\n");
     const Vector<HTMLElement*>& listItems = selectElement()->listItems();
     if (listIndex >= listItems.size())
         return false;
@@ -607,13 +588,11 @@ bool RenderMenuList::itemIsSelected(unsigned listIndex) const
 
 void RenderMenuList::setTextFromItem(unsigned listIndex)
 {
-	printf("RenderMenuList::setTextFromItem()\n");
     setTextFromOption(selectElement()->listToOptionIndex(listIndex));
 }
 
 FontSelector* RenderMenuList::fontSelector() const
 {
-	printf("RenderMenuList::fontSelector()\n");
     return document()->styleResolver()->fontSelector();
 }
 

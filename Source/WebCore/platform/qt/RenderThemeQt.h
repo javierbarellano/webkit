@@ -182,7 +182,7 @@ protected:
 
     virtual QPalette colorPalette() const;
 
-    void paintSelect(QPainter *painter, RenderObject* o);
+    void paintSelect(QPainter *painter, RenderObject* o, const IntRect& r);
 
     Page* m_page;
 
