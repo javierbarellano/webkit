@@ -976,11 +976,11 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
 void MediaPlayerPrivateGStreamer::notifyPlayerOfTextTags()
 {
     m_textTagTimerHandler = 0;
-    printf("Length: %lu\n", m_changedTextTags.size());
+    printf("Length: %d\n", (int)m_changedTextTags.size());
     for(size_t i = 0; i < m_changedTextTags.size(); ++i) {
         if(m_changedTextTags[i]) {
             m_changedTextTags[i] = false;
-            printf("Text tags changed %lu\n", i);
+            printf("Text tags changed %d\n", (int)i);
             GstTagList *tags = NULL;
             g_signal_emit_by_name(m_playBin, "get-text-tags", i, &tags, NULL);
             printf("%p\n", tags);
