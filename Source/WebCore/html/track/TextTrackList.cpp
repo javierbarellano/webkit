@@ -31,6 +31,7 @@
 
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
+#include "InBandTextTrack.h"
 #include "LoadableTextTrack.h"
 #include "ScriptExecutionContext.h"
 #include "TextTrack.h"
@@ -53,7 +54,7 @@ TextTrackList::~TextTrackList()
 
 unsigned TextTrackList::length() const
 {
-    return m_addTrackTracks.size() + m_elementTracks.size();
+    return m_inbandTracks.size() + m_addTrackTracks.size() + m_elementTracks.size();
 }
 
 unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
@@ -63,6 +64,9 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
 
     if (textTrack->trackType() == TextTrack::AddTrack)
         return m_elementTracks.size() + m_addTrackTracks.find(textTrack);
+
+    if (textTrack->trackType() == TextTrack::TrackElement)
+        return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(textTrack);
 
     ASSERT_NOT_REACHED();
 
@@ -109,8 +113,23 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
 
         for (size_t i = 0; i < m_addTrackTracks.size(); ++i)
             m_addTrackTracks[i]->invalidateTrackIndex();
+
+        for (size_t i = 0; i < m_inbandTracks.size(); ++i)
+            m_inbandTracks[i]->invalidateTrackIndex();
+
     } else if (track->trackType() == TextTrack::InBand) {
-    	m_inbandTracks.append(track);
+        int index = static_cast<InBandTextTrack*>(track.get())->index();
+        bool inserted = false;
+        for(size_t i = 0; i < m_inbandTracks.size(); ++i) {
+            if(static_cast<InBandTextTrack*>(m_inbandTracks[i].get())->index() > index) {
+                m_inbandTracks.insert(i, track);
+                inserted = true;
+                break;
+            }
+        }
+        if(!inserted) {
+            m_inbandTracks.append(track);
+        }
     } else
         ASSERT_NOT_REACHED();
 

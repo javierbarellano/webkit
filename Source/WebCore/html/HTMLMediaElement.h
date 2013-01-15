@@ -465,6 +465,11 @@ private:
     virtual void mediaPlayerKeyNeeded(MediaPlayer*, const String& keySystem, const String& sessionId, const unsigned char* initData, unsigned initDataLength) OVERRIDE;
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+    // Called when a text track is added or changed
+    virtual void mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language);
+#endif
+
     virtual String mediaPlayerReferrer() const OVERRIDE;
     virtual String mediaPlayerUserAgent() const OVERRIDE;
     virtual CORSMode mediaPlayerCORSMode() const OVERRIDE;

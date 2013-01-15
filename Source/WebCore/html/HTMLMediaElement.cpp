@@ -101,6 +101,7 @@
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
 #include "TextTrackList.h"
+#include "InBandTextTrack.h"
 #include "VideoTrackList.h"
 #endif
 
@@ -296,13 +297,15 @@ HTMLMediaElement::~HTMLMediaElement()
 #if ENABLE(VIDEO_TRACK)
     if (m_textTracks) {
         m_textTracks->clearOwner();
-        for (unsigned i = 0; i < m_textTracks->length(); ++i)
+        for (unsigned i = 0; i < m_textTracks->length(); ++i) {
             m_textTracks->item(i)->clearClient();
-    }
+    	}
+	}
     if (m_videoTracks) {
         m_videoTracks->clearOwner();
-        for (unsigned i = 0; i < m_videoTracks->length(); ++i)
+        for (unsigned i = 0; i < m_videoTracks->length(); ++i) {
             m_videoTracks->item(i)->clearClient();
+        }
     }
 #endif
 
@@ -674,7 +677,7 @@ void HTMLMediaElement::load(ExceptionCode& ec)
 
 void HTMLMediaElement::prepareForLoad()
 {
-   LOG(Media, "HTMLMediaElement::prepareForLoad");
+    LOG(Media, "HTMLMediaElement::prepareForLoad");
 
     // Perform the cleanup required for the resource load algorithm to run.
     stopPeriodicTimers();
@@ -1855,6 +1858,15 @@ void HTMLMediaElement::mediaPlayerKeyNeeded(MediaPlayer*, const String& keySyste
 }
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language)
+{
+    printf("HTMLMediaElement::mediaPlayerTextTrackChanged\n");
+    PassRefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
+    textTracks()->append(track);
+}
+#endif
+
 void HTMLMediaElement::progressEventTimerFired(Timer<HTMLMediaElement>*)
 {
     ASSERT(m_player);
@@ -2497,7 +2509,7 @@ bool HTMLMediaElement::controls() const
 
 void HTMLMediaElement::setControls(bool b)
 {
-   LOG(Media, "HTMLMediaElement::setControls(%s)", boolString(b));
+    LOG(Media, "HTMLMediaElement::setControls(%s)", boolString(b));
     setBooleanAttribute(controlsAttr, b);
 }
 
@@ -2547,7 +2559,7 @@ void HTMLMediaElement::setMuted(bool muted)
 
 void HTMLMediaElement::togglePlayState()
 {
-   LOG(Media, "HTMLMediaElement::togglePlayState - canPlay() is %s", boolString(canPlay()));
+    LOG(Media, "HTMLMediaElement::togglePlayState - canPlay() is %s", boolString(canPlay()));
 
     // We can safely call the internal play/pause methods, which don't check restrictions, because
     // this method is only called from the built-in media controller
@@ -4273,8 +4285,8 @@ void HTMLMediaElement::configureMediaControls()
 #if ENABLE(VIDEO_TRACK)
 void HTMLMediaElement::configureTextTrackDisplay()
 {
-	if (hasMediaControls())
-		mediaControls()->showTextTrackDisplay();
+    if(hasMediaControls())
+        mediaControls()->showTextTrackDisplay();
 //    ASSERT(m_textTracks);
 //
 //    bool haveVisibleTextTrack = false;
@@ -4294,8 +4306,16 @@ void HTMLMediaElement::configureTextTrackDisplay()
 //        return;
 //    if (!hasMediaControls() && !createMediaControls())
 //        return;
-//
 //    updateClosedCaptionsControls();
+}
+
+void HTMLMediaElement::configureAudioTrackDisplay()
+{
+    if (!m_audioTracks)
+        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    if (hasMediaControls())
+        mediaControls()->showAudioTrackDisplay();
 }
 
 void HTMLMediaElement::configureVideoTrackDisplay()
@@ -4304,18 +4324,7 @@ void HTMLMediaElement::configureVideoTrackDisplay()
       m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
     if (hasMediaControls())
-    	mediaControls()->showVideoTrackDisplay();
-
-}
-
-void HTMLMediaElement::configureAudioTrackDisplay()
-{
-    if (!m_audioTracks)
-    	m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-    if (hasMediaControls())
-    	mediaControls()->showAudioTrackDisplay();
-
+        mediaControls()->showVideoTrackDisplay();
 }
 
 std::vector<std::string> HTMLMediaElement::getSelTextTrackNames()
