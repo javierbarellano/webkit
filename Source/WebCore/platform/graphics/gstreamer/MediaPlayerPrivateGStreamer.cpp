@@ -551,8 +551,8 @@ void MediaPlayerPrivateGStreamer::setAudioEnabled(int track, bool enabled)
     }
     g_object_set(m_playBin, "flags", flags, NULL);
 
-    // Seek the to current time to fix the stream
-    seek(currentTime(), true);
+    // Fix the stream
+    flush();
 }
 
 bool MediaPlayerPrivateGStreamer::isVideoSelected(int checkTrack) const
@@ -584,8 +584,13 @@ void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
     }
     g_object_set(m_playBin, "flags", flags, NULL);
 
-    // Seek the to current time to fix the stream
-    seek(currentTime(), true);
+    // Fix the stream
+    flush();
+}
+
+void MediaPlayerPrivateGStreamer::flush() {
+    gint64 time = currentTime() * GST_SECOND;
+    gst_element_seek_simple(m_playBin, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, time);
 }
 
 float MediaPlayerPrivateGStreamer::duration() const
@@ -647,11 +652,6 @@ float MediaPlayerPrivateGStreamer::currentTime() const
 
 void MediaPlayerPrivateGStreamer::seek(float time)
 {
-    seek(time, false);
-}
-
-void MediaPlayerPrivateGStreamer::seek(float time, bool allowSeekToCurrentTime)
-{
     if (!m_playBin)
         return;
 
@@ -661,7 +661,7 @@ void MediaPlayerPrivateGStreamer::seek(float time, bool allowSeekToCurrentTime)
     LOG_MEDIA_MESSAGE("Seek attempt to %f secs", time);
 
     // Avoid useless seeking.
-    if (!allowSeekToCurrentTime && time == currentTime())
+    if (time == currentTime())
         return;
 
     // Extract the integer part of the time (seconds) and the
