@@ -182,7 +182,6 @@ static gboolean mediaPlayerPrivateTextTagChangeTimeoutCallback(MediaPlayerPrivat
 
 static void mediaPlayerPrivateTextNewBufferCallback(GObject*, MediaPlayerPrivateGStreamer* player)
 {
-    printf("Text track meow\n");
     player->notifyPlayerOfTextBuffer();
 }
 #endif
