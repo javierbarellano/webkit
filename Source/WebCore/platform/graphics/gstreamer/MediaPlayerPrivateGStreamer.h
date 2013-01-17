@@ -68,6 +68,9 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             bool isAudioEnabled(int) const;
             void setAudioEnabled(int, bool);
 
+            bool isTextEnabled(int) const;
+            void setTextEnabled(int, bool);
+
             bool isVideoSelected(int) const;
             void setVideoSelected(int, bool);
 

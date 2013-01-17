@@ -587,6 +587,38 @@ void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
     flush();
 }
 
+bool MediaPlayerPrivateGStreamer::isTextEnabled(int checkTrack) const
+{
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_TEXT)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-text", &currentTrack, NULL);
+    return currentTrack == checkTrack;
+}
+
+void MediaPlayerPrivateGStreamer::setTextEnabled(int track, bool enabled)
+{
+    // Check if the requested track is already in the right state
+    if(enabled == isTextEnabled(track))
+        return;
+
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(enabled) {
+        g_object_set(m_playBin, "current-text", track, NULL);
+        flags |= GST_PLAY_FLAG_TEXT;
+    } else {
+        flags &= ~GST_PLAY_FLAG_TEXT;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
+
+    // Fix the stream
+    flush();
+}
+
 void MediaPlayerPrivateGStreamer::flush() {
     gint64 time = currentTime() * GST_SECOND;
     gst_element_seek_simple(m_playBin, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, time);
