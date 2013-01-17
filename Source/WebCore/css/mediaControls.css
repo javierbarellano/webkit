@@ -284,15 +284,15 @@ video::-webkit-media-controls-video-track-sel-button {
     padding: 2px 20px 2px 2px;
 }
 
-video::-webkit-media-controls-text-track-sel-button {
-    -webkit-appearance: media-text-track-sel-button;
+audio::-webkit-media-controls-audio-track-sel-button, video::-webkit-media-controls-audio-track-sel-button {
+    -webkit-appearance: media-audio-track-sel-button;
 	background-color: transparent;
     color: rgba(255,100,50,255);
     padding: 2px 20px 2px 2px;
 }
 
-audio::-webkit-media-controls-audio-track-sel-button, video::-webkit-media-controls-audio-track-sel-button {
-    -webkit-appearance: media-audio-track-sel-button;
+video::-webkit-media-controls-text-track-sel-button {
+    -webkit-appearance: media-text-track-sel-button;
 	background-color: transparent;
     color: rgba(255,100,50,255);
     padding: 2px 20px 2px 2px;

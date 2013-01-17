@@ -729,6 +729,8 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
 
+    bool hasTracks() { return mediaController()->getSelVideoTrackNames().size()>1; }
+
     void display();
 
 protected:
@@ -754,6 +756,8 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
 
+    bool hasTracks() { return mediaController()->getSelAudioTrackNames().size()>1; }
+
     void display();
 
 protected:
@@ -778,6 +782,8 @@ public:
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaTextTrackSelButton;}
+
+    bool hasTracks() { return mediaController()->getSelAudioTrackNames().size()>0; }  // We add none so compare against 0
 
     void display();
 

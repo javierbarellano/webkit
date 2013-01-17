@@ -73,11 +73,10 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_fullScreenVolumeSlider(0)
     , m_fullScreenMaxVolumeButton(0)
     , m_panel(0)
-, m_videoTrackSelButton(0)
-, m_audioTrackSelButton(0)
-, m_textTrackSelButton(0)
 #if ENABLE(VIDEO_TRACK)
-, m_textDisplayContainer(0)
+	, m_videoTrackSelButton(0)
+	, m_audioTrackSelButton(0)
+	, m_textTrackSelButton(0)
 #endif
     , m_hideFullscreenControlsTimer(this, &MediaControlRootElement::hideFullscreenControlsTimerFired)
     , m_isMouseOverControls(false)
@@ -329,10 +328,6 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_fullScreenMaxVolumeButton->setMediaController(controller);
     if (m_panel)
         m_panel->setMediaController(controller);
-#if ENABLE(VIDEO_TRACK)
-    if (m_textDisplayContainer)
-        m_textDisplayContainer->setMediaController(controller);
-#endif
     reset();
 }
 
@@ -387,9 +382,24 @@ void MediaControlRootElement::reset()
     else
         m_panelMuteButton->hide();
 
-    m_videoTrackSelButton->show();
-    m_audioTrackSelButton->show();
-    m_textTrackSelButton->show();
+    // Track support
+    if (m_videoTrackSelButton && m_videoTrackSelButton->hasTracks())
+    	m_videoTrackSelButton->show();
+    else {
+    	m_videoTrackSelButton->hide();
+    }
+
+    if (m_audioTrackSelButton->hasTracks())
+    	m_audioTrackSelButton->show();
+    else {
+    	m_audioTrackSelButton->hide();
+    }
+
+    if (m_textTrackSelButton->hasTracks())
+    	m_textTrackSelButton->show();
+    else {
+    	m_textTrackSelButton->hide();
+    }
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -691,11 +701,14 @@ void MediaControlRootElement::stopHideFullscreenControlsTimer()
 #if ENABLE(VIDEO_TRACK)
 void MediaControlRootElement::createTextTrackDisplay()
 {
-    if (m_textDisplayContainer)
+    if (m_textTrackSelButton)
         return;
 
-    RefPtr<MediaControlTextTrackContainerElement> textDisplayContainer = MediaControlTextTrackContainerElement::create(document());
-    m_textDisplayContainer = textDisplayContainer.get();
+    RefPtr<MediaControlRootElement> controls = adoptRef(new MediaControlRootElement(document()));
+
+    RefPtr<MediaControlTextTrackSelButtonElement> textDisplayContainer = MediaControlTextTrackSelButtonElement::create(document(), controls.get());
+    controls.release();
+    m_textTrackSelButton = textDisplayContainer.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
     ExceptionCode ec;
@@ -704,26 +717,27 @@ void MediaControlRootElement::createTextTrackDisplay()
 
 void MediaControlRootElement::showTextTrackDisplay()
 {
-    if (!m_textDisplayContainer)
+	printf("---MediaControlRootElement::showTextTrackDisplay()\n");
+    if (!m_textTrackSelButton)
         createTextTrackDisplay();
 
-    //m_textDisplayContainer->show();
     m_textTrackSelButton->display();
 }
 
 void MediaControlRootElement::hideTextTrackDisplay()
 {
-    if (!m_textDisplayContainer)
+    if (!m_textTrackSelButton)
         createTextTrackDisplay();
-    m_textDisplayContainer->hide();
+
+    m_textTrackSelButton->hide();
 }
 
 void MediaControlRootElement::updateTextTrackDisplay()
 {
-    if (!m_textDisplayContainer)
+    if (!m_textTrackSelButton)
         createTextTrackDisplay();
 
-    m_textDisplayContainer->updateDisplay();
+    showTextTrackDisplay();
 
 }
 void MediaControlRootElement::createVideoTrackDisplay()

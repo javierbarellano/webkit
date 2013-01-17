@@ -752,7 +752,7 @@ void RenderThemeQt::paintSelect(QPainter *painter, RenderObject* o, const IntRec
 
 }
 
-bool RenderThemeQt::paintMediaVideoTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
+bool RenderThemeQt::paintMediaTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
 {
     HTMLMediaElement* mediaElement = toParentMediaElement(o);
     if (!mediaElement)
@@ -765,47 +765,6 @@ bool RenderThemeQt::paintMediaVideoTrackSelButton(RenderObject* o, const PaintIn
     p->painter->setRenderHint(QPainter::Antialiasing, true);
 
     paintMediaBackground(p->painter, r);
-    //WorldMatrixTransformer transformer(p->painter, o, r);
-
-    paintSelect(p->painter, o, r);
-
-    return false;
-}
-
-bool RenderThemeQt::paintMediaAudioTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
-{
-    HTMLMediaElement* mediaElement = toParentMediaElement(o);
-    if (!mediaElement)
-        return false;
-
-    QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
-    if (p.isNull() || !p->isValid())
-        return true;
-
-    p->painter->setRenderHint(QPainter::Antialiasing, true);
-
-    paintMediaBackground(p->painter, r);
-    //WorldMatrixTransformer transformer(p->painter, o, r);
-
-    paintSelect(p->painter, o, r);
-
-    return false;
-}
-
-bool RenderThemeQt::paintMediaTextTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
-{
-    HTMLMediaElement* mediaElement = toParentMediaElement(o);
-    if (!mediaElement)
-        return false;
-
-    QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
-    if (p.isNull() || !p->isValid())
-        return true;
-
-    p->painter->setRenderHint(QPainter::Antialiasing, true);
-
-    paintMediaBackground(p->painter, r);
-    //WorldMatrixTransformer transformer(p->painter, o, r);
 
     paintSelect(p->painter, o, r);
 

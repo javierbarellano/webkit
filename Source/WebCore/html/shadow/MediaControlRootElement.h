@@ -73,10 +73,6 @@ class MediaPlayer;
 class RenderBox;
 class RenderMedia;
 
-#if ENABLE(VIDEO_TRACK)
-class MediaControlTextTrackContainerElement;
-class MediaControlTextTrackDisplayElement;
-#endif
 
 class MediaControlRootElement : public MediaControls {
 public:
@@ -176,12 +172,11 @@ private:
     MediaControlFullscreenVolumeSliderElement* m_fullScreenVolumeSlider;
     MediaControlFullscreenVolumeMaxButtonElement* m_fullScreenMaxVolumeButton;
     MediaControlPanelElement* m_panel;
-    MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
-    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
-    MediaControlTextTrackSelButtonElement* m_textTrackSelButton;
 
 #if ENABLE(VIDEO_TRACK)
-    MediaControlTextTrackContainerElement* m_textDisplayContainer;
+    MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
+    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
+    MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;
 #endif
 
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
@@ -190,7 +185,7 @@ private:
     bool m_isFullscreen;
 };
 
-}
+}  // namespace WebCore
 
-#endif
-#endif
+#endif // ENABLE(VIDEO)
+#endif // MediaControlRootElement_h

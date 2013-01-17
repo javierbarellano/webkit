@@ -155,7 +155,9 @@ public:
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*) { }
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language) { }
 
-// Presentation-related methods
+    virtual void mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language){}
+
+    // Presentation-related methods
     // a new frame of video is available
     virtual void mediaPlayerRepaint(MediaPlayer*) { }
 
