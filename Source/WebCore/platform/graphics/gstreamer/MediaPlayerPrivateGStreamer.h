@@ -167,7 +167,6 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             void updateAudioSink();
 
-            void flush();
             float playbackPosition() const;
 
             void cacheDuration();

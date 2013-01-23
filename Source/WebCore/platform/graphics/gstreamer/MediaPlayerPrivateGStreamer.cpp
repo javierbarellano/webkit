@@ -319,6 +319,7 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_audioTagsTimerHandler(0)
 #if ENABLE(VIDEO_TRACK)
     , m_textTimerHandler(0)
+    , m_textTagsTimerHandler(0)
 #endif
     , m_videoTimerHandler(0)
     , m_videoCapsTimerHandler(0)
@@ -358,8 +359,6 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
         m_playBin = 0;
     }
 
-    m_player = 0;
-
     if (m_muteTimerHandler)
         g_source_remove(m_muteTimerHandler);
 
@@ -386,6 +385,8 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
     if (m_textTagsTimerHandler)
         g_source_remove(m_textTagsTimerHandler);
+
+    m_player = 0;
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
@@ -549,9 +550,6 @@ void MediaPlayerPrivateGStreamer::setAudioEnabled(int track, bool enabled)
         flags &= ~GST_PLAY_FLAG_AUDIO;
     }
     g_object_set(m_playBin, "flags", flags, NULL);
-
-    // Fix the stream
-    flush();
 }
 
 bool MediaPlayerPrivateGStreamer::isVideoSelected(int checkTrack) const
@@ -582,9 +580,6 @@ void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
         flags &= ~GST_PLAY_FLAG_VIDEO;
     }
     g_object_set(m_playBin, "flags", flags, NULL);
-
-    // Fix the stream
-    flush();
 }
 
 bool MediaPlayerPrivateGStreamer::isTextEnabled(int checkTrack) const
@@ -614,14 +609,6 @@ void MediaPlayerPrivateGStreamer::setTextEnabled(int track, bool enabled)
         flags &= ~GST_PLAY_FLAG_TEXT;
     }
     g_object_set(m_playBin, "flags", flags, NULL);
-
-    // Fix the stream
-    flush();
-}
-
-void MediaPlayerPrivateGStreamer::flush() {
-    gint64 time = currentTime() * GST_SECOND;
-    gst_element_seek_simple(m_playBin, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, time);
 }
 
 float MediaPlayerPrivateGStreamer::duration() const
