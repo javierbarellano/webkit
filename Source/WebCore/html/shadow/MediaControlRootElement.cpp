@@ -395,11 +395,9 @@ void MediaControlRootElement::reset()
     	m_audioTrackSelButton->hide();
     }
 
-    if (m_textTrackSelButton->hasTracks())
+    printf("Reseet(): %s\n", m_textTrackSelButton->hasTracks() ? "Has Tracks":"No Tracks");
+    //if (m_textTrackSelButton->hasTracks())
     	m_textTrackSelButton->show();
-    else {
-    	m_textTrackSelButton->hide();
-    }
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -717,7 +715,6 @@ void MediaControlRootElement::createTextTrackDisplay()
 
 void MediaControlRootElement::showTextTrackDisplay()
 {
-	printf("---MediaControlRootElement::showTextTrackDisplay()\n");
     if (!m_textTrackSelButton)
         createTextTrackDisplay();
 

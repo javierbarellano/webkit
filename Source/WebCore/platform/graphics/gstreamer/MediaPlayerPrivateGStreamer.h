@@ -68,6 +68,9 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             bool isAudioEnabled(int) const;
             void setAudioEnabled(int, bool);
 
+            bool isTextEnabled(int) const;
+            void setTextEnabled(int, bool);
+
             bool isVideoSelected(int) const;
             void setVideoSelected(int, bool);
 
@@ -164,7 +167,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 
             void updateAudioSink();
 
-            void seek(float, bool);
+            void flush();
             float playbackPosition() const;
 
             void cacheDuration();
@@ -227,7 +230,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             guint m_audioTagsTimerHandler;
 #if ENABLE(VIDEO_TRACK)
             guint m_textTimerHandler;
-            guint m_textTagTimerHandler;
+            guint m_textTagsTimerHandler;
             Vector<bool> m_changedTextTags;
 #endif
             guint m_videoTimerHandler;

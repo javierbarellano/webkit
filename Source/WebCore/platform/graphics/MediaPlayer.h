@@ -155,9 +155,13 @@ public:
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*) { }
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language) { }
 
-    virtual void mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language){}
+#if ENABLE(VIDEO_TRACK)
+    // Called when a text track is added or changed
+    virtual void mediaPlayerClearTextTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language) { }
+#endif
 
-    // Presentation-related methods
+// Presentation-related methods
     // a new frame of video is available
     virtual void mediaPlayerRepaint(MediaPlayer*) { }
 
@@ -197,11 +201,6 @@ public:
     virtual void mediaPlayerKeyError(MediaPlayer*, const String& keySystem, const String& sessionId, MediaKeyErrorCode errorCode, unsigned short systemCode) { }
     virtual void mediaPlayerKeyMessage(MediaPlayer*, const String& keySystem, const String& sessionId, const unsigned char* message, unsigned messageLength) { }
     virtual void mediaPlayerKeyNeeded(MediaPlayer*, const String& keySystem, const String& sessionId, const unsigned char* initData, unsigned initDataLength) { }
-#endif
-
-#if ENABLE(VIDEO_TRACK)
-    // Called when a text track is added or changed
-    virtual void mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language) { }
 #endif
 
     virtual String mediaPlayerReferrer() const { return String(); }
@@ -311,6 +310,9 @@ public:
 
     bool isAudioEnabled(int) const;
     void setAudioEnabled(int, bool);
+
+    bool isTextEnabled(int) const;
+    void setTextEnabled(int, bool);
 
     bool isVideoSelected(int) const;
     void setVideoSelected(int, bool);

@@ -3387,13 +3387,30 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
 }
 
 #if ENABLE(VIDEO_TRACK)
-void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language)
 {
-    RefPtr<TextTrack> track = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
-    textTracks()->append(track);
+    TextTrack *existingTrack = textTracks()->item(index);
+    if(existingTrack != NULL) {
+        //printf("mediaPlayerAddTextTrack() %d %s\n",index, enabled ? "true":"false");
+        //existingTrack->setEnabled(enabled);
+        //existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+    } else {
+        RefPtr<TextTrack> track = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
+        textTracks()->append(track);
+        track.release();
+    }
+
     if (hasMediaControls())
-    	mediaControls()->updateTextTrackDisplay();
-    track.release();
+        mediaControls()->updateTextTrackDisplay();
+}
+
+void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
+{
+    if(m_textTracks)
+        m_textTracks->clear();
 }
 
 void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
@@ -3412,8 +3429,6 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-        if (hasMediaControls())
-        	mediaControls()->updateAudioTrackDisplay();
     } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
         audioTracks()->append(track);
@@ -3421,7 +3436,7 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
     }
 
     if (hasMediaControls())
-    	mediaControls()->updateAudioTrackDisplay();
+        mediaControls()->updateAudioTrackDisplay();
 }
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
@@ -3449,16 +3464,14 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
         existingTrack->setKind(kind);
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
-        if (hasMediaControls())
-        	mediaControls()->updateVideoTrackDisplay();
-        return;
+    } else {
+        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
+        videoTracks()->append(track);
+        track.release();
     }
 
-    RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
-    videoTracks()->append(track);
     if (hasMediaControls())
     	mediaControls()->updateVideoTrackDisplay();
-    track.release();
 }
 
 void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
@@ -4335,7 +4348,7 @@ std::vector<std::string> HTMLMediaElement::getSelTextTrackNames()
 	for (int i=0; i<len; i++)
 	{
 		TextTrack *tt = textTracks()->item(i);
-		names.push_back(std::string(tt->label().ascii().data()));
+		names.push_back(std::string(tt->language().ascii().data()));
 	}
 
 	return names;
@@ -4356,7 +4369,7 @@ std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames()
 
 void HTMLMediaElement::selectTextTrack(int index)
 {
-    //m_player->setVideoSelected(index, true);
+    m_player->setTextEnabled(index, true);
 }
 
 void HTMLMediaElement::selectVideoTrack(int index)

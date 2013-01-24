@@ -97,6 +97,9 @@ public:
     virtual bool isAudioEnabled(int) const { return false; }
     virtual void setAudioEnabled(int, bool) { }
 
+    virtual bool isTextEnabled(int) const { return false; }
+    virtual void setTextEnabled(int, bool) { }
+
     virtual bool isVideoSelected(int) const { return false; }
     virtual void setVideoSelected(int, bool) { }
 
@@ -480,6 +483,16 @@ bool MediaPlayer::isAudioEnabled(int track) const
 void MediaPlayer::setAudioEnabled(int track, bool enabled)
 {
     m_private->setAudioEnabled(track, enabled);
+}
+
+bool MediaPlayer::isTextEnabled(int track) const
+{
+    return m_private->isTextEnabled(track);
+}
+
+void MediaPlayer::setTextEnabled(int track, bool enabled)
+{
+    m_private->setTextEnabled(track, enabled);
 }
 
 bool MediaPlayer::isVideoSelected(int track) const
