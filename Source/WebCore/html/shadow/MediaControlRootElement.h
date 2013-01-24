@@ -86,7 +86,7 @@ public:
     void makeOpaque();
     void makeTransparent();
 
-    void reset();
+    void reset(bool init=false);
 
     void playbackProgressed();
     void playbackStarted();

@@ -50,7 +50,7 @@ class MediaControls : public HTMLDivElement {
     virtual void makeOpaque() = 0;
     virtual void makeTransparent() = 0;
 
-    virtual void reset() = 0;
+    virtual void reset(bool init=false) = 0;
 
     virtual void playbackProgressed() = 0;
     virtual void playbackStarted() = 0;

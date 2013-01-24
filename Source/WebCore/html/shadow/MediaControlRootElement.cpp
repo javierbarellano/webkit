@@ -328,7 +328,8 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_fullScreenMaxVolumeButton->setMediaController(controller);
     if (m_panel)
         m_panel->setMediaController(controller);
-    reset();
+
+    reset(true);
 }
 
 void MediaControlRootElement::show()
@@ -355,7 +356,7 @@ void MediaControlRootElement::makeTransparent()
     m_volumeSliderContainer->hide();
 }
 
-void MediaControlRootElement::reset()
+void MediaControlRootElement::reset(bool init)
 {
     Page* page = document()->page();
     if (!page)
@@ -383,21 +384,24 @@ void MediaControlRootElement::reset()
         m_panelMuteButton->hide();
 
     // Track support
-    if (m_videoTrackSelButton && m_videoTrackSelButton->hasTracks())
+    if ((m_videoTrackSelButton && m_videoTrackSelButton->hasTracks()) || init)
     	m_videoTrackSelButton->show();
     else {
     	m_videoTrackSelButton->hide();
     }
 
-    if (m_audioTrackSelButton->hasTracks())
+    if (m_audioTrackSelButton->hasTracks() || init)
     	m_audioTrackSelButton->show();
     else {
     	m_audioTrackSelButton->hide();
     }
 
-    printf("Reseet(): %s\n", m_textTrackSelButton->hasTracks() ? "Has Tracks":"No Tracks");
-    //if (m_textTrackSelButton->hasTracks())
+    if (m_textTrackSelButton->hasTracks() || init)
     	m_textTrackSelButton->show();
+    else {
+    	m_textTrackSelButton->hide();
+    }
+    //m_textTrackSelButton->show();
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());

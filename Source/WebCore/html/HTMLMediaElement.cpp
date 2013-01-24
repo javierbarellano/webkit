@@ -3403,8 +3403,9 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
         track.release();
     }
 
-    if (hasMediaControls())
+    if (hasMediaControls()) {
         mediaControls()->updateTextTrackDisplay();
+    }
 }
 
 void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
@@ -4260,7 +4261,7 @@ bool HTMLMediaElement::createMediaControls()
         return false;
 
     controls->setMediaController(m_mediaController ? m_mediaController.get() : static_cast<MediaControllerInterface*>(this));
-    controls->reset();
+    controls->reset(true);
     if (isFullscreen())
         controls->enteredFullscreen();
 
