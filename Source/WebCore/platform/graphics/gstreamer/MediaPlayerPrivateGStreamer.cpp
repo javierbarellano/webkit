@@ -359,6 +359,8 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
         m_playBin = 0;
     }
 
+    m_player = 0;
+
     if (m_muteTimerHandler)
         g_source_remove(m_muteTimerHandler);
 
@@ -385,8 +387,6 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
     if (m_textTagsTimerHandler)
         g_source_remove(m_textTagsTimerHandler);
-
-    m_player = 0;
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
