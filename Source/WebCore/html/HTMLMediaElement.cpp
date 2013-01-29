@@ -1321,6 +1321,8 @@ void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
             }
             break;
         }
+    } else if (track->trackType() == TextTrack::InBand) {
+    	m_player->setTextEnabled(static_cast<InBandTextTrack*>(track)->index(), track->mode() != TextTrack::disabledKeyword());
     }
 
     configureTextTrackDisplay();
@@ -3398,7 +3400,7 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
     } else {
-        RefPtr<TextTrack> track = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
+        RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
         textTracks()->append(track);
         track.release();
     }
