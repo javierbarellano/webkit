@@ -692,7 +692,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
 
-    bool hasTracks() { return mediaController()->getSelVideoTrackNames().size()>1; }
+    bool hasTracks() { int index; return mediaController()->getSelVideoTrackNames(&index).size()>1; }
 
     void display();
 
@@ -719,7 +719,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
 
-    bool hasTracks() { return mediaController()->getSelAudioTrackNames().size()>1; }
+    bool hasTracks() { int index; return mediaController()->getSelAudioTrackNames(&index).size()>1; }
 
     void display();
 
@@ -746,7 +746,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaTextTrackSelButton;}
 
-    bool hasTracks() { return mediaController()->getSelTextTrackNames().size()>0; }  // We add none so compare against 0
+    bool hasTracks() { int index; return mediaController()->getSelTextTrackNames(&index).size()>0; }  // We add none so compare against 0
 
     void display();
 

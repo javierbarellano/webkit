@@ -240,8 +240,8 @@ void MediaOptionElement::setSelected(bool selected)
 
     setSelectedState(selected);
 
-    if (MediaSelectElement* select = ownerMediaElement())
-        select->optionSelectionStateChanged(this, selected);
+//    if (MediaSelectElement* select = ownerMediaElement())
+//        select->optionSelectionStateChanged(this, selected);
 }
 
 void MediaOptionElement::setSelectedState(bool selected)
@@ -250,10 +250,10 @@ void MediaOptionElement::setSelectedState(bool selected)
         return;
 
     m_isSelected = selected;
-    setNeedsStyleRecalc();
+    //setNeedsStyleRecalc();
 
-    if (MediaSelectElement* select = ownerMediaElement())
-        select->invalidateSelectedItems();
+//    if (MediaSelectElement* select = ownerMediaElement())
+//        select->invalidateSelectedItems();
 }
 
 void MediaOptionElement::childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta)
@@ -285,6 +285,7 @@ MediaSelectElement::MediaSelectElement(Document* document, MediaControlElementTy
     , m_mediaController(0)
 {
 	m_displayType = displayType;
+	m_multiple = false;
 }
 
 void MediaSelectElement::show()
@@ -682,16 +683,7 @@ void MediaSelectElement::setOptionsChangedOnRenderer()
 
 const Vector<HTMLElement*>& MediaSelectElement::listItems() const
 {
-    if (m_shouldRecalcListItems)
-        recalcListItems();
-    else {
-#if !ASSERT_DISABLED
-        Vector<HTMLElement*> items = m_listItems;
-        recalcListItems(false);
-        ASSERT(items == m_listItems);
-#endif
-    }
-
+    recalcListItems();
     return m_listItems;
 }
 
@@ -783,15 +775,19 @@ int MediaSelectElement::selectedIndex() const
 
     // Return the number of the first option selected.
     const Vector<HTMLElement*>& items = listItems();
+    //printf("selectedIndex(): len: %d, ", (int)items.size());
     for (size_t i = 0; i < items.size(); ++i) {
         HTMLElement* element = items[i];
         if (element->hasTagName(optionTag)) {
-            if (toHTMLOptionElement(element)->selected())
-                return index;
+            if (toHTMLOptionElement(element)->selected()) {
+            	//printf("SelIndex: %d\n",index);
+            	return index;
+            }
             ++index;
         }
     }
 
+    //printf("SelIndex: NONE\n");
     return -1;
 }
 
@@ -852,8 +848,6 @@ void MediaSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
     }
 
     setNeedsValidityCheck();
-//    if (Frame* frame = document()->frame())
-//        frame->page()->chrome()->client()->formStateDidChange(this);
 }
 
 int MediaSelectElement::optionToListIndex(int optionIndex) const
@@ -1420,7 +1414,7 @@ void MediaSelectElement::typeAheadFind(KeyboardEvent* event)
         // Fold the option string and check if its prefix is equal to the folded prefix.
         String text = toHTMLOptionElement(element)->textIndentedToRespectGroupLabel();
         if (stripLeadingWhiteSpace(text).foldCase().startsWith(prefixWithCaseFolded)) {
-            selectOption(listToOptionIndex(index), DeselectOtherOptions | DispatchChangeEvent | UserDriven);
+        	selectOption(listToOptionIndex(index), DeselectOtherOptions | DispatchChangeEvent | UserDriven);
             if (!usesMenuList())
                 listBoxOnChange();
 
@@ -2580,7 +2574,7 @@ void MediaControlVideoTrackSelButtonElement::display()
 {
 	if (renderer()) {
 		int index = this->selectedIndex();
-		std::vector<std::string> names = mediaController()->getSelVideoTrackNames();
+		std::vector<std::string> names = mediaController()->getSelVideoTrackNames(&index);
 		if (names.size() > 0) {
 			int len = 0;
 			for (int i=0; i<(int)names.size(); i++)
@@ -2667,7 +2661,7 @@ void MediaControlAudioTrackSelButtonElement::display()
 {
 	if (renderer()) {
 		int index = this->selectedIndex();
-		std::vector<std::string> names = mediaController()->getSelAudioTrackNames();
+		std::vector<std::string> names = mediaController()->getSelAudioTrackNames(&index);
 
 		if (names.size() > 0) {
 			int len = 0;
@@ -2753,9 +2747,24 @@ void MediaControlTextTrackSelButtonElement::updateDisplayType()
 void MediaControlTextTrackSelButtonElement::display()
 {
 	if (renderer()) {
-		int index = this->selectedIndex();
-		std::vector<std::string> names = mediaController()->getSelTextTrackNames();
-		//names.insert(names.begin(),std::string("None"));
+//		int oldIndex = -1;
+//	    const Vector<HTMLElement*>& items = listItems();
+//	    for (unsigned i = 0; i < items.size(); ++i) {
+//	        HTMLElement* element = items[i];
+//	        if (element->hasTagName(optionTag) && toHTMLOptionElement(element)->selected()) {
+//	        	oldIndex = i;
+//	        	break;
+//	        }
+//	    }
+
+		int trackIndex = 0;
+		std::vector<std::string> names = mediaController()->getSelTextTrackNames(&trackIndex);
+		if (names.size() == 0)
+			trackIndex = -1;
+
+		names.insert(names.begin(),std::string("None"));
+
+		int selectIndex = trackIndex+1; // allow for 'none' at the beginning
 
 		// Set up Select control
 		ExceptionCode ec = 0;
@@ -2776,13 +2785,14 @@ void MediaControlTextTrackSelButtonElement::display()
 
 			option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
 			option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+			option->setSelected(i==selectIndex);
 
 			String sOpt(nam.c_str());
 			option->appendChild(Text::create(document(), sOpt), ec);
 		}
 
-		if (index >= 0)
-			setSelectedIndex(index);
+//			printf("display() SelIndex: %d, old: %d, trackIndex: %d, trackLen: %d\n",
+//					selectIndex, oldIndex, trackIndex, (int)names.size() - 1);
 
 	}
 }
@@ -2790,7 +2800,9 @@ void MediaControlTextTrackSelButtonElement::display()
 
 void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
 {
-	mediaController()->selectTextTrack(newIndex);
+	printf("selectChanged() selIndex: %d, trackIndex: %d\n", newIndex, newIndex - 1);
+
+	mediaController()->selectTextTrack(newIndex-1);
 }
 
 const AtomicString& MediaControlTextTrackSelButtonElement::shadowPseudoId() const

@@ -292,14 +292,14 @@ public:
 
     void configureTextTrackDisplay();
 
-    virtual std::vector<std::string> getSelTextTrackNames();
+    virtual std::vector<std::string> getSelTextTrackNames(int *selectedIndex);
     virtual void selectTextTrack(int index);
 
     // UI support for Video Tracks
-    virtual std::vector<std::string> getSelVideoTrackNames();
+    virtual std::vector<std::string> getSelVideoTrackNames(int *selectedIndex);
     virtual void selectVideoTrack(int index);
 
-    virtual std::vector<std::string> getSelAudioTrackNames();
+    virtual std::vector<std::string> getSelAudioTrackNames(int *selectedIndex);
     virtual void selectAudioTrack(int index);
 
 
@@ -536,6 +536,8 @@ private:
 
     void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
+
+    void setDefaultTextTrack();
 #endif
 
     void configureVideoTrackDisplay();

@@ -109,9 +109,9 @@ public:
     
     virtual void returnToRealtime();
 
-    virtual std::vector<std::string> getSelTextTrackNames();
-    virtual std::vector<std::string> getSelVideoTrackNames();
-    virtual std::vector<std::string> getSelAudioTrackNames();
+    virtual std::vector<std::string> getSelTextTrackNames(int *index);
+    virtual std::vector<std::string> getSelVideoTrackNames(int *index);
+    virtual std::vector<std::string> getSelAudioTrackNames(int *index);
 
     virtual void selectTextTrack(int index){}
     virtual void selectVideoTrack(int index){}

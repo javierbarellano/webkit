@@ -178,19 +178,19 @@ void MediaController::setCurrentTime(float time, ExceptionCode& code)
     scheduleTimeupdateEvent();
 }
 
-std::vector<std::string> MediaController::getSelTextTrackNames()
+std::vector<std::string> MediaController::getSelTextTrackNames(int *index)
 {
 	std::vector<std::string> names;
 	return names;
 }
 
-std::vector<std::string> MediaController::getSelVideoTrackNames()
+std::vector<std::string> MediaController::getSelVideoTrackNames(int *index)
 {
 	std::vector<std::string> names;
 	return names;
 }
 
-std::vector<std::string> MediaController::getSelAudioTrackNames()
+std::vector<std::string> MediaController::getSelAudioTrackNames(int *index)
 {
 	std::vector<std::string> names;
 	return names;
