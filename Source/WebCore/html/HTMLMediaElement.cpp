@@ -3430,6 +3430,7 @@ void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
 {
+	//printf("mediaPlayerAddAudioTrack()\n");
     AudioTrack *existingTrack = audioTracks()->item(index);
     if(existingTrack != NULL) {
     	//printf("mediaPlayerAddAudioTrack() %d %s\n",index, enabled ? "true":"false");
@@ -3440,12 +3441,15 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setLanguage(language);
     } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
+        //m_player->setAudioEnabled(audioTracks()->length(), false);
         audioTracks()->append(track);
         track.release();
     }
 
-    if (hasMediaControls())
-        mediaControls()->updateAudioTrackDisplay();
+    if (hasMediaControls()) {
+    	mediaControls()->reset(false);
+    	mediaControls()->updateAudioTrackDisplay();
+    }
 }
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
@@ -3465,6 +3469,7 @@ void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
 {
+	//printf("mediaPlayerAddVideoTrack()\n");
     VideoTrack *existingTrack = videoTracks()->item(index);
     if(existingTrack != NULL) {
 
@@ -3475,12 +3480,15 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
         existingTrack->setLanguage(language);
     } else {
         RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
+        //m_player->setVideoSelected(videoTracks()->length(), false);
         videoTracks()->append(track);
         track.release();
     }
 
-    if (hasMediaControls())
+    if (hasMediaControls()) {
+    	mediaControls()->reset(false);
     	mediaControls()->updateVideoTrackDisplay();
+    }
 }
 
 void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)

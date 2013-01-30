@@ -384,6 +384,12 @@ void MediaControlRootElement::reset(bool init)
         m_panelMuteButton->hide();
 
     // Track support
+//    printf("Reset(%s) video: %s, audio: %s, Text: %s\n",
+//    		init ? "True":"false",
+//			m_videoTrackSelButton->hasTracks() ? "true":"false",
+//			m_audioTrackSelButton->hasTracks() ? "true":"false",
+//			m_textTrackSelButton->hasTracks() ? "true":"false");
+
     if ((m_videoTrackSelButton && m_videoTrackSelButton->hasTracks()) || init)
     	m_videoTrackSelButton->show();
     else {
@@ -527,7 +533,11 @@ void MediaControlRootElement::loadedMetadata()
     if (m_statusDisplay && m_mediaController->isLiveStream())
         m_statusDisplay->hide();
 
-    reset();
+    if (m_textTrackSelButton->hasTracks())
+		m_textTrackSelButton->show();
+	else {
+		m_textTrackSelButton->hide();
+	}
 }
 
 void MediaControlRootElement::changedClosedCaptionsVisibility()
