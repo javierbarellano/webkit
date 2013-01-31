@@ -75,6 +75,15 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
 
 TextTrack* TextTrackList::item(unsigned index)
 {
+	RefPtr<TextTrack> tt = itemRef(index);
+	if (tt)
+		return tt.get();
+
+	return 0;
+}
+
+RefPtr<TextTrack> TextTrackList::itemRef(unsigned index)
+{
     // 4.8.10.12.1 Text track model
     // The text tracks are sorted as follows:
     // 1. The text tracks corresponding to track element children of the media element, in tree order.
@@ -83,15 +92,15 @@ TextTrack* TextTrackList::item(unsigned index)
     // resource), in the order defined by the media resource's format specification.
 
     if (index < m_elementTracks.size())
-        return m_elementTracks[index].get();
+        return m_elementTracks[index];
 
     index -= m_elementTracks.size();
     if (index < m_addTrackTracks.size())
-        return m_addTrackTracks[index].get();
+        return m_addTrackTracks[index];
 
     index -= m_addTrackTracks.size();
     if (index < m_inbandTracks.size())
-        return m_inbandTracks[index].get();
+        return m_inbandTracks[index];
 
     return 0;
 }
@@ -169,6 +178,14 @@ void TextTrackList::remove(TextTrack* track)
     tracks->remove(index);
 }
 
+void TextTrackList::selectTrack(unsigned index)
+{
+	RefPtr<TextTrack>  track = itemRef(index);
+    scheduleSelectTrackEvent(track.release());
+}
+
+
+
 const AtomicString& TextTrackList::interfaceName() const
 {
     return eventNames().interfaceForTextTrackList;
@@ -191,6 +208,27 @@ void TextTrackList::scheduleAddTrackEvent(PassRefPtr<TextTrack> track)
     initializer.cancelable = false;
 
     m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+    if (!m_pendingEventTimer.isActive())
+        m_pendingEventTimer.startOneShot(0);
+}
+
+void TextTrackList::scheduleSelectTrackEvent(PassRefPtr<TextTrack> track)
+{
+    // 4.8.10.12.3 Sourcing out-of-band text tracks
+    // 4.8.10.12.3 Sourcing out-of-band text tracks
+    // 4.8.10.12.4 Text track API
+    // ... then queue a task to fire an event with the name addtrack, that does not
+    // bubble and is not cancelable, and that uses the TrackEvent interface, with
+    // the track attribute initialized to the text track's TextTrack object, at
+    // the media element's textTracks attribute's TextTrackList object.
+
+    RefPtr<TextTrack> trackRef = track;
+    TrackEventInit initializer;
+    initializer.track = trackRef;
+    initializer.bubbles = false;
+    initializer.cancelable = false;
+
+    m_pendingEvents.append(TrackEvent::create(eventNames().trackselectedEvent, initializer));
     if (!m_pendingEventTimer.isActive())
         m_pendingEventTimer.startOneShot(0);
 }

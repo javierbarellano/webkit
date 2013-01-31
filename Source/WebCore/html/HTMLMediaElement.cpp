@@ -2344,6 +2344,11 @@ void HTMLMediaElement::playInternal()
         invalidateCachedTime();
         scheduleEvent(eventNames().playEvent);
 
+        if (playbackRate() > 1.0f)
+        	scheduleEvent(eventNames().fastforwardEvent);
+        else if (playbackRate() < 0.0f)
+        	scheduleEvent(eventNames().reverseEvent);
+
         if (m_readyState <= HAVE_CURRENT_DATA)
             scheduleEvent(eventNames().waitingEvent);
         else if (m_readyState >= HAVE_FUTURE_DATA)
@@ -4393,11 +4398,13 @@ std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames(int *selectedIn
 void HTMLMediaElement::selectTextTrack(int index)
 {
     m_player->setTextEnabled(index, true);
+    textTracks()->selectTrack(index);
 }
 
 void HTMLMediaElement::selectVideoTrack(int index)
 {
     m_player->setVideoSelected(index, true);
+    videoTracks()->selectTrack((unsigned)index);
 }
 
 std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames(int *selectedIndex)
@@ -4420,6 +4427,7 @@ std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames(int *selectedIn
 void HTMLMediaElement::selectAudioTrack(int index)
 {
     m_player->setAudioEnabled(index, true);
+    audioTracks()->selectTrack((unsigned)index);
 }
 
 void HTMLMediaElement::updateClosedCaptionsControls()

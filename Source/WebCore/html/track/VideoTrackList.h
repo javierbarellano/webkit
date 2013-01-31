@@ -57,6 +57,8 @@ public:
     void remove(VideoTrack*);
     void clear();
 
+    void selectTrack(unsigned index);
+
     // EventTarget
     virtual const AtomicString& interfaceName() const;
     using RefCounted<VideoTrackList>::ref;
@@ -80,9 +82,12 @@ private:
     virtual EventTargetData* eventTargetData() { return &m_eventTargetData; }
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
+    RefPtr<VideoTrack> itemRef(unsigned index);
     void scheduleAddTrackEvent(PassRefPtr<VideoTrack>);
     static void addTrackEventOnContextThread(void* ptr);
+    static void selectTrackEventOnContextThread(void* ptr);
     mutable RefPtr<VideoTrack> m_trackAdded;
+    mutable RefPtr<VideoTrack> m_trackSelected;
 
     void asyncEventTimerFired(Timer<VideoTrackList>*);
 

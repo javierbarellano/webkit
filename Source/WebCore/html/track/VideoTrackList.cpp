@@ -27,8 +27,6 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "VideoTrackList.h"
-
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
@@ -36,7 +34,10 @@
 #include "VideoTrack.h"
 #include "TrackEvent.h"
 
-using namespace WebCore;
+#include "VideoTrackList.h"
+
+namespace WebCore
+{
 
 VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
@@ -62,11 +63,27 @@ unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
 
 VideoTrack* VideoTrackList::item(unsigned index)
 {
+	RefPtr<VideoTrack> vt = itemRef(index);
+	if (vt)
+		return vt.get();
+
+	return 0;
+}
+
+RefPtr<VideoTrack> VideoTrackList::itemRef(unsigned index)
+{
     if (index < m_tracks.size())
-        return m_tracks[index].get();
+        return m_tracks[index];
 
     return 0;
 }
+
+void VideoTrackList::selectTrack(unsigned index)
+{
+	m_trackSelected = itemRef(index);
+	callOnMainThread(VideoTrackList::selectTrackEventOnContextThread,this);
+}
+
 
 void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 {
@@ -128,6 +145,7 @@ void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
 	callOnMainThread(VideoTrackList::addTrackEventOnContextThread,this);
 }
 
+
 // static
 void VideoTrackList::addTrackEventOnContextThread(void* ptr)
 {
@@ -142,6 +160,22 @@ void VideoTrackList::addTrackEventOnContextThread(void* ptr)
 //    if (!vtl->m_pendingEventTimer.isActive())
 //    	vtl->m_pendingEventTimer.startOneShot(0);
     vtl->dispatchEvent(TrackEvent::create(eventNames().addtrackEvent, initializer));
+}
+
+// static
+void VideoTrackList::selectTrackEventOnContextThread(void* ptr)
+{
+	VideoTrackList *vtl = (VideoTrackList *)ptr;
+
+    TrackEventInit initializer;
+    initializer.track = vtl->m_trackSelected;
+    initializer.bubbles = false;
+    initializer.cancelable = false;
+
+//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+//    if (!vtl->m_pendingEventTimer.isActive())
+//    	vtl->m_pendingEventTimer.startOneShot(0);
+    vtl->dispatchEvent(TrackEvent::create(eventNames().trackselectedEvent, initializer));
 }
 
 void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)
@@ -161,5 +195,7 @@ Node* VideoTrackList::owner() const
 {
     return m_owner;
 }
+
+} // namespace WebCore
 
 #endif

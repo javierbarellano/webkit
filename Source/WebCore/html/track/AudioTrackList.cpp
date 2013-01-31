@@ -62,11 +62,27 @@ unsigned AudioTrackList::getTrackIndex(AudioTrack* track) {
 
 AudioTrack* AudioTrackList::item(unsigned index)
 {
+	RefPtr<AudioTrack> at = itemRef(index);
+	if (at)
+		return at.get();
+
+	return 0;
+}
+
+RefPtr<AudioTrack> AudioTrackList::itemRef(unsigned index)
+{
     if (index < m_tracks.size())
-        return m_tracks[index].get();
+        return m_tracks[index];
 
     return 0;
 }
+
+void AudioTrackList::selectTrack(unsigned index)
+{
+	m_trackSelected = itemRef(index);
+	callOnMainThread(AudioTrackList::selectTrackEventOnContextThread,this);
+}
+
 
 void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
@@ -142,6 +158,22 @@ void AudioTrackList::addTrackEventOnContextThread(void* ptr)
 //    if (!vtl->m_pendingEventTimer.isActive())
 //    	vtl->m_pendingEventTimer.startOneShot(0);
     atl->dispatchEvent(TrackEvent::create(eventNames().addtrackEvent, initializer));
+}
+
+// static
+void AudioTrackList::selectTrackEventOnContextThread(void* ptr)
+{
+	AudioTrackList *atl = (AudioTrackList *)ptr;
+
+    TrackEventInit initializer;
+    initializer.track = atl->m_trackSelected;
+    initializer.bubbles = false;
+    initializer.cancelable = false;
+
+//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+//    if (!vtl->m_pendingEventTimer.isActive())
+//    	vtl->m_pendingEventTimer.startOneShot(0);
+    atl->dispatchEvent(TrackEvent::create(eventNames().trackselectedEvent, initializer));
 }
 
 void AudioTrackList::asyncEventTimerFired(Timer<AudioTrackList>*)

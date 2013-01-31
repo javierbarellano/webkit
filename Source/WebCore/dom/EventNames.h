@@ -71,6 +71,7 @@ namespace WebCore {
     macro(drop) \
     macro(error) \
     macro(focus) \
+    macro(fastforward) \
     macro(focusin) \
     macro(focusout) \
     macro(gesturetap) \
@@ -107,6 +108,7 @@ namespace WebCore {
     macro(readystatechange) \
     macro(reset) \
     macro(resize) \
+    macro(reverse) \
     macro(scroll) \
     macro(search) \
     macro(select) \

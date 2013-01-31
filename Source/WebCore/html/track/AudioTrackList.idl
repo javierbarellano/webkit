@@ -38,6 +38,7 @@ module html {
         AudioTrack item(in unsigned long index);
 
         attribute EventListener onaddtrack;
+        attribute EventListener ontrackselected;
 
         void addEventListener(in DOMString type,
                               in EventListener listener,

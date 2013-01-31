@@ -53,9 +53,12 @@ public:
     unsigned getTrackIndex(AudioTrack*);
 
     AudioTrack* item(unsigned index);
+    RefPtr<AudioTrack> itemRef(unsigned index);
     void append(PassRefPtr<AudioTrack>);
     void remove(AudioTrack*);
     void clear();
+
+    void selectTrack(unsigned index);
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -64,6 +67,7 @@ public:
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(trackselected);
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;
@@ -81,7 +85,9 @@ private:
 
     void scheduleAddTrackEvent(PassRefPtr<AudioTrack>);
     static void addTrackEventOnContextThread(void* ptr);
+    static void selectTrackEventOnContextThread(void* ptr);
     mutable RefPtr<AudioTrack> m_trackAdded;
+    mutable RefPtr<AudioTrack> m_trackSelected;
 
     void asyncEventTimerFired(Timer<AudioTrackList>*);
 
