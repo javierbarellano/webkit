@@ -54,6 +54,7 @@ public:
 
 class TextTrack : public TrackBase {
 public:
+
     static PassRefPtr<TextTrack> create(ScriptExecutionContext* context, TextTrackClient* client, const String& kind, const String& label, const String& language)
     {
         return adoptRef(new TextTrack(context, client, kind, label, language, AddTrack));
@@ -84,7 +85,7 @@ public:
     static const AtomicString& showingKeyword();
 
     String mode() const;
-    void setMode(const String&);
+    virtual void setMode(const String&);
 
     bool showingByDefault() const { return m_showingByDefault; }
     void setShowingByDefault(bool showing) { m_showingByDefault = showing; }

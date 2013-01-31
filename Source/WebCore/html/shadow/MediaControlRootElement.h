@@ -38,7 +38,11 @@ class HTMLInputElement;
 class HTMLMediaElement;
 class Event;
 class MediaControlPanelMuteButtonElement;
+class MediaControlPanelVideoTrackSelButtonElement;
+class MediaControlPanelAudioTrackSelButtonElement;
 class MediaControlPlayButtonElement;
+class MediaControlFFButtonElement;
+class MediaControlRevButtonElement;
 class MediaControlSeekButtonElement;
 class MediaControlRewindButtonElement;
 class MediaControlReturnToRealtimeButtonElement;
@@ -54,6 +58,9 @@ class MediaControlTimelineContainerElement;
 class MediaControlSeekBackButtonElement;
 class MediaControlSeekForwardButtonElement;
 class MediaControlMuteButtonElement;
+class MediaControlTextTrackSelButtonElement;
+class MediaControlVideoTrackSelButtonElement;
+class MediaControlAudioTrackSelButtonElement;
 class MediaControlVolumeSliderElement;
 class MediaControlVolumeSliderMuteButtonElement;
 class MediaControlVolumeSliderContainerElement;
@@ -66,10 +73,6 @@ class MediaPlayer;
 class RenderBox;
 class RenderMedia;
 
-#if ENABLE(VIDEO_TRACK)
-class MediaControlTextTrackContainerElement;
-class MediaControlTextTrackDisplayElement;
-#endif
 
 class MediaControlRootElement : public MediaControls {
 public:
@@ -83,7 +86,7 @@ public:
     void makeOpaque();
     void makeTransparent();
 
-    void reset();
+    void reset(bool init=false);
 
     void playbackProgressed();
     void playbackStarted();
@@ -91,6 +94,10 @@ public:
 
     void changedMute();
     void changedVolume();
+
+    void changedTextTrack();
+    void changedVideoTrack();
+    void changedAudioTrack();
 
     void enteredFullscreen();
     void exitedFullscreen();
@@ -108,6 +115,19 @@ public:
     void showTextTrackDisplay();
     void hideTextTrackDisplay();
     void updateTextTrackDisplay();
+
+    void createVideoTrackDisplay();
+    void showVideoTrackDisplay();
+    void hideVideoTrackDisplay();
+    void updateVideoTrackDisplay();
+    void setVideoTrackSelected(int index);
+
+    void createAudioTrackDisplay();
+    void showAudioTrackDisplay();
+    void hideAudioTrackDisplay();
+    void updateAudioTrackDisplay();
+    void setAudioTrackSelected(int index);
+
 #endif
 
     virtual bool shouldHideControls();
@@ -132,6 +152,8 @@ private:
 
     MediaControlRewindButtonElement* m_rewindButton;
     MediaControlPlayButtonElement* m_playButton;
+    MediaControlFFButtonElement* m_ffButton;
+    MediaControlRevButtonElement* m_revButton;
     MediaControlReturnToRealtimeButtonElement* m_returnToRealTimeButton;
     MediaControlStatusDisplayElement* m_statusDisplay;
     MediaControlCurrentTimeDisplayElement* m_currentTimeDisplay;
@@ -150,15 +172,20 @@ private:
     MediaControlFullscreenVolumeSliderElement* m_fullScreenVolumeSlider;
     MediaControlFullscreenVolumeMaxButtonElement* m_fullScreenMaxVolumeButton;
     MediaControlPanelElement* m_panel;
+
 #if ENABLE(VIDEO_TRACK)
-    MediaControlTextTrackContainerElement* m_textDisplayContainer;
+    MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
+    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
+    MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;
 #endif
+
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
+
     bool m_isMouseOverControls;
     bool m_isFullscreen;
 };
 
-}
+}  // namespace WebCore
 
-#endif
-#endif
+#endif // ENABLE(VIDEO)
+#endif // MediaControlRootElement_h

@@ -279,6 +279,12 @@ typedef enum {
     WKMediaUIPartTextTrackDisplayContainer,
     WKMediaUIPartTextTrackDisplay,
     WKMediaUIPartExitFullscreenButton,
+    WKMediaUIPartOverlayPlayButton,
+    WKMediaUIPartVideoTrackSelButton,
+    WKMediaUIPartAudioTrackSelButton,
+    WKMediaUIPartTextTrackSelButton,
+    WKMediaUIPartFFButton,
+    WKMediaUIPartRevButton,
 } WKMediaUIPart;
 
 typedef enum {

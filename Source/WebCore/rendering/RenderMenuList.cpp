@@ -74,6 +74,11 @@ RenderMenuList::~RenderMenuList()
     m_popup = 0;
 }
 
+void RenderMenuList::setPopUp(PopupMenuClient* client) {
+    if (!m_popup)
+        m_popup = document()->page()->chrome()->createPopupMenu(client);
+}
+
 bool RenderMenuList::canBeReplacedWithInlineRunIn() const
 {
     return false;
@@ -256,6 +261,7 @@ String RenderMenuList::text() const
 
 LayoutRect RenderMenuList::controlClipRect(const LayoutPoint& additionalOffset) const
 {
+	//printf("RenderMenuList::controlClipRect()\n");
     // Clip to the intersection of the content box and the content box for the inner box
     // This will leave room for the arrows which sit in the inner box padding,
     // and if the inner box ever spills out of the outer box, that will get clipped too.
@@ -475,6 +481,7 @@ Color RenderMenuList::itemBackgroundColor(unsigned listIndex) const
     Color backgroundColor;
     if (element->renderStyle())
         backgroundColor = element->renderStyle()->visitedDependentColor(CSSPropertyBackgroundColor);
+
     // If the item has an opaque background color, return that.
     if (!backgroundColor.hasAlpha())
         return backgroundColor;

@@ -59,6 +59,11 @@
 #include <gst/interfaces/streamvolume.h>
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+#include "VideoTrack.h"
+#include "VideoTrackList.h"
+#endif
+
 // GstPlayFlags flags from playbin2. It is the policy of GStreamer to
 // not publicly expose element-specific enums. That's why this
 // GstPlayFlags enum has been copied here.
@@ -136,17 +141,74 @@ static gboolean mediaPlayerPrivateMuteChangeTimeoutCallback(MediaPlayerPrivateGS
 
 static void mediaPlayerPrivateVideoSinkCapsChangedCallback(GObject*, GParamSpec*, MediaPlayerPrivateGStreamer* player)
 {
-    player->videoChanged();
+    player->videoCapsChanged();
 }
 
 static void mediaPlayerPrivateVideoChangedCallback(GObject*, MediaPlayerPrivateGStreamer* player)
 {
     player->videoChanged();
+    player->videoCapsChanged();
 }
 
 static void mediaPlayerPrivateAudioChangedCallback(GObject*, MediaPlayerPrivateGStreamer* player)
 {
     player->audioChanged();
+}
+
+#if ENABLE(VIDEO_TRACK)
+static void mediaPlayerPrivateTextChangedCallback(GObject*, MediaPlayerPrivateGStreamer* player)
+{
+    player->textChanged();
+}
+
+static gboolean mediaPlayerPrivateTextChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    // This is the callback of the timeout source created in ::textChanged.
+    player->notifyPlayerOfText();
+    return FALSE;
+}
+
+static void mediaPlayerPrivateTextTagsChangedCallback(GObject*, gint index, MediaPlayerPrivateGStreamer* player)
+{
+    player->textTagsChanged(index);
+}
+
+static gboolean mediaPlayerPrivateTextTagChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    // This is the callback of the timeout source created in ::textChanged.
+    player->notifyPlayerOfTextTags();
+    return FALSE;
+}
+
+static void mediaPlayerPrivateTextNewBufferCallback(GObject*, MediaPlayerPrivateGStreamer* player)
+{
+    player->notifyPlayerOfTextBuffer();
+}
+#endif
+
+static void mediaPlayerPrivateVideoTagsChangedCallback(GObject* m_playBin, gint i, MediaPlayerPrivateGStreamer* player)
+{
+    // This checks every video track for new tags, even though we only need to
+    // check tag i. I'd like to do this more efficiently, but it would require
+    // either a mutex or some complicated code using atomic pointers. It seemed
+    // like that complexity wasn't worthwhile.
+    player->videoTagsChanged();
+}
+
+static void mediaPlayerPrivateAudioTagsChangedCallback(GObject* m_playBin, gint i, MediaPlayerPrivateGStreamer* player)
+{
+    // This checks every audio track for new tags, even though we only need to
+    // check tag i. I'd like to do this more efficiently, but it would require
+    // either a mutex or some complicated code using atomic pointers. It seemed
+    // like that complexity wasn't worthwhile.
+    player->audioTagsChanged();
+}
+
+static gboolean mediaPlayerPrivateVideoChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    // This is the callback of the timeout source created in ::videoChanged.
+    player->notifyPlayerOfVideo();
+    return FALSE;
 }
 
 static gboolean mediaPlayerPrivateAudioChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
@@ -156,10 +218,22 @@ static gboolean mediaPlayerPrivateAudioChangeTimeoutCallback(MediaPlayerPrivateG
     return FALSE;
 }
 
-static gboolean mediaPlayerPrivateVideoChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+static gboolean mediaPlayerPrivateVideoCapsChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
 {
-    // This is the callback of the timeout source created in ::videoChanged.
-    player->notifyPlayerOfVideo();
+    // This is the callback of the timeout source created in ::videoCapsChanged.
+    player->notifyPlayerOfVideoCaps();
+    return FALSE;
+}
+
+static gboolean mediaPlayerPrivateVideoTagsChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    player->notifyPlayerOfVideoTags();
+    return FALSE;
+}
+
+static gboolean mediaPlayerPrivateAudioTagsChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    player->notifyPlayerOfAudioTags();
     return FALSE;
 }
 
@@ -237,9 +311,19 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_volumeTimerHandler(0)
     , m_muteTimerHandler(0)
     , m_hasVideo(false)
+#if ENABLE(VIDEO_TRACK)
+    , m_hasText(false)
+#endif
     , m_hasAudio(false)
     , m_audioTimerHandler(0)
+    , m_audioTagsTimerHandler(0)
+#if ENABLE(VIDEO_TRACK)
+    , m_textTimerHandler(0)
+    , m_textTagsTimerHandler(0)
+#endif
     , m_videoTimerHandler(0)
+    , m_videoCapsTimerHandler(0)
+    , m_videoTagsTimerHandler(0)
     , m_webkitAudioSink(0)
     , m_totalBytes(-1)
     , m_originalPreloadWasAutoAndWasOverridden(false)
@@ -286,8 +370,23 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     if (m_videoTimerHandler)
         g_source_remove(m_videoTimerHandler);
 
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
+
+    if (m_videoTagsTimerHandler)
+        g_source_remove(m_videoTagsTimerHandler);
+
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
+
+    if (m_audioTagsTimerHandler)
+        g_source_remove(m_audioTagsTimerHandler);
+
+    if (m_textTimerHandler)
+        g_source_remove(m_textTimerHandler);
+
+    if (m_textTagsTimerHandler)
+        g_source_remove(m_textTagsTimerHandler);
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
@@ -347,8 +446,14 @@ float MediaPlayerPrivateGStreamer::playbackPosition() const
 
     float ret = 0.0f;
 
+    // By default, playbin2 selects a "random" sink to get the position from,
+    // but the text-sink will give bad results if its an appsink. Always using
+    // the video sink gives consistently good results.
+    GstElement* videoSink;
+    g_object_get(m_playBin, "video-sink", &videoSink, NULL);
+
     GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
-    if (!gst_element_query(m_playBin, query)) {
+    if (!gst_element_query(videoSink, query)) {
         LOG_MEDIA_MESSAGE("Position query failed...");
         gst_query_unref(query);
         return ret;
@@ -416,6 +521,94 @@ void MediaPlayerPrivateGStreamer::pause()
 
     if (changePipelineState(GST_STATE_PAUSED))
         LOG_MEDIA_MESSAGE("Pause");
+}
+
+bool MediaPlayerPrivateGStreamer::isAudioEnabled(int checkTrack) const
+{
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_AUDIO)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-audio", &currentTrack, NULL);
+    return currentTrack == checkTrack;
+}
+
+void MediaPlayerPrivateGStreamer::setAudioEnabled(int track, bool enabled)
+{
+    // Check if the requested track is already in the right state
+    if(enabled == isAudioEnabled(track))
+        return;
+
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(enabled) {
+        g_object_set(m_playBin, "current-audio", track, NULL);
+        flags |= GST_PLAY_FLAG_AUDIO;
+    } else {
+        flags &= ~GST_PLAY_FLAG_AUDIO;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
+}
+
+bool MediaPlayerPrivateGStreamer::isVideoSelected(int checkTrack) const
+{
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_VIDEO)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-video", &currentTrack, NULL);
+    return currentTrack == checkTrack;
+}
+
+void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
+{
+    // Check if the requested track is already in the right state
+    if(selected == isVideoSelected(track))
+        return;
+
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(selected) {
+        g_object_set(m_playBin, "current-video", track, NULL);
+        flags |= GST_PLAY_FLAG_VIDEO;
+    } else {
+        // This doesn't seem to work
+        flags &= ~GST_PLAY_FLAG_VIDEO;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
+}
+
+bool MediaPlayerPrivateGStreamer::isTextEnabled(int checkTrack) const
+{
+    GstPlayFlags flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(!(flags & GST_PLAY_FLAG_TEXT)) {
+        return false;
+    }
+    gint currentTrack;
+    g_object_get(m_playBin, "current-text", &currentTrack, NULL);
+    return currentTrack == checkTrack;
+}
+
+void MediaPlayerPrivateGStreamer::setTextEnabled(int track, bool enabled)
+{
+    // Check if the requested track is already in the right state
+    if(enabled == isTextEnabled(track))
+        return;
+
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+    if(enabled) {
+        g_object_set(m_playBin, "current-text", track, NULL);
+        flags |= GST_PLAY_FLAG_TEXT;
+    } else {
+        flags &= ~GST_PLAY_FLAG_TEXT;
+    }
+    g_object_set(m_playBin, "flags", flags, NULL);
 }
 
 float MediaPlayerPrivateGStreamer::duration() const
@@ -591,45 +784,241 @@ IntSize MediaPlayerPrivateGStreamer::naturalSize() const
     return m_videoSize;
 }
 
+void MediaPlayerPrivateGStreamer::videoCapsChanged()
+{
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
+    m_videoCapsTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoCapsChangeTimeoutCallback), this);
+}
+
+/**
+ * This signal is emitted whenever the number or order of the video streams has
+ * changed. The application will most likely want to select a new video stream.
+ */
 void MediaPlayerPrivateGStreamer::videoChanged()
 {
     if (m_videoTimerHandler)
         g_source_remove(m_videoTimerHandler);
-    m_videoTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
-}
-
-void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
-{
-    m_videoTimerHandler = 0;
-
-    gint videoTracks = 0;
-    if (m_playBin)
-        g_object_get(m_playBin, "n-video", &videoTracks, NULL);
-
-    m_hasVideo = videoTracks > 0;
-
-    m_videoSize = IntSize();
-
-    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
+    m_videoTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
 }
 
 void MediaPlayerPrivateGStreamer::audioChanged()
 {
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
-    m_audioTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateAudioChangeTimeoutCallback), this);
+    m_audioTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateAudioChangeTimeoutCallback), this);
+}
+
+void MediaPlayerPrivateGStreamer::videoTagsChanged()
+{
+    if (m_videoTagsTimerHandler)
+        g_source_remove(m_videoTagsTimerHandler);
+    m_videoTagsTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoTagsChangeTimeoutCallback), this);
+}
+
+void MediaPlayerPrivateGStreamer::audioTagsChanged()
+{
+    if (m_audioTagsTimerHandler)
+        g_source_remove(m_audioTagsTimerHandler);
+    m_audioTagsTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateAudioTagsChangeTimeoutCallback), this);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
+{
+    m_videoTimerHandler = 0;
+
+    gint numVideos = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-video", &numVideos, NULL);
+
+    m_hasVideo = numVideos > 0;
+
+#if ENABLE(VIDEO_TRACK)
+    m_player->mediaPlayerClient()->mediaPlayerClearVideoTracks(m_player);
+#endif
+
+    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfVideoCaps()
+{
+    m_videoCapsTimerHandler = 0;
+
+    m_videoSize = IntSize();
+
+    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 
 void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 {
     m_audioTimerHandler = 0;
 
-    gint audioTracks = 0;
+    gint numTracks = 0;
     if (m_playBin)
-        g_object_get(m_playBin, "n-audio", &audioTracks, NULL);
-    m_hasAudio = audioTracks > 0;
+        g_object_get(m_playBin, "n-audio", &numTracks, NULL);
+    m_hasAudio = numTracks > 0;
+
+#if ENABLE(VIDEO_TRACK)
+    m_player->mediaPlayerClient()->mediaPlayerClearAudioTracks(m_player);
+#endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfAudioTags()
+{
+    m_audioTagsTimerHandler = 0;
+    gint numAudioTracks = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-audio", &numAudioTracks, NULL);
+
+    for(gint i = 0; i < numAudioTracks; ++i) {
+        GstTagList *tags = NULL;
+        String language;
+        String label;
+        g_signal_emit_by_name(m_playBin, "get-audio-tags", i, &tags);
+        if (tags) {
+            gchar *str;
+            if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &str)) {
+                language = String(str);
+
+                // The AudioTrack.language and VideoTrack.language attributes
+                // must return the BCP 47 language tag of the language of the
+                // track, if it has one, or the empty string otherwise.
+                if(language == "und") {
+                    language = "";
+                }
+                g_free(str);
+            }
+            if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &str)) {
+                label = String(str);
+                g_free(str);
+            }
+            gst_tag_list_free(tags);
+        }
+        m_player->mediaPlayerClient()->mediaPlayerAddAudioTrack(m_player, i, isAudioEnabled(i), "", "", label, language);
+    }
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfVideoTags()
+{
+    m_videoTagsTimerHandler = 0;
+    gint numVideoTracks = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-video", &numVideoTracks, NULL);
+
+    for(gint i = 0; i < numVideoTracks; ++i) {
+        GstTagList *tags = NULL;
+        String language;
+        String label;
+        g_signal_emit_by_name(m_playBin, "get-video-tags", i, &tags);
+        if (tags) {
+            gchar *str;
+            if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &str)) {
+                language = String(str);
+
+                // The AudioTrack.language and VideoTrack.language attributes
+                // must return the BCP 47 language tag of the language of the
+                // track, if it has one, or the empty string otherwise.
+                if(language == "und") {
+                    language = "";
+                }
+                g_free(str);
+            }
+            if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &str)) {
+                label = String(str);
+                g_free(str);
+            }
+            gst_tag_list_free(tags);
+        }
+        m_player->mediaPlayerClient()->mediaPlayerAddVideoTrack(m_player, i, isVideoSelected(i), "", "", label, language);
+    }
+}
+
+#if ENABLE(VIDEO_TRACK)
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
+{
+    m_textTimerHandler = 0;
+
+    gint numTracks = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-text", &numTracks, NULL);
+
+    m_hasText = numTracks > 0;
+
+#if ENABLE(VIDEO_TRACK)
+    m_player->mediaPlayerClient()->mediaPlayerClearTextTracks(m_player);
+#endif
+
+    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfTextTags()
+{
+    m_textTagsTimerHandler = 0;
+    gint numTextTracks = 0;
+    if (m_playBin)
+        g_object_get(m_playBin, "n-text", &numTextTracks, NULL);
+
+    for(gint i = 0; i < numTextTracks; ++i) {
+        GstTagList *tags = NULL;
+        String language;
+        String label;
+        g_signal_emit_by_name(m_playBin, "get-text-tags", i, &tags);
+        if (tags) {
+            gchar *str;
+            if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &str)) {
+                language = String(str);
+
+                // The AudioTrack.language and VideoTrack.language attributes
+                // must return the BCP 47 language tag of the language of the
+                // track, if it has one, or the empty string otherwise.
+                if(language == "und") {
+                    language = "";
+                }
+                g_free(str);
+            }
+            if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &str)) {
+                label = String(str);
+                g_free(str);
+            }
+            gst_tag_list_free(tags);
+        }
+        m_player->mediaPlayerClient()->mediaPlayerAddTextTrack(m_player, i, "", "", "", label, language);
+    }
+}
+
+void MediaPlayerPrivateGStreamer::textChanged()
+{
+    if (m_textTimerHandler)
+        g_source_remove(m_textTimerHandler);
+    m_textTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback), this);
+}
+
+void MediaPlayerPrivateGStreamer::textTagsChanged(int index)
+{
+    if (m_textTagsTimerHandler) {
+        g_source_remove(m_textTagsTimerHandler);
+    }
+
+    m_textTagsTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextTagChangeTimeoutCallback), this);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfTextBuffer()
+{
+    printf("Player->newTextBuffer()\n");
+    GstBuffer *buffer = NULL;
+    g_signal_emit_by_name(m_textSink.get(), "pull-buffer", &buffer);
+    if(!buffer) {
+        printf("Buffer is NULL\n");
+        return;
+    }
+    String data = String(buffer->data, buffer->size);
+    printf("Buffer is: %s\n", data.utf8(false).data());
+    gst_buffer_unref(buffer);
+}
+#endif
 
 void MediaPlayerPrivateGStreamer::setVolume(float volume)
 {
@@ -1775,7 +2164,13 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
     g_signal_connect(m_playBin, "notify::source", G_CALLBACK(mediaPlayerPrivateSourceChangedCallback), this);
     g_signal_connect(m_playBin, "notify::mute", G_CALLBACK(mediaPlayerPrivateMuteChangedCallback), this);
     g_signal_connect(m_playBin, "video-changed", G_CALLBACK(mediaPlayerPrivateVideoChangedCallback), this);
+#if ENABLE(VIDEO_TRACK)
+    g_signal_connect(m_playBin, "text-changed", G_CALLBACK(mediaPlayerPrivateTextChangedCallback), this);
+    g_signal_connect(m_playBin, "text-tags-changed", G_CALLBACK(mediaPlayerPrivateTextTagsChangedCallback), this);
+#endif
     g_signal_connect(m_playBin, "audio-changed", G_CALLBACK(mediaPlayerPrivateAudioChangedCallback), this);
+    g_signal_connect(m_playBin, "video-tags-changed", G_CALLBACK(mediaPlayerPrivateVideoTagsChangedCallback), this);
+    g_signal_connect(m_playBin, "audio-tags-changed", G_CALLBACK(mediaPlayerPrivateAudioTagsChangedCallback), this);
 
 #ifndef GST_API_VERSION_1
     m_webkitVideoSink = webkitVideoSinkNew(m_gstGWorld.get());
@@ -1871,6 +2266,12 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
     if (videoSinkPad)
         g_signal_connect(videoSinkPad.get(), "notify::caps", G_CALLBACK(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
+#if ENABLE(VIDEO_TRACK)
+    m_textSink = gst_element_factory_make("appsink", NULL);
+    g_object_set(m_textSink.get(), "emit-signals", true, NULL);
+    g_signal_connect(m_textSink.get(), "new-buffer", G_CALLBACK(mediaPlayerPrivateTextNewBufferCallback), this);
+    g_object_set(m_playBin, "text-sink", m_textSink.get(), NULL);
+#endif
 }
 
 }

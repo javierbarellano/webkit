@@ -67,6 +67,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSAudioProcessingEvent.h \
 	DerivedSources/WebCore/JSAudioSourceNode.cpp \
 	DerivedSources/WebCore/JSAudioSourceNode.h \
+	DerivedSources/WebCore/JSAudioTrack.cpp \
+	DerivedSources/WebCore/JSAudioTrack.h \
 	DerivedSources/WebCore/JSBarInfo.cpp \
 	DerivedSources/WebCore/JSBarInfo.h \
 	DerivedSources/WebCore/JSBeforeLoadEvent.cpp \
@@ -1059,6 +1061,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSUPnPEvent.h \
 	DerivedSources/WebCore/JSValidityState.cpp \
 	DerivedSources/WebCore/JSValidityState.h \
+	DerivedSources/WebCore/JSVideoTrack.cpp \
+	DerivedSources/WebCore/JSVideoTrack.h \
 	DerivedSources/WebCore/JSVoidCallback.cpp \
 	DerivedSources/WebCore/JSVoidCallback.h \
 	DerivedSources/WebCore/JSWaveShaperNode.cpp \
@@ -5057,6 +5061,8 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderMedia.h \
 	Source/WebCore/rendering/RenderMenuList.cpp \
 	Source/WebCore/rendering/RenderMenuList.h \
+	Source/WebCore/rendering/RenderMediaMenuList.cpp \
+	Source/WebCore/rendering/RenderMediaMenuList.h \
 	Source/WebCore/rendering/RenderMeter.cpp \
 	Source/WebCore/rendering/RenderMeter.h \
 	Source/WebCore/rendering/RenderMultiColumnBlock.cpp \

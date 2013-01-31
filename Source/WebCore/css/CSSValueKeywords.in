@@ -643,6 +643,8 @@ media-fullscreen-volume-slider
 media-fullscreen-volume-slider-thumb
 media-mute-button
 media-play-button
+media-ff-button
+media-rev-button
 media-overlay-play-button
 media-seek-back-button
 media-seek-forward-button
@@ -659,6 +661,9 @@ media-controls-background
 media-controls-fullscreen-background
 media-current-time-display
 media-time-remaining-display
+media-video-track-sel-button
+media-audio-track-sel-button
+media-text-track-sel-button
 menulist
 menulist-button
 menulist-text

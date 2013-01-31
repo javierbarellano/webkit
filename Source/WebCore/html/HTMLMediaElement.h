@@ -28,6 +28,8 @@
 
 #if ENABLE(VIDEO)
 
+#include <wtf/Vector.h>
+
 #include "HTMLElement.h"
 #include "ActiveDOMObject.h"
 #include "GenericEventQueue.h"
@@ -40,9 +42,11 @@
 #endif
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrack.h"
 #include "PODIntervalTree.h"
 #include "TextTrack.h"
 #include "TextTrackCue.h"
+#include "VideoTrack.h"
 #endif
 
 namespace WebCore {
@@ -51,6 +55,7 @@ namespace WebCore {
 class AudioSourceProvider;
 class MediaElementAudioSourceNode;
 #endif
+class AudioTrackList;
 class Event;
 class HTMLSourceElement;
 class HTMLTrackElement;
@@ -59,6 +64,7 @@ class MediaControls;
 class MediaError;
 class KURL;
 class TextTrackList;
+class VideoTrackList;
 class TimeRanges;
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
 class Widget;
@@ -76,9 +82,16 @@ typedef Vector<CueIntervalTree::IntervalType> CueList;
 // But it can't be until the Chromium WebMediaPlayerClientImpl class is fixed so it
 // no longer depends on typecasting a MediaPlayerClient to an HTMLMediaElement.
 
-class HTMLMediaElement : public HTMLElement, public MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
+class HTMLMediaElement : public HTMLElement
+	, public MediaPlayerClient
+	, public MediaPlayerSupportsTypeClient
+	, private MediaCanStartListener
+	, public ActiveDOMObject
+	, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
+    , private AudioTrackClient
     , private TextTrackClient
+    , private VideoTrackClient
 #endif
 {
 public:
@@ -91,6 +104,10 @@ public:
     virtual bool isVideo() const = 0;
     virtual bool hasVideo() const { return false; }
     virtual bool hasAudio() const;
+
+    // Events
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(fastforward);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(reverse);
 
     void rewind(float timeDelta);
     void returnToRealtime();
@@ -147,6 +164,13 @@ public:
     bool paused() const;
     float defaultPlaybackRate() const;
     void setDefaultPlaybackRate(float);
+    virtual Vector<float> getSupportedPlayRates() {
+    	if (m_player)
+    		m_playRates = m_player->getPlayRates();
+
+    	return m_playRates;
+    }
+
     float playbackRate() const;
     void setPlaybackRate(float);
     void updatePlaybackRate();
@@ -219,6 +243,7 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
     TextTrackList* textTracks();
+    void setTextTracks(TextTrackList* list) {}
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     virtual void didAddTrack(HTMLTrackElement*);
@@ -248,7 +273,6 @@ public:
 
     bool userIsInterestedInThisTrackKind(String) const;
     bool textTracksAreReady() const;
-    void configureTextTrackDisplay();
     void updateClosedCaptionsControls();
 
     // TextTrackClient
@@ -259,7 +283,33 @@ public:
     virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*);
     virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>);
     virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>);
+    virtual void mediaPlayerClearTextTracks(MediaPlayer*);
+    virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language);
+
+    AudioTrackList* audioTracks();
+    void setAudioTracks(AudioTrackList* list) {}
+
+    virtual void mediaPlayerClearAudioTracks(MediaPlayer*);
+    virtual void mediaPlayerAddAudioTrack(MediaPlayer*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
+
+    VideoTrackList* videoTracks();
+    void setVideoTracks(VideoTrackList* list) {}
+    virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
+    virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 #endif
+
+    void configureTextTrackDisplay();
+
+    virtual std::vector<std::string> getSelTextTrackNames(int *selectedIndex);
+    virtual void selectTextTrack(int index);
+
+    // UI support for Video Tracks
+    virtual std::vector<std::string> getSelVideoTrackNames(int *selectedIndex);
+    virtual void selectVideoTrack(int index);
+
+    virtual std::vector<std::string> getSelAudioTrackNames(int *selectedIndex);
+    virtual void selectAudioTrack(int index);
+
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     void allocateMediaPlayerIfNecessary();
@@ -424,6 +474,11 @@ private:
     virtual void mediaPlayerKeyNeeded(MediaPlayer*, const String& keySystem, const String& sessionId, const unsigned char* initData, unsigned initDataLength) OVERRIDE;
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+    // Called when a text track is added or changed
+    virtual void mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language);
+#endif
+
     virtual String mediaPlayerReferrer() const OVERRIDE;
     virtual String mediaPlayerUserAgent() const OVERRIDE;
     virtual CORSMode mediaPlayerCORSMode() const OVERRIDE;
@@ -486,7 +541,15 @@ private:
     bool ignoreTrackDisplayUpdateRequests() const { return m_ignoreTrackDisplayUpdate > 0; }
     void beginIgnoringTrackDisplayUpdateRequests() { ++m_ignoreTrackDisplayUpdate; }
     void endIgnoringTrackDisplayUpdateRequests() { ASSERT(m_ignoreTrackDisplayUpdate); --m_ignoreTrackDisplayUpdate; }
+
+    void audioTrackEnabled(AudioTrack*, bool);
+    void videoTrackSelected(VideoTrack*, bool);
+
+    void setDefaultTextTrack();
 #endif
+
+    void configureVideoTrackDisplay();
+    void configureAudioTrackDisplay();
 
     // These "internal" functions do not check user gesture restrictions.
     void loadInternal();
@@ -587,6 +650,8 @@ private:
     RefPtr<Node> m_nextChildNodeToConsider;
 
     OwnPtr<MediaPlayer> m_player;
+    Vector<float> m_playRates;
+
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     RefPtr<Widget> m_proxyWidget;
 #endif
@@ -659,7 +724,9 @@ private:
     bool m_haveVisibleTextTrack : 1;
     float m_lastTextTrackUpdateTime;
 
+    RefPtr<AudioTrackList> m_audioTracks;
     RefPtr<TextTrackList> m_textTracks;
+    RefPtr<VideoTrackList> m_videoTracks;
     Vector<RefPtr<TextTrack> > m_textTracksWhenResourceSelectionBegan;
 
     CueIntervalTree m_cueTree;

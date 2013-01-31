@@ -45,20 +45,21 @@ enum ControlState {
 typedef unsigned ControlStates;
 
 // Must follow CSSValueKeywords.in order
+// 5 on a line, so I can count them
 enum ControlPart {
-    NoControlPart, CheckboxPart, RadioPart, PushButtonPart, SquareButtonPart, ButtonPart,
-    ButtonBevelPart, DefaultButtonPart, InnerSpinButtonPart, InputSpeechButtonPart, ListboxPart, ListItemPart,
-    MediaEnterFullscreenButtonPart, MediaExitFullscreenButtonPart, MediaFullScreenVolumeSliderPart, MediaFullScreenVolumeSliderThumbPart, MediaMuteButtonPart, MediaPlayButtonPart,
-    MediaOverlayPlayButtonPart, MediaSeekBackButtonPart, MediaSeekForwardButtonPart, MediaRewindButtonPart, MediaReturnToRealtimeButtonPart, MediaToggleClosedCaptionsButtonPart,
-    MediaSliderPart, MediaSliderThumbPart, MediaVolumeSliderContainerPart, MediaVolumeSliderPart, MediaVolumeSliderThumbPart,
-    MediaVolumeSliderMuteButtonPart, MediaControlsBackgroundPart, MediaControlsFullscreenBackgroundPart, MediaCurrentTimePart, MediaTimeRemainingPart,
-    MenulistPart, MenulistButtonPart, MenulistTextPart, MenulistTextFieldPart, MeterPart, ProgressBarPart, ProgressBarValuePart,
-    SliderHorizontalPart, SliderVerticalPart, SliderThumbHorizontalPart,
-    SliderThumbVerticalPart, CaretPart, SearchFieldPart, SearchFieldDecorationPart,
-    SearchFieldResultsDecorationPart, SearchFieldResultsButtonPart,
-    SearchFieldCancelButtonPart, TextFieldPart,
-    RelevancyLevelIndicatorPart, ContinuousCapacityLevelIndicatorPart, DiscreteCapacityLevelIndicatorPart, RatingLevelIndicatorPart,
-    TextAreaPart, CapsLockIndicatorPart
+    /* 00 */ NoControlPart, CheckboxPart, RadioPart, PushButtonPart, SquareButtonPart,
+    /* 05 */ ButtonPart, ButtonBevelPart, DefaultButtonPart, InnerSpinButtonPart, InputSpeechButtonPart,
+    /* 10 */ ListboxPart, ListItemPart, MediaEnterFullscreenButtonPart, MediaExitFullscreenButtonPart, MediaFullScreenVolumeSliderPart,
+    /* 15 */ MediaFullScreenVolumeSliderThumbPart, MediaMuteButtonPart, MediaPlayButtonPart, MediaFFButtonPart, MediaRevButtonPart,
+    /* 20 */ MediaOverlayPlayButtonPart, MediaSeekBackButtonPart, MediaSeekForwardButtonPart, MediaRewindButtonPart, MediaReturnToRealtimeButtonPart,
+    /* 25 */ MediaToggleClosedCaptionsButtonPart, MediaSliderPart, MediaSliderThumbPart, MediaVolumeSliderContainerPart, MediaVolumeSliderPart,
+    /* 30 */ MediaVolumeSliderThumbPart, MediaVolumeSliderMuteButtonPart, MediaControlsBackgroundPart, MediaControlsFullscreenBackgroundPart, MediaCurrentTimePart,
+    /* 35 */ MediaTimeRemainingPart, MediaVideoTrackSelButtonPart, MediaAudioTrackSelButtonPart, MediaTextTrackSelButtonPart, MenulistPart,
+    /* 40 */ MenulistButtonPart, MenulistTextPart, MenulistTextFieldPart, MeterPart, ProgressBarPart,
+    /* 45 */ ProgressBarValuePart, SliderHorizontalPart, SliderVerticalPart, SliderThumbHorizontalPart, SliderThumbVerticalPart,
+    /* 50 */ CaretPart, SearchFieldPart, SearchFieldDecorationPart, SearchFieldResultsDecorationPart, SearchFieldResultsButtonPart,
+    /* 55 */ SearchFieldCancelButtonPart, TextFieldPart, RelevancyLevelIndicatorPart, ContinuousCapacityLevelIndicatorPart, DiscreteCapacityLevelIndicatorPart,
+    /* 60 */ RatingLevelIndicatorPart, TextAreaPart, CapsLockIndicatorPart
 };
 
 enum SelectionPart {

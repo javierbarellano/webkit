@@ -50,7 +50,7 @@ class MediaControls : public HTMLDivElement {
     virtual void makeOpaque() = 0;
     virtual void makeTransparent() = 0;
 
-    virtual void reset() = 0;
+    virtual void reset(bool init=false) = 0;
 
     virtual void playbackProgressed() = 0;
     virtual void playbackStarted() = 0;
@@ -76,6 +76,16 @@ class MediaControls : public HTMLDivElement {
     virtual void showTextTrackDisplay() = 0;
     virtual void hideTextTrackDisplay() = 0;
     virtual void updateTextTrackDisplay() = 0;
+
+    virtual void showVideoTrackDisplay() = 0;
+    virtual void hideVideoTrackDisplay() = 0;
+    virtual void updateVideoTrackDisplay() = 0;
+    virtual void setVideoTrackSelected(int index) = 0;
+
+    virtual void showAudioTrackDisplay() = 0;
+    virtual void hideAudioTrackDisplay() = 0;
+    virtual void updateAudioTrackDisplay() = 0;
+    virtual void setAudioTrackSelected(int index) = 0;
 #endif
 
     virtual void bufferingProgressed() = 0;

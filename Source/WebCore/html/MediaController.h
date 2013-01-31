@@ -70,6 +70,7 @@ public:
     
     virtual float defaultPlaybackRate() const { return m_defaultPlaybackRate; }
     virtual void setDefaultPlaybackRate(float);
+    virtual Vector<float> getSupportedPlayRates(){ return Vector<float>(); };
     
     virtual float playbackRate() const;
     virtual void setPlaybackRate(float);
@@ -107,6 +108,14 @@ public:
     virtual bool hasCurrentSrc() const;
     
     virtual void returnToRealtime();
+
+    virtual std::vector<std::string> getSelTextTrackNames(int *index);
+    virtual std::vector<std::string> getSelVideoTrackNames(int *index);
+    virtual std::vector<std::string> getSelAudioTrackNames(int *index);
+
+    virtual void selectTextTrack(int index){}
+    virtual void selectVideoTrack(int index){}
+    virtual void selectAudioTrack(int index){}
 
     bool isBlocked() const;
 

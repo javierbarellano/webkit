@@ -83,6 +83,7 @@ PassRefPtr<HTMLOptionElement> HTMLOptionElement::createForJSConstructor(Document
         element->setValue(value);
     if (defaultSelected)
         element->setAttribute(selectedAttr, emptyAtom);
+
     element->setSelected(selected);
 
     return element.release();

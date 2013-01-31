@@ -31,6 +31,7 @@
 
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
+#include "InBandTextTrack.h"
 #include "LoadableTextTrack.h"
 #include "ScriptExecutionContext.h"
 #include "TextTrack.h"
@@ -53,7 +54,7 @@ TextTrackList::~TextTrackList()
 
 unsigned TextTrackList::length() const
 {
-    return m_addTrackTracks.size() + m_elementTracks.size();
+    return m_inbandTracks.size() + m_addTrackTracks.size() + m_elementTracks.size();
 }
 
 unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
@@ -64,12 +65,24 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
     if (textTrack->trackType() == TextTrack::AddTrack)
         return m_elementTracks.size() + m_addTrackTracks.find(textTrack);
 
+    if (textTrack->trackType() == TextTrack::TrackElement)
+        return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(textTrack);
+
     ASSERT_NOT_REACHED();
 
     return -1;
 }
 
 TextTrack* TextTrackList::item(unsigned index)
+{
+	RefPtr<TextTrack> tt = itemRef(index);
+	if (tt)
+		return tt.get();
+
+	return 0;
+}
+
+RefPtr<TextTrack> TextTrackList::itemRef(unsigned index)
 {
     // 4.8.10.12.1 Text track model
     // The text tracks are sorted as follows:
@@ -79,11 +92,15 @@ TextTrack* TextTrackList::item(unsigned index)
     // resource), in the order defined by the media resource's format specification.
 
     if (index < m_elementTracks.size())
-        return m_elementTracks[index].get();
+        return m_elementTracks[index];
 
     index -= m_elementTracks.size();
     if (index < m_addTrackTracks.size())
-        return m_addTrackTracks[index].get();
+        return m_addTrackTracks[index];
+
+    index -= m_addTrackTracks.size();
+    if (index < m_inbandTracks.size())
+        return m_inbandTracks[index];
 
     return 0;
 }
@@ -106,6 +123,22 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
         for (size_t i = 0; i < m_addTrackTracks.size(); ++i)
             m_addTrackTracks[i]->invalidateTrackIndex();
 
+        for (size_t i = 0; i < m_inbandTracks.size(); ++i)
+            m_inbandTracks[i]->invalidateTrackIndex();
+
+    } else if (track->trackType() == TextTrack::InBand) {
+        int index = static_cast<InBandTextTrack*>(track.get())->index();
+        bool inserted = false;
+        for(size_t i = 0; i < m_inbandTracks.size(); ++i) {
+            if(static_cast<InBandTextTrack*>(m_inbandTracks[i].get())->index() > index) {
+                m_inbandTracks.insert(i, track);
+                inserted = true;
+                break;
+            }
+        }
+        if(!inserted) {
+            m_inbandTracks.append(track);
+        }
     } else
         ASSERT_NOT_REACHED();
 
@@ -113,6 +146,13 @@ void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
     track->setMediaElement(m_owner);
 
     scheduleAddTrackEvent(track.release());
+}
+
+void TextTrackList::clear()
+{
+    m_addTrackTracks.clear();
+    m_elementTracks.clear();
+    m_inbandTracks.clear();
 }
 
 void TextTrackList::remove(TextTrack* track)
@@ -123,6 +163,8 @@ void TextTrackList::remove(TextTrack* track)
         tracks = &m_elementTracks;
     else if (track->trackType() == TextTrack::AddTrack)
         tracks = &m_addTrackTracks;
+    else if (track->trackType() == TextTrack::InBand)
+        tracks = &m_inbandTracks;
     else
         ASSERT_NOT_REACHED();
 
@@ -135,6 +177,14 @@ void TextTrackList::remove(TextTrack* track)
 
     tracks->remove(index);
 }
+
+void TextTrackList::selectTrack(unsigned index)
+{
+	RefPtr<TextTrack>  track = itemRef(index);
+    scheduleSelectTrackEvent(track.release());
+}
+
+
 
 const AtomicString& TextTrackList::interfaceName() const
 {
@@ -158,6 +208,27 @@ void TextTrackList::scheduleAddTrackEvent(PassRefPtr<TextTrack> track)
     initializer.cancelable = false;
 
     m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+    if (!m_pendingEventTimer.isActive())
+        m_pendingEventTimer.startOneShot(0);
+}
+
+void TextTrackList::scheduleSelectTrackEvent(PassRefPtr<TextTrack> track)
+{
+    // 4.8.10.12.3 Sourcing out-of-band text tracks
+    // 4.8.10.12.3 Sourcing out-of-band text tracks
+    // 4.8.10.12.4 Text track API
+    // ... then queue a task to fire an event with the name addtrack, that does not
+    // bubble and is not cancelable, and that uses the TrackEvent interface, with
+    // the track attribute initialized to the text track's TextTrack object, at
+    // the media element's textTracks attribute's TextTrackList object.
+
+    RefPtr<TextTrack> trackRef = track;
+    TrackEventInit initializer;
+    initializer.track = trackRef;
+    initializer.bubbles = false;
+    initializer.cancelable = false;
+
+    m_pendingEvents.append(TrackEvent::create(eventNames().trackselectedEvent, initializer));
     if (!m_pendingEventTimer.isActive())
         m_pendingEventTimer.startOneShot(0);
 }

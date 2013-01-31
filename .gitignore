@@ -7,6 +7,12 @@
 *.o
 *.Po
 
+.libs/
+LayoutTests/platform/qt/css3/masking/
+LayoutTests/platform/qt/fast/*.txt
+LayoutTests/platform/qt/fast/overflow/*.txt
+Programs/
+
 GNUmakefile
 ck.sh
 libtool
@@ -272,6 +278,7 @@ Source/JavaScriptCore/tests/mozilla/actual.html
 autotoolsconfig.h
 config.log
 config.status
+Source/WebKit/gtk/webkit/webkitversion.h
 
 *.dirstamp
 .DS_Store

@@ -3426,6 +3426,8 @@
             'rendering/RenderMediaControlsChromium.h',
             'rendering/RenderMenuList.cpp',
             'rendering/RenderMenuList.h',
+            'rendering/RenderMediaMenuList.cpp',
+            'rendering/RenderMediaMenuList.h',
             'rendering/RenderMeter.cpp',
             'rendering/RenderMeter.h',
             'rendering/RenderMultiColumnBlock.cpp',

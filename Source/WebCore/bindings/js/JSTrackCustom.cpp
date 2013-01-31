@@ -30,6 +30,8 @@
 #include "JSTrackCustom.h"
 
 #include "JSTextTrack.h"
+#include "JSVideoTrack.h"
+#include "JSAudioTrack.h"
 
 using namespace JSC;
 
@@ -66,9 +68,11 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TrackBa
         break;
         
     case TrackBase::AudioTrack:
+        return CREATE_DOM_WRAPPER(exec, globalObject, AudioTrack, track);
+        break;
+
     case TrackBase::VideoTrack:
-        // This should not happen until VideoTrack and AudioTrack are implemented.
-        ASSERT_NOT_REACHED();
+        return CREATE_DOM_WRAPPER(exec, globalObject, VideoTrack, track);
         break;
 
     case TrackBase::TextTrack:

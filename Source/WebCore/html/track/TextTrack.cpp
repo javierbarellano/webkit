@@ -148,6 +148,7 @@ void TextTrack::setKind(const String& kind)
 
 void TextTrack::setMode(const String& mode)
 {
+	//printf("setMode(%d) %s\n", m_trackIndex, mode.ascii().data());
     // On setting, if the new value isn't equal to what the attribute would currently
     // return, the new value must be processed as follows ...
     if (mode != disabledKeyword() && mode != hiddenKeyword() && mode != showingKeyword())

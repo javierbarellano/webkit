@@ -42,6 +42,7 @@
 #include <wtf/Noncopyable.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringHash.h>
+#include <wtf/Vector.h>
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "GraphicsLayer.h"
@@ -148,6 +149,18 @@ public:
     // The MediaPlayer could not discover an engine which supports the requested resource.
     virtual void mediaPlayerResourceNotSupported(MediaPlayer*) { }
 
+    virtual void mediaPlayerClearAudioTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddAudioTrack(MediaPlayer*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language) { }
+
+    virtual void mediaPlayerClearVideoTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language) { }
+
+#if ENABLE(VIDEO_TRACK)
+    // Called when a text track is added or changed
+    virtual void mediaPlayerClearTextTracks(MediaPlayer*) { }
+    virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language) { }
+#endif
+
 // Presentation-related methods
     // a new frame of video is available
     virtual void mediaPlayerRepaint(MediaPlayer*) { }
@@ -244,6 +257,14 @@ public:
     bool hasVideo() const;
     bool hasAudio() const;
 
+    //Tell client what rates we support
+    void playbackRatesSupported(float *rates, int count) {
+    	m_rates.clear();
+    	for (int i=0; i<count; i++)
+    		m_rates.append(rates[i]);
+    }
+    Vector<float> getPlayRates() { return m_rates; }
+
     void setFrameView(FrameView* frameView) { m_frameView = frameView; }
     FrameView* frameView() { return m_frameView; }
     bool inMediaDocument();
@@ -286,6 +307,15 @@ public:
 
     bool paused() const;
     bool seeking() const;
+
+    bool isAudioEnabled(int) const;
+    void setAudioEnabled(int, bool);
+
+    bool isTextEnabled(int) const;
+    void setTextEnabled(int, bool);
+
+    bool isVideoSelected(int) const;
+    void setVideoSelected(int, bool);
 
     static float invalidTime() { return -1.0f;}
     float duration() const;
@@ -448,6 +478,8 @@ private:
     bool m_privateBrowsing;
     bool m_shouldPrepareToRender;
     bool m_contentMIMETypeWasInferredFromExtension;
+    Vector<float> m_rates;
+
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     WebMediaPlayerProxy* m_playerProxy;    // not owned or used, passed to m_private
 #endif

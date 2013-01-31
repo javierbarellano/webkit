@@ -178,6 +178,24 @@ void MediaController::setCurrentTime(float time, ExceptionCode& code)
     scheduleTimeupdateEvent();
 }
 
+std::vector<std::string> MediaController::getSelTextTrackNames(int *index)
+{
+	std::vector<std::string> names;
+	return names;
+}
+
+std::vector<std::string> MediaController::getSelVideoTrackNames(int *index)
+{
+	std::vector<std::string> names;
+	return names;
+}
+
+std::vector<std::string> MediaController::getSelAudioTrackNames(int *index)
+{
+	std::vector<std::string> names;
+	return names;
+}
+
 void MediaController::play()
 {
     // When the play() method is invoked, if the MediaController is a paused media controller,

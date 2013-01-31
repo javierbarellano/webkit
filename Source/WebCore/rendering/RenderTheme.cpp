@@ -212,12 +212,17 @@ void RenderTheme::adjustStyle(StyleResolver* styleResolver, RenderStyle* style, 
         case MenulistButtonPart:
             return adjustMenuListButtonStyle(styleResolver, style, e);
         case MediaPlayButtonPart:
+        case MediaFFButtonPart:
+        case MediaRevButtonPart:
         case MediaCurrentTimePart:
         case MediaTimeRemainingPart:
         case MediaEnterFullscreenButtonPart:
         case MediaExitFullscreenButtonPart:
         case MediaMuteButtonPart:
         case MediaVolumeSliderContainerPart:
+        case MediaVideoTrackSelButtonPart:
+        case MediaAudioTrackSelButtonPart:
+        case MediaTextTrackSelButtonPart:
             return adjustMediaControlStyle(styleResolver, style, e);
         case MediaSliderPart:
         case MediaVolumeSliderPart:
@@ -330,6 +335,14 @@ bool RenderTheme::paint(RenderObject* o, const PaintInfo& paintInfo, const IntRe
             return paintMediaFullscreenButton(o, paintInfo, r);
         case MediaPlayButtonPart:
             return paintMediaPlayButton(o, paintInfo, r);
+        case MediaFFButtonPart:
+            return paintMediaFFButton(o, paintInfo, r);
+        case MediaRevButtonPart:
+            return paintMediaRevButton(o, paintInfo, r);
+        case MediaVideoTrackSelButtonPart:
+        case MediaAudioTrackSelButtonPart:
+        case MediaTextTrackSelButtonPart:
+        	return paintMediaTrackSelButton(o, paintInfo, r);
         case MediaOverlayPlayButtonPart:
             return paintMediaOverlayPlayButton(o, paintInfo, r);
         case MediaMuteButtonPart:
@@ -1080,10 +1093,6 @@ bool RenderTheme::shouldHaveSpinButton(HTMLInputElement* inputElement) const
 }
 
 void RenderTheme::adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Element*) const
-{
-}
-
-void RenderTheme::adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const
 {
 }
 

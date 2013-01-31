@@ -736,6 +736,9 @@ SOURCES += \
     html/shadow/SliderThumbElement.cpp \
     html/shadow/SpinButtonElement.cpp \
     html/shadow/TextControlInnerElements.cpp \
+    html/track/AudioTrack.cpp \
+    html/track/AudioTrackList.cpp \
+    html/track/InBandTextTrack.cpp \
     html/track/LoadableTextTrack.cpp \
     html/track/TextTrack.cpp \
     html/track/TextTrackCue.cpp \
@@ -743,6 +746,8 @@ SOURCES += \
     html/track/TextTrackList.cpp \
     html/track/TrackBase.cpp \
     html/track/TrackEvent.cpp \
+    html/track/VideoTrack.cpp \
+    html/track/VideoTrackList.cpp \
     html/track/WebVTTParser.cpp \
     html/track/WebVTTTokenizer.cpp \
     inspector/ConsoleMessage.cpp \
@@ -1173,6 +1178,7 @@ SOURCES += \
     rendering/RenderListMarker.cpp \
     rendering/RenderMarquee.cpp \
     rendering/RenderMenuList.cpp \
+    rendering/RenderMediaMenuList.cpp \
     rendering/RenderMeter.cpp \
     rendering/RenderMultiColumnBlock.cpp \
     rendering/RenderMultiColumnFlowThread.cpp \
@@ -2398,6 +2404,7 @@ HEADERS += \
     rendering/RenderMarquee.h \
     rendering/RenderMedia.h \
     rendering/RenderMenuList.h \
+    rendering/RenderMediaMenuList.h \
     rendering/RenderMeter.h \
     rendering/RenderMultiColumnBlock.h \
     rendering/RenderObjectChildList.h \
@@ -3841,13 +3848,19 @@ enable?(JAVASCRIPT_DEBUGGER) {
 
 enable?(VIDEO_TRACK) {
     SOURCES += \
+        bindings/js/JSAudioTrackCustom.cpp \
+        bindings/js/JSAudioTrackCustom.h \
+        bindings/js/JSAudioTrackListCustom.cpp \
         bindings/js/JSTextTrackCueCustom.cpp \
         bindings/js/JSTextTrackCustom.cpp \
         bindings/js/JSTextTrackCustom.h \
         bindings/js/JSTrackCustom.cpp \
         bindings/js/JSTrackCustom.h \
         bindings/js/JSTrackEventCustom.cpp \
-        bindings/js/JSTextTrackListCustom.cpp
+        bindings/js/JSTextTrackListCustom.cpp \
+        bindings/js/JSVideoTrackCustom.cpp \
+        bindings/js/JSVideoTrackCustom.h \
+        bindings/js/JSVideoTrackListCustom.cpp
 }
 
 enable?(WEB_SOCKETS) {
