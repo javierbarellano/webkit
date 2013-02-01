@@ -3484,8 +3484,9 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
     } else {
-        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
-        //m_player->setVideoSelected(videoTracks()->length(), false);
+        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, videoTracks()->length()==0, id, kind, label, language);
+        m_player->setVideoSelected(videoTracks()->length(), videoTracks()->length()==0);
+        track->setSelected(videoTracks()->length()==0);
         videoTracks()->append(track);
         track.release();
     }

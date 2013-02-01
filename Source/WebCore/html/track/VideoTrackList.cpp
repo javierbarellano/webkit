@@ -141,7 +141,7 @@ void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
     // the track attribute initialized to the text track's VideoTrack object, at
     // the media element's VideoTracks attribute's VideoTrackList object.
 
-	m_trackAdded = track;
+	m_trackAdded.append(track);
 	callOnMainThread(VideoTrackList::addTrackEventOnContextThread,this);
 }
 
@@ -152,7 +152,8 @@ void VideoTrackList::addTrackEventOnContextThread(void* ptr)
 	VideoTrackList *vtl = (VideoTrackList *)ptr;
 
     TrackEventInit initializer;
-    initializer.track = vtl->m_trackAdded;
+    initializer.track = vtl->m_trackAdded.at(0);
+    vtl->m_trackAdded.remove(0);
     initializer.bubbles = false;
     initializer.cancelable = false;
 

@@ -86,7 +86,7 @@ private:
     void scheduleAddTrackEvent(PassRefPtr<AudioTrack>);
     static void addTrackEventOnContextThread(void* ptr);
     static void selectTrackEventOnContextThread(void* ptr);
-    mutable RefPtr<AudioTrack> m_trackAdded;
+    Vector<RefPtr<AudioTrack> > m_trackAdded;
     mutable RefPtr<AudioTrack> m_trackSelected;
 
     void asyncEventTimerFired(Timer<AudioTrackList>*);

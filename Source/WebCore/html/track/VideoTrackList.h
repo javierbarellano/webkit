@@ -86,7 +86,7 @@ private:
     void scheduleAddTrackEvent(PassRefPtr<VideoTrack>);
     static void addTrackEventOnContextThread(void* ptr);
     static void selectTrackEventOnContextThread(void* ptr);
-    mutable RefPtr<VideoTrack> m_trackAdded;
+    Vector<RefPtr<VideoTrack> > m_trackAdded;
     mutable RefPtr<VideoTrack> m_trackSelected;
 
     void asyncEventTimerFired(Timer<VideoTrackList>*);

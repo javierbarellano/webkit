@@ -140,7 +140,7 @@ void AudioTrackList::scheduleAddTrackEvent(PassRefPtr<AudioTrack> track)
     // the track attribute initialized to the text track's AudioTrack object, at
     // the media element's AudioTracks attribute's AudioTrackList object.
 
-	m_trackAdded = track;
+	m_trackAdded.append(track);
 	callOnMainThread(AudioTrackList::addTrackEventOnContextThread,this);
 }
 
@@ -150,7 +150,8 @@ void AudioTrackList::addTrackEventOnContextThread(void* ptr)
 	AudioTrackList *atl = (AudioTrackList *)ptr;
 
     TrackEventInit initializer;
-    initializer.track = atl->m_trackAdded;
+    initializer.track = atl->m_trackAdded.at(0);
+    atl->m_trackAdded.remove(0);
     initializer.bubbles = false;
     initializer.cancelable = false;
 
