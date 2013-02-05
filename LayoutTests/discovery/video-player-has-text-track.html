@@ -1,0 +1,54 @@
+<html>
+
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+
+<body>
+<script>
+var vid;
+var track;
+var disabled = "disabled";
+var showing = "showing";
+
+function getInfo() {
+	shouldBe("vid.textTracks.length>0", "true");
+	shouldBe("vid.textTracks.item(0).mode", "showing");
+	//vid.parentNode.removeChild(vid);
+	finishJSTest();
+}
+
+function addTrack(trackEvent) {
+	track = trackEvent.track;
+	testPassed("Text Track added.");
+	vid = document.getElementsByTagName("video")[0];
+	if (vid) {
+		shouldBe("vid.textTracks.length>0", "true");
+	} else {
+		testFailed("No Video tag found, probably bad context.");
+	}
+	getInfo();
+}
+
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("video");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	v.audioTracks.onaddtrack = addTrack;
+	var src = document.createElement("source");
+	src.setAttribute('src', 'two_videos.ogv');
+	v.appendChild(src);
+	body.appendChild(v);
+}
+
+insertCtrl();
+description('Tests HTTPMediaElement Player.');
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+
+</html>
+

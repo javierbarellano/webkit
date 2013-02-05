@@ -38,6 +38,8 @@
 
 using namespace WebCore;
 
+Mutex *AudioTrackList::m_main = NULL;
+
 AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
     , m_owner(owner)
@@ -45,6 +47,9 @@ AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* 
     , m_dispatchingEvents(0)
 {
     ASSERT(context->isDocument());
+
+    if (!m_main)
+    	m_main = new Mutex();
 }
 
 AudioTrackList::~AudioTrackList()
@@ -79,7 +84,10 @@ RefPtr<AudioTrack> AudioTrackList::itemRef(unsigned index)
 
 void AudioTrackList::selectTrack(unsigned index)
 {
+	m_main->lock();
 	m_trackSelected = itemRef(index);
+	m_main->unlock();
+
 	callOnMainThread(AudioTrackList::selectTrackEventOnContextThread,this);
 }
 
@@ -140,7 +148,10 @@ void AudioTrackList::scheduleAddTrackEvent(PassRefPtr<AudioTrack> track)
     // the track attribute initialized to the text track's AudioTrack object, at
     // the media element's AudioTracks attribute's AudioTrackList object.
 
+	m_main->lock();
 	m_trackAdded.append(track);
+	m_main->unlock();
+
 	callOnMainThread(AudioTrackList::addTrackEventOnContextThread,this);
 }
 
@@ -150,8 +161,12 @@ void AudioTrackList::addTrackEventOnContextThread(void* ptr)
 	AudioTrackList *atl = (AudioTrackList *)ptr;
 
     TrackEventInit initializer;
+
+    atl->m_main->lock();
     initializer.track = atl->m_trackAdded.at(0);
     atl->m_trackAdded.remove(0);
+    atl->m_main->unlock();
+
     initializer.bubbles = false;
     initializer.cancelable = false;
 
@@ -167,7 +182,10 @@ void AudioTrackList::selectTrackEventOnContextThread(void* ptr)
 	AudioTrackList *atl = (AudioTrackList *)ptr;
 
     TrackEventInit initializer;
+    atl->m_main->lock();
     initializer.track = atl->m_trackSelected;
+    atl->m_main->unlock();
+
     initializer.bubbles = false;
     initializer.cancelable = false;
 

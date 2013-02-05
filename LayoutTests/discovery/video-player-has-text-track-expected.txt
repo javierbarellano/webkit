@@ -1,0 +1,13 @@
+Tests HTTPMediaElement Player.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS Text Track added.
+PASS vid.textTracks.length>0 is true
+PASS vid.textTracks.length>0 is true
+PASS vid.textTracks.item(0).mode is showing
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

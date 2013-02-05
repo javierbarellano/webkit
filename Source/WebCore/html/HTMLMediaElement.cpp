@@ -3411,7 +3411,8 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
     } else {
         RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
         index = textTracks()->length();
-        m_player->setTextEnabled(index, false);
+        track->setModeOnly(String(index==0 ? "showing":"hidden"));
+        m_player->setTextEnabled(index, index==0);
         textTracks()->append(track);
         track.release();
     }
@@ -3446,7 +3447,8 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setLanguage(language);
     } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
-        //m_player->setAudioEnabled(audioTracks()->length(), false);
+        track->setEnabledOnly(!audioTracks()->length());
+        m_player->setAudioEnabled(audioTracks()->length(), !audioTracks()->length());
         audioTracks()->append(track);
         track.release();
     }

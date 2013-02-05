@@ -101,6 +101,7 @@ private:
     Vector<RefPtr<AudioTrack> > m_tracks;
     
     int m_dispatchingEvents;
+    static Mutex *m_main;
 };
 
 } // namespace WebCore

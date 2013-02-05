@@ -86,6 +86,7 @@ public:
 
     bool enabled() const { return m_enabled; }
     void setEnabled(bool selected);
+    void setEnabledOnly(bool selected) { m_enabled = selected;}
 
     enum ReadinessState { NotLoaded = 0, Loading = 1, Loaded = 2, FailedToLoad = 3 };
     ReadinessState readinessState() const { return m_readinessState; }

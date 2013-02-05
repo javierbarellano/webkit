@@ -120,6 +120,7 @@ protected:
     TextTrack(ScriptExecutionContext*, TextTrackClient*, const String& kind, const String& label, const String& language, TextTrackType);
 
     RefPtr<TextTrackCueList> m_cues;
+    String m_mode;
 
 private:
     TextTrackCueList* ensureTextTrackCueList();
@@ -127,7 +128,6 @@ private:
     String m_kind;
     String m_label;
     String m_language;
-    String m_mode;
     TextTrackClient* m_client;
     TextTrackType m_trackType;
     ReadinessState m_readinessState;
