@@ -45,8 +45,6 @@ public:
 
     int index();
 
-    virtual void setMode(const String&);
-
 private:
 
     InBandTextTrack(ScriptExecutionContext*, TextTrackClient*, int index, const String& kind, const String& label, const String& language);

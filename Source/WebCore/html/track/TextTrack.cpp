@@ -238,10 +238,11 @@ void TextTrack::addCue(PassRefPtr<TextTrackCue> prpCue, ExceptionCode& ec)
     // 3. If the given cue is already listed in the method's TextTrack object's text
     // track's text track list of cues, then throw an InvalidStateError exception.
     // 4. Add cue to the method's TextTrack object's text track's text track list of cues.
-    if (!ensureTextTrackCueList()->add(cue)) {
+    if (!ensureTextTrackCueList()->add(cue)) { // <-- here
         ec = INVALID_STATE_ERR;
         return;
     }
+    return;
     
     if (m_client)
         m_client->textTrackAddCue(this, cue.get());

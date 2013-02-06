@@ -65,7 +65,7 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
     if (textTrack->trackType() == TextTrack::AddTrack)
         return m_elementTracks.size() + m_addTrackTracks.find(textTrack);
 
-    if (textTrack->trackType() == TextTrack::TrackElement)
+    if (textTrack->trackType() == TextTrack::InBand)
         return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(textTrack);
 
     ASSERT_NOT_REACHED();
@@ -90,6 +90,14 @@ TextTrack* TextTrackList::item(unsigned index)
         return m_addTrackTracks[index].get();
 
     index -= m_addTrackTracks.size();
+    if (index < m_inbandTracks.size())
+        return m_inbandTracks[index].get();
+
+    return 0;
+}
+
+TextTrack* TextTrackList::inBandTrack(unsigned index)
+{
     if (index < m_inbandTracks.size())
         return m_inbandTracks[index].get();
 

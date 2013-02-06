@@ -1321,8 +1321,6 @@ void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
             }
             break;
         }
-    } else if (track->trackType() == TextTrack::InBand) {
-    	m_player->setTextEnabled(static_cast<InBandTextTrack*>(track)->index(), track->mode() != TextTrack::disabledKeyword());
     }
 
     configureTextTrackDisplay();
@@ -1863,7 +1861,6 @@ void HTMLMediaElement::mediaPlayerKeyNeeded(MediaPlayer*, const String& keySyste
 #if ENABLE(VIDEO_TRACK)
 void HTMLMediaElement::mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language)
 {
-    printf("HTMLMediaElement::mediaPlayerTextTrackChanged\n");
     PassRefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
     textTracks()->append(track);
 }
@@ -3393,7 +3390,6 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
 {
     TextTrack *existingTrack = textTracks()->item(index);
     if(existingTrack != NULL) {
-        //printf("mediaPlayerAddTextTrack() %d %s\n",index, enabled ? "true":"false");
         //existingTrack->setEnabled(enabled);
         //existingTrack->setId(id);
         existingTrack->setKind(kind);
@@ -3408,6 +3404,18 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
     if (hasMediaControls()) {
         mediaControls()->updateTextTrackDisplay();
     }
+}
+
+void HTMLMediaElement::mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end)
+{
+	TextTrack* track = m_textTracks->inBandTrack(index);
+	if(!track) {
+		printf("Couldn't find in-band track %d to add cue to.\n", index);
+		return;
+	}
+	RefPtr<TextTrackCue> cue = TextTrackCue::create(ActiveDOMObject::scriptExecutionContext(), start, end, data);
+	ExceptionCode ec;
+	track->addCue(cue.release(), ec);
 }
 
 void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
@@ -3426,7 +3434,6 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
 {
     AudioTrack *existingTrack = audioTracks()->item(index);
     if(existingTrack != NULL) {
-    	//printf("mediaPlayerAddAudioTrack() %d %s\n",index, enabled ? "true":"false");
         //existingTrack->setEnabled(enabled);
         existingTrack->setId(id);
         existingTrack->setKind(kind);
@@ -4301,28 +4308,29 @@ void HTMLMediaElement::configureMediaControls()
 #if ENABLE(VIDEO_TRACK)
 void HTMLMediaElement::configureTextTrackDisplay()
 {
+    ASSERT(m_textTracks);
+
+    bool haveVisibleTextTrack = false;
+    for (unsigned i = 0; i < m_textTracks->length(); ++i) {
+        if (m_textTracks->item(i)->mode() == TextTrack::showingKeyword()) {
+            haveVisibleTextTrack = true;
+            break;
+        }
+    }
+
+    if (m_haveVisibleTextTrack == haveVisibleTextTrack)
+        return;
+    m_haveVisibleTextTrack = haveVisibleTextTrack;
+    m_closedCaptionsVisible = m_haveVisibleTextTrack;
+
+    if (!m_haveVisibleTextTrack && !hasMediaControls())
+        return;
+    if (!hasMediaControls() && !createMediaControls())
+        return;
+    updateClosedCaptionsControls();
+
     if(hasMediaControls())
         mediaControls()->showTextTrackDisplay();
-//    ASSERT(m_textTracks);
-//
-//    bool haveVisibleTextTrack = false;
-//    for (unsigned i = 0; i < m_textTracks->length(); ++i) {
-//        if (m_textTracks->item(i)->mode() == TextTrack::showingKeyword()) {
-//            haveVisibleTextTrack = true;
-//            break;
-//        }
-//    }
-//
-//    if (m_haveVisibleTextTrack == haveVisibleTextTrack)
-//        return;
-//    m_haveVisibleTextTrack = haveVisibleTextTrack;
-//    m_closedCaptionsVisible = m_haveVisibleTextTrack;
-//
-//    if (!m_haveVisibleTextTrack && !hasMediaControls())
-//        return;
-//    if (!hasMediaControls() && !createMediaControls())
-//        return;
-//    updateClosedCaptionsControls();
 }
 
 void HTMLMediaElement::configureAudioTrackDisplay()
@@ -4347,7 +4355,6 @@ std::vector<std::string> HTMLMediaElement::getSelTextTrackNames()
 {
 	std::vector<std::string> names;
 	int len = textTracks()->length();
-	//printf("getSelTextTrackNames() %d\n",len);
 	for (int i=0; i<len; i++)
 	{
 		TextTrack *tt = textTracks()->item(i);
@@ -4372,7 +4379,7 @@ std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames()
 
 void HTMLMediaElement::selectTextTrack(int index)
 {
-    m_player->setTextEnabled(index, true);
+	// ?
 }
 
 void HTMLMediaElement::selectVideoTrack(int index)

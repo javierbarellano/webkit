@@ -48,14 +48,6 @@ int InBandTextTrack::index()
     return m_index;
 }
 
-void InBandTextTrack::setMode(const String& mode)
-{
-	if(mode != this->mode()) {
-		TextTrack::setMode(mode);
-		client()->textTrackModeChanged(this);
-	}
-}
-
 } // namespace WebCore
 
 #endif
