@@ -3427,8 +3427,7 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
     } else {
         RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
         index = textTracks()->length();
-        track->setModeOnly(String(index==0 ? "showing":"hidden"));
-        m_player->setTextEnabled(index, index==0);
+        track->setModeOnly(mode);
         textTracks()->append(track);
         track.release();
     }
@@ -3463,8 +3462,6 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
         existingTrack->setLanguage(language);
     } else {
         RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
-        track->setEnabledOnly(!audioTracks()->length());
-        m_player->setAudioEnabled(audioTracks()->length(), !audioTracks()->length());
         audioTracks()->append(track);
         track.release();
     }
@@ -3481,7 +3478,9 @@ void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
     if (index < 0)
     	return;
 
-    m_player->setAudioEnabled(index, enabled);
+    if (enabled)
+    	m_player->setAudioEnabled(index, enabled);
+
     if(enabled) {
     	if (hasMediaControls()) {
     		mediaControls()->setAudioTrackSelected(index);
@@ -3512,9 +3511,7 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
         existingTrack->setLabel(label);
         existingTrack->setLanguage(language);
     } else {
-        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, videoTracks()->length()==0, id, kind, label, language);
-        m_player->setVideoSelected(videoTracks()->length(), videoTracks()->length()==0);
-        track->setSelected(videoTracks()->length()==0);
+        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
         videoTracks()->append(track);
         track.release();
     }

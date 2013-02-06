@@ -95,12 +95,12 @@ VideoTrack::VideoTrack(
     , m_id(id)
     , m_label(label)
     , m_language(language)
-    , m_selected(selected)
     , m_client(client)
     , m_readinessState(NotLoaded)
     , m_trackIndex(index)
 {
     setKind(kind);
+    setSelected(selected);
 }
 
 VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)

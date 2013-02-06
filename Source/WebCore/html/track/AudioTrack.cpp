@@ -141,35 +141,32 @@ int AudioTrack::trackIndex()
 void AudioTrack::setEnabled(bool enabled) {
     if(enabled == m_enabled) return;
 
+	// 4.8.10.10.1
+	// If the track is in a AudioTrackList, then all the other AudioTrack
+	// objects in that list must be unselected. (If the track is no longer in
+	// a AudioTrackList object, then the track being selected or unselected
+	//has no effect beyond changing the value of the attribute on the
+	// AudioTrack object.)
+	if(enabled && m_mediaElement) {
+		AudioTrackList *list = m_mediaElement->audioTracks();
+		// TODO: Detect when we're not in the list
+		for(unsigned i = 0; i < list->length(); ++i) {
+			AudioTrack* item = list->item(i);
+			if(item != this && item->enabled()) {
+				item->setEnabled(false);
+
+				// There can only be one selected track
+				break;
+			}
+		}
+	}
+
+    m_enabled = enabled;
+
     // Tell media player which track was selected
     if(m_client)
         m_client->audioTrackEnabled(this, enabled);
 
-    if(!enabled) {
-        m_enabled = false;
-        return;
-    }
-
-    // 4.8.10.10.1
-    // If the track is in a AudioTrackList, then all the other AudioTrack
-    // objects in that list must be unselected. (If the track is no longer in
-    // a AudioTrackList object, then the track being selected or unselected
-    //has no effect beyond changing the value of the attribute on the
-    // AudioTrack object.)
-    if(m_mediaElement) {
-        AudioTrackList *list = m_mediaElement->audioTracks();
-        // TODO: Detect when we're not in the list
-        for(unsigned i = 0; i < list->length(); ++i) {
-            AudioTrack* item = list->item(i);
-            if(item != this && item->enabled()) {
-                item->setEnabled(false);
-
-                // There can only be one selected track
-                break;
-            }
-        }
-    }
-    m_enabled = true;
 }
 
 } // namespace WebCore
