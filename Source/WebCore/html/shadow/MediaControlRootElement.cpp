@@ -329,7 +329,8 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
     if (m_panel)
         m_panel->setMediaController(controller);
 
-    reset(true);
+    reset();
+    addtrackControls();
 }
 
 void MediaControlRootElement::show()
@@ -356,7 +357,21 @@ void MediaControlRootElement::makeTransparent()
     m_volumeSliderContainer->hide();
 }
 
-void MediaControlRootElement::reset(bool init)
+void MediaControlRootElement::addtrackControls()
+{
+	// Track support
+	//    printf("Reset(%s) video: %s, audio: %s, Text: %s\n",
+	//    		init ? "True":"false",
+	//			m_videoTrackSelButton->hasTracks() ? "true":"false",
+	//			m_audioTrackSelButton->hasTracks() ? "true":"false",
+	//			m_textTrackSelButton->hasTracks() ? "true":"false");
+
+	m_videoTrackSelButton->show();
+	m_audioTrackSelButton->show();
+	m_textTrackSelButton->show();
+}
+
+void MediaControlRootElement::reset()
 {
     Page* page = document()->page();
     if (!page)
@@ -383,31 +398,6 @@ void MediaControlRootElement::reset(bool init)
     else
         m_panelMuteButton->hide();
 
-    // Track support
-//    printf("Reset(%s) video: %s, audio: %s, Text: %s\n",
-//    		init ? "True":"false",
-//			m_videoTrackSelButton->hasTracks() ? "true":"false",
-//			m_audioTrackSelButton->hasTracks() ? "true":"false",
-//			m_textTrackSelButton->hasTracks() ? "true":"false");
-
-    if ((m_videoTrackSelButton && m_videoTrackSelButton->hasTracks()) || init)
-    	m_videoTrackSelButton->show();
-    else {
-    	m_videoTrackSelButton->hide();
-    }
-
-    if (m_audioTrackSelButton->hasTracks() || init)
-    	m_audioTrackSelButton->show();
-    else {
-    	m_audioTrackSelButton->hide();
-    }
-
-    if (m_textTrackSelButton->hasTracks() || init)
-    	m_textTrackSelButton->show();
-    else {
-    	m_textTrackSelButton->hide();
-    }
-    //m_textTrackSelButton->show();
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -732,6 +722,7 @@ void MediaControlRootElement::showTextTrackDisplay()
     if (!m_textTrackSelButton)
         createTextTrackDisplay();
 
+    m_textTrackSelButton->show();
     m_textTrackSelButton->display();
 }
 
@@ -751,6 +742,17 @@ void MediaControlRootElement::updateTextTrackDisplay()
     showTextTrackDisplay();
 
 }
+
+void MediaControlRootElement::setTextTrackSelected(int index)
+{
+	if (index < 0)
+		return;
+
+	m_textTrackSelButton->setSelectedIndex(index);
+	m_textTrackSelButton->display();
+}
+
+
 void MediaControlRootElement::createVideoTrackDisplay()
 {
     if (m_videoTrackSelButton)
@@ -772,6 +774,7 @@ void MediaControlRootElement::showVideoTrackDisplay()
     if (!m_videoTrackSelButton)
         createVideoTrackDisplay();
 
+    m_videoTrackSelButton->show();
     m_videoTrackSelButton->display();
 }
 
@@ -818,6 +821,7 @@ void MediaControlRootElement::showAudioTrackDisplay()
     if (!m_audioTrackSelButton)
         createAudioTrackDisplay();
 
+    m_audioTrackSelButton->show();
     m_audioTrackSelButton->display();
 }
 

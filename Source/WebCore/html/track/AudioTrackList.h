@@ -51,6 +51,7 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(AudioTrack*);
+    long selectedindex();
 
     AudioTrack* item(unsigned index);
     RefPtr<AudioTrack> itemRef(unsigned index);

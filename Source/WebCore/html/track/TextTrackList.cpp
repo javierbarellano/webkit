@@ -65,12 +65,35 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
     if (textTrack->trackType() == TextTrack::AddTrack)
         return m_elementTracks.size() + m_addTrackTracks.find(textTrack);
 
-    if (textTrack->trackType() == TextTrack::TrackElement)
+    if (textTrack->trackType() == TextTrack::InBand)
         return m_elementTracks.size() + m_addTrackTracks.size() + m_inbandTracks.find(textTrack);
 
     ASSERT_NOT_REACHED();
 
     return -1;
+}
+
+long TextTrackList::selectedindex()
+{
+    for(size_t i = 0; i < m_elementTracks.size(); ++i) {
+        if(m_elementTracks[i]->mode() == String("showing")) {
+            return (long)i;
+        }
+    }
+
+    for(size_t i = 0; i < m_addTrackTracks.size(); ++i) {
+        if(m_addTrackTracks[i]->mode() == String("showing")) {
+            return (long)i;
+        }
+    }
+
+    for(size_t i = 0; i < m_inbandTracks.size(); ++i) {
+        if(m_inbandTracks[i]->mode() == String("showing")) {
+            return (long)i;
+        }
+    }
+
+    return -1L;
 }
 
 TextTrack* TextTrackList::item(unsigned index)

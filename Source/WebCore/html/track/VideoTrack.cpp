@@ -167,6 +167,8 @@ void VideoTrack::setSelected(bool selected) {
 
     if(!selected) {
         m_selected = false;
+        if(m_client)
+            m_client->videoTrackSelected(this, selected);
         return;
     }
 

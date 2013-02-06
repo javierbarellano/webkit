@@ -35,6 +35,7 @@ module html {
         V8GenerateIsReachable=ImplOwnerRoot
     ] TextTrackList {
         readonly attribute unsigned long length;
+        readonly attribute long selectedindex;
         TextTrack item(in unsigned long index);
 
         attribute EventListener onaddtrack;

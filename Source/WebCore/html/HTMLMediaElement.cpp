@@ -1322,7 +1322,23 @@ void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
             break;
         }
     } else if (track->trackType() == TextTrack::InBand) {
-    	m_player->setTextEnabled(static_cast<InBandTextTrack*>(track)->index(), track->mode() != TextTrack::disabledKeyword());
+    	InBandTextTrack* tt = static_cast<InBandTextTrack*>(track);
+    	bool selected = track->mode() == TextTrack::showingKeyword();
+    	int index = track->trackIndex();
+        if (index < 0)
+        	return;
+
+    	m_player->setTextEnabled(tt->index(), selected);
+        if(selected) {
+        	if (hasMediaControls()) {
+        		mediaControls()->setTextTrackSelected(index);
+        		mediaControls()->showTextTrackDisplay();
+        	}
+        }
+        else if (hasMediaControls())
+        {
+        	mediaControls()->hideTextTrackDisplay();
+        }
     }
 
     configureTextTrackDisplay();
@@ -3454,17 +3470,27 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
     }
 
     if (hasMediaControls()) {
-    	mediaControls()->reset(false);
+    	mediaControls()->reset();
     	mediaControls()->updateAudioTrackDisplay();
     }
 }
 
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
-    int index = track->trackIndex();
+	int index = track->trackIndex();
+    if (index < 0)
+    	return;
+
     m_player->setAudioEnabled(index, enabled);
     if(enabled) {
-        mediaControls()->setAudioTrackSelected(index);
+    	if (hasMediaControls()) {
+    		mediaControls()->setAudioTrackSelected(index);
+    		mediaControls()->showAudioTrackDisplay();
+    	}
+    }
+    else if (hasMediaControls())
+    {
+    	mediaControls()->hideAudioTrackDisplay();
     }
 }
 
@@ -3494,18 +3520,27 @@ void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, 
     }
 
     if (hasMediaControls()) {
-    	mediaControls()->reset(false);
+    	mediaControls()->reset();
     	mediaControls()->updateVideoTrackDisplay();
     }
 }
 
 void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
 {
-    int index = videoTracks()->getTrackIndex(track);
+	int index = track->trackIndex();
+    if (index < 0)
+    	return;
+
     m_player->setVideoSelected(index, selected);
     if(selected) {
-    	if (hasMediaControls())
+    	if (hasMediaControls()) {
     		mediaControls()->setVideoTrackSelected(index);
+    		mediaControls()->showVideoTrackDisplay();
+    	}
+    }
+    else if (hasMediaControls())
+    {
+    	mediaControls()->hideVideoTrackDisplay();
     }
 }
 #endif
@@ -4285,7 +4320,9 @@ bool HTMLMediaElement::createMediaControls()
         return false;
 
     controls->setMediaController(m_mediaController ? m_mediaController.get() : static_cast<MediaControllerInterface*>(this));
-    controls->reset(true);
+    controls->reset();
+    controls->addtrackControls();
+
     if (isFullscreen())
         controls->enteredFullscreen();
 

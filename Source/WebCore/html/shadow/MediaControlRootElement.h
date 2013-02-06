@@ -86,7 +86,8 @@ public:
     void makeOpaque();
     void makeTransparent();
 
-    void reset(bool init=false);
+    void reset();
+    void addtrackControls();
 
     void playbackProgressed();
     void playbackStarted();
@@ -115,6 +116,7 @@ public:
     void showTextTrackDisplay();
     void hideTextTrackDisplay();
     void updateTextTrackDisplay();
+    void setTextTrackSelected(int index);
 
     void createVideoTrackDisplay();
     void showVideoTrackDisplay();

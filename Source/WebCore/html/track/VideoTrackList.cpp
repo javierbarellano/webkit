@@ -57,6 +57,17 @@ unsigned VideoTrackList::length() const
     return m_tracks.size();
 }
 
+long VideoTrackList::selectedindex()
+{
+    for(size_t i = 0; i < m_tracks.size(); ++i) {
+        if(m_tracks[i]->selected()) {
+            return (long)i;
+        }
+    }
+
+    return -1L;
+}
+
 unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
     return m_tracks.find(track);
 }

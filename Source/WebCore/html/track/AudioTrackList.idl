@@ -35,6 +35,7 @@ module html {
         V8GenerateIsReachable=ImplOwnerRoot
     ] AudioTrackList {
         readonly attribute unsigned long length;
+        readonly attribute long selectedindex;
         AudioTrack item(in unsigned long index);
 
         attribute EventListener onaddtrack;

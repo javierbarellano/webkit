@@ -52,6 +52,7 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(TextTrack*);
+    long selectedindex();
 
     TextTrack* item(unsigned index);
     void append(PassRefPtr<TextTrack>);

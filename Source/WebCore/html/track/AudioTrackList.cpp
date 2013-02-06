@@ -65,6 +65,21 @@ unsigned AudioTrackList::getTrackIndex(AudioTrack* track) {
     return m_tracks.find(track);
 }
 
+long AudioTrackList::selectedindex()
+{
+    for(size_t i = 0; i < m_tracks.size(); ++i) {
+        if(m_tracks[i]->enabled()) {
+        	printf("AudioTrackList::selectedindex() %d\n", (int)i);
+            return (long)i;
+        }
+    }
+
+    printf("AudioTrackList::selectedindex() -1\n");
+    return -1L;
+}
+
+
+
 AudioTrack* AudioTrackList::item(unsigned index)
 {
 	RefPtr<AudioTrack> at = itemRef(index);

@@ -51,6 +51,7 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(VideoTrack*);
+    long selectedindex();
 
     VideoTrack* item(unsigned index);
     void append(PassRefPtr<VideoTrack>);
