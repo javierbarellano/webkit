@@ -79,8 +79,7 @@ module html {
     void pause();
     
     // Events
-    attribute EventListener onfastforward;
-    attribute EventListener onreverse;
+    attribute EventListener onratechange;
 
     // controls
     attribute boolean controls;

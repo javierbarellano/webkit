@@ -2360,11 +2360,6 @@ void HTMLMediaElement::playInternal()
         invalidateCachedTime();
         scheduleEvent(eventNames().playEvent);
 
-        if (playbackRate() > 1.0f)
-        	scheduleEvent(eventNames().fastforwardEvent);
-        else if (playbackRate() < 0.0f)
-        	scheduleEvent(eventNames().reverseEvent);
-
         if (m_readyState <= HAVE_CURRENT_DATA)
             scheduleEvent(eventNames().waitingEvent);
         else if (m_readyState >= HAVE_FUTURE_DATA)
@@ -3472,25 +3467,29 @@ void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, 
     }
 }
 
+/**
+ * audioTrackEnabled()
+ * Tell the media controls that an audio track got enabled/disabled
+ * Tell the player to enable/disable an audio track
+ */
 void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
 {
 	int index = track->trackIndex();
     if (index < 0)
     	return;
 
-    if (enabled)
-    	m_player->setAudioEnabled(index, enabled);
+   	m_player->setAudioEnabled(index, enabled);
+
+   	if (!hasMediaControls())
+   		return;
+
 
     if(enabled) {
-    	if (hasMediaControls()) {
-    		mediaControls()->setAudioTrackSelected(index);
-    		mediaControls()->showAudioTrackDisplay();
-    	}
+		mediaControls()->setAudioTrackSelected(index);
+		mediaControls()->showAudioTrackDisplay();
     }
-    else if (hasMediaControls())
-    {
+    else
     	mediaControls()->hideAudioTrackDisplay();
-    }
 }
 
 void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)

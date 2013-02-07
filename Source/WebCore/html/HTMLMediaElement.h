@@ -106,8 +106,7 @@ public:
     virtual bool hasAudio() const;
 
     // Events
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(fastforward);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(reverse);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(ratechange);
 
     void rewind(float timeDelta);
     void returnToRealtime();

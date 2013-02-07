@@ -249,7 +249,6 @@ module window {
         attribute EventListener onended;
         attribute EventListener onerror;
         attribute EventListener onfocus;
-        attribute EventListener onfastforward;
         attribute EventListener onhashchange;
         attribute EventListener oninput;
         attribute EventListener oninvalid;
@@ -278,7 +277,6 @@ module window {
         attribute EventListener onprogress;
         attribute EventListener onratechange;
         attribute EventListener onresize;
-        attribute EventListener onreverse;
         attribute EventListener onscroll;
         attribute EventListener onseeked;
         attribute EventListener onseeking;
