@@ -47,8 +47,6 @@ public:
 
     virtual void setMode(const String&);
 
-    void setModeOnly(const String& smode) { m_mode = smode; }
-
 private:
 
     InBandTextTrack(ScriptExecutionContext*, TextTrackClient*, int index, const String& kind, const String& label, const String& language);

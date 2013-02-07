@@ -129,8 +129,8 @@ void AudioTrack::setKind(const String& kind)
     else
         m_kind = "";
 
-    //if (m_client && oldKind != m_kind)
-    //    m_client->audioTrackKindChanged(this);
+//    if (m_client && oldKind != m_kind)
+//        m_client->audioTrackKindChanged(this);
 }
 
 int AudioTrack::trackIndex()
@@ -141,12 +141,8 @@ int AudioTrack::trackIndex()
 void AudioTrack::setEnabled(bool enabled) {
     if(enabled == m_enabled) return;
 
-	// 4.8.10.10.1
-	// If the track is in a AudioTrackList, then all the other AudioTrack
-	// objects in that list must be unselected. (If the track is no longer in
-	// a AudioTrackList object, then the track being selected or unselected
-	//has no effect beyond changing the value of the attribute on the
-	// AudioTrack object.)
+	// This is a hack because GStreamer doesn't support multiple audio tracks
+    // playing at the same time. This should probably be handled there.
 	if(enabled && m_mediaElement) {
 		AudioTrackList *list = m_mediaElement->audioTracks();
 		// TODO: Detect when we're not in the list
@@ -154,9 +150,6 @@ void AudioTrack::setEnabled(bool enabled) {
 			AudioTrack* item = list->item(i);
 			if(item != this && item->enabled()) {
 				item->setEnabled(false);
-
-				// There can only be one selected track
-				break;
 			}
 		}
 	}

@@ -243,7 +243,6 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
     TextTrackList* textTracks();
-    void setTextTracks(TextTrackList* list) {}
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     virtual void didAddTrack(HTMLTrackElement*);
@@ -287,13 +286,11 @@ public:
     virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language);
 
     AudioTrackList* audioTracks();
-    void setAudioTracks(AudioTrackList* list) {}
 
     virtual void mediaPlayerClearAudioTracks(MediaPlayer*);
     virtual void mediaPlayerAddAudioTrack(MediaPlayer*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
 
     VideoTrackList* videoTracks();
-    void setVideoTracks(VideoTrackList* list) {}
     virtual void mediaPlayerClearVideoTracks(MediaPlayer*);
     virtual void mediaPlayerAddVideoTrack(MediaPlayer*, int index, bool selected, const String& id, const String& kind, const String& label, const String& language);
 #endif
@@ -544,8 +541,6 @@ private:
 
     void audioTrackEnabled(AudioTrack*, bool);
     void videoTrackSelected(VideoTrack*, bool);
-
-    void setDefaultTextTrack();
 #endif
 
     void configureVideoTrackDisplay();

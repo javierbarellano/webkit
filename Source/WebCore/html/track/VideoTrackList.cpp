@@ -27,14 +27,14 @@
 
 #if ENABLE(VIDEO_TRACK)
 
+#include "VideoTrackList.h"
+
 #include "EventNames.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
 #include "ScriptExecutionContext.h"
 #include "VideoTrack.h"
 #include "TrackEvent.h"
-
-#include "VideoTrackList.h"
 
 namespace WebCore
 {
@@ -57,7 +57,7 @@ unsigned VideoTrackList::length() const
     return m_tracks.size();
 }
 
-long VideoTrackList::selectedindex()
+long VideoTrackList::selectedIndex()
 {
     for(size_t i = 0; i < m_tracks.size(); ++i) {
         if(m_tracks[i]->selected()) {
@@ -68,33 +68,36 @@ long VideoTrackList::selectedindex()
     return -1L;
 }
 
+void VideoTrackList::setSelectedIndex(long index)
+{
+	long oldSelectedIndex = selectedIndex();
+	if(oldSelectedIndex == index)
+		return;
+
+	if(index == -1) {
+		VideoTrack* track = item(oldSelectedIndex);
+		if(track) {
+			track->setSelected(false);
+		}
+	} else {
+		VideoTrack* track = item(index);
+		if(track) {
+			track->setSelected(true);
+		}
+	}
+}
+
 unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
     return m_tracks.find(track);
 }
 
 VideoTrack* VideoTrackList::item(unsigned index)
 {
-	RefPtr<VideoTrack> vt = itemRef(index);
-	if (vt)
-		return vt.get();
-
-	return 0;
-}
-
-RefPtr<VideoTrack> VideoTrackList::itemRef(unsigned index)
-{
     if (index < m_tracks.size())
-        return m_tracks[index];
+        return m_tracks[index].get();
 
     return 0;
 }
-
-void VideoTrackList::selectTrack(unsigned index)
-{
-	m_trackSelected = itemRef(index);
-	callOnMainThread(VideoTrackList::selectTrackEventOnContextThread,this);
-}
-
 
 void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 {
@@ -152,42 +155,15 @@ void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
     // the track attribute initialized to the text track's VideoTrack object, at
     // the media element's VideoTracks attribute's VideoTrackList object.
 
-	m_trackAdded.append(track);
-	callOnMainThread(VideoTrackList::addTrackEventOnContextThread,this);
-}
-
-
-// static
-void VideoTrackList::addTrackEventOnContextThread(void* ptr)
-{
-	VideoTrackList *vtl = (VideoTrackList *)ptr;
-
+    RefPtr<VideoTrack> trackRef = track;
     TrackEventInit initializer;
-    initializer.track = vtl->m_trackAdded.at(0);
-    vtl->m_trackAdded.remove(0);
+    initializer.track = trackRef;
     initializer.bubbles = false;
     initializer.cancelable = false;
 
-//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-//    if (!vtl->m_pendingEventTimer.isActive())
-//    	vtl->m_pendingEventTimer.startOneShot(0);
-    vtl->dispatchEvent(TrackEvent::create(eventNames().addtrackEvent, initializer));
-}
-
-// static
-void VideoTrackList::selectTrackEventOnContextThread(void* ptr)
-{
-	VideoTrackList *vtl = (VideoTrackList *)ptr;
-
-    TrackEventInit initializer;
-    initializer.track = vtl->m_trackSelected;
-    initializer.bubbles = false;
-    initializer.cancelable = false;
-
-//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-//    if (!vtl->m_pendingEventTimer.isActive())
-//    	vtl->m_pendingEventTimer.startOneShot(0);
-    vtl->dispatchEvent(TrackEvent::create(eventNames().trackselectedEvent, initializer));
+    m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+    if (!m_pendingEventTimer.isActive())
+        m_pendingEventTimer.startOneShot(0);
 }
 
 void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)

@@ -38,8 +38,6 @@
 
 using namespace WebCore;
 
-Mutex *AudioTrackList::m_main = NULL;
-
 AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
     : m_context(context)
     , m_owner(owner)
@@ -47,9 +45,6 @@ AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* 
     , m_dispatchingEvents(0)
 {
     ASSERT(context->isDocument());
-
-    if (!m_main)
-    	m_main = new Mutex();
 }
 
 AudioTrackList::~AudioTrackList()
@@ -65,47 +60,41 @@ unsigned AudioTrackList::getTrackIndex(AudioTrack* track) {
     return m_tracks.find(track);
 }
 
-long AudioTrackList::selectedindex()
+long AudioTrackList::selectedIndex() const
 {
     for(size_t i = 0; i < m_tracks.size(); ++i) {
         if(m_tracks[i]->enabled()) {
-        	printf("AudioTrackList::selectedindex() %d\n", (int)i);
             return (long)i;
         }
     }
 
-    printf("AudioTrackList::selectedindex() -1\n");
     return -1L;
 }
 
+void AudioTrackList::setSelectedIndex(long index)
+{
+	long oldSelectedIndex = selectedIndex();
+	if(oldSelectedIndex == index)
+		return;
 
+	AudioTrack* track = item(index);
+	if(track) {
+		track->setEnabled(true);
+	}
+
+	AudioTrack* old = item(oldSelectedIndex);
+	if(old) {
+		old->setEnabled(false);
+	}
+}
 
 AudioTrack* AudioTrackList::item(unsigned index)
 {
-	RefPtr<AudioTrack> at = itemRef(index);
-	if (at)
-		return at.get();
+	if (index < m_tracks.size())
+		return m_tracks[index].get();
 
 	return 0;
 }
-
-RefPtr<AudioTrack> AudioTrackList::itemRef(unsigned index)
-{
-    if (index < m_tracks.size())
-        return m_tracks[index];
-
-    return 0;
-}
-
-void AudioTrackList::selectTrack(unsigned index)
-{
-	m_main->lock();
-	m_trackSelected = itemRef(index);
-	m_main->unlock();
-
-	callOnMainThread(AudioTrackList::selectTrackEventOnContextThread,this);
-}
-
 
 void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
@@ -163,51 +152,15 @@ void AudioTrackList::scheduleAddTrackEvent(PassRefPtr<AudioTrack> track)
     // the track attribute initialized to the text track's AudioTrack object, at
     // the media element's AudioTracks attribute's AudioTrackList object.
 
-	m_main->lock();
-	m_trackAdded.append(track);
-	m_main->unlock();
-
-	callOnMainThread(AudioTrackList::addTrackEventOnContextThread,this);
-}
-
-// static
-void AudioTrackList::addTrackEventOnContextThread(void* ptr)
-{
-	AudioTrackList *atl = (AudioTrackList *)ptr;
-
+    RefPtr<AudioTrack> trackRef = track;
     TrackEventInit initializer;
-
-    atl->m_main->lock();
-    initializer.track = atl->m_trackAdded.at(0);
-    atl->m_trackAdded.remove(0);
-    atl->m_main->unlock();
-
+    initializer.track = trackRef;
     initializer.bubbles = false;
     initializer.cancelable = false;
 
-//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-//    if (!vtl->m_pendingEventTimer.isActive())
-//    	vtl->m_pendingEventTimer.startOneShot(0);
-    atl->dispatchEvent(TrackEvent::create(eventNames().addtrackEvent, initializer));
-}
-
-// static
-void AudioTrackList::selectTrackEventOnContextThread(void* ptr)
-{
-	AudioTrackList *atl = (AudioTrackList *)ptr;
-
-    TrackEventInit initializer;
-    atl->m_main->lock();
-    initializer.track = atl->m_trackSelected;
-    atl->m_main->unlock();
-
-    initializer.bubbles = false;
-    initializer.cancelable = false;
-
-//    vtl->m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-//    if (!vtl->m_pendingEventTimer.isActive())
-//    	vtl->m_pendingEventTimer.startOneShot(0);
-    atl->dispatchEvent(TrackEvent::create(eventNames().trackselectedEvent, initializer));
+    m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
+    if (!m_pendingEventTimer.isActive())
+        m_pendingEventTimer.startOneShot(0);
 }
 
 void AudioTrackList::asyncEventTimerFired(Timer<AudioTrackList>*)

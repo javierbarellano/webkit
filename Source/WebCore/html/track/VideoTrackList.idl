@@ -35,11 +35,10 @@ module html {
         V8GenerateIsReachable=ImplOwnerRoot
     ] VideoTrackList {
         readonly attribute unsigned long length;
-        readonly attribute long selectedindex;
+        readonly attribute long selectedIndex;
         VideoTrack item(in unsigned long index);
 
         attribute EventListener onaddtrack;
-        attribute EventListener ontrackselected;
 
         void addEventListener(in DOMString type,
                               in EventListener listener,

@@ -119,9 +119,9 @@ module html {
 #if defined(ENABLE_VIDEO_TRACK) && ENABLE_VIDEO_TRACK
     [V8EnabledAtRuntime=webkitVideoTrack] TextTrack addTextTrack(in DOMString kind, in [Optional] DOMString label, in [Optional] DOMString language)
         raises (DOMException);
-    attribute [V8EnabledAtRuntime=webkitVideoTrack] AudioTrackList audioTracks;
-    attribute [V8EnabledAtRuntime=webkitVideoTrack] TextTrackList textTracks;
-    attribute [V8EnabledAtRuntime=webkitVideoTrack] VideoTrackList videoTracks;
+    readonly attribute [V8EnabledAtRuntime=webkitVideoTrack] AudioTrackList audioTracks;
+    readonly attribute [V8EnabledAtRuntime=webkitVideoTrack] TextTrackList textTracks;
+    readonly attribute [V8EnabledAtRuntime=webkitVideoTrack] VideoTrackList videoTracks;
 #endif
 
     attribute [Reflect, TreatNullAs=NullString] DOMString mediaGroup;

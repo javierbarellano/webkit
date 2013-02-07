@@ -51,14 +51,13 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(VideoTrack*);
-    long selectedindex();
+    long selectedIndex();
+    void setSelectedIndex(long index);
 
     VideoTrack* item(unsigned index);
     void append(PassRefPtr<VideoTrack>);
     void remove(VideoTrack*);
     void clear();
-
-    void selectTrack(unsigned index);
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -67,7 +66,6 @@ public:
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(trackselected);
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;
@@ -83,13 +81,7 @@ private:
     virtual EventTargetData* eventTargetData() { return &m_eventTargetData; }
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
-    RefPtr<VideoTrack> itemRef(unsigned index);
     void scheduleAddTrackEvent(PassRefPtr<VideoTrack>);
-    static void addTrackEventOnContextThread(void* ptr);
-    static void selectTrackEventOnContextThread(void* ptr);
-    Vector<RefPtr<VideoTrack> > m_trackAdded;
-    mutable RefPtr<VideoTrack> m_trackSelected;
-
     void asyncEventTimerFired(Timer<VideoTrackList>*);
 
     ScriptExecutionContext* m_context;

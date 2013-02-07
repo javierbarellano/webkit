@@ -97,10 +97,10 @@ const AtomicString& TextTrack::showingKeyword()
 TextTrack::TextTrack(ScriptExecutionContext* context, TextTrackClient* client, const String& kind, const String& label, const String& language, TextTrackType type)
     : TrackBase(context, TrackBase::TextTrack)
     , m_cues(0)
-	, m_mode(disabledKeyword().string())
     , m_mediaElement(0)
     , m_label(label)
     , m_language(language)
+	, m_mode(disabledKeyword().string())
     , m_client(client)
     , m_trackType(type)
     , m_readinessState(NotLoaded)
@@ -148,7 +148,6 @@ void TextTrack::setKind(const String& kind)
 
 void TextTrack::setMode(const String& mode)
 {
-	//printf("setMode(%d) %s\n", m_trackIndex, mode.ascii().data());
     // On setting, if the new value isn't equal to what the attribute would currently
     // return, the new value must be processed as follows ...
     if (mode != disabledKeyword() && mode != hiddenKeyword() && mode != showingKeyword())
