@@ -446,14 +446,8 @@ float MediaPlayerPrivateGStreamer::playbackPosition() const
 
     float ret = 0.0f;
 
-    // By default, playbin2 selects a "random" sink to get the position from,
-    // but the text-sink will give bad results if its an appsink. Always using
-    // the video sink gives consistently good results.
-    GstElement* videoSink;
-    g_object_get(m_playBin, "video-sink", &videoSink, NULL);
-
     GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
-    if (!gst_element_query(videoSink, query)) {
+    if (!gst_element_query(m_playBin, query)) {
         LOG_MEDIA_MESSAGE("Position query failed...");
         gst_query_unref(query);
         return ret;

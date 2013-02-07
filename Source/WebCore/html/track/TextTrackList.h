@@ -52,14 +52,13 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(TextTrack*);
-    long selectedindex();
+    long selectedIndex() const;
+    void setSelectedIndex(long);
 
     TextTrack* item(unsigned index);
     void append(PassRefPtr<TextTrack>);
     void clear();
     void remove(TextTrack*);
-
-    void selectTrack(unsigned index);
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -68,7 +67,6 @@ public:
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(trackselected);
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;
@@ -85,10 +83,7 @@ private:
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
     void scheduleAddTrackEvent(PassRefPtr<TextTrack>);
-    void scheduleSelectTrackEvent(PassRefPtr<TextTrack>);
     void asyncEventTimerFired(Timer<TextTrackList>*);
-
-    RefPtr<TextTrack> itemRef(unsigned index);
 
     ScriptExecutionContext* m_context;
     HTMLMediaElement* m_owner;

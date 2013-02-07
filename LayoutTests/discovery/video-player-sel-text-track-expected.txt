@@ -7,7 +7,6 @@ PASS Text Track added.
 PASS vid.textTracks.length>0 is true
 PASS vid.textTracks.length>0 is true
 PASS vid.textTracks.item(0).mode is showing
-PASS vid.textTracks.item(0).mode is disabled
 PASS successfullyParsed is true
 
 TEST COMPLETE

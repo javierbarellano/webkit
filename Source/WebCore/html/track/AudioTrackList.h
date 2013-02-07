@@ -51,15 +51,13 @@ public:
 
     unsigned length() const;
     unsigned getTrackIndex(AudioTrack*);
-    long selectedindex();
+    long selectedIndex() const;
+    void setSelectedIndex(long index);
 
     AudioTrack* item(unsigned index);
-    RefPtr<AudioTrack> itemRef(unsigned index);
     void append(PassRefPtr<AudioTrack>);
     void remove(AudioTrack*);
     void clear();
-
-    void selectTrack(unsigned index);
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -68,7 +66,6 @@ public:
     virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(trackselected);
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;
@@ -85,10 +82,6 @@ private:
     virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
 
     void scheduleAddTrackEvent(PassRefPtr<AudioTrack>);
-    static void addTrackEventOnContextThread(void* ptr);
-    static void selectTrackEventOnContextThread(void* ptr);
-    Vector<RefPtr<AudioTrack> > m_trackAdded;
-    mutable RefPtr<AudioTrack> m_trackSelected;
 
     void asyncEventTimerFired(Timer<AudioTrackList>*);
 
@@ -102,7 +95,6 @@ private:
     Vector<RefPtr<AudioTrack> > m_tracks;
     
     int m_dispatchingEvents;
-    static Mutex *m_main;
 };
 
 } // namespace WebCore

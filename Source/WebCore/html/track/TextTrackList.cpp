@@ -73,39 +73,45 @@ unsigned TextTrackList::getTrackIndex(TextTrack *textTrack)
     return -1;
 }
 
-long TextTrackList::selectedindex()
+long TextTrackList::selectedIndex() const
 {
     for(size_t i = 0; i < m_elementTracks.size(); ++i) {
-        if(m_elementTracks[i]->mode() == String("showing")) {
+        if(m_elementTracks[i]->mode() == TextTrack::showingKeyword()) {
             return (long)i;
         }
     }
 
     for(size_t i = 0; i < m_addTrackTracks.size(); ++i) {
-        if(m_addTrackTracks[i]->mode() == String("showing")) {
-            return (long)i;
+        if(m_addTrackTracks[i]->mode() == TextTrack::showingKeyword()) {
+            return (long)i + m_elementTracks.size();
         }
     }
 
     for(size_t i = 0; i < m_inbandTracks.size(); ++i) {
-        if(m_inbandTracks[i]->mode() == String("showing")) {
-            return (long)i;
+        if(m_inbandTracks[i]->mode() == TextTrack::showingKeyword()) {
+            return (long)i + m_elementTracks.size() + m_addTrackTracks.size();
         }
     }
 
     return -1L;
 }
 
-TextTrack* TextTrackList::item(unsigned index)
+void TextTrackList::setSelectedIndex(long index)
 {
-	RefPtr<TextTrack> tt = itemRef(index);
-	if (tt)
-		return tt.get();
+	long oldSelectedIndex = selectedIndex();
+	if(oldSelectedIndex == index)
+		return;
 
-	return 0;
+	TextTrack* track = item(index);
+	if(track)
+		track->setMode(TextTrack::showingKeyword());
+
+	TextTrack* old = item(oldSelectedIndex);
+	if(old)
+		track->setMode(TextTrack::disabledKeyword());
 }
 
-RefPtr<TextTrack> TextTrackList::itemRef(unsigned index)
+TextTrack* TextTrackList::item(unsigned index)
 {
     // 4.8.10.12.1 Text track model
     // The text tracks are sorted as follows:
@@ -115,15 +121,15 @@ RefPtr<TextTrack> TextTrackList::itemRef(unsigned index)
     // resource), in the order defined by the media resource's format specification.
 
     if (index < m_elementTracks.size())
-        return m_elementTracks[index];
+        return m_elementTracks[index].get();
 
     index -= m_elementTracks.size();
     if (index < m_addTrackTracks.size())
-        return m_addTrackTracks[index];
+        return m_addTrackTracks[index].get();
 
     index -= m_addTrackTracks.size();
     if (index < m_inbandTracks.size())
-        return m_inbandTracks[index];
+        return m_inbandTracks[index].get();
 
     return 0;
 }
@@ -201,14 +207,6 @@ void TextTrackList::remove(TextTrack* track)
     tracks->remove(index);
 }
 
-void TextTrackList::selectTrack(unsigned index)
-{
-	RefPtr<TextTrack>  track = itemRef(index);
-    scheduleSelectTrackEvent(track.release());
-}
-
-
-
 const AtomicString& TextTrackList::interfaceName() const
 {
     return eventNames().interfaceForTextTrackList;
@@ -231,27 +229,6 @@ void TextTrackList::scheduleAddTrackEvent(PassRefPtr<TextTrack> track)
     initializer.cancelable = false;
 
     m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-    if (!m_pendingEventTimer.isActive())
-        m_pendingEventTimer.startOneShot(0);
-}
-
-void TextTrackList::scheduleSelectTrackEvent(PassRefPtr<TextTrack> track)
-{
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.4 Text track API
-    // ... then queue a task to fire an event with the name addtrack, that does not
-    // bubble and is not cancelable, and that uses the TrackEvent interface, with
-    // the track attribute initialized to the text track's TextTrack object, at
-    // the media element's textTracks attribute's TextTrackList object.
-
-    RefPtr<TextTrack> trackRef = track;
-    TrackEventInit initializer;
-    initializer.track = trackRef;
-    initializer.bubbles = false;
-    initializer.cancelable = false;
-
-    m_pendingEvents.append(TrackEvent::create(eventNames().trackselectedEvent, initializer));
     if (!m_pendingEventTimer.isActive())
         m_pendingEventTimer.startOneShot(0);
 }

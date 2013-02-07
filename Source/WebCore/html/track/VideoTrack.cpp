@@ -95,12 +95,12 @@ VideoTrack::VideoTrack(
     , m_id(id)
     , m_label(label)
     , m_language(language)
+	, m_selected(selected)
     , m_client(client)
     , m_readinessState(NotLoaded)
     , m_trackIndex(index)
 {
     setKind(kind);
-    setSelected(selected);
 }
 
 VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client, const String& kind)
@@ -112,6 +112,7 @@ VideoTrack::VideoTrack(ScriptExecutionContext* context, VideoTrackClient* client
 {
     setKind(kind);
 }
+
 VideoTrack::~VideoTrack()
 {
     clearClient();
@@ -159,18 +160,10 @@ int VideoTrack::trackIndex()
 }
 
 void VideoTrack::setSelected(bool selected) {
-    if(selected == m_selected) {
-        if(m_client && selected)
-            m_client->videoTrackSelected(this, selected);
+    if(selected == m_selected)
     	return;
-    }
 
-    if(!selected) {
-        m_selected = false;
-        if(m_client)
-            m_client->videoTrackSelected(this, selected);
-        return;
-    }
+    m_selected = selected;
 
     // 4.8.10.10.1
     // If the track is in a VideoTrackList, then all the other VideoTrack
@@ -178,7 +171,7 @@ void VideoTrack::setSelected(bool selected) {
     // a VideoTrackList object, then the track being selected or unselected
     //has no effect beyond changing the value of the attribute on the
     // VideoTrack object.)
-    if(m_mediaElement) {
+    if(selected && m_mediaElement) {
         VideoTrackList *list = m_mediaElement->videoTracks();
         // TODO: Detect when we're not in the list
         for(unsigned i = 0; i < list->length(); ++i) {
@@ -191,7 +184,6 @@ void VideoTrack::setSelected(bool selected) {
             }
         }
     }
-    m_selected = true;
 
     // Tell media player which track was selected
     if(m_client)

@@ -13,9 +13,9 @@ var showing = "showing";
 
 function getInfo() {
 	shouldBe("vid.textTracks.length>0", "true");
+	var mode = vid.textTracks.item(0).mode;
+	vid.textTracks.item(0).mode = showing;
 	shouldBe("vid.textTracks.item(0).mode", "showing");
-	vid.textTracks.item(0).mode = disabled;
-	shouldBe("vid.textTracks.item(0).mode", "disabled");
 	finishJSTest();
 }
 
