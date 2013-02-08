@@ -3438,10 +3438,14 @@ void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const St
 void HTMLMediaElement::mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end)
 {
 	TextTrack* track = m_textTracks->inBandTrack(index);
+
+	// We can sometimes get cues before tracks
 	if(!track) {
-		printf("Couldn't find in-band track %d to add cue to.\n", index);
-		return;
+        RefPtr<InBandTextTrack> refTrack = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, "", "", "");
+        track = refTrack.get();
+        textTracks()->append(refTrack.release());
 	}
+
 	RefPtr<TextTrackCue> cue = TextTrackCue::create(ActiveDOMObject::scriptExecutionContext(), start, end, data);
 	ExceptionCode ec;
 	track->addCue(cue.release(), ec);
