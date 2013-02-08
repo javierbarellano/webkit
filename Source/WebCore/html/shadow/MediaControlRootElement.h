@@ -73,6 +73,10 @@ class MediaPlayer;
 class RenderBox;
 class RenderMedia;
 
+#if ENABLE(VIDEO_TRACK)
+class MediaControlTextTrackContainerElement;
+class MediaControlTextTrackDisplayElement;
+#endif
 
 class MediaControlRootElement : public MediaControls {
 public:
@@ -174,6 +178,7 @@ private:
     MediaControlPanelElement* m_panel;
 
 #if ENABLE(VIDEO_TRACK)
+    MediaControlTextTrackContainerElement* m_textDisplayContainer;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
     MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
     MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;

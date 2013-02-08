@@ -184,6 +184,7 @@ String TextTrack::mode() const
 
 TextTrackCueList* TextTrack::cues()
 {
+	printf("Getting cues for %p\n", this);
     // 4.8.10.12.5 If the text track mode ... is not the text track disabled mode,
     // then the cues attribute must return a live TextTrackCueList object ...
     // Otherwise, it must return null. When an object is returned, the
@@ -196,6 +197,7 @@ TextTrackCueList* TextTrack::cues()
 
 TextTrackCueList* TextTrack::activeCues() const
 {
+	printf("Getting active cues for %p\n", this);
     // 4.8.10.12.5 If the text track mode ... is not the text track disabled mode,
     // then the activeCues attribute must return a live TextTrackCueList object ...
     // ... whose active flag was set when the script started, in text track cue
@@ -238,11 +240,10 @@ void TextTrack::addCue(PassRefPtr<TextTrackCue> prpCue, ExceptionCode& ec)
     // 3. If the given cue is already listed in the method's TextTrack object's text
     // track's text track list of cues, then throw an InvalidStateError exception.
     // 4. Add cue to the method's TextTrack object's text track's text track list of cues.
-    if (!ensureTextTrackCueList()->add(cue)) { // <-- here
+    if (!ensureTextTrackCueList()->add(cue)) {
         ec = INVALID_STATE_ERR;
         return;
     }
-    return;
     
     if (m_client)
         m_client->textTrackAddCue(this, cue.get());
