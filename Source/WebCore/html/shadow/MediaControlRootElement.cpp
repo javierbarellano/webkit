@@ -53,8 +53,8 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_mediaController(0)
     , m_rewindButton(0)
     , m_playButton(0)
-	, m_ffButton(0)
-	, m_revButton(0)
+    , m_ffButton(0)
+    , m_revButton(0)
     , m_returnToRealTimeButton(0)
     , m_statusDisplay(0)
     , m_currentTimeDisplay(0)
@@ -74,9 +74,10 @@ MediaControlRootElement::MediaControlRootElement(Document* document)
     , m_fullScreenMaxVolumeButton(0)
     , m_panel(0)
 #if ENABLE(VIDEO_TRACK)
-	, m_videoTrackSelButton(0)
-	, m_audioTrackSelButton(0)
-	, m_textTrackSelButton(0)
+    , m_textDisplayContainer(0)
+    , m_videoTrackSelButton(0)
+    , m_audioTrackSelButton(0)
+    , m_textTrackSelButton(0)
 #endif
     , m_hideFullscreenControlsTimer(this, &MediaControlRootElement::hideFullscreenControlsTimerFired)
     , m_isMouseOverControls(false)
@@ -283,9 +284,9 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
     if (m_playButton)
         m_playButton->setMediaController(controller);
     if (m_ffButton)
-    	m_ffButton->setMediaController(controller);
+        m_ffButton->setMediaController(controller);
     if (m_revButton)
-    	m_revButton->setMediaController(controller);
+        m_revButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -307,11 +308,11 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
     if (m_panelMuteButton)
         m_panelMuteButton->setMediaController(controller);
     if (m_videoTrackSelButton)
-    	m_videoTrackSelButton->setMediaController(controller);
+        m_videoTrackSelButton->setMediaController(controller);
     if (m_audioTrackSelButton)
-    	m_audioTrackSelButton->setMediaController(controller);
+        m_audioTrackSelButton->setMediaController(controller);
     if (m_textTrackSelButton)
-    	m_textTrackSelButton->setMediaController(controller);
+        m_textTrackSelButton->setMediaController(controller);
     if (m_volumeSlider)
         m_volumeSlider->setMediaController(controller);
     if (m_volumeSliderMuteButton)
@@ -328,6 +329,10 @@ void MediaControlRootElement::setMediaController(MediaControllerInterface* contr
         m_fullScreenMaxVolumeButton->setMediaController(controller);
     if (m_panel)
         m_panel->setMediaController(controller);
+#if ENABLE(VIDEO_TRACK)
+    if(m_textDisplayContainer)
+        m_textDisplayContainer->setMediaController(controller);
+#endif
 
     reset();
     addtrackControls();
@@ -397,7 +402,6 @@ void MediaControlRootElement::reset()
         m_panelMuteButton->show();
     else
         m_panelMuteButton->hide();
-
 
     if (m_volumeSlider)
         m_volumeSlider->setVolume(m_mediaController->volume());
@@ -703,6 +707,15 @@ void MediaControlRootElement::stopHideFullscreenControlsTimer()
 #if ENABLE(VIDEO_TRACK)
 void MediaControlRootElement::createTextTrackDisplay()
 {
+    if(!m_textDisplayContainer) {
+        RefPtr<MediaControlTextTrackContainerElement> textDisplayContainer = MediaControlTextTrackContainerElement::create(document());
+        m_textDisplayContainer = textDisplayContainer.get();
+
+        // Insert it before the first controller element so it always displays behind the controls.
+        ExceptionCode ec;
+        insertBefore(textDisplayContainer.release(), m_panel, ec, true);
+    }
+
     if (m_textTrackSelButton)
         return;
 
@@ -719,28 +732,27 @@ void MediaControlRootElement::createTextTrackDisplay()
 
 void MediaControlRootElement::showTextTrackDisplay()
 {
-    if (!m_textTrackSelButton)
-        createTextTrackDisplay();
-
+    if (!m_textDisplayContainer || !m_textTrackSelButton)
+         createTextTrackDisplay();
+    m_textDisplayContainer->show();
     m_textTrackSelButton->show();
     m_textTrackSelButton->display();
 }
 
 void MediaControlRootElement::hideTextTrackDisplay()
 {
-    if (!m_textTrackSelButton)
-        createTextTrackDisplay();
-
+    if (!m_textDisplayContainer || !m_textTrackSelButton)
+         createTextTrackDisplay();
+    m_textDisplayContainer->hide();
     m_textTrackSelButton->hide();
 }
 
 void MediaControlRootElement::updateTextTrackDisplay()
 {
-    if (!m_textTrackSelButton)
-        createTextTrackDisplay();
-
+    if (!m_textDisplayContainer || !m_textTrackSelButton)
+         createTextTrackDisplay();
+    m_textDisplayContainer->updateDisplay();
     showTextTrackDisplay();
-
 }
 
 void MediaControlRootElement::setTextTrackSelected(int index)
@@ -751,7 +763,6 @@ void MediaControlRootElement::setTextTrackSelected(int index)
 	m_textTrackSelButton->setSelectedIndex(index);
 	m_textTrackSelButton->display();
 }
-
 
 void MediaControlRootElement::createVideoTrackDisplay()
 {
@@ -788,7 +799,7 @@ void MediaControlRootElement::hideVideoTrackDisplay()
 
 void MediaControlRootElement::updateVideoTrackDisplay()
 {
-	showVideoTrackDisplay();
+    showVideoTrackDisplay();
 }
 
 void MediaControlRootElement::createAudioTrackDisplay()
@@ -809,11 +820,11 @@ void MediaControlRootElement::createAudioTrackDisplay()
 
 void MediaControlRootElement::setVideoTrackSelected(int index)
 {
-	if (index < 0)
-		return;
+    if (index < 0)
+        return;
 
-	m_videoTrackSelButton->setSelectedIndex(index);
-	m_videoTrackSelButton->display();
+    m_videoTrackSelButton->setSelectedIndex(index);
+    m_videoTrackSelButton->display();
 }
 
 void MediaControlRootElement::showAudioTrackDisplay()
@@ -835,15 +846,15 @@ void MediaControlRootElement::hideAudioTrackDisplay()
 
 void MediaControlRootElement::updateAudioTrackDisplay()
 {
-	showAudioTrackDisplay();
+    showAudioTrackDisplay();
 }
 
 void MediaControlRootElement::setAudioTrackSelected(int index)
 {
-	if (index < 0)
-		return;
+    if (index < 0)
+        return;
 
-	m_audioTrackSelButton->setSelectedIndex(index);
+    m_audioTrackSelButton->setSelectedIndex(index);
 }
 
 #endif

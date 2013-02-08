@@ -85,7 +85,7 @@ public:
     static const AtomicString& showingKeyword();
 
     String mode() const;
-    virtual void setMode(const String&);
+    void setMode(const String&);
 
     bool showingByDefault() const { return m_showingByDefault; }
     void setShowingByDefault(bool showing) { m_showingByDefault = showing; }

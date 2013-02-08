@@ -502,7 +502,7 @@ bool TextTrackCue::dispatchEvent(PassRefPtr<Event> event, ExceptionCode &ec)
 
 bool TextTrackCue::isActive()
 {
-    return m_isActive && track() && track()->mode() != TextTrack::disabledKeyword();
+	return m_isActive && track() && track()->mode() != TextTrack::disabledKeyword();
 }
 
 void TextTrackCue::setIsActive(bool active)

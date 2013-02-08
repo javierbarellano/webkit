@@ -159,6 +159,7 @@ public:
     // Called when a text track is added or changed
     virtual void mediaPlayerClearTextTracks(MediaPlayer*) { }
     virtual void mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language) { }
+    virtual void mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end) { }
 #endif
 
 // Presentation-related methods

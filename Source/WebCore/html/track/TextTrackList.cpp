@@ -134,6 +134,14 @@ TextTrack* TextTrackList::item(unsigned index)
     return 0;
 }
 
+TextTrack* TextTrackList::inBandTrack(unsigned index)
+{
+    if (index < m_inbandTracks.size())
+        return m_inbandTracks[index].get();
+
+    return 0;
+}
+
 void TextTrackList::append(PassRefPtr<TextTrack> prpTrack)
 {
     RefPtr<TextTrack> track = prpTrack;

@@ -56,6 +56,7 @@ public:
     void setSelectedIndex(long);
 
     TextTrack* item(unsigned index);
+    TextTrack* inBandTrack(unsigned index);
     void append(PassRefPtr<TextTrack>);
     void clear();
     void remove(TextTrack*);

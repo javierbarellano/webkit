@@ -30,7 +30,9 @@
 
 #include <glib.h>
 #include <gst/gst.h>
+#include <vector>
 #include <wtf/Forward.h>
+#include <wtf/MessageQueue.h>
 
 typedef struct _WebKitVideoSink WebKitVideoSink;
 typedef struct _GstBuffer GstBuffer;
@@ -135,8 +137,9 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
 #if ENABLE(VIDEO_TRACK)
             void textChanged();
             void notifyPlayerOfText();
-            void textTagsChanged(int index);
+            void textTagsChanged();
             void notifyPlayerOfTextTags();
+            void textBufferChanged(GstPad*, GstBuffer*);
             void notifyPlayerOfTextBuffer();
 #endif
 
@@ -185,6 +188,14 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             bool isLiveStream() const { return m_isStreaming; }
 
         private:
+            struct TextBufferData {
+            	MediaPlayerPrivateGStreamer* player;
+            	String data;
+            	float start;
+            	float end;
+            	int index;
+            };
+
             MediaPlayer* m_player;
             GstElement* m_playBin;
             GstElement* m_webkitVideoSink;
@@ -228,17 +239,18 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             guint m_audioTimerHandler;
             guint m_audioTagsTimerHandler;
 #if ENABLE(VIDEO_TRACK)
+            guint m_textBufferTimerHandler;
             guint m_textTimerHandler;
             guint m_textTagsTimerHandler;
             Vector<bool> m_changedTextTags;
+            std::vector<GstPad*> m_textPads;
+            std::vector<gulong> m_textProbes;
+            MessageQueue<TextBufferData> m_textCueQueue;
 #endif
             guint m_videoTimerHandler;
             guint m_videoCapsTimerHandler;
             guint m_videoTagsTimerHandler;
             GRefPtr<GstElement> m_webkitAudioSink;
-#if ENABLE(VIDEO_TRACK)
-            GRefPtr<GstElement> m_textSink;
-#endif
             mutable long m_totalBytes;
             GRefPtr<GstPad> m_videoSinkPad;
             mutable IntSize m_videoSize;

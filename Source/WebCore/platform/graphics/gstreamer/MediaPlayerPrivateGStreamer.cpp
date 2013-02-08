@@ -170,7 +170,7 @@ static gboolean mediaPlayerPrivateTextChangeTimeoutCallback(MediaPlayerPrivateGS
 
 static void mediaPlayerPrivateTextTagsChangedCallback(GObject*, gint index, MediaPlayerPrivateGStreamer* player)
 {
-    player->textTagsChanged(index);
+    player->textTagsChanged();
 }
 
 static gboolean mediaPlayerPrivateTextTagChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
@@ -180,9 +180,14 @@ static gboolean mediaPlayerPrivateTextTagChangeTimeoutCallback(MediaPlayerPrivat
     return FALSE;
 }
 
-static void mediaPlayerPrivateTextNewBufferCallback(GObject*, MediaPlayerPrivateGStreamer* player)
+static void mediaPlayerPrivateTextBufferChangedCallback(GstPad* pad, GstBuffer* buffer, MediaPlayerPrivateGStreamer* player)
 {
-    player->notifyPlayerOfTextBuffer();
+	player->textBufferChanged(pad, buffer);
+}
+
+static void mediaPlayerPrivateTextBufferChangedTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+	player->notifyPlayerOfTextBuffer();
 }
 #endif
 
@@ -318,6 +323,7 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_audioTimerHandler(0)
     , m_audioTagsTimerHandler(0)
 #if ENABLE(VIDEO_TRACK)
+	, m_textBufferTimerHandler(0)
     , m_textTimerHandler(0)
     , m_textTagsTimerHandler(0)
 #endif
@@ -339,6 +345,7 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
     if (m_buffer)
         gst_buffer_unref(m_buffer);
+
     m_buffer = 0;
 
     if (m_mediaLocations) {
@@ -381,6 +388,9 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
     if (m_audioTagsTimerHandler)
         g_source_remove(m_audioTagsTimerHandler);
+
+    if (m_textBufferTimerHandler)
+        g_source_remove(m_textBufferTimerHandler);
 
     if (m_textTimerHandler)
         g_source_remove(m_textTimerHandler);
@@ -578,31 +588,38 @@ void MediaPlayerPrivateGStreamer::setVideoSelected(int track, bool selected)
 
 bool MediaPlayerPrivateGStreamer::isTextEnabled(int checkTrack) const
 {
-    GstPlayFlags flags;
-    g_object_get(m_playBin, "flags", &flags, NULL);
-    if(!(flags & GST_PLAY_FLAG_TEXT)) {
-        return false;
-    }
-    gint currentTrack;
-    g_object_get(m_playBin, "current-text", &currentTrack, NULL);
-    return currentTrack == checkTrack;
+	return false;
+//    GstPlayFlags flags;
+//    g_object_get(m_playBin, "flags", &flags, NULL);
+//    if(!(flags & GST_PLAY_FLAG_TEXT)) {
+//        return false;
+//    }
+//    gint currentTrack;
+//    g_object_get(m_playBin, "current-text", &currentTrack, NULL);
+//    return currentTrack == checkTrack;
 }
 
 void MediaPlayerPrivateGStreamer::setTextEnabled(int track, bool enabled)
 {
-    // Check if the requested track is already in the right state
-    if(enabled == isTextEnabled(track))
-        return;
-
-    int flags;
-    g_object_get(m_playBin, "flags", &flags, NULL);
-    if(enabled) {
-        g_object_set(m_playBin, "current-text", track, NULL);
-        flags |= GST_PLAY_FLAG_TEXT;
-    } else {
-        flags &= ~GST_PLAY_FLAG_TEXT;
-    }
-    g_object_set(m_playBin, "flags", flags, NULL);
+//    // Check if the requested track is already in the right state
+//    if(enabled == isTextEnabled(track))
+//        return;
+//
+//	GstPad* pad = 0;
+//	g_signal_emit_by_name(m_playBin, "get-text-pad", track, &pad);
+//	if(!pad) {
+//		g_print("Couldn't get text pad %d\n", track);
+//		return;
+//	} else {
+//		g_print("Got text pad %p.\n", pad);
+//	}
+//
+//    if(enabled) {
+//    	m_textProbes[track] = gst_pad_add_buffer_probe(pad, G_CALLBACK(mediaPlayerPrivateTextNewBufferCallback), this);
+//    } else if (m_textProbes[track]){
+//    	gst_pad_remove_buffer_probe(pad, m_textProbes[track]);
+//    	m_textProbes[track] = 0;
+//    }
 }
 
 float MediaPlayerPrivateGStreamer::duration() const
@@ -941,6 +958,23 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
 
     m_hasText = numTracks > 0;
 
+    // Remove old probes
+    for(size_t i = 0; i < m_textProbes.size(); ++i) {
+    	if(m_textProbes[i] && m_textPads[i]) {
+			gst_pad_remove_buffer_probe(m_textPads[i], m_textProbes[i]);
+    	}
+    }
+
+    // Setup new probes
+    m_textProbes.assign(numTracks, 0);
+
+    // This (size_t) cast is necessary to get the correct version of vector::assign
+    m_textPads.assign((size_t)numTracks, 0);
+    for(size_t i = 0; i < numTracks; ++i) {
+    	g_signal_emit_by_name(m_playBin, "get-text-pad", i, &(m_textPads[i]));
+    	m_textProbes[i] = gst_pad_add_buffer_probe(m_textPads[i], G_CALLBACK(mediaPlayerPrivateTextBufferChangedCallback), this);
+    }
+
 #if ENABLE(VIDEO_TRACK)
     m_player->mediaPlayerClient()->mediaPlayerClearTextTracks(m_player);
 #endif
@@ -951,11 +985,11 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
 void MediaPlayerPrivateGStreamer::notifyPlayerOfTextTags()
 {
     m_textTagsTimerHandler = 0;
-    gint numTextTracks = 0;
+    gint numTracks = 0;
     if (m_playBin)
-        g_object_get(m_playBin, "n-text", &numTextTracks, NULL);
+        g_object_get(m_playBin, "n-text", &numTracks, NULL);
 
-    for(gint i = 0; i < numTextTracks; ++i) {
+    for(gint i = 0; i < numTracks; ++i) {
         GstTagList *tags = NULL;
         String language;
         String label;
@@ -990,7 +1024,7 @@ void MediaPlayerPrivateGStreamer::textChanged()
     m_textTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback), this);
 }
 
-void MediaPlayerPrivateGStreamer::textTagsChanged(int index)
+void MediaPlayerPrivateGStreamer::textTagsChanged()
 {
     if (m_textTagsTimerHandler) {
         g_source_remove(m_textTagsTimerHandler);
@@ -999,18 +1033,46 @@ void MediaPlayerPrivateGStreamer::textTagsChanged(int index)
     m_textTagsTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextTagChangeTimeoutCallback), this);
 }
 
-void MediaPlayerPrivateGStreamer::notifyPlayerOfTextBuffer()
+void MediaPlayerPrivateGStreamer::textBufferChanged(GstPad* pad, GstBuffer* buffer)
 {
-    printf("Player->newTextBuffer()\n");
-    GstBuffer *buffer = NULL;
-    g_signal_emit_by_name(m_textSink.get(), "pull-buffer", &buffer);
     if(!buffer) {
-        printf("Buffer is NULL\n");
+        g_print("Buffer is NULL\n");
         return;
     }
-    String data = String(buffer->data, buffer->size);
-    printf("Buffer is: %s\n", data.utf8(false).data());
-    gst_buffer_unref(buffer);
+    if(!pad) {
+    	g_print("Pad is NULL\n");
+    	return;
+    }
+
+    if (m_textBufferTimerHandler) {
+        g_source_remove(m_textBufferTimerHandler);
+    }
+
+    for(size_t i = 0; i < m_textPads.size(); ++i) {
+    	if(m_textPads[i] == pad) {
+    		OwnPtr<TextBufferData> data = adoptPtr(new TextBufferData());
+    		data->player = this;
+    		data->index = i;
+    	    data->data = String(buffer->data, buffer->size);
+    	    data->start = ((float)buffer->timestamp) / GST_SECOND;
+    	    data->end = data->start + ((float)buffer->duration) / GST_SECOND;
+    	    m_textCueQueue.append(data.release());
+    	    m_textBufferTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextBufferChangedTimeoutCallback), this);
+    		return;
+    	}
+    }
+    g_print("Got buffer for non-existent pad %p\n", pad);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfTextBuffer()
+{
+	m_textBufferTimerHandler = 0;
+
+	while(OwnPtr<TextBufferData> data = m_textCueQueue.tryGetMessage()) {
+		if(m_player) {
+			m_player->mediaPlayerClient()->mediaPlayerAddTextTrackCue(m_player, data->index, data->data, data->start, data->end);
+		}
+	}
 }
 #endif
 
@@ -2260,12 +2322,11 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
     if (videoSinkPad)
         g_signal_connect(videoSinkPad.get(), "notify::caps", G_CALLBACK(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
-#if ENABLE(VIDEO_TRACK)
-    m_textSink = gst_element_factory_make("appsink", NULL);
-    g_object_set(m_textSink.get(), "emit-signals", true, NULL);
-    g_signal_connect(m_textSink.get(), "new-buffer", G_CALLBACK(mediaPlayerPrivateTextNewBufferCallback), this);
-    g_object_set(m_playBin, "text-sink", m_textSink.get(), NULL);
-#endif
+    // Don't display subtitles directly on the video
+    int flags;
+    g_object_get(m_playBin, "flags", &flags, NULL);
+	flags &= ~GST_PLAY_FLAG_TEXT;
+    g_object_set(m_playBin, "flags", flags, NULL);
 }
 
 }
