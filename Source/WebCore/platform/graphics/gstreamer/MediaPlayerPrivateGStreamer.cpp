@@ -180,10 +180,18 @@ static gboolean mediaPlayerPrivateTextTagChangeTimeoutCallback(MediaPlayerPrivat
     return FALSE;
 }
 
+#ifdef GST_API_VERSION_1
+static GstPadProbeReturn mediaPlayerPrivateTextBufferChangedCallback(GstPad* pad, GstPadProbeInfo* info, MediaPlayerPrivateGStreamer* player)
+{
+	player->textBufferChanged(pad, gst_pad_probe_info_get_buffer(info));
+	return GST_PAD_PROBE_OK;
+}
+#else
 static void mediaPlayerPrivateTextBufferChangedCallback(GstPad* pad, GstBuffer* buffer, MediaPlayerPrivateGStreamer* player)
 {
 	player->textBufferChanged(pad, buffer);
 }
+#endif
 
 static void mediaPlayerPrivateTextBufferChangedTimeoutCallback(MediaPlayerPrivateGStreamer* player)
 {
@@ -961,7 +969,11 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
     // Remove old probes
     for(size_t i = 0; i < m_textProbes.size(); ++i) {
     	if(m_textProbes[i] && m_textPads[i]) {
-			gst_pad_remove_buffer_probe(m_textPads[i], m_textProbes[i]);
+#ifdef GST_API_VERSION_1
+    		gst_pad_remove_probe(m_textPads[i], m_textProbes[i]);
+#else
+    		gst_pad_remove_buffer_probe(m_textPads[i], m_textProbes[i]);
+#endif
     	}
     }
 
@@ -972,7 +984,12 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfText()
     m_textPads.assign((size_t)numTracks, 0);
     for(size_t i = 0; i < numTracks; ++i) {
     	g_signal_emit_by_name(m_playBin, "get-text-pad", i, &(m_textPads[i]));
+#ifdef GST_API_VERSION_1
+    	m_textProbes[i] = gst_pad_add_probe(m_textPads[i], GST_PAD_PROBE_TYPE_BUFFER,
+    			reinterpret_cast<GstPadProbeCallback>(mediaPlayerPrivateTextBufferChangedCallback), this, NULL);
+#else
     	m_textProbes[i] = gst_pad_add_buffer_probe(m_textPads[i], G_CALLBACK(mediaPlayerPrivateTextBufferChangedCallback), this);
+#endif
     }
 
 #if ENABLE(VIDEO_TRACK)
@@ -1035,6 +1052,10 @@ void MediaPlayerPrivateGStreamer::textTagsChanged()
 
 void MediaPlayerPrivateGStreamer::textBufferChanged(GstPad* pad, GstBuffer* buffer)
 {
+    if (m_textBufferTimerHandler) {
+        g_source_remove(m_textBufferTimerHandler);
+    }
+
     if(!buffer) {
         g_print("Buffer is NULL\n");
         return;
@@ -1044,17 +1065,26 @@ void MediaPlayerPrivateGStreamer::textBufferChanged(GstPad* pad, GstBuffer* buff
     	return;
     }
 
-    if (m_textBufferTimerHandler) {
-        g_source_remove(m_textBufferTimerHandler);
-    }
-
     for(size_t i = 0; i < m_textPads.size(); ++i) {
     	if(m_textPads[i] == pad) {
     		OwnPtr<TextBufferData> data = adoptPtr(new TextBufferData());
     		data->player = this;
     		data->index = i;
+#ifdef GST_API_VERSION_1
+    		GstMemory* memory = gst_buffer_get_all_memory (buffer);
+    		GstMapInfo mapInfo;
+    		if(!gst_memory_map(memory, &mapInfo, GST_MAP_READ)) {
+    			g_print("Unable to read cue.\n");
+    			return;
+    		}
+    	    data->data = String(mapInfo.data, mapInfo.size);
+    	    gst_memory_unmap(memory, &mapInfo);
+    	    gst_memory_unref(memory);
+    	    data->start = ((float)buffer->pts) / GST_SECOND;
+#else
     	    data->data = String(buffer->data, buffer->size);
     	    data->start = ((float)buffer->timestamp) / GST_SECOND;
+#endif
     	    data->end = data->start + ((float)buffer->duration) / GST_SECOND;
     	    m_textCueQueue.append(data.release());
     	    m_textBufferTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextBufferChangedTimeoutCallback), this);
