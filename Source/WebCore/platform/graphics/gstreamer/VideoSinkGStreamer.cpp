@@ -352,7 +352,7 @@ static gboolean webkitVideoSinkProposeAllocation(GstBaseSink* baseSink, GstQuery
         return FALSE;
 
     WebKitVideoSink* sink = WEBKIT_VIDEO_SINK(baseSink);
-    if (!gst_video_info_from_caps(&sink->priv->info, caps))
+    if (!GST_IS_CAPS(caps) || !gst_caps_is_fixed(caps) || !gst_video_info_from_caps(&sink->priv->info, caps))
         return FALSE;
 
     gst_query_add_allocation_meta(query, GST_VIDEO_META_API_TYPE, 0);
