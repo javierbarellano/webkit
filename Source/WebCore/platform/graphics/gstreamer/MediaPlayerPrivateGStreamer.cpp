@@ -852,6 +852,9 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 
     m_hasVideo = numVideos > 0;
 
+    // If we don't set the first track to selected, GStreamer picks at random
+    g_object_set(m_playBin, "current-video", 0, NULL);
+
 #if ENABLE(VIDEO_TRACK)
     m_player->mediaPlayerClient()->mediaPlayerClearVideoTracks(m_player);
 #endif
@@ -876,6 +879,9 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
     if (m_playBin)
         g_object_get(m_playBin, "n-audio", &numTracks, NULL);
     m_hasAudio = numTracks > 0;
+
+    // If we don't set the first track to selected, GStreamer picks at random
+    g_object_set(m_playBin, "current-audio", 0, NULL);
 
 #if ENABLE(VIDEO_TRACK)
     m_player->mediaPlayerClient()->mediaPlayerClearAudioTracks(m_player);
