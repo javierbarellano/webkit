@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "Logging.h"
 #include "KURL.h"
 #include <wtf/text/CString.h>
 
@@ -53,6 +54,12 @@ public:
 
 	virtual int send(const char* data, int length)
 	{
+		if (m_socket < 0) {
+			init(m_host, m_port);
+			if (m_socket < 0)
+				return 0;
+		}
+
 		if (m_inError)
 			return 0;
 
@@ -63,6 +70,12 @@ public:
 
 	void receive(char *data, size_t *len)
 	{
+		if (m_socket < 0) {
+			init(m_host, m_port);
+			if (m_socket < 0)
+				return;
+		}
+
 		int n = 1;
 		int pos = 0;
 		size_t lim = *len;
@@ -86,7 +99,7 @@ public:
 			int rc = select(m_socket+1, &read_fds, NULL, NULL, &timeout);
 			if(rc < 0)
 			{
-				printf("-ERROR- receive() select() error %d!!!!", errno);
+				LOG(Network, "-ERROR- receive() select() error %d!!!!", errno);
 				*len = 0;
 				return;
 			}
@@ -113,8 +126,10 @@ protected:
 
 	virtual void platformClose()
 	{
-		::close(m_socket);
-		m_socket = -1;
+		if (m_socket >= 0) {
+			::close(m_socket);
+			m_socket = -1;
+		}
 	}
 
 private:
@@ -141,28 +156,35 @@ private:
 		int on = 1;
 		int rc = 0;
 
+		strcpy(m_host, host);
+		m_port = port;
+
 		m_inError = 0; // No pending error
 
 		m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (m_socket < 0)
 		{
-			printf("-ERROR- socket() failed err: %d\n", errno);
+			LOG(Network, "-ERROR- socket() failed err: %d\n", errno);
 			m_inError = errno;
 			return;
 		}
 
 		if((rc = setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on))) < 0)
 		{
-			printf("-ERROR- setsockopt(SO_REUSEADDR) failed! errno: %d\n", errno);
+			LOG(Network, "-ERROR- setsockopt(SO_REUSEADDR) failed! errno: %d\n", errno);
 			m_inError = errno;
+			::close(m_socket);
+			m_socket = -1;
 			return;
 		}
 
 		on = 1;
 		if((rc = setsockopt(m_socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&on, sizeof(on))) < 0)
 		{
-			printf("-ERROR- setsockopt(SO_KEEPALIVE) failed! errno: %d\n", errno);
+			LOG(Network, "-ERROR- setsockopt(SO_KEEPALIVE) failed! errno: %d\n", errno);
 			m_inError = errno;
+			::close(m_socket);
+			m_socket = -1;
 			return;
 		}
 
@@ -174,8 +196,10 @@ private:
 
 		if (connect(m_socket, (struct sockaddr *)&m_servaddr, sizeof(m_servaddr)) < 0)
 		{
-			printf("-ERROR- connect to: %s:%d failed! errno: %d\n", host, port, errno);
+			LOG(Network, "-ERROR- connect to: %s:%d failed! errno: %d\n", host, port, errno);
 			m_inError = errno;
+			::close(m_socket);
+			m_socket = -1;
 			return;
 		}
 
@@ -194,6 +218,8 @@ private:
 	struct sockaddr_in m_servaddr;
 	int m_socket;
 	int m_inError;
+	char m_host[1024];
+	int m_port;
 
 };
 

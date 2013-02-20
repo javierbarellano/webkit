@@ -1,0 +1,69 @@
+<html>
+
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+
+<body>
+<script>
+var vid;
+var fileName = '/home/gar/MediaContent/O-AVCMP4_BC15A-05.MP4';
+var canplay = false;
+
+function playing()
+{
+	testPassed("Video Track is playing.");
+}
+
+function paused()
+{
+	testPassed("Video Track is paused.");
+	finishJSTest();
+}
+
+function playable() {
+	canplay = true;
+	vid = document.getElementsByTagName("video")[0];
+	vid.audioTracks.oncanplay = null;
+	testPassed("Video Track is playable: " + fileName);
+	
+	vid.addEventListener("playing", playing, true);
+	vid.addEventListener("pause", paused, true);
+	
+	vid.play();
+	vid.currentTime = 3;
+	vid.pause();
+	
+}
+
+function notPlayable()
+{
+	if (caplay)
+		return;
+	
+	testFailed("Video Track is NOT playable: " + fileName);
+}
+
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("video");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	v.addEventListener("canplay", playable, true);
+	var src = document.createElement("source");
+	src.setAttribute('src', fileName);
+	v.appendChild(src);
+	body.appendChild(v);
+	setTimeout(notPlayable,4000);
+}
+
+insertCtrl();
+description('Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1.2: AVC_MP4_MP_SD_AAC_MPS MP4 MP_L3 AAC MPS');
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+
+</html>
+

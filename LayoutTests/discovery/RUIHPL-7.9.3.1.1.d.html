@@ -1,0 +1,52 @@
+<html>
+
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+
+<body>
+<script>
+var vid;
+var fileName = '/home/gar/MediaContent/O-MP2TS_SN-2.mpg';
+var canplay = false;
+
+function playable() {
+	canplay = true;
+	vid = document.getElementsByTagName("video")[0];
+	vid.audioTracks.oncanplay = null;
+	testPassed("Video Track is playable: " + fileName);
+	finishJSTest();
+}
+
+function notPlayable()
+{
+	if (caplay)
+		return;
+	
+	testFailed("Video Track is NOT playable: " + fileName);
+	finishJSTest();
+}
+
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("video");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	v.addEventListener("canplay", playable, true);
+	var src = document.createElement("source");
+	src.setAttribute('src', fileName);
+	v.appendChild(src);
+	body.appendChild(v);
+	setTimeout(notPlayable,4000);
+}
+
+insertCtrl();
+description('Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1: MPEG_TS_SD_NA MP2 MP@ML AC3');
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+
+</html>
+

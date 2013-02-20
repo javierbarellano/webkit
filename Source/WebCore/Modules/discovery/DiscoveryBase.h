@@ -63,6 +63,8 @@ public:
     std::string getElementValue(const char* buffer, const char* tag, char** ppos=0);
     std::vector<std::string> getElementArray(const char* buffer, const char* tag, char** ppos=0);
 
+	char url_[1024];
+
 protected:
 
     virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort)=0;
@@ -72,8 +74,6 @@ protected:
     std::string getTokenValue( std::map<std::string,std::string> map, std::string token );
 
 	bool canReceiveAnotherDev_;
-
-	char url_[1024];
 
 	//std::string cur_type_;
 

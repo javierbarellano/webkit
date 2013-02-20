@@ -20,6 +20,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <wtf/Assertions.h>
+#include <wtf/Forward.h>
 #include <wtf/text/CString.h>
 
 #include <wtf/RefCounted.h>
@@ -45,10 +47,18 @@ public:
 		m_socket = -1;
 	}
 
+	virtual bool connected()
+	{
+		return !m_connectionFailed;
+	}
+
 protected:
 
 	virtual int platformSend(const char* data, int length)
 	{
+		if (m_connectionFailed)
+			return -1;
+
 		int len = sendto(m_socket, data, length, 0, (struct sockaddr *)&m_servaddr, sizeof(m_servaddr));
 
 		if (m_client)
@@ -59,6 +69,9 @@ protected:
 
 	virtual void platformReceive()
 	{
+		if (m_connectionFailed)
+			return;
+
 
 		char bf[8192];
 		struct sockaddr_in si_rec;
@@ -72,7 +85,7 @@ protected:
 		int rc = select(m_socket+1, &read_fds, NULL, NULL, &timeout);
 		if(rc < 0)
 		{
-			printf("-ERROR- UDP platformReceive() select() error %d!!!!", errno);
+			//printf( "-ERROR- UDP platformReceive() select() error %d!!!!", errno);
 			return;
 		}
 		else if (rc == 0)
@@ -81,8 +94,8 @@ protected:
 		int n=recvfrom(m_socket, bf, sizeof(bf), 0, (sockaddr*)&si_rec, &siLen);
 		bf[n] = 0;
 
-		if (n<=0)
-			printf("platformReceive Didn't receive anything!!!!!\n");
+		//if (n<=0)
+			//printf("platformReceive Didn't receive anything!!!!!\n");
 
 		in_addr_t addr = si_rec.sin_addr.s_addr;
 		std::stringstream ss;
@@ -105,11 +118,13 @@ private:
 	UDPSocketHandle(const KURL &url, bool isMulticastGroup, UDPSocketHandleClient *client) :
 		UDPSocketHandleBase(url, isMulticastGroup, client)
 	{
+		m_connectionFailed = true;
 
 		m_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (m_socket < 0)
 		{
-			printf("-ERROR- socket() failed err: %d\n", errno);
+			//printf("-ERROR- socket() failed err: %d\n", errno);
+			return;
 		}
 //		else
 //			printf("Socket(%d) set up.\n",m_socket);
@@ -135,7 +150,7 @@ private:
             imr.imr_interface.s_addr = htonl(INADDR_ANY);
 
             if (setsockopt(m_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(struct ip_mreq)) < 0) {
-                printf("UDPSocketHandle::setsockopt - IP_ADD_MEMBERSHIP failed\n");
+                //printf("UDPSocketHandle::setsockopt - IP_ADD_MEMBERSHIP failed\n");
             } else {
 
                 int reuse = 1;
@@ -147,10 +162,14 @@ private:
                 const struct sockaddr* addr_in = (sockaddr*)&m_servaddr;
                 if (bind(m_socket, addr_in, sizeof(m_servaddr)) < 0) {
                     int lastError = errno;
-                    printf("UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
+                    //printf("UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
                     fprintf( stderr,"UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
+                } else {
+                	m_connectionFailed = false;
                 }
             }
+        } else {
+        	m_connectionFailed = false;
         }
     }
 
@@ -161,6 +180,7 @@ private:
 	struct sockaddr_in m_servaddr;
 	bool m_isMulticast;
 	int m_socket;
+	bool m_connectionFailed;
 
 };
 

@@ -1,0 +1,63 @@
+<html>
+
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+
+<body>
+<script>
+var vid;
+var fileName = '/home/gar/MediaContent/O-AVCMP4_BC15A-05.MP4';
+var canplay = false;
+
+function playing()
+{
+	testPassed("Audio Track is playing.");
+}
+
+function paused()
+{
+	testPassed("Audio Track is paused.");
+}
+
+function playable() {
+	canplay = true;
+	vid = document.getElementsByTagName("audio")[0];
+	vid.audioTracks.oncanplay = null;
+	testPassed("Audio Track is playable: " + fileName);
+	
+	finishJSTest();
+	
+}
+
+function notPlayable()
+{
+	if (caplay)
+		return;
+	
+	testFailed("Audio Track is NOT playable: " + fileName);
+}
+
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("audio");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	v.addEventListener("canplay", playable, true);
+	var src = document.createElement("source");
+	src.setAttribute('src', fileName);
+	v.appendChild(src);
+	body.appendChild(v);
+	setTimeout(notPlayable,4000);
+}
+
+insertCtrl();
+description('Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1.2: MP3');
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+
+</html>
+

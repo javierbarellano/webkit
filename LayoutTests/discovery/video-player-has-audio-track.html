@@ -18,9 +18,10 @@ function getInfo() {
 }
 
 function addTrack(trackEvent) {
+	vid = document.getElementsByTagName("video")[0];
+	vid.audioTracks.onaddtrack = null;
 	track = trackEvent.track;
 	testPassed("Audio Track added. enabled: "+track.enabled);
-	vid = document.getElementsByTagName("video")[0];
 	if (vid) {
 		shouldBe("vid.audioTracks.length>0", "true");
 	} else {

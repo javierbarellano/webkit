@@ -1,0 +1,10 @@
+Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1: MPEG_PS_NTSC MP2@ML AC3
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS Video Track is playable: /home/gar/MediaContent/B-MP2PS_N-3.mpg
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -105,14 +105,27 @@ void discoveryThread(void *context)
         // Even though not required to, send a M-SEARCH set once per minute
         if (elapsedSeconds >= 20) {
 
-            // Spec recommends more than one, but less than 10, in a 250ms window.
-            // We'll send 3 repeats, 75ms apart.
+        	if (!upnp->m_udpSocket) {
+                KURL url(ParsedURLString, String(upnp->url_));
+        		upnp->m_udpSocket = UDPSocketHandle::create(url, false, upnp);
+                if (!upnp->m_udpSocket->connected()) {
+                	upnp->m_udpSocket.release();
+                	upnp->m_udpSocket = NULL;
+                }
 
-            for ( int i=0; i < 3; i++ ) {
+        	}
 
-                upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
-                usleep(75L*1000L); // 75ms
-            }
+        	if (upnp->m_udpSocket) {
+
+				// Spec recommends more than one, but less than 10, in a 250ms window.
+				// We'll send 3 repeats, 75ms apart.
+
+				for ( int i=0; i < 3; i++ ) {
+
+					upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+					usleep(75L*1000L); // 75ms
+				}
+        	}
 
             lastSendSeconds = now.tv_sec;
         }
@@ -130,8 +143,20 @@ void notifyThread(void *context)
 
     while (upnp->m_stillRunning) {
 
-        upnp->m_mcastSocket->receive();
-        usleep(1000L*1000L); // 1 sec
+    	if (!upnp->m_mcastSocket) {
+            KURL url(ParsedURLString, String(upnp->url_));
+    		upnp->m_mcastSocket = UDPSocketHandle::create(url, true, upnp);
+            if (!upnp->m_mcastSocket->connected()) {
+            	upnp->m_mcastSocket.release();
+            	upnp->m_mcastSocket = NULL;
+
+    			usleep(20000L*1000L); // 20 secs
+    			continue;
+            }
+    	}
+
+		upnp->m_mcastSocket->receive();
+		usleep(1000L*1000L); // 1 sec
     }
 }
 
@@ -223,9 +248,14 @@ void UPnPSearch::createConnect(const char *type)
         KURL url(ParsedURLString, String(instance_->url_));
 
         // Constructor connects to socket
-        instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_) ;
-        instance_->m_tID = WTF::createThread(discoveryThread, instance_, "UPnP_discovery");
-        instance_->m_tDroppedID = WTF::createThread(droppedDevsThread, instance_, "DroppedUPnP");
+        instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_);
+        if (!instance_->m_udpSocket->connected()) {
+        	instance_->m_udpSocket.release();
+        	instance_->m_udpSocket = NULL;
+        }
+
+		instance_->m_tID = WTF::createThread(discoveryThread, instance_, "UPnP_discovery");
+		instance_->m_tDroppedID = WTF::createThread(droppedDevsThread, instance_, "DroppedUPnP");
     }
 
     if (!instance_->m_mcastSocket)
@@ -234,6 +264,11 @@ void UPnPSearch::createConnect(const char *type)
 
         // Constructor connects to socket
         instance_->m_mcastSocket = UDPSocketHandle::create(url, true, instance_) ;
+        if (!instance_->m_mcastSocket->connected()) {
+        	instance_->m_mcastSocket.release();
+        	instance_->m_mcastSocket = NULL;
+        }
+
         instance_->m_tNotifyID = WTF::createThread(notifyThread, instance_, "UPnP_notify");
     }
 

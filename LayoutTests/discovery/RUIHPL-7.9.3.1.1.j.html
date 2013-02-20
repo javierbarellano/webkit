@@ -1,0 +1,51 @@
+<html>
+
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+
+<body>
+<script>
+var vid;
+var fileName = '/home/gar/MediaContent/SUPER_test5_LPCM_Mono_VBR_16SS_44100Hz.WAV';
+var canplay = false;
+
+function playable() {
+	canplay = true;
+	vid = document.getElementsByTagName("audio")[0];
+	vid.audioTracks.oncanplay = null;
+	testPassed("audio Track is playable: " + fileName);
+	finishJSTest();
+}
+
+function notPlayable()
+{
+	if (caplay)
+		return;
+	
+	testFailed("audio Track is NOT playable: " + fileName);
+	finishJSTest();
+}
+
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("audio");
+	v.setAttribute('controls', 'yes');
+	v.addEventListener("canplay", playable, true);
+	var src = document.createElement("source");
+	src.setAttribute('src', fileName);
+	v.appendChild(src);
+	body.appendChild(v);
+	setTimeout(notPlayable,4000);
+}
+
+insertCtrl();
+description('Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1: LPCM');
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+
+</html>
+
