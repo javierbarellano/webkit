@@ -104,8 +104,25 @@ void zcDiscoveryThread(void *context)
 
 		if (lastSend < 0L || (now_ms - lastSend) > 20000)
 		{
-			lastSend = now_ms;
-			zc->m_udpSocket->send(zc->query_, zc->queryLen_);
+        	if (!zc->m_udpSocket) {
+                KURL url(ParsedURLString, String(zc->url_));
+                zc->m_udpSocket = UDPSocketHandle::create(url, true, zc);
+                if (!zc->m_udpSocket->connected()) {
+                	zc->m_udpSocket.release();
+                	zc->m_udpSocket = NULL;
+                }
+
+        	}
+
+        	if (zc->m_udpSocket) {
+				lastSend = now_ms;
+				bool netIdUp = zc->m_udpSocket->send(zc->query_, zc->queryLen_);
+				if (netIdUp != zc->m_netIsUp) {
+					zc->m_netIsUp = netIdUp;
+					if (zc->navDsc_)
+						zc->navDsc_->onNetworkChanged(netIdUp);
+				}
+        	}
 		}
 
 		zc->m_udpSocket->receive();
@@ -123,7 +140,12 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
  	{
 		KURL url(ParsedURLString, String(instance_->url_));
 
-		instance_->m_udpSocket = UDPSocketHandle::create(url, true, instance_) ;
+		instance_->m_udpSocket = UDPSocketHandle::create(url, true, instance_);
+		if (!instance_->m_udpSocket->connected()) {
+        	instance_->m_udpSocket.release();
+        	instance_->m_udpSocket = NULL;
+        	instance_->m_netIsUp = false;
+		}
 		instance_->m_tID = WTF::createThread(zcDiscoveryThread, instance_, "ZC_discovery");
 		instance_->m_tDroppedID = WTF::createThread(zcDroppedDevsThread, instance_, "DroppedZC");
  	}
@@ -215,25 +237,22 @@ void ZeroConf::checkForDroppedDevs()
 		for (std::map<std::string, ZCDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
 		{
 			ZCDevice dv = (*k).second;
-			if (dv.isOkToUse)
-			{
-				char bf[8000];
-				size_t len = sizeof(bf)-1;
-				std::string host = dv.url.substr(7);
-				host = host.substr(0, host.find(":"));
-				unsigned int port = atoi(dv.url.substr(dv.url.find(":",7)+1).c_str());
-				HTTPget(host.c_str(), port, (char*)"/databases/1/containers", bf, &len);
+			char bf[8000];
+			size_t len = sizeof(bf)-1;
+			std::string host = dv.url.substr(7);
+			host = host.substr(0, host.find(":"));
+			unsigned int port = atoi(dv.url.substr(dv.url.find(":",7)+1).c_str());
+			HTTPget(host.c_str(), port, (char*)"/databases/1/containers", bf, &len);
 
-				//std::string path = dv.url+"/databases/1/containers";
-				//printf("Try: %s\n", path.c_str());
+			//std::string path = dv.url+"/databases/1/containers";
+			//printf("Try: %s\n", path.c_str());
 
-				// Get Description of servcie to insure the device is still working
- 				if (len > 0)
-					continue;
+			// Get Description of servcie to insure the device is still working
+			if (len > 0)
+				continue;
 
-				// Found one that dropped
-				dropMe.push_back((*k).first);
-			}
+			// Found one that dropped
+			dropMe.push_back((*k).first);
 		}
 
 		if (dropMe.size())
@@ -305,8 +324,6 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 
 	if (dm.devMap.find(zcd.friendlyName) == dm.devMap.end())
 	{
-		zcd.isOkToUse = true;
-
 		dm.devMap[zcd.friendlyName] = zcd;
 		devs_[daapType_] = dm;
 

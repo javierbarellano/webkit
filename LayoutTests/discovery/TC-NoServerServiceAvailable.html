@@ -1,0 +1,91 @@
+<html>
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+<body>
+
+<script>
+description('Tests Acceptable UA behavior when no Server Service.');
+
+function getNetworkServices(type, okCallback, errCallback) {
+
+	navigator.getNetworkServices(type, okCallback, errCallback);
+}
+
+var srvs;
+var srv;
+var resp;
+var req;
+
+function offLine() {
+	testPassed("offLine callback.");
+	shouldBe("srvs.online", "false");
+}
+
+function onLine() {
+	testPassed("onLine callback.");
+	shouldBe("srvs.online", "true");
+}
+
+function serviceOffline() {
+	testPassed("Service offLine callback.");
+	shouldBe("srv.online", "false");
+}
+
+function serviceOnline() {
+	testPassed("Service onLine callback.");
+	shouldBe("srv.online", "true");
+}
+
+function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
+	srvs.ondevadded = addDevCB;
+	srvs.onservicesoffline = offLine;
+	srvs.onservicesonline = onLine;
+}
+
+function errShouldNotbeCalled(err) {
+	testFailed('GetNetworkServices() should have called ok Callback.');
+}
+
+function okSecondCallCB(services) {
+	srvs = services;
+	shouldBe("srvs.servicesAvailable>=1", "true");
+	if (srvs.servicesAvailable) {
+		srv = srvs.item(0);
+		
+		shouldBe("srv.online", "true");
+		srv.onserviceoffline = serviceOffline;
+		srv.onserviceonline = serviceOnline;
+		
+		req = new XMLHttpRequest();
+
+		req.open("GET", srv.url, false);
+		req.send();
+		resp = req.responseText;
+
+		shouldBe("req.status==200", "true");
+		
+	}
+	testPassed("navigator.getNetworkServices() second call to ok callback.");
+	finishJSTest();
+}
+
+function addDevCB() {
+	if (srvs.ondevadded == null) {
+		testFailed('GetNetworkServices() should have called dummyCB.');
+	}
+	srvs.ondevadded = null;
+	
+	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
+}
+
+getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+</html>

@@ -4,8 +4,7 @@ module discovery {
 	           OmitConstructor,
 	           ActiveDOMObject,
 	           EventTarget
-	           ] NavServices
-	{
+	           ] NavServices {
 
 		// NavigatorNetworkService item(index)
 		[Custom] void item(in unsigned long index);
@@ -14,8 +13,13 @@ module discovery {
 
 		readonly attribute unsigned short servicesAvailable;
 
+	    readonly attribute boolean  online;
+	    
         attribute EventListener ondevadded;
         attribute EventListener ondevdropped;
+        
+        attribute EventListener onservicesonline;
+        attribute EventListener onservicesoffline;
 
         // EventTarget interface
         void addEventListener(in DOMString type,

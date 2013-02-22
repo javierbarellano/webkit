@@ -64,8 +64,15 @@ public:
     void startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
 
 
-	std::map<std::string, UPnPDevice> startUPnPDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb);
-	std::map<std::string, ZCDevice> startZeroConfDiscovery(const char *type, PassRefPtr<NavServiceOkCB> successcb);
+	std::map<std::string, UPnPDevice> startUPnPDiscovery(
+			const char *type,
+			PassRefPtr<NavServiceOkCB> successcb,
+			PassRefPtr<NavServiceErrorCB> errorcb);
+
+	std::map<std::string, ZCDevice> startZeroConfDiscovery(
+			const char *type,
+			PassRefPtr<NavServiceOkCB> successcb,
+			PassRefPtr<NavServiceErrorCB> errorcb);
 
 	void onUPnPDiscovery(const char *type, IDiscoveryAPI *nav)
 	{
@@ -94,10 +101,18 @@ public:
 	void onUPnPError(int error);
 	void onZCError(int error);
 
+	void onNetworkChanged(bool isUP);
+	static void onNetworkChangedInternal(void *ptr);
+
 	void foundUPnPDev(std::string type);
     static void UPnPDevAddedInternal(void *ptr);
 	void foundZCDev(std::string type);
     static void ZCDevAddedInternal(void *ptr);
+
+	void serviceOffline(std::string type, UPnPDevice &dev);
+    static void serviceOfflineInternal(void *ptr);
+	void serviceOnline(std::string type, UPnPDevice &dev);
+    static void serviceOnlineInternal(void *ptr);
 
 	void lostUPnPDev(std::string type);
     static void UPnPDevDroppedInternal(void *ptr);
@@ -108,7 +123,7 @@ public:
     static void sendEventInternal(void *ptr);
 
 private:
-    std::vector<NavServices*> getNavServices(std::string type);
+    std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
 
@@ -135,7 +150,9 @@ private:
 	std::map<std::string, bool> m_whiteBlackList;
 
     // Events
+	std::queue<bool> m_curNetworkStatus;
 	std::queue<std::string> m_curType;
+	std::queue<UPnPDevice> m_devs;
 	int m_eventType;
 	std::queue<RefPtr<NavEvent> > m_event;
 

@@ -20,8 +20,7 @@
 
 namespace WebCore {
 
-class NavService : public RefCounted<NavService>, public EventTarget, public ActiveDOMObject
-{
+class NavService : public RefCounted<NavService>, public EventTarget, public ActiveDOMObject {
 public:
     // Should be kept in sync with the values in the idl file.
     enum ReadyState {
@@ -41,7 +40,15 @@ public:
 
     NavService(ScriptExecutionContext* context)
 	: ActiveDOMObject(context, this)
-    , m_code(CONNECTED) {}
+    , m_id("")
+    , m_code(CONNECTED)
+    , m_name("")
+    , m_url("")
+    , m_config("")
+    , m_type("")
+    , m_online(true)
+    , m_protocol(UPNP_TYPE)
+    {}
 
     // Copy Constructor
     NavService(const NavService &that);
@@ -53,7 +60,9 @@ public:
     virtual const AtomicString& interfaceName() const;
     virtual ScriptExecutionContext* scriptExecutionContext() const;
 
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(upnp);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceonline);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceoffline);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(notify);
 
     using RefCounted<NavService>::ref;
     using RefCounted<NavService>::deref;
@@ -63,23 +72,27 @@ public:
 
     String name() const {return m_name;}
     String url() const {return m_url;}
-    String eventUrl() const {return m_eventUrl;}
-    String uuid() const {return m_uuid;}
+    String id() const {return m_id;}
     String config() const {return m_config;}
-    String serviceType() const {return m_serviceType;}
+    String type() const {return m_type;}
+    bool   online() const {return m_online;}
+
     ProtocolType pType() const {return m_protocol;}
 
     void setName(String name) {m_name = name;}
     void setUrl(String url) {m_url = url;}
-    void setEventUrl(String url) {m_eventUrl = url;}
-    void setuuid(String uuid) {m_uuid = uuid;}
+    void setid(String uuid) {m_id = uuid;}
     void setConfig(String config) {m_config = config;}
-    void setServiceType(String type) {m_serviceType = type;}
+    void setType(String type) {m_type = type;}
+    void setOnline(bool online) {m_online = online;}
+
     void setPType(ProtocolType type) {m_protocol = type;}
 
     // Unique identifier for server offering the service
 
     int readyState() const {return m_code;}
+
+    String m_id;
 
 protected:
     virtual EventTargetData* eventTargetData();
@@ -94,10 +107,10 @@ private:
 
     String m_name;
     String m_url;
-    String m_eventUrl;
-    String m_uuid;
-    String m_config;
-    String m_serviceType;
+     String m_config;
+    String m_type;
+
+    bool m_online;
 
     ProtocolType m_protocol;
 

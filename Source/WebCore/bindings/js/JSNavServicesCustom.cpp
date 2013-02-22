@@ -29,7 +29,7 @@ JSC::JSValue JSNavServices::item(JSC::ExecState* exec)
 	return toJS(exec, globalObject(), srv);
 }
 
-void JSNavService::visitChildren(JSCell*, JSC::SlotVisitor&){}
+//void JSNavService::visitChildren(JSCell*, JSC::SlotVisitor&){}
 
 
 };

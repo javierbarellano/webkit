@@ -32,7 +32,6 @@ public:
     	DISCONNECTED = 2
     };
 
-
     static PassRefPtr<NavServices> create(ScriptExecutionContext* context, ReadyState code)
     {
         return adoptRef(new NavServices(context, code));
@@ -48,6 +47,8 @@ public:
     int servicesAvailable() const {return m_services.size();}
 
     int length() const {return m_services.size();}
+    bool online() const {return m_online;}
+    void setOnline(bool online) { m_online = online;}
 
     NavService* item(unsigned short index) {return m_services.at(index).get();}
 
@@ -81,6 +82,9 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(devadded);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(devdropped);
 
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(servicesonline);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(servicesoffline);
+
     using RefCounted<NavServices>::ref;
     using RefCounted<NavServices>::deref;
 
@@ -99,6 +103,7 @@ private:
     	: ActiveDOMObject(context, this)
     	, m_code(code)
     	, m_context(context)
+		, m_online(false)
     {
     }
 
@@ -110,6 +115,8 @@ private:
     EventTargetData m_eventTargetData;
 
     ScriptExecutionContext* m_context;
+
+    bool m_online;
 
 };
 

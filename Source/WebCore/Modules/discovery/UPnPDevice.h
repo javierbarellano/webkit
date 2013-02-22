@@ -10,7 +10,7 @@
 
 #include <string>
 
-typedef struct sUPnPDevice
+struct UPnPDevice
 {
 	std::string descURL;
 	std::string friendlyName;
@@ -19,9 +19,21 @@ typedef struct sUPnPDevice
 	std::string port;
 	std::string uuid;
     int  contactAttempts;
-	bool isOkToUse;
+    bool online;
 
-    bool changed(const sUPnPDevice& other)
+    UPnPDevice() :
+    	  descURL("Bogus")
+		, friendlyName("Bogus")
+		, eventURL("Bogus")
+		, host("Bogus")
+		, port("Bogus")
+		, uuid("Bogus")
+		, contactAttempts(0)
+		, online(true)
+    {
+    }
+
+    bool changed(const UPnPDevice& other)
     {
         bool changed = false;
         changed = changed || descURL.compare(other.descURL) != 0;
@@ -29,10 +41,9 @@ typedef struct sUPnPDevice
         changed = changed || eventURL.compare(other.eventURL) != 0;
         changed = changed || host.compare(other.host) != 0;
         changed = changed || uuid.compare(other.uuid) != 0;
-        changed = changed || isOkToUse != other.isOkToUse;
         return changed;
     }
 
-} UPnPDevice;
+};
 
 #endif /* UPNPDEVICE_H_ */

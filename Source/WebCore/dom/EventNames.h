@@ -94,6 +94,7 @@ namespace WebCore {
     macro(mouseover) \
     macro(mouseup) \
     macro(mousewheel) \
+    macro(notify) \
     macro(noupdate) \
     macro(obsolete) \
     macro(offline) \
@@ -112,6 +113,10 @@ namespace WebCore {
     macro(select) \
     macro(selectstart) \
     macro(selectionchange) \
+    macro(serviceoffline) \
+    macro(serviceonline) \
+    macro(servicesoffline) \
+    macro(servicesonline) \
     macro(storage) \
     macro(submit) \
     macro(textInput) \

@@ -33,11 +33,11 @@ namespace WebCore
 
 class NavDsc;
 
-typedef struct sUPnPDevMap
+struct UPnPDevMap
 {
 	// key == UUID
 	std::map<std::string, UPnPDevice> devMap;
-} UPnPDevMap;
+};
 
 class UPnPSearch : public DiscoveryBase
 					,public HNEventServerHandleClient

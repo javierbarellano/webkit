@@ -121,8 +121,12 @@ void discoveryThread(void *context)
 				// We'll send 3 repeats, 75ms apart.
 
 				for ( int i=0; i < 3; i++ ) {
-
-					upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+					bool netIdUp = upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
+					if (netIdUp != upnp->m_netIsUp) {
+						upnp->m_netIsUp = netIdUp;
+						if (upnp->navDsc_)
+							upnp->navDsc_->onNetworkChanged(netIdUp);
+					}
 					usleep(75L*1000L); // 75ms
 				}
         	}
@@ -150,9 +154,20 @@ void notifyThread(void *context)
             	upnp->m_mcastSocket.release();
             	upnp->m_mcastSocket = NULL;
 
+				if (upnp->m_netIsUp) {
+					upnp->m_netIsUp = false;
+					if (upnp->navDsc_)
+						upnp->navDsc_->onNetworkChanged(upnp->m_netIsUp);
+				}
     			usleep(20000L*1000L); // 20 secs
     			continue;
             }
+
+			if (!upnp->m_netIsUp) {
+				upnp->m_netIsUp = true;
+				if (upnp->navDsc_)
+					upnp->navDsc_->onNetworkChanged(upnp->m_netIsUp);
+			}
     	}
 
 		upnp->m_mcastSocket->receive();
@@ -240,8 +255,11 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 //static
 void UPnPSearch::createConnect(const char *type)
 {
+
 	if (!instance_)
 		instance_ = new UPnPSearch(type);
+
+	instance_->m_netIsUp = true;
 
     if (!instance_->m_udpSocket)
     {
@@ -250,8 +268,10 @@ void UPnPSearch::createConnect(const char *type)
         // Constructor connects to socket
         instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_);
         if (!instance_->m_udpSocket->connected()) {
+        	printf("createConnect() Not connected\n");
         	instance_->m_udpSocket.release();
         	instance_->m_udpSocket = NULL;
+        	instance_->m_netIsUp = false;
         }
 
 		instance_->m_tID = WTF::createThread(discoveryThread, instance_, "UPnP_discovery");
@@ -267,6 +287,7 @@ void UPnPSearch::createConnect(const char *type)
         if (!instance_->m_mcastSocket->connected()) {
         	instance_->m_mcastSocket.release();
         	instance_->m_mcastSocket = NULL;
+        	instance_->m_netIsUp = false;
         }
 
         instance_->m_tNotifyID = WTF::createThread(notifyThread, instance_, "UPnP_notify");
@@ -294,9 +315,9 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverInternalDevs(const char *t
 // static
 std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, NavDsc *navDsc)
 {
+	std::map<std::string, UPnPDevice> empty;
 	createConnect(type);
 	instance_->navDsc_ = navDsc;
-
 
 	instance_->devLock_->lock();
 	instance_->regTypes_.insert(std::string(type));
@@ -309,7 +330,7 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
 	}
 	instance_->devLock_->unlock();
 
-	return std::map<std::string, UPnPDevice>();
+	return empty;
 }
 
 // Called when Socket Stream is opened.
@@ -376,7 +397,7 @@ void UPnPSearch::UDPdidClose(UDPSocketHandle* handle)
 
 void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 {
-	printf("UPnPSearch::didFail() UDPSocketHandle error: %d\n", error.getErr());
+	//printf("UPnPSearch::didFail() UDPSocketHandle error: %d\n", error.getErr());
 	if (navDsc_)
 		navDsc_->onUPnPError(error.getErr());
 	if (api_)
@@ -396,46 +417,46 @@ void UPnPSearch::checkForDroppedDevs()
 		for (std::map<std::string, UPnPDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
 		{
 			UPnPDevice dv = (*k).second;
-			if (dv.isOkToUse)
-			{
-				KURL url(ParsedURLString, String(dv.descURL.c_str()));
-				char bf[8000];
-                bf[0] = 0;
-                size_t len = sizeof(bf)-1;
+			KURL url(ParsedURLString, String(dv.descURL.c_str()));
+			char bf[8000];
+			bf[0] = 0;
+			size_t len = sizeof(bf)-1;
 
-                // Get Description of service to insure the device is still working
-                HTTPget(url, bf, &len);
+			// Get Description of service to insure the device is still working
+			HTTPget(url, bf, &len);
 
-                std::string reply = bf;
-                int pos = reply.find("HTTP/1.1 404");
-                if (len == 0 || pos != std::string::npos) {
+			std::string reply = bf;
+			int pos = reply.find("HTTP/1.1 404");
+			if (len == 0 || pos != std::string::npos) {
 
-                    // Unresponsive. See note at top of file for reason for retries
-                    dv.contactAttempts++;
-                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				// Unresponsive. See note at top of file for reason for retries
+				devs_[type].devMap[dv.uuid].contactAttempts++;
+				//fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
-                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
-                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
-                        dropMe.push_back((*k).first);
-                    }
-                } else {
-                    dv.contactAttempts = 0;
-                }
-
-                // Update device record.
-                dm.devMap[dv.uuid] = dv;
-                devs_[type] = dm;
-            }
+				if ( devs_[type].devMap[dv.uuid].contactAttempts > MAX_CONTACT_ATTEMPTS) {
+					//fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					if (devs_[type].devMap[dv.uuid].online) {
+						devs_[type].devMap[dv.uuid].online = false;
+						if (navDsc_)
+							navDsc_->serviceOffline(type, devs_[type].devMap[dv.uuid]);
+					}
+				}
+			} else {
+				devs_[type].devMap[dv.uuid].contactAttempts = 0;
+				if (!devs_[type].devMap[dv.uuid].online) {
+					devs_[type].devMap[dv.uuid].online = true;
+					if (navDsc_)
+						navDsc_->serviceOnline(type, devs_[type].devMap[dv.uuid]);
+				}
+			}
 		}
 
 		if (dropMe.size())
 		{
             for (int d=0; d<(int)dropMe.size(); d++) {
-				dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
-                devs_[type] = dm;
+            	devs_[type].devMap.find(dropMe.at(d))->second.online = true;
             }
 
-			devs_[type] = dm;
 			if (navDsc_)
 				navDsc_->lostUPnPDev(type);
 		}
@@ -455,42 +476,39 @@ void UPnPSearch::checkForDroppedInternalDevs()
 		for (std::map<std::string, UPnPDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
 		{
 			UPnPDevice dv = (*k).second;
-			if (dv.isOkToUse)
-			{
-				char host[1024];
-				char path[1024];
-				int port;
-				getHostPort(dv.descURL.c_str(),host, &port);
-				getPath(dv.descURL.c_str(),path);
-				//KURL url(ParsedURLString, String(dv.descURL.c_str()));
-				char bf[8000];
-                bf[0] = 0;
-				size_t len = sizeof(bf)-1;
+			char host[1024];
+			char path[1024];
+			int port;
+			getHostPort(dv.descURL.c_str(),host, &port);
+			getPath(dv.descURL.c_str(),path);
+			//KURL url(ParsedURLString, String(dv.descURL.c_str()));
+			char bf[8000];
+			bf[0] = 0;
+			size_t len = sizeof(bf)-1;
 
-                // Get Description of service to insure the device is still working
-                HTTPget(host, port, bf, path, &len);
+			// Get Description of service to insure the device is still working
+			HTTPget(host, port, bf, path, &len);
 
-                std::string reply = bf;
-                int pos = reply.find("HTTP/1.1 404");
-                if (len == 0 || pos != std::string::npos) {
+			std::string reply = bf;
+			int pos = reply.find("HTTP/1.1 404");
+			if (len == 0 || pos != std::string::npos) {
 
-                    // Unresponsive. See note at top of file for reason for retries
-                    dv.contactAttempts++;
-                    //fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				// Unresponsive. See note at top of file for reason for retries
+				dv.contactAttempts++;
+				//fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
-                    if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
-                        //fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
-                        dropMe.push_back((*k).first);
-                    }
-                } else {
-                    dv.contactAttempts = 0;
-                }
+				if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
+					//fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					dropMe.push_back((*k).first);
+				}
+			} else {
+				dv.contactAttempts = 0;
+			}
 
-                // Update device record.
-                dm.devMap[dv.uuid] = dv;
-                internalDevs_[type] = dm;
-            }
-		}
+			// Update device record.
+			dm.devMap[dv.uuid] = dv;
+			internalDevs_[type] = dm;
+ 		}
 
 		if (dropMe.size())
 		{
@@ -697,7 +715,6 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
     d.eventURL = eventUrl;
     d.host = host;
 	d.port = port;
-	d.isOkToUse = true;
 	d.uuid = sUuid;
     d.contactAttempts = 0;
 

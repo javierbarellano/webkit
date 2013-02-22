@@ -164,13 +164,12 @@ private:
                     int lastError = errno;
                     //printf("UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
                     fprintf( stderr,"UDPSocketHandle::bind failed: %d - %s\n", lastError, strerror(lastError));
-                } else {
-                	m_connectionFailed = false;
+                    return;
                 }
             }
-        } else {
-        	m_connectionFailed = false;
         }
+
+        m_connectionFailed = false;
     }
 
 	// Private Data

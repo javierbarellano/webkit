@@ -71,6 +71,14 @@ DiscoveryBase::DiscoveryBase()
 	threadDone_ = true;
 	socketHandle_ = NULL;
 	serverHandle_ = NULL;
+	m_netIsUp = false;
+	m_stillRunning = false;
+	m_droppedStillRunning = false;
+	m_tID = 0;
+	navDsc_ = NULL;
+	m_tNotifyID = 0;
+	m_tDroppedID = 0;
+	stopDicovery_ = false;
 }
 
 DiscoveryBase::~DiscoveryBase()

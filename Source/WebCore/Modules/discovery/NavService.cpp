@@ -17,24 +17,24 @@ NavService::NavService(const NavService &that)
 	: RefCounted()
 	, ActiveDOMObject(that.scriptExecutionContext(), this)
 {
-	setName(that.name());
-	setUrl(that.url());
-	setEventUrl(that.eventUrl());
-	setuuid(that.uuid());
+	setName  (that.name());
+	setUrl   (that.url());
+	setid    (that.id());
 	setConfig(that.config());
-	setServiceType(that.serviceType());
-	setPType(that.pType());
+	setType  (that.type());
+	setPType (that.pType());
+	setOnline(that.online());
 }
 
 NavService& NavService::operator= (const NavService &that)
 {
 	setName(that.name());
 	setUrl(that.url());
-	setEventUrl(that.eventUrl());
-	setuuid(that.uuid());
+	setid(that.id());
 	setConfig(that.config());
-	setServiceType(that.serviceType());
+	setType(that.type());
 	setPType(that.pType());
+	setOnline(that.online());
 
 	return *this;
 }

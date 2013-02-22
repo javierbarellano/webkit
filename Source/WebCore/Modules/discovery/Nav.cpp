@@ -99,12 +99,13 @@ void Nav::getNetworkServices(
 		if (reset) {
 			nd->upnpReset();
 		}
-		devs = nd->startUPnPDiscovery(sType, successcb);
+		devs = nd->startUPnPDiscovery(sType, successcb, errorcb);
+
 	} else if (protoType == ZC_PROTO) {
 		if (reset) {
 			nd->zcReset();
 		}
-		zcdevs = nd->startZeroConfDiscovery(sType, successcb);
+		zcdevs = nd->startZeroConfDiscovery(sType, successcb, errorcb);
 	} else if (errorcb) {
 		RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);
 		errorcb->handleEvent(err.get());

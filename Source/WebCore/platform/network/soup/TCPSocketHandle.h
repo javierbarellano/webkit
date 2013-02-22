@@ -113,8 +113,8 @@ public:
 			lim -= n;
 		}
 
-		//			if (pos<=0)
-		//			  printf("-ERROR- receive Didn't receive anything!!!!!\n");
+		if (pos<=0)
+			LOG(Network, "-ERROR- receive Didn't receive anything!!!!!\n");
 
 
 		*len = pos;

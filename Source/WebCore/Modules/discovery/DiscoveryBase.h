@@ -46,6 +46,8 @@ public:
 
 	static void hexDump(const char *data, int len, int pos=0);
 
+	virtual bool networkIsUp() { return m_netIsUp;}
+
 	UDPSocketHandle* socketHandle_;
 
 	HNEventServerHandle* serverHandle_;
@@ -65,6 +67,9 @@ public:
 
 	char url_[1024];
 
+	NavDsc *navDsc_;
+	bool m_netIsUp;
+
 protected:
 
     virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort)=0;
@@ -76,8 +81,6 @@ protected:
 	bool canReceiveAnotherDev_;
 
 	//std::string cur_type_;
-
-	NavDsc *navDsc_;
 
     ThreadIdentifier m_tID;
     ThreadIdentifier m_tNotifyID;
