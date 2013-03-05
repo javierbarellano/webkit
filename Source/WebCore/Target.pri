@@ -3388,6 +3388,12 @@ enable?(VIDEO) {
             platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp \
             platform/graphics/gstreamer/PlatformVideoWindowQt.cpp \
             platform/graphics/gstreamer/ImageGStreamerQt.cpp
+        enable?(VIDEO_TRACK) {
+            HEADERS += \
+                platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h
+            SOURCES += \
+                platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp
+        }
 
     } else:use?(QT_MULTIMEDIA) {
         HEADERS += \

@@ -214,7 +214,8 @@ void MediaPlayerPrivateGStreamerBase::setVolume(float volume)
     if (!m_volumeElement)
         return;
 
-    gst_stream_volume_set_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC, static_cast<double>(volume));
+    volume = gst_stream_volume_convert_volume(GST_STREAM_VOLUME_FORMAT_CUBIC, GST_STREAM_VOLUME_FORMAT_LINEAR, volume);
+    g_object_set(m_volumeElement.get(), "volume", volume, NULL);
 }
 
 float MediaPlayerPrivateGStreamerBase::volume() const
@@ -222,7 +223,11 @@ float MediaPlayerPrivateGStreamerBase::volume() const
     if (!m_volumeElement)
         return 0;
 
-    return gst_stream_volume_get_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC);
+    double volume;
+    g_object_get(m_volumeElement.get(), "volume", &volume, NULL);
+    volume = gst_stream_volume_convert_volume(GST_STREAM_VOLUME_FORMAT_LINEAR, GST_STREAM_VOLUME_FORMAT_CUBIC, volume);
+
+    return volume;
 }
 
 
@@ -232,8 +237,9 @@ void MediaPlayerPrivateGStreamerBase::notifyPlayerOfVolumeChange()
 
     if (!m_player || !m_volumeElement)
         return;
-    double volume;
-    volume = gst_stream_volume_get_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC);
+
+    double volume = this->volume();
+
     // get_volume() can return values superior to 1.0 if the user
     // applies software user gain via third party application (GNOME
     // volume control for instance).
@@ -539,7 +545,7 @@ GstElement* MediaPlayerPrivateGStreamerBase::createVideoSink(GstElement* pipelin
 #endif
 }
 
-void MediaPlayerPrivateGStreamerBase::setStreamVolumeElement(GstStreamVolume* volume)
+void MediaPlayerPrivateGStreamerBase::setStreamVolumeElement(GstElement* volume)
 {
     ASSERT(!m_volumeElement);
     m_volumeElement = volume;

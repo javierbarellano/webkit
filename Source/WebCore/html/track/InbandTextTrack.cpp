@@ -265,6 +265,16 @@ void InbandTextTrack::removeCue(TextTrackCue* cue, ExceptionCode& ec)
     TextTrack::removeCue(cue, ec);
 }
 
+void InbandTextTrack::setLabel(const AtomicString& label)
+{
+    TrackBase::setLabel(label);
+}
+
+void InbandTextTrack::setLanguage(const AtomicString& language)
+{
+    TrackBase::setLanguage(language);
+}
+
 void InbandTextTrack::willRemoveTextTrackPrivate(InbandTextTrackPrivate* trackPrivate)
 {
     UNUSED_PARAM(trackPrivate);

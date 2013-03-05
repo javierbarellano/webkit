@@ -39,6 +39,8 @@ typedef struct _GstElement GstElement;
 
 namespace WebCore {
 
+class InbandTextTrackPrivateGStreamer;
+
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
 public:
     ~MediaPlayerPrivateGStreamer();
@@ -85,10 +87,13 @@ public:
     void durationChanged();
     void loadingFailed(MediaPlayer::NetworkState);
 
-    void videoChanged();
-    void audioChanged();
-    void notifyPlayerOfVideo();
+    void padAdded(GstPad*);
+    void padRemoved(GstPad*);
+    void videoCapsChanged();
     void notifyPlayerOfAudio();
+    void notifyPlayerOfText();
+    void notifyPlayerOfVideo();
+    void notifyPlayerOfVideoCaps();
 
     void sourceChanged();
     GstElement* audioSink() const;
@@ -115,7 +120,7 @@ private:
     void cacheDuration();
     void updateStates();
 
-    void createGSTPlayBin();
+    void createPipeline();
     bool changePipelineState(GstState);
 
     bool loadNextLocation();
@@ -127,8 +132,14 @@ private:
     virtual String engineDescription() const { return "GStreamer"; }
     virtual bool isLiveStream() const { return m_isStreaming; }
 
+#if ENABLE(VIDEO_TRACK)
+    void resizeTextTracks(int);
+#endif
+
 private:
-    GRefPtr<GstElement> m_playBin;
+    GRefPtr<GstElement> m_pipeline;
+    GRefPtr<GstElement> m_decodebin;
+    GRefPtr<GstElement> m_sink;
     GRefPtr<GstElement> m_source;
     float m_seekTime;
     bool m_changingRate;
@@ -155,8 +166,11 @@ private:
     bool m_volumeAndMuteInitialized;
     bool m_hasVideo;
     bool m_hasAudio;
+    bool m_hasText;
     guint m_audioTimerHandler;
+    guint m_textTimerHandler;
     guint m_videoTimerHandler;
+    guint m_videoCapsTimerHandler;
     GRefPtr<GstElement> m_webkitAudioSink;
     mutable long m_totalBytes;
     KURL m_url;
@@ -164,6 +178,10 @@ private:
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
+#if ENABLE(VIDEO_TRACK)
+    Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
+    Mutex m_textTrackMutex;
+#endif
 };
 }
 
