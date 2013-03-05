@@ -1135,6 +1135,14 @@ void HTMLMediaElement::updateActiveTextTrackCues(double movieTime)
     if (m_readyState != HAVE_NOTHING && m_player)
         currentCues = m_cueTree.allOverlaps(m_cueTree.createInterval(movieTime, movieTime));
 
+    // Ignore cues for disabled tracks. It may be better to loop through textTracks()
+    // and ask for activeCues().
+    for (size_t i = currentCues.size(); i > 0; --i) {
+        size_t j = i - 1;
+        if (currentCues[j].data()->track()->mode() == TextTrack::disabledKeyword())
+            currentCues.remove(j);
+    }
+
     CueList previousCues;
     CueList missedCues;
 
