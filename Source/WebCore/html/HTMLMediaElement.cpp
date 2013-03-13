@@ -96,13 +96,11 @@
 #endif
 
 #if ENABLE(VIDEO_TRACK)
-#include "AudioTrackList.h"
 #include "HTMLTrackElement.h"
 #include "RuntimeEnabledFeatures.h"
 #include "TextTrackCueList.h"
 #include "TextTrackList.h"
 #include "InBandTextTrack.h"
-#include "VideoTrackList.h"
 #endif
 
 #if ENABLE(WEB_AUDIO)
@@ -117,6 +115,11 @@
 #if ENABLE(MEDIA_SOURCE)
 #include "MediaSource.h"
 #include "MediaSourceRegistry.h"
+#endif
+
+#if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
+#include "VideoTrackList.h"
 #endif
 
 using namespace std;
@@ -295,12 +298,20 @@ HTMLMediaElement::~HTMLMediaElement()
     document()->unregisterForMediaVolumeCallbacks(this);
     document()->unregisterForPrivateBrowsingStateChangedCallbacks(this);
 #if ENABLE(VIDEO_TRACK)
-    if (m_textTracks) {
+    if (m_textTracks)
         m_textTracks->clearOwner();
-        for (unsigned i = 0; i < m_textTracks->length(); ++i) {
+    if (m_textTracks) {
+        for (unsigned i = 0; i < m_textTracks->length(); ++i)
             m_textTracks->item(i)->clearClient();
-    	}
-	}
+    }
+#endif
+
+    if (m_mediaController)
+        m_mediaController->removeMediaElement(this);
+
+    removeElementFromDocumentMap(this, document());
+
+#if ENABLE(VIDEO_TRACK)
     if (m_videoTracks) {
         m_videoTracks->clearOwner();
         for (unsigned i = 0; i < m_videoTracks->length(); ++i) {
@@ -309,10 +320,6 @@ HTMLMediaElement::~HTMLMediaElement()
     }
 #endif
 
-    if (m_mediaController)
-        m_mediaController->removeMediaElement(this);
-
-    removeElementFromDocumentMap(this, document());
 }
 
 void HTMLMediaElement::didMoveToNewDocument(Document* oldDocument)
@@ -1886,16 +1893,6 @@ void HTMLMediaElement::mediaPlayerKeyNeeded(MediaPlayer*, const String& keySyste
 }
 #endif
 
-#if ENABLE(VIDEO_TRACK)
-void HTMLMediaElement::mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language)
-{
-    RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
-    textTracks()->append(track.release());
-
-    configureTextTrackDisplay();
-}
-#endif
-
 void HTMLMediaElement::progressEventTimerFired(Timer<HTMLMediaElement>*)
 {
     ASSERT(m_player);
@@ -2747,17 +2744,6 @@ PassRefPtr<TextTrack> HTMLMediaElement::addTextTrack(const String& kind, const S
     return textTrack.release();
 }
 
-AudioTrackList* HTMLMediaElement::audioTracks()
-{
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return 0;
-
-    if (!m_audioTracks)
-        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-    return m_audioTracks.get();
-}
-
 TextTrackList* HTMLMediaElement::textTracks() 
 {
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
@@ -2767,17 +2753,6 @@ TextTrackList* HTMLMediaElement::textTracks()
         m_textTracks = TextTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
     return m_textTracks.get();
-}
-
-VideoTrackList* HTMLMediaElement::videoTracks()
-{
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return 0;
-
-    if (!m_videoTracks)
-        m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-    return m_videoTracks.get();
 }
 
 HTMLTrackElement* HTMLMediaElement::showingTrackWithSameKind(HTMLTrackElement* trackElement) const
@@ -3414,137 +3389,6 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
         renderer()->updateFromElement();
     endProcessingMediaPlayerCallback();
 }
-
-#if ENABLE(VIDEO_TRACK)
-void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language)
-{
-    TextTrack *existingTrack = textTracks()->item(index);
-    if(existingTrack != NULL) {
-        //existingTrack->setEnabled(enabled);
-        //existingTrack->setId(id);
-        existingTrack->setKind(kind);
-        existingTrack->setLabel(label);
-        existingTrack->setLanguage(language);
-    } else {
-        RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
-        textTracks()->append(track.release());
-    }
-
-    if (hasMediaControls()) {
-        mediaControls()->updateTextTrackDisplay();
-    }
-}
-
-void HTMLMediaElement::mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end)
-{
-	TextTrack* track = m_textTracks->inBandTrack(index);
-
-	// We can sometimes get cues before tracks
-	if(!track) {
-        RefPtr<InBandTextTrack> refTrack = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, "", "", "");
-        track = refTrack.get();
-        textTracks()->append(refTrack.release());
-	}
-
-	RefPtr<TextTrackCue> cue = TextTrackCue::create(ActiveDOMObject::scriptExecutionContext(), start, end, data);
-	ExceptionCode ec;
-	track->addCue(cue.release(), ec);
-}
-
-void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
-{
-    if(m_textTracks)
-        m_textTracks->clear();
-}
-
-void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
-{
-    if(m_audioTracks)
-        m_audioTracks->clear();
-}
-
-void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
-{
-    AudioTrack *existingTrack = audioTracks()->item(index);
-    if(existingTrack != NULL) {
-        existingTrack->setEnabled(enabled);
-        existingTrack->setId(id);
-        existingTrack->setKind(kind);
-        existingTrack->setLabel(label);
-        existingTrack->setLanguage(language);
-    } else {
-        RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
-        audioTracks()->append(track.release());
-    }
-
-    if (hasMediaControls()) {
-    	mediaControls()->reset();
-    	mediaControls()->updateAudioTrackDisplay();
-    }
-}
-
-void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
-{
-	int index = track->trackIndex();
-    if (index < 0)
-    	return;
-
-	m_player->setAudioEnabled(index, enabled);
-
-	if(hasMediaControls()) {
-		if(enabled) {
-    		mediaControls()->setAudioTrackSelected(index);
-    		mediaControls()->showAudioTrackDisplay();
-    	} else {
-	    	mediaControls()->hideAudioTrackDisplay();
-	    }
-    }
-}
-
-void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
-{
-    if(m_videoTracks)
-        m_videoTracks->clear();
-}
-
-void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
-{
-    VideoTrack *existingTrack = videoTracks()->item(index);
-    if(existingTrack != NULL) {
-    	existingTrack->setSelected(selected);
-        existingTrack->setId(id);
-        existingTrack->setKind(kind);
-        existingTrack->setLabel(label);
-        existingTrack->setLanguage(language);
-    } else {
-        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
-        videoTracks()->append(track.release());
-    }
-
-    if (hasMediaControls()) {
-    	mediaControls()->reset();
-    	mediaControls()->updateVideoTrackDisplay();
-    }
-}
-
-void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
-{
-	int index = track->trackIndex();
-    if (index < 0)
-    	return;
-
-    m_player->setVideoSelected(index, selected);
-
-    if(hasMediaControls()) {
-    	if (selected) {
-    		mediaControls()->setVideoTrackSelected(index);
-    		mediaControls()->showVideoTrackDisplay();
-    	} else {
-			mediaControls()->hideVideoTrackDisplay();
-		}
-    }
-}
-#endif
 
 #if USE(ACCELERATED_COMPOSITING)
 bool HTMLMediaElement::mediaPlayerRenderingCanBeAccelerated(MediaPlayer*)
@@ -4359,8 +4203,8 @@ void HTMLMediaElement::configureMediaControls()
 #if ENABLE(VIDEO_TRACK)
 void HTMLMediaElement::configureTextTrackDisplay()
 {
-	if(!m_textTracks)
-		return;
+    if (!m_textTracks)
+    	return;
 
     bool haveVisibleTextTrack = false;
     for (unsigned i = 0; i < m_textTracks->length(); ++i) {
@@ -4379,92 +4223,11 @@ void HTMLMediaElement::configureTextTrackDisplay()
         return;
     if (!hasMediaControls() && !createMediaControls())
         return;
+
     updateClosedCaptionsControls();
 
     if(hasMediaControls())
         mediaControls()->showTextTrackDisplay();
-}
-
-void HTMLMediaElement::configureAudioTrackDisplay()
-{
-    if (!m_audioTracks)
-        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-    if (hasMediaControls())
-        mediaControls()->showAudioTrackDisplay();
-}
-
-void HTMLMediaElement::configureVideoTrackDisplay()
-{
-    if (!m_videoTracks)
-      m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
-
-    if (hasMediaControls())
-        mediaControls()->showVideoTrackDisplay();
-}
-
-std::vector<std::string> HTMLMediaElement::getSelTextTrackNames(int *selectedIndex)
-{
-	*selectedIndex = -1;
-	std::vector<std::string> names;
-	int len = textTracks()->length();
-	for (int i=0; i<len; i++)
-	{
-		TextTrack *tt = textTracks()->item(i);
-		names.push_back(std::string(tt->language().ascii().data()));
-		if (tt->mode() == TextTrack::showingKeyword())
-			*selectedIndex = i;
-	}
-
-	return names;
-}
-
-std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames(int *selectedIndex)
-{
-	*selectedIndex = -1;
-	std::vector<std::string> names;
-	int len = videoTracks()->length();
-	for (int i=0; i<len; i++)
-	{
-		VideoTrack *vt = videoTracks()->item(i);
-		names.push_back(std::string(vt->label().ascii().data()));
-		if (vt->selected())
-			*selectedIndex = i;
-	}
-
-	return names;
-}
-
-void HTMLMediaElement::selectTextTrack(int index)
-{
-    textTracks()->setSelectedIndex(index);
-}
-
-void HTMLMediaElement::selectVideoTrack(int index)
-{
-	videoTracks()->setSelectedIndex(index);
-}
-
-std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames(int *selectedIndex)
-{
-	*selectedIndex = -1;
-	std::vector<std::string> names;
-	int len = audioTracks()->length();
-
-	for (int i=0; i<len; i++)
-	{
-		AudioTrack *at = audioTracks()->item(i);
-		names.push_back(std::string(at->label().ascii().data()));
-		if (at->enabled())
-			*selectedIndex = i;
-	}
-	return names;
-}
-
-
-void HTMLMediaElement::selectAudioTrack(int index)
-{
-	audioTracks()->setSelectedIndex(index);
 }
 
 void HTMLMediaElement::updateClosedCaptionsControls()
@@ -4802,5 +4565,257 @@ void HTMLMediaElement::removeBehaviorsRestrictionsAfterFirstUserGesture()
     m_restrictions = NoRestrictions;
 }
 
+
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::mediaPlayerTextTrackChanged(MediaPlayer*, int index, const String& id, const String& kind, const String &label, const String& language)
+{
+    RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
+    textTracks()->append(track.release());
+
+    configureTextTrackDisplay();
 }
+
+void HTMLMediaElement::mediaPlayerAddTextTrack(MediaPlayer*, int index, const String& mode, const String& id, const String& kind, const String &label, const String& language)
+{
+    TextTrack *existingTrack = textTracks()->item(index);
+    if(existingTrack != NULL) {
+        //existingTrack->setEnabled(enabled);
+        //existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+    } else {
+        RefPtr<InBandTextTrack> track = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, kind, label, language);
+        textTracks()->append(track.release());
+    }
+
+    if (hasMediaControls()) {
+        mediaControls()->updateTextTrackDisplay();
+    }
+}
+
+void HTMLMediaElement::mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end)
+{
+	TextTrack* track = m_textTracks->inBandTrack(index);
+
+	// We can sometimes get cues before tracks
+	if(!track) {
+        RefPtr<InBandTextTrack> refTrack = InBandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, "", "", "");
+        track = refTrack.get();
+        textTracks()->append(refTrack.release());
+	}
+
+	RefPtr<TextTrackCue> cue = TextTrackCue::create(ActiveDOMObject::scriptExecutionContext(), start, end, data);
+	ExceptionCode ec;
+	track->addCue(cue.release(), ec);
+}
+
+void HTMLMediaElement::mediaPlayerClearTextTracks(MediaPlayer*)
+{
+    if(m_textTracks)
+        m_textTracks->clear();
+}
+#endif
+
+
+#if ENABLE(VIDEO_TRACK)
+void HTMLMediaElement::configureAudioTrackDisplay()
+{
+    if (!m_audioTracks)
+        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    if (hasMediaControls())
+        mediaControls()->showAudioTrackDisplay();
+}
+
+void HTMLMediaElement::configureVideoTrackDisplay()
+{
+    if (!m_videoTracks)
+      m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    if (hasMediaControls())
+        mediaControls()->showVideoTrackDisplay();
+}
+
+std::vector<std::string> HTMLMediaElement::getSelTextTrackNames(int *selectedIndex)
+{
+	*selectedIndex = -1;
+	std::vector<std::string> names;
+	int len = textTracks()->length();
+	for (int i=0; i<len; i++)
+	{
+		TextTrack *tt = textTracks()->item(i);
+		names.push_back(std::string(tt->language().ascii().data()));
+		if (tt->mode() == TextTrack::showingKeyword())
+			*selectedIndex = i;
+	}
+
+	return names;
+}
+
+std::vector<std::string> HTMLMediaElement::getSelVideoTrackNames(int *selectedIndex)
+{
+	*selectedIndex = -1;
+	std::vector<std::string> names;
+	int len = videoTracks()->length();
+	for (int i=0; i<len; i++)
+	{
+		VideoTrack *vt = videoTracks()->item(i);
+		names.push_back(std::string(vt->label().ascii().data()));
+		if (vt->selected())
+			*selectedIndex = i;
+	}
+
+	return names;
+}
+
+void HTMLMediaElement::selectTextTrack(int index)
+{
+    textTracks()->setSelectedIndex(index);
+}
+
+void HTMLMediaElement::selectVideoTrack(int index)
+{
+	videoTracks()->setSelectedIndex(index);
+}
+
+std::vector<std::string> HTMLMediaElement::getSelAudioTrackNames(int *selectedIndex)
+{
+	*selectedIndex = -1;
+	std::vector<std::string> names;
+	int len = audioTracks()->length();
+
+	for (int i=0; i<len; i++)
+	{
+		AudioTrack *at = audioTracks()->item(i);
+		names.push_back(std::string(at->label().ascii().data()));
+		if (at->enabled())
+			*selectedIndex = i;
+	}
+	return names;
+}
+
+
+void HTMLMediaElement::selectAudioTrack(int index)
+{
+	audioTracks()->setSelectedIndex(index);
+}
+#endif
+
+
+#if ENABLE(VIDEO_TRACK)
+
+void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
+{
+    if(m_audioTracks)
+        m_audioTracks->clear();
+}
+
+AudioTrackList* HTMLMediaElement::audioTracks()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return 0;
+
+    if (!m_audioTracks)
+        m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    return m_audioTracks.get();
+}
+
+VideoTrackList* HTMLMediaElement::videoTracks()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return 0;
+
+    if (!m_videoTracks)
+        m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
+
+    return m_videoTracks.get();
+}
+
+void HTMLMediaElement::mediaPlayerAddAudioTrack(MediaPlayer* player, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
+{
+    AudioTrack *existingTrack = audioTracks()->item(index);
+    if(existingTrack != NULL) {
+        existingTrack->setEnabled(enabled);
+        existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+    } else {
+        RefPtr<AudioTrack> track = AudioTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, enabled, id, kind, label, language);
+        audioTracks()->append(track.release());
+    }
+
+    if (hasMediaControls()) {
+    	mediaControls()->reset();
+    	mediaControls()->updateAudioTrackDisplay();
+    }
+}
+
+void HTMLMediaElement::audioTrackEnabled(AudioTrack* track, bool enabled)
+{
+	int index = track->trackIndex();
+    if (index < 0)
+    	return;
+
+	m_player->setAudioEnabled(index, enabled);
+
+	if(hasMediaControls()) {
+		if(enabled) {
+    		mediaControls()->setAudioTrackSelected(index);
+    		mediaControls()->showAudioTrackDisplay();
+    	} else {
+	    	mediaControls()->hideAudioTrackDisplay();
+	    }
+    }
+}
+
+void HTMLMediaElement::mediaPlayerClearVideoTracks(MediaPlayer*)
+{
+    if(m_videoTracks)
+        m_videoTracks->clear();
+}
+
+void HTMLMediaElement::mediaPlayerAddVideoTrack(MediaPlayer* player, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+{
+    VideoTrack *existingTrack = videoTracks()->item(index);
+    if(existingTrack != NULL) {
+    	existingTrack->setSelected(selected);
+        existingTrack->setId(id);
+        existingTrack->setKind(kind);
+        existingTrack->setLabel(label);
+        existingTrack->setLanguage(language);
+    } else {
+        RefPtr<VideoTrack> track = VideoTrack::create(ActiveDOMObject::scriptExecutionContext(), this, index, selected, id, kind, label, language);
+        videoTracks()->append(track.release());
+    }
+
+    if (hasMediaControls()) {
+    	mediaControls()->reset();
+    	mediaControls()->updateVideoTrackDisplay();
+    }
+}
+
+void HTMLMediaElement::videoTrackSelected(VideoTrack* track, bool selected)
+{
+	int index = track->trackIndex();
+    if (index < 0)
+    	return;
+
+    m_player->setVideoSelected(index, selected);
+
+    if(hasMediaControls()) {
+    	if (selected) {
+    		mediaControls()->setVideoTrackSelected(index);
+    		mediaControls()->showVideoTrackDisplay();
+    	} else {
+			mediaControls()->hideVideoTrackDisplay();
+		}
+    }
+}
+#endif
+
+} // namespace WebCore
+
 #endif
