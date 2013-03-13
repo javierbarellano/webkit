@@ -33,6 +33,7 @@
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
 #include "MediaControlElements.h"
+#include "MediaSelControlElements.h"
 #include "MouseEvent.h"
 #include "Page.h"
 #include "RenderTheme.h"

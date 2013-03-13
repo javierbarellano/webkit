@@ -10,6 +10,7 @@
 
 #include "RenderMenuList.h"
 #include "MediaControlElements.h"
+#include "MediaSelControlElements.h"
 
 namespace WebCore {
 

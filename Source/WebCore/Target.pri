@@ -1891,6 +1891,7 @@ HEADERS += \
     html/shadow/HTMLContentElement.h \
     html/shadow/HTMLShadowElement.h \
     html/shadow/MediaControlElements.h \
+    html/shadow/MediaSelControlElements.h \
     html/shadow/DetailsMarkerControl.h \
     html/track/LoadableTextTrack.h \
     html/track/TextTrack.h \
@@ -3226,6 +3227,7 @@ enable?(VIDEO) {
         html/MediaController.cpp \
         html/MediaFragmentURIParser.cpp \
         html/shadow/MediaControlElements.cpp \
+        html/shadow/MediaSelControlElements.cpp \
         html/TimeRanges.cpp \
         platform/graphics/MediaPlayer.cpp \
         rendering/RenderVideo.cpp \

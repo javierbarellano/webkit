@@ -1536,6 +1536,7 @@ SET(WebCore_SOURCES
     html/shadow/InsertionPoint.cpp
     html/shadow/MediaControls.cpp
     html/shadow/MediaControlElements.cpp
+    html/shadow/MediaSelControlElements.cpp
     html/shadow/MediaControlRootElement.cpp
     html/shadow/MeterShadowElement.cpp
     html/shadow/ProgressShadowElement.cpp

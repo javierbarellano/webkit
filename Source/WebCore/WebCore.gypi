@@ -4454,6 +4454,8 @@
             'html/shadow/MediaControls.h',
             'html/shadow/MediaControlElements.cpp',
             'html/shadow/MediaControlElements.h',
+            'html/shadow/MediaSelControlElements.cpp',
+            'html/shadow/MediaSelControlElements.h',
             'html/shadow/MediaControlRootElementChromium.cpp',
             'html/shadow/MediaControlRootElementChromium.h',
             'html/shadow/MediaControlRootElementChromiumAndroid.cpp',
