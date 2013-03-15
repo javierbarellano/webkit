@@ -48,18 +48,22 @@ enum Action {
 
 enum Mode {
     Undecided, // Implies that we need predictions to decide. We will never get to the backend in this mode.
+    Unprofiled, // Implies that array profiling didn't see anything. But that could be because the operands didn't comply with basic type assumptions (base is cell, property is int). This either becomes Generic or ForceExit depending on value profiling.
     ForceExit, // Implies that we have no idea how to execute this operation, so we should just give up.
     Generic,
     String,
     
     // Modes of conventional indexed storage where the check is non side-effecting.
     ArrayStorage,
+    ArrayStorageToHole,
     SlowPutArrayStorage,
     ArrayStorageOutOfBounds,
     ArrayWithArrayStorage,
+    ArrayWithArrayStorageToHole,
     ArrayWithSlowPutArrayStorage,
     ArrayWithArrayStorageOutOfBounds,
     PossiblyArrayWithArrayStorage,
+    PossiblyArrayWithArrayStorageToHole,
     PossiblyArrayWithSlowPutArrayStorage,
     PossiblyArrayWithArrayStorageOutOfBounds,
     
@@ -87,20 +91,28 @@ enum Mode {
 // First: helpers for non-side-effecting checks.
 #define NON_ARRAY_ARRAY_STORAGE_MODES                      \
     Array::ArrayStorage:                                   \
+    case Array::ArrayStorageToHole:                        \
     case Array::SlowPutArrayStorage:                       \
     case Array::ArrayStorageOutOfBounds:                   \
     case Array::PossiblyArrayWithArrayStorage:             \
+    case Array::PossiblyArrayWithArrayStorageToHole:       \
     case Array::PossiblyArrayWithSlowPutArrayStorage:      \
     case Array::PossiblyArrayWithArrayStorageOutOfBounds
 #define ARRAY_WITH_ARRAY_STORAGE_MODES                     \
     Array::ArrayWithArrayStorage:                          \
+    case Array::ArrayWithArrayStorageToHole:               \
     case Array::ArrayWithSlowPutArrayStorage:              \
     case Array::ArrayWithArrayStorageOutOfBounds
 #define ALL_ARRAY_STORAGE_MODES                            \
     NON_ARRAY_ARRAY_STORAGE_MODES:                         \
     case ARRAY_WITH_ARRAY_STORAGE_MODES
+#define ARRAY_STORAGE_TO_HOLE_MODES                        \
+    Array::ArrayStorageToHole:                             \
+    case Array::ArrayWithArrayStorageToHole:               \
+    case Array::PossiblyArrayWithArrayStorageToHole
 #define IN_BOUNDS_ARRAY_STORAGE_MODES                      \
-    Array::ArrayStorage:                                   \
+    ARRAY_STORAGE_TO_HOLE_MODES:                           \
+    case Array::ArrayStorage:                              \
     case Array::ArrayWithArrayStorage:                     \
     case Array::PossiblyArrayWithArrayStorage
 #define SLOW_PUT_ARRAY_STORAGE_MODES                       \
@@ -172,10 +184,23 @@ inline bool isSlowPutAccess(Array::Mode arrayMode)
     }
 }
 
+inline bool mayStoreToHole(Array::Mode arrayMode)
+{
+    switch (arrayMode) {
+    case ARRAY_STORAGE_TO_HOLE_MODES:
+    case OUT_OF_BOUNDS_ARRAY_STORAGE_MODES:
+    case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
+        return true;
+    default:
+        return false;
+    }
+}
+
 inline bool canCSEStorage(Array::Mode arrayMode)
 {
     switch (arrayMode) {
     case Array::Undecided:
+    case Array::Unprofiled:
     case Array::ForceExit:
     case Array::Generic:
     case Array::Arguments:
@@ -208,6 +233,7 @@ inline bool modeIsSpecific(Array::Mode mode)
 {
     switch (mode) {
     case Array::Undecided:
+    case Array::Unprofiled:
     case Array::ForceExit:
     case Array::Generic:
         return false;
@@ -220,6 +246,7 @@ inline bool modeSupportsLength(Array::Mode mode)
 {
     switch (mode) {
     case Array::Undecided:
+    case Array::Unprofiled:
     case Array::ForceExit:
     case Array::Generic:
     case NON_ARRAY_ARRAY_STORAGE_MODES:
@@ -234,6 +261,7 @@ inline bool benefitsFromStructureCheck(Array::Mode mode)
     switch (mode) {
     case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
     case Array::Undecided:
+    case Array::Unprofiled:
     case Array::ForceExit:
     case Array::Generic:
         return false;

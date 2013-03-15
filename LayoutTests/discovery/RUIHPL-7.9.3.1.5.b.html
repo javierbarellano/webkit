@@ -24,7 +24,7 @@ function paused()
 function playable() {
 	canplay = true;
 	vid = document.getElementsByTagName("audio")[0];
-	vid.audioTracks.oncanplay = null;
+	//vid.audioTracks.oncanplay = null;
 	testPassed("Audio Track is playable: " + fileName);
 	
 	vid.addEventListener("playing", playing, true);

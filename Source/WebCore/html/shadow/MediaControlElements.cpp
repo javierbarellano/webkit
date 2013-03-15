@@ -30,22 +30,10 @@
 
 #if ENABLE(VIDEO)
 
-#include <string>
 #include <sstream>
 
 #include "MediaControlElements.h"
 
-#include "NodeRenderingContext.h"
-#include "AXObjectCache.h"
-#include "HTMLDataListElement.h"
-#include "Node.h"
-#include "HTMLOptionElement.h"
-#include "HTMLFormElement.h"
-#include "KeyboardEvent.h"
-#include "SpatialNavigation.h"
-#include "FormController.h"
-#include "FormDataList.h"
-#include "HTMLFormControlElementWithState.h"
 #include "CSSStyleDeclaration.h"
 #include "CSSValueKeywords.h"
 #include "DOMTokenList.h"
@@ -53,7 +41,6 @@
 #include "FloatConversion.h"
 #include "FloatPoint.h"
 #include "Frame.h"
-#include "HTMLOptionElement.h"
 #include "HTMLDivElement.h"
 #include "HTMLMediaElement.h"
 #include "HTMLNames.h"
@@ -89,9 +76,6 @@ static const float cSkipTime = 0.2f;
 static const float cScanRepeatDelay = 1.5f;
 static const float cScanMaximumRate = 8;
 
-static const unsigned maxSelectItems=30;
-static const DOMTimeStamp typeAheadTimeout = 1000;
-
 HTMLMediaElement* toParentMediaElement(Node* node)
 {
     if (!node)
@@ -109,7 +93,7 @@ MediaControlElementType mediaControlElementType(Node* node)
 {
     ASSERT(node->isMediaControlElement());
     HTMLElement* element = toHTMLElement(node);
-   if (element->hasTagName(inputTag))
+    if (element->hasTagName(inputTag))
         return static_cast<MediaControlInputElement*>(element)->displayType();
     return static_cast<MediaControlElement*>(element)->displayType();
 }
@@ -278,7 +262,6 @@ void MediaControlPanelElement::makeOpaque()
 
 void MediaControlPanelElement::makeTransparent()
 {
-
     if (!m_opaque)
         return;
 
@@ -509,15 +492,12 @@ void MediaControlInputElement::hide()
 
 void MediaControlInputElement::setDisplayType(MediaControlElementType displayType)
 {
-
     if (displayType == m_displayType)
         return;
 
     m_displayType = displayType;
-    if (RenderObject* object = renderer()) {
-
+    if (RenderObject* object = renderer())
         object->repaint();
-    }
 }
 
 // ----------------------------
@@ -1792,7 +1772,6 @@ void MediaControlTextTrackContainerElement::updateSizes()
         setInlineStyleProperty(CSSPropertyFontSize, String::number(fontSize) + "px");
     }
 }
-
 
 #endif // ENABLE(VIDEO_TRACK)
 

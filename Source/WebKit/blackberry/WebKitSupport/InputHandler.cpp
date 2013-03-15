@@ -61,6 +61,7 @@
 #include "WebPageClient.h"
 #include "WebPage_p.h"
 #include "WebSettings.h"
+#include "htmlediting.h"
 #include "visible_units.h"
 
 #include <BlackBerryPlatformKeyboardEvent.h>
@@ -138,6 +139,7 @@ InputHandler::InputHandler(WebPagePrivate* page)
     , m_delayKeyboardVisibilityChange(false)
     , m_request(0)
     , m_processingTransactionId(-1)
+    , m_focusZoomScale(0.0)
 {
 }
 
@@ -603,18 +605,21 @@ void InputHandler::requestCheckingOfString(PassRefPtr<WebCore::TextCheckingReque
 
 void InputHandler::spellCheckingRequestCancelled(int32_t transactionId)
 {
-    if (transactionId != m_processingTransactionId)
-        SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestCancelled We are out of sync with input service. Expected transaction id %d, received %d.", m_processingTransactionId, transactionId);
-    else
-        SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestCancelled Request with transaction id %d has been cancelled.", transactionId);
+    SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestCancelled Expected transaction id %d, received %d. %s"
+                , transactionId
+                , m_processingTransactionId
+                , transactionId == m_processingTransactionId ? "" : "We are out of sync with input service.");
+
     m_request->didCancel();
     m_processingTransactionId = -1;
 }
 
 void InputHandler::spellCheckingRequestProcessed(int32_t transactionId, spannable_string_t* spannableString)
 {
-    if (transactionId != m_processingTransactionId)
-        SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestProcessed We are out of sync with input service. Expected transaction id %d, received %d.", m_processingTransactionId, transactionId);
+    SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestProcessed Expected transaction id %d, received %d. %s"
+                , transactionId
+                , m_processingTransactionId
+                , transactionId == m_processingTransactionId ? "" : "We are out of sync with input service.");
 
     if (!spannableString || !isActiveTextEdit()) {
         SpellingLog(LogLevelWarn, "InputHandler::spellCheckingRequestProcessed Cancelling request with transactionId %d.", transactionId);
@@ -695,6 +700,11 @@ bool InputHandler::shouldRequestSpellCheckingOptionsForPoint(Platform::IntPoint&
     spellCheckingOptionRequest.caret_rect.caret_bottom_y = rect.y() + rect.height();
     spellCheckingOptionRequest.startTextPosition = marker->startOffset();
     spellCheckingOptionRequest.endTextPosition = marker->endOffset();
+
+    SpellingLog(LogLevelInfo, "InputHandler::shouldRequestSpellCheckingOptionsForPoint spellCheckingOptionRequest\ntop %d, %d\nbottom %d %d\nMarker start %d end %d"
+                , spellCheckingOptionRequest.caret_rect.caret_top_x, spellCheckingOptionRequest.caret_rect.caret_top_y
+                , spellCheckingOptionRequest.caret_rect.caret_bottom_x, spellCheckingOptionRequest.caret_rect.caret_bottom_y
+                , spellCheckingOptionRequest.startTextPosition, spellCheckingOptionRequest.endTextPosition);
 
     return true;
 }
@@ -883,6 +893,8 @@ void InputHandler::spellCheckBlock(VisibleSelection& visibleSelection, TextCheck
                 return;
             }
             startOfCurrentLine = VisiblePosition(rangeForSpellChecking->endPosition());
+            endOfCurrentLine = endOfLine(startOfCurrentLine);
+            rangeForSpellChecking = DOMSupport::trimWhitespaceFromRange(VisiblePosition(rangeForSpellChecking->startPosition()), VisiblePosition(rangeForSpellChecking->endPosition()));
         }
 
         SpellingLog(LogLevelInfo, "InputHandler::spellCheckBlock Substring text is '%s', of size %d", rangeForSpellChecking->text().latin1().data(), rangeForSpellChecking->text().length());
@@ -901,11 +913,12 @@ PassRefPtr<Range> InputHandler::getRangeForSpellCheckWithFineGranularity(Visible
         // Check the text length within this range.
         if (VisibleSelection(startPosition, endOfCurrentWord).toNormalizedRange()->text().length() >= MaxSpellCheckingStringLength) {
             // If this is not the first word, return a Range with end boundary set to the previous word.
-            if (startOfWord(endOfCurrentWord, LeftWordIfOnBoundary) != startPosition)
+            if (startOfWord(endOfCurrentWord, LeftWordIfOnBoundary) != startPosition && !DOMSupport::isEmptyRangeOrAllSpaces(startPosition, endOfCurrentWord))
                 return VisibleSelection(startPosition, endOfWord(previousWordPosition(endOfCurrentWord), LeftWordIfOnBoundary)).toNormalizedRange();
 
             // Our first word has gone over the character limit. Increment the starting position past an uncheckable word.
             startPosition = endOfCurrentWord;
+            endOfCurrentWord = endOfWord(nextWordPosition(endOfCurrentWord));
         } else if (endOfCurrentWord == endPosition) {
             // Return the last segment if the end of our word lies at the end of the range.
             return VisibleSelection(startPosition, endPosition).toNormalizedRange();
@@ -1037,10 +1050,32 @@ void InputHandler::ensureFocusTextElementVisible(CaretScrollType scrollType)
         break;
     }
     case VisibleSelection::NoSelection:
+        if (m_focusZoomScale) {
+            m_webPage->zoomAboutPoint(m_focusZoomScale, m_focusZoomLocation);
+            m_focusZoomScale = 0.0;
+            m_focusZoomLocation = WebCore::IntPoint();
+        }
         return;
     }
 
     int fontHeight = selectionFocusRect.height();
+
+    m_webPage->suspendBackingStore();
+
+    // If the text is too small, zoom in to make it a minimum size.
+    // The minimum size being defined as 3 mm is a good value based on my observations.
+    static const int s_minimumTextHeightInPixels = Graphics::Screen::primaryScreen()->heightInMMToPixels(3);
+
+    if (fontHeight && fontHeight * m_webPage->currentScale() < s_minimumTextHeightInPixels) {
+        if (!m_focusZoomScale) {
+            m_focusZoomScale = m_webPage->currentScale();
+            m_focusZoomLocation = selectionFocusRect.location();
+        }
+        m_webPage->zoomAboutPoint(s_minimumTextHeightInPixels / fontHeight, m_focusZoomLocation);
+    } else {
+        m_focusZoomScale = 0.0;
+        m_focusZoomLocation = WebCore::IntPoint();
+    }
 
     if (elementFrame != mainFrame) { // Element is in a subframe.
         // Remove any scroll offset within the subframe to get the point relative to the main frame.
@@ -1090,16 +1125,14 @@ void InputHandler::ensureFocusTextElementVisible(CaretScrollType scrollType)
             }
 
             // Pad the rect to improve the visual appearance.
-            // Padding must be large enough to expose the selection / FCC should they exist. Dragging the handle offscreen and releasing
-            // will not trigger an automatic scroll. Using a padding of 40 will fully exposing the width of the current handle and half of
-            // the height making it usable.
-            // FIXME: This will need to be updated when the graphics change.
-            // FIXME: The value of 40 should be calculated as a unit of measure using Graphics::Screen::primaryScreen()->heightInMMToPixels
-            // using a relative value to the size of the handle. We should also consider expanding different amounts horizontally vs vertically.
-            selectionFocusRect.inflate(40 /* padding in pixels */);
-            WebCore::IntRect revealRect = layer->getRectToExpose(actualScreenRect, selectionFocusRect,
+            // Convert the padding back from transformed to ensure a consistent padding regardless of
+            // zoom level as controls do not zoom.
+            static const int s_focusRectPaddingSize = Graphics::Screen::primaryScreen()->heightInMMToPixels(3);
+            selectionFocusRect.inflate(m_webPage->mapFromTransformed(WebCore::IntSize(0, s_focusRectPaddingSize)).height());
+
+            WebCore::IntRect revealRect(layer->getRectToExpose(actualScreenRect, selectionFocusRect,
                                                                  horizontalScrollAlignment,
-                                                                 verticalScrollAlignment);
+                                                                 verticalScrollAlignment));
 
             mainFrameView->setConstrainsScrollingToContentEdge(false);
             // In order to adjust the scroll position to ensure the focused input field is visible,
@@ -1113,12 +1146,7 @@ void InputHandler::ensureFocusTextElementVisible(CaretScrollType scrollType)
             mainFrameView->setConstrainsScrollingToContentEdge(true);
         }
     }
-
-    // If the text is too small, zoom in to make it a minimum size.
-    // The minimum size being defined as 3 mm is a good value based on my observations.
-    static const int s_minimumTextHeightInPixels = Graphics::Screen::primaryScreen()->widthInMMToPixels(3);
-    if (fontHeight && fontHeight < s_minimumTextHeightInPixels)
-        m_webPage->zoomAboutPoint(s_minimumTextHeightInPixels / fontHeight, selectionFocusRect.location());
+    m_webPage->resumeBackingStore();
 }
 
 void InputHandler::ensureFocusPluginElementVisible()
@@ -1225,11 +1253,6 @@ void InputHandler::notifyClientOfKeyboardVisibilityChange(bool visible)
     // If we aren't ready for input, keyboard changes should be ignored.
     if (!isInputModeEnabled() && visible)
         return;
-
-    if (processingChange()) {
-        ASSERT(visible);
-        return;
-    }
 
     if (!m_delayKeyboardVisibilityChange) {
         m_webPage->showVirtualKeyboard(visible);

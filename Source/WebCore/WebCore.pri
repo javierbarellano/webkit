@@ -194,9 +194,7 @@ enable?(VIDEO) {
         }
     } else:use?(GSTREAMER) {
         INCLUDEPATH += $$SOURCE_DIR/platform/graphics/gstreamer
-
-        PKGCONFIG += glib-2.0 gio-2.0 gstreamer-0.10 gstreamer-app-0.10 gstreamer-base-0.10 gstreamer-interfaces-0.10 gstreamer-pbutils-0.10 gstreamer-plugins-base-0.10 gstreamer-video-0.10
-    } else:contains(DEFINES, WTF_USE_QT_MULTIMEDIA=1) {
+    } else:use?(QT_MULTIMEDIA) {
         CONFIG   *= mobility
         MOBILITY *= multimedia
     }

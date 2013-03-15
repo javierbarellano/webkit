@@ -124,7 +124,7 @@ namespace WebCore {
     macro(updateready) \
     macro(upnp) \
     macro(upgradeneeded) \
-	macro(versionchange) \
+    macro(versionchange) \
     macro(webkitvisibilitychange) \
     macro(write) \
     macro(writeend) \
@@ -134,7 +134,6 @@ namespace WebCore {
     macro(DOMActivate) \
     macro(DOMFocusIn) \
     macro(DOMFocusOut) \
-    macro(DOMAttrModified) \
     macro(DOMCharacterDataModified) \
     macro(DOMNodeInserted) \
     macro(DOMNodeInsertedIntoDocument) \
@@ -167,7 +166,6 @@ namespace WebCore {
     macro(cuechange) \
     macro(enter) \
     macro(exit) \
-    macro(trackselected) \
     \
     macro(webkitbeginfullscreen) \
     macro(webkitendfullscreen) \
@@ -238,7 +236,7 @@ namespace WebCore {
     macro(unmute) \
     macro(icechange) \
     macro(icecandidate) \
-    macro(negotationneeded) \
+    macro(negotiationneeded) \
     \
     macro(show) \
     \

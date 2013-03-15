@@ -181,13 +181,12 @@ private:
 
 #if ENABLE(VIDEO_TRACK)
     MediaControlTextTrackContainerElement* m_textDisplayContainer;
+    MediaControlTextTrackDisplayElement* m_textTrackDisplay;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
     MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
     MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;
 #endif
-
     Timer<MediaControlRootElement> m_hideFullscreenControlsTimer;
-
     bool m_isMouseOverControls;
     bool m_isFullscreen;
 };

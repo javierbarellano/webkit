@@ -62,10 +62,10 @@
 #include "UserAgentStyleSheets.h"
 #include <wtf/text/StringBuilder.h>
 
-#include <QGuiApplication>
 #include <QColor>
 #include <QFile>
 #include <QFontMetrics>
+#include <QGuiApplication>
 
 #include <QStyleHints>
 

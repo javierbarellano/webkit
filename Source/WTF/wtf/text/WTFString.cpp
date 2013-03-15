@@ -450,22 +450,22 @@ String String::number(unsigned long long number)
     return numberToStringUnsigned<String>(number);
 }
 
-String String::number(double number, unsigned flags, unsigned precision)
+String String::number(double number, unsigned precision, TrailingZerosTruncatingPolicy trailingZerosTruncatingPolicy)
 {
     NumberToStringBuffer buffer;
-
-    // Mimic String::format("%.[precision]g", ...), but use dtoas rounding facilities.
-    if (flags & ShouldRoundSignificantFigures)
-        return String(numberToFixedPrecisionString(number, precision, buffer, flags & ShouldTruncateTrailingZeros));
-
-    // Mimic String::format("%.[precision]f", ...), but use dtoas rounding facilities.
-    return String(numberToFixedWidthString(number, precision, buffer));
+    return String(numberToFixedPrecisionString(number, precision, buffer, trailingZerosTruncatingPolicy == TruncateTrailingZeros));
 }
 
 String String::numberToStringECMAScript(double number)
 {
     NumberToStringBuffer buffer;
     return String(numberToString(number, buffer));
+}
+
+String String::numberToStringFixedWidth(double number, unsigned decimalPlaces)
+{
+    NumberToStringBuffer buffer;
+    return String(numberToFixedWidthString(number, decimalPlaces, buffer));
 }
 
 int String::toIntStrict(bool* ok, int base) const
@@ -778,6 +778,19 @@ String String::make8BitFrom16BitSource(const UChar* source, size_t length)
     return result;
 }
 
+String String::make16BitFrom8BitSource(const LChar* source, size_t length)
+{
+    if (!length)
+        return String();
+    
+    UChar* destination;
+    String result = String::createUninitialized(length, destination);
+    
+    StringImpl::copyChars(destination, source, length);
+    
+    return result;
+}
+
 String String::fromUTF8(const LChar* stringStart, size_t length)
 {
     if (length > numeric_limits<unsigned>::max())
@@ -820,12 +833,6 @@ String String::fromUTF8WithLatin1Fallback(const LChar* string, size_t size)
     if (!utf8)
         return String(string, size);
     return utf8;
-}
-
-void String::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this);
-    info.addMember(m_impl);
 }
 
 // String Operations

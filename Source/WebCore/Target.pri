@@ -381,6 +381,7 @@ SOURCES += \
     dom/DocumentMarker.cpp \
     dom/DocumentOrderedMap.cpp \
     dom/DocumentParser.cpp \
+    dom/DocumentStyleSheetCollection.cpp \
     dom/DocumentType.cpp \
     dom/DOMCoreException.cpp \
     dom/DOMError.cpp \
@@ -564,6 +565,7 @@ SOURCES += \
     html/BaseCheckableInputType.cpp \
     html/BaseClickableWithKeyInputType.cpp \
     html/BaseDateAndTimeInputType.cpp \
+    html/BaseMultipleFieldsDateAndTimeInputType.cpp \
     html/BaseTextInputType.cpp \
     html/ButtonInputType.cpp \
     html/CheckboxInputType.cpp \
@@ -724,6 +726,11 @@ SOURCES += \
     html/parser/XSSAuditor.cpp \
     html/shadow/ContentDistributor.cpp \
     html/shadow/ContentSelectorQuery.cpp \
+    html/shadow/DateTimeEditElement.cpp \
+    html/shadow/DateTimeFieldElement.cpp \
+    html/shadow/DateTimeFieldElements.cpp \
+    html/shadow/DateTimeNumericFieldElement.cpp \
+    html/shadow/DateTimeSymbolicFieldElement.cpp \
     html/shadow/DetailsMarkerControl.cpp \
     html/shadow/HTMLContentElement.cpp \
     html/shadow/HTMLShadowElement.cpp \
@@ -946,8 +953,6 @@ SOURCES += \
     platform/text/Hyphenation.cpp \
     platform/text/LocaleNone.cpp \
     platform/text/LocaleToScriptMappingDefault.cpp \
-    platform/text/LocalizedDateNone.cpp \
-    platform/text/LocalizedNumberNone.cpp \
     platform/text/Localizer.cpp \
     platform/text/QuotedPrintable.cpp \
     platform/CalculationValue.cpp \
@@ -1129,6 +1134,7 @@ SOURCES += \
     rendering/ExclusionInterval.cpp \
     rendering/ExclusionRectangle.cpp \
     rendering/ExclusionShape.cpp \
+    rendering/ExclusionShapeInsideInfo.cpp \
     rendering/FilterEffectRenderer.cpp \
     rendering/FixedTableLayout.cpp \
     rendering/FlowThreadController.cpp \
@@ -1172,6 +1178,7 @@ SOURCES += \
     rendering/RenderLayerBacking.cpp \
     rendering/RenderLayerCompositor.cpp \
     rendering/RenderLayerFilterInfo.cpp \
+    rendering/RenderLayerModelObject.cpp \
     rendering/RenderLineBoxList.cpp \
     rendering/RenderListBox.cpp \
     rendering/RenderListItem.cpp \
@@ -1221,7 +1228,6 @@ SOURCES += \
     rendering/RenderWordBreak.cpp \
     rendering/RootInlineBox.cpp \
     rendering/ScrollBehavior.cpp \
-    rendering/WrapShapeInfo.cpp \
     rendering/style/BasicShapes.cpp \
     rendering/style/ContentData.cpp \
     rendering/style/CounterDirectives.cpp \
@@ -1581,6 +1587,7 @@ HEADERS += \
     dom/DocumentMarker.h \
     dom/DocumentMarkerController.h \
     dom/DocumentOrderedMap.h \
+    dom/DocumentStyleSheetCollection.h \
     dom/DocumentType.h \
     dom/DOMError.h \
     dom/DOMImplementation.h \
@@ -2046,6 +2053,7 @@ HEADERS += \
     page/GestureTapHighlighter.h\
     page/GroupSettings.h \
     page/History.h \
+    page/LayoutMilestones.h \
     page/Location.h \
     page/MouseEventWithHitTestResults.h \
     page/NavigatorBase.h \
@@ -2344,6 +2352,7 @@ HEADERS += \
     rendering/ExclusionInterval.h \
     rendering/ExclusionRectangle.h \
     rendering/ExclusionShape.h \
+    rendering/ExclusionShapeInsideInfo.h \
     rendering/FilterEffectRenderer.h \
     rendering/FixedTableLayout.h \
     rendering/HitTestingTransformState.h \
@@ -2398,6 +2407,7 @@ HEADERS += \
     rendering/RenderLayer.h \
     rendering/RenderLayerBacking.h \
     rendering/RenderLayerCompositor.h \
+    rendering/RenderLayerModelObject.h \
     rendering/RenderLineBoxList.h \
     rendering/RenderListBox.h \
     rendering/RenderListItem.h \
@@ -2443,7 +2453,6 @@ HEADERS += \
     rendering/RenderWordBreak.h \
     rendering/RootInlineBox.h \
     rendering/ScrollBehavior.h \
-    rendering/WrapShapeInfo.h \
     rendering/style/BasicShapes.h \
     rendering/style/ContentData.h \
     rendering/style/CounterDirectives.h \

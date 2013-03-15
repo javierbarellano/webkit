@@ -772,7 +772,7 @@ void HTMLMediaElement::loadInternal()
     // Some of the code paths below this function dispatch the BeforeLoad event. This ASSERT helps
     // us catch those bugs more quickly without needing all the branches to align to actually
     // trigger the event.
-    ASSERT(!eventDispatchForbidden());
+    ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
 
     // If we can't start a load right away, start it later.
     Page* page = document()->page();
@@ -2746,9 +2746,6 @@ PassRefPtr<TextTrack> HTMLMediaElement::addTextTrack(const String& kind, const S
 
 TextTrackList* HTMLMediaElement::textTracks() 
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return 0;
-
     if (!m_textTracks)
         m_textTracks = TextTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
@@ -3719,6 +3716,7 @@ void HTMLMediaElement::stop()
     userCancelledLoad();
     
     // Stop the playback without generating events
+    m_playing = false;
     setPausedInternal(true);
     
     if (renderer())
@@ -4708,14 +4706,11 @@ void HTMLMediaElement::selectAudioTrack(int index)
 void HTMLMediaElement::mediaPlayerClearAudioTracks(MediaPlayer*)
 {
     if(m_audioTracks)
-        m_audioTracks->clear();
+    	m_audioTracks->clear();
 }
 
 AudioTrackList* HTMLMediaElement::audioTracks()
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return 0;
-
     if (!m_audioTracks)
         m_audioTracks = AudioTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 
@@ -4724,9 +4719,6 @@ AudioTrackList* HTMLMediaElement::audioTracks()
 
 VideoTrackList* HTMLMediaElement::videoTracks()
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return 0;
-
     if (!m_videoTracks)
         m_videoTracks = VideoTrackList::create(this, ActiveDOMObject::scriptExecutionContext());
 

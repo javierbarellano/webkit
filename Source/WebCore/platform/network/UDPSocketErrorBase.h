@@ -8,8 +8,6 @@
 #ifndef UDPSOCKETERRORBASE_H_
 #define UDPSOCKETERRORBASE_H_
 
-#include "PlatformString.h"
-
 namespace WebCore {
 
     class UDPSocketError;

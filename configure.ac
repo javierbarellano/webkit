@@ -567,8 +567,11 @@ AC_MSG_RESULT([$with_acceleration_backend])
 
 if test "$with_acceleration_backend" = "opengl"; then
     PKG_CHECK_MODULES([XCOMPOSITE], [xcomposite]);
+    PKG_CHECK_MODULES([XDAMAGE], [xdamage]);
     AC_SUBST(XCOMPOSITE_CFLAGS)
     AC_SUBST(XCOMPOSITE_LIBS)
+    AC_SUBST(XDAMAGE_CFLAGS)
+    AC_SUBST(XDAMAGE_LIBS)
 fi
 
 # OpenGL is turned on by default (along with WebGL and accelerated compositing), but if
@@ -651,14 +654,6 @@ AC_ARG_ENABLE(xslt,
                              [enable support for XSLT [default=yes]]),
               [],[enable_xslt="yes"])
 AC_MSG_RESULT([$enable_xslt])
-
-# check whether to enable discovery support
-AC_MSG_CHECKING([whether to enable discovery support])
-AC_ARG_ENABLE(discovery,
-              AC_HELP_STRING([--enable-discovery],
-                             [enable support for discovery [default=yes]]),
-              [],[enable_discovery="yes"])
-AC_MSG_RESULT([$enable_discovery])
 
 # check whether to enable geolocation support
 AC_MSG_CHECKING([whether to enable geolocation support])
@@ -1070,7 +1065,6 @@ AM_CONDITIONAL([ENABLE_WEBGL],[test "$enable_webgl" = "yes"])
 AM_CONDITIONAL([ENABLE_GAMEPAD],[test "$enable_gamepad" = "yes"])
 AM_CONDITIONAL([ENABLE_XSLT],[test "$enable_xslt" = "yes"])
 AM_CONDITIONAL([ENABLE_FILTERS],[test "$enable_filters" = "yes"])
-AM_CONDITIONAL([ENABLE_DISCOVERY], [test "$enable_discovery" = "yes"])
 AM_CONDITIONAL([ENABLE_GEOLOCATION], [test "$enable_geolocation" = "yes"])
 AM_CONDITIONAL([ENABLE_VIDEO],[test "$enable_video" = "yes"])
 AM_CONDITIONAL([ENABLE_MEDIA_STREAM],[test "$enable_media_stream" = "yes"])
@@ -1141,7 +1135,6 @@ Features:
  Accelerated Compositing                                  : $enable_accelerated_compositing
  Filters support                                          : $enable_filters
  Gamepad support                                          : $enable_gamepad
- Discovery support                                        : $enable_discovery
  Geolocation support                                      : $enable_geolocation
  HTML5 video element support                              : $enable_video
  JIT compilation                                          : $enable_jit

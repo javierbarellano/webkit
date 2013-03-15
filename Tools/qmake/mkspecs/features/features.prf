@@ -103,10 +103,6 @@ defineTest(detectFeatures) {
         WEBKIT_CONFIG += geolocation
     }
 
-# Discovery support
-!contains(DEFINES, ENABLE_DISCOVERY=.) {
-       DEFINES += ENABLE_DISCOVERY=1
-}
     # Orientation support
     haveQtModule(sensors): WEBKIT_CONFIG += orientation_events device_orientation
 
