@@ -54,6 +54,7 @@ protected:
     DateTimeNumericFieldElement(Document*, FieldOwner&, int minimum, int maximum, const String& placeholder);
 
     int clampValue(int value) const { return m_range.clampValue(value); }
+    virtual int clampValueForHardLimits(int) const;
     virtual int defaultValueForStepDown() const;
     virtual int defaultValueForStepUp() const;
     const Range& range() const { return m_range; }
@@ -67,6 +68,9 @@ protected:
     virtual String visibleValue() const OVERRIDE FINAL;
 
 private:
+    // Element function.
+    virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
+
     // DateTimeFieldElement functions.
     virtual void didBlur() OVERRIDE FINAL;
     virtual void handleKeyboardEvent(KeyboardEvent*) OVERRIDE FINAL;
@@ -75,7 +79,8 @@ private:
     virtual void stepUp() OVERRIDE FINAL;
     virtual String value() const OVERRIDE FINAL;
 
-    Localizer& localizerForOwner() const;
+    String formatValue(int) const;
+    Locale& localeForOwner() const;
 
     DOMTimeStamp m_lastDigitCharTime;
     const String m_placeholder;

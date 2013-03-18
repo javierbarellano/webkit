@@ -72,19 +72,21 @@ const int numberOfCachedSmallIntegers = 64;
 
 // WebCoreStringResource is a helper class for v8ExternalString. It is used
 // to manage the life-cycle of the underlying buffer of the external string.
-class WebCoreStringResource : public v8::String::ExternalStringResource {
+class WebCoreStringResourceBase {
 public:
-    explicit WebCoreStringResource(const String& string)
+    static WebCoreStringResourceBase* toWebCoreStringResourceBase(v8::Handle<v8::String>);
+
+    explicit WebCoreStringResourceBase(const String& string)
         : m_plainString(string)
     {
 #ifndef NDEBUG
         m_threadId = WTF::currentThread();
 #endif
         ASSERT(!string.isNull());
-        v8::V8::AdjustAmountOfExternalAllocatedMemory(2 * string.length());
+        v8::V8::AdjustAmountOfExternalAllocatedMemory(memoryConsumption(string));
     }
 
-    explicit WebCoreStringResource(const AtomicString& string)
+    explicit WebCoreStringResourceBase(const AtomicString& string)
         : m_plainString(string.string())
         , m_atomicString(string)
     {
@@ -92,30 +94,23 @@ public:
         m_threadId = WTF::currentThread();
 #endif
         ASSERT(!string.isNull());
-        v8::V8::AdjustAmountOfExternalAllocatedMemory(2 * string.length());
+        v8::V8::AdjustAmountOfExternalAllocatedMemory(memoryConsumption(string));
     }
 
-    virtual ~WebCoreStringResource()
+    virtual ~WebCoreStringResourceBase()
     {
 #ifndef NDEBUG
         ASSERT(m_threadId == WTF::currentThread());
 #endif
-        int reducedExternalMemory = -2 * m_plainString.length();
+        int reducedExternalMemory = -memoryConsumption(m_plainString);
         if (m_plainString.impl() != m_atomicString.impl() && !m_atomicString.isNull())
-            reducedExternalMemory *= 2;
+            reducedExternalMemory -= memoryConsumption(m_atomicString.string());
         v8::V8::AdjustAmountOfExternalAllocatedMemory(reducedExternalMemory);
     }
 
-    virtual const uint16_t* data() const
-    {
-        return reinterpret_cast<const uint16_t*>(m_plainString.impl()->characters());
-    }
+    const String& webcoreString() { return m_plainString; }
 
-    virtual size_t length() const { return m_plainString.impl()->length(); }
-
-    String webcoreString() { return m_plainString; }
-
-    AtomicString atomicString()
+    const AtomicString& atomicString()
     {
 #ifndef NDEBUG
         ASSERT(m_threadId == WTF::currentThread());
@@ -124,19 +119,14 @@ public:
             m_atomicString = AtomicString(m_plainString);
             ASSERT(!m_atomicString.isNull());
             if (m_plainString.impl() != m_atomicString.impl())
-                v8::V8::AdjustAmountOfExternalAllocatedMemory(2 * m_atomicString.length());
+                v8::V8::AdjustAmountOfExternalAllocatedMemory(memoryConsumption(m_atomicString.string()));
         }
         return m_atomicString;
     }
 
     void visitStrings(ExternalStringVisitor*);
 
-    static WebCoreStringResource* toStringResource(v8::Handle<v8::String> v8String)
-    {
-        return static_cast<WebCoreStringResource*>(v8String->GetExternalStringResource());
-    }
-
-private:
+protected:
     // A shallow copy of the string. Keeps the string buffer alive until the V8 engine garbage collects it.
     String m_plainString;
     // If this string is atomic or has been made atomic earlier the
@@ -146,9 +136,38 @@ private:
     // into that string.
     AtomicString m_atomicString;
 
+private:
+    static int memoryConsumption(const String& string)
+    {
+        return string.length() * (string.is8Bit() ? sizeof(LChar) : sizeof(UChar));
+    }
 #ifndef NDEBUG
     WTF::ThreadIdentifier m_threadId;
 #endif
+};
+
+class WebCoreStringResource16 : public WebCoreStringResourceBase, public v8::String::ExternalStringResource {
+public:
+    explicit WebCoreStringResource16(const String& string) : WebCoreStringResourceBase(string) { }
+    explicit WebCoreStringResource16(const AtomicString& string) : WebCoreStringResourceBase(string) { }
+
+    virtual size_t length() const OVERRIDE { return m_plainString.impl()->length(); }
+    virtual const uint16_t* data() const OVERRIDE
+    {
+        return reinterpret_cast<const uint16_t*>(m_plainString.impl()->characters());
+    }
+};
+
+class WebCoreStringResource8 : public WebCoreStringResourceBase, public v8::String::ExternalAsciiStringResource {
+public:
+    explicit WebCoreStringResource8(const String& string) : WebCoreStringResourceBase(string) { }
+    explicit WebCoreStringResource8(const AtomicString& string) : WebCoreStringResourceBase(string) { }
+
+    virtual size_t length() const OVERRIDE { return m_plainString.impl()->length(); }
+    virtual const char* data() const OVERRIDE
+    {
+        return reinterpret_cast<const char*>(m_plainString.impl()->characters8());
+    }
 };
 
 class IntegerCache {
@@ -156,26 +175,26 @@ public:
      IntegerCache() : m_initialized(false) { };
     ~IntegerCache();
 
-    v8::Handle<v8::Integer> v8Integer(int value)
+    v8::Handle<v8::Integer> v8Integer(int value, v8::Isolate* isolate)
     {
         if (!m_initialized)
-            createSmallIntegers();
+            createSmallIntegers(isolate);
         if (0 <= value && value < numberOfCachedSmallIntegers)
             return m_smallIntegers[value];
-        return v8::Integer::New(value);
+        return v8::Integer::New(value, isolate);
     }
 
-    v8::Handle<v8::Integer> v8UnsignedInteger(unsigned value)
+    v8::Handle<v8::Integer> v8UnsignedInteger(unsigned value, v8::Isolate* isolate)
     {
         if (!m_initialized)
-            createSmallIntegers();
+            createSmallIntegers(isolate);
         if (value < static_cast<unsigned>(numberOfCachedSmallIntegers))
             return m_smallIntegers[value];
-        return v8::Integer::NewFromUnsigned(value);
+        return v8::Integer::NewFromUnsigned(value, isolate);
     }
 
 private:
-    void createSmallIntegers();
+    void createSmallIntegers(v8::Isolate*);
 
     v8::Persistent<v8::Integer> m_smallIntegers[numberOfCachedSmallIntegers];
     bool m_initialized;

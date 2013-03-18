@@ -29,6 +29,7 @@
 import logging
 import os
 import re
+import time
 
 from webkitpy.layout_tests.port.server_process import ServerProcess
 from webkitpy.layout_tests.port.driver import Driver
@@ -41,12 +42,13 @@ class XvfbDriver(Driver):
     def __init__(self, *args, **kwargs):
         Driver.__init__(self, *args, **kwargs)
         self._guard_lock = None
+        self._startup_delay_secs = 1.0
 
     def _next_free_display(self):
         running_pids = self._port.host.executive.run_command(['ps', '-eo', 'comm,command'])
         reserved_screens = set()
         for pid in running_pids.split('\n'):
-            match = re.match('(Xvfb|Xorg).*\s:(?P<screen_number>\d+)', pid)
+            match = re.match('(X|Xvfb|Xorg)\s+.*\s:(?P<screen_number>\d+)', pid)
             if match:
                 reserved_screens.add(int(match.group('screen_number')))
         for i in range(99):
@@ -67,12 +69,23 @@ class XvfbDriver(Driver):
         with open(os.devnull, 'w') as devnull:
             self._xvfb_process = self._port.host.executive.popen(run_xvfb, stderr=devnull)
 
+        # Crashes intend to occur occasionally in the first few tests that are run through each
+        # worker because the Xvfb display isn't ready yet. Halting execution a bit should avoid that.
+        time.sleep(self._startup_delay_secs)
+
         server_name = self._port.driver_name()
         environment = self._port.setup_environ_for_server(server_name)
         # We must do this here because the DISPLAY number depends on _worker_number
         environment['DISPLAY'] = ":%d" % display_id
-        # Drivers should use separate application cache locations
-        environment['XDG_CACHE_HOME'] = self._port.host.filesystem.join(self._port.results_directory(), '%s-appcache-%d' % (server_name, self._worker_number))
+        self._driver_tempdir = self._port._filesystem.mkdtemp(prefix='%s-' % self._port.driver_name())
+        environment['DUMPRENDERTREE_TEMP'] = str(self._driver_tempdir)
+        environment['LOCAL_RESOURCE_ROOT'] = self._port.layout_tests_dir()
+
+        # Currently on WebKit2, there is no API for setting the application
+        # cache directory. Each worker should have it's own and it should be
+        # cleaned afterwards, so we set it to inside the temporary folder by
+        # prepending XDG_CACHE_HOME with DUMPRENDERTREE_TEMP.
+        environment['XDG_CACHE_HOME'] = self._port.host.filesystem.join(str(self._driver_tempdir), 'appcache')
 
         self._crashed_process_name = None
         self._crashed_pid = None

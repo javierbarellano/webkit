@@ -53,6 +53,12 @@ public:
         m_wrapper = wrapper;
     }
 
+    void clearWrapper()
+    {
+        ASSERT(!m_wrapper.IsEmpty());
+        m_wrapper.Clear();
+    }
+
     void disposeWrapper()
     {
         ASSERT(!m_wrapper.IsEmpty());

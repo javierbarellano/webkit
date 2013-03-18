@@ -139,7 +139,8 @@ namespace JSC { namespace DFG {
     macro(ReallocatePropertyStorage, NodeMustGenerate | NodeDoesNotExit | NodeResultStorage) \
     macro(GetButterfly, NodeResultStorage) \
     macro(CheckArray, NodeMustGenerate) \
-    macro(Arrayify, NodeResultStorage | NodeMustGenerate | NodeClobbersWorld) \
+    macro(Arrayify, NodeMustGenerate) \
+    macro(ArrayifyToStructure, NodeMustGenerate) \
     macro(GetIndexedPropertyStorage, NodeResultStorage) \
     macro(GetByOffset, NodeResultJS) \
     macro(PutByOffset, NodeMustGenerate) \
@@ -233,6 +234,8 @@ namespace JSC { namespace DFG {
     macro(Return, NodeMustGenerate) \
     macro(Throw, NodeMustGenerate) \
     macro(ThrowReferenceError, NodeMustGenerate) \
+    \
+    macro(GarbageValue, NodeResultJS | NodeClobbersWorld) \
     \
     /* This is a pseudo-terminal. It means that execution should fall out of DFG at */\
     /* this point, but execution does continue in the basic block - just in a */\

@@ -22,6 +22,8 @@
 #include "config.h"
 #include "PageViewportController.h"
 
+#if USE(TILED_BACKING_STORE)
+
 #include "PageViewportControllerClient.h"
 #include "WebPageProxy.h"
 #include <WebCore/FloatRect.h>
@@ -37,39 +39,16 @@ bool fuzzyCompare(float a, float b, float epsilon)
     return std::abs(a - b) < epsilon;
 }
 
-ViewportUpdateDeferrer::ViewportUpdateDeferrer(PageViewportController* PageViewportController, SuspendContentFlag suspendContentFlag)
-    : m_controller(PageViewportController)
-{
-    m_controller->m_activeDeferrerCount++;
-
-    // There is no need to suspend content for immediate updates
-    // only during animations or longer gestures.
-    if (suspendContentFlag == DeferUpdateAndSuspendContent)
-        m_controller->suspendContent();
-}
-
-ViewportUpdateDeferrer::~ViewportUpdateDeferrer()
-{
-    if (--(m_controller->m_activeDeferrerCount))
-        return;
-
-    m_controller->resumeContent();
-
-    // Make sure that tiles all around the viewport will be requested.
-    m_controller->syncVisibleContents();
-}
-
 PageViewportController::PageViewportController(WebKit::WebPageProxy* proxy, PageViewportControllerClient* client)
     : m_webPageProxy(proxy)
     , m_client(client)
     , m_allowsUserScaling(false)
     , m_minimumScaleToFit(1)
-    , m_activeDeferrerCount(0)
     , m_hasSuspendedContent(false)
     , m_hadUserInteraction(false)
     , m_effectiveScale(1)
 {
-    // Initializing Viewport Raw Attributes to avoid random negative scale factors
+    // Initializing Viewport Raw Attributes to avoid random negative or infinity scale factors
     // if there is a race condition between the first layout and setting the viewport attributes for the first time.
     m_rawAttributes.initialScale = 1;
     m_rawAttributes.minimumScale = 1;
@@ -126,8 +105,13 @@ void PageViewportController::didChangeContentsSize(const IntSize& newSize)
 
 void PageViewportController::didRenderFrame(const IntSize& contentsSize, const IntRect& coveredRect)
 {
-    // Only update the viewport's contents dimensions along with its render.
-    m_client->didChangeContentsSize(contentsSize);
+    if (m_clientContentsSize != contentsSize) {
+        m_clientContentsSize = contentsSize;
+        // Only update the viewport's contents dimensions along with its render if the
+        // size actually changed since animations on the page trigger DidRenderFrame
+        // messages without causing dimension changes.
+        m_client->didChangeContentsSize(contentsSize);
+    }
 
     m_lastFrameCoveredRect = coveredRect;
 
@@ -137,7 +121,6 @@ void PageViewportController::didRenderFrame(const IntSize& contentsSize, const I
     // All position and scale changes resulting from a web process event should
     // go through here to be applied on the viewport to avoid showing incomplete
     // tiles to the user during a few milliseconds.
-    ViewportUpdateDeferrer guard(this);
     if (m_effectiveScaleIsLocked) {
         m_client->setContentsScale(m_effectiveScale, false);
         m_effectiveScaleIsLocked = false;
@@ -145,7 +128,7 @@ void PageViewportController::didRenderFrame(const IntSize& contentsSize, const I
     if (m_viewportPosIsLocked) {
         FloatPoint clampedPos = clampViewportToContents(m_viewportPos, m_effectiveScale);
         // There might be rendered frames not covering our requested position yet, wait for it.
-        if (FloatRect(clampedPos, m_viewportSize / m_effectiveScale).intersects(coveredRect)) {
+        if (FloatRect(clampedPos, viewportSizeInContentsCoordinates()).intersects(coveredRect)) {
             m_client->setViewportPosition(clampedPos);
             m_viewportPosIsLocked = false;
         }
@@ -169,10 +152,10 @@ void PageViewportController::pageTransitionViewportReady()
 void PageViewportController::pageDidRequestScroll(const IntPoint& cssPosition)
 {
     // Ignore the request if suspended. Can only happen due to delay in event delivery.
-    if (m_activeDeferrerCount)
+    if (m_hasSuspendedContent)
         return;
 
-    FloatRect endVisibleContentRect(clampViewportToContents(cssPosition, m_effectiveScale), m_viewportSize / m_effectiveScale);
+    FloatRect endVisibleContentRect(clampViewportToContents(cssPosition, m_effectiveScale), viewportSizeInContentsCoordinates());
     if (m_lastFrameCoveredRect.intersects(endVisibleContentRect))
         m_client->setViewportPosition(endVisibleContentRect.location());
     else
@@ -210,7 +193,7 @@ void PageViewportController::syncVisibleContents(const FloatPoint& trajectoryVec
     if (!drawingArea || m_viewportSize.isEmpty() || m_contentsSize.isEmpty())
         return;
 
-    FloatRect visibleContentsRect(clampViewportToContents(m_viewportPos, m_effectiveScale), m_viewportSize / m_effectiveScale);
+    FloatRect visibleContentsRect(clampViewportToContents(m_viewportPos, m_effectiveScale), viewportSizeInContentsCoordinates());
     visibleContentsRect.intersect(FloatRect(FloatPoint::zero(), m_contentsSize));
     drawingArea->setVisibleContentsRect(visibleContentsRect, m_effectiveScale, trajectoryVector);
 
@@ -229,6 +212,11 @@ void PageViewportController::didChangeViewportAttributes(const WebCore::Viewport
     updateMinimumScaleToFit();
 
     m_client->didChangeViewportAttributes();
+}
+
+WebCore::FloatSize PageViewportController::viewportSizeInContentsCoordinates() const
+{
+    return WebCore::FloatSize(m_viewportSize.width() / m_effectiveScale, m_viewportSize.height() / m_effectiveScale);
 }
 
 void PageViewportController::suspendContent()
@@ -270,7 +258,7 @@ void PageViewportController::updateMinimumScaleToFit()
     if (m_viewportSize.isEmpty())
         return;
 
-    float minimumScale = WebCore::computeMinimumScaleFactorForContentContained(m_rawAttributes, WebCore::roundedIntSize(m_viewportSize), WebCore::roundedIntSize(m_contentsSize));
+    float minimumScale = WebCore::computeMinimumScaleFactorForContentContained(m_rawAttributes, WebCore::roundedIntSize(m_viewportSize), WebCore::roundedIntSize(m_contentsSize), devicePixelRatio());
 
     if (!fuzzyCompare(minimumScale, m_minimumScaleToFit, 0.001)) {
         m_minimumScaleToFit = minimumScale;
@@ -283,3 +271,5 @@ void PageViewportController::updateMinimumScaleToFit()
 }
 
 } // namespace WebKit
+
+#endif

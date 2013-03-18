@@ -27,7 +27,6 @@
 #define IDBTransactionBackendInterface_h
 
 #include "IDBCallbacks.h"
-#include "ScriptExecutionContext.h"
 #include <wtf/Threading.h>
 #include <wtf/text/WTFString.h>
 
@@ -55,6 +54,7 @@ public:
     };
 
     virtual PassRefPtr<IDBObjectStoreBackendInterface> objectStore(const String& name, ExceptionCode&) = 0;
+    virtual PassRefPtr<IDBObjectStoreBackendInterface> objectStore(int64_t, ExceptionCode&) = 0;
     virtual void didCompleteTaskEvents() = 0;
     virtual void commit() = 0;
     virtual void abort() = 0;

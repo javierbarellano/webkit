@@ -58,6 +58,8 @@ RenderTable::RenderTable(Node* node)
     , m_collapsedBordersValid(false)
     , m_hasColElements(false)
     , m_needsSectionRecalc(false)
+    , m_columnLogicalWidthChanged(false)
+    , m_columnRenderersValid(false)
     , m_hSpacing(0)
     , m_vSpacing(0)
     , m_borderStart(0)
@@ -212,6 +214,26 @@ void RenderTable::removeCaption(const RenderTableCaption* oldCaption)
     m_captions.remove(index);
 }
 
+void RenderTable::invalidateCachedColumns()
+{
+    m_columnRenderersValid = false;
+    m_columnRenderers.resize(0);
+}
+
+void RenderTable::addColumn(const RenderTableCol*)
+{
+    invalidateCachedColumns();
+}
+
+void RenderTable::removeColumn(const RenderTableCol*)
+{
+    invalidateCachedColumns();
+    // We don't really need to recompute our sections, but we need to update our
+    // column count and whether we have a column. Currently, we only have one
+    // size-fit-all flag but we may have to consider splitting it.
+    setNeedsSectionRecalc();
+}
+
 void RenderTable::updateLogicalWidth()
 {
     recalcSectionsIfNeeded();
@@ -255,10 +277,20 @@ void RenderTable::updateLogicalWidth()
     // Ensure we aren't smaller than our min preferred width.
     setLogicalWidth(max<int>(logicalWidth(), minPreferredLogicalWidth()));
 
+    
+    // Ensure we aren't bigger than our max-width style.
+    Length styleMaxLogicalWidth = style()->logicalMaxWidth();
+    if (styleMaxLogicalWidth.isSpecified() && !styleMaxLogicalWidth.isNegative()) {
+        LayoutUnit computedMaxLogicalWidth = convertStyleLogicalWidthToComputedWidth(styleMaxLogicalWidth, availableLogicalWidth);
+        setLogicalWidth(min<int>(logicalWidth(), computedMaxLogicalWidth));
+    }
+
     // Ensure we aren't smaller than our min-width style.
     Length styleMinLogicalWidth = style()->logicalMinWidth();
-    if (styleMinLogicalWidth.isSpecified() && styleMinLogicalWidth.isPositive())
-        setLogicalWidth(max<int>(logicalWidth(), convertStyleLogicalWidthToComputedWidth(styleMinLogicalWidth, availableLogicalWidth)));
+    if (styleMinLogicalWidth.isSpecified() && !styleMinLogicalWidth.isNegative()) {
+        LayoutUnit computedMinLogicalWidth = convertStyleLogicalWidthToComputedWidth(styleMinLogicalWidth, availableLogicalWidth);
+        setLogicalWidth(max<int>(logicalWidth(), computedMinLogicalWidth));
+    }
 
     // Finally, with our true width determined, compute our margins for real.
     setMarginStart(0);
@@ -330,6 +362,7 @@ void RenderTable::distributeExtraLogicalHeight(int extraLogicalHeight)
 
 void RenderTable::layout()
 {
+    StackStats::LayoutCheckPoint layoutCheckPoint;
     ASSERT(needsLayout());
 
     if (simplifiedLayout())
@@ -359,8 +392,6 @@ void RenderTable::layout()
 //     if ( oldWidth != width() || columns.size() + 1 != columnPos.size() )
     m_tableLayout->layout();
 
-    setCellLogicalWidths();
-
     LayoutUnit totalSectionLogicalHeight = 0;
     LayoutUnit oldTableLogicalTop = 0;
     for (unsigned i = 0; i < m_captions.size(); i++)
@@ -370,8 +401,10 @@ void RenderTable::layout()
 
     for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
         if (child->isTableSection()) {
-            child->layoutIfNeeded();
             RenderTableSection* section = toRenderTableSection(child);
+            if (m_columnLogicalWidthChanged)
+                section->setChildNeedsLayout(true, MarkOnlyThis);
+            section->layoutIfNeeded();
             totalSectionLogicalHeight += section->calcRowLogicalHeight();
             if (collapsing)
                 section->recalcOuterBorder();
@@ -486,6 +519,7 @@ void RenderTable::layout()
             repaintRectangle(LayoutRect(movedSectionLogicalTop, visualOverflowRect().y(), visualOverflowRect().maxX() - movedSectionLogicalTop, visualOverflowRect().height()));
     }
 
+    m_columnLogicalWidthChanged = false;
     setNeedsLayout(false);
 }
 
@@ -540,12 +574,6 @@ void RenderTable::addOverflowFromChildren()
         addOverflowFromChild(section);
 }
 
-void RenderTable::setCellLogicalWidths()
-{
-    for (RenderTableSection* section = topSection(); section; section = sectionBelow(section))
-        section->setCellLogicalWidths();
-}
-
 void RenderTable::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
     LayoutPoint adjustedPaintOffset = paintOffset + location();
@@ -590,11 +618,9 @@ void RenderTable::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
     info.phase = paintPhase;
     info.updatePaintingRootForChildren(this);
 
-    IntPoint alignedOffset = roundedIntPoint(paintOffset);
-
     for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
         if (child->isBox() && !toRenderBox(child)->hasSelfPaintingLayer() && (child->isTableSection() || child->isTableCaption())) {
-            LayoutPoint childPoint = flipForWritingModeForChild(toRenderBox(child), alignedOffset);
+            LayoutPoint childPoint = flipForWritingModeForChild(toRenderBox(child), paintOffset);
             child->paint(info, childPoint);
         }
     }
@@ -690,14 +716,10 @@ RenderTableSection* RenderTable::topNonEmptySection() const
 
 void RenderTable::splitColumn(unsigned position, unsigned firstSpan)
 {
-    // we need to add a new columnStruct
-    unsigned oldSize = m_columns.size();
-    m_columns.grow(oldSize + 1);
-    unsigned oldSpan = m_columns[position].span;
-    ASSERT(oldSpan > firstSpan);
-    m_columns[position].span = firstSpan;
-    memmove(m_columns.data() + position + 1, m_columns.data() + position, (oldSize - position) * sizeof(ColumnStruct));
-    m_columns[position + 1].span = oldSpan - firstSpan;
+    // We split the column at "position", taking "firstSpan" cells from the span.
+    ASSERT(m_columns[position].span > firstSpan);
+    m_columns.insert(position, ColumnStruct(firstSpan));
+    m_columns[position + 1].span -= firstSpan;
 
     // Propagate the change in our columns representation to the sections that don't need
     // cell recalc. If they do, they will be synced up directly with m_columns later.
@@ -718,10 +740,8 @@ void RenderTable::splitColumn(unsigned position, unsigned firstSpan)
 
 void RenderTable::appendColumn(unsigned span)
 {
-    unsigned pos = m_columns.size();
-    unsigned newSize = pos + 1;
-    m_columns.grow(newSize);
-    m_columns[pos].span = span;
+    unsigned newColumnIndex = m_columns.size();
+    m_columns.append(ColumnStruct(span));
 
     // Propagate the change in our columns representation to the sections that don't need
     // cell recalc. If they do, they will be synced up directly with m_columns later.
@@ -733,7 +753,7 @@ void RenderTable::appendColumn(unsigned span)
         if (section->needsCellRecalc())
             continue;
 
-        section->appendColumn(pos);
+        section->appendColumn(newColumnIndex);
     }
 
     m_columnPos.grow(numEffCols() + 1);
@@ -754,16 +774,30 @@ RenderTableCol* RenderTable::firstColumn() const
     return 0;
 }
 
-RenderTableCol* RenderTable::colElement(unsigned col, bool* startEdge, bool* endEdge) const
+void RenderTable::updateColumnCache() const
 {
-    if (!m_hasColElements)
-        return 0;
+    ASSERT(m_hasColElements);
+    ASSERT(m_columnRenderers.isEmpty());
+    ASSERT(!m_columnRenderersValid);
 
-    unsigned columnCount = 0;
     for (RenderTableCol* columnRenderer = firstColumn(); columnRenderer; columnRenderer = columnRenderer->nextColumn()) {
         if (columnRenderer->isTableColumnGroupWithColumnChildren())
             continue;
+        m_columnRenderers.append(columnRenderer);
+    }
+    m_columnRenderersValid = true;
+}
 
+RenderTableCol* RenderTable::slowColElement(unsigned col, bool* startEdge, bool* endEdge) const
+{
+    ASSERT(m_hasColElements);
+
+    if (!m_columnRenderersValid)
+        updateColumnCache();
+
+    unsigned columnCount = 0;
+    for (unsigned i = 0; i < m_columnRenderers.size(); i++) {
+        RenderTableCol* columnRenderer = m_columnRenderers[i];
         unsigned span = columnRenderer->span();
         unsigned startCol = columnCount;
         ASSERT(span >= 1);
@@ -777,7 +811,6 @@ RenderTableCol* RenderTable::colElement(unsigned col, bool* startEdge, bool* end
             return columnRenderer;
         }
     }
-
     return 0;
 }
 
@@ -1216,7 +1249,7 @@ void RenderTable::updateFirstLetter()
 {
 }
 
-LayoutUnit RenderTable::baselinePosition(FontBaseline baselineType, bool firstLine, LineDirectionMode direction, LinePositionMode linePositionMode) const
+int RenderTable::baselinePosition(FontBaseline baselineType, bool firstLine, LineDirectionMode direction, LinePositionMode linePositionMode) const
 {
     LayoutUnit baseline = firstLineBoxBaseline();
     if (baseline != -1)
@@ -1225,13 +1258,13 @@ LayoutUnit RenderTable::baselinePosition(FontBaseline baselineType, bool firstLi
     return RenderBox::baselinePosition(baselineType, firstLine, direction, linePositionMode);
 }
 
-LayoutUnit RenderTable::lastLineBoxBaseline() const
+int RenderTable::inlineBlockBaseline(LineDirectionMode) const
 {
-    // Tables don't contribute their baseline towards the computation of an inline-block's baseline.
+    // Tables are skipped when computing an inline-block's baseline.
     return -1;
 }
 
-LayoutUnit RenderTable::firstLineBoxBaseline() const
+int RenderTable::firstLineBoxBaseline() const
 {
     // The baseline of a 'table' is the same as the 'inline-table' baseline per CSS 3 Flexbox (CSS 2.1
     // doesn't define the baseline of a 'table' only an 'inline-table').
@@ -1246,7 +1279,7 @@ LayoutUnit RenderTable::firstLineBoxBaseline() const
     if (!topNonEmptySection)
         return -1;
 
-    LayoutUnit baseline = topNonEmptySection->firstLineBoxBaseline();
+    int baseline = topNonEmptySection->firstLineBoxBaseline();
     if (baseline > 0)
         return topNonEmptySection->logicalTop() + baseline;
 

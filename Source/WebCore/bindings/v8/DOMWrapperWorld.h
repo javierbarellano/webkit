@@ -32,9 +32,12 @@
 #define DOMWrapperWorld_h
 
 #include "DOMDataStore.h"
+#include "SecurityOrigin.h"
+#include "V8DOMMap.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -45,20 +48,41 @@ public:
     static const int mainWorldExtensionGroup = 0;
     static const int uninitializedWorldId = -1;
     static const int uninitializedExtensionGroup = -1;
-    // If 0 is passed as worldId, the world will be assigned a temporary id instead.
+    // If uninitializedWorldId is passed as worldId, the world will be assigned a temporary id instead.
     static PassRefPtr<DOMWrapperWorld> ensureIsolatedWorld(int worldId, int extensionGroup);
     static bool isolatedWorldsExist() { return isolatedWorldCount; }
+    static bool isIsolatedWorldId(int worldId) { return worldId != mainWorldId && worldId != uninitializedWorldId; }
+    // Associates an isolated world (see above for description) with a security
+    // origin. XMLHttpRequest instances used in that world will be considered
+    // to come from that origin, not the frame's.
+    static void setIsolatedWorldSecurityOrigin(int worldID, PassRefPtr<SecurityOrigin>);
+    static void clearIsolatedWorldSecurityOrigin(int worldID);
+    SecurityOrigin* isolatedWorldSecurityOrigin();
+
+    // Associated an isolated world with a Content Security Policy. Resources
+    // embedded into the main world's DOM from script executed in an isolated
+    // world should be restricted based on the isolated world's DOM, not the
+    // main world's.
+    //
+    // FIXME: Right now, resource injection simply bypasses the main world's
+    // DOM. More work is necessary to allow the isolated world's policy to be
+    // applied correctly.
+    static void setIsolatedWorldContentSecurityPolicy(int worldID, const String& policy);
+    static void clearIsolatedWorldContentSecurityPolicy(int worldID);
+    bool isolatedWorldHasContentSecurityPolicy();
+
     // FIXME: this is a workaround for a problem in WebViewImpl.
     // Do not use this anywhere else!!
     static PassRefPtr<DOMWrapperWorld> createUninitializedWorld();
 
     bool isMainWorld() { return m_worldId == mainWorldId; }
+    bool isIsolatedWorld() { return isIsolatedWorldId(m_worldId); }
     int worldId() const { return m_worldId; }
     int extensionGroup() const { return m_extensionGroup; }
     DOMDataStore* domDataStore() const
     {
         ASSERT(m_worldId != uninitializedWorldId);
-        return m_domDataStore.getStore();
+        return m_domDataStore.get();
     }
     void deref()
     {
@@ -70,19 +94,18 @@ private:
     static int isolatedWorldCount;
     static PassRefPtr<DOMWrapperWorld> createMainWorld();
     static void deallocate(DOMWrapperWorld*);
+
     DOMWrapperWorld(int worldId, int extensionGroup)
         : m_worldId(worldId)
         , m_extensionGroup(extensionGroup)
-        , m_domDataStore(worldId != uninitializedWorldId)
     {
+        if (worldId != uninitializedWorldId)
+            m_domDataStore = adoptPtr(new DOMDataStore(DOMDataStore::IsolatedWorld));
     }
 
     const int m_worldId;
     const int m_extensionGroup;
-    // The backing store for the isolated world's DOM wrappers. This class
-    // doesn't have visibility into the wrappers. This handle simply helps
-    // manage their lifetime.
-    DOMDataStoreHandle m_domDataStore;
+    OwnPtr<DOMDataStore> m_domDataStore;
 
     friend DOMWrapperWorld* mainThreadNormalWorld();
 };

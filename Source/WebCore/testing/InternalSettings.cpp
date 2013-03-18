@@ -32,7 +32,6 @@
 #include "ExceptionCode.h"
 #include "Frame.h"
 #include "FrameView.h"
-#include "InspectorController.h"
 #include "Language.h"
 #include "LocaleToScriptMapping.h"
 #include "MockPagePopupDriver.h"
@@ -57,12 +56,6 @@
         return; \
     }
 
-#define InternalSettingsGuardForPageReturn(returnValue) \
-    if (!page()) { \
-        ec = INVALID_ACCESS_ERR; \
-        return returnValue; \
-    }
-
 #define InternalSettingsGuardForPage() \
     if (!page()) { \
         ec = INVALID_ACCESS_ERR; \
@@ -79,13 +72,13 @@ InternalSettings::Backup::Backup(Page* page, Settings* settings)
     , m_originalShadowDOMEnabled(RuntimeEnabledFeatures::shadowDOMEnabled())
     , m_originalAuthorShadowDOMForAnyElementEnabled(RuntimeEnabledFeatures::authorShadowDOMForAnyElementEnabled())
 #endif
+#if ENABLE(STYLE_SCOPED)
+    , m_originalStyleScoped(RuntimeEnabledFeatures::styleScopedEnabled())
+#endif
     , m_originalEditingBehavior(settings->editingBehaviorType())
     , m_originalUnifiedSpellCheckerEnabled(settings->unifiedTextCheckerEnabled())
     , m_originalFixedPositionCreatesStackingContext(settings->fixedPositionCreatesStackingContext())
     , m_originalSyncXHRInDocumentsEnabled(settings->syncXHRInDocumentsEnabled())
-#if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
-    , m_originalJavaScriptProfilingEnabled(page->inspectorController() && page->inspectorController()->profilerEnabled())
-#endif
     , m_originalWindowFocusRestricted(settings->windowFocusRestricted())
     , m_originalDeviceSupportsTouch(settings->deviceSupportsTouch())
     , m_originalDeviceSupportsMouse(settings->deviceSupportsMouse())
@@ -94,6 +87,8 @@ InternalSettings::Backup::Backup(Page* page, Settings* settings)
     , m_originalTextAutosizingWindowSizeOverride(settings->textAutosizingWindowSizeOverride())
     , m_originalTextAutosizingFontScaleFactor(settings->textAutosizingFontScaleFactor())
 #endif
+    , m_originalResolutionOverride(settings->resolutionOverride())
+    , m_originalMediaTypeOverride(settings->mediaTypeOverride())
 #if ENABLE(DIALOG_ELEMENT)
     , m_originalDialogElementEnabled(RuntimeEnabledFeatures::dialogElementEnabled())
 #endif
@@ -101,6 +96,11 @@ InternalSettings::Backup::Backup(Page* page, Settings* settings)
     , m_originalMockScrollbarsEnabled(settings->mockScrollbarsEnabled())
     , m_langAttributeAwareFormControlUIEnabled(RuntimeEnabledFeatures::langAttributeAwareFormControlUIEnabled())
     , m_imagesEnabled(settings->areImagesEnabled())
+#if ENABLE(VIDEO_TRACK)
+    , m_shouldDisplaySubtitles(settings->shouldDisplaySubtitles())
+    , m_shouldDisplayCaptions(settings->shouldDisplayCaptions())
+    , m_shouldDisplayTextDescriptions(settings->shouldDisplayTextDescriptions())
+#endif
 {
 }
 
@@ -114,14 +114,13 @@ void InternalSettings::Backup::restoreTo(Page* page, Settings* settings)
     RuntimeEnabledFeatures::setShadowDOMEnabled(m_originalShadowDOMEnabled);
     RuntimeEnabledFeatures::setAuthorShadowDOMForAnyElementEnabled(m_originalAuthorShadowDOMForAnyElementEnabled);
 #endif
+#if ENABLE(STYLE_SCOPED)
+    RuntimeEnabledFeatures::setStyleScopedEnabled(m_originalStyleScoped);
+#endif
     settings->setEditingBehaviorType(m_originalEditingBehavior);
     settings->setUnifiedTextCheckerEnabled(m_originalUnifiedSpellCheckerEnabled);
     settings->setFixedPositionCreatesStackingContext(m_originalFixedPositionCreatesStackingContext);
     settings->setSyncXHRInDocumentsEnabled(m_originalSyncXHRInDocumentsEnabled);
-#if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
-    if (page->inspectorController())
-        page->inspectorController()->setProfilerEnabled(m_originalJavaScriptProfilingEnabled);
-#endif
     settings->setWindowFocusRestricted(m_originalWindowFocusRestricted);
     settings->setDeviceSupportsTouch(m_originalDeviceSupportsTouch);
     settings->setDeviceSupportsMouse(m_originalDeviceSupportsMouse);
@@ -130,6 +129,8 @@ void InternalSettings::Backup::restoreTo(Page* page, Settings* settings)
     settings->setTextAutosizingWindowSizeOverride(m_originalTextAutosizingWindowSizeOverride);
     settings->setTextAutosizingFontScaleFactor(m_originalTextAutosizingFontScaleFactor);
 #endif
+    settings->setResolutionOverride(m_originalResolutionOverride);
+    settings->setMediaTypeOverride(m_originalMediaTypeOverride);
 #if ENABLE(DIALOG_ELEMENT)
     RuntimeEnabledFeatures::setDialogElementEnabled(m_originalDialogElementEnabled);
 #endif
@@ -137,6 +138,11 @@ void InternalSettings::Backup::restoreTo(Page* page, Settings* settings)
     settings->setMockScrollbarsEnabled(m_originalMockScrollbarsEnabled);
     RuntimeEnabledFeatures::setLangAttributeAwareFormControlUIEnabled(m_langAttributeAwareFormControlUIEnabled);
     settings->setImagesEnabled(m_imagesEnabled);
+#if ENABLE(VIDEO_TRACK)
+    settings->setShouldDisplaySubtitles(m_shouldDisplaySubtitles);
+    settings->setShouldDisplayCaptions(m_shouldDisplayCaptions);
+    settings->setShouldDisplayTextDescriptions(m_shouldDisplayTextDescriptions);
+#endif
 }
 
 InternalSettings* InternalSettings::from(Page* page)
@@ -186,21 +192,6 @@ Settings* InternalSettings::settings() const
     if (!page())
         return 0;
     return page()->settings();
-}
-
-void InternalSettings::setInspectorResourcesDataSizeLimits(int maximumResourcesContentSize, int maximumSingleResourceContentSize, ExceptionCode& ec)
-{
-#if ENABLE(INSPECTOR)
-    if (!page() || !page()->inspectorController()) {
-        ec = INVALID_ACCESS_ERR;
-        return;
-    }
-    page()->inspectorController()->setResourcesDataSizeLimitsFromInternals(maximumResourcesContentSize, maximumSingleResourceContentSize);
-#else
-    UNUSED_PARAM(maximumResourcesContentSize);
-    UNUSED_PARAM(maximumSingleResourceContentSize);
-    UNUSED_PARAM(ec);
-#endif
 }
 
 void InternalSettings::setForceCompositingMode(bool enabled, ExceptionCode& ec)
@@ -302,6 +293,15 @@ void InternalSettings::setAuthorShadowDOMForAnyElementEnabled(bool isEnabled)
 #endif
 }
 
+void InternalSettings::setStyleScopedEnabled(bool enabled)
+{
+#if ENABLE(STYLE_SCOPED)
+    RuntimeEnabledFeatures::setStyleScopedEnabled(enabled);
+#else
+    UNUSED_PARAM(enabled);
+#endif
+}
+
 void InternalSettings::setTouchEventEmulationEnabled(bool enabled, ExceptionCode& ec)
 {
 #if ENABLE(TOUCH_EVENTS)
@@ -398,6 +398,19 @@ void InternalSettings::setTextAutosizingWindowSizeOverride(int width, int height
 #endif
 }
 
+void InternalSettings::setResolutionOverride(int dotsPerCSSInchHorizontally, int dotsPerCSSInchVertically, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    // An empty size resets the override.
+    settings()->setResolutionOverride(IntSize(dotsPerCSSInchHorizontally, dotsPerCSSInchVertically));
+}
+
+void InternalSettings::setMediaTypeOverride(const String& mediaType, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setMediaTypeOverride(mediaType);
+}
+
 void InternalSettings::setTextAutosizingFontScaleFactor(float fontScaleFactor, ExceptionCode& ec)
 {
 #if ENABLE(TEXT_AUTOSIZING)
@@ -484,22 +497,6 @@ void InternalSettings::setSyncXHRInDocumentsEnabled(bool enabled, ExceptionCode&
 {
     InternalSettingsGuardForSettings();
     settings()->setSyncXHRInDocumentsEnabled(enabled);
-}
-
-void InternalSettings::setJavaScriptProfilingEnabled(bool enabled, ExceptionCode& ec)
-{
-#if ENABLE(INSPECTOR)
-    if (!page() || !page()->inspectorController()) {
-        ec = INVALID_ACCESS_ERR;
-        return;
-    }
-
-    page()->inspectorController()->setProfilerEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-    UNUSED_PARAM(ec);
-    return;
-#endif
 }
 
 void InternalSettings::setWindowFocusRestricted(bool restricted, ExceptionCode& ec)
@@ -630,7 +627,7 @@ String InternalSettings::configurationForViewport(float devicePixelRatio, int de
 
     ViewportArguments arguments = page()->viewportArguments();
     ViewportAttributes attributes = computeViewportAttributes(arguments, defaultLayoutWidthForNonMobilePages, deviceWidth, deviceHeight, devicePixelRatio, IntSize(availableWidth, availableHeight));
-    restrictMinimumScaleFactorToViewportSize(attributes, IntSize(availableWidth, availableHeight));
+    restrictMinimumScaleFactorToViewportSize(attributes, IntSize(availableWidth, availableHeight), devicePixelRatio);
     restrictScaleFactorToInitialScaleIfNotUserScalable(attributes);
 
     return "viewport size " + String::number(attributes.layoutSize.width()) + "x" + String::number(attributes.layoutSize.height()) + " scale " + String::number(attributes.initialScale) + " with limits [" + String::number(attributes.minimumScale) + ", " + String::number(attributes.maximumScale) + "] and userScalable " + (attributes.userScalable ? "true" : "false");

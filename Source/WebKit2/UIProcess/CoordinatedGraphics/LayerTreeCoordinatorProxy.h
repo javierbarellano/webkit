@@ -23,24 +23,21 @@
 #if USE(COORDINATED_GRAPHICS)
 
 #include "BackingStore.h"
+#include "CoordinatedGraphicsArgumentCoders.h"
 #include "DrawingAreaProxy.h"
 #include "Region.h"
 #include "SurfaceUpdateInfo.h"
 #include "WebLayerTreeInfo.h"
 #include <WebCore/GraphicsContext.h>
 #include <WebCore/GraphicsLayer.h>
+#include <WebCore/GraphicsLayerAnimation.h>
+#include <WebCore/GraphicsSurfaceToken.h>
 #include <WebCore/IntRect.h>
 #include <WebCore/IntSize.h>
 #include <WebCore/RunLoop.h>
 #include <WebCore/Timer.h>
 #include <wtf/Functional.h>
 #include <wtf/HashSet.h>
-
-#if PLATFORM(QT)
-QT_BEGIN_NAMESPACE
-class QSGNode;
-QT_END_NAMESPACE
-#endif
 
 namespace WebKit {
 
@@ -59,8 +56,6 @@ public:
 #endif
     void deleteCompositingLayer(WebLayerID);
     void setRootCompositingLayer(WebLayerID);
-    void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::ArgumentDecoder*);
-    void purgeGLResources();
     void setContentsSize(const WebCore::FloatSize&);
     void setVisibleContentsRect(const WebCore::FloatRect&, float scale, const WebCore::FloatPoint& trajectoryVector);
     void didRenderFrame(const WebCore::IntSize& contentsSize, const WebCore::IntRect& coveredRect);
@@ -69,15 +64,21 @@ public:
     void removeTileForLayer(int layerID, int tileID);
     void createDirectlyCompositedImage(int64_t, const WebKit::ShareableBitmap::Handle&);
     void destroyDirectlyCompositedImage(int64_t);
-    void didReceiveLayerTreeCoordinatorProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::ArgumentDecoder*);
+    void didReceiveLayerTreeCoordinatorProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::MessageDecoder&);
     void updateViewport();
     void renderNextFrame();
     void didChangeScrollPosition(const WebCore::IntPoint& position);
-    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, uint64_t graphicsSurfaceToken, uint32_t frontBuffer);
+#if USE(GRAPHICS_SURFACE)
+    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, const WebCore::GraphicsSurfaceToken&, uint32_t frontBuffer);
+#endif
     void purgeBackingStores();
     LayerTreeRenderer* layerTreeRenderer() const { return m_renderer.get(); }
-    void setLayerAnimatedOpacity(uint32_t, float);
-    void setLayerAnimatedTransform(uint32_t, const WebCore::TransformationMatrix&);
+    void setLayerAnimations(WebLayerID, const WebCore::GraphicsLayerAnimations&);
+    void setAnimationsLocked(bool);
+#if ENABLE(REQUEST_ANIMATION_FRAME)
+    void requestAnimationFrame();
+    void animationFrameReady();
+#endif
 
 protected:
     void dispatchUpdate(const Function<void()>&);
@@ -88,7 +89,7 @@ protected:
     float m_lastSentScale;
     WebCore::FloatPoint m_lastSentTrajectoryVector;
 #if USE(GRAPHICS_SURFACE)
-    HashMap<uint64_t, RefPtr<ShareableSurface> > m_surfaces;
+    HashMap<WebCore::GraphicsSurfaceToken::BufferHandle, RefPtr<ShareableSurface> > m_surfaces;
 #endif
 };
 

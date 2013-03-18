@@ -195,11 +195,11 @@ void LayerWebKitThread::setDrawable(bool isDrawable)
 
 void LayerWebKitThread::setNeedsCommit()
 {
-    // Call notifySyncRequired(), which in this implementation plumbs through to
+    // Call notifyFlushRequired(), which in this implementation plumbs through to
     // call scheduleRootLayerCommit() on the WebView, which will cause us to commit
     // changes done on the WebKit thread for display on the Compositing thread.
     if (m_owner)
-        m_owner->notifySyncRequired();
+        m_owner->notifyFlushRequired();
 }
 
 void LayerWebKitThread::notifyAnimationStarted(double time)
@@ -417,6 +417,7 @@ bool LayerWebKitThread::filtersCanBeComposited(const FilterOperations& filters)
         case FilterOperation::REFERENCE:
 #if ENABLE(CSS_SHADERS)
         case FilterOperation::CUSTOM:
+        case FilterOperation::VALIDATED_CUSTOM:
 #endif
             return false;
         default:

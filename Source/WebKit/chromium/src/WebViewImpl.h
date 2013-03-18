@@ -145,6 +145,7 @@ public:
     virtual void setCompositorSurfaceReady();
     virtual void animate(double);
     virtual void layout(); // Also implements WebLayerTreeViewClient::layout()
+    virtual void enterForceCompositingMode(bool enable) OVERRIDE;
     virtual void paint(WebCanvas*, const WebRect&, PaintOptions = ReadbackFromCompositorIfAvailable);
     virtual void themeChanged();
     virtual void composite(bool finish);
@@ -325,6 +326,9 @@ public:
 
     // WebViewImpl
 
+    void suppressInvalidations(bool enable);
+    void invalidateRect(const WebCore::IntRect&);
+
     void setIgnoreInputEvents(bool newValue);
     WebDevToolsAgentPrivate* devToolsAgentPrivate() { return m_devToolsAgent.get(); }
 
@@ -392,7 +396,7 @@ public:
     void mouseContextMenu(const WebMouseEvent&);
     void mouseDoubleClick(const WebMouseEvent&);
 
-    bool detectContentOnTouch(const WebPoint&, WebInputEvent::Type);
+    bool detectContentOnTouch(const WebPoint&);
     void startPageScaleAnimation(const WebCore::IntPoint& targetPosition, bool useAnchor, float newScale, double durationInSeconds);
 
     void numberOfWheelEventHandlersChanged(unsigned);
@@ -529,7 +533,6 @@ public:
     void setRootGraphicsLayer(WebCore::GraphicsLayer*);
     void scheduleCompositingLayerSync();
     void scrollRootLayerRect(const WebCore::IntSize& scrollDelta, const WebCore::IntRect& clipRect);
-    void invalidateRootLayerRect(const WebCore::IntRect&);
     void paintRootLayer(WebCore::GraphicsContext&, const WebCore::IntRect& contentRect);
     NonCompositedContentHost* nonCompositedContentHost();
     void setBackgroundColor(const WebCore::Color&);
@@ -562,8 +565,8 @@ public:
 
 #if ENABLE(GESTURE_EVENTS)
     void computeScaleAndScrollForHitRect(const WebRect& hitRect, AutoZoomType, float& scale, WebPoint& scroll, bool& isAnchor);
-    WebCore::Node* bestTouchLinkNode(WebCore::IntPoint touchEventLocation);
-    void enableTouchHighlight(WebCore::IntPoint touchEventLocation);
+    WebCore::Node* bestTouchLinkNode(const WebGestureEvent& touchEvent);
+    void enableTouchHighlight(const WebGestureEvent& touchEvent);
 #endif
     void animateZoomAroundPoint(const WebCore::IntPoint&, AutoZoomType);
 
@@ -834,6 +837,7 @@ private:
     WebLayer* m_rootLayer;
     WebCore::GraphicsLayer* m_rootGraphicsLayer;
     bool m_isAcceleratedCompositingActive;
+    bool m_layerTreeViewCommitsDeferred;
     bool m_compositorCreationFailed;
     // If true, the graphics context is being restored.
     bool m_recreatingGraphicsContext;
@@ -872,6 +876,8 @@ private:
     OwnPtr<LinkHighlight> m_linkHighlight;
 #endif
     OwnPtr<ValidationMessageClientImpl> m_validationMessage;
+
+    bool m_suppressInvalidations;
 };
 
 } // namespace WebKit

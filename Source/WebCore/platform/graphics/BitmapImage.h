@@ -87,7 +87,7 @@ public:
     // Clear the cached image data on the frame, and (optionally) the metadata.
     // Returns whether there was cached image data to clear.
     bool clear(bool clearMetadata);
-    void reportMemoryUsage(MemoryObjectInfo*) const {}
+    void reportMemoryUsage(MemoryObjectInfo*) const;
 
     NativeImagePtr m_frame;
     ImageOrientation m_orientation;
@@ -203,8 +203,8 @@ protected:
     virtual void drawFrameMatchingSourceSize(GraphicsContext*, const FloatRect& dstRect, const IntSize& srcSize, ColorSpace styleColorSpace, CompositeOperator);
 #endif
     virtual void draw(GraphicsContext*, const FloatRect& dstRect, const FloatRect& srcRect, ColorSpace styleColorSpace, CompositeOperator);
-#if USE(CG)
-    virtual void draw(GraphicsContext*, const FloatRect& dstRect, const FloatRect& srcRect, ColorSpace styleColorSpace, CompositeOperator, RespectImageOrientationEnum);
+#if USE(CG) || PLATFORM(CHROMIUM)
+    virtual void draw(GraphicsContext*, const FloatRect& dstRect, const FloatRect& srcRect, ColorSpace styleColorSpace, CompositeOperator, RespectImageOrientationEnum) OVERRIDE;
 #endif
 
 #if (OS(WINCE) && !PLATFORM(QT))

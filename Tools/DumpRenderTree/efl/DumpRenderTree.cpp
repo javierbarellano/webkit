@@ -68,7 +68,6 @@ volatile bool done = false;
 static bool dumpPixelsForCurrentTest;
 static int dumpTree = true;
 static int printSeparators = true;
-static int useX11Window = false;
 
 static String dumpFramesAsText(Evas_Object* frame)
 {
@@ -194,7 +193,6 @@ static bool parseCommandLineOptions(int argc, char** argv)
     static const option options[] = {
         {"notree", no_argument, &dumpTree, false},
         {"tree", no_argument, &dumpTree, true},
-        {"gui", no_argument, &useX11Window, true},
         {0, 0, 0, 0}
     };
 
@@ -384,7 +382,8 @@ static void shutdownEfl()
 
 void displayWebView()
 {
-    notImplemented();
+    DumpRenderTreeSupportEfl::setTracksRepaints(browser->mainFrame(), true);
+    DumpRenderTreeSupportEfl::resetTrackedRepaints(browser->mainFrame());
 }
 
 void dump()
@@ -420,7 +419,11 @@ void dump()
 
 static Ecore_Evas* initEcoreEvas()
 {
-    Ecore_Evas* ecoreEvas = useX11Window ? ecore_evas_new(0, 0, 0, 800, 600, 0) : ecore_evas_buffer_new(800, 600);
+    const char* engine = 0;
+#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+    engine = "opengl_x11";
+#endif
+    Ecore_Evas* ecoreEvas = ecore_evas_new(engine, 0, 0, 800, 600, 0);
     if (!ecoreEvas) {
         shutdownEfl();
         exit(EXIT_FAILURE);

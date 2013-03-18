@@ -42,10 +42,11 @@ namespace WebCore {
 struct FilterData {
     WTF_MAKE_FAST_ALLOCATED;
 public:
+    enum FilterDataState { PaintingSource, Applying, Built, CycleDetected, MarkedForRemoval };
+
     FilterData()
         : savedContext(0)
-        , builded(false)
-        , markedForRemoval(false)
+        , state(PaintingSource)
     {
     }
 
@@ -56,8 +57,7 @@ public:
     AffineTransform shearFreeAbsoluteTransform;
     FloatRect boundaries;
     FloatSize scale;
-    bool builded : 1;
-    bool markedForRemoval : 1;
+    FilterDataState state;
 };
 
 class GraphicsContext;

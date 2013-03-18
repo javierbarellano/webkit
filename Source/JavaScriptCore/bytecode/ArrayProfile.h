@@ -33,6 +33,7 @@
 
 namespace JSC {
 
+class CodeBlock;
 class LLIntOffsetsExtractor;
 
 // This is a bitfield where each bit represents an IndexingType that we have seen.
@@ -40,11 +41,42 @@ class LLIntOffsetsExtractor;
 typedef unsigned ArrayModes;
 
 #define asArrayModes(type) \
-    (1 << static_cast<unsigned>(type))
+    (static_cast<unsigned>(1) << static_cast<unsigned>(type))
+
+#define ALL_NON_ARRAY_ARRAY_MODES                       \
+    (asArrayModes(NonArray)                             \
+     | asArrayModes(NonArrayWithContiguous)             \
+     | asArrayModes(NonArrayWithArrayStorage)           \
+     | asArrayModes(NonArrayWithSlowPutArrayStorage))
+
+#define ALL_ARRAY_ARRAY_MODES                           \
+    (asArrayModes(ArrayClass)                           \
+     | asArrayModes(ArrayWithContiguous)                \
+     | asArrayModes(ArrayWithArrayStorage)              \
+     | asArrayModes(ArrayWithSlowPutArrayStorage))
+
+#define ALL_ARRAY_MODES (ALL_NON_ARRAY_ARRAY_MODES | ALL_ARRAY_ARRAY_MODES)
 
 inline ArrayModes arrayModeFromStructure(Structure* structure)
 {
     return asArrayModes(structure->indexingType());
+}
+
+const char* arrayModesToString(ArrayModes);
+
+inline bool mergeArrayModes(ArrayModes& left, ArrayModes right)
+{
+    ArrayModes newModes = left | right;
+    if (newModes == left)
+        return false;
+    left = newModes;
+    return true;
+}
+
+// Checks if proven is a subset of expected.
+inline bool arrayModesAlreadyChecked(ArrayModes proven, ArrayModes expected)
+{
+    return (expected | proven) == expected;
 }
 
 class ArrayProfile {
@@ -56,6 +88,7 @@ public:
         , m_structureIsPolymorphic(false)
         , m_mayStoreToHole(false)
         , m_mayInterceptIndexedAccesses(false)
+        , m_usesOriginalArrayStructures(true)
         , m_observedArrayModes(0)
     {
     }
@@ -67,6 +100,7 @@ public:
         , m_structureIsPolymorphic(false)
         , m_mayStoreToHole(false)
         , m_mayInterceptIndexedAccesses(false)
+        , m_usesOriginalArrayStructures(true)
         , m_observedArrayModes(0)
     {
     }
@@ -82,7 +116,7 @@ public:
         m_lastSeenStructure = structure;
     }
     
-    void computeUpdatedPrediction(OperationInProgress operation = NoOperation);
+    void computeUpdatedPrediction(CodeBlock*, OperationInProgress = NoOperation);
     
     Structure* expectedStructure() const { return m_expectedStructure; }
     bool structureIsPolymorphic() const
@@ -98,6 +132,8 @@ public:
     
     bool mayStoreToHole() const { return m_mayStoreToHole; }
     
+    bool usesOriginalArrayStructures() const { return m_usesOriginalArrayStructures; }
+    
 private:
     friend class LLIntOffsetsExtractor;
     
@@ -107,6 +143,7 @@ private:
     bool m_structureIsPolymorphic;
     bool m_mayStoreToHole; // This flag may become overloaded to indicate other special cases that were encountered during array access, as it depends on indexing type. Since we currently have basically just one indexing type (two variants of ArrayStorage), this flag for now just means exactly what its name implies.
     bool m_mayInterceptIndexedAccesses;
+    bool m_usesOriginalArrayStructures;
     ArrayModes m_observedArrayModes;
 };
 

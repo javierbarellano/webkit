@@ -90,7 +90,6 @@ class Event;
 class EventListener;
 class FloatRect;
 class FloatQuad;
-class FontData;
 class FormController;
 class Frame;
 class FrameView;
@@ -109,7 +108,7 @@ class HitTestResult;
 class IntPoint;
 class DOMWrapperWorld;
 class JSNode;
-class Localizer;
+class Locale;
 class MediaCanStartListener;
 class MediaQueryList;
 class MediaQueryMatcher;
@@ -157,8 +156,8 @@ class SVGDocumentExtensions;
 class TransformSource;
 #endif
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-struct DashboardRegionValue;
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+struct AnnotatedRegionValue;
 #endif
 
 #if ENABLE(TOUCH_EVENTS)
@@ -539,8 +538,6 @@ public:
     void updateLayoutIgnorePendingStylesheets();
     PassRefPtr<RenderStyle> styleForElementIgnoringPendingStylesheets(Element*);
     PassRefPtr<RenderStyle> styleForPage(int pageIndex);
-
-    void registerCustomFont(PassOwnPtr<FontData>);
 
     // Returns true if page box (margin boxes and page borders) is visible.
     bool isPageBoxVisible(int pageIndex);
@@ -995,13 +992,13 @@ public:
     void setFrameElementsShouldIgnoreScrolling(bool ignore) { m_frameElementsShouldIgnoreScrolling = ignore; }
     bool frameElementsShouldIgnoreScrolling() const { return m_frameElementsShouldIgnoreScrolling; }
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-    void setDashboardRegionsDirty(bool f) { m_dashboardRegionsDirty = f; }
-    bool dashboardRegionsDirty() const { return m_dashboardRegionsDirty; }
-    bool hasDashboardRegions () const { return m_hasDashboardRegions; }
-    void setHasDashboardRegions(bool f) { m_hasDashboardRegions = f; }
-    const Vector<DashboardRegionValue>& dashboardRegions() const;
-    void setDashboardRegions(const Vector<DashboardRegionValue>&);
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    void setAnnotatedRegionsDirty(bool f) { m_annotatedRegionsDirty = f; }
+    bool annotatedRegionsDirty() const { return m_annotatedRegionsDirty; }
+    bool hasAnnotatedRegions () const { return m_hasAnnotatedRegions; }
+    void setHasAnnotatedRegions(bool f) { m_hasAnnotatedRegions = f; }
+    const Vector<AnnotatedRegionValue>& annotatedRegions() const;
+    void setAnnotatedRegions(const Vector<AnnotatedRegionValue>&);
 #endif
 
     virtual void removeAllEventListeners();
@@ -1094,9 +1091,9 @@ public:
     const DocumentTiming* timing() const { return &m_documentTiming; }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
-    int webkitRequestAnimationFrame(PassRefPtr<RequestAnimationFrameCallback>);
-    void webkitCancelAnimationFrame(int id);
-    void serviceScriptedAnimations(DOMTimeStamp);
+    int requestAnimationFrame(PassRefPtr<RequestAnimationFrameCallback>);
+    void cancelAnimationFrame(int id);
+    void serviceScriptedAnimations(double monotonicAnimationStartTime);
 #endif
 
     virtual EventTarget* errorEventTarget();
@@ -1159,8 +1156,8 @@ public:
 
     bool inStyleRecalc() { return m_inStyleRecalc; }
 
-    // Return a Localizer for the default locale if the argument is null or empty.
-    Localizer& getCachedLocalizer(const AtomicString& locale = nullAtom);
+    // Return a Locale for the default locale if the argument is null or empty.
+    Locale& getCachedLocale(const AtomicString& locale = nullAtom);
 
 protected:
     Document(Frame*, const KURL&, bool isXHTML, bool isHTML);
@@ -1196,9 +1193,11 @@ private:
     virtual const KURL& virtualURL() const; // Same as url(), but needed for ScriptExecutionContext to implement it without a performance loss for direct calls.
     virtual KURL virtualCompleteURL(const String&) const; // Same as completeURL() for the same reason as above.
 
-    virtual void addMessage(MessageSource, MessageType, MessageLevel, const String& message, const String& sourceURL, unsigned lineNumber, PassRefPtr<ScriptCallStack>);
+    virtual void addMessage(MessageSource, MessageType, MessageLevel, const String& message, const String& sourceURL, unsigned lineNumber, PassRefPtr<ScriptCallStack>, unsigned long requestIdentifier = 0);
 
     virtual double minimumTimerInterval() const;
+
+    virtual double timerAlignmentInterval() const;
 
     void updateTitle(const StringWithDirection&);
     void updateFocusAppearanceTimerFired(Timer<Document>*);
@@ -1209,8 +1208,6 @@ private:
     void createStyleResolver();
 
     void seamlessParentUpdatedStylesheets();
-
-    void deleteCustomFonts();
 
     PassRefPtr<NodeList> handleZeroPadding(const HitTestRequest&, HitTestResult&) const;
 
@@ -1256,12 +1253,10 @@ private:
     // do eventually load.
     PendingSheetLayout m_pendingSheetLayout;
 
-    Vector<OwnPtr<FontData> > m_customFonts;
-
     Frame* m_frame;
     RefPtr<DOMWindow> m_domWindow;
 
-    OwnPtr<CachedResourceLoader> m_cachedResourceLoader;
+    RefPtr<CachedResourceLoader> m_cachedResourceLoader;
     RefPtr<DocumentParser> m_parser;
     RefPtr<ContextFeatures> m_contextFeatures;
 
@@ -1409,10 +1404,10 @@ private:
     OwnPtr<SVGDocumentExtensions> m_svgExtensions;
 #endif
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-    Vector<DashboardRegionValue> m_dashboardRegions;
-    bool m_hasDashboardRegions;
-    bool m_dashboardRegionsDirty;
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    Vector<AnnotatedRegionValue> m_annotatedRegions;
+    bool m_hasAnnotatedRegions;
+    bool m_annotatedRegionsDirty;
 #endif
 
     HashMap<String, RefPtr<HTMLCanvasElement> > m_cssCanvasElements;
@@ -1518,8 +1513,8 @@ private:
     bool m_didDispatchViewportPropertiesChanged;
 #endif
 
-    typedef HashMap<AtomicString, OwnPtr<Localizer> > LocaleToLocalizerMap;
-    LocaleToLocalizerMap m_localizerCache;
+    typedef HashMap<AtomicString, OwnPtr<Locale> > LocaleIdentifierToLocaleMap;
+    LocaleIdentifierToLocaleMap m_localeCache;
 };
 
 inline void Document::notifyRemovePendingSheetIfNeeded()

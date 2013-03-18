@@ -49,7 +49,6 @@ typedef WebCore::LayerCompiledProgram PlatformCompiledProgram;
 
 namespace WebCore {
 
-class ANGLEWebKitBridge;
 class CustomFilterCompiledProgram;
 class CustomFilterGlobalContext;
 
@@ -102,6 +101,8 @@ private:
 
     void rewriteMixVertexShader();
     void rewriteMixFragmentShader();
+
+    bool needsInputTexture() const;
 
     CustomFilterGlobalContext* m_globalContext;
     CustomFilterProgramInfo m_programInfo;

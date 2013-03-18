@@ -99,11 +99,10 @@ static String cocoaTypeFromHTMLClipboardType(const String& type)
 
     // Try UTI now
     String mimeType = qType;
-    RetainPtr<CFStringRef> utiType(AdoptCF, UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, mimeType.createCFString(), NULL));
-    if (utiType) {
-        CFStringRef pbType = UTTypeCopyPreferredTagWithClass(utiType.get(), kUTTagClassNSPboardType);
+    if (RetainPtr<CFStringRef> utiType = adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, mimeType.createCFString().get(), NULL))) {
+        RetainPtr<CFStringRef> pbType = adoptCF(UTTypeCopyPreferredTagWithClass(utiType.get(), kUTTagClassNSPboardType));
         if (pbType)
-            return pbType;
+            return pbType.get();
     }
 
     // No mapping, just pass the whole string though
@@ -112,17 +111,14 @@ static String cocoaTypeFromHTMLClipboardType(const String& type)
 
 static String utiTypeFromCocoaType(const String& type)
 {
-    RetainPtr<CFStringRef> typeCF = adoptCF(type.createCFString());
-    RetainPtr<CFStringRef> utiType(AdoptCF, UTTypeCreatePreferredIdentifierForTag(kUTTagClassNSPboardType, typeCF.get(), 0));
-    if (utiType) {
-        RetainPtr<CFStringRef> mimeType(AdoptCF, UTTypeCopyPreferredTagWithClass(utiType.get(), kUTTagClassMIMEType));
-        if (mimeType)
+    if (RetainPtr<CFStringRef> utiType = adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassNSPboardType, type.createCFString().get(), 0))) {
+        if (RetainPtr<CFStringRef> mimeType = adoptCF(UTTypeCopyPreferredTagWithClass(utiType.get(), kUTTagClassMIMEType)))
             return String(mimeType.get());
     }
     return String();
 }
 
-static void addHTMLClipboardTypesForCocoaType(HashSet<String>& resultTypes, const String& cocoaType, const String& pasteboardName)
+static void addHTMLClipboardTypesForCocoaType(ListHashSet<String>& resultTypes, const String& cocoaType, const String& pasteboardName)
 {
     // UTI may not do these right, so make sure we get the right, predictable result
     if (cocoaType == String(NSStringPboardType)) {
@@ -284,10 +280,10 @@ bool ClipboardMac::setData(const String &type, const String &data)
     return false;
 }
 
-HashSet<String> ClipboardMac::types() const
+ListHashSet<String> ClipboardMac::types() const
 {
     if (policy() != ClipboardReadable && policy() != ClipboardTypesReadable)
-        return HashSet<String>();
+        return ListHashSet<String>();
 
     Vector<String> types;
     platformStrategies()->pasteboardStrategy()->getTypes(types, m_pasteboardName);
@@ -295,9 +291,9 @@ HashSet<String> ClipboardMac::types() const
     // Enforce changeCount ourselves for security.  We check after reading instead of before to be
     // sure it doesn't change between our testing the change count and accessing the data.
     if (m_changeCount != platformStrategies()->pasteboardStrategy()->changeCount(m_pasteboardName))
-        return HashSet<String>();
+        return ListHashSet<String>();
 
-    HashSet<String> result;
+    ListHashSet<String> result;
     // FIXME: This loop could be split into two stages. One which adds all the HTML5 specified types
     // and a second which adds all the extra types from the cocoa clipboard (which is Mac-only behavior).
     for (size_t i = 0; i < types.size(); i++) {
@@ -408,7 +404,7 @@ void ClipboardMac::declareAndWriteDragImage(Element* element, const KURL& url, c
     
 DragImageRef ClipboardMac::createDragImage(IntPoint& loc) const
 {
-    NSPoint nsloc = {loc.x(), loc.y()};
+    NSPoint nsloc = NSMakePoint(loc.x(), loc.y());
     DragImageRef result = dragNSImage(nsloc);
     loc = (IntPoint)nsloc;
     return result;

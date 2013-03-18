@@ -28,6 +28,7 @@
 
 #if ENABLE(INDEXED_DATABASE)
 
+#include "DOMStringList.h"
 #include "IDBCallbacks.h"
 #include "IDBCursorBackendProxy.h"
 #include "IDBDatabaseBackendProxy.h"
@@ -98,6 +99,16 @@ void WebIDBCallbacksImpl::onSuccess(const WebSerializedScriptValue& serializedSc
 void WebIDBCallbacksImpl::onSuccess(const WebSerializedScriptValue& serializedScriptValue, const WebIDBKey& key, const WebIDBKeyPath& keyPath)
 {
     m_callbacks->onSuccess(serializedScriptValue, key, keyPath);
+}
+
+void WebIDBCallbacksImpl::onSuccess(long long value)
+{
+    m_callbacks->onSuccess(value);
+}
+
+void WebIDBCallbacksImpl::onSuccess()
+{
+    m_callbacks->onSuccess();
 }
 
 void WebIDBCallbacksImpl::onSuccess(const WebIDBKey& key, const WebIDBKey& primaryKey, const WebSerializedScriptValue& value)

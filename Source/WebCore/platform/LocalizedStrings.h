@@ -192,12 +192,7 @@ namespace WebCore {
     // "datetime-local" input UI instead "----".
     String placeholderForYearField();
 
-    // monthFormatInLDML() returns month and year format in LDML, Unicode
-    // technical standard 35, Locale Data Markup Language, e.g. "MM-yyyyy"
-    // for "month" input type.
-    String monthFormatInLDML();
-
-    // monthFormatInLDML() returns week and year format in LDML, Unicode
+    // weekFormatInLDML() returns week and year format in LDML, Unicode
     // technical standard 35, Locale Data Markup Language, e.g. "WW-yyyyy"
     // for "week" input type.
     String weekFormatInLDML();
@@ -251,13 +246,6 @@ namespace WebCore {
     String validationMessageRangeUnderflowText(const String& minimum);
     String validationMessageRangeOverflowText(const String& maximum);
     String validationMessageStepMismatchText(const String& base, const String& step);
-#if ENABLE(CALENDAR_PICKER)
-    String calendarTodayText();
-    String calendarClearText();
-    String dateFormatYearText();
-    String dateFormatMonthText();
-    String dateFormatDayInMonthText();
-#endif
 #if USE(SOUP)
     String unacceptableTLSCertificate();
 #endif

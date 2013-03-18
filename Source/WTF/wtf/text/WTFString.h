@@ -32,15 +32,10 @@
 #include <objc/objc.h>
 #endif
 
-#if USE(CF)
-typedef const struct __CFString * CFStringRef;
-#endif
-
 #if PLATFORM(QT)
 QT_BEGIN_NAMESPACE
 class QString;
 QT_END_NAMESPACE
-#include <QDataStream>
 #endif
 
 #if PLATFORM(WX)
@@ -49,8 +44,8 @@ class wxString;
 
 #if PLATFORM(BLACKBERRY)
 namespace BlackBerry {
-namespace WebKit {
-    class WebString;
+namespace Platform {
+class String;
 }
 }
 #endif
@@ -302,6 +297,7 @@ public:
     WTF_EXPORT_STRING_API void append(LChar);
     void append(char c) { append(static_cast<LChar>(c)); };
     WTF_EXPORT_STRING_API void append(UChar);
+    WTF_EXPORT_STRING_API void append(const LChar*, unsigned length);
     WTF_EXPORT_STRING_API void append(const UChar*, unsigned length);
     WTF_EXPORT_STRING_API void insert(const String&, unsigned pos);
     void insert(const UChar*, unsigned length, unsigned pos);
@@ -350,10 +346,16 @@ public:
     static String createUninitialized(unsigned length, UChar*& data) { return StringImpl::createUninitialized(length, data); }
     static String createUninitialized(unsigned length, LChar*& data) { return StringImpl::createUninitialized(length, data); }
 
-    WTF_EXPORT_STRING_API void split(const String& separator, Vector<String>& result) const;
     WTF_EXPORT_STRING_API void split(const String& separator, bool allowEmptyEntries, Vector<String>& result) const;
-    WTF_EXPORT_STRING_API void split(UChar separator, Vector<String>& result) const;
+    void split(const String& separator, Vector<String>& result) const
+    {
+        split(separator, false, result);
+    }
     WTF_EXPORT_STRING_API void split(UChar separator, bool allowEmptyEntries, Vector<String>& result) const;
+    void split(UChar separator, Vector<String>& result) const
+    {
+        split(separator, false, result);
+    }
 
     WTF_EXPORT_STRING_API int toIntStrict(bool* ok = 0, int base = 10) const;
     WTF_EXPORT_STRING_API unsigned toUIntStrict(bool* ok = 0, int base = 10) const;
@@ -386,7 +388,7 @@ public:
 
 #if USE(CF)
     String(CFStringRef);
-    CFStringRef createCFString() const;
+    RetainPtr<CFStringRef> createCFString() const;
 #endif
 
 #ifdef __OBJC__
@@ -409,8 +411,8 @@ public:
 #endif
 
 #if PLATFORM(BLACKBERRY)
-    String(const BlackBerry::WebKit::WebString&);
-    operator BlackBerry::WebKit::WebString() const;
+    String(const BlackBerry::Platform::String&);
+    operator BlackBerry::Platform::String() const;
 #endif
 
     WTF_EXPORT_STRING_API static String make8BitFrom16BitSource(const UChar*, size_t);
@@ -458,13 +460,11 @@ public:
     }
 
 private:
+    template <typename CharacterType>
+    void removeInternal(const CharacterType*, unsigned, int);
+
     RefPtr<StringImpl> m_impl;
 };
-
-#if PLATFORM(QT)
-QDataStream& operator<<(QDataStream& stream, const String& str);
-QDataStream& operator>>(QDataStream& stream, String& str);
-#endif
 
 inline bool operator==(const String& a, const String& b) { return equal(a.impl(), b.impl()); }
 inline bool operator==(const String& a, const LChar* b) { return equal(a.impl(), b); }

@@ -28,11 +28,13 @@ using namespace WebKit;
 
 namespace WTR {
 
-static bool useX11Window = false;
-
 static Ecore_Evas* initEcoreEvas()
 {
-    Ecore_Evas* ecoreEvas = useX11Window ? ecore_evas_new(0, 0, 0, 800, 600, 0) : ecore_evas_buffer_new(800, 600);
+    const char* engine = 0;
+#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+    engine = "opengl_x11";
+#endif
+    Ecore_Evas* ecoreEvas = ecore_evas_new(engine, 0, 0, 800, 600, 0);
     if (!ecoreEvas)
         return 0;
 
@@ -42,7 +44,7 @@ static Ecore_Evas* initEcoreEvas()
     return ecoreEvas;
 }
 
-PlatformWebView::PlatformWebView(WKContextRef context, WKPageGroupRef pageGroup)
+PlatformWebView::PlatformWebView(WKContextRef context, WKPageGroupRef pageGroup, WKDictionaryRef /*options*/)
 {
     m_window = initEcoreEvas();
     Evas* evas = ecore_evas_get(m_window);
@@ -71,21 +73,28 @@ WKPageRef PlatformWebView::page()
 
 void PlatformWebView::focus()
 {
+    // In a few cases, an iframe might receive focus from JavaScript and Evas is not aware of it at all
+    // (WebCoreSupport::focusedFrameChanged() does not emit any notification). We then manually remove the
+    // focus from the view to make the call give focus to evas_object_focus_set(..., true) to be effectful.
+    if (WKPageGetFocusedFrame(page()) != WKPageGetMainFrame(page()))
+        evas_object_focus_set(m_view, false);
     evas_object_focus_set(m_view, true);
 }
 
 WKRect PlatformWebView::windowFrame()
 {
-    Evas_Coord x, y, width, height;
-    evas_object_geometry_get(m_view, &x, &y, &width, &height);
+    int x, y, width, height;
+
+    Ecore_Evas* ee = ecore_evas_ecore_evas_get(evas_object_evas_get(m_view));
+    ecore_evas_request_geometry_get(ee, &x, &y, &width, &height);
 
     return WKRectMake(x, y, width, height);
 }
 
 void PlatformWebView::setWindowFrame(WKRect frame)
 {
-    evas_object_move(m_view, frame.origin.x, frame.origin.y);
-    resizeTo(frame.size.width, frame.size.height);
+    Ecore_Evas* ee = ecore_evas_ecore_evas_get(evas_object_evas_get(m_view));
+    ecore_evas_move_resize(ee, frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
 }
 
 void PlatformWebView::addChromeInputField()

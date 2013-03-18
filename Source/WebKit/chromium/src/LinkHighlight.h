@@ -54,7 +54,7 @@ public:
 
     WebContentLayer* contentLayer();
     WebLayer* clipLayer();
-    void startHighlightAnimation();
+    void startHighlightAnimationIfNeeded();
     void updateGeometry();
 
     // WebContentLayerClient implementation.
@@ -90,7 +90,7 @@ private:
     WebCore::GraphicsLayerChromium* m_currentGraphicsLayer;
 
     bool m_geometryNeedsUpdate;
-    WebCore::FloatPoint m_graphicsLayerOffset;
+    bool m_isAnimating;
 };
 
 } // namespace WebKit

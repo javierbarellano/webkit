@@ -84,9 +84,10 @@ int PluginProcessMain(const CommandLine& commandLine)
     }
 
     String localization = commandLine["localization"];
-    RetainPtr<CFStringRef> cfLocalization(AdoptCF, CFStringCreateWithCharacters(0, reinterpret_cast<const UniChar*>(localization.characters()), localization.length()));
-    if (cfLocalization)
+    if (!localization.isEmpty()) {
+        RetainPtr<CFStringRef> cfLocalization(AdoptCF, CFStringCreateWithCharacters(0, reinterpret_cast<const UniChar*>(localization.characters()), localization.length()));
         WKSetDefaultLocalization(cfLocalization.get());
+    }
 
 #if defined(__i386__)
     {
@@ -115,6 +116,10 @@ int PluginProcessMain(const CommandLine& commandLine)
     JSC::initializeThreading();
     WTF::initializeMainThread();
     RunLoop::initializeMainRunLoop();
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    [[NSProcessInfo processInfo] disableAutomaticTermination:@"Disable PluginProcess Auto Termination"];
+#endif
 
 #if defined(__i386__)
     // Initialize the shim for 32-bit only.

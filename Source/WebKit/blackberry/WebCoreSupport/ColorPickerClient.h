@@ -23,9 +23,12 @@
 #include <BlackBerryPlatformInputEvents.h>
 
 namespace BlackBerry {
+namespace Platform {
+class String;
+}
+
 namespace WebKit {
 class WebPagePrivate;
-class WebString;
 }
 }
 
@@ -35,9 +38,9 @@ class HTMLInputElement;
 
 class ColorPickerClient : public PagePopupClient {
 public:
-    ColorPickerClient(const BlackBerry::WebKit::WebString& value, BlackBerry::WebKit::WebPagePrivate*, HTMLInputElement*);
+    ColorPickerClient(const BlackBerry::Platform::String& value, BlackBerry::WebKit::WebPagePrivate*, HTMLInputElement*);
 
-    void generateHTML(const BlackBerry::WebKit::WebString& value);
+    void generateHTML(const BlackBerry::Platform::String& value);
     void writeDocument(DocumentWriter&);
     IntSize contentSize();
     String htmlSource() const;
@@ -50,7 +53,7 @@ private:
 
     String m_source;
     BlackBerry::WebKit::WebPagePrivate* m_webPage;
-    HTMLInputElement* m_element;
+    RefPtr<HTMLInputElement> m_element;
 };
 } // namespace WebCore
 #endif

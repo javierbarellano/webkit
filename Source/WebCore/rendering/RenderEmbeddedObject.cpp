@@ -53,6 +53,10 @@
 #include "Text.h"
 #include "TextRun.h"
 
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+#include "HTMLMediaElement.h"
+#endif
+
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -228,7 +232,12 @@ bool RenderEmbeddedObject::getReplacementTextGeometry(const LayoutPoint& accumul
 
 void RenderEmbeddedObject::layout()
 {
+    StackStats::LayoutCheckPoint layoutCheckPoint;
     ASSERT(needsLayout());
+
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    LayoutSize oldSize = contentBoxRect().size();
+#endif
 
     updateLogicalWidth();
     updateLogicalHeight();
@@ -244,6 +253,31 @@ void RenderEmbeddedObject::layout()
         frameView()->addWidgetToUpdate(this);
 
     setNeedsLayout(false);
+
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    // This code copied from RenderMedia::layout().
+    RenderBox* controlsRenderer = toRenderBox(m_children.firstChild());
+    if (!controlsRenderer)
+        return;
+    
+    LayoutSize newSize = contentBoxRect().size();
+    if (newSize == oldSize && !controlsRenderer->needsLayout())
+        return;
+    
+    // When calling layout() on a child node, a parent must either push a LayoutStateMaintainter, or
+    // instantiate LayoutStateDisabler. Since using a LayoutStateMaintainer is slightly more efficient,
+    // and this method will be called many times per second during playback, use a LayoutStateMaintainer:
+    LayoutStateMaintainer statePusher(view(), this, locationOffset(), hasTransform() || hasReflection() || style()->isFlippedBlocksWritingMode());
+    
+    controlsRenderer->setLocation(LayoutPoint(borderLeft(), borderTop()) + LayoutSize(paddingLeft(), paddingTop()));
+    controlsRenderer->style()->setHeight(Length(newSize.height(), Fixed));
+    controlsRenderer->style()->setWidth(Length(newSize.width(), Fixed));
+    controlsRenderer->setNeedsLayout(true, MarkOnlyThis);
+    controlsRenderer->layout();
+    setChildNeedsLayout(false);
+    
+    statePusher.pop();
+#endif
 }
 
 void RenderEmbeddedObject::viewCleared()
@@ -322,7 +356,7 @@ bool RenderEmbeddedObject::isInUnavailablePluginIndicator(const LayoutPoint& poi
 
 bool RenderEmbeddedObject::isInUnavailablePluginIndicator(MouseEvent* event) const
 {
-    return isInUnavailablePluginIndicator(roundedLayoutPoint(absoluteToLocal(event->absoluteLocation(), false, true)));
+    return isInUnavailablePluginIndicator(roundedLayoutPoint(absoluteToLocal(event->absoluteLocation(), UseTransforms | SnapOffsetForTransforms)));
 }
 
 static bool shouldUnavailablePluginMessageBeButton(Document* document, RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)

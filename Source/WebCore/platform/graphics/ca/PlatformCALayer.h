@@ -60,6 +60,7 @@ public:
         LayerTypeTransformLayer,
         LayerTypeWebTiledLayer,
         LayerTypeTileCacheLayer,
+        LayerTypePageTileCacheLayer,
         LayerTypeRootLayer,
         LayerTypeCustom
     };
@@ -78,6 +79,8 @@ public:
     static PlatformCALayer* platformCALayer(void* platformLayer);
     
     PlatformLayer* platformLayer() const;
+
+    bool usesTileCacheLayer() const { return m_layerType == LayerTypePageTileCacheLayer || m_layerType == LayerTypeTileCacheLayer; }
 
     PlatformCALayer* rootLayer() const;
     
@@ -186,6 +189,7 @@ public:
 #if ENABLE(CSS_FILTERS)
     void setFilters(const FilterOperations&);
     static bool filtersCanBeComposited(const FilterOperations&);
+    void copyFiltersFrom(const PlatformCALayer*);
 #endif
 
     String name() const;

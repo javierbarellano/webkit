@@ -26,6 +26,7 @@
 #include "qwebkitglobal.h"
 #include <QNetworkCookieJar>
 #include <QVariant>
+#include <QVector>
 
 typedef const struct OpaqueJSContext* JSContextRef;
 
@@ -106,7 +107,6 @@ public:
     static void setFrameFlatteningEnabled(QWebPage*, bool);
     static void setCaretBrowsingEnabled(QWebPage* page, bool value);
     static void setAuthorAndUserStylesEnabled(QWebPage*, bool);
-    static void setMediaType(QWebFrame* qframe, const QString& type);
     static void setDumpRenderTreeModeEnabled(bool b);
 
     static void garbageCollectorCollect();
@@ -209,7 +209,13 @@ public:
 
     static bool thirdPartyCookiePolicyAllows(QWebPage*, const QUrl&, const QUrl& firstPartyUrl);
 
+    static void enableMockScrollbars();
+
     static QImage paintPagesWithBoundaries(QWebFrame*);
+
+    static void setTrackRepaintRects(QWebFrame*, bool enable);
+    static bool trackRepaintRects(QWebFrame*);
+    static void getTrackedRepaintRects(QWebFrame*, QVector<QRect>& result);
 };
 
 #endif

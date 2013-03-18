@@ -144,6 +144,7 @@ SET(WebCore_IDL_FILES
     Modules/battery/BatteryManager.idl
     Modules/battery/NavigatorBattery.idl
 
+    Modules/filesystem/DataTransferItemFileSystem.idl
     Modules/filesystem/DirectoryEntry.idl
     Modules/filesystem/DirectoryEntrySync.idl
     Modules/filesystem/DirectoryReader.idl
@@ -165,6 +166,7 @@ SET(WebCore_IDL_FILES
     Modules/filesystem/FileWriterCallback.idl
     Modules/filesystem/FileWriter.idl
     Modules/filesystem/FileWriterSync.idl
+    Modules/filesystem/HTMLInputElementFileSystem.idl
     Modules/filesystem/Metadata.idl
     Modules/filesystem/MetadataCallback.idl
     Modules/filesystem/WorkerContextFileSystem.idl
@@ -222,6 +224,8 @@ SET(WebCore_IDL_FILES
     Modules/mediastream/NavigatorUserMediaErrorCallback.idl
     Modules/mediastream/NavigatorUserMediaSuccessCallback.idl
     Modules/mediastream/PeerConnection00.idl
+    Modules/mediastream/RTCDataChannel.idl
+    Modules/mediastream/RTCDataChannelEvent.idl
     Modules/mediastream/RTCErrorCallback.idl
     Modules/mediastream/RTCIceCandidate.idl
     Modules/mediastream/RTCIceCandidateEvent.idl
@@ -258,15 +262,15 @@ SET(WebCore_IDL_FILES
     Modules/webaudio/AudioBuffer.idl
     Modules/webaudio/AudioBufferCallback.idl
     Modules/webaudio/AudioBufferSourceNode.idl
-    Modules/webaudio/AudioChannelSplitter.idl
-    Modules/webaudio/AudioChannelMerger.idl
+    Modules/webaudio/ChannelSplitterNode.idl
+    Modules/webaudio/ChannelMergerNode.idl
     Modules/webaudio/AudioContext.idl
     Modules/webaudio/AudioDestinationNode.idl
     Modules/webaudio/AudioGain.idl
-    Modules/webaudio/AudioGainNode.idl
+    Modules/webaudio/GainNode.idl
     Modules/webaudio/AudioListener.idl
     Modules/webaudio/AudioNode.idl
-    Modules/webaudio/AudioPannerNode.idl
+    Modules/webaudio/PannerNode.idl
     Modules/webaudio/AudioParam.idl
     Modules/webaudio/AudioProcessingEvent.idl
     Modules/webaudio/AudioSourceNode.idl
@@ -275,12 +279,12 @@ SET(WebCore_IDL_FILES
     Modules/webaudio/DOMWindowWebAudio.idl
     Modules/webaudio/DelayNode.idl
     Modules/webaudio/DynamicsCompressorNode.idl
-    Modules/webaudio/JavaScriptAudioNode.idl
+    Modules/webaudio/ScriptProcessorNode.idl
     Modules/webaudio/MediaElementAudioSourceNode.idl
     Modules/webaudio/MediaStreamAudioSourceNode.idl
     Modules/webaudio/OfflineAudioCompletionEvent.idl
-    Modules/webaudio/Oscillator.idl
-    Modules/webaudio/RealtimeAnalyserNode.idl
+    Modules/webaudio/OscillatorNode.idl
+    Modules/webaudio/AnalyserNode.idl
     Modules/webaudio/WaveShaperNode.idl
     Modules/webaudio/WaveTable.idl
 
@@ -412,7 +416,6 @@ SET(WebCore_IDL_FILES
     fileapi/FileList.idl
     fileapi/FileReader.idl
     fileapi/FileReaderSync.idl
-    fileapi/WebKitBlobBuilder.idl
 
     html/DOMFormData.idl
     html/DOMSettableTokenList.idl
@@ -519,6 +522,7 @@ SET(WebCore_IDL_FILES
     html/canvas/OESStandardDerivatives.idl
     html/canvas/OESTextureFloat.idl
     html/canvas/OESVertexArrayObject.idl
+    html/canvas/OESElementIndexUint.idl
     html/canvas/Uint16Array.idl
     html/canvas/Uint32Array.idl
     html/canvas/Uint8Array.idl
@@ -795,6 +799,7 @@ SET(WebCore_SOURCES
     Modules/filesystem/FileWriter.cpp
     Modules/filesystem/FileWriterBase.cpp
     Modules/filesystem/FileWriterSync.cpp
+    Modules/filesystem/HTMLInputElementFileSystem.cpp
     Modules/filesystem/LocalFileSystem.cpp
     Modules/filesystem/WorkerContextFileSystem.cpp
     
@@ -860,6 +865,8 @@ SET(WebCore_SOURCES
     Modules/mediastream/MediaStreamTrackList.cpp
     Modules/mediastream/NavigatorMediaStream.cpp
     Modules/mediastream/PeerConnection00.cpp
+    Modules/mediastream/RTCDataChannel.cpp
+    Modules/mediastream/RTCDataChannelEvent.cpp
     Modules/mediastream/RTCIceCandidate.cpp
     Modules/mediastream/RTCIceCandidateEvent.cpp
     Modules/mediastream/RTCPeerConnection.cpp
@@ -900,16 +907,16 @@ SET(WebCore_SOURCES
     Modules/webaudio/AudioBasicProcessorNode.cpp
     Modules/webaudio/AudioBuffer.cpp
     Modules/webaudio/AudioBufferSourceNode.cpp
-    Modules/webaudio/AudioChannelMerger.cpp
-    Modules/webaudio/AudioChannelSplitter.cpp
+    Modules/webaudio/ChannelMergerNode.cpp
+    Modules/webaudio/ChannelSplitterNode.cpp
     Modules/webaudio/AudioContext.cpp
     Modules/webaudio/AudioDestinationNode.cpp
-    Modules/webaudio/AudioGainNode.cpp
+    Modules/webaudio/GainNode.cpp
     Modules/webaudio/AudioListener.cpp
     Modules/webaudio/AudioNode.cpp
     Modules/webaudio/AudioNodeInput.cpp
     Modules/webaudio/AudioNodeOutput.cpp
-    Modules/webaudio/AudioPannerNode.cpp
+    Modules/webaudio/PannerNode.cpp
     Modules/webaudio/AudioParam.cpp
     Modules/webaudio/AudioParamTimeline.cpp
     Modules/webaudio/AudioProcessingEvent.cpp
@@ -924,14 +931,14 @@ SET(WebCore_SOURCES
     Modules/webaudio/DelayNode.cpp
     Modules/webaudio/DelayProcessor.cpp
     Modules/webaudio/DynamicsCompressorNode.cpp
-    Modules/webaudio/JavaScriptAudioNode.cpp
+    Modules/webaudio/ScriptProcessorNode.cpp
     Modules/webaudio/MediaElementAudioSourceNode.cpp
     Modules/webaudio/MediaStreamAudioSourceNode.cpp
     Modules/webaudio/OfflineAudioCompletionEvent.cpp
     Modules/webaudio/OfflineAudioDestinationNode.cpp
-    Modules/webaudio/Oscillator.cpp
+    Modules/webaudio/OscillatorNode.cpp
     Modules/webaudio/RealtimeAnalyser.cpp
-    Modules/webaudio/RealtimeAnalyserNode.cpp
+    Modules/webaudio/AnalyserNode.cpp
     Modules/webaudio/WaveShaperDSPKernel.cpp
     Modules/webaudio/WaveShaperNode.cpp
     Modules/webaudio/WaveShaperProcessor.cpp
@@ -966,6 +973,7 @@ SET(WebCore_SOURCES
     Modules/websockets/WebSocketDeflater.cpp
     Modules/websockets/WebSocketDeflateFramer.cpp
     Modules/websockets/WebSocketExtensionDispatcher.cpp
+    Modules/websockets/WebSocketExtensionParser.cpp
     Modules/websockets/WebSocketFrame.cpp
     Modules/websockets/WebSocketHandshake.cpp
     Modules/websockets/WebSocketHandshakeRequest.cpp
@@ -993,6 +1001,7 @@ SET(WebCore_SOURCES
     accessibility/AccessibilityScrollView.cpp
     accessibility/AccessibilitySpinButton.cpp
     accessibility/AccessibilitySlider.cpp
+    accessibility/AccessibilitySVGRoot.cpp
     accessibility/AccessibilityTable.cpp
     accessibility/AccessibilityTableCell.cpp
     accessibility/AccessibilityTableColumn.cpp
@@ -1065,15 +1074,21 @@ SET(WebCore_SOURCES
     css/MediaQueryMatcher.cpp
     css/PropertySetCSSStyleDeclaration.cpp
     css/RGBColor.cpp
+    css/RuleFeature.h
+    css/RuleFeature.cpp
+    css/RuleSet.h
+    css/RuleSet.cpp
     css/SelectorChecker.cpp
     css/ShadowValue.cpp
     css/StyleBuilder.cpp
+    css/StyleInvalidationAnalysis.cpp
     css/StyleMedia.cpp
     css/StylePropertySet.cpp
     css/StylePropertyShorthand.cpp
     css/StyleResolver.cpp
     css/StyleRule.cpp
     css/StyleRuleImport.cpp
+    css/StyleScopeResolver.cpp
     css/StyleSheet.cpp
     css/StyleSheetContents.cpp
     css/StyleSheetList.cpp
@@ -1088,6 +1103,7 @@ SET(WebCore_SOURCES
     css/WebKitCSSSVGDocumentValue.cpp
     css/WebKitCSSShaderValue.cpp
     css/WebKitCSSTransformValue.cpp
+    css/WebKitCSSViewportRule.cpp
 
     dom/ActiveDOMObject.cpp
     dom/Attr.cpp
@@ -1471,6 +1487,7 @@ SET(WebCore_SOURCES
     html/canvas/OESStandardDerivatives.cpp
     html/canvas/OESTextureFloat.cpp
     html/canvas/OESVertexArrayObject.cpp
+    html/canvas/OESElementIndexUint.cpp
     html/canvas/WebGLBuffer.cpp
     html/canvas/WebGLCompressedTextureS3TC.cpp
     html/canvas/WebGLContextAttributes.cpp
@@ -1621,7 +1638,9 @@ SET(WebCore_SOURCES
     loader/HistoryController.cpp
     loader/ImageLoader.cpp
     loader/LinkLoader.cpp
+    loader/LoaderStrategy.cpp
     loader/MainResourceLoader.cpp
+    loader/MixedContentChecker.cpp
     loader/NavigationAction.cpp
     loader/NetscapePlugInStreamLoader.cpp
     loader/PingLoader.cpp
@@ -1630,6 +1649,7 @@ SET(WebCore_SOURCES
     loader/PolicyChecker.cpp
     loader/ProgressTracker.cpp
     loader/NavigationScheduler.cpp
+    loader/ResourceBuffer.cpp
     loader/ResourceLoadNotifier.cpp
     loader/ResourceLoadScheduler.cpp
     loader/ResourceLoader.cpp
@@ -1665,6 +1685,7 @@ SET(WebCore_SOURCES
     loader/cache/CachedResource.cpp
     loader/cache/CachedResourceHandle.cpp
     loader/cache/CachedResourceLoader.cpp
+    loader/cache/CachedResourceRequest.cpp
     loader/cache/CachedScript.cpp
     loader/cache/CachedShader.cpp
     loader/cache/CachedSVGDocument.cpp
@@ -1750,7 +1771,6 @@ SET(WebCore_SOURCES
 
     page/scrolling/ScrollingConstraints.cpp
     page/scrolling/ScrollingCoordinator.cpp
-    page/scrolling/ScrollingCoordinatorNone.cpp
 
     platform/Arena.cpp
     platform/AsyncFileSystem.cpp
@@ -1866,6 +1886,7 @@ SET(WebCore_SOURCES
     platform/graphics/GraphicsContext.cpp
     platform/graphics/GraphicsLayer.cpp
     platform/graphics/GraphicsLayerAnimation.cpp
+    platform/graphics/GraphicsLayerUpdater.cpp
     platform/graphics/GraphicsLayerTransform.cpp
     platform/graphics/GraphicsTypes.cpp
     platform/graphics/Image.cpp
@@ -1892,8 +1913,11 @@ SET(WebCore_SOURCES
     platform/graphics/filters/CustomFilterGlobalContext.cpp
     platform/graphics/filters/CustomFilterMesh.cpp
     platform/graphics/filters/CustomFilterOperation.cpp
+    platform/graphics/filters/CustomFilterParameterList.cpp
+    platform/graphics/filters/ValidatedCustomFilterOperation.cpp
     platform/graphics/filters/CustomFilterProgram.cpp
     platform/graphics/filters/CustomFilterProgramInfo.cpp
+    platform/graphics/filters/CustomFilterRenderer.cpp
     platform/graphics/filters/DistantLightSource.cpp
     platform/graphics/filters/FEBlend.cpp
     platform/graphics/filters/FEColorMatrix.cpp
@@ -1951,6 +1975,7 @@ SET(WebCore_SOURCES
     platform/mediastream/MediaStreamCenter.cpp
     platform/mediastream/MediaStreamSource.cpp
     platform/mediastream/PeerConnection00Handler.cpp
+    platform/mediastream/RTCDataChannelDescriptor.cpp
     platform/mediastream/RTCIceCandidateDescriptor.cpp
     platform/mediastream/RTCPeerConnectionHandler.cpp
     platform/mediastream/RTCSessionDescriptionDescriptor.cpp
@@ -2000,7 +2025,7 @@ SET(WebCore_SOURCES
     platform/text/LineEnding.cpp
     platform/text/LocaleNone.cpp
     platform/text/LocaleToScriptMappingDefault.cpp
-    platform/text/Localizer.cpp
+    platform/text/PlatformLocale.cpp
     platform/text/QuotedPrintable.cpp
     platform/text/RegularExpression.cpp
     platform/text/SegmentedString.cpp
@@ -2030,6 +2055,7 @@ SET(WebCore_SOURCES
     rendering/CounterNode.cpp
     rendering/EllipsisBox.cpp
     rendering/ExclusionInterval.cpp
+    rendering/ExclusionPolygon.cpp
     rendering/ExclusionRectangle.cpp
     rendering/ExclusionShape.cpp
     rendering/ExclusionShapeInsideInfo.cpp
@@ -2109,6 +2135,7 @@ SET(WebCore_SOURCES
     rendering/RenderScrollbarTheme.cpp
     rendering/RenderSearchField.cpp
     rendering/RenderSlider.cpp
+    rendering/RenderSnapshottedPlugIn.cpp
     rendering/RenderTable.cpp
     rendering/RenderTableCaption.cpp
     rendering/RenderTableCell.cpp
@@ -2129,6 +2156,7 @@ SET(WebCore_SOURCES
     rendering/RenderWordBreak.cpp
     rendering/RootInlineBox.cpp
     rendering/ScrollBehavior.cpp
+    rendering/TextAutosizer.cpp
     rendering/break_lines.cpp
 
     rendering/mathml/RenderMathMLBlock.cpp
@@ -2478,6 +2506,11 @@ SET(WebCore_USER_AGENT_STYLE_SHEETS
     ${WEBCORE_DIR}/css/view-source.css
 )
 
+SET(WebCore_LIBRARIES
+    ${WTF_LIBRARY_NAME}
+    ${JavaScriptCore_LIBRARY_NAME}
+)
+
 IF (ENABLE_SQL_DATABASE AND ENABLE_WORKERS)
     LIST(APPEND WebCore_SOURCES
         Modules/webdatabase/WorkerContextWebDatabase.cpp
@@ -2521,6 +2554,7 @@ IF (ENABLE_WEBGL)
         html/canvas/OESStandardDerivatives.cpp
         html/canvas/OESTextureFloat.cpp
         html/canvas/OESVertexArrayObject.cpp
+        html/canvas/OESElementIndexUint.cpp
         html/canvas/WebGLBuffer.cpp
         html/canvas/WebGLCompressedTextureS3TC.cpp
         html/canvas/WebGLContextAttributes.cpp
@@ -2548,12 +2582,14 @@ IF (ENABLE_WEBGL)
         html/canvas/OESStandardDerivatives.cpp
         html/canvas/OESTextureFloat.cpp
         html/canvas/OESVertexArrayObject.cpp
+        html/canvas/OESElementIndexUint.cpp
     )
     LIST(APPEND WebCore_IDL_FILES
         html/canvas/EXTTextureFilterAnisotropic.idl
         html/canvas/OESStandardDerivatives.idl
         html/canvas/OESTextureFloat.idl
         html/canvas/OESVertexArrayObject.idl
+        html/canvas/OESElementIndexUint.idl
         html/canvas/WebGLActiveInfo.idl
         html/canvas/WebGLBuffer.idl
         html/canvas/WebGLCompressedTextureS3TC.idl
@@ -2602,6 +2638,7 @@ IF (WTF_USE_3D_GRAPHICS)
     ENDIF ()
 
     LIST(APPEND ANGLESupport_SOURCES
+        ${THIRDPARTY_DIR}/ANGLE/src/compiler/ArrayBoundsClamper.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/BuiltInFunctionEmulator.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/CodeGenGLSL.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/Compiler.cpp
@@ -2674,7 +2711,6 @@ IF (WTF_USE_3D_GRAPHICS)
 ENDIF ()
 
 SET(WebCoreTestSupport_INCLUDE_DIRECTORIES
-    "${WebCore_INCLUDE_DIRECTORIES}"
     "${WEBCORE_DIR}/testing"
 )
 
@@ -2709,7 +2745,6 @@ SET(IDL_ATTRIBUTES_FILE ${WEBCORE_DIR}/bindings/scripts/IDLAttributes.txt)
 
 INCLUDE(${WEBCORE_DIR}/UseJSC.cmake)
 
-SET(WebCore_LIBRARIES ${WTF_LIBRARY_NAME} ${JavaScriptCore_LIBRARY_NAME})
 WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 
 # ANGLE tokenizer & parser
@@ -2848,11 +2883,11 @@ LIST(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/UserAgentStyleSheetsD
 ADD_SOURCE_WEBCORE_DERIVED_DEPENDENCIES(${WEBCORE_DIR}/css/StyleResolver.cpp UserAgentStyleSheetsData.cpp UserAgentStyleSheets.h)
 
 
-GENERATE_GRAMMAR(cssyy ${WEBCORE_DIR}/css/CSSGrammar.y ${DERIVED_SOURCES_WEBCORE_DIR}/CSSGrammar.h ${DERIVED_SOURCES_WEBCORE_DIR}/CSSGrammar.cpp)
+GENERATE_GRAMMAR(cssyy ${WEBCORE_DIR}/css/CSSGrammar.y.in ${DERIVED_SOURCES_WEBCORE_DIR}/CSSGrammar.h ${DERIVED_SOURCES_WEBCORE_DIR}/CSSGrammar.cpp "${FEATURE_DEFINES_WITH_SPACE_SEPARATOR}")
 LIST(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/CSSGrammar.cpp)
 
 
-GENERATE_GRAMMAR(xpathyy ${WEBCORE_DIR}/xml/XPathGrammar.y ${DERIVED_SOURCES_WEBCORE_DIR}/XPathGrammar.h ${DERIVED_SOURCES_WEBCORE_DIR}/XPathGrammar.cpp)
+GENERATE_GRAMMAR(xpathyy ${WEBCORE_DIR}/xml/XPathGrammar.y ${DERIVED_SOURCES_WEBCORE_DIR}/XPathGrammar.h ${DERIVED_SOURCES_WEBCORE_DIR}/XPathGrammar.cpp "")
 LIST(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/XPathGrammar.cpp)
 
 

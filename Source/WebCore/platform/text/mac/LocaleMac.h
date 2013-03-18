@@ -31,12 +31,13 @@
 #ifndef LocaleMac_h
 #define LocaleMac_h
 
-#include "Localizer.h"
+#include "PlatformLocale.h"
 #include <wtf/Forward.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
 
+OBJC_CLASS NSCalendar;
 OBJC_CLASS NSDateFormatter;
 OBJC_CLASS NSLocale;
 
@@ -44,46 +45,57 @@ namespace WebCore {
 
 class DateComponents;
 
-class LocaleMac : public Localizer {
+class LocaleMac : public Locale {
 public:
     static PassOwnPtr<LocaleMac> create(const String&);
     static PassOwnPtr<LocaleMac> create(NSLocale*);
-    static LocaleMac* currentLocale();
     ~LocaleMac();
     virtual double parseDateTime(const String&, DateComponents::Type) OVERRIDE;
-    virtual String formatDateTime(const DateComponents&) OVERRIDE;
 
 #if ENABLE(CALENDAR_PICKER)
-    virtual String dateFormatText() OVERRIDE;
-    virtual const Vector<String>& monthLabels() OVERRIDE;
     virtual const Vector<String>& weekDayShortLabels() OVERRIDE;
     virtual unsigned firstDayOfWeek() OVERRIDE;
+    virtual bool isRTL() OVERRIDE;
+#endif
+#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+    virtual const Vector<String>& monthLabels() OVERRIDE;
 #endif
 
 #if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
     virtual String dateFormat() OVERRIDE;
+    virtual String monthFormat() OVERRIDE;
     virtual String timeFormat() OVERRIDE;
     virtual String shortTimeFormat() OVERRIDE;
+    virtual const Vector<String>& shortMonthLabels() OVERRIDE;
+    virtual const Vector<String>& standAloneMonthLabels() OVERRIDE;
+    virtual const Vector<String>& shortStandAloneMonthLabels() OVERRIDE;
     virtual const Vector<String>& timeAMPMLabels() OVERRIDE;
 #endif
 
 private:
     explicit LocaleMac(NSLocale*);
-    NSDateFormatter *createShortDateFormatter();
-    virtual void initializeLocalizerData() OVERRIDE;
+    RetainPtr<NSDateFormatter> shortDateFormatter();
+    virtual void initializeLocaleData() OVERRIDE;
 
     RetainPtr<NSLocale> m_locale;
+    RetainPtr<NSCalendar> m_gregorianCalendar;
 #if ENABLE(CALENDAR_PICKER)
-    String m_localizedDateFormatText;
-    Vector<String> m_monthLabels;
     Vector<String> m_weekDayShortLabels;
 #endif
+#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+    Vector<String> m_monthLabels;
+#endif
 #if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    NSDateFormatter *createTimeFormatter();
-    NSDateFormatter *createShortTimeFormatter();
+    RetainPtr<NSDateFormatter> timeFormatter();
+    RetainPtr<NSDateFormatter> shortTimeFormatter();
 
-    String m_localizedTimeFormatText;
-    String m_localizedShortTimeFormatText;
+    String m_dateFormat;
+    String m_monthFormat;
+    String m_timeFormatWithSeconds;
+    String m_timeFormatWithoutSeconds;
+    Vector<String> m_shortMonthLabels;
+    Vector<String> m_standAloneMonthLabels;
+    Vector<String> m_shortStandAloneMonthLabels;
     Vector<String> m_timeAMPMLabels;
 #endif
     bool m_didInitializeNumberData;

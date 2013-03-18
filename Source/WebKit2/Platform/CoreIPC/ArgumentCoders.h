@@ -38,9 +38,9 @@ namespace CoreIPC {
 
 // An argument coder works on POD types
 template<typename T> struct SimpleArgumentCoder {
-    static void encode(ArgumentEncoder* encoder, const T& t)
+    static void encode(ArgumentEncoder& encoder, const T& t)
     {
-        encoder->encodeFixedLengthData(reinterpret_cast<const uint8_t*>(&t), sizeof(T), __alignof(T));
+        encoder.encodeFixedLengthData(reinterpret_cast<const uint8_t*>(&t), sizeof(T), __alignof(T));
     }
 
     static bool decode(ArgumentDecoder* decoder, T& t)
@@ -50,10 +50,9 @@ template<typename T> struct SimpleArgumentCoder {
 };
 
 template<typename T, typename U> struct ArgumentCoder<std::pair<T, U> > {
-    static void encode(ArgumentEncoder* encoder, const std::pair<T, U>& pair)
+    static void encode(ArgumentEncoder& encoder, const std::pair<T, U>& pair)
     {
-        encoder->encode(pair.first);
-        encoder->encode(pair.second);
+        encoder << pair.first << pair.second;
     }
 
     static bool decode(ArgumentDecoder* decoder, std::pair<T, U>& pair)
@@ -73,10 +72,9 @@ template<typename T, typename U> struct ArgumentCoder<std::pair<T, U> > {
 };
 
 template<typename KeyType, typename ValueType> struct ArgumentCoder<WTF::KeyValuePair<KeyType, ValueType> > {
-    static void encode(ArgumentEncoder* encoder, const WTF::KeyValuePair<KeyType, ValueType>& pair)
+    static void encode(ArgumentEncoder& encoder, const WTF::KeyValuePair<KeyType, ValueType>& pair)
     {
-        encoder->encode(pair.first);
-        encoder->encode(pair.second);
+        encoder << pair.key << pair.value;
     }
 
     static bool decode(ArgumentDecoder* decoder, WTF::KeyValuePair<KeyType, ValueType>& pair)
@@ -89,8 +87,8 @@ template<typename KeyType, typename ValueType> struct ArgumentCoder<WTF::KeyValu
         if (!decoder->decode(value))
             return false;
 
-        pair.first = key;
-        pair.second = value;
+        pair.key = key;
+        pair.value = value;
         return true;
     }
 };
@@ -98,11 +96,11 @@ template<typename KeyType, typename ValueType> struct ArgumentCoder<WTF::KeyValu
 template<bool fixedSizeElements, typename T> struct VectorArgumentCoder;
 
 template<typename T> struct VectorArgumentCoder<false, T> {
-    static void encode(ArgumentEncoder* encoder, const Vector<T>& vector)
+    static void encode(ArgumentEncoder& encoder, const Vector<T>& vector)
     {
-        encoder->encodeUInt64(vector.size());
+        encoder << static_cast<uint64_t>(vector.size());
         for (size_t i = 0; i < vector.size(); ++i)
-            encoder->encode(vector[i]);
+            encoder << vector[i];
     }
 
     static bool decode(ArgumentDecoder* decoder, Vector<T>& vector)
@@ -127,10 +125,10 @@ template<typename T> struct VectorArgumentCoder<false, T> {
 };
 
 template<typename T> struct VectorArgumentCoder<true, T> {
-    static void encode(ArgumentEncoder* encoder, const Vector<T>& vector)
+    static void encode(ArgumentEncoder& encoder, const Vector<T>& vector)
     {
-        encoder->encodeUInt64(vector.size());
-        encoder->encodeFixedLengthData(reinterpret_cast<const uint8_t*>(vector.data()), vector.size() * sizeof(T), __alignof(T));
+        encoder << static_cast<uint64_t>(vector.size());
+        encoder.encodeFixedLengthData(reinterpret_cast<const uint8_t*>(vector.data()), vector.size() * sizeof(T), __alignof(T));
     }
     
     static bool decode(ArgumentDecoder* decoder, Vector<T>& vector)
@@ -162,11 +160,11 @@ template<typename T> struct ArgumentCoder<Vector<T> > : VectorArgumentCoder<WTF:
 template<typename KeyArg, typename MappedArg, typename HashArg, typename KeyTraitsArg, typename MappedTraitsArg> struct ArgumentCoder<HashMap<KeyArg, MappedArg, HashArg, KeyTraitsArg, MappedTraitsArg> > {
     typedef HashMap<KeyArg, MappedArg, HashArg, KeyTraitsArg, MappedTraitsArg> HashMapType;
 
-    static void encode(ArgumentEncoder* encoder, const HashMapType& hashMap)
+    static void encode(ArgumentEncoder& encoder, const HashMapType& hashMap)
     {
-        encoder->encodeUInt64(hashMap.size());
+        encoder << static_cast<uint64_t>(hashMap.size());
         for (typename HashMapType::const_iterator it = hashMap.begin(), end = hashMap.end(); it != end; ++it)
-            encoder->encode(*it);
+            encoder << *it;
     }
 
     static bool decode(ArgumentDecoder* decoder, HashMapType& hashMap)
@@ -197,20 +195,20 @@ template<typename KeyArg, typename MappedArg, typename HashArg, typename KeyTrai
 };
 
 template<> struct ArgumentCoder<AtomicString> {
-    static void encode(ArgumentEncoder*, const AtomicString&);
+    static void encode(ArgumentEncoder&, const AtomicString&);
     static bool decode(ArgumentDecoder*, AtomicString&);
 };
 
 template<> struct ArgumentCoder<CString> {
-    static void encode(ArgumentEncoder*, const CString&);
+    static void encode(ArgumentEncoder&, const CString&);
     static bool decode(ArgumentDecoder*, CString&);
 };
 
 template<> struct ArgumentCoder<String> {
-    static void encode(ArgumentEncoder*, const String&);
+    static void encode(ArgumentEncoder&, const String&);
     static bool decode(ArgumentDecoder*, String&);
 };
 
 } // namespace CoreIPC
 
-#endif // SimpleArgumentCoder_h
+#endif // ArgumentCoders_h

@@ -19,8 +19,14 @@
 #ifndef AuthenticationChallengeManager_h
 #define AuthenticationChallengeManager_h
 
+#include "BlackBerryPlatformSingleton.h"
+#include <wtf/OwnPtr.h>
+
+class PageClientBlackBerry;
+
 namespace WebCore {
 
+class AuthenticationChallengeManagerPrivate;
 class Credential;
 class KURL;
 class ProtectionSpace;
@@ -34,6 +40,25 @@ class AuthenticationChallengeClient {
 public:
     virtual void notifyChallengeResult(const KURL&, const ProtectionSpace&, AuthenticationChallengeResult, const Credential&) = 0;
 };
+
+class AuthenticationChallengeManager : public BlackBerry::Platform::ThreadUnsafeSingleton<AuthenticationChallengeManager> {
+    SINGLETON_DEFINITION_THREADUNSAFE(AuthenticationChallengeManager)
+public:
+    void pageCreated(PageClientBlackBerry*);
+    void pageDeleted(PageClientBlackBerry*);
+    void pageVisibilityChanged(PageClientBlackBerry*, bool visible);
+
+    void authenticationChallenge(const KURL&, const ProtectionSpace&, const Credential&, AuthenticationChallengeClient*, PageClientBlackBerry*);
+    void cancelAuthenticationChallenge(AuthenticationChallengeClient*);
+    void notifyChallengeResult(const KURL&, const ProtectionSpace&, AuthenticationChallengeResult, const Credential&);
+
+private:
+    AuthenticationChallengeManager();
+    ~AuthenticationChallengeManager();
+
+    OwnPtr<AuthenticationChallengeManagerPrivate> d;
+};
+
 
 } // namespace WebCore
 

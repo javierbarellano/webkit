@@ -34,6 +34,42 @@
 (function (InjectedScriptHost, inspectedWindow, injectedScriptId) {
 
 /**
+ * @param {Arguments} array
+ * @param {number=} index
+ * @return {Array.<*>}
+ */
+function slice(array, index)
+{
+    var result = [];
+    for (var i = index || 0; i < array.length; ++i)
+        result.push(array[i]);
+    return result;
+}
+
+/**
+ * Please use this bind, not the one from Function.prototype
+ * @param {function()} func
+ * @param {Object} thisObject
+ * @param {...number} var_args
+ */
+function bind(func, thisObject, var_args)
+{
+    var args = slice(arguments, 2);
+
+    /**
+     * @param {...number} var_args
+     */
+    function bound(var_args)
+    {
+        return func.apply(thisObject, args.concat(slice(arguments)));
+    }
+    bound.toString = function() {
+        return "bound: " + func;
+    };
+    return bound;
+}
+
+/**
  * @constructor
  */
 var InjectedScript = function()
@@ -234,7 +270,32 @@ InjectedScript.prototype = {
                 descriptor.configurable = false;
             if (!("enumerable" in descriptor))
                 descriptor.enumerable = false;
-            
+        }
+        return descriptors;
+    },
+
+    /**
+     * @param {string} objectId
+     * @return {Array.<Object>|boolean}
+     */
+    getInternalProperties: function(objectId, ownProperties)
+    {
+        var parsedObjectId = this._parseObjectId(objectId);
+        var object = this._objectForId(parsedObjectId);
+        var objectGroupName = this._idToObjectGroupName[parsedObjectId.id];
+        if (!this._isDefined(object))
+            return false;
+        var descriptors = [];
+        var internalProperties = InjectedScriptHost.getInternalProperties(object);
+        if (internalProperties) {
+            for (var i = 0; i < internalProperties.length; i++) {
+                var property = internalProperties[i];
+                var descriptor = {
+                    name: property.name,
+                    value: this._wrapObject(property.value, objectGroupName)
+                };
+                descriptors.push(descriptor);
+            } 
         }
         return descriptors;
     },
@@ -303,7 +364,10 @@ InjectedScript.prototype = {
                     if (!descriptor) {
                         // Not all bindings provide proper descriptors. Fall back to the writable, configurable property.
                         try {
-                            descriptors.push({ name: name, value: object[name], writable: false, configurable: false, enumerable: false});
+                            var descriptor = { name: name, value: object[name], writable: false, configurable: false, enumerable: false};
+                            if (o === object) 
+                                descriptor.isOwn = true;
+                            descriptors.push(descriptor);
                         } catch (e) {
                             // Silent catch.
                         }
@@ -316,11 +380,13 @@ InjectedScript.prototype = {
                 }
 
                 descriptor.name = name;
-                descriptors.push(descriptor); 
+                if (o === object) 
+                    descriptor.isOwn = true;
+                descriptors.push(descriptor);
             }
             if (ownProperties) {
                 if (object.__proto__)
-                    descriptors.push({ name: "__proto__", value: object.__proto__, writable: true, configurable: true, enumerable: false});
+                    descriptors.push({ name: "__proto__", value: object.__proto__, writable: true, configurable: true, enumerable: false, isOwn: true});
                 break;
             }
         }
@@ -910,7 +976,7 @@ function CommandLineAPI(commandLineAPIImpl, callFrame)
         if (member in inspectedWindow || inScopeVariables(member))
             continue;
 
-        this[member] = commandLineAPIImpl[member].bind(commandLineAPIImpl);
+        this[member] = bind(commandLineAPIImpl[member], commandLineAPIImpl);
     }
 
     for (var i = 0; i < 5; ++i) {
@@ -918,7 +984,7 @@ function CommandLineAPI(commandLineAPIImpl, callFrame)
         if (member in inspectedWindow || inScopeVariables(member))
             continue;
 
-        this.__defineGetter__("$" + i, commandLineAPIImpl._inspectedObject.bind(commandLineAPIImpl, i));
+        this.__defineGetter__("$" + i, bind(commandLineAPIImpl._inspectedObject, commandLineAPIImpl, i));
     }
 
     this.$_ = injectedScript._lastResult;

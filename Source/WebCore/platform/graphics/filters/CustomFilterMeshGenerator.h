@@ -32,6 +32,7 @@
 
 #if ENABLE(CSS_SHADERS) && USE(3D_GRAPHICS)
 
+#include "CustomFilterConstants.h"
 #include "CustomFilterOperation.h"
 #include "FloatRect.h"
 
@@ -43,7 +44,7 @@ public:
     // and 'columns' number of columns with a total of 'rows + 1' * 'columns + 1' vertices.
     // MeshBox is the filtered area calculated defined using the border-box, padding-box, content-box or filter-box
     // attributes. A value of (0, 0, 1, 1) will cover the entire output surface.
-    CustomFilterMeshGenerator(unsigned columns, unsigned rows, const FloatRect& meshBox, CustomFilterOperation::MeshType);
+    CustomFilterMeshGenerator(unsigned columns, unsigned rows, const FloatRect& meshBox, CustomFilterMeshType);
 
     const Vector<float>& vertices() const { return m_vertices; }
     const Vector<uint16_t>& indices() const { return m_indices; }
@@ -63,19 +64,14 @@ public:
 
     unsigned floatsPerVertex() const
     {
-        static const unsigned AttachedMeshVertexSize = 4 + // vec4 a_position
-                                                       2 + // vec2 a_texCoord
-                                                       2; // vec2 a_meshCoord
-
-        static const unsigned DetachedMeshVertexSize = AttachedMeshVertexSize +
-                                                       3; // vec3 a_triangleCoord
-
-        return m_meshType == CustomFilterOperation::ATTACHED ? AttachedMeshVertexSize : DetachedMeshVertexSize;
+        static const unsigned AttachedMeshVertexSize = PositionAttribSize + TexAttribSize + MeshAttribSize;
+        static const unsigned DetachedMeshVertexSize = AttachedMeshVertexSize + TriangleAttribSize;
+        return m_meshType == MeshTypeAttached ? AttachedMeshVertexSize : DetachedMeshVertexSize;
     }
 
     unsigned verticesCount() const
     {
-        return m_meshType == CustomFilterOperation::ATTACHED ? pointsCount() : indicesCount();
+        return m_meshType == MeshTypeAttached ? pointsCount() : indicesCount();
     }
 
 private:
@@ -114,7 +110,7 @@ private:
     Vector<float> m_vertices;
     Vector<uint16_t> m_indices;
 
-    CustomFilterOperation::MeshType m_meshType;
+    CustomFilterMeshType m_meshType;
     IntSize m_points;
     IntSize m_tiles;
     FloatSize m_tileSizeInPixels;

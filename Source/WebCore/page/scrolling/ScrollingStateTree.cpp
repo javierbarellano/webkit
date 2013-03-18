@@ -36,7 +36,7 @@ PassOwnPtr<ScrollingStateTree> ScrollingStateTree::create()
 }
 
 ScrollingStateTree::ScrollingStateTree()
-    : m_rootStateNode(ScrollingStateScrollingNode::create(this))
+    : m_rootStateNode(ScrollingStateScrollingNode::create(this, 0))
     , m_hasChangedProperties(false)
 {
 }
@@ -47,78 +47,29 @@ ScrollingStateTree::~ScrollingStateTree()
 
 PassOwnPtr<ScrollingStateTree> ScrollingStateTree::commit()
 {
-    // This function clones the entire ScrollingStateTree.
-    OwnPtr<ScrollingStateTree> treeState = ScrollingStateTree::create();
+    // This function clones and resets the current state tree, but leaves the tree structure intact. 
+    OwnPtr<ScrollingStateTree> treeStateClone = ScrollingStateTree::create();
+    treeStateClone->setRootStateNode(static_pointer_cast<ScrollingStateScrollingNode>(m_rootStateNode->cloneAndReset()));
 
-    // currentNode is the node that we are currently cloning.
-    ScrollingStateNode* currentNode = m_rootStateNode.get();
-
-    // nextNode represents the nextNode we will clone. Some tree traversal is required to find it.
-    ScrollingStateNode* nextNode = 0;
-
-    // As we clone each node, we want to set the cloned nodes relationship pointers to the corresponding
-    // cloned nodes in the clone tree. In order to do that, we need to keep track of the appropriate
-    // nodes.
-    ScrollingStateNode* cloneParent = 0;
-    ScrollingStateNode* clonePreviousSibling = 0;
-
-    // Now traverse the tree and clone each node.
-    while (currentNode) {
-        PassOwnPtr<ScrollingStateNode> cloneNode = currentNode->cloneNode();
-
-        // Set relationships for the newly cloned node.
-        cloneNode->setScrollingStateTree(treeState.get());
-        cloneNode->setParent(cloneParent);
-        if (cloneParent) {
-            if (!cloneParent->firstChild())
-                cloneParent->setFirstChild(cloneNode);
-            if (clonePreviousSibling)
-                clonePreviousSibling->setNextSibling(cloneNode);
-        }
-
-        // Now find the next node, and set up the cloneParent and clonePreviousSibling pointer appropriately.
-        if (currentNode->firstChild()) {
-            nextNode = currentNode->firstChild();
-            cloneParent = cloneNode.get();
-            clonePreviousSibling = 0;
-        } else if (currentNode->nextSibling()) {
-            nextNode = currentNode->nextSibling();
-            cloneParent = cloneNode->parent();
-            clonePreviousSibling = cloneNode.get();
-        } else {
-            // If there is no first child and no next sibling, then we have to traverse up and over in the tree.
-            nextNode = 0;
-            ScrollingStateNode* traversalNode = currentNode;
-            ScrollingStateNode* cloneTraversalNode = cloneNode.get();
-            clonePreviousSibling = 0;
-            while (!nextNode) {
-                traversalNode = traversalNode->parent();
-                cloneTraversalNode = cloneTraversalNode->parent();
-                if (!traversalNode) {
-                    nextNode = 0;
-                    break;
-                }
-                nextNode = traversalNode->nextSibling();
-                clonePreviousSibling = cloneTraversalNode;
-                cloneParent = clonePreviousSibling ? clonePreviousSibling->parent() : 0;
-            }
-        }
-
-        if (currentNode == m_rootStateNode)
-            treeState->setRootStateNode(static_pointer_cast<ScrollingStateScrollingNode>(cloneNode));
-
-        // Before we move on, reset all of our indicators that properties have changed on the original tree.
-        currentNode->setScrollLayerDidChange(false);
-        currentNode->resetChangedProperties();
-
-        currentNode = nextNode;
-    }
+    // Copy the IDs of the nodes that have been removed since the last commit into the clone.
+    treeStateClone->m_nodesRemovedSinceLastCommit.swap(m_nodesRemovedSinceLastCommit);
 
     // Now the clone tree has changed properties, and the original tree does not.
-    treeState->setHasChangedProperties(true);
+    treeStateClone->m_hasChangedProperties = true;
     m_hasChangedProperties = false;
 
-    return treeState.release();
+    return treeStateClone.release();
+}
+
+void ScrollingStateTree::removeNode(ScrollingStateNode* node)
+{
+    ASSERT(m_rootStateNode);
+    m_rootStateNode->removeChild(node);
+}
+
+void ScrollingStateTree::didRemoveNode(ScrollingNodeID nodeID)
+{
+    m_nodesRemovedSinceLastCommit.append(nodeID);
 }
 
 } // namespace WebCore

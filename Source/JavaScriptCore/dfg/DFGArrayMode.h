@@ -46,30 +46,16 @@ enum Action {
     Write
 };
 
-enum Mode {
-    Undecided, // Implies that we need predictions to decide. We will never get to the backend in this mode.
+enum Type {
+    SelectUsingPredictions, // Implies that we need predictions to decide. We will never get to the backend in this mode.
     Unprofiled, // Implies that array profiling didn't see anything. But that could be because the operands didn't comply with basic type assumptions (base is cell, property is int). This either becomes Generic or ForceExit depending on value profiling.
     ForceExit, // Implies that we have no idea how to execute this operation, so we should just give up.
     Generic,
     String,
     
-    // Modes of conventional indexed storage where the check is non side-effecting.
+    Contiguous,
     ArrayStorage,
-    ArrayStorageToHole,
     SlowPutArrayStorage,
-    ArrayStorageOutOfBounds,
-    ArrayWithArrayStorage,
-    ArrayWithArrayStorageToHole,
-    ArrayWithSlowPutArrayStorage,
-    ArrayWithArrayStorageOutOfBounds,
-    PossiblyArrayWithArrayStorage,
-    PossiblyArrayWithArrayStorageToHole,
-    PossiblyArrayWithSlowPutArrayStorage,
-    PossiblyArrayWithArrayStorageOutOfBounds,
-    
-    // Modes of conventional indexed storage where the check is side-effecting.
-    BlankToArrayStorage,
-    BlankToSlowPutArrayStorage,
     
     Arguments,
     Int8Array,
@@ -82,202 +68,311 @@ enum Mode {
     Float32Array,
     Float64Array
 };
+
+enum Class {
+    NonArray, // Definitely some object that is not a JSArray.
+    Array, // Definitely a JSArray, and may or may not have custom properties or have undergone some other bizarre transitions.
+    OriginalArray, // Definitely a JSArray, and still has one of the primordial JSArray structures for the global object that this code block (possibly inlined code block) belongs to.
+    PossiblyArray // Some object that may or may not be a JSArray.
+};
+
+enum Speculation {
+    InBounds,
+    ToHole,
+    OutOfBounds
+};
+
+enum Conversion {
+    AsIs,
+    Convert
+};
 } // namespace Array
 
-// Helpers for 'case' statements. For example, saying "case AllArrayStorageModes:"
-// is the same as having multiple case statements listing off all of the modes that
-// have the word "ArrayStorage" in them.
+const char* arrayTypeToString(Array::Type);
+const char* arrayClassToString(Array::Class);
+const char* arraySpeculationToString(Array::Speculation);
+const char* arrayConversionToString(Array::Conversion);
 
-// First: helpers for non-side-effecting checks.
-#define NON_ARRAY_ARRAY_STORAGE_MODES                      \
-    Array::ArrayStorage:                                   \
-    case Array::ArrayStorageToHole:                        \
-    case Array::SlowPutArrayStorage:                       \
-    case Array::ArrayStorageOutOfBounds:                   \
-    case Array::PossiblyArrayWithArrayStorage:             \
-    case Array::PossiblyArrayWithArrayStorageToHole:       \
-    case Array::PossiblyArrayWithSlowPutArrayStorage:      \
-    case Array::PossiblyArrayWithArrayStorageOutOfBounds
-#define ARRAY_WITH_ARRAY_STORAGE_MODES                     \
-    Array::ArrayWithArrayStorage:                          \
-    case Array::ArrayWithArrayStorageToHole:               \
-    case Array::ArrayWithSlowPutArrayStorage:              \
-    case Array::ArrayWithArrayStorageOutOfBounds
-#define ALL_ARRAY_STORAGE_MODES                            \
-    NON_ARRAY_ARRAY_STORAGE_MODES:                         \
-    case ARRAY_WITH_ARRAY_STORAGE_MODES
-#define ARRAY_STORAGE_TO_HOLE_MODES                        \
-    Array::ArrayStorageToHole:                             \
-    case Array::ArrayWithArrayStorageToHole:               \
-    case Array::PossiblyArrayWithArrayStorageToHole
-#define IN_BOUNDS_ARRAY_STORAGE_MODES                      \
-    ARRAY_STORAGE_TO_HOLE_MODES:                           \
-    case Array::ArrayStorage:                              \
-    case Array::ArrayWithArrayStorage:                     \
-    case Array::PossiblyArrayWithArrayStorage
-#define SLOW_PUT_ARRAY_STORAGE_MODES                       \
-    Array::SlowPutArrayStorage:                            \
-    case Array::ArrayWithSlowPutArrayStorage:              \
-    case Array::PossiblyArrayWithSlowPutArrayStorage
-#define OUT_OF_BOUNDS_ARRAY_STORAGE_MODES                  \
-    SLOW_PUT_ARRAY_STORAGE_MODES:                          \
-    case Array::ArrayStorageOutOfBounds:                   \
-    case Array::ArrayWithArrayStorageOutOfBounds:          \
-    case Array::PossiblyArrayWithArrayStorageOutOfBounds
-
-// Next: helpers for side-effecting checks.
-#define EFFECTFUL_NON_ARRAY_ARRAY_STORAGE_MODES \
-    Array::BlankToArrayStorage:                 \
-    case Array::BlankToSlowPutArrayStorage
-#define ALL_EFFECTFUL_ARRAY_STORAGE_MODES       \
-    EFFECTFUL_NON_ARRAY_ARRAY_STORAGE_MODES
-#define SLOW_PUT_EFFECTFUL_ARRAY_STORAGE_MODES  \
-    Array::BlankToSlowPutArrayStorage
-
-Array::Mode fromObserved(ArrayProfile*, Array::Action, bool makeSafe);
-
-Array::Mode refineArrayMode(Array::Mode, SpeculatedType base, SpeculatedType index);
-
-bool modeAlreadyChecked(AbstractValue&, Array::Mode);
-
-const char* modeToString(Array::Mode);
-
-inline bool modeUsesButterfly(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case ALL_ARRAY_STORAGE_MODES:
-    case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
+class ArrayMode {
+public:
+    ArrayMode()
+    {
+        u.asBytes.type = Array::SelectUsingPredictions;
+        u.asBytes.arrayClass = Array::NonArray;
+        u.asBytes.speculation = Array::InBounds;
+        u.asBytes.conversion = Array::AsIs;
     }
-}
-
-inline bool modeIsJSArray(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case ARRAY_WITH_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
+    
+    explicit ArrayMode(Array::Type type)
+    {
+        u.asBytes.type = type;
+        u.asBytes.arrayClass = Array::NonArray;
+        u.asBytes.speculation = Array::InBounds;
+        u.asBytes.conversion = Array::AsIs;
     }
-}
-
-inline bool isInBoundsAccess(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case IN_BOUNDS_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
+    
+    ArrayMode(Array::Type type, Array::Class arrayClass, Array::Speculation speculation, Array::Conversion conversion)
+    {
+        u.asBytes.type = type;
+        u.asBytes.arrayClass = arrayClass;
+        u.asBytes.speculation = speculation;
+        u.asBytes.conversion = conversion;
     }
-}
-
-inline bool isSlowPutAccess(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case SLOW_PUT_ARRAY_STORAGE_MODES:
-    case SLOW_PUT_EFFECTFUL_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
+    
+    ArrayMode(Array::Type type, Array::Class arrayClass, Array::Conversion conversion)
+    {
+        u.asBytes.type = type;
+        u.asBytes.arrayClass = arrayClass;
+        u.asBytes.speculation = Array::InBounds;
+        u.asBytes.conversion = conversion;
     }
-}
-
-inline bool mayStoreToHole(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case ARRAY_STORAGE_TO_HOLE_MODES:
-    case OUT_OF_BOUNDS_ARRAY_STORAGE_MODES:
-    case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
+    
+    Array::Type type() const { return static_cast<Array::Type>(u.asBytes.type); }
+    Array::Class arrayClass() const { return static_cast<Array::Class>(u.asBytes.arrayClass); }
+    Array::Speculation speculation() const { return static_cast<Array::Speculation>(u.asBytes.speculation); }
+    Array::Conversion conversion() const { return static_cast<Array::Conversion>(u.asBytes.conversion); }
+    
+    unsigned asWord() const { return u.asWord; }
+    
+    static ArrayMode fromWord(unsigned word)
+    {
+        return ArrayMode(word);
     }
-}
-
-inline bool canCSEStorage(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case Array::Undecided:
-    case Array::Unprofiled:
-    case Array::ForceExit:
-    case Array::Generic:
-    case Array::Arguments:
-        return false;
-    default:
-        return true;
+    
+    static ArrayMode fromObserved(ArrayProfile*, Array::Action, bool makeSafe);
+    
+    ArrayMode withSpeculation(Array::Speculation speculation) const
+    {
+        return ArrayMode(type(), arrayClass(), speculation, conversion());
     }
-}
-
-inline bool lengthNeedsStorage(Array::Mode arrayMode)
-{
-    return modeIsJSArray(arrayMode);
-}
-
-inline Array::Mode modeForPut(Array::Mode arrayMode)
-{
-    switch (arrayMode) {
-    case Array::String:
-        return Array::Generic;
+    
+    ArrayMode withProfile(ArrayProfile* profile, bool makeSafe) const
+    {
+        Array::Speculation mySpeculation;
+        Array::Class myArrayClass;
+        
+        if (makeSafe)
+            mySpeculation = Array::OutOfBounds;
+        else if (profile->mayStoreToHole())
+            mySpeculation = Array::ToHole;
+        else
+            mySpeculation = Array::InBounds;
+        
+        if (isJSArray()) {
+            if (profile->usesOriginalArrayStructures())
+                myArrayClass = Array::OriginalArray;
+            else
+                myArrayClass = Array::Array;
+        } else
+            myArrayClass = arrayClass();
+        
+        return ArrayMode(type(), myArrayClass, mySpeculation, conversion());
+    }
+    
+    ArrayMode refine(SpeculatedType base, SpeculatedType index) const;
+    
+    bool alreadyChecked(AbstractValue&) const;
+    
+    const char* toString() const;
+    
+    bool usesButterfly() const
+    {
+        switch (type()) {
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+        case Array::SlowPutArrayStorage:
+            return true;
+        default:
+            return false;
+        }
+    }
+    
+    bool isJSArray() const
+    {
+        switch (arrayClass()) {
+        case Array::Array:
+        case Array::OriginalArray:
+            return true;
+        default:
+            return false;
+        }
+    }
+    
+    bool isJSArrayWithOriginalStructure() const
+    {
+        return arrayClass() == Array::OriginalArray;
+    }
+    
+    bool isInBounds() const
+    {
+        return speculation() == Array::InBounds;
+    }
+    
+    bool mayStoreToHole() const
+    {
+        return !isInBounds();
+    }
+    
+    bool isOutOfBounds() const
+    {
+        return speculation() == Array::OutOfBounds;
+    }
+    
+    bool isSlowPut() const
+    {
+        return type() == Array::SlowPutArrayStorage;
+    }
+    
+    bool canCSEStorage() const
+    {
+        switch (type()) {
+        case Array::SelectUsingPredictions:
+        case Array::Unprofiled:
+        case Array::ForceExit:
+        case Array::Generic:
+        case Array::Arguments:
+            return false;
+        default:
+            return true;
+        }
+    }
+    
+    bool lengthNeedsStorage() const
+    {
+        return isJSArray();
+    }
+    
+    ArrayMode modeForPut() const
+    {
+        switch (type()) {
+        case Array::String:
+            return ArrayMode(Array::Generic);
 #if USE(JSVALUE32_64)
-    case Array::Arguments:
-        return Array::Generic;
+        case Array::Arguments:
+            return ArrayMode(Array::Generic);
 #endif
-    default:
-        return arrayMode;
+        default:
+            return *this;
+        }
     }
+    
+    bool isSpecific() const
+    {
+        switch (type()) {
+        case Array::SelectUsingPredictions:
+        case Array::Unprofiled:
+        case Array::ForceExit:
+        case Array::Generic:
+            return false;
+        default:
+            return true;
+        }
+    }
+    
+    bool supportsLength() const
+    {
+        switch (type()) {
+        case Array::SelectUsingPredictions:
+        case Array::Unprofiled:
+        case Array::ForceExit:
+        case Array::Generic:
+            return false;
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+        case Array::SlowPutArrayStorage:
+            return isJSArray();
+        default:
+            return true;
+        }
+    }
+    
+    bool benefitsFromStructureCheck() const
+    {
+        switch (type()) {
+        case Array::SelectUsingPredictions:
+        case Array::Unprofiled:
+        case Array::ForceExit:
+        case Array::Generic:
+            return false;
+        default:
+            return conversion() == Array::AsIs;
+        }
+    }
+    
+    bool doesConversion() const
+    {
+        return conversion() == Array::Convert;
+    }
+    
+    ArrayModes arrayModesThatPassFiltering() const
+    {
+        switch (type()) {
+        case Array::Generic:
+            return ALL_ARRAY_MODES;
+        case Array::Contiguous:
+            return arrayModesWithIndexingShape(ContiguousShape);
+        case Array::ArrayStorage:
+            return arrayModesWithIndexingShape(ArrayStorageShape);
+        case Array::SlowPutArrayStorage:
+            return arrayModesWithIndexingShape(SlowPutArrayStorageShape);
+        default:
+            return asArrayModes(NonArray);
+        }
+    }
+    
+    bool operator==(const ArrayMode& other) const
+    {
+        return type() == other.type()
+            && arrayClass() == other.arrayClass()
+            && speculation() == other.speculation()
+            && conversion() == other.conversion();
+    }
+    
+    bool operator!=(const ArrayMode& other) const
+    {
+        return !(*this == other);
+    }
+private:
+    explicit ArrayMode(unsigned word)
+    {
+        u.asWord = word;
+    }
+    
+    ArrayModes arrayModesWithIndexingShape(IndexingType shape) const
+    {
+        switch (arrayClass()) {
+        case Array::NonArray:
+            return asArrayModes(shape);
+        case Array::Array:
+        case Array::OriginalArray:
+            return asArrayModes(shape | IsArray);
+        case Array::PossiblyArray:
+            return asArrayModes(shape) | asArrayModes(shape | IsArray);
+        default:
+            // This is only necessary for C++ compilers that don't understand enums.
+            return 0;
+        }
+    }
+    
+    union {
+        struct {
+            uint8_t type;
+            uint8_t arrayClass;
+            uint8_t speculation;
+            uint8_t conversion;
+        } asBytes;
+        unsigned asWord;
+    } u;
+};
+
+static inline bool canCSEStorage(const ArrayMode& arrayMode)
+{
+    return arrayMode.canCSEStorage();
 }
 
-inline bool modeIsSpecific(Array::Mode mode)
+static inline bool lengthNeedsStorage(const ArrayMode& arrayMode)
 {
-    switch (mode) {
-    case Array::Undecided:
-    case Array::Unprofiled:
-    case Array::ForceExit:
-    case Array::Generic:
-        return false;
-    default:
-        return true;
-    }
-}
-
-inline bool modeSupportsLength(Array::Mode mode)
-{
-    switch (mode) {
-    case Array::Undecided:
-    case Array::Unprofiled:
-    case Array::ForceExit:
-    case Array::Generic:
-    case NON_ARRAY_ARRAY_STORAGE_MODES:
-        return false;
-    default:
-        return true;
-    }
-}
-
-inline bool benefitsFromStructureCheck(Array::Mode mode)
-{
-    switch (mode) {
-    case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
-    case Array::Undecided:
-    case Array::Unprofiled:
-    case Array::ForceExit:
-    case Array::Generic:
-        return false;
-    default:
-        return true;
-    }
-}
-
-inline bool isEffectful(Array::Mode mode)
-{
-    switch (mode) {
-    case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
-        return true;
-    default:
-        return false;
-    }
+    return arrayMode.lengthNeedsStorage();
 }
 
 } } // namespace JSC::DFG

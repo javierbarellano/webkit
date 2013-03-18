@@ -156,7 +156,7 @@ void SVGDocumentExtensions::removeAnimationElementFromTarget(SVGSMILElement* ani
     HashMap<SVGElement*, HashSet<SVGSMILElement*>* >::iterator it = m_animatedElements.find(targetElement);
     ASSERT(it != m_animatedElements.end());
     
-    HashSet<SVGSMILElement*>* animationElementsForTarget = it->second;
+    HashSet<SVGSMILElement*>* animationElementsForTarget = it->value;
     ASSERT(!animationElementsForTarget->isEmpty());
 
     animationElementsForTarget->remove(animationElement);
@@ -173,7 +173,7 @@ void SVGDocumentExtensions::removeAllAnimationElementsFromTarget(SVGElement* tar
     if (it == m_animatedElements.end())
         return;
 
-    HashSet<SVGSMILElement*>* animationElementsForTarget = it->second;
+    HashSet<SVGSMILElement*>* animationElementsForTarget = it->value;
     Vector<SVGSMILElement*> toBeReset;
 
     HashSet<SVGSMILElement*>::iterator end = animationElementsForTarget->end();
@@ -210,7 +210,7 @@ void SVGDocumentExtensions::reportError(const String& message)
     reportMessage(m_document, ErrorMessageLevel, "Error: " + message);
 }
 
-void SVGDocumentExtensions::addPendingResource(const AtomicString& id, SVGStyledElement* element)
+void SVGDocumentExtensions::addPendingResource(const AtomicString& id, SVGElement* element)
 {
     ASSERT(element);
 
@@ -219,9 +219,9 @@ void SVGDocumentExtensions::addPendingResource(const AtomicString& id, SVGStyled
 
     // The HashMap add function leaves the map alone and returns a pointer to the element in the
     // map if the element already exists. So we add with a value of 0, and it either finds the
-    // existing element or adds a new one in a single operation. The ".iterator->second" idiom gets
+    // existing element or adds a new one in a single operation. The ".iterator->value" idiom gets
     // us to the iterator from add's result, and then to the value inside the hash table.
-    SVGPendingElements*& set = m_pendingResources.add(id, 0).iterator->second;
+    SVGPendingElements*& set = m_pendingResources.add(id, 0).iterator->value;
     if (!set)
         set = new SVGPendingElements;
     set->add(element);
@@ -237,7 +237,7 @@ bool SVGDocumentExtensions::hasPendingResource(const AtomicString& id) const
     return m_pendingResources.contains(id);
 }
 
-bool SVGDocumentExtensions::isElementPendingResources(SVGStyledElement* element) const
+bool SVGDocumentExtensions::isElementPendingResources(SVGElement* element) const
 {
     // This algorithm takes time proportional to the number of pending resources and need not.
     // If performance becomes an issue we can keep a counted set of elements and answer the question efficiently.
@@ -246,7 +246,7 @@ bool SVGDocumentExtensions::isElementPendingResources(SVGStyledElement* element)
 
     HashMap<AtomicString, SVGPendingElements*>::const_iterator end = m_pendingResources.end();
     for (HashMap<AtomicString, SVGPendingElements*>::const_iterator it = m_pendingResources.begin(); it != end; ++it) {
-        SVGPendingElements* elements = it->second;
+        SVGPendingElements* elements = it->value;
         ASSERT(elements);
 
         if (elements->contains(element))
@@ -255,7 +255,7 @@ bool SVGDocumentExtensions::isElementPendingResources(SVGStyledElement* element)
     return false;
 }
 
-bool SVGDocumentExtensions::isElementPendingResource(SVGStyledElement* element, const AtomicString& id) const
+bool SVGDocumentExtensions::isElementPendingResource(SVGElement* element, const AtomicString& id) const
 {
     ASSERT(element);
 
@@ -265,7 +265,7 @@ bool SVGDocumentExtensions::isElementPendingResource(SVGStyledElement* element, 
     return m_pendingResources.get(id)->contains(element);
 }
 
-void SVGDocumentExtensions::removeElementFromPendingResources(SVGStyledElement* element)
+void SVGDocumentExtensions::removeElementFromPendingResources(SVGElement* element)
 {
     ASSERT(element);
 
@@ -274,13 +274,13 @@ void SVGDocumentExtensions::removeElementFromPendingResources(SVGStyledElement* 
         Vector<AtomicString> toBeRemoved;
         HashMap<AtomicString, SVGPendingElements*>::iterator end = m_pendingResources.end();
         for (HashMap<AtomicString, SVGPendingElements*>::iterator it = m_pendingResources.begin(); it != end; ++it) {
-            SVGPendingElements* elements = it->second;
+            SVGPendingElements* elements = it->value;
             ASSERT(elements);
             ASSERT(!elements->isEmpty());
 
             elements->remove(element);
             if (elements->isEmpty())
-                toBeRemoved.append(it->first);
+                toBeRemoved.append(it->key);
         }
 
         element->clearHasPendingResourcesIfPossible();
@@ -296,13 +296,13 @@ void SVGDocumentExtensions::removeElementFromPendingResources(SVGStyledElement* 
         Vector<AtomicString> toBeRemoved;
         HashMap<AtomicString, SVGPendingElements*>::iterator end = m_pendingResourcesForRemoval.end();
         for (HashMap<AtomicString, SVGPendingElements*>::iterator it = m_pendingResourcesForRemoval.begin(); it != end; ++it) {
-            SVGPendingElements* elements = it->second;
+            SVGPendingElements* elements = it->value;
             ASSERT(elements);
             ASSERT(!elements->isEmpty());
 
             elements->remove(element);
             if (elements->isEmpty())
-                toBeRemoved.append(it->first);
+                toBeRemoved.append(it->key);
         }
 
         // We use the removePendingResourceForRemoval function here because it deals with set lifetime correctly.
@@ -336,7 +336,7 @@ void SVGDocumentExtensions::markPendingResourcesForRemoval(const AtomicString& i
         m_pendingResourcesForRemoval.add(id, existing);
 }
 
-SVGStyledElement* SVGDocumentExtensions::removeElementFromPendingResourcesForRemoval(const AtomicString& id)
+SVGElement* SVGDocumentExtensions::removeElementFromPendingResourcesForRemoval(const AtomicString& id)
 {
     if (id.isEmpty())
         return 0;
@@ -346,7 +346,7 @@ SVGStyledElement* SVGDocumentExtensions::removeElementFromPendingResourcesForRem
         return 0;
 
     SVGPendingElements::iterator firstElement = resourceSet->begin();
-    SVGStyledElement* element = *firstElement;
+    SVGElement* element = *firstElement;
 
     resourceSet->remove(firstElement);
 
@@ -362,7 +362,7 @@ HashSet<SVGElement*>* SVGDocumentExtensions::setOfElementsReferencingTarget(SVGE
     const HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::const_iterator it = m_elementDependencies.find(referencedElement);
     if (it == m_elementDependencies.end())
         return 0;
-    return it->second.get();
+    return it->value.get();
 }
 
 void SVGDocumentExtensions::addElementReferencingTarget(SVGElement* referencingElement, SVGElement* referencedElement)
@@ -386,8 +386,8 @@ void SVGDocumentExtensions::removeAllTargetReferencesForElement(SVGElement* refe
 
     HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::iterator end = m_elementDependencies.end();
     for (HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::iterator it = m_elementDependencies.begin(); it != end; ++it) {
-        SVGElement* referencedElement = it->first;
-        HashSet<SVGElement*>* referencingElements = it->second.get();
+        SVGElement* referencedElement = it->key;
+        HashSet<SVGElement*>* referencingElements = it->value.get();
         HashSet<SVGElement*>::iterator setIt = referencingElements->find(referencingElement);
         if (setIt == referencingElements->end())
             continue;
@@ -408,10 +408,10 @@ void SVGDocumentExtensions::removeAllElementReferencesForTarget(SVGElement* refe
     HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::iterator it = m_elementDependencies.find(referencedElement);
     if (it == m_elementDependencies.end())
         return;
-    ASSERT(it->first == referencedElement);
+    ASSERT(it->key == referencedElement);
     Vector<SVGElement*> toBeNotified;
 
-    HashSet<SVGElement*>* referencingElements = it->second.get();
+    HashSet<SVGElement*>* referencingElements = it->value.get();
     HashSet<SVGElement*>::iterator setEnd = referencingElements->end();
     for (HashSet<SVGElement*>::iterator setIt = referencingElements->begin(); setIt != setEnd; ++setIt)
         toBeNotified.append(*setIt);

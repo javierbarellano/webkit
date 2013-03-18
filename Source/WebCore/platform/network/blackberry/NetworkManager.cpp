@@ -20,18 +20,11 @@
 #include "NetworkManager.h"
 
 #include "Chrome.h"
-#if ENABLE(BLACKBERRY_CREDENTIAL_PERSIST)
-#include "CredentialBackingStore.h"
-#endif
 #include "CredentialStorage.h"
 #include "Frame.h"
 #include "FrameLoaderClientBlackBerry.h"
 #include "NetworkJob.h"
 #include "Page.h"
-#include "ReadOnlyLatin1String.h"
-#if ENABLE(BLACKBERRY_CREDENTIAL_PERSIST)
-#include "ResourceHandleClient.h"
-#endif
 #include "ResourceHandleInternal.h"
 #include "ResourceRequest.h"
 #include "SecurityOrigin.h"
@@ -43,15 +36,7 @@
 
 namespace WebCore {
 
-NetworkManager* NetworkManager::instance()
-{
-    static NetworkManager* sInstance;
-    if (!sInstance) {
-        sInstance = new NetworkManager;
-        ASSERT(sInstance);
-    }
-    return sInstance;
-}
+SINGLETON_INITIALIZER_THREADUNSAFE(NetworkManager)
 
 bool NetworkManager::startJob(int playerId, PassRefPtr<ResourceHandle> job, const Frame& frame, bool defersLoading)
 {
@@ -87,12 +72,10 @@ bool NetworkManager::startJob(int playerId, const String& pageGroupName, PassRef
 
     const String& documentUrl = frame.document()->url().string();
     if (!documentUrl.isEmpty()) {
-        ReadOnlyLatin1String referrer(documentUrl);
-        platformRequest.setReferrer(referrer.data(), referrer.length());
+        platformRequest.setReferrer(documentUrl);
     }
 
-    ReadOnlyLatin1String securityOrigin(frame.document()->securityOrigin()->toRawString());
-    platformRequest.setSecurityOrigin(securityOrigin.data(), securityOrigin.length());
+    platformRequest.setSecurityOrigin(frame.document()->securityOrigin()->toRawString());
 
     // Attach any applicable auth credentials to the NetworkRequest.
     AuthenticationChallenge& challenge = guardJob->getInternal()->m_currentWebChallenge;
@@ -105,7 +88,7 @@ bool NetworkManager::startJob(int playerId, const String& pageGroupName, PassRef
         String password = credential.password();
 
         BlackBerry::Platform::NetworkRequest::AuthType authType = BlackBerry::Platform::NetworkRequest::AuthNone;
-        if (type == ProtectionSpaceServerHTTP) {
+        if (type == ProtectionSpaceServerHTTP || type == ProtectionSpaceServerHTTPS) {
             switch (protectionSpace.authenticationScheme()) {
             case ProtectionSpaceAuthenticationSchemeHTTPBasic:
                 authType = BlackBerry::Platform::NetworkRequest::AuthHTTPBasic;
@@ -124,9 +107,9 @@ bool NetworkManager::startJob(int playerId, const String& pageGroupName, PassRef
                 // Defaults to AuthNone as per above.
                 break;
             }
-        } else if (type == ProtectionSpaceServerFTP)
+        } else if (type == ProtectionSpaceServerFTP || type == ProtectionSpaceServerFTPS)
             authType = BlackBerry::Platform::NetworkRequest::AuthFTP;
-        else if (type == ProtectionSpaceProxyHTTP)
+        else if (type == ProtectionSpaceProxyHTTP || type == ProtectionSpaceProxyHTTPS)
             authType = BlackBerry::Platform::NetworkRequest::AuthProxy;
 
         if (authType != BlackBerry::Platform::NetworkRequest::AuthNone)
@@ -135,14 +118,6 @@ bool NetworkManager::startJob(int playerId, const String& pageGroupName, PassRef
         // For URLs that match the paths of those previously challenged for HTTP Basic authentication,
         // try and reuse the credential preemptively, as allowed by RFC 2617.
         Credential credential = CredentialStorage::get(url);
-#if ENABLE(BLACKBERRY_CREDENTIAL_PERSIST)
-        // FIXME: needs to refactor the credentialBackingStore to get credential and protection space at one time.
-        if (credential.isEmpty() && guardJob->client()->shouldUseCredentialStorage(guardJob.get())) {
-            credential = credentialBackingStore().getLogin(url);
-            if (!credential.isEmpty())
-                CredentialStorage::set(credential, credentialBackingStore().getProtectionSpace(url), url);
-        }
-#endif
         if (!credential.isEmpty())
             platformRequest.setCredentials(credential.user().utf8().data(), credential.password().utf8().data(), BlackBerry::Platform::NetworkRequest::AuthHTTPBasic);
     }

@@ -134,9 +134,9 @@ bool PluginProcess::shouldTerminate()
     return true;
 }
 
-void PluginProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::ArgumentDecoder* arguments)
+void PluginProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::MessageDecoder& decoder)
 {
-    didReceivePluginProcessMessage(connection, messageID, arguments);
+    didReceivePluginProcessMessage(connection, messageID, decoder);
 }
 
 void PluginProcess::didClose(CoreIPC::Connection*)
@@ -146,11 +146,7 @@ void PluginProcess::didClose(CoreIPC::Connection*)
     RunLoop::current()->stop();
 }
 
-void PluginProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::MessageID)
-{
-}
-
-void PluginProcess::syncMessageSendTimedOut(CoreIPC::Connection*)
+void PluginProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
 {
 }
 

@@ -123,9 +123,7 @@ InspectorFrontendHostAPI.prototype.platform = function() {}
 InspectorFrontendHostAPI.prototype.port = function() {}
 InspectorFrontendHostAPI.prototype.bringToFront = function() {}
 InspectorFrontendHostAPI.prototype.closeWindow = function() {}
-InspectorFrontendHostAPI.prototype.requestAttachWindow = function() {}
-InspectorFrontendHostAPI.prototype.requestDetachWindow = function() {}
-InspectorFrontendHostAPI.prototype.requestSetDockSide = function() {}
+InspectorFrontendHostAPI.prototype.requestSetDockSide = function(dockSide) {}
 InspectorFrontendHostAPI.prototype.setAttachedWindowHeight = function(height) {}
 InspectorFrontendHostAPI.prototype.moveWindowBy = function(x, y) {}
 InspectorFrontendHostAPI.prototype.setInjectedScriptForOrigin = function(origin, script) {}
@@ -138,7 +136,7 @@ InspectorFrontendHostAPI.prototype.copyText = function(text) {}
 InspectorFrontendHostAPI.prototype.openInNewTab = function(url) {}
 InspectorFrontendHostAPI.prototype.canSave = function() {}
 InspectorFrontendHostAPI.prototype.save = function(url, content, forceSaveAs) {}
-InspectorFrontendHostAPI.prototype.canAppend = function() {}
+InspectorFrontendHostAPI.prototype.close = function(url) {}
 InspectorFrontendHostAPI.prototype.append = function(url, content) {}
 InspectorFrontendHostAPI.prototype.sendMessageToBackend = function(message) {}
 InspectorFrontendHostAPI.prototype.recordActionTaken = function(actionCode) {}
@@ -177,6 +175,8 @@ SourceMapV3.Offset = function()
 // FIXME: remove everything below.
 var WebInspector = {}
 
+WebInspector.queryParamsObject = {}
+WebInspector.toggleSearchingForNode = function() {}
 WebInspector.panels = {};
 
 /**
@@ -262,8 +262,6 @@ WebInspector.showPanel = function(panel)
  * @type {string} 
  */
 WebInspector.inspectedPageDomain;
-
-WebInspector.isCompactMode = function() { return false; }
 
 WebInspector.SourceJavaScriptTokenizer = {}
 WebInspector.SourceJavaScriptTokenizer.Keywords = {}

@@ -46,10 +46,13 @@ class StyleSheetList;
 class DocumentStyleSheetCollection {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    DocumentStyleSheetCollection(Document*);
+    static PassOwnPtr<DocumentStyleSheetCollection> create(Document* document) { return adoptPtr(new DocumentStyleSheetCollection(document)); }
+
     ~DocumentStyleSheetCollection();
 
-    const Vector<RefPtr<StyleSheet> >& authorStyleSheets() { return m_authorStyleSheets; }
+    const Vector<RefPtr<StyleSheet> >& styleSheetsForStyleSheetList() const { return m_styleSheetsForStyleSheetList; }
+
+    const Vector<RefPtr<CSSStyleSheet> >& activeAuthorStyleSheets() const { return m_activeAuthorStyleSheets; }
 
     CSSStyleSheet* pageUserSheet();
     const Vector<RefPtr<CSSStyleSheet> >* pageGroupUserSheets() const;
@@ -65,7 +68,7 @@ public:
 
     void addUserSheet(PassRefPtr<StyleSheetContents> userSheet);
 
-    bool needsUpdateActiveStylesheetsOnStyleRecalc() { return m_needsUpdateActiveStylesheetsOnStyleRecalc; }
+    bool needsUpdateActiveStylesheetsOnStyleRecalc() const { return m_needsUpdateActiveStylesheetsOnStyleRecalc; }
 
     enum UpdateFlag { FullUpdate, OptimizedUpdate };
     bool updateActiveStyleSheets(UpdateFlag);
@@ -100,18 +103,20 @@ public:
     void reportMemoryUsage(MemoryObjectInfo*) const;
 
 private:
+    DocumentStyleSheetCollection(Document*);
+
     void collectActiveStyleSheets(Vector<RefPtr<StyleSheet> >&);
-    bool testAddedStyleSheetRequiresStyleRecalc(StyleSheetContents*);
     enum StyleResolverUpdateType {
         Reconstruct,
         Reset,
         Additive
     };
-    void analyzeStyleSheetChange(UpdateFlag, const Vector<RefPtr<StyleSheet> >& newStylesheets, StyleResolverUpdateType&, bool& requiresFullStyleRecalc);
+    void analyzeStyleSheetChange(UpdateFlag, const Vector<RefPtr<CSSStyleSheet> >& newStylesheets, StyleResolverUpdateType&, bool& requiresFullStyleRecalc);
 
     Document* m_document;
 
-    Vector<RefPtr<StyleSheet> > m_authorStyleSheets;
+    Vector<RefPtr<StyleSheet> > m_styleSheetsForStyleSheetList;
+    Vector<RefPtr<CSSStyleSheet> > m_activeAuthorStyleSheets;
 
     // Track the number of currently loading top-level stylesheets needed for rendering.
     // Sheets loaded using the @import directive are not included in this count.

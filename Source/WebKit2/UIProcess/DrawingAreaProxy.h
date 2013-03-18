@@ -35,17 +35,9 @@
 #include <stdint.h>
 #include <wtf/Noncopyable.h>
 
-#if PLATFORM(QT)
-QT_BEGIN_NAMESPACE
-class QPainter;
-QT_END_NAMESPACE
-#elif PLATFORM(GTK)
-typedef struct _cairo cairo_t;
-#endif
-
 namespace CoreIPC {
-    class ArgumentDecoder;
     class Connection;
+    class MessageDecoder;
     class MessageID;
 }
 
@@ -70,7 +62,7 @@ public:
 
     DrawingAreaType type() const { return m_type; }
 
-    void didReceiveDrawingAreaProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::ArgumentDecoder*);
+    void didReceiveDrawingAreaProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::MessageDecoder&);
 
     virtual void deviceScaleFactorDidChange() = 0;
 
@@ -94,13 +86,9 @@ public:
     virtual void updateViewport();
     virtual WebCore::IntRect viewportVisibleRect() const { return contentsRect(); }
     virtual WebCore::IntRect contentsRect() const;
-    virtual bool isBackingStoreReady() const { return true; }
     LayerTreeCoordinatorProxy* layerTreeCoordinatorProxy() const { return m_layerTreeCoordinatorProxy.get(); }
-    virtual void setVisibleContentsRect(const WebCore::FloatRect& visibleContentsRect, float scale, const WebCore::FloatPoint& trajectoryVector) { }
-    virtual void createTileForLayer(int layerID, int tileID, const WebKit::UpdateInfo&) { }
-    virtual void updateTileForLayer(int layerID, int tileID, const WebKit::UpdateInfo&) { }
-    virtual void removeTileForLayer(int layerID, int tileID) { }
-    virtual void didReceiveLayerTreeCoordinatorProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::ArgumentDecoder*);
+    virtual void setVisibleContentsRect(const WebCore::FloatRect& /* visibleContentsRect */, float /* scale */, const WebCore::FloatPoint& /* trajectoryVector */) { }
+    virtual void didReceiveLayerTreeCoordinatorProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::MessageDecoder&);
 
     WebPageProxy* page() { return m_webPageProxy; }
 #endif
@@ -122,12 +110,12 @@ private:
 
     // CoreIPC message handlers.
     // FIXME: These should be pure virtual.
-    virtual void update(uint64_t /*backingStoreStateID*/, const UpdateInfo&) { }
-    virtual void didUpdateBackingStoreState(uint64_t /*backingStoreStateID*/, const UpdateInfo&, const LayerTreeContext&) { }
+    virtual void update(uint64_t /* backingStoreStateID */, const UpdateInfo&) { }
+    virtual void didUpdateBackingStoreState(uint64_t /* backingStoreStateID */, const UpdateInfo&, const LayerTreeContext&) { }
 #if USE(ACCELERATED_COMPOSITING)
-    virtual void enterAcceleratedCompositingMode(uint64_t backingStoreStateID, const LayerTreeContext&) { }
-    virtual void exitAcceleratedCompositingMode(uint64_t backingStoreStateID, const UpdateInfo&) { }
-    virtual void updateAcceleratedCompositingMode(uint64_t backingStoreStateID, const LayerTreeContext&) { }
+    virtual void enterAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
+    virtual void exitAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const UpdateInfo&) { }
+    virtual void updateAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
 #endif
 #if PLATFORM(MAC)
     virtual void didUpdateGeometry() { }

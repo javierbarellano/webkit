@@ -114,11 +114,14 @@ public:
 
     virtual ~TextureMapperLayer();
 
-    void syncCompositingState(GraphicsLayerTextureMapper*, int syncOptions = 0);
-    void syncCompositingState(GraphicsLayerTextureMapper*, TextureMapper*, int syncOptions = 0);
+    void flushCompositingState(GraphicsLayerTextureMapper*, int syncOptions = 0);
+    void flushCompositingState(GraphicsLayerTextureMapper*, TextureMapper*, int syncOptions = 0);
     IntSize size() const { return IntSize(m_size.width(), m_size.height()); }
     void setTransform(const TransformationMatrix&);
     void setOpacity(float value) { m_opacity = value; }
+#if ENABLE(CSS_FILTERS)
+    void setFilters(const FilterOperations& filters) { m_filters = filters; }
+#endif
     void setTextureMapper(TextureMapper* texmap) { m_textureMapper = texmap; }
     bool descendantsOrSelfHaveRunningAnimations() const;
 
@@ -132,6 +135,7 @@ public:
     void setScrollPositionDeltaIfNeeded(const FloatSize&);
 
     void setDebugBorder(const Color&, float width);
+    void applyAnimationsRecursively();
 
 private:
     TextureMapperLayer* rootLayer();
@@ -144,7 +148,7 @@ private:
     FloatRect targetRectForTileRect(const FloatRect& totalTargetRect, const FloatRect& tileRect) const;
     void invalidateViewport(const FloatRect&);
     void notifyChange(ChangeMask);
-    void syncCompositingStateSelf(GraphicsLayerTextureMapper*, TextureMapper*);
+    void flushCompositingStateSelf(GraphicsLayerTextureMapper*, TextureMapper*);
 
     static int compareGraphicsLayersZValue(const void* a, const void* b);
     static void sortByZOrder(Vector<TextureMapperLayer* >& array, int first, int last);
@@ -164,6 +168,9 @@ private:
     // GraphicsLayerAnimation::Client
     void setAnimatedTransform(const TransformationMatrix& matrix) { setTransform(matrix); }
     void setAnimatedOpacity(float opacity) { setOpacity(opacity); }
+#if ENABLE(CSS_FILTERS)
+    virtual void setAnimatedFilters(const FilterOperations& filters) { setFilters(filters); }
+#endif
 
     void syncAnimations();
     bool isVisible() const;
@@ -190,6 +197,9 @@ private:
     TextureMapperPlatformLayer* m_contentsLayer;
     FloatSize m_size;
     float m_opacity;
+#if ENABLE(CSS_FILTERS)
+    FilterOperations m_filters;
+#endif
     float m_centerZ;
     String m_name;
     bool m_shouldUpdateBackingStoreFromLayer;

@@ -28,6 +28,7 @@
 
 #include <Efreet.h>
 #include <WebCore/ApplicationCacheStorage.h>
+#include <WebCore/IconDatabase.h>
 #include <WebCore/NotImplemented.h>
 
 namespace WebKit {
@@ -54,13 +55,24 @@ String WebContext::platformDefaultDatabaseDirectory() const
 
 String WebContext::platformDefaultIconDatabasePath() const
 {
-    notImplemented();
-    return "";
+    return String::fromUTF8(efreet_data_home_get()) + "/WebKitEfl/IconDatabase/" + WebCore::IconDatabase::defaultDatabaseFilename();
 }
 
 String WebContext::platformDefaultLocalStorageDirectory() const
 {
     return String::fromUTF8(efreet_data_home_get()) + "/WebKitEfl/LocalStorage";
+}
+
+String WebContext::platformDefaultDiskCacheDirectory() const
+{
+    notImplemented();
+    return String();
+}
+
+String WebContext::platformDefaultCookieStorageDirectory() const
+{
+    notImplemented();
+    return String();
 }
 
 } // namespace WebKit

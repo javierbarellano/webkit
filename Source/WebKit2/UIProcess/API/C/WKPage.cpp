@@ -182,12 +182,14 @@ uint64_t WKPageGetRenderTreeSize(WKPageRef page)
     return toImpl(page)->renderTreeSize();
 }
 
-#if defined(ENABLE_INSPECTOR) && ENABLE_INSPECTOR
 WKInspectorRef WKPageGetInspector(WKPageRef pageRef)
 {
+#if defined(ENABLE_INSPECTOR) && ENABLE_INSPECTOR
     return toAPI(toImpl(pageRef)->inspector());
-}
+#else
+    return 0;
 #endif
+}
 
 double WKPageGetEstimatedProgress(WKPageRef pageRef)
 {
@@ -363,6 +365,16 @@ bool WKPageIsPinnedToLeftSide(WKPageRef pageRef)
 bool WKPageIsPinnedToRightSide(WKPageRef pageRef)
 {
     return toImpl(pageRef)->isPinnedToRightSide();
+}
+
+bool WKPageIsPinnedToTopSide(WKPageRef pageRef)
+{
+    return toImpl(pageRef)->isPinnedToTopSide();
+}
+
+bool WKPageIsPinnedToBottomSide(WKPageRef pageRef)
+{
+    return toImpl(pageRef)->isPinnedToBottomSide();
 }
 
 void WKPageSetPaginationMode(WKPageRef pageRef, WKPaginationMode paginationMode)
@@ -738,3 +750,7 @@ void WKPagePostMessageToInjectedBundle(WKPageRef pageRef, WKStringRef messageNam
     toImpl(pageRef)->postMessageToInjectedBundle(toImpl(messageNameRef)->string(), toImpl(messageBodyRef));
 }
 
+WKArrayRef WKPageCopyRelatedPages(WKPageRef pageRef)
+{
+    return toAPI(toImpl(pageRef)->relatedPages().leakRef());
+}

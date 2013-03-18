@@ -131,9 +131,6 @@ public:
     virtual void exitFullScreenForElement(Element*);
     virtual void fullScreenRendererChanged(RenderBox*);
 #endif
-#if ENABLE(WEBGL)
-    virtual void requestWebGLPermission(Frame*);
-#endif
 
 #if ENABLE(SVG)
     virtual void didSetSVGZoomAndPan(Frame*, unsigned short zoomAndPan);
@@ -150,7 +147,7 @@ public:
 #if USE(ACCELERATED_COMPOSITING)
     virtual void attachRootGraphicsLayer(Frame*, GraphicsLayer*);
     virtual void setNeedsOneShotDrawingSynchronization();
-    virtual void scheduleCompositingLayerSync();
+    virtual void scheduleCompositingLayerFlush();
     virtual bool allowsAcceleratedCompositing() const;
 #endif
 
@@ -162,6 +159,9 @@ public:
     virtual void unregisterProtocolHandler(const String& /*scheme*/, const String& /*baseURL*/, const String& /*url*/);
 #endif
 #endif
+
+    virtual void addSearchProvider(const BlackBerry::Platform::String&, const BlackBerry::Platform::String&);
+    virtual int isSearchProviderInstalled(const BlackBerry::Platform::String&, const BlackBerry::Platform::String&);
 
     BlackBerry::WebKit::WebPagePrivate* webPagePrivate() const { return m_webPagePrivate; }
 

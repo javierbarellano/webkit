@@ -52,7 +52,7 @@ config.kPlatforms = {
         resultsDirectoryForBuildNumber: function(buildNumber, revision) {
             return encodeURIComponent('r' + revision + ' (' + buildNumber + ')');
         },
-        builderApplies: function(builderName) {
+        _builderApplies: function(builderName) {
             return builderName.indexOf('Apple') != -1;
         },
     },
@@ -62,16 +62,18 @@ config.kPlatforms = {
         layoutTestResultsURL: 'http://build.chromium.org/f/chromium/layout_test_results',
         waterfallURL: 'http://build.chromium.org/p/chromium.webkit/waterfall',
         builders: {
-            'Webkit Win': {version: 'xp'},
-            'Webkit Win7': {version: 'win7'},
-            'Webkit Win (dbg)(1)': {version: 'xp', debug: true},
-            'Webkit Win (dbg)(2)': {version: 'xp', debug: true},
-            'Webkit Linux': {version: 'lucid', is64bit: true},
-            'Webkit Linux 32': {version: 'lucid'},
-            'Webkit Linux (dbg)': {version: 'lucid', is64bit: true, debug: true},
-            'Webkit Mac10.6': {version: 'snowleopard'},
-            'Webkit Mac10.6 (dbg)': {version: 'snowleopard', debug: true},
-            'Webkit Mac10.7': {version: 'lion'},
+            'WebKit XP': {version: 'xp'},
+            'WebKit Win7': {version: 'win7'},
+            'WebKit Win7 (dbg)(1)': {version: 'win7', debug: true},
+            'WebKit Win7 (dbg)(2)': {version: 'win7', debug: true},
+            'WebKit Linux': {version: 'lucid', is64bit: true},
+            'WebKit Linux 32': {version: 'lucid'},
+            'WebKit Linux (dbg)': {version: 'lucid', is64bit: true, debug: true},
+            'WebKit Mac10.6': {version: 'snowleopard'},
+            'WebKit Mac10.6 (dbg)': {version: 'snowleopard', debug: true},
+            'WebKit Mac10.7': {version: 'lion'},
+            'WebKit Mac10.7 (dbg)': {version: 'lion', debug: true},
+            'WebKit Mac10.8': {version: 'mountainlion'},
         },
         haveBuilderAccumulatedResults : true,
         useDirectoryListingForOldBuilds: true,
@@ -82,13 +84,16 @@ config.kPlatforms = {
         resultsDirectoryForBuildNumber: function(buildNumber, revision) {
             return buildNumber;
         },
-        builderApplies: function(builderName) {
+        _builderApplies: function(builderName) {
             // FIXME: Should garden-o-matic show these? I can imagine showing the deps bots being useful at least so
             // that the gardener only need to look at garden-o-matic and never at the waterfall. Not really sure who
             // watches the GPU bots.
-            return builderName.indexOf('GPU') == -1 && builderName.indexOf('deps') == -1 &&
-                   builderName.indexOf('ASAN') == -1 && builderName.indexOf('Content Shell') == -1 &&
-                   builderName.indexOf('Android Builder (dbg)') == -1; // This bot is sick right now - http://crbug.com/149014
+            // The 10.8 Tests bot is really an FYI bot at this point
+            return builderName.indexOf('GPU') == -1 &&
+                   builderName.indexOf('deps') == -1 &&
+                   builderName.indexOf('ASAN') == -1 &&
+                   builderName.indexOf('Content Shell') == -1 &&
+                   builderName.indexOf('Mac10.8 Tests') == -1;
         },
     },
     'gtk' : {
@@ -110,7 +115,7 @@ config.kPlatforms = {
         resultsDirectoryForBuildNumber: function(buildNumber, revision) {
             return encodeURIComponent('r' + revision + ' (' + buildNumber + ')');
         },
-        builderApplies: function(builderName) {
+        _builderApplies: function(builderName) {
             return builderName.indexOf('GTK') != -1;
         },
     },
@@ -131,7 +136,7 @@ config.kPlatforms = {
         resultsDirectoryForBuildNumber: function(buildNumber, revision) {
             return encodeURIComponent('r' + revision + ' (' + buildNumber + ')');
         },
-        builderApplies: function(builderName) {
+        _builderApplies: function(builderName) {
             return builderName.indexOf('Qt') != -1;
         },
     },
@@ -154,15 +159,36 @@ config.kRelativeTimeUpdateFrequency = 1000 * 60;
 
 config.kExperimentalFeatures = window.location.search.search('enableExperiments=1') != -1;
 
-config.currentPlatform = 'chromium';
+config.currentPlatform = base.getURLParameter('platform') || 'chromium';
 
-config.setPlatform = function(platform)
-{
+// FIXME: We should add a way to restrict the results to a subset of the builders
+// (or maybe just a single builder) in the UI as well as via an URL parameter.
+config.currentBuilder = base.getURLParameter('builder');
+
+config.currentBuilders = function() {
+    var current_builders = {};
+    if (config.currentBuilder) {
+        current_builders[config.currentBuilder] = config.kPlatforms[config.currentPlatform].builders[config.currentBuilder];
+        return current_builders;
+    } else {
+        return config.kPlatforms[config.currentPlatform].builders;
+    }
+};
+
+config.builderApplies = function(builderName) {
+    if (config.currentBuilder)
+        return builderName == config.currentBuilder;
+    return config.kPlatforms[config.currentPlatform]._builderApplies(builderName);
+};
+
+config.setPlatform = function(platform) {
     if (!this.kPlatforms[platform]) {
         window.console.log(platform + ' is not a recognized platform');
         return;
     }
     config.currentPlatform = platform;
 };
+
+config.useLocalResults = Boolean(base.getURLParameter('useLocalResults')) || false;
 
 })();

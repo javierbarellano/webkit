@@ -61,6 +61,7 @@
             'tests/CompositorFakeWebGraphicsContext3D.h',
             'tests/DateTimeFormatTest.cpp',
             'tests/DecimalTest.cpp',
+            'tests/DeferredImageDecoderTest.cpp',
             'tests/DragImageTest.cpp',
             'tests/EventListenerTest.cpp',
             'tests/FakeWebCompositorOutputSurface.h',
@@ -78,8 +79,9 @@
             'tests/IDBLevelDBCodingTest.cpp',
             'tests/IDBRequestTest.cpp',
             'tests/ImageLayerChromiumTest.cpp',
-            'tests/KURLTest.cpp',
+            'tests/MockImageDecoder.h',
             'tests/KeyboardTest.cpp',
+            'tests/KURLTest.cpp',
             'tests/LevelDBTest.cpp',
             'tests/LinkHighlightTest.cpp',
             'tests/ListenerLeakTest.cpp',
@@ -108,6 +110,7 @@
             'tests/WebFrameTest.cpp',
             'tests/WebImageTest.cpp',
             'tests/WebInputEventConversionTest.cpp',
+            'tests/WebInputEventFactoryTestMac.mm',
             'tests/WebMediaPlayerClientImplTest.cpp',
             'tests/WebPageNewSerializerTest.cpp',
             'tests/WebPageSerializerTest.cpp',
@@ -143,8 +146,7 @@
             }],
             ['os_posix==1 and OS!="mac"', {
                 'webkit_unittest_files': [
-                    'tests/LocalizedDateICUTest.cpp',
-                    'tests/LocalizedNumberICUTest.cpp',
+                    'tests/LocaleICUTest.cpp',
                 ],
             }],
             ['toolkit_uses_gtk == 1', {

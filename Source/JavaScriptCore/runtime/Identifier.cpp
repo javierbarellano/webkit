@@ -30,6 +30,7 @@
 #include <wtf/Assertions.h>
 #include <wtf/FastMalloc.h>
 #include <wtf/HashSet.h>
+#include <wtf/text/ASCIIFastPath.h>
 #include <wtf/text/StringHash.h>
 
 using WTF::ThreadSpecific;
@@ -80,11 +81,7 @@ struct IdentifierLCharFromUCharTranslator {
     {
         LChar* d;
         StringImpl* r = StringImpl::createUninitialized(buf.length, d).leakRef();
-        for (unsigned i = 0; i != buf.length; i++) {
-            UChar c = buf.s[i];
-            ASSERT(c <= 0xff);
-            d[i] = c;
-        }
+        WTF::copyLCharsFromUCharSource(d, buf.s, buf.length);
         r->setHash(hash);
         location = r; 
     }
@@ -102,7 +99,7 @@ PassRefPtr<StringImpl> Identifier::add(JSGlobalData* globalData, const char* c)
 
     const LiteralIdentifierTable::iterator& iter = literalIdentifierTable.find(c);
     if (iter != literalIdentifierTable.end())
-        return iter->second;
+        return iter->value;
 
     HashSet<StringImpl*>::AddResult addResult = identifierTable.add<const LChar*, IdentifierASCIIStringTranslator>(reinterpret_cast<const LChar*>(c));
 
@@ -131,7 +128,7 @@ PassRefPtr<StringImpl> Identifier::add8(JSGlobalData* globalData, const UChar* s
     
     if (!length)
         return StringImpl::empty();
-    CharBuffer<UChar> buf = {s, length}; 
+    CharBuffer<UChar> buf = { s, static_cast<unsigned>(length) };
     HashSet<StringImpl*>::AddResult addResult = globalData->identifierTable->add<CharBuffer<UChar>, IdentifierLCharFromUCharTranslator >(buf);
     
     // If the string is newly-translated, then we need to adopt it.

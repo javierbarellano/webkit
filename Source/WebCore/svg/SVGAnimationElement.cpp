@@ -39,6 +39,7 @@
 #include "SVGNames.h"
 #include "SVGParserUtilities.h"
 #include "SVGStyledElement.h"
+#include <wtf/MathExtras.h>
 
 namespace WebCore {
 
@@ -55,6 +56,10 @@ SVGAnimationElement::SVGAnimationElement(const QualifiedName& tagName, Document*
     , m_fromPropertyValueType(RegularPropertyValue)
     , m_toPropertyValueType(RegularPropertyValue)
     , m_animationValid(false)
+    , m_attributeType(AttributeTypeAuto)
+    , m_hasInvalidCSSAttributeType(false)
+    , m_calcMode(CalcModeLinear)
+    , m_animationMode(NoAnimation)
 {
     registerAnimatedPropertiesForSVGAnimationElement();
 }
@@ -145,6 +150,11 @@ bool SVGAnimationElement::isSupportedAttribute(const QualifiedName& attrName)
         supportedAttributes.add(SVGNames::keyTimesAttr);
         supportedAttributes.add(SVGNames::keyPointsAttr);
         supportedAttributes.add(SVGNames::keySplinesAttr);
+        supportedAttributes.add(SVGNames::attributeTypeAttr);
+        supportedAttributes.add(SVGNames::calcModeAttr);
+        supportedAttributes.add(SVGNames::fromAttr);
+        supportedAttributes.add(SVGNames::toAttr);
+        supportedAttributes.add(SVGNames::byAttr);
     }
     return supportedAttributes.contains<QualifiedName, SVGAttributeHashTranslator>(attrName);
 }
@@ -163,6 +173,8 @@ void SVGAnimationElement::parseAttribute(const Attribute& attribute)
         attribute.value().string().split(';', m_values);
         for (unsigned i = 0; i < m_values.size(); ++i)
             m_values[i] = m_values[i].stripWhiteSpace();
+
+        updateAnimationMode();
         return;
     }
 
@@ -182,6 +194,21 @@ void SVGAnimationElement::parseAttribute(const Attribute& attribute)
 
     if (attribute.name() == SVGNames::keySplinesAttr) {
         parseKeySplines(attribute.value(), m_keySplines);
+        return;
+    }
+
+    if (attribute.name() == SVGNames::attributeTypeAttr) {
+        setAttributeType(attribute.value());
+        return;
+    }
+
+    if (attribute.name() == SVGNames::calcModeAttr) {
+        setCalcMode(attribute.value());
+        return;
+    }
+
+    if (attribute.name() == SVGNames::fromAttr || attribute.name() == SVGNames::toAttr || attribute.name() == SVGNames::byAttr) {
+        updateAnimationMode();
         return;
     }
 
@@ -232,6 +259,8 @@ void SVGAnimationElement::beginElement()
 
 void SVGAnimationElement::beginElementAt(float offset)
 {
+    if (isnan(offset))
+        return;
     SMILTime elapsed = this->elapsed();
     addBeginTime(elapsed, elapsed + offset, SMILTimeWithOrigin::ScriptOrigin);
 }
@@ -243,54 +272,54 @@ void SVGAnimationElement::endElement()
 
 void SVGAnimationElement::endElementAt(float offset)
 {
+    if (isnan(offset))
+        return;
     SMILTime elapsed = this->elapsed();
     addEndTime(elapsed, elapsed + offset, SMILTimeWithOrigin::ScriptOrigin);
 }
 
-AnimationMode SVGAnimationElement::animationMode() const
+void SVGAnimationElement::updateAnimationMode()
 {
     // http://www.w3.org/TR/2001/REC-smil-animation-20010904/#AnimFuncValues
-    if (hasTagName(SVGNames::setTag))
-        return ToAnimation;
-    if (!animationPath().isEmpty())
-        return PathAnimation;
     if (hasAttribute(SVGNames::valuesAttr))
-        return ValuesAnimation;
-    if (!toValue().isEmpty())
-        return fromValue().isEmpty() ? ToAnimation : FromToAnimation;
-    if (!byValue().isEmpty())
-        return fromValue().isEmpty() ? ByAnimation : FromByAnimation;
-    return NoAnimation;
+        setAnimationMode(ValuesAnimation);
+    else if (!toValue().isEmpty())
+        setAnimationMode(fromValue().isEmpty() ? ToAnimation : FromToAnimation);
+    else if (!byValue().isEmpty())
+        setAnimationMode(fromValue().isEmpty() ? ByAnimation : FromByAnimation);
+    else
+        setAnimationMode(NoAnimation);
 }
 
-CalcMode SVGAnimationElement::calcMode() const
-{    
+void SVGAnimationElement::setCalcMode(const AtomicString& calcMode)
+{
     DEFINE_STATIC_LOCAL(const AtomicString, discrete, ("discrete"));
     DEFINE_STATIC_LOCAL(const AtomicString, linear, ("linear"));
     DEFINE_STATIC_LOCAL(const AtomicString, paced, ("paced"));
     DEFINE_STATIC_LOCAL(const AtomicString, spline, ("spline"));
-    const AtomicString& value = fastGetAttribute(SVGNames::calcModeAttr);
-    if (value == discrete)
-        return CalcModeDiscrete;
-    if (value == linear)
-        return CalcModeLinear;
-    if (value == paced)
-        return CalcModePaced;
-    if (value == spline)
-        return CalcModeSpline;
-    return hasTagName(SVGNames::animateMotionTag) ? CalcModePaced : CalcModeLinear;
+    if (calcMode == discrete)
+        setCalcMode(CalcModeDiscrete);
+    else if (calcMode == linear)
+        setCalcMode(CalcModeLinear);
+    else if (calcMode == paced)
+        setCalcMode(CalcModePaced);
+    else if (calcMode == spline)
+        setCalcMode(CalcModeSpline);
+    else
+        setCalcMode(hasTagName(SVGNames::animateMotionTag) ? CalcModePaced : CalcModeLinear);
 }
 
-SVGAnimationElement::AttributeType SVGAnimationElement::attributeType() const
-{    
+void SVGAnimationElement::setAttributeType(const AtomicString& attributeType)
+{
     DEFINE_STATIC_LOCAL(const AtomicString, css, ("CSS"));
     DEFINE_STATIC_LOCAL(const AtomicString, xml, ("XML"));
-    const AtomicString& value = fastGetAttribute(SVGNames::attributeTypeAttr);
-    if (value == css)
-        return AttributeTypeCSS;
-    if (value == xml)
-        return AttributeTypeXML;
-    return AttributeTypeAuto;
+    if (attributeType == css)
+        m_attributeType = AttributeTypeCSS;
+    else if (attributeType == xml)
+        m_attributeType = AttributeTypeXML;
+    else
+        m_attributeType = AttributeTypeAuto;
+    checkInvalidCSSAttributeType(targetElement(DoNotResolveNewTarget));
 }
 
 String SVGAnimationElement::toValue() const
@@ -646,6 +675,25 @@ void SVGAnimationElement::determinePropertyValueTypes(const String& from, const 
         m_fromPropertyValueType = InheritValue;
     if (inheritsFromProperty(targetElement, attributeName, to))
         m_toPropertyValueType = InheritValue;
+}
+
+void SVGAnimationElement::targetElementWillChange(SVGElement* currentTarget, SVGElement* newTarget)
+{
+    SVGSMILElement::targetElementWillChange(currentTarget, newTarget);
+
+    checkInvalidCSSAttributeType(newTarget);
+}
+
+void SVGAnimationElement::setAttributeName(const QualifiedName& attributeName)
+{
+    SVGSMILElement::setAttributeName(attributeName);
+
+    checkInvalidCSSAttributeType(targetElement(DoNotResolveNewTarget));
+}
+
+void SVGAnimationElement::checkInvalidCSSAttributeType(SVGElement* target)
+{
+    m_hasInvalidCSSAttributeType = target && hasValidAttributeName() && attributeType() == AttributeTypeCSS && !isTargetAttributeCSSProperty(target, attributeName());
 }
 
 }

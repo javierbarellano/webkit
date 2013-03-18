@@ -46,8 +46,8 @@
 #include "Node.h"
 #include "Page.h"
 #include "Range.h"
+#include "ResourceBuffer.h"
 #include "Settings.h"
-#include "SharedBuffer.h"
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 #include <wtf/ListHashSet.h>
@@ -91,8 +91,7 @@ RetainPtr<CFDictionaryRef> LegacyWebArchive::createPropertyListRepresentation(Ar
     CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceDataKey, cfData.get());
     
     // Resource URL cannot be null
-    RetainPtr<CFStringRef> cfURL(AdoptCF, resource->url().string().createCFString());
-    if (cfURL)
+    if (RetainPtr<CFStringRef> cfURL = resource->url().string().createCFString())
         CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceURLKey, cfURL.get());
     else {
         LOG(Archives, "LegacyWebArchive - NULL resource URL is invalid - returning null property list");
@@ -101,23 +100,17 @@ RetainPtr<CFDictionaryRef> LegacyWebArchive::createPropertyListRepresentation(Ar
 
     // FrameName should be left out if empty for subresources, but always included for main resources
     const String& frameName(resource->frameName());
-    if (!frameName.isEmpty() || isMainResource) {
-        RetainPtr<CFStringRef> cfFrameName(AdoptCF, frameName.createCFString());
-        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceFrameNameKey, cfFrameName.get());
-    }
+    if (!frameName.isEmpty() || isMainResource)
+        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceFrameNameKey, frameName.createCFString().get());
     
     // Set MIMEType, TextEncodingName, and ResourceResponse only if they actually exist
     const String& mimeType(resource->mimeType());
-    if (!mimeType.isEmpty()) {
-        RetainPtr<CFStringRef> cfMIMEType(AdoptCF, mimeType.createCFString());
-        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceMIMETypeKey, cfMIMEType.get());
-    }
+    if (!mimeType.isEmpty())
+        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceMIMETypeKey, mimeType.createCFString().get());
     
     const String& textEncoding(resource->textEncoding());
-    if (!textEncoding.isEmpty()) {
-        RetainPtr<CFStringRef> cfTextEncoding(AdoptCF, textEncoding.createCFString());
-        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceTextEncodingNameKey, cfTextEncoding.get());
-    }
+    if (!textEncoding.isEmpty())
+        CFDictionarySetValue(propertyList.get(), LegacyWebArchiveResourceTextEncodingNameKey, textEncoding.createCFString().get());
 
     // Don't include the resource response for the main resource
     if (!isMainResource) {
@@ -562,7 +555,8 @@ PassRefPtr<LegacyWebArchive> LegacyWebArchive::create(const String& markupString
 
                 CachedResource* cachedResource = memoryCache()->resourceForURL(subresourceURL);
                 if (cachedResource) {
-                    resource = ArchiveResource::create(cachedResource->data(), subresourceURL, cachedResource->response());
+                    ResourceBuffer* data = cachedResource->resourceBuffer();
+                    resource = ArchiveResource::create(data ? data->sharedBuffer() : 0, subresourceURL, cachedResource->response());
                     if (resource) {
                         subresources.append(resource.release());
                         continue;

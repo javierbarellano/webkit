@@ -107,8 +107,8 @@
 #include "InspectorCounters.h"
 #include "InspectorInstrumentation.h"
 #include "Language.h"
-#include "Localizer.h"
 #include "Logging.h"
+#include "MainResourceLoader.h"
 #include "MediaCanStartListener.h"
 #include "MediaQueryList.h"
 #include "MediaQueryMatcher.h"
@@ -125,6 +125,7 @@
 #include "PageGroup.h"
 #include "PageTransitionEvent.h"
 #include "PlatformKeyboardEvent.h"
+#include "PlatformLocale.h"
 #include "PluginDocument.h"
 #include "PointerLockController.h"
 #include "PopStateEvent.h"
@@ -181,6 +182,10 @@
 #include <wtf/PassRefPtr.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuffer.h>
+
+#if USE(ACCELERATED_COMPOSITING)
+#include "RenderLayerCompositor.h"
+#endif
 
 #if ENABLE(SHARED_WORKERS)
 #include "SharedWorkerRepository.h"
@@ -442,7 +447,7 @@ Document::Document(Frame* frame, const KURL& url, bool isXHTML, bool isHTML)
 #if ENABLE(MUTATION_OBSERVERS)
     , m_mutationObserverTypes(0)
 #endif
-    , m_styleSheetCollection(adoptPtr(new DocumentStyleSheetCollection(this)))
+    , m_styleSheetCollection(DocumentStyleSheetCollection::create(this))
     , m_readyState(Complete)
     , m_styleRecalcTimer(this, &Document::styleRecalcTimerFired)
     , m_pendingStyleRecalcShouldForce(false)
@@ -461,9 +466,9 @@ Document::Document(Frame* frame, const KURL& url, bool isXHTML, bool isHTML)
     , m_hasXMLDeclaration(0)
     , m_savedRenderer(0)
     , m_designMode(inherit)
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-    , m_hasDashboardRegions(false)
-    , m_dashboardRegionsDirty(false)
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    , m_hasAnnotatedRegions(false)
+    , m_annotatedRegionsDirty(false)
 #endif
     , m_createRenderers(true)
     , m_inPageCache(false)
@@ -529,7 +534,12 @@ Document::Document(Frame* frame, const KURL& url, bool isXHTML, bool isHTML)
 
     m_markers = adoptPtr(new DocumentMarkerController);
 
-    m_cachedResourceLoader = adoptPtr(new CachedResourceLoader(this));
+    if (m_frame)
+        m_cachedResourceLoader = m_frame->loader()->activeDocumentLoader()->cachedResourceLoader();
+    if (!m_cachedResourceLoader)
+        m_cachedResourceLoader = CachedResourceLoader::create(0);
+    m_cachedResourceLoader->setDocument(this);
+
 #if ENABLE(LINK_PRERENDER)
     m_prerenderer = Prerenderer::create(this);
 #endif
@@ -645,14 +655,17 @@ Document::~Document()
     if (m_elemSheet)
         m_elemSheet->clearOwnerNode();
 
-    deleteCustomFonts();
-
     m_weakReference->clear();
 
     if (m_mediaQueryMatcher)
         m_mediaQueryMatcher->documentDestroyed();
 
     clearStyleResolver(); // We need to destory CSSFontSelector before destroying m_cachedResourceLoader.
+
+    // It's possible for multiple Documents to end up referencing the same CachedResourceLoader (e.g., SVGImages
+    // load the initial empty document and the SVGDocument with the same DocumentLoader).
+    if (m_cachedResourceLoader->document() == this)
+        m_cachedResourceLoader->setDocument(0);
     m_cachedResourceLoader.clear();
 
     // We must call clearRareData() here since a Document class inherits TreeScope
@@ -785,7 +798,7 @@ void Document::setCompatibilityMode(CompatibilityMode mode)
 {
     if (m_compatibilityModeLocked || mode == m_compatibilityMode)
         return;
-    ASSERT(m_styleSheetCollection->authorStyleSheets().isEmpty());
+    ASSERT(m_styleSheetCollection->activeAuthorStyleSheets().isEmpty());
     bool wasInQuirksMode = inQuirksMode();
     m_compatibilityMode = mode;
     selectorQueryCache()->invalidate();
@@ -952,9 +965,7 @@ PassRefPtr<Node> Document::importNode(Node* importedNode, bool deep, ExceptionCo
             ec = NAMESPACE_ERR;
             return 0;
         }
-        RefPtr<Element> newElement = createElement(oldElement->tagQName(), ec);
-        if (ec)
-            return 0;
+        RefPtr<Element> newElement = createElement(oldElement->tagQName(), false);
 
         newElement->cloneDataFromElement(*oldElement);
 
@@ -1044,10 +1055,9 @@ PassRefPtr<Node> Document::adoptNode(PassRefPtr<Node> source, ExceptionCode& ec)
             return 0;
         }
 
-        // FIXME: What about <frame> and <object>?
-        if (source->hasTagName(iframeTag)) {
-            HTMLIFrameElement* iframe = static_cast<HTMLIFrameElement*>(source.get());
-            if (frame() && frame()->tree()->isDescendantOf(iframe->contentFrame())) {
+        if (source->isFrameOwnerElement()) {
+            HTMLFrameOwnerElement* frameOwnerElement = toFrameOwnerElement(source.get());
+            if (frame() && frame()->tree()->isDescendantOf(frameOwnerElement->contentFrame())) {
                 ec = HIERARCHY_REQUEST_ERR;
                 return 0;
             }
@@ -1619,10 +1629,10 @@ PageVisibilityState Document::visibilityState() const
 {
     // The visibility of the document is inherited from the visibility of the
     // page. If there is no page associated with the document, we will assume
-    // that the page is visible i.e. invisibility has to be explicitly
-    // specified by the embedder.
+    // that the page is hidden, as specified by the spec:
+    // http://dvcs.w3.org/hg/webperf/raw-file/tip/specs/PageVisibility/Overview.html#dom-document-hidden
     if (!m_frame || !m_frame->page())
-        return PageVisibilityStateVisible;
+        return PageVisibilityStateHidden;
     return m_frame->page()->visibilityState();
 }
 
@@ -1917,6 +1927,7 @@ void Document::updateLayout()
 
     updateStyleIfNeeded();
 
+    StackStats::LayoutCheckPoint layoutCheckPoint;
     // Only do a layout if changes have occurred that make it necessary.      
     FrameView* v = view();
     if (v && renderer() && (v->layoutPending() || renderer()->needsLayout()))
@@ -1972,20 +1983,6 @@ PassRefPtr<RenderStyle> Document::styleForPage(int pageIndex)
 {
     RefPtr<RenderStyle> style = styleResolver()->styleForPage(pageIndex);
     return style.release();
-}
-
-void Document::registerCustomFont(PassOwnPtr<FontData> fontData)
-{
-    m_customFonts.append(fontData);
-}
-
-void Document::deleteCustomFonts()
-{
-    size_t size = m_customFonts.size();
-    for (size_t i = 0; i < size; ++i)
-        GlyphPageTreeNode::pruneTreeCustomFontData(m_customFonts[i].get());
-
-    m_customFonts.clear();
 }
 
 bool Document::isPageBoxVisible(int pageIndex)
@@ -2681,6 +2678,14 @@ double Document::minimumTimerInterval() const
     return p->settings()->minDOMTimerInterval();
 }
 
+double Document::timerAlignmentInterval() const
+{
+    Page* p = page();
+    if (!p)
+        return ScriptExecutionContext::timerAlignmentInterval();
+    return p->settings()->domTimerAlignmentInterval();
+}
+
 EventTarget* Document::errorEventTarget()
 {
     return domWindow();
@@ -2951,17 +2956,24 @@ void Document::processHttpEquiv(const String& equiv, const String& content)
         if (frame) {
             FrameLoader* frameLoader = frame->loader();
             if (frameLoader->shouldInterruptLoadForXFrameOptions(content, url())) {
+                unsigned long requestIdentifier = 0;
+                if (frameLoader->activeDocumentLoader() && frameLoader->activeDocumentLoader()->mainResourceLoader())
+                    requestIdentifier = frameLoader->activeDocumentLoader()->mainResourceLoader()->identifier();
+                String message = "Refused to display '" + url().string() + "' in a frame because it set 'X-Frame-Options' to '" + content + "'.";
+
                 frameLoader->stopAllLoaders();
                 frame->navigationScheduler()->scheduleLocationChange(securityOrigin(), blankURL(), String());
-
-                DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Refused to display document because display forbidden by X-Frame-Options.\n")));
-                addConsoleMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, consoleMessage);
+                addConsoleMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, message, url().string(), 0, 0, requestIdentifier);
             }
         }
-    } else if (equalIgnoringCase(equiv, "x-webkit-csp"))
-        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::EnforcePolicy);
+    } else if (equalIgnoringCase(equiv, "content-security-policy"))
+        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::EnforceStableDirectives);
+    else if (equalIgnoringCase(equiv, "content-security-policy-report-only"))
+        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::ReportStableDirectives);
+    else if (equalIgnoringCase(equiv, "x-webkit-csp"))
+        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::EnforceAllDirectives);
     else if (equalIgnoringCase(equiv, "x-webkit-csp-report-only"))
-        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::ReportOnly);
+        contentSecurityPolicy()->didReceiveHeader(content, ContentSecurityPolicy::ReportAllDirectives);
 }
 
 // Though isspace() considers \t and \v to be whitespace, Win IE doesn't.
@@ -3351,16 +3363,16 @@ void Document::activeChainNodeDetached(Node* node)
         m_activeNode = m_activeNode->parentNode();
 }
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-const Vector<DashboardRegionValue>& Document::dashboardRegions() const
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+const Vector<AnnotatedRegionValue>& Document::annotatedRegions() const
 {
-    return m_dashboardRegions;
+    return m_annotatedRegions;
 }
 
-void Document::setDashboardRegions(const Vector<DashboardRegionValue>& regions)
+void Document::setAnnotatedRegions(const Vector<AnnotatedRegionValue>& regions)
 {
-    m_dashboardRegions = regions;
-    setDashboardRegionsDirty(false);
+    m_annotatedRegions = regions;
+    setAnnotatedRegionsDirty(false);
 }
 #endif
 
@@ -3923,6 +3935,19 @@ String Document::lastModified() const
     return String::format("%02d/%02d/%04d %02d:%02d:%02d", date.month() + 1, date.monthDay(), date.fullYear(), date.hour(), date.minute(), date.second());
 }
 
+static bool isValidNameNonASCII(const LChar* characters, unsigned length)
+{
+    if (!isValidNameStart(characters[0]))
+        return false;
+
+    for (unsigned i = 1; i < length; ++i) {
+        if (!isValidNamePart(characters[i]))
+            return false;
+    }
+
+    return true;
+}
+
 static bool isValidNameNonASCII(const UChar* characters, unsigned length)
 {
     unsigned i = 0;
@@ -3963,16 +3988,20 @@ bool Document::isValidName(const String& name)
     if (!length)
         return false;
 
-    const UChar* characters;
     if (name.is8Bit()) {
-        if (isValidNameASCII(name.characters8(), length))
-            return true;
-        characters = name.characters();
-    } else {
-        characters = name.characters16();
+        const LChar* characters = name.characters8();
+
         if (isValidNameASCII(characters, length))
             return true;
+
+        return isValidNameNonASCII(characters, length);
     }
+
+    const UChar* characters = name.characters16();
+
+    if (isValidNameASCII(characters, length))
+        return true;
+
     return isValidNameNonASCII(characters, length);
 }
 
@@ -4066,14 +4095,25 @@ void Document::setInPageCache(bool flag)
     m_inPageCache = flag;
 
     FrameView* v = view();
+    Page* page = this->page();
+
     if (flag) {
         ASSERT(!m_savedRenderer);
         m_savedRenderer = renderer();
         if (v) {
+            // FIXME: There is some scrolling related work that needs to happen whenever a page goes into the
+            // page cache and similar work that needs to occur when it comes out. This is where we do the work
+            // that needs to happen when we enter, and the work that needs to happen when we exit is in
+            // HistoryController::restoreScrollPositionAndViewState(). It can't be here because this function is
+            // called too early on in the process of a page exiting the cache for that work to be possible in this
+            // function. It would be nice if there was more symmetry here.
+            // https://bugs.webkit.org/show_bug.cgi?id=98698
             v->cacheCurrentScrollPosition();
-            if (page() && page()->mainFrame() == m_frame)
+            if (page && page->mainFrame() == m_frame) {
                 v->resetScrollbarsAndClearContentsSize();
-            else
+                if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
+                    scrollingCoordinator->clearStateTree();
+            } else
                 v->resetScrollbars();
         }
         m_styleRecalcTimer.stop();
@@ -4447,10 +4487,10 @@ PassRefPtr<HTMLCollection> Document::windowNamedItems(const AtomicString& name)
 {
     NamedCollectionMap::AddResult result = m_windowNamedItemCollections.add(name, 0);
     if (!result.isNewEntry)
-        return result.iterator->second;
+        return result.iterator->value;
 
     RefPtr<HTMLNameCollection> collection = HTMLNameCollection::create(this, WindowNamedItems, name);
-    result.iterator->second = collection.get();
+    result.iterator->value = collection.get();
     return collection.release();
 }
 
@@ -4458,10 +4498,10 @@ PassRefPtr<HTMLCollection> Document::documentNamedItems(const AtomicString& name
 {
     NamedCollectionMap::AddResult result = m_documentNamedItemCollections.add(name, 0);
     if (!result.isNewEntry)
-        return result.iterator->second;
+        return result.iterator->value;
 
     RefPtr<HTMLNameCollection> collection = HTMLNameCollection::create(this, DocumentNamedItems, name);
-    result.iterator->second = collection.get();
+    result.iterator->value = collection.get();
     return collection.release();
 }
 
@@ -4799,7 +4839,7 @@ CanvasRenderingContext* Document::getCSSCanvasContext(const String& type, const 
 
 HTMLCanvasElement* Document::getCSSCanvasElement(const String& name)
 {
-    RefPtr<HTMLCanvasElement>& element = m_cssCanvasElements.add(name, 0).iterator->second;
+    RefPtr<HTMLCanvasElement>& element = m_cssCanvasElements.add(name, 0).iterator->value;
     if (!element)
         element = HTMLCanvasElement::create(this);
     return element.get();
@@ -4830,15 +4870,17 @@ void Document::parseDNSPrefetchControlHeader(const String& dnsPrefetchControl)
     m_haveExplicitlyDisabledDNSPrefetch = true;
 }
 
-void Document::addMessage(MessageSource source, MessageType type, MessageLevel level, const String& message, const String& sourceURL, unsigned lineNumber, PassRefPtr<ScriptCallStack> callStack)
+void Document::addMessage(MessageSource source, MessageType type, MessageLevel level, const String& message, const String& sourceURL, unsigned lineNumber, PassRefPtr<ScriptCallStack> callStack, unsigned long requestIdentifier)
 {
     if (!isContextThread()) {
         postTask(AddConsoleMessageTask::create(source, type, level, message));
         return;
     }
 
-    if (DOMWindow* window = domWindow())
-        window->console()->addMessage(source, type, level, message, sourceURL, lineNumber, callStack);
+    if (DOMWindow* window = domWindow()) {
+        if (Console* console = window->console())
+            console->addMessage(source, type, level, message, sourceURL, lineNumber, callStack, requestIdentifier);
+    }
 }
 
 struct PerformTaskContext {
@@ -4935,14 +4977,20 @@ void Document::resumeScriptedAnimationControllerCallbacks()
 
 void Document::windowScreenDidChange(PlatformDisplayID displayID)
 {
+    UNUSED_PARAM(displayID);
+
 #if ENABLE(REQUEST_ANIMATION_FRAME)
     if (m_scriptedAnimationController)
         m_scriptedAnimationController->windowScreenDidChange(displayID);
-#else
-    UNUSED_PARAM(displayID);
+#endif
+
+#if USE(ACCELERATED_COMPOSITING)
+    if (RenderView* view = renderView()) {
+        if (view->usesCompositing())
+            view->compositor()->windowScreenDidChange(displayID);
+    }
 #endif
 }
-
 
 String Document::displayStringModifiedByEncoding(const String& str) const
 {
@@ -4977,6 +5025,9 @@ void Document::enqueueHashchangeEvent(const String& oldURL, const String& newURL
 
 void Document::enqueuePopstateEvent(PassRefPtr<SerializedScriptValue> stateObject)
 {
+    if (!ContextFeatures::pushStateEnabled(this))
+        return;
+
     // FIXME: https://bugs.webkit.org/show_bug.cgi?id=36202 Popstate event needs to fire asynchronously
     dispatchWindowEvent(PopStateEvent::create(stateObject, domWindow() ? domWindow()->history() : 0));
 }
@@ -5060,9 +5111,17 @@ void Document::requestFullScreenForElement(Element* element, unsigned short flag
         // There is a previously-established user preference, security risk, or platform limitation.
         if (!page() || !page()->settings()->fullScreenEnabled())
             break;
-        
-        if (!page()->chrome()->client()->supportsFullScreenForElement(element, flags & Element::ALLOW_KEYBOARD_INPUT))
-            break;
+
+        if (!page()->chrome()->client()->supportsFullScreenForElement(element, flags & Element::ALLOW_KEYBOARD_INPUT)) {
+            // The new full screen API does not accept a "flags" parameter, so fall back to disallowing
+            // keyboard input if the chrome client refuses to allow keyboard input.
+            if (!inLegacyMozillaMode && flags & Element::ALLOW_KEYBOARD_INPUT) {
+                flags &= ~Element::ALLOW_KEYBOARD_INPUT;
+                if (!page()->chrome()->client()->supportsFullScreenForElement(element, false))
+                    break;
+            } else
+                break;
+        }
 
         // 2. Let doc be element's node document. (i.e. "this")
         Document* currentDoc = this;
@@ -5197,6 +5256,9 @@ void Document::webkitExitFullscreen()
 
     // 6. Return, and run the remaining steps asynchronously.
     // 7. Optionally, perform some animation.
+
+    if (!page())
+        return;
 
     // Only exit out of full screen window mode if there are no remaining elements in the 
     // full screen stack.
@@ -5522,7 +5584,7 @@ void Document::loadEventDelayTimerFired(Timer<Document>*)
 }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
-int Document::webkitRequestAnimationFrame(PassRefPtr<RequestAnimationFrameCallback> callback)
+int Document::requestAnimationFrame(PassRefPtr<RequestAnimationFrameCallback> callback)
 {
     if (!m_scriptedAnimationController) {
 #if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
@@ -5540,18 +5602,18 @@ int Document::webkitRequestAnimationFrame(PassRefPtr<RequestAnimationFrameCallba
     return m_scriptedAnimationController->registerCallback(callback);
 }
 
-void Document::webkitCancelAnimationFrame(int id)
+void Document::cancelAnimationFrame(int id)
 {
     if (!m_scriptedAnimationController)
         return;
     m_scriptedAnimationController->cancelCallback(id);
 }
 
-void Document::serviceScriptedAnimations(DOMTimeStamp time)
+void Document::serviceScriptedAnimations(double monotonicAnimationStartTime)
 {
     if (!m_scriptedAnimationController)
         return;
-    m_scriptedAnimationController->serviceScriptedAnimations(time);
+    m_scriptedAnimationController->serviceScriptedAnimations(monotonicAnimationStartTime);
 }
 #endif
 
@@ -5864,7 +5926,6 @@ void Document::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
     ContainerNode::reportMemoryUsage(memoryObjectInfo);
     info.addMember(m_styleResolver);
-    info.addMember(m_customFonts);
     info.addMember(m_url);
     info.addMember(m_baseURL);
     info.addMember(m_baseURLOverride);
@@ -5890,8 +5951,8 @@ void Document::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     info.addMember(m_contentLanguage);
     info.addMember(m_documentNamedItemCollections);
     info.addMember(m_windowNamedItemCollections);
-#if ENABLE(DASHBOARD_SUPPORT)
-    info.addMember(m_dashboardRegions);
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    info.addMember(m_annotatedRegions);
 #endif
     info.addMember(m_cssCanvasElements);
     info.addMember(m_iconURLs);
@@ -5960,19 +6021,19 @@ PassRefPtr<ElementAttributeData> Document::cachedImmutableAttributeData(const El
     unsigned cacheHash = cacheKey.hash();
 
     ImmutableAttributeDataCache::iterator cacheIterator = m_immutableAttributeDataCache.add(cacheHash, nullptr).iterator;
-    if (cacheIterator->second && cacheIterator->second->key != cacheKey)
+    if (cacheIterator->value && cacheIterator->value->key != cacheKey)
         cacheHash = 0;
 
     RefPtr<ElementAttributeData> attributeData;
-    if (cacheHash && cacheIterator->second)
-        attributeData = cacheIterator->second->value;
+    if (cacheHash && cacheIterator->value)
+        attributeData = cacheIterator->value->value;
     else
         attributeData = ElementAttributeData::createImmutable(attributes);
 
-    if (!cacheHash || cacheIterator->second)
+    if (!cacheHash || cacheIterator->value)
         return attributeData.release();
 
-    cacheIterator->second = adoptPtr(new ImmutableAttributeDataCacheEntry(ImmutableAttributeDataCacheKey(element->tagQName(), attributeData->immutableAttributeArray(), attributeData->length()), attributeData));
+    cacheIterator->value = adoptPtr(new ImmutableAttributeDataCacheEntry(ImmutableAttributeDataCacheKey(element->tagQName(), attributeData->immutableAttributeArray(), attributeData->length()), attributeData));
 
     return attributeData.release();
 }
@@ -5982,15 +6043,15 @@ bool Document::haveStylesheetsLoaded() const
     return !m_styleSheetCollection->hasPendingSheets() || m_ignorePendingStylesheets;
 }
 
-Localizer& Document::getCachedLocalizer(const AtomicString& locale)
+Locale& Document::getCachedLocale(const AtomicString& locale)
 {
     AtomicString localeKey = locale;
     if (locale.isEmpty() || !RuntimeEnabledFeatures::langAttributeAwareFormControlUIEnabled())
         localeKey = defaultLanguage();
-    LocaleToLocalizerMap::AddResult result = m_localizerCache.add(localeKey, nullptr);
+    LocaleIdentifierToLocaleMap::AddResult result = m_localeCache.add(localeKey, nullptr);
     if (result.isNewEntry)
-        result.iterator->second = Localizer::create(localeKey);
-    return *(result.iterator->second);
+        result.iterator->value = Locale::create(localeKey);
+    return *(result.iterator->value);
 }
 
 } // namespace WebCore

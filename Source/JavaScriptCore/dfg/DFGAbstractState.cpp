@@ -839,8 +839,8 @@ bool AbstractState::execute(unsigned indexInBlock)
             
     case GetByVal: {
         node.setCanExit(true);
-        switch (node.arrayMode()) {
-        case Array::Undecided:
+        switch (node.arrayMode().type()) {
+        case Array::SelectUsingPredictions:
         case Array::Unprofiled:
             ASSERT_NOT_REACHED();
             break;
@@ -859,14 +859,12 @@ bool AbstractState::execute(unsigned indexInBlock)
             forNode(node.child2()).filter(SpecInt32);
             forNode(nodeIndex).makeTop();
             break;
-        case IN_BOUNDS_ARRAY_STORAGE_MODES:
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+        case Array::SlowPutArrayStorage:
             forNode(node.child2()).filter(SpecInt32);
-            forNode(nodeIndex).makeTop();
-            break;
-        case OUT_OF_BOUNDS_ARRAY_STORAGE_MODES:
-        case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
-            forNode(node.child2()).filter(SpecInt32);
-            clobberWorld(node.codeOrigin, indexInBlock);
+            if (node.arrayMode().isOutOfBounds())
+                clobberWorld(node.codeOrigin, indexInBlock);
             forNode(nodeIndex).makeTop();
             break;
         case Array::Int8Array:
@@ -908,6 +906,9 @@ bool AbstractState::execute(unsigned indexInBlock)
             forNode(node.child2()).filter(SpecInt32);
             forNode(nodeIndex).set(SpecDouble);
             break;
+        default:
+            ASSERT_NOT_REACHED();
+            break;
         }
         break;
     }
@@ -915,27 +916,35 @@ bool AbstractState::execute(unsigned indexInBlock)
     case PutByVal:
     case PutByValAlias: {
         node.setCanExit(true);
+        Edge child1 = m_graph.varArgChild(node, 0);
         Edge child2 = m_graph.varArgChild(node, 1);
         Edge child3 = m_graph.varArgChild(node, 2);
-        switch (modeForPut(node.arrayMode())) {
+        switch (node.arrayMode().modeForPut().type()) {
         case Array::ForceExit:
             m_isValid = false;
             break;
         case Array::Generic:
             clobberWorld(node.codeOrigin, indexInBlock);
             break;
-        case IN_BOUNDS_ARRAY_STORAGE_MODES:
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
+            if (node.arrayMode().isOutOfBounds())
+                clobberWorld(node.codeOrigin, indexInBlock);
             break;
-        case OUT_OF_BOUNDS_ARRAY_STORAGE_MODES:
-        case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
+        case Array::SlowPutArrayStorage:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
-            clobberWorld(node.codeOrigin, indexInBlock);
+            if (node.arrayMode().mayStoreToHole())
+                clobberWorld(node.codeOrigin, indexInBlock);
             break;
         case Array::Arguments:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             break;
         case Array::Int8Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -943,6 +952,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Int16Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -950,6 +960,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Int32Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -957,6 +968,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Uint8Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -964,6 +976,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Uint8ClampedArray:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -971,6 +984,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Uint16Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -978,6 +992,7 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Uint32Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             if (m_graph[child3].shouldSpeculateInteger())
                 forNode(child3).filter(SpecInt32);
@@ -985,15 +1000,17 @@ bool AbstractState::execute(unsigned indexInBlock)
                 forNode(child3).filter(SpecNumber);
             break;
         case Array::Float32Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             forNode(child3).filter(SpecNumber);
             break;
         case Array::Float64Array:
+            forNode(child1).filter(SpecCell);
             forNode(child2).filter(SpecInt32);
             forNode(child3).filter(SpecNumber);
             break;
         default:
-            ASSERT_NOT_REACHED();
+            CRASH();
             break;
         }
         break;
@@ -1110,16 +1127,15 @@ bool AbstractState::execute(unsigned indexInBlock)
         break;
         
     case NewArrayBuffer:
-        // Unless we're having a bad time, this node can change its mind about what structure
-        // it uses.
-        node.setCanExit(false);
-        forNode(nodeIndex).set(SpecArray);
+        node.setCanExit(true);
+        forNode(nodeIndex).set(m_graph.globalObjectFor(node.codeOrigin)->arrayStructure());
+        m_haveStructures = true;
         break;
 
     case NewArrayWithSize:
         node.setCanExit(true);
         forNode(node.child1()).filter(SpecInt32);
-        forNode(nodeIndex).set(m_graph.globalObjectFor(node.codeOrigin)->arrayStructure());
+        forNode(nodeIndex).set(SpecArray);
         m_haveStructures = true;
         break;
             
@@ -1311,7 +1327,8 @@ bool AbstractState::execute(unsigned indexInBlock)
         // the futurePossibleStructure set then the constant folding phase should
         // turn this into a watchpoint instead.
         StructureSet& set = node.structureSet();
-        if (value.m_futurePossibleStructure.isSubsetOf(set))
+        if (value.m_futurePossibleStructure.isSubsetOf(set)
+            || value.m_currentKnownStructure.isSubsetOf(set))
             m_foundConstants = true;
         node.setCanExit(
             !value.m_currentKnownStructure.isSubsetOf(set)
@@ -1352,22 +1369,24 @@ bool AbstractState::execute(unsigned indexInBlock)
     case GetButterfly:
     case AllocatePropertyStorage:
     case ReallocatePropertyStorage:
-        node.setCanExit(false);
+        node.setCanExit(!isCellSpeculation(forNode(node.child1()).m_type));
         forNode(node.child1()).filter(SpecCell);
         forNode(nodeIndex).clear(); // The result is not a JS value.
         break;
     case CheckArray: {
-        if (modeAlreadyChecked(forNode(node.child1()), node.arrayMode())) {
+        if (node.arrayMode().alreadyChecked(forNode(node.child1()))) {
             m_foundConstants = true;
             node.setCanExit(false);
             break;
         }
         node.setCanExit(true); // Lies, but this is followed by operations (like GetByVal) that always exit, so there is no point in us trying to be clever here.
-        switch (node.arrayMode()) {
+        switch (node.arrayMode().type()) {
         case Array::String:
             forNode(node.child1()).filter(SpecString);
             break;
-        case ALL_ARRAY_STORAGE_MODES:
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+        case Array::SlowPutArrayStorage:
             // This doesn't filter anything meaningful right now. We may want to add
             // CFA tracking of array mode speculations, but we don't have that, yet.
             forNode(node.child1()).filter(SpecCell);
@@ -1406,24 +1425,40 @@ bool AbstractState::execute(unsigned indexInBlock)
             ASSERT_NOT_REACHED();
             break;
         }
+        forNode(node.child1()).filterArrayModes(node.arrayMode().arrayModesThatPassFiltering());
+        m_haveStructures = true;
         break;
     }
     case Arrayify: {
-        switch (node.arrayMode()) {
-        case EFFECTFUL_NON_ARRAY_ARRAY_STORAGE_MODES:
-            node.setCanExit(true);
-            forNode(node.child1()).filter(SpecCell);
-            forNode(nodeIndex).clear();
-            clobberStructures(indexInBlock);
-            break;
-        default:
-            ASSERT_NOT_REACHED();
+        if (node.arrayMode().alreadyChecked(forNode(node.child1()))) {
+            m_foundConstants = true;
+            node.setCanExit(false);
             break;
         }
+        ASSERT(node.arrayMode().conversion() == Array::Convert);
+        node.setCanExit(true);
+        forNode(node.child1()).filter(SpecCell);
+        if (node.child2())
+            forNode(node.child2()).filter(SpecInt32);
+        clobberStructures(indexInBlock);
+        forNode(node.child1()).filterArrayModes(node.arrayMode().arrayModesThatPassFiltering());
+        m_haveStructures = true;
+        break;
+    }
+    case ArrayifyToStructure: {
+        AbstractValue& value = forNode(node.child1());
+        StructureSet set = node.structure();
+        if (value.m_futurePossibleStructure.isSubsetOf(set)
+            || value.m_currentKnownStructure.isSubsetOf(set))
+            m_foundConstants = true;
+        node.setCanExit(true);
+        clobberStructures(indexInBlock);
+        value.filter(set);
+        m_haveStructures = true;
         break;
     }
     case GetIndexedPropertyStorage: {
-        switch (node.arrayMode()) {
+        switch (node.arrayMode().type()) {
         case Array::String:
             // Strings are weird - we may spec fail if the string was a rope. That is of course
             // stupid, and we should fix that, but for now let's at least be honest about it.
@@ -1437,13 +1472,13 @@ bool AbstractState::execute(unsigned indexInBlock)
         break; 
     }
     case GetByOffset:
-        node.setCanExit(false);
+        node.setCanExit(!isCellSpeculation(forNode(node.child1()).m_type));
         forNode(node.child1()).filter(SpecCell);
         forNode(nodeIndex).makeTop();
         break;
             
     case PutByOffset:
-        node.setCanExit(false);
+        node.setCanExit(!isCellSpeculation(forNode(node.child1()).m_type));
         forNode(node.child1()).filter(SpecCell);
         break;
             
@@ -1508,7 +1543,12 @@ bool AbstractState::execute(unsigned indexInBlock)
         clobberWorld(node.codeOrigin, indexInBlock);
         forNode(nodeIndex).makeTop();
         break;
-            
+
+    case GarbageValue:
+        clobberWorld(node.codeOrigin, indexInBlock);
+        forNode(nodeIndex).makeTop();
+        break;
+
     case ForceOSRExit:
         node.setCanExit(true);
         m_isValid = false;

@@ -95,7 +95,7 @@
 #include "markup.h"
 #include "DOMUtilitiesPrivate.h"
 #include "WebFrameImpl.h"
-#include "platform/WebURL.h"
+#include <public/WebURL.h>
 #include <public/WebVector.h>
 
 using namespace WebCore;

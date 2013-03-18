@@ -41,7 +41,6 @@
 
 namespace JSC {
 
-ASSERT_CLASS_FITS_IN_CELL(JSONObject);
 ASSERT_HAS_TRIVIAL_DESTRUCTOR(JSONObject);
 
 static EncodedJSValue JSC_HOST_CALL JSONProtoFuncParse(ExecState*);
@@ -295,7 +294,7 @@ static void appendStringToStringBuilder(StringBuilder& builder, const CharType* 
         default:
             static const char hexDigits[] = "0123456789abcdef";
             UChar ch = data[i];
-            LChar hex[] = { '\\', 'u', hexDigits[(ch >> 12) & 0xF], hexDigits[(ch >> 8) & 0xF], hexDigits[(ch >> 4) & 0xF], hexDigits[ch & 0xF] };
+            LChar hex[] = { '\\', 'u', static_cast<LChar>(hexDigits[(ch >> 12) & 0xF]), static_cast<LChar>(hexDigits[(ch >> 8) & 0xF]), static_cast<LChar>(hexDigits[(ch >> 4) & 0xF]), static_cast<LChar>(hexDigits[ch & 0xF]) };
             builder.append(hex, WTF_ARRAY_LENGTH(hex));
             break;
         }

@@ -45,19 +45,19 @@ class NoEventDispatchAssertion {
 public:
     NoEventDispatchAssertion()
     {
+#ifndef NDEBUG
         if (!isMainThread())
             return;
-#ifndef NDEBUG
         s_count++;
 #endif
     }
 
     ~NoEventDispatchAssertion()
     {
+#ifndef NDEBUG
         if (!isMainThread())
             return;
         ASSERT(s_count);
-#ifndef NDEBUG
         s_count--;
 #endif
     }
@@ -124,9 +124,7 @@ public:
     // node that is of the type CDATA_SECTION_NODE, TEXT_NODE or COMMENT_NODE has changed its value.
     virtual void childrenChanged(bool createdByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
 
-    void attachAsNode();
     void attachChildren();
-    void attachChildrenIfNeeded();
     void attachChildrenLazily();
     void detachChildren();
     void detachChildrenIfNeeded();
@@ -175,6 +173,10 @@ private:
     Node* m_lastChild;
 };
 
+#ifndef NDEBUG
+bool childAttachedAllowedWhenAttachingChildren(ContainerNode*);
+#endif
+
 inline ContainerNode* toContainerNode(Node* node)
 {
     ASSERT(!node || node->isContainerNode());
@@ -197,20 +199,10 @@ inline ContainerNode::ContainerNode(Document* document, ConstructionType type)
 {
 }
 
-inline void ContainerNode::attachAsNode()
-{
-    Node::attach();
-}
-
 inline void ContainerNode::attachChildren()
 {
-    for (Node* child = firstChild(); child; child = child->nextSibling())
-        child->attach();
-}
-
-inline void ContainerNode::attachChildrenIfNeeded()
-{
     for (Node* child = firstChild(); child; child = child->nextSibling()) {
+        ASSERT(!child->attached() || childAttachedAllowedWhenAttachingChildren(this));
         if (!child->attached())
             child->attach();
     }

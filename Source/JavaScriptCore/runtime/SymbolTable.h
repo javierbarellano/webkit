@@ -337,19 +337,23 @@ namespace JSC {
 
     struct SymbolTableIndexHashTraits : HashTraits<SymbolTableEntry> {
         static const bool emptyValueIsZero = true;
-        static const bool needsDestruction = false;
+        static const bool needsDestruction = true;
     };
 
     typedef HashMap<RefPtr<StringImpl>, SymbolTableEntry, IdentifierRepHash, HashTraits<RefPtr<StringImpl> >, SymbolTableIndexHashTraits> SymbolTable;
 
     class SharedSymbolTable : public JSCell, public SymbolTable {
     public:
+        typedef JSCell Base;
+
         static SharedSymbolTable* create(JSGlobalData& globalData)
         {
             SharedSymbolTable* sharedSymbolTable = new (NotNull, allocateCell<SharedSymbolTable>(globalData.heap)) SharedSymbolTable(globalData);
             sharedSymbolTable->finishCreation(globalData);
             return sharedSymbolTable;
         }
+        static const bool needsDestruction = true;
+        static const bool hasImmortalStructure = true;
         static void destroy(JSCell*);
 
         static Structure* createStructure(JSGlobalData& globalData, JSGlobalObject* globalObject, JSValue prototype)
@@ -396,6 +400,7 @@ namespace JSC {
 
         OwnArrayPtr<SlowArgument> m_slowArguments;
     };
+
 } // namespace JSC
 
 #endif // SymbolTable_h

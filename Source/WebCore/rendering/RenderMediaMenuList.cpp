@@ -129,7 +129,7 @@ void RenderMediaMenuList::showPopup()
 
     // Compute the top left taking transforms into account, but use
     // the actual width of the element to size the popup.
-    FloatPoint absTopLeft = localToAbsolute(FloatPoint(), false, true);
+    FloatPoint absTopLeft = localToAbsolute(FloatPoint(), 0);
     IntRect absBounds = absoluteBoundingBoxRectIgnoringTransforms();
     absBounds.setLocation(roundedIntPoint(absTopLeft));
     MediaSelectElement* select = mediaSelElement();

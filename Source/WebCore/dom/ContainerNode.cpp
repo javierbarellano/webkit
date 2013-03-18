@@ -23,6 +23,7 @@
 #include "config.h"
 #include "ContainerNode.h"
 
+#include "AXObjectCache.h"
 #include "ChildListMutationScope.h"
 #include "ContainerNodeAlgorithms.h"
 #include "DeleteButtonController.h"
@@ -32,11 +33,14 @@
 #include "Frame.h"
 #include "FrameView.h"
 #include "InlineTextBox.h"
+#include "InsertionPoint.h"
 #include "InspectorInstrumentation.h"
+#include "LoaderStrategy.h"
 #include "MemoryCache.h"
 #include "MutationEvent.h"
 #include "ResourceLoadScheduler.h"
 #include "Page.h"
+#include "PlatformStrategies.h"
 #include "RenderBox.h"
 #include "RenderTheme.h"
 #include "RenderWidget.h"
@@ -44,6 +48,10 @@
 #include "UndoManager.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/Vector.h>
+
+#if USE(JSC)
+#include "JSNode.h"
+#endif
 
 using namespace std;
 
@@ -119,6 +127,9 @@ void ContainerNode::takeAllChildrenFrom(ContainerNode* oldParent)
 
 ContainerNode::~ContainerNode()
 {
+    if (AXObjectCache::accessibilityEnabled() && documentInternal() && documentInternal()->axObjectCacheExists())
+        documentInternal()->axObjectCache()->remove(this);
+
     removeAllChildren();
 }
 
@@ -632,7 +643,11 @@ void ContainerNode::suspendPostAttachCallbacks()
                 s_shouldReEnableMemoryCacheCallsAfterAttach = true;
             }
         }
+#if USE(PLATFORM_STRATEGIES)
+        platformStrategies()->loaderStrategy()->resourceLoadScheduler()->suspendPendingRequests();
+#else
         resourceLoadScheduler()->suspendPendingRequests();
+#endif
     }
     ++s_attachDepth;
 }
@@ -649,7 +664,11 @@ void ContainerNode::resumePostAttachCallbacks()
             if (Page* page = document()->page())
                 page->setMemoryCacheClientCallsEnabled(true);
         }
+#if USE(PLATFORM_STRATEGIES)
+        platformStrategies()->loaderStrategy()->resourceLoadScheduler()->resumePendingRequests();
+#else
         resourceLoadScheduler()->resumePendingRequests();
+#endif
     }
     --s_attachDepth;
 }
@@ -702,9 +721,9 @@ void ContainerNode::attach()
 
 void ContainerNode::detach()
 {
+    Node::detach();
     detachChildren();
     clearChildNeedsStyleRecalc();
-    Node::detach();
 }
 
 void ContainerNode::childrenChanged(bool changedByParser, Node*, Node*, int childCountDelta)
@@ -738,7 +757,7 @@ bool ContainerNode::getUpperLeftCorner(FloatPoint& point) const
     RenderObject* p = o;
 
     if (!o->isInline() || o->isReplaced()) {
-        point = o->localToAbsolute(FloatPoint(), false, true);
+        point = o->localToAbsolute(FloatPoint(), UseTransforms);
         return true;
     }
 
@@ -763,7 +782,7 @@ bool ContainerNode::getUpperLeftCorner(FloatPoint& point) const
         ASSERT(o);
 
         if (!o->isInline() || o->isReplaced()) {
-            point = o->localToAbsolute(FloatPoint(), false, true);
+            point = o->localToAbsolute(FloatPoint(), UseTransforms);
             return true;
         }
 
@@ -777,7 +796,7 @@ bool ContainerNode::getUpperLeftCorner(FloatPoint& point) const
                 RenderBox* box = toRenderBox(o);
                 point.moveBy(box->location());
             }
-            point = o->container()->localToAbsolute(point, false, true);
+            point = o->container()->localToAbsolute(point, UseTransforms | SnapOffsetForTransforms);
             return true;
         }
     }
@@ -799,7 +818,7 @@ bool ContainerNode::getLowerRightCorner(FloatPoint& point) const
     RenderObject* o = renderer();
     if (!o->isInline() || o->isReplaced()) {
         RenderBox* box = toRenderBox(o);
-        point = o->localToAbsolute(LayoutPoint(box->size()), false, true);
+        point = o->localToAbsolute(LayoutPoint(box->size()), UseTransforms);
         return true;
     }
 
@@ -832,7 +851,7 @@ bool ContainerNode::getLowerRightCorner(FloatPoint& point) const
                 RenderBox* box = toRenderBox(o);
                 point.moveBy(box->frameRect().maxXMaxYCorner());
             }
-            point = o->container()->localToAbsolute(point, false, true);
+            point = o->container()->localToAbsolute(point, UseTransforms);
             return true;
         }
     }
@@ -968,11 +987,16 @@ static void dispatchChildInsertionEvents(Node* child)
 
 static void dispatchChildRemovalEvents(Node* child)
 {
-    if (child->isInShadowTree())
+    if (child->isInShadowTree()) {
+        InspectorInstrumentation::willRemoveDOMNode(child->document(), child);
         return;
+    }
 
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
 
+#if USE(JSC)
+    willCreatePossiblyOrphanedTreeByRemoval(child);
+#endif
     InspectorInstrumentation::willRemoveDOMNode(child->document(), child);
 
     RefPtr<Node> c = child;
@@ -1018,5 +1042,21 @@ static void updateTreeAfterInsertion(ContainerNode* parent, Node* child, bool sh
 
     dispatchChildInsertionEvents(child);
 }
+
+#ifndef NDEBUG
+bool childAttachedAllowedWhenAttachingChildren(ContainerNode* node)
+{
+    if (node->isShadowRoot())
+        return true;
+
+    if (isInsertionPoint(node))
+        return true;
+
+    if (node->isElementNode() && toElement(node)->shadow())
+        return true;
+
+    return false;
+}
+#endif
 
 } // namespace WebCore

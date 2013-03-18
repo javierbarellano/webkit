@@ -35,14 +35,20 @@
 
 #if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
 #include "DateTimeEditElement.h"
+#include "SpinButtonElement.h"
 
 namespace WebCore {
+
+class PickerIndicatorElement;
 
 class BaseMultipleFieldsDateAndTimeInputType : public BaseDateAndTimeInputType, protected DateTimeEditElement::EditControlOwner {
 protected:
     BaseMultipleFieldsDateAndTimeInputType(HTMLInputElement*);
     virtual ~BaseMultipleFieldsDateAndTimeInputType();
+
+    int fullYear(const String&) const;
     virtual void setupLayoutParameters(DateTimeEditElement::LayoutParameters&, const DateComponents&) const = 0;
+    bool shouldHaveSecondField(const DateComponents&) const;
 
 private:
     // DateTimeEditElement::EditControlOwner functions
@@ -52,6 +58,13 @@ private:
     virtual bool isEditControlOwnerDisabled() const OVERRIDE FINAL;
     virtual bool isEditControlOwnerReadOnly() const OVERRIDE FINAL;
     virtual AtomicString localeIdentifier() const OVERRIDE FINAL;
+
+    // SpinButtonElement::SpinButtonOwner functions.
+    virtual void focusAndSelectSpinButtonOwner() OVERRIDE;
+    virtual bool shouldSpinButtonRespondToMouseEvents() OVERRIDE;
+    virtual bool shouldSpinButtonRespondToWheelEvents() OVERRIDE;
+    virtual void spinButtonStepDown() OVERRIDE;
+    virtual void spinButtonStepUp() OVERRIDE;
 
     // InputType functions
     virtual void blur() OVERRIDE FINAL;
@@ -74,8 +87,21 @@ private:
     virtual bool shouldUseInputMethod() const OVERRIDE FINAL;
     virtual void stepAttributeChanged() OVERRIDE FINAL;
     virtual void updateInnerTextValue() OVERRIDE FINAL;
+    virtual void listAttributeTargetChanged() OVERRIDE FINAL;
+
+    void showPickerIndicator();
+    void hidePickerIndicator();
+    void updatePickerIndicatorVisibility();
 
     DateTimeEditElement* m_dateTimeEditElement;
+    SpinButtonElement* m_spinButtonElement;
+#if ENABLE(DATALIST_ELEMENT) || ENABLE(CALENDAR_PICKER)
+    PickerIndicatorElement* m_pickerIndicatorElement;
+    bool m_pickerIndicatorIsVisible;
+#if ENABLE(CALENDAR_PICKER)
+    bool m_pickerIndicatorIsAlwaysVisible;
+#endif
+#endif
 };
 
 } // namespace WebCore

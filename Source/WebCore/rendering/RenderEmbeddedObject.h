@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 2000 Simon Hausmann <hausmann@kde.org>
- * Copyright (C) 2004, 2005, 2006, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2008, 2009, 2010, 2012 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -56,13 +56,20 @@ public:
     virtual bool allowsAcceleratedCompositing() const;
 #endif
 
+protected:
+    virtual void paintReplaced(PaintInfo&, const LayoutPoint&);
+    virtual void paint(PaintInfo&, const LayoutPoint&);
+
+    virtual CursorDirective getCursor(const LayoutPoint&, Cursor&) const;
+
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    const RenderObjectChildList* children() const { return &m_children; }
+    RenderObjectChildList* children() { return &m_children; }
+#endif
+
 private:
     virtual const char* renderName() const { return "RenderEmbeddedObject"; }
     virtual bool isEmbeddedObject() const { return true; }
-
-    virtual void paintReplaced(PaintInfo&, const LayoutPoint&);
-    virtual void paint(PaintInfo&, const LayoutPoint&);
-    virtual CursorDirective getCursor(const LayoutPoint&, Cursor&) const;
 
 #if USE(ACCELERATED_COMPOSITING)
     virtual bool requiresLayer() const;
@@ -81,6 +88,12 @@ private:
     bool isInUnavailablePluginIndicator(const LayoutPoint&) const;
     bool getReplacementTextGeometry(const LayoutPoint& accumulatedOffset, FloatRect& contentRect, Path&, FloatRect& replacementTextRect, Font&, TextRun&, float& textWidth) const;
 
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    virtual bool canHaveChildren() const { return node() && toElement(node())->isMediaElement(); }
+    virtual RenderObjectChildList* virtualChildren() { return children(); }
+    virtual const RenderObjectChildList* virtualChildren() const { return children(); }
+#endif
+
     bool m_hasFallbackContent; // FIXME: This belongs on HTMLObjectElement.
 
     bool m_showsUnavailablePluginIndicator;
@@ -88,6 +101,9 @@ private:
     String m_unavailablePluginReplacementText;
     bool m_unavailablePluginIndicatorIsPressed;
     bool m_mouseDownWasInUnavailablePluginIndicator;
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    RenderObjectChildList m_children;
+#endif
 };
 
 inline RenderEmbeddedObject* toRenderEmbeddedObject(RenderObject* object)

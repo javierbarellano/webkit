@@ -155,7 +155,6 @@ public Q_SLOTS:
     void closeWebInspector();
     void evaluateInWebInspector(long callId, const QString& script);
     void removeAllVisitedLinks();
-    void setMediaType(const QString&);
     void setFrameFlatteningEnabled(bool);
     void setAllowUniversalAccessFromFileURLs(bool enable);
     void setAllowFileAccessFromFileURLs(bool enable);
@@ -270,7 +269,6 @@ public Q_SLOTS:
     long long localStorageDiskUsageForOrigin(const QString& originIdentifier);
     void observeStorageTrackerNotifications(unsigned number);
     void syncLocalStorage();
-    QString layerTreeAsText();
     void setTextDirection(const QString& directionName);
     void goBack();
     void setDefersLoading(bool);

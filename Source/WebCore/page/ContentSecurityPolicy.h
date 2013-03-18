@@ -60,8 +60,10 @@ public:
     void copyStateFrom(const ContentSecurityPolicy*);
 
     enum HeaderType {
-        ReportOnly,
-        EnforcePolicy
+        ReportStableDirectives,
+        EnforceStableDirectives,
+        ReportAllDirectives,
+        EnforceAllDirectives
     };
 
     enum ReportingStatus {
@@ -99,6 +101,7 @@ public:
     bool isActive() const;
     void gatherReportURIs(DOMStringList&) const;
 
+    void reportDirectiveAsSourceExpression(const String& directiveName, const String& sourceExpression) const;
     void reportDuplicateDirective(const String&) const;
     void reportInvalidDirectiveValueCharacter(const String& directiveName, const String& value) const;
     void reportInvalidPathCharacter(const String& directiveName, const String& value, const char) const;

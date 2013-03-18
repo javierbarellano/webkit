@@ -26,7 +26,6 @@
 #include "HTMLFormElement.h"
 
 #include "Attribute.h"
-#include "Console.h"
 #include "DOMFormData.h"
 #include "DOMWindow.h"
 #include "Document.h"
@@ -74,7 +73,6 @@ HTMLFormElement::HTMLFormElement(const QualifiedName& tagName, Document* documen
     , m_isSubmittingOrPreparingForSubmission(false)
     , m_shouldSubmit(false)
     , m_isInResetFunction(false)
-    , m_wasMalformed(false)
     , m_wasDemoted(false)
 {
     ASSERT(hasTagName(formTag));
@@ -258,7 +256,7 @@ bool HTMLFormElement::validateInteractively(Event* event)
                 continue;
             String message("An invalid form control with name='%name' is not focusable.");
             message.replace("%name", unhandledAssociatedElement->name());
-            document()->domWindow()->console()->addMessage(HTMLMessageSource, LogMessageType, ErrorMessageLevel, message, document()->url().string());
+            document()->addConsoleMessage(HTMLMessageSource, LogMessageType, ErrorMessageLevel, message, document()->url().string());
         }
     }
     return false;
@@ -685,6 +683,12 @@ void HTMLFormElement::finishParsingChildren()
 {
     HTMLElement::finishParsingChildren();
     document()->formController()->restoreControlStateIn(*this);
+}
+
+void HTMLFormElement::copyNonAttributePropertiesFromElement(const Element& source)
+{
+    m_wasDemoted = static_cast<const HTMLFormElement&>(source).m_wasDemoted;
+    HTMLElement::copyNonAttributePropertiesFromElement(source);
 }
 
 } // namespace

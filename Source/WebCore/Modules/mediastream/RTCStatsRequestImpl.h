@@ -29,6 +29,7 @@
 
 #include "ActiveDOMObject.h"
 #include "RTCStatsRequest.h"
+#include "RTCStatsResponse.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
@@ -39,20 +40,27 @@ class RTCStatsCallback;
 
 class RTCStatsRequestImpl : public RTCStatsRequest, public ActiveDOMObject {
 public:
-    static PassRefPtr<RTCStatsRequestImpl> create(ScriptExecutionContext*, PassRefPtr<RTCStatsCallback>);
+    static PassRefPtr<RTCStatsRequestImpl> create(ScriptExecutionContext*, PassRefPtr<RTCStatsCallback>, PassRefPtr<MediaStreamTrack>);
     virtual ~RTCStatsRequestImpl();
 
-    virtual void requestSucceeded();
+    virtual PassRefPtr<RTCStatsResponseBase> createResponse() OVERRIDE;
+    virtual bool hasSelector() OVERRIDE;
+    virtual MediaStreamDescriptor* stream() OVERRIDE;
+    virtual MediaStreamComponent* component() OVERRIDE;
+
+    virtual void requestSucceeded(PassRefPtr<RTCStatsResponseBase>) OVERRIDE;
 
     // ActiveDOMObject
     virtual void stop() OVERRIDE;
 
 private:
-    RTCStatsRequestImpl(ScriptExecutionContext*, PassRefPtr<RTCStatsCallback>);
+    RTCStatsRequestImpl(ScriptExecutionContext*, PassRefPtr<RTCStatsCallback>, PassRefPtr<MediaStreamTrack>);
 
     void clear();
 
     RefPtr<RTCStatsCallback> m_successCallback;
+    RefPtr<MediaStreamDescriptor> m_stream;
+    RefPtr<MediaStreamComponent> m_component;
 };
 
 } // namespace WebCore

@@ -70,6 +70,7 @@
 #include "HTMLFormElement.h"
 #include "HTMLNames.h"
 #include "HTMLObjectElement.h"
+#include "HTMLParserIdioms.h"
 #include "HTTPParsers.h"
 #include "HistoryItem.h"
 #include "InspectorController.h"
@@ -212,6 +213,7 @@ FrameLoader::FrameLoader(Frame* frame, FrameLoaderClient* client)
     , m_notifer(frame)
     , m_subframeLoader(frame)
     , m_icon(frame)
+    , m_mixedContentChecker(frame)
     , m_state(FrameStateCommittedPage)
     , m_loadType(FrameLoadTypeStandard)
     , m_delegateIsHandlingProvisionalLoadError(false)
@@ -658,13 +660,30 @@ void FrameLoader::didBeginDocument(bool dispatch)
         if (!dnsPrefetchControl.isEmpty())
             m_frame->document()->parseDNSPrefetchControlHeader(dnsPrefetchControl);
 
-        String contentSecurityPolicy = m_documentLoader->response().httpHeaderField("X-WebKit-CSP");
-        if (!contentSecurityPolicy.isEmpty())
-            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(contentSecurityPolicy, ContentSecurityPolicy::EnforcePolicy);
+        String policyValue = m_documentLoader->response().httpHeaderField("Content-Security-Policy");
+        if (!policyValue.isEmpty())
+            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(policyValue, ContentSecurityPolicy::EnforceStableDirectives);
 
-        String reportOnlyContentSecurityPolicy = m_documentLoader->response().httpHeaderField("X-WebKit-CSP-Report-Only");
-        if (!reportOnlyContentSecurityPolicy.isEmpty())
-            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(reportOnlyContentSecurityPolicy, ContentSecurityPolicy::ReportOnly);
+        policyValue = m_documentLoader->response().httpHeaderField("Content-Security-Policy-Report-Only");
+        if (!policyValue.isEmpty())
+            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(policyValue, ContentSecurityPolicy::ReportStableDirectives);
+
+        policyValue = m_documentLoader->response().httpHeaderField("X-WebKit-CSP");
+        if (!policyValue.isEmpty())
+            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(policyValue, ContentSecurityPolicy::EnforceAllDirectives);
+
+        policyValue = m_documentLoader->response().httpHeaderField("X-WebKit-CSP-Report-Only");
+        if (!policyValue.isEmpty())
+            m_frame->document()->contentSecurityPolicy()->didReceiveHeader(policyValue, ContentSecurityPolicy::ReportAllDirectives);
+
+        String headerContentLanguage = m_documentLoader->response().httpHeaderField("Content-Language");
+        if (!headerContentLanguage.isEmpty()) {
+            size_t commaIndex = headerContentLanguage.find(',');
+            headerContentLanguage.truncate(commaIndex); // notFound == -1 == don't truncate
+            headerContentLanguage = headerContentLanguage.stripWhiteSpace(isHTMLSpace);
+            if (!headerContentLanguage.isEmpty())
+                m_frame->document()->setContentLanguage(headerContentLanguage);
+        }
     }
 
     history()->restoreDocumentState();
@@ -914,51 +933,6 @@ String FrameLoader::outgoingOrigin() const
     return m_frame->document()->securityOrigin()->toString();
 }
 
-bool FrameLoader::isMixedContent(SecurityOrigin* context, const KURL& url)
-{
-    if (context->protocol() != "https")
-        return false;  // We only care about HTTPS security origins.
-
-    // We're in a secure context, so |url| is mixed content if it's insecure.
-    return !SecurityOrigin::isSecure(url);
-}
-
-bool FrameLoader::checkIfDisplayInsecureContent(SecurityOrigin* context, const KURL& url)
-{
-    if (!isMixedContent(context, url))
-        return true;
-
-    Settings* settings = m_frame->settings();
-    bool allowed = m_client->allowDisplayingInsecureContent(settings && settings->allowDisplayOfInsecureContent(), context, url);
-    String message = (allowed ? emptyString() : "[blocked] ") + "The page at " +
-        m_frame->document()->url().string() + " displayed insecure content from " + url.string() + ".\n";
-        
-    m_frame->document()->domWindow()->console()->addMessage(HTMLMessageSource, LogMessageType, WarningMessageLevel, message);
-
-    if (allowed)
-        m_client->didDisplayInsecureContent();
-
-    return allowed;
-}
-
-bool FrameLoader::checkIfRunInsecureContent(SecurityOrigin* context, const KURL& url)
-{
-    if (!isMixedContent(context, url))
-        return true;
-
-    Settings* settings = m_frame->settings();
-    bool allowed = m_client->allowRunningInsecureContent(settings && settings->allowRunningOfInsecureContent(), context, url);
-    String message = (allowed ? emptyString() : "[blocked] ") + "The page at " +
-        m_frame->document()->url().string() + " ran insecure content from " + url.string() + ".\n";
-       
-    m_frame->document()->domWindow()->console()->addMessage(HTMLMessageSource, LogMessageType, WarningMessageLevel, message);
-
-    if (allowed)
-        m_client->didRunInsecureContent(context, url);
-
-    return allowed;
-}
-
 bool FrameLoader::checkIfFormActionAllowedByCSP(const KURL& url) const
 {
     if (m_submittedFormURL.isEmpty())
@@ -1145,6 +1119,7 @@ void FrameLoader::prepareForLoadStart()
 
 void FrameLoader::setupForReplace()
 {
+    m_client->revertToProvisionalState(m_documentLoader.get());
     setState(FrameStateProvisional);
     m_provisionalDocumentLoader = m_documentLoader;
     m_documentLoader = 0;
@@ -1425,7 +1400,7 @@ void FrameLoader::reportLocalLoadFailed(Frame* frame, const String& url)
     if (!frame)
         return;
 
-    frame->document()->domWindow()->console()->addMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, "Not allowed to load local resource: " + url);
+    frame->document()->addConsoleMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, "Not allowed to load local resource: " + url);
 }
 
 const ResourceRequest& FrameLoader::initialRequest() const
@@ -1715,7 +1690,7 @@ void FrameLoader::commitProvisionalLoad()
 
     transitionToCommitted(cachedPage);
 
-    if (pdl) {
+    if (pdl && m_documentLoader) {
         // Check if the destination page is allowed to access the previous page's timing information.
         RefPtr<SecurityOrigin> securityOrigin = SecurityOrigin::create(pdl->request().url());
         m_documentLoader->timing()->setHasSameOriginAsPreviousDocument(securityOrigin->canRequest(m_previousUrl));
@@ -1732,6 +1707,9 @@ void FrameLoader::commitProvisionalLoad()
         prepareForCachedPageRestore();
         cachedPage->restore(m_frame->page());
 
+        // The page should be removed from the cache immediately after a restoration in order for the PageCache to be consistent.
+        pageCache()->remove(history()->currentItem());
+
         dispatchDidCommitLoad();
 
         // If we have a title let the WebView know about it. 
@@ -1740,8 +1718,11 @@ void FrameLoader::commitProvisionalLoad()
             m_client->dispatchDidReceiveTitle(title);
 
         checkCompleted();
-    } else
+    } else {
+        if (cachedPage)
+            pageCache()->remove(history()->currentItem());
         didOpenURL();
+    }
 
     LOG(Loading, "WebCoreLoading %s: Finished committing provisional load to URL %s", m_frame->tree()->uniqueName().string().utf8().data(),
         m_frame->document() ? m_frame->document()->url().string().utf8().data() : "");
@@ -1769,8 +1750,6 @@ void FrameLoader::commitProvisionalLoad()
             // Could be an issue with a giant local file.
             notifier()->sendRemainingDelegateMessages(m_documentLoader.get(), identifier, response, 0, static_cast<int>(response.expectedContentLength()), 0, error);
         }
-        
-        pageCache()->remove(history()->currentItem());
 
         // FIXME: Why only this frame and not parent frames?
         checkLoadCompleteForThisFrame();
@@ -2890,7 +2869,7 @@ void FrameLoader::loadedResourceFromMemoryCache(CachedResource* resource)
     if (!page)
         return;
 
-    if (!resource->sendResourceLoadCallbacks() || m_documentLoader->haveToldClientAboutLoad(resource->url()))
+    if (!resource->shouldSendResourceLoadCallbacks() || m_documentLoader->haveToldClientAboutLoad(resource->url()))
         return;
 
     if (!page->areMemoryCacheClientCallsEnabled()) {
@@ -2951,7 +2930,7 @@ void FrameLoader::loadProvisionalItemFromCachedPage()
     // Should have timing data from previous time(s) the page was shown.
     ASSERT(provisionalLoader->timing()->navigationStart());
     provisionalLoader->resetTiming();
-    provisionalLoader->timing()->markNavigationStart(frame());
+    provisionalLoader->timing()->markNavigationStart();
 
     provisionalLoader->setCommitted(true);
     commitProvisionalLoad();
@@ -3235,8 +3214,10 @@ void FrameLoader::dispatchDidCommitLoad()
 
     m_client->dispatchDidCommitLoad();
 
-    if (isLoadingMainFrame())
+    if (isLoadingMainFrame()) {
         m_frame->page()->resetSeenPlugins();
+        m_frame->page()->resetSeenMediaEngines();
+    }
 
     InspectorInstrumentation::didCommitLoad(m_frame, m_documentLoader.get());
 }
@@ -3309,6 +3290,11 @@ Frame* createWindow(Frame* openerFrame, Frame* lookupFrame, const FrameLoadReque
     FrameLoadRequest requestWithReferrer = request;
     requestWithReferrer.resourceRequest().setHTTPReferrer(openerFrame->loader()->outgoingReferrer());
     FrameLoader::addHTTPOriginIfNeeded(requestWithReferrer.resourceRequest(), openerFrame->loader()->outgoingOrigin());
+
+    if (openerFrame->settings() && !openerFrame->settings()->supportsMultipleWindows()) {
+        created = false;
+        return openerFrame;
+    }
 
     Page* oldPage = openerFrame->page();
     if (!oldPage)

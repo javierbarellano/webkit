@@ -32,8 +32,11 @@
 #include "AXObjectCache.h"
 #include "AccessibilityImageMapLink.h"
 #include "AccessibilityListBox.h"
+#include "AccessibilitySVGRoot.h"
 #include "AccessibilitySpinButton.h"
 #include "AccessibilityTable.h"
+#include "CachedImage.h"
+#include "Chrome.h"
 #include "EventNames.h"
 #include "FloatRect.h"
 #include "Frame.h"
@@ -54,6 +57,7 @@
 #include "HTMLTextAreaElement.h"
 #include "HitTestRequest.h"
 #include "HitTestResult.h"
+#include "Image.h"
 #include "LocalizedStrings.h"
 #include "MathMLNames.h"
 #include "NodeList.h"
@@ -77,9 +81,12 @@
 #include "RenderView.h"
 #include "RenderWidget.h"
 #include "RenderedPosition.h"
+#include "SVGDocument.h"
+#include "SVGImage.h"
+#include "SVGImageChromeClient.h"
+#include "SVGSVGElement.h"
 #include "Text.h"
 #include "TextControlInnerElements.h"
-#include "TextIterator.h"
 #include "htmlediting.h"
 #include "visible_units.h"
 #include <wtf/StdLibExtras.h>
@@ -121,6 +128,8 @@ PassRefPtr<AccessibilityRenderObject> AccessibilityRenderObject::create(RenderOb
 void AccessibilityRenderObject::detach()
 {
     AccessibilityNodeObject::detach();
+    
+    detachRemoteSVGRoot();
     
 #ifndef NDEBUG
     if (m_renderer)
@@ -599,19 +608,6 @@ String AccessibilityRenderObject::helpText() const
     return String();
 }
 
-static TextIteratorBehavior textIteratorBehaviorForTextRange()
-{
-    TextIteratorBehavior behavior = TextIteratorIgnoresStyleVisibility;
-
-#if PLATFORM(GTK)
-    // We need to emit replaced elements for GTK, and present
-    // them with the 'object replacement character' (0xFFFC).
-    behavior = static_cast<TextIteratorBehavior>(behavior | TextIteratorEmitsObjectReplacementCharacters);
-#endif
-
-    return behavior;
-}
-
 String AccessibilityRenderObject::textUnderElement() const
 {
     if (!m_renderer)
@@ -725,72 +721,18 @@ HTMLLabelElement* AccessibilityRenderObject::labelElementContainer() const
     return 0;
 }
 
-String AccessibilityRenderObject::ariaDescribedByAttribute() const
+// The boundingBox for elements within the remote SVG element needs to be offset by its position
+// within the parent page, otherwise they are in relative coordinates only.
+void AccessibilityRenderObject::offsetBoundingBoxForRemoteSVGElement(LayoutRect& rect) const
 {
-    Vector<Element*> elements;
-    elementsFromAttribute(elements, aria_describedbyAttr);
-    
-    return accessibilityDescriptionForElements(elements);
-}
-    
-String AccessibilityRenderObject::webAreaAccessibilityDescription() const
-{
-    // The WebArea description should follow this order:
-    //     aria-label on the <html>
-    //     title on the <html>
-    //     <title> inside the <head> (of it was set through JS)
-    //     name on the <html>
-    // For iframes:
-    //     aria-label on the <iframe>
-    //     title on the <iframe>
-    //     name on the <iframe>
-    
-    if (!m_renderer)
-        return String();
-    
-    Document* document = m_renderer->document();
-    
-    // Check if the HTML element has an aria-label for the webpage.
-    if (Element* documentElement = document->documentElement()) {
-        const AtomicString& ariaLabel = documentElement->getAttribute(aria_labelAttr);
-        if (!ariaLabel.isEmpty())
-            return ariaLabel;
-    }
-    
-    Node* owner = document->ownerElement();
-    if (owner) {
-        if (owner->hasTagName(frameTag) || owner->hasTagName(iframeTag)) {
-            const AtomicString& title = static_cast<HTMLFrameElementBase*>(owner)->getAttribute(titleAttr);
-            if (!title.isEmpty())
-                return title;
-            return static_cast<HTMLFrameElementBase*>(owner)->getNameAttribute();
+    for (AccessibilityObject* parent = parentObject(); parent; parent = parent->parentObject()) {
+        if (parent->isAccessibilitySVGRoot()) {
+            rect.moveBy(parent->parentObject()->boundingBoxRect().location());
+            break;
         }
-        if (owner->isHTMLElement())
-            return toHTMLElement(owner)->getNameAttribute();
     }
-
-    String documentTitle = document->title();
-    if (!documentTitle.isEmpty())
-        return documentTitle;
-    
-    owner = document->body();
-    if (owner && owner->isHTMLElement())
-        return toHTMLElement(owner)->getNameAttribute();
-    
-    return String();
 }
     
-String AccessibilityRenderObject::accessibilityDescription() const
-{
-    if (!m_renderer)
-        return String();
-
-    if (isWebArea())
-        return webAreaAccessibilityDescription();
-
-    return AccessibilityNodeObject::accessibilityDescription();
-}
-
 LayoutRect AccessibilityRenderObject::boundingBoxRect() const
 {
     RenderObject* obj = m_renderer;
@@ -813,6 +755,12 @@ LayoutRect AccessibilityRenderObject::boundingBoxRect() const
     
     LayoutRect result = boundingBoxForQuads(obj, quads);
 
+#if ENABLE(SVG)
+    Document* document = this->document();
+    if (document && document->isSVGDocument())
+        offsetBoundingBoxForRemoteSVGElement(result);
+#endif
+    
     // The size of the web area should be the content size, not the clipped size.
     if (isWebArea() && obj->frame()->view())
         result.setSize(obj->frame()->view()->contentsSize());
@@ -1047,7 +995,7 @@ AccessibilityObject* AccessibilityRenderObject::titleUIElement() const
     
     // if isFieldset is true, the renderer is guaranteed to be a RenderFieldset
     if (isFieldset())
-        return axObjectCache()->getOrCreate(toRenderFieldset(m_renderer)->findLegend());
+        return axObjectCache()->getOrCreate(toRenderFieldset(m_renderer)->findLegend(RenderFieldset::IncludeFloatingOrOutOfFlow));
     
     Node* element = m_renderer->node();
     if (!element)
@@ -1101,10 +1049,17 @@ AccessibilityObjectInclusion AccessibilityRenderObject::accessibilityIsIgnoredBa
 {
     // The following cases can apply to any element that's a subclass of AccessibilityRenderObject.
     
-    // Ignore invisible elements.
-    if (!m_renderer || m_renderer->style()->visibility() != VISIBLE)
+    if (!m_renderer)
         return IgnoreObject;
 
+    if (m_renderer->style()->visibility() != VISIBLE) {
+        // aria-hidden is meant to override visibility as the determinant in AX hierarchy inclusion.
+        if (equalIgnoringCase(getAttribute(aria_hiddenAttr), "false"))
+            return DefaultBehavior;
+        
+        return IgnoreObject;
+    }
+    
     // Anything marked as aria-hidden or a child of something aria-hidden must be hidden.
     if (ariaIsHidden())
         return IgnoreObject;
@@ -1167,8 +1122,8 @@ bool AccessibilityRenderObject::accessibilityIsIgnored() const
     // NOTE: BRs always have text boxes now, so the text box check here can be removed
     if (m_renderer->isText()) {
         // static text beneath MenuItems and MenuButtons are just reported along with the menu item, so it's ignored on an individual level
-        if (parentObjectUnignored()->ariaRoleAttribute() == MenuItemRole
-            || parentObjectUnignored()->ariaRoleAttribute() == MenuButtonRole)
+        AccessibilityObject* parent = parentObjectUnignored();
+        if (parent && (parent->ariaRoleAttribute() == MenuItemRole || parent->ariaRoleAttribute() == MenuButtonRole))
             return true;
         RenderText* renderText = toRenderText(m_renderer);
         if (m_renderer->isBR() || !renderText->firstTextBox())
@@ -2132,6 +2087,24 @@ AccessibilityObject* AccessibilityRenderObject::accessibilityImageMapHitTest(HTM
     
     return 0;
 }
+
+AccessibilityObject* AccessibilityRenderObject::remoteSVGElementHitTest(const IntPoint& point) const
+{
+    AccessibilityObject* remote = remoteSVGRootElement();
+    if (!remote)
+        return 0;
+    
+    IntSize offsetPoint = point - roundedIntPoint(boundingBoxRect().location());
+    return remote->accessibilityHitTest(toPoint(offsetPoint));
+}
+
+AccessibilityObject* AccessibilityRenderObject::elementAccessibilityHitTest(const IntPoint& point) const
+{
+    if (isSVGImage())
+        return remoteSVGElementHitTest(point);
+    
+    return AccessibilityObject::elementAccessibilityHitTest(point);
+}
     
 AccessibilityObject* AccessibilityRenderObject::accessibilityHitTest(const IntPoint& point) const
 {
@@ -2285,6 +2258,10 @@ AccessibilityObject* AccessibilityRenderObject::correspondingControlForLabelElem
     HTMLElement* correspondingControl = labelElement->control();
     if (!correspondingControl)
         return 0;
+
+    // Make sure the corresponding control isn't a descendant of this label that's in the middle of being destroyed.
+    if (correspondingControl->renderer() && !correspondingControl->renderer()->parent())
+        return 0;
     
     return axObjectCache()->getOrCreate(correspondingControl);     
 }
@@ -2374,6 +2351,8 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (cssBox && cssBox->isImage()) {
         if (node && node->hasTagName(inputTag))
             return ariaHasPopup() ? PopUpButtonRole : ButtonRole;
+        if (isSVGImage())
+            return SVGRootRole;
         return ImageRole;
     }
     
@@ -2411,6 +2390,8 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
 #if ENABLE(SVG)
     if (m_renderer->isSVGImage())
         return ImageRole;
+    if (m_renderer->isSVGRoot())
+        return SVGRootRole;
 #endif
 
 #if ENABLE(MATHML)
@@ -2601,7 +2582,7 @@ bool AccessibilityRenderObject::canSetTextRangeAttributes() const
     return isTextControl();
 }
 
-void AccessibilityRenderObject::contentChanged()
+void AccessibilityRenderObject::textChanged()
 {
     // If this element supports ARIA live regions, or is part of a region with an ARIA editable role,
     // then notify the AT of changes.
@@ -2673,6 +2654,81 @@ void AccessibilityRenderObject::addTextFieldChildren()
     axSpinButton->setParent(this);
     m_children.append(axSpinButton);
 }
+    
+bool AccessibilityRenderObject::isSVGImage() const
+{
+    return remoteSVGRootElement();
+}
+    
+void AccessibilityRenderObject::detachRemoteSVGRoot()
+{
+    if (AccessibilitySVGRoot* root = remoteSVGRootElement())
+        root->setParent(0);
+}
+
+AccessibilitySVGRoot* AccessibilityRenderObject::remoteSVGRootElement() const
+{
+#if ENABLE(SVG)
+    if (!m_renderer || !m_renderer->isRenderImage())
+        return 0;
+    
+    CachedImage* cachedImage = toRenderImage(m_renderer)->cachedImage();
+    if (!cachedImage)
+        return 0;
+    
+    Image* image = cachedImage->image();
+    if (!image || !image->isSVGImage())
+        return 0;
+    
+    SVGImage* svgImage = static_cast<SVGImage*>(image);
+    FrameView* frameView = svgImage->frameView();
+    if (!frameView)
+        return 0;
+    Frame* frame = frameView->frame();
+    if (!frame)
+        return 0;
+    
+    Document* doc = frame->document();
+    if (!doc || !doc->isSVGDocument())
+        return 0;
+    
+    SVGSVGElement* rootElement = static_cast<SVGDocument*>(doc)->rootElement();
+    if (!rootElement)
+        return 0;
+    RenderObject* rendererRoot = rootElement->renderer();
+    if (!rendererRoot)
+        return 0;
+    
+    AccessibilityObject* rootSVGObject = frame->document()->axObjectCache()->getOrCreate(rendererRoot);
+
+    // In order to connect the AX hierarchy from the SVG root element from the loaded resource
+    // the parent must be set, because there's no other way to get back to who created the image.
+    ASSERT(rootSVGObject && rootSVGObject->isAccessibilitySVGRoot());
+    if (!rootSVGObject->isAccessibilitySVGRoot())
+        return 0;
+    
+    return toAccessibilitySVGRoot(rootSVGObject);
+#else
+    return 0;
+#endif
+}
+    
+void AccessibilityRenderObject::addRemoteSVGChildren()
+{
+    AccessibilitySVGRoot* root = remoteSVGRootElement();
+    if (!root)
+        return;
+    
+    root->setParent(this);
+    
+    if (root->accessibilityIsIgnored()) {
+        AccessibilityChildrenVector children = root->children();
+        unsigned length = children.size();
+        for (unsigned i = 0; i < length; ++i)
+            m_children.append(children[i]);
+    } else
+        m_children.append(root);
+}
 
 void AccessibilityRenderObject::addCanvasChildren()
 {
@@ -2717,6 +2773,59 @@ void AccessibilityRenderObject::updateAttachmentViewParents()
 }
 #endif
 
+// Hidden children are those that are not rendered or visible, but are specifically marked as aria-hidden=false,
+// meaning that they should be exposed to the AX hierarchy.
+void AccessibilityRenderObject::addHiddenChildren()
+{
+    Node* node = this->node();
+    if (!node)
+        return;
+    
+    // First do a quick run through to determine if we have any hidden nodes (most often we will not).
+    // If we do have hidden nodes, we need to determine where to insert them so they match DOM order as close as possible.
+    bool shouldInsertHiddenNodes = false;
+    for (Node* child = node->firstChild(); child; child = child->nextSibling()) {
+        if (!child->renderer() && isNodeAriaVisible(child)) {
+            shouldInsertHiddenNodes = true;
+            break;
+        }
+    }
+    
+    if (!shouldInsertHiddenNodes)
+        return;
+    
+    // Iterate through all of the children, including those that may have already been added, and
+    // try to insert hidden nodes in the correct place in the DOM order.
+    unsigned insertionIndex = 0;
+    for (Node* child = node->firstChild(); child; child = child->nextSibling()) {
+        if (child->renderer()) {
+            // Find out where the last render sibling is located within m_children.
+            AccessibilityObject* childObject = axObjectCache()->get(child->renderer());
+            if (childObject && childObject->accessibilityIsIgnored()) {
+                AccessibilityChildrenVector children = childObject->children();
+                if (children.size())
+                    childObject = children.last().get();
+                else
+                    childObject = 0;
+            }
+
+            if (childObject)
+                insertionIndex = m_children.find(childObject) + 1;
+            continue;
+        }
+
+        if (!isNodeAriaVisible(child))
+            continue;
+        
+        unsigned previousSize = m_children.size();
+        if (insertionIndex > previousSize)
+            insertionIndex = previousSize;
+        
+        insertChild(axObjectCache()->getOrCreate(child), insertionIndex);
+        insertionIndex += (m_children.size() - previousSize);
+    }
+}
+    
 void AccessibilityRenderObject::addChildren()
 {
     // If the need to add more children in addition to existing children arises, 
@@ -2728,29 +2837,16 @@ void AccessibilityRenderObject::addChildren()
     if (!canHaveChildren())
         return;
     
-    // add all unignored acc children
-    for (RefPtr<AccessibilityObject> obj = firstChild(); obj; obj = obj->nextSibling()) {
-        // If the parent is asking for this child's children, then either it's the first time (and clearing is a no-op), 
-        // or its visibility has changed. In the latter case, this child may have a stale child cached. 
-        // This can prevent aria-hidden changes from working correctly. Hence, whenever a parent is getting children, ensure data is not stale.
-        obj->clearChildren();
-
-        if (obj->accessibilityIsIgnored()) {
-            AccessibilityChildrenVector children = obj->children();
-            unsigned length = children.size();
-            for (unsigned i = 0; i < length; ++i)
-                m_children.append(children[i]);
-        } else {
-            ASSERT(obj->parentObject() == this);
-            m_children.append(obj);
-        }
-    }
+    for (RefPtr<AccessibilityObject> obj = firstChild(); obj; obj = obj->nextSibling())
+        addChild(obj.get());
     
+    addHiddenChildren();
     addAttachmentChildren();
     addImageMapChildren();
     addTextFieldChildren();
     addCanvasChildren();
-
+    addRemoteSVGChildren();
+    
 #if PLATFORM(MAC)
     updateAttachmentViewParents();
 #endif

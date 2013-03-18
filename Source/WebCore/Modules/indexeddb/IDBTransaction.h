@@ -30,13 +30,10 @@
 
 #include "ActiveDOMObject.h"
 #include "DOMError.h"
-#include "DOMStringList.h"
 #include "Event.h"
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTarget.h"
-#include "IDBMetadata.h"
-#include "IDBTransactionBackendInterface.h"
 #include "IDBTransactionCallbacks.h"
 #include <wtf/HashSet.h>
 #include <wtf/RefCounted.h>
@@ -47,6 +44,8 @@ class IDBCursor;
 class IDBDatabase;
 class IDBObjectStore;
 class IDBOpenDBRequest;
+class IDBTransactionBackendInterface;
+struct IDBObjectStoreMetadata;
 
 class IDBTransaction : public IDBTransactionCallbacks, public EventTarget, public ActiveDOMObject {
 public:
@@ -56,8 +55,8 @@ public:
         VERSION_CHANGE = 2
     };
 
-    static PassRefPtr<IDBTransaction> create(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, Mode, IDBDatabase*);
-    static PassRefPtr<IDBTransaction> create(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, Mode, IDBDatabase*, IDBOpenDBRequest*);
+    static PassRefPtr<IDBTransaction> create(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, const Vector<String>& objectStoreNames, Mode, IDBDatabase*);
+    static PassRefPtr<IDBTransaction> create(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, const Vector<String>& objectStoreNames, Mode, IDBDatabase*, IDBOpenDBRequest*);
     virtual ~IDBTransaction();
 
     static const AtomicString& modeReadOnly();
@@ -66,7 +65,7 @@ public:
     static const AtomicString& modeReadOnlyLegacy();
     static const AtomicString& modeReadWriteLegacy();
 
-    static Mode stringToMode(const String&, ExceptionCode&);
+    static Mode stringToMode(const String&, ScriptExecutionContext*, ExceptionCode&);
     static const AtomicString& modeToString(Mode, ExceptionCode&);
 
     IDBTransactionBackendInterface* backend() const;
@@ -104,7 +103,7 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(error);
 
     // IDBTransactionCallbacks
-    virtual void onAbort();
+    virtual void onAbort(PassRefPtr<IDBDatabaseError>);
     virtual void onComplete();
 
     // EventTarget
@@ -122,7 +121,7 @@ public:
     using RefCounted<IDBTransactionCallbacks>::deref;
 
 private:
-    IDBTransaction(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, Mode, IDBDatabase*, IDBOpenDBRequest*);
+    IDBTransaction(ScriptExecutionContext*, PassRefPtr<IDBTransactionBackendInterface>, const Vector<String>&, Mode, IDBDatabase*, IDBOpenDBRequest*);
 
     void enqueueEvent(PassRefPtr<Event>);
     void closeOpenCursors();
@@ -145,6 +144,7 @@ private:
 
     RefPtr<IDBTransactionBackendInterface> m_backend;
     RefPtr<IDBDatabase> m_database;
+    const Vector<String> m_objectStoreNames;
     IDBOpenDBRequest* m_openDBRequest;
     const Mode m_mode;
     bool m_active;
@@ -157,6 +157,9 @@ private:
 
     typedef HashMap<String, RefPtr<IDBObjectStore> > IDBObjectStoreMap;
     IDBObjectStoreMap m_objectStoreMap;
+
+    typedef HashSet<RefPtr<IDBObjectStore> > IDBObjectStoreSet;
+    IDBObjectStoreSet m_deletedObjectStores;
 
     typedef HashMap<RefPtr<IDBObjectStore>, IDBObjectStoreMetadata> IDBObjectStoreMetadataMap;
     IDBObjectStoreMetadataMap m_objectStoreCleanupMap;

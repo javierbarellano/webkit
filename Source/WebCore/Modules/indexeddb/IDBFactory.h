@@ -28,7 +28,6 @@
 #ifndef IDBFactory_h
 #define IDBFactory_h
 
-#include "DOMStringList.h"
 #include "IDBFactoryBackendInterface.h"
 #include "IDBOpenDBRequest.h"
 #include <wtf/PassRefPtr.h>
@@ -66,6 +65,8 @@ public:
 
 private:
     IDBFactory(IDBFactoryBackendInterface*);
+
+    PassRefPtr<IDBOpenDBRequest> openInternal(ScriptExecutionContext*, const String& name, int64_t version, ExceptionCode&);
 
     RefPtr<IDBFactoryBackendInterface> m_backend;
 };

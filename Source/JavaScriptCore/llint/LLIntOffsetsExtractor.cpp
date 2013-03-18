@@ -38,13 +38,13 @@
 #include "JSGlobalObject.h"
 #include "JSObject.h"
 #include "JSPropertyNameIterator.h"
+#include "JSStack.h"
 #include "JSString.h"
 #include "JSTypeInfo.h"
 #include "JSVariableObject.h"
 #include "JumpTable.h"
 #include "LLIntOfflineAsmConfig.h"
 #include "MarkedSpace.h"
-#include "RegisterFile.h"
 
 #include "Structure.h"
 #include "StructureChain.h"
@@ -53,7 +53,7 @@
 
 namespace JSC {
 
-#define OFFLINE_ASM_OFFSETOF(clazz, field) OBJECT_OFFSETOF(clazz, field)
+#define OFFLINE_ASM_OFFSETOF(clazz, field) (static_cast<unsigned>(OBJECT_OFFSETOF(clazz, field)))
 
 class LLIntOffsetsExtractor {
 public:

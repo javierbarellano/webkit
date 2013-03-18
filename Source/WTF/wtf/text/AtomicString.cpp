@@ -26,7 +26,6 @@
 
 #include "StringHash.h"
 #include <wtf/HashSet.h>
-#include <wtf/MemoryInstrumentation.h>
 #include <wtf/Threading.h>
 #include <wtf/WTFThreadData.h>
 #include <wtf/unicode/UTF8.h>
@@ -136,7 +135,7 @@ struct UCharBufferTranslator {
 
     static void translate(StringImpl*& location, const UCharBuffer& buf, unsigned hash)
     {
-        location = StringImpl::create(buf.s, buf.length).leakRef();
+        location = StringImpl::create8BitIfPossible(buf.s, buf.length).leakRef();
         location->setHash(hash);
         location->setIsAtomic(true);
     }
@@ -188,11 +187,26 @@ struct HashAndUTF8CharactersTranslator {
         if (buffer.utf16Length != string->length())
             return false;
 
-        const UChar* stringCharacters = string->characters();
-
         // If buffer contains only ASCII characters UTF-8 and UTF16 length are the same.
-        if (buffer.utf16Length != buffer.length)
+        if (buffer.utf16Length != buffer.length) {
+            const UChar* stringCharacters = string->characters();
+
             return equalUTF16WithUTF8(stringCharacters, stringCharacters + string->length(), buffer.characters, buffer.characters + buffer.length);
+        }
+
+        if (string->is8Bit()) {
+            const LChar* stringCharacters = string->characters8();
+
+            for (unsigned i = 0; i < buffer.length; ++i) {
+                ASSERT(isASCII(buffer.characters[i]));
+                if (stringCharacters[i] != buffer.characters[i])
+                    return false;
+            }
+
+            return true;
+        }
+
+        const UChar* stringCharacters = string->characters16();
 
         for (unsigned i = 0; i < buffer.length; ++i) {
             ASSERT(isASCII(buffer.characters[i]));
@@ -246,7 +260,7 @@ PassRefPtr<StringImpl> AtomicString::add(const UChar* s)
     if (!s)
         return 0;
 
-    int length = 0;
+    unsigned length = 0;
     while (s[length] != UChar(0))
         length++;
 

@@ -25,35 +25,28 @@
 #include <stdlib.h>
 
 #ifdef HAVE_ECORE_X
-#include <Ecore_X.h>
+#include <X11/Xlib.h>
+#include <X11/extensions/Xext.h>
+
+static int dummyExtensionErrorHandler(Display*, _Xconst char*, _Xconst char*)
+{
+    return 0;
+}
 #endif
 
 int main(int argc, char** argv)
 {
     WTFInstallReportBacktraceOnCrashHook();
 
+#ifdef HAVE_ECORE_X
+    XSetExtensionErrorHandler(dummyExtensionErrorHandler);
+#endif
+
     if (!ewk_init())
         return 1;
 
-#ifdef HAVE_ECORE_X
-    const char* display = getenv("DISPLAY");
-    int intialized = 0;
-    if (display) {
-        intialized = ecore_x_init(0);
-        if (!intialized) {
-            ewk_shutdown();
-            return 1;
-        }
-    }
-#endif
-
     // Prefer the not installed web and plugin processes.
     WTR::TestController controller(argc, const_cast<const char**>(argv));
-
-#ifdef HAVE_ECORE_X
-    if (intialized)
-        ecore_x_shutdown();
-#endif
 
     ewk_shutdown();
 

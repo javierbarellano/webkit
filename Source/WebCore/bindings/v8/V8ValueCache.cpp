@@ -33,7 +33,15 @@ namespace WebCore {
 
 static v8::Local<v8::String> makeExternalString(const String& string)
 {
-    WebCoreStringResource* stringResource = new WebCoreStringResource(string);
+    if (string.is8Bit() && string.containsOnlyASCII()) {
+        WebCoreStringResource8* stringResource = new WebCoreStringResource8(string);
+        v8::Local<v8::String> newString = v8::String::NewExternal(stringResource);
+        if (newString.IsEmpty())
+            delete stringResource;
+        return newString;
+    }
+
+    WebCoreStringResource16* stringResource = new WebCoreStringResource16(string);
     v8::Local<v8::String> newString = v8::String::NewExternal(stringResource);
     if (newString.IsEmpty())
         delete stringResource;
@@ -61,7 +69,7 @@ void StringCache::remove(StringImpl* stringImpl)
 v8::Local<v8::String> StringCache::v8ExternalStringSlow(StringImpl* stringImpl, v8::Isolate* isolate)
 {
     if (!stringImpl->length())
-        return isolate ? v8::String::Empty(isolate) : v8::String::Empty();
+        return v8::String::Empty(isolate);
 
     v8::String* cachedV8String = m_stringCache.get(stringImpl);
     if (cachedV8String) {
@@ -92,21 +100,32 @@ v8::Local<v8::String> StringCache::v8ExternalStringSlow(StringImpl* stringImpl, 
     return newString;
 }
 
-void WebCoreStringResource::visitStrings(ExternalStringVisitor* visitor)
+WebCoreStringResourceBase* WebCoreStringResourceBase::toWebCoreStringResourceBase(v8::Handle<v8::String> string)
+{
+    v8::String::Encoding encoding;
+    v8::String::ExternalStringResourceBase* resource = string->GetExternalStringResourceBase(&encoding);
+    if (!resource)
+        return 0;
+    if (encoding == v8::String::ASCII_ENCODING)
+        return static_cast<WebCoreStringResource8*>(resource);
+    return static_cast<WebCoreStringResource16*>(resource);
+}
+
+void WebCoreStringResourceBase::visitStrings(ExternalStringVisitor* visitor)
 {
     visitor->visitJSExternalString(m_plainString.impl());
     if (m_plainString.impl() != m_atomicString.impl() && !m_atomicString.isNull())
         visitor->visitJSExternalString(m_atomicString.impl());
 }
 
-void IntegerCache::createSmallIntegers()
+void IntegerCache::createSmallIntegers(v8::Isolate* isolate)
 {
     ASSERT(!m_initialized);
     // We initialize m_smallIntegers not in a constructor but in v8Integer(),
     // because Integer::New() requires a HandleScope. At the point where
     // IntegerCache is constructed, a HandleScope might not exist.
     for (int value = 0; value < numberOfCachedSmallIntegers; value++)
-        m_smallIntegers[value] = v8::Persistent<v8::Integer>::New(v8::Integer::New(value));
+        m_smallIntegers[value] = v8::Persistent<v8::Integer>::New(v8::Integer::New(value, isolate));
     m_initialized = true;
 }
 

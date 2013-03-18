@@ -387,9 +387,7 @@ WK_EXPORT uint64_t WKPageGetRenderTreeSize(WKPageRef page);
 
 WK_EXPORT void WKPageSetMemoryCacheClientCallsEnabled(WKPageRef page, bool memoryCacheClientCallsEnabled);
 
-#if defined(ENABLE_INSPECTOR) && ENABLE_INSPECTOR
 WK_EXPORT WKInspectorRef WKPageGetInspector(WKPageRef page);
-#endif
 
 WK_EXPORT WKStringRef WKPageCopyUserAgent(WKPageRef page);
 
@@ -439,6 +437,8 @@ WK_EXPORT bool WKPageAreScrollbarAnimationsSuppressed(WKPageRef page);
 
 WK_EXPORT bool WKPageIsPinnedToLeftSide(WKPageRef page);
 WK_EXPORT bool WKPageIsPinnedToRightSide(WKPageRef page);
+WK_EXPORT bool WKPageIsPinnedToTopSide(WKPageRef page);
+WK_EXPORT bool WKPageIsPinnedToBottomSide(WKPageRef page);
 
 WK_EXPORT bool WKPageCanDelete(WKPageRef page);
 WK_EXPORT bool WKPageHasSelectedRange(WKPageRef page);

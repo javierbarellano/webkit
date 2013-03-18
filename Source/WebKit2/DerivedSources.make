@@ -22,9 +22,12 @@
 
 VPATH = \
     $(WebKit2) \
+    $(WebKit2)/NetworkProcess \
     $(WebKit2)/PluginProcess \
     $(WebKit2)/PluginProcess/mac \
     $(WebKit2)/Shared/Plugins \
+    $(WebKit2)/Shared \
+    $(WebKit2)/SharedWorkerProcess \
     $(WebKit2)/WebProcess/ApplicationCache \
     $(WebKit2)/WebProcess/Authentication \
     $(WebKit2)/WebProcess/Cookies \
@@ -33,6 +36,7 @@ VPATH = \
     $(WebKit2)/WebProcess/IconDatabase \
     $(WebKit2)/WebProcess/KeyValueStorage \
     $(WebKit2)/WebProcess/MediaCache \
+    $(WebKit2)/WebProcess/Network \
     $(WebKit2)/WebProcess/Notifications \
     $(WebKit2)/WebProcess/Plugins \
     $(WebKit2)/WebProcess/ResourceCache \
@@ -41,8 +45,10 @@ VPATH = \
     $(WebKit2)/WebProcess \
     $(WebKit2)/UIProcess \
     $(WebKit2)/UIProcess/Downloads \
+    $(WebKit2)/UIProcess/Network \
     $(WebKit2)/UIProcess/Notifications \
     $(WebKit2)/UIProcess/Plugins \
+    $(WebKit2)/UIProcess/SharedWorkers \
 #
 
 MESSAGE_RECEIVERS = \
@@ -51,16 +57,23 @@ MESSAGE_RECEIVERS = \
     DrawingAreaProxy \
     DownloadProxy \
     EventDispatcher \
+    NetworkProcess \
+    NetworkProcessConnection \
+    NetworkProcessProxy \
     NPObjectMessageReceiver \
     PluginControllerProxy \
     PluginProcess \
     PluginProcessConnection \
     PluginProcessProxy \
     PluginProxy \
+    SharedWorkerProcess \
+    SharedWorkerProcessProxy \
     WebApplicationCacheManager \
     WebApplicationCacheManagerProxy \
     WebCookieManager \
     WebCookieManagerProxy \
+    WebConnection \
+    NetworkConnectionToWebProcess \
     WebContext \
     WebDatabaseManager \
     WebDatabaseManagerProxy \
@@ -79,6 +92,7 @@ MESSAGE_RECEIVERS = \
     WebNotificationManagerProxy \
     WebNotificationManager \
     WebPage \
+    WebPageGroupProxy \
     WebPageProxy \
     WebProcess \
     WebProcessConnection \
@@ -117,12 +131,7 @@ ifeq ($(OS),MACOS)
 
 FRAMEWORK_FLAGS = $(shell echo $(BUILT_PRODUCTS_DIR) $(FRAMEWORK_SEARCH_PATHS) | perl -e 'print "-F " . join(" -F ", split(" ", <>));')
 HEADER_FLAGS = $(shell echo $(BUILT_PRODUCTS_DIR) $(HEADER_SEARCH_PATHS) | perl -e 'print "-I" . join(" -I", split(" ", <>));')
-
-ifeq ($(TARGET_GCC_VERSION),LLVM_COMPILER)
-	TEXT_PREPROCESSOR_FLAGS=-E -P -x c -traditional -w
-else
-	TEXT_PREPROCESSOR_FLAGS=-E -P -x c -std=c89
-endif
+TEXT_PREPROCESSOR_FLAGS=-E -P -x c -traditional -w
 
 ifneq ($(SDKROOT),)
 	SDK_FLAGS=-isysroot $(SDKROOT)

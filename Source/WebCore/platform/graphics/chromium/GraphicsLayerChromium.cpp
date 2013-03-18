@@ -49,6 +49,7 @@
 #include "FloatConversion.h"
 #include "FloatRect.h"
 #include "GraphicsContext.h"
+#include "GraphicsLayerFactory.h"
 #include "Image.h"
 #include "NativeImageSkia.h"
 #include "PlatformContextSkia.h"
@@ -77,6 +78,14 @@ using namespace WebKit;
 
 namespace WebCore {
 
+PassOwnPtr<GraphicsLayer> GraphicsLayer::create(GraphicsLayerFactory* factory, GraphicsLayerClient* client)
+{
+    if (!factory)
+        return adoptPtr(new GraphicsLayerChromium(client));
+
+    return factory->createGraphicsLayer(client);
+}
+
 PassOwnPtr<GraphicsLayer> GraphicsLayer::create(GraphicsLayerClient* client)
 {
     return adoptPtr(new GraphicsLayerChromium(client));
@@ -96,6 +105,7 @@ GraphicsLayerChromium::GraphicsLayerChromium(GraphicsLayerClient* client)
     m_layer = adoptPtr(Platform::current()->compositorSupport()->createContentLayer(m_opaqueRectTrackingContentLayerDelegate.get()));
     m_layer->layer()->setDrawsContent(m_drawsContent && m_contentsVisible);
     m_layer->layer()->setScrollClient(this);
+    m_layer->setAutomaticallyComputeRasterScale(true);
     updateDebugIndicators();
 }
 
@@ -357,6 +367,7 @@ static bool copyWebCoreFilterOperationsToWebFilterOperations(const FilterOperati
         }
 #if ENABLE(CSS_SHADERS)
         case FilterOperation::CUSTOM:
+        case FilterOperation::VALIDATED_CUSTOM:
             return false; // Not supported.
 #endif
         case FilterOperation::PASSTHROUGH:
@@ -459,7 +470,8 @@ void GraphicsLayerChromium::setContentsRect(const IntRect& rect)
 void GraphicsLayerChromium::setContentsToImage(Image* image)
 {
     bool childrenChanged = false;
-    if (image) {
+    NativeImageSkia* nativeImage = image ? image->nativeImageForCurrentFrame() : 0;
+    if (nativeImage) {
         if (m_contentsLayerPurpose != ContentsLayerForImage) {
             m_imageLayer = adoptPtr(Platform::current()->compositorSupport()->createImageLayer());
             registerContentsLayer(m_imageLayer->layer());
@@ -468,7 +480,6 @@ void GraphicsLayerChromium::setContentsToImage(Image* image)
             m_contentsLayerPurpose = ContentsLayerForImage;
             childrenChanged = true;
         }
-        NativeImageSkia* nativeImage = image->nativeImageForCurrentFrame();
         m_imageLayer->setBitmap(nativeImage->bitmap());
         m_imageLayer->layer()->setOpaque(image->isBitmapImage() && !image->currentFrameHasAlpha());
         updateContentsRect();

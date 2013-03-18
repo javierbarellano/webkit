@@ -710,6 +710,7 @@
                                 'tests/AssociatedURLLoaderTest.cpp',
                                 'tests/EventListenerTest.cpp',
                                 'tests/FrameTestHelpers.cpp',
+                                'tests/IDBBindingUtilitiesTest.cpp',
                                 'tests/LevelDBTest.cpp',
                                 'tests/ListenerLeakTest.cpp',
                                 'tests/LinkHighlightTest.cpp',
@@ -859,6 +860,28 @@
                 ['component=="shared_library"', {
                     'defines': [
                         'WEBKIT_DLL',
+                    ],
+                }],
+            ],
+        },
+        {
+            'target_name': 'webkit_test_support',
+            'conditions': [
+                ['inside_chromium_build==1 and component=="shared_library"', {
+                    'type': 'none',
+                }, { # else: inside_chromium_build==0 or component!="shared_library"
+                    'type': 'static_library',
+                    'dependencies': [
+                        '../../WTF/WTF.gyp/WTF.gyp:wtf',
+                        '../../WebCore/WebCore.gyp/WebCore.gyp:webcore_test_support',
+                    ],
+                    'include_dirs': [
+                        'public',
+                        '../../WebCore/testing/v8', # for WebCoreTestSupport.h, needed to link in window.internals code.
+                    ],
+                    'sources': [
+                        'src/WebTestingSupport.cpp',
+                        'public/WebTestingSupport.h',
                     ],
                 }],
             ],

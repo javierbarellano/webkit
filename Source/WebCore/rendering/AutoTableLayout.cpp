@@ -49,7 +49,7 @@ void AutoTableLayout::recalcColumn(unsigned effCol)
     RenderTableCell* fixedContributor = 0;
     RenderTableCell* maxContributor = 0;
 
-    for (RenderObject* child = m_table->firstChild(); child; child = child->nextSibling()) {
+    for (RenderObject* child = m_table->children()->firstChild(); child; child = child->nextSibling()) {
         if (child->isRenderTableCol())
             toRenderTableCol(child)->computePreferredLogicalWidths();
         else if (child->isTableSection()) {
@@ -62,7 +62,7 @@ void AutoTableLayout::recalcColumn(unsigned effCol)
                 if (current.inColSpan || !cell)
                     continue;
 
-                bool cellHasContent = cell->firstChild() || cell->style()->hasBorder() || cell->style()->hasPadding();
+                bool cellHasContent = cell->children()->firstChild() || cell->style()->hasBorder() || cell->style()->hasPadding();
                 if (cellHasContent)
                     columnLayout.emptyCellsOnly = false;
 
@@ -196,15 +196,11 @@ static bool shouldScaleColumns(RenderTable* table)
             table = 0;
             if (cb && cb->isTableCell() &&
                 (cb->style()->width().isAuto() || cb->style()->width().isPercent())) {
-                if (tw.isPercent())
+                RenderTableCell* cell = toRenderTableCell(cb);
+                if (cell->colSpan() > 1 || cell->table()->style()->width().isAuto())
                     scale = false;
-                else {
-                    RenderTableCell* cell = toRenderTableCell(cb);
-                    if (cell->colSpan() > 1 || cell->table()->style()->width().isAuto())
-                        scale = false;
-                    else
-                        table = cell->table();
-                }
+                else
+                    table = cell->table();
             }
         }
         else
@@ -771,10 +767,10 @@ void AutoTableLayout::layout()
 
     int pos = 0;
     for (size_t i = 0; i < nEffCols; ++i) {
-        m_table->columnPositions()[i] = pos;
+        m_table->setColumnPosition(i, pos);
         pos += m_layoutStruct[i].computedLogicalWidth + m_table->hBorderSpacing();
     }
-    m_table->columnPositions()[m_table->columnPositions().size() - 1] = pos;
+    m_table->setColumnPosition(m_table->columnPositions().size() - 1, pos);
 }
 
 }

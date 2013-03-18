@@ -42,6 +42,7 @@ class StylePropertyShorthand;
 class StyleSheetContents;
 
 class StylePropertySet : public RefCounted<StylePropertySet> {
+    friend class PropertyReference;
 public:
     ~StylePropertySet();
 
@@ -53,10 +54,36 @@ public:
     static PassRefPtr<StylePropertySet> create(const CSSProperty* properties, unsigned count);
     static PassRefPtr<StylePropertySet> createImmutable(const CSSProperty* properties, unsigned count, CSSParserMode);
 
+    class PropertyReference {
+    public:
+        PropertyReference(const StylePropertySet& propertySet, unsigned index)
+            : m_propertySet(propertySet)
+            , m_index(index)
+        { }
+
+        CSSPropertyID id() const { return propertyInternal().id(); }
+        CSSPropertyID shorthandID() const { return propertyInternal().shorthandID(); }
+        bool isImportant() const { return propertyInternal().isImportant(); }
+        bool isImplicit() const { return propertyInternal().isImplicit(); }
+        bool isInherited() const { return propertyInternal().isInherited(); }
+
+        String cssName() const { return propertyInternal().cssName(); }
+        String cssText() const { return propertyInternal().cssText(); }
+
+        const CSSValue* value() const { return propertyInternal().value(); }
+        // FIXME: We should try to remove this mutable overload.
+        CSSValue* value() { return const_cast<CSSValue*>(propertyInternal().value()); }
+
+    private:
+        const CSSProperty& propertyInternal() const { return m_propertySet.propertyAtInternal(m_index); }
+
+        const StylePropertySet& m_propertySet;
+        unsigned m_index;
+    };
+
     unsigned propertyCount() const;
     bool isEmpty() const;
-    const CSSProperty& propertyAt(unsigned index) const;
-    CSSProperty& propertyAt(unsigned index);
+    PropertyReference propertyAt(unsigned index) const { return PropertyReference(*this, index); }
 
     PassRefPtr<CSSValue> getPropertyCSSValue(CSSPropertyID) const;
     String getPropertyValue(CSSPropertyID) const;
@@ -154,12 +181,13 @@ private:
     bool appendFontLonghandValueIfExplicit(CSSPropertyID, StringBuilder& result) const;
 
     bool removeShorthandProperty(CSSPropertyID);
-    bool propertyMatches(const CSSProperty*) const;
+    bool propertyMatches(const PropertyReference&) const;
 
-    const CSSProperty* findPropertyWithId(CSSPropertyID) const;
-    CSSProperty* findPropertyWithId(CSSPropertyID);
+    int findPropertyIndex(CSSPropertyID) const;
+    CSSProperty* findMutableCSSPropertyWithID(CSSPropertyID);
 
-    void append(const CSSProperty&);
+    CSSProperty& propertyAtInternal(unsigned index);
+    const CSSProperty& propertyAtInternal(unsigned index) const;
 
     friend class PropertySetCSSStyleDeclaration;
 };
@@ -183,6 +211,20 @@ public:
     Vector<CSSProperty, 4> m_propertyVector;
 };
 
+inline CSSProperty& StylePropertySet::propertyAtInternal(unsigned index)
+{
+    if (m_isMutable)
+        return mutablePropertyVector().at(index);
+    return const_cast<CSSProperty*>(immutablePropertyArray())[index];
+}
+
+inline const CSSProperty& StylePropertySet::propertyAtInternal(unsigned index) const
+{
+    if (m_isMutable)
+        return mutablePropertyVector().at(index);
+    return immutablePropertyArray()[index];
+}
+
 inline Vector<CSSProperty, 4>& StylePropertySet::mutablePropertyVector()
 {
     ASSERT(m_isMutable);
@@ -199,18 +241,6 @@ inline const CSSProperty* StylePropertySet::immutablePropertyArray() const
 {
     ASSERT(!m_isMutable);
     return reinterpret_cast<const CSSProperty*>(&static_cast<const ImmutableStylePropertySet*>(this)->m_propertyArray);
-}
-
-inline CSSProperty& StylePropertySet::propertyAt(unsigned index)
-{
-    return mutablePropertyVector().at(index);
-}
-
-inline const CSSProperty& StylePropertySet::propertyAt(unsigned index) const
-{
-    if (m_isMutable)
-        return mutablePropertyVector().at(index);
-    return immutablePropertyArray()[index];
 }
 
 inline unsigned StylePropertySet::propertyCount() const

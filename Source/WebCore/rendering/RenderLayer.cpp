@@ -80,6 +80,7 @@
 #include "RenderInline.h"
 #include "RenderMarquee.h"
 #include "RenderReplica.h"
+#include "RenderSVGResourceClipper.h"
 #include "RenderScrollbar.h"
 #include "RenderScrollbarPart.h"
 #include "RenderTheme.h"
@@ -109,9 +110,11 @@
 #include "SVGNames.h"
 #endif
 
-#if PLATFORM(CHROMIUM) || PLATFORM(BLACKBERRY)
-// FIXME: border radius clipping triggers too-slow path on Chromium
-// https://bugs.webkit.org/show_bug.cgi?id=69866
+#if ENABLE(CSS_SHADERS)
+#include <CustomFilterOperation.h>
+#endif
+
+#if PLATFORM(BLACKBERRY)
 #define DISABLE_ROUNDED_CORNER_CLIPPING
 #endif
 
@@ -598,7 +601,7 @@ void RenderLayer::updateTransform()
         dirty3DTransformedDescendantStatus();
 }
 
-TransformationMatrix RenderLayer::currentTransform() const
+TransformationMatrix RenderLayer::currentTransform(RenderStyle::ApplyTransformOrigin applyOrigin) const
 {
     if (!m_transform)
         return TransformationMatrix();
@@ -607,10 +610,21 @@ TransformationMatrix RenderLayer::currentTransform() const
     if (renderer()->style()->isRunningAcceleratedAnimation()) {
         TransformationMatrix currTransform;
         RefPtr<RenderStyle> style = renderer()->animation()->getAnimatedStyleForRenderer(renderer());
-        style->applyTransform(currTransform, renderBox()->pixelSnappedBorderBoxRect().size(), RenderStyle::IncludeTransformOrigin);
+        style->applyTransform(currTransform, renderBox()->pixelSnappedBorderBoxRect().size(), applyOrigin);
         makeMatrixRenderable(currTransform, canRender3DTransforms());
         return currTransform;
     }
+
+    // m_transform includes transform-origin, so we need to recompute the transform here.
+    if (applyOrigin == RenderStyle::ExcludeTransformOrigin) {
+        RenderBox* box = renderBox();
+        TransformationMatrix currTransform;
+        box->style()->applyTransform(currTransform, box->pixelSnappedBorderBoxRect().size(), RenderStyle::ExcludeTransformOrigin);
+        makeMatrixRenderable(currTransform, canRender3DTransforms());
+        return currTransform;
+    }
+#else
+    UNUSED_PARAM(applyOrigin);
 #endif
 
     return *m_transform;
@@ -1172,7 +1186,7 @@ RenderLayer* RenderLayer::clippingRootForPainting() const
 LayoutPoint RenderLayer::absoluteToContents(const LayoutPoint& absolutePoint) const
 {
     // We don't use convertToLayerCoords because it doesn't know about transforms
-    return roundedLayoutPoint(renderer()->absoluteToLocal(absolutePoint, false, true));
+    return roundedLayoutPoint(renderer()->absoluteToLocal(absolutePoint, UseTransforms | SnapOffsetForTransforms));
 }
 
 bool RenderLayer::cannotBlitToWindow() const
@@ -1481,7 +1495,7 @@ void RenderLayer::convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutP
     if (position == FixedPosition && !renderer()->inRenderFlowThread() && (!ancestorLayer || ancestorLayer == renderer()->view()->layer())) {
         // If the fixed layer's container is the root, just add in the offset of the view. We can obtain this by calling
         // localToAbsolute() on the RenderView.
-        FloatPoint absPos = renderer()->localToAbsolute(FloatPoint(), true);
+        FloatPoint absPos = renderer()->localToAbsolute(FloatPoint(), IsFixed);
         location += LayoutSize(absPos.x(), absPos.y());
         return;
     }
@@ -1709,6 +1723,9 @@ void RenderLayer::scrollTo(int x, int y)
         return;
     m_scrollOffset = newScrollOffset;
 
+    Frame* frame = renderer()->frame();
+    InspectorInstrumentation::willScrollLayer(frame);
+
     // Update the positions of our child layers (if needed as only fixed layers should be impacted by a scroll).
     // We don't update compositing layers, because we need to do a deep update from the compositing ancestor.
     updateLayerPositionsAfterScroll();
@@ -1718,10 +1735,9 @@ void RenderLayer::scrollTo(int x, int y)
     // We should have a RenderView if we're trying to scroll.
     ASSERT(view);
     if (view) {
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-        // Update dashboard regions, scrolling may change the clip of a
-        // particular region.
-        view->frameView()->updateDashboardRegions();
+        // Update regions, scrolling may change the clip of a particular region.
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+        view->frameView()->updateAnnotatedRegions();
 #endif
 
         view->updateWidgetPositions();
@@ -1736,14 +1752,13 @@ void RenderLayer::scrollTo(int x, int y)
     }
 
     RenderLayerModelObject* repaintContainer = renderer()->containerForRepaint();
-    Frame* frame = renderer()->frame();
     if (frame) {
         // The caret rect needs to be invalidated after scrolling
         frame->selection()->setCaretRectNeedsUpdate();
 
         FloatQuad quadForFakeMouseMoveEvent = FloatQuad(m_repaintRect);
         if (repaintContainer)
-            quadForFakeMouseMoveEvent = repaintContainer->localToAbsoluteQuad(quadForFakeMouseMoveEvent);
+            quadForFakeMouseMoveEvent = repaintContainer->localToAbsoluteQuad(quadForFakeMouseMoveEvent, SnapOffsetForTransforms);
         frame->eventHandler()->dispatchFakeMouseMoveEventSoonInQuad(quadForFakeMouseMoveEvent);
     }
 
@@ -1754,6 +1769,23 @@ void RenderLayer::scrollTo(int x, int y)
     // Schedule the scroll DOM event.
     if (renderer()->node())
         renderer()->node()->document()->eventQueue()->enqueueOrDispatchScrollEvent(renderer()->node(), DocumentEventQueue::ScrollEventElementTarget);
+
+    InspectorInstrumentation::didScrollLayer(frame);
+}
+
+static inline bool frameElementAndViewPermitScroll(HTMLFrameElement* frameElement, FrameView* frameView) 
+{
+    // If scrollbars aren't explicitly forbidden, permit scrolling.
+    if (frameElement && frameElement->scrollingMode() != ScrollbarAlwaysOff)
+        return true;
+
+    // If scrollbars are forbidden, user initiated scrolls should obviously be ignored.
+    if (frameView->wasScrolledByUser())
+        return false;
+
+    // Forbid autoscrolls when scrollbars are off, but permits other programmatic scrolls,
+    // like navigation to an anchor.
+    return !frameView->frame()->eventHandler()->autoscrollInProgress();
 }
 
 void RenderLayer::scrollRectToVisible(const LayoutRect& rect, const ScrollAlignment& alignX, const ScrollAlignment& alignY)
@@ -1806,7 +1838,7 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& rect, const ScrollAlignm
                 if (ownerElement->hasTagName(frameTag) || ownerElement->hasTagName(iframeTag))
                     frameElement = static_cast<HTMLFrameElement*>(ownerElement);
 
-                if (frameElement && frameElement->scrollingMode() != ScrollbarAlwaysOff) {
+                if (frameElementAndViewPermitScroll(frameElement, frameView)) {
                     LayoutRect viewRect = frameView->visibleContentRect();
                     LayoutRect exposeRect = getRectToExpose(viewRect, rect, alignX, alignY);
 
@@ -2378,10 +2410,10 @@ void RenderLayer::setHasHorizontalScrollbar(bool hasScrollbar)
     if (m_vBar)
         m_vBar->styleChanged();
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
     // Force an update since we know the scrollbars have changed things.
-    if (renderer()->document()->hasDashboardRegions())
-        renderer()->document()->setDashboardRegionsDirty(true);
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    if (renderer()->document()->hasAnnotatedRegions())
+        renderer()->document()->setAnnotatedRegionsDirty(true);
 #endif
 }
 
@@ -2401,10 +2433,10 @@ void RenderLayer::setHasVerticalScrollbar(bool hasScrollbar)
     if (m_vBar)
         m_vBar->styleChanged();
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
     // Force an update since we know the scrollbars have changed things.
-    if (renderer()->document()->hasDashboardRegions())
-        renderer()->document()->setDashboardRegionsDirty(true);
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+    if (renderer()->document()->hasAnnotatedRegions())
+        renderer()->document()->setAnnotatedRegionsDirty(true);
 #endif
 }
 
@@ -2591,10 +2623,10 @@ void RenderLayer::updateScrollbarsAfterLayout()
 
         updateSelfPaintingLayer();
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
         // Force an update since we know the scrollbars have changed things.
-        if (renderer()->document()->hasDashboardRegions())
-            renderer()->document()->setDashboardRegionsDirty(true);
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+        if (renderer()->document()->hasAnnotatedRegions())
+            renderer()->document()->setAnnotatedRegionsDirty(true);
 #endif
 
         renderer()->repaint();
@@ -2629,7 +2661,7 @@ void RenderLayer::updateScrollbarsAfterLayout()
         m_vBar->setProportion(clientHeight, m_scrollSize.height());
     }
 
-    updateScrollableAreaSet((hasHorizontalOverflow || hasVerticalOverflow) && scrollsOverflow());
+    updateScrollableAreaSet((hasHorizontalOverflow || hasVerticalOverflow) && scrollsOverflow() && allowsScrolling());
 }
 
 void RenderLayer::updateScrollInfoAfterLayout()
@@ -2890,7 +2922,7 @@ void RenderLayer::paint(GraphicsContext* context, const LayoutRect& damageRect, 
     paintLayer(this, context, enclosingIntRect(damageRect), LayoutSize(), paintBehavior, paintingRoot, region, &overlapTestRequests, paintFlags);
     OverlapTestRequestMap::iterator end = overlapTestRequests.end();
     for (OverlapTestRequestMap::iterator it = overlapTestRequests.begin(); it != end; ++it)
-        it->first->setOverlapTestResult(false);
+        it->key->setOverlapTestResult(false);
 }
 
 void RenderLayer::paintOverlayScrollbars(GraphicsContext* context, const LayoutRect& damageRect, PaintBehavior paintBehavior, RenderObject* paintingRoot)
@@ -2959,11 +2991,11 @@ static void performOverlapTests(OverlapTestRequestMap& overlapTestRequests, cons
     OverlapTestRequestMap::iterator end = overlapTestRequests.end();
     LayoutRect boundingBox = layer->boundingBox(rootLayer);
     for (OverlapTestRequestMap::iterator it = overlapTestRequests.begin(); it != end; ++it) {
-        if (!boundingBox.intersects(it->second))
+        if (!boundingBox.intersects(it->value))
             continue;
 
-        it->first->setOverlapTestResult(true);
-        overlappedRequestClients.append(it->first);
+        it->key->setOverlapTestResult(true);
+        overlappedRequestClients.append(it->key);
     }
     for (size_t i = 0; i < overlappedRequestClients.size(); ++i)
         overlapTestRequests.remove(overlappedRequestClients[i]);
@@ -3140,6 +3172,16 @@ void RenderLayer::paintLayerContents(RenderLayer* rootLayer, GraphicsContext* co
             ShapeClipPathOperation* clipPath = static_cast<ShapeClipPathOperation*>(style->clipPath());
             context->clipPath(clipPath->path(calculateLayerBounds(this, rootLayer, 0)), clipPath->windRule());
         }
+#if ENABLE(SVG)
+        else if (style->clipPath()->getOperationType() == ClipPathOperation::REFERENCE) {
+            ReferenceClipPathOperation* referenceClipPathOperation = static_cast<ReferenceClipPathOperation*>(style->clipPath());
+            Document* document = renderer()->document();
+            // FIXME: It doesn't work with forward or external SVG references (https://bugs.webkit.org/show_bug.cgi?id=90405)
+            Element* element = document ? document->getElementById(referenceClipPathOperation->fragment()) : 0;
+            if (element && element->hasTagName(SVGNames::clipPathTag) && element->renderer())
+                static_cast<RenderSVGResourceClipper*>(element->renderer())->applyClippingToContext(renderer(), calculateLayerBounds(this, rootLayer, 0), paintDirtyRect, context);
+        }
+#endif
     }
 
 #if ENABLE(CSS_FILTERS)
@@ -3177,6 +3219,8 @@ void RenderLayer::paintLayerContents(RenderLayer* rootLayer, GraphicsContext* co
         calculateRects(rootLayer, region, (localPaintFlags & PaintLayerTemporaryClipRects) ? TemporaryClipRects : PaintingClipRects, paintDirtyRect, layerBounds, damageRect, clipRectToApply, outlineRect,
             IgnoreOverlayScrollbarSize, localPaintFlags & PaintLayerPaintingOverflowContents ? IgnoreOverflowClip : RespectOverflowClip);
         paintOffset = toPoint(layerBounds.location() - renderBoxLocation() + subPixelAccumulation);
+        if (this == rootLayer)
+            paintOffset = roundedIntPoint(paintOffset);
     }
 
     bool forceBlackText = paintBehavior & PaintBehaviorForceBlackText;
@@ -3470,6 +3514,8 @@ bool RenderLayer::hitTest(const HitTestRequest& request, HitTestResult& result)
 
 bool RenderLayer::hitTest(const HitTestRequest& request, const HitTestLocation& hitTestLocation, HitTestResult& result)
 {
+    ASSERT(isSelfPaintingLayer() || hasSelfPaintingLayerDescendant());
+
     renderer()->document()->updateLayout();
     
     LayoutRect hitTestArea = renderer()->isRenderFlowThread() ? toRenderFlowThread(renderer())->borderBoxRect() : renderer()->view()->documentRect();
@@ -3590,6 +3636,9 @@ RenderLayer* RenderLayer::hitTestLayer(RenderLayer* rootLayer, RenderLayer* cont
                                        const LayoutRect& hitTestRect, const HitTestLocation& hitTestLocation, bool appliedTransform,
                                        const HitTestingTransformState* transformState, double* zOffset)
 {
+    if (!isSelfPaintingLayer() && !hasSelfPaintingLayerDescendant())
+        return 0;
+
     // The natural thing would be to keep HitTestingTransformState on the stack, but it's big, so we heap-allocate.
 
     bool useTemporaryClipRects = renderer()->view()->frameView()->containsScrollableAreaWithOverlayScrollbars();
@@ -3761,6 +3810,8 @@ RenderLayer* RenderLayer::hitTestLayer(RenderLayer* rootLayer, RenderLayer* cont
 
 bool RenderLayer::hitTestContents(const HitTestRequest& request, HitTestResult& result, const LayoutRect& layerBounds, const HitTestLocation& hitTestLocation, HitTestFilter hitTestFilter) const
 {
+    ASSERT(isSelfPaintingLayer() || hasSelfPaintingLayerDescendant());
+
     if (!renderer()->hitTest(request, result, hitTestLocation,
                             toLayoutPoint(layerBounds.location() - renderBoxLocation()),
                             hitTestFilter)) {
@@ -3795,7 +3846,10 @@ RenderLayer* RenderLayer::hitTestList(Vector<RenderLayer*>* list, RenderLayer* r
 {
     if (!list)
         return 0;
-    
+
+    if (!hasSelfPaintingLayerDescendant())
+        return 0;
+
     RenderLayer* resultLayer = 0;
     for (int i = list->size() - 1; i >= 0; --i) {
         RenderLayer* childLayer = list->at(i);
@@ -4017,7 +4071,7 @@ void RenderLayer::calculateClipRects(const RenderLayer* rootLayer, RenderRegion*
         // some transformed layer boundary, for example, in the RenderLayerCompositor overlapMap, where
         // clipRects are needed in view space.
         LayoutPoint offset;
-        offset = roundedLayoutPoint(renderer()->localToContainerPoint(FloatPoint(), rootLayer->renderer(), false, false, 0));
+        offset = roundedLayoutPoint(renderer()->localToContainerPoint(FloatPoint(), rootLayer->renderer()));
         RenderView* view = renderer()->view();
         ASSERT(view);
         if (view && clipRects.fixed() && rootLayer->renderer() == view) {
@@ -4144,7 +4198,7 @@ LayoutRect RenderLayer::childrenClipRect() const
     ClipRect backgroundRect, foregroundRect, outlineRect;
     // Need to use temporary clip rects, because the value of 'dontClipToOverflow' may be different from the painting path (<rdar://problem/11844909>).
     calculateRects(clippingRootLayer, 0, TemporaryClipRects, renderView->unscaledDocumentRect(), layerBounds, backgroundRect, foregroundRect, outlineRect);
-    return clippingRootLayer->renderer()->localToAbsoluteQuad(FloatQuad(foregroundRect.rect())).enclosingBoundingBox();
+    return clippingRootLayer->renderer()->localToAbsoluteQuad(FloatQuad(foregroundRect.rect()), SnapOffsetForTransforms).enclosingBoundingBox();
 }
 
 LayoutRect RenderLayer::selfClipRect() const
@@ -4156,7 +4210,7 @@ LayoutRect RenderLayer::selfClipRect() const
     LayoutRect layerBounds;
     ClipRect backgroundRect, foregroundRect, outlineRect;
     calculateRects(clippingRootLayer, 0, PaintingClipRects, renderView->documentRect(), layerBounds, backgroundRect, foregroundRect, outlineRect);
-    return clippingRootLayer->renderer()->localToAbsoluteQuad(FloatQuad(backgroundRect.rect())).enclosingBoundingBox();
+    return clippingRootLayer->renderer()->localToAbsoluteQuad(FloatQuad(backgroundRect.rect()), SnapOffsetForTransforms).enclosingBoundingBox();
 }
 
 LayoutRect RenderLayer::localClipRect() const
@@ -4835,7 +4889,7 @@ void RenderLayer::updateScrollbarsAfterStyleChange(const RenderStyle* oldStyle)
     }
 
     if (!m_scrollDimensionsDirty)
-        updateScrollableAreaSet((hasHorizontalOverflow() || hasVerticalOverflow()) && scrollsOverflow());
+        updateScrollableAreaSet((hasHorizontalOverflow() || hasVerticalOverflow()) && scrollsOverflow() && allowsScrolling());
 }
 
 void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
@@ -4882,10 +4936,6 @@ void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
     updateScrollCornerStyle();
     updateResizerStyle();
 
-#if ENABLE(CSS_FILTERS)
-    bool backingDidCompositeLayers = isComposited() && backing()->canCompositeFilters();
-#endif
-
     updateDescendantDependentFlags();
     updateTransform();
 #if ENABLE(CSS_COMPOSITING)
@@ -4907,11 +4957,14 @@ void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
 
 #if ENABLE(CSS_FILTERS)
     updateOrRemoveFilterEffect();
+#if USE(ACCELERATED_COMPOSITING)
+    bool backingDidCompositeLayers = isComposited() && backing()->canCompositeFilters();
     if (isComposited() && backingDidCompositeLayers && !backing()->canCompositeFilters()) {
         // The filters used to be drawn by platform code, but now the platform cannot draw them anymore.
         // Fallback to drawing them in software.
         setBackingNeedsRepaint();
     }
+#endif
 #endif
 }
 
@@ -5027,6 +5080,33 @@ void RenderLayer::updateReflectionStyle()
 }
 
 #if ENABLE(CSS_FILTERS)
+FilterOperations RenderLayer::computeFilterOperations(const RenderStyle* style)
+{
+#if !ENABLE(CSS_SHADERS)
+    return style->filter();
+#else
+    const FilterOperations& filters = style->filter();
+    if (!filters.hasCustomFilter())
+        return filters;
+
+    FilterOperations outputFilters;
+    for (size_t i = 0; i < filters.size(); ++i) {
+        RefPtr<FilterOperation> filterOperation = filters.operations().at(i);
+        if (filterOperation->getOperationType() == FilterOperation::CUSTOM) {
+            // We have to wait until the program of CSS Shaders is loaded before setting it on the layer.
+            // Note that we will handle the loading of the shaders and repainting of the layer in updateOrRemoveFilterEffect.
+            const CustomFilterOperation* customOperation = static_cast<const CustomFilterOperation*>(filterOperation.get());
+            if (!customOperation->program()->isLoaded())
+                continue;
+            // FIXME: Validate the shaders and convert the operation to a ValidatedCustomFilterOperation.
+            // https://bugs.webkit.org/show_bug.cgi?id=100533
+        }
+        outputFilters.operations().append(filterOperation.release());
+    }
+    return outputFilters;
+#endif
+}
+
 void RenderLayer::updateOrRemoveFilterEffect()
 {
     if (!hasFilter()) {
@@ -5066,7 +5146,7 @@ void RenderLayer::updateOrRemoveFilterEffect()
 
     // If the filter fails to build, remove it from the layer. It will still attempt to
     // go through regular processing (e.g. compositing), but never apply anything.
-    if (!filterInfo->renderer()->build(renderer()->document(), renderer()->style()->filter()))
+    if (!filterInfo->renderer()->build(renderer()->document(), computeFilterOperations(renderer()->style())))
         filterInfo->setRenderer(0);
 }
 

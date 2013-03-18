@@ -155,7 +155,7 @@ void ResourceRequest::doUpdatePlatformRequest()
         [nsRequest setValue:nil forHTTPHeaderField:[oldHeaderFieldNames objectAtIndex:i - 1]];
     HTTPHeaderMap::const_iterator end = httpHeaderFields().end();
     for (HTTPHeaderMap::const_iterator it = httpHeaderFields().begin(); it != end; ++it)
-        [nsRequest setValue:it->second forHTTPHeaderField:it->first];
+        [nsRequest setValue:it->value forHTTPHeaderField:it->key];
 
     // The below check can be removed once we require a version of Foundation with -[NSMutableURLRequest setContentDispositionEncodingFallbackArray:] method.
     static bool supportsContentDispositionEncodingFallbackArray = [NSMutableURLRequest instancesRespondToSelector:@selector(setContentDispositionEncodingFallbackArray:)];
@@ -163,9 +163,9 @@ void ResourceRequest::doUpdatePlatformRequest()
         NSMutableArray *encodingFallbacks = [NSMutableArray array];
         unsigned count = m_responseContentDispositionEncodingFallbackArray.size();
         for (unsigned i = 0; i != count; ++i) {
-            CFStringRef encodingName = m_responseContentDispositionEncodingFallbackArray[i].createCFString();
-            unsigned long nsEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringConvertIANACharSetNameToEncoding(encodingName));
-            CFRelease(encodingName);
+            RetainPtr<CFStringRef> encodingName = m_responseContentDispositionEncodingFallbackArray[i].createCFString();
+            unsigned long nsEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringConvertIANACharSetNameToEncoding(encodingName.get()));
+
             if (nsEncoding != kCFStringEncodingInvalidId)
                 [encodingFallbacks addObject:[NSNumber numberWithUnsignedLong:nsEncoding]];
         }

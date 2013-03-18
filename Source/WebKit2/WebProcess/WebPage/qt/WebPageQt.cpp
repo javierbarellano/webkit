@@ -308,11 +308,6 @@ PassRefPtr<SharedBuffer> WebPage::cachedResponseDataForURL(const KURL&)
     return 0;
 }
 
-void WebPage::commitPageTransitionViewport()
-{
-    m_drawingArea->setLayerTreeStateIsFrozen(false);
-}
-
 static Frame* targetFrameForEditing(WebPage* page)
 {
     Frame* targetFrame = page->corePage()->focusController()->focusedOrMainFrame();
@@ -428,7 +423,7 @@ void WebPage::setUserScripts(const Vector<String>& scripts)
     PageGroup* pageGroup = PageGroup::pageGroup(this->pageGroup()->identifier());
     pageGroup->removeUserScriptsFromWorld(mainThreadNormalWorld());
     for (unsigned i = 0; i < scripts.size(); ++i)
-        pageGroup->addUserScriptToWorld(mainThreadNormalWorld(), scripts.at(i), KURL(), nullptr, nullptr, InjectAtDocumentEnd, InjectInTopFrameOnly);
+        pageGroup->addUserScriptToWorld(mainThreadNormalWorld(), scripts.at(i), KURL(), Vector<String>(), Vector<String>(), InjectAtDocumentEnd, InjectInTopFrameOnly);
 }
 
 void WebPage::selectedIndex(int32_t newIndex)

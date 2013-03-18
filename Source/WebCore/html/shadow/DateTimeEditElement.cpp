@@ -35,8 +35,8 @@
 #include "EventHandler.h"
 #include "HTMLNames.h"
 #include "KeyboardEvent.h"
-#include "Localizer.h"
 #include "MouseEvent.h"
+#include "PlatformLocale.h"
 #include "Text.h"
 #include <wtf/DateMath.h>
 #include <wtf/text/StringBuilder.h>
@@ -49,6 +49,7 @@ class DateTimeEditBuilder : private DateTimeFormat::TokenHandler {
     WTF_MAKE_NONCOPYABLE(DateTimeEditBuilder);
 
 public:
+    // The argument objects must be alive until this object dies.
     DateTimeEditBuilder(DateTimeEditElement&, const DateTimeEditElement::LayoutParameters&, const DateComponents&);
 
     bool build(const String&);
@@ -58,6 +59,7 @@ private:
     bool shouldMillisecondFieldReadOnly() const;
     bool shouldMinuteFieldReadOnly() const;
     bool shouldSecondFieldReadOnly() const;
+    inline const StepRange& stepRange() const { return m_parameters.stepRange; }
 
     // DateTimeFormat::TokenHandler functions.
     virtual void visitField(DateTimeFormat::FieldType, int) OVERRIDE FINAL;
@@ -65,21 +67,13 @@ private:
 
     DateTimeEditElement& m_editElement;
     const DateComponents m_dateValue;
-    const StepRange m_stepRange;
-    Localizer& m_localizer;
-    const String m_placeholderForDay;
-    const String m_placeholderForMonth;
-    const String m_placeholderForYear;
+    const DateTimeEditElement::LayoutParameters& m_parameters;
 };
 
 DateTimeEditBuilder::DateTimeEditBuilder(DateTimeEditElement& elemnt, const DateTimeEditElement::LayoutParameters& layoutParameters, const DateComponents& dateValue)
     : m_editElement(elemnt)
     , m_dateValue(dateValue)
-    , m_stepRange(layoutParameters.stepRange)
-    , m_localizer(layoutParameters.localizer)
-    , m_placeholderForDay(layoutParameters.placeholderForDay)
-    , m_placeholderForMonth(layoutParameters.placeholderForMonth)
-    , m_placeholderForYear(layoutParameters.placeholderForYear)
+    , m_parameters(layoutParameters)
 {
 }
 
@@ -92,17 +86,20 @@ bool DateTimeEditBuilder::build(const String& formatString)
 bool DateTimeEditBuilder::needMillisecondField() const
 {
     return m_dateValue.millisecond()
-        || !m_stepRange.minimum().remainder(static_cast<int>(msPerSecond)).isZero()
-        || !m_stepRange.step().remainder(static_cast<int>(msPerSecond)).isZero();
+        || !stepRange().minimum().remainder(static_cast<int>(msPerSecond)).isZero()
+        || !stepRange().step().remainder(static_cast<int>(msPerSecond)).isZero();
 }
 
-void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int)
+void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int count)
 {
+    const int countForAbbreviatedMonth = 3;
+    const int countForFullMonth = 4;
+    const int countForNarrowMonth = 5;
     Document* const document = m_editElement.document();
 
     switch (fieldType) {
     case DateTimeFormat::FieldTypeDayOfMonth:
-        m_editElement.addField(DateTimeDayFieldElement::create(document, m_editElement, m_placeholderForDay));
+        m_editElement.addField(DateTimeDayFieldElement::create(document, m_editElement, m_parameters.placeholderForDay));
         return;
 
     case DateTimeFormat::FieldTypeHour11:
@@ -130,12 +127,37 @@ void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int)
     }
 
     case DateTimeFormat::FieldTypeMonth:
-        // We always use "MM", two digits month, even if "M", "MMM", "MMMM", or "MMMMM".
-        m_editElement.addField(DateTimeMonthFieldElement::create(document, m_editElement, m_placeholderForMonth));
+        switch (count) {
+        case countForNarrowMonth: // Fallthrough.
+        case countForAbbreviatedMonth:
+            m_editElement.addField(DateTimeSymbolicMonthFieldElement::create(document, m_editElement, m_parameters.locale.shortMonthLabels()));
+            break;
+        case countForFullMonth:
+            m_editElement.addField(DateTimeSymbolicMonthFieldElement::create(document, m_editElement, m_parameters.locale.monthLabels()));
+            break;
+        default:
+            m_editElement.addField(DateTimeMonthFieldElement::create(document, m_editElement, m_parameters.placeholderForMonth));
+            break;
+        }
+        return;
+
+    case DateTimeFormat::FieldTypeMonthStandAlone:
+        switch (count) {
+        case countForNarrowMonth: // Fallthrough.
+        case countForAbbreviatedMonth:
+            m_editElement.addField(DateTimeSymbolicMonthFieldElement::create(document, m_editElement, m_parameters.locale.shortStandAloneMonthLabels()));
+            break;
+        case countForFullMonth:
+            m_editElement.addField(DateTimeSymbolicMonthFieldElement::create(document, m_editElement, m_parameters.locale.standAloneMonthLabels()));
+            break;
+        default:
+            m_editElement.addField(DateTimeMonthFieldElement::create(document, m_editElement, m_parameters.placeholderForMonth));
+            break;
+        }
         return;
 
     case DateTimeFormat::FieldTypePeriod:
-        m_editElement.addField(DateTimeAMPMFieldElement::create(document, m_editElement, m_localizer.timeAMPMLabels()));
+        m_editElement.addField(DateTimeAMPMFieldElement::create(document, m_editElement, m_parameters.locale.timeAMPMLabels()));
         return;
 
     case DateTimeFormat::FieldTypeSecond: {
@@ -145,7 +167,7 @@ void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int)
             field->setReadOnly();
 
         if (needMillisecondField()) {
-            visitLiteral(m_localizer.localizedDecimalSeparator());
+            visitLiteral(m_parameters.locale.localizedDecimalSeparator());
             visitField(DateTimeFormat::FieldTypeFractionalSecond, 3);
         }
         return;
@@ -163,9 +185,30 @@ void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int)
         m_editElement.addField(DateTimeWeekFieldElement::create(document, m_editElement));
         return;
 
-    case DateTimeFormat::FieldTypeYear:
-        m_editElement.addField(DateTimeYearFieldElement::create(document, m_editElement, m_placeholderForYear));
+    case DateTimeFormat::FieldTypeYear: {
+        DateTimeYearFieldElement::Parameters yearParams;
+        if (m_parameters.minimumYear == m_parameters.undefinedYear()) {
+            yearParams.minimumYear = DateComponents::minimumYear();
+            yearParams.minIsSpecified = false;
+        } else {
+            yearParams.minimumYear = m_parameters.minimumYear;
+            yearParams.minIsSpecified = true;
+        }
+        if (m_parameters.maximumYear == m_parameters.undefinedYear()) {
+            yearParams.maximumYear = DateComponents::maximumYear();
+            yearParams.maxIsSpecified = false;
+        } else {
+            yearParams.maximumYear = m_parameters.maximumYear;
+            yearParams.maxIsSpecified = true;
+        }
+        if (yearParams.minimumYear > yearParams.maximumYear) {
+            std::swap(yearParams.minimumYear, yearParams.maximumYear);
+            std::swap(yearParams.minIsSpecified, yearParams.maxIsSpecified);
+        }
+        yearParams.placeholder = m_parameters.placeholderForYear;
+        m_editElement.addField(DateTimeYearFieldElement::create(document, m_editElement, yearParams));
         return;
+    }
 
     default:
         return;
@@ -174,32 +217,27 @@ void DateTimeEditBuilder::visitField(DateTimeFormat::FieldType fieldType, int)
 
 bool DateTimeEditBuilder::shouldMillisecondFieldReadOnly() const
 {
-    return !m_dateValue.millisecond() && m_stepRange.step().remainder(static_cast<int>(msPerSecond)).isZero();
+    return !m_dateValue.millisecond() && stepRange().step().remainder(static_cast<int>(msPerSecond)).isZero();
 }
 
 bool DateTimeEditBuilder::shouldMinuteFieldReadOnly() const
 {
-    return !m_dateValue.minute() && m_stepRange.step().remainder(static_cast<int>(msPerHour)).isZero();
+    return !m_dateValue.minute() && stepRange().step().remainder(static_cast<int>(msPerHour)).isZero();
 }
 
 bool DateTimeEditBuilder::shouldSecondFieldReadOnly() const
 {
-    return !m_dateValue.second() && m_stepRange.step().remainder(static_cast<int>(msPerMinute)).isZero();
+    return !m_dateValue.second() && stepRange().step().remainder(static_cast<int>(msPerMinute)).isZero();
 }
 
 void DateTimeEditBuilder::visitLiteral(const String& text)
 {
+    DEFINE_STATIC_LOCAL(AtomicString, textPseudoId, ("-webkit-datetime-edit-text", AtomicString::ConstructFromLiteral));
     ASSERT(text.length());
-    m_editElement.appendChild(Text::create(m_editElement.document(), text));
-}
-
-// ----------------------------
-
-
-bool DateTimeEditElement::LayoutParameters::shouldHaveSecondField() const
-{
-    return !stepRange.minimum().remainder(static_cast<int>(msPerMinute)).isZero()
-        || !stepRange.step().remainder(static_cast<int>(msPerMinute)).isZero();
+    RefPtr<HTMLDivElement> element = HTMLDivElement::create(m_editElement.document());
+    element->setShadowPseudoId(textPseudoId);
+    element->appendChild(Text::create(m_editElement.document(), text));
+    m_editElement.appendChild(element);
 }
 
 // ----------------------------
@@ -211,7 +249,6 @@ DateTimeEditElement::EditControlOwner::~EditControlOwner()
 DateTimeEditElement::DateTimeEditElement(Document* document, EditControlOwner& editControlOwner)
     : HTMLDivElement(divTag, document)
     , m_editControlOwner(&editControlOwner)
-    , m_spinButton(0)
 {
     DEFINE_STATIC_LOCAL(AtomicString, dateTimeEditPseudoId, ("-webkit-datetime-edit"));
     setShadowPseudoId(dateTimeEditPseudoId);
@@ -221,9 +258,6 @@ DateTimeEditElement::~DateTimeEditElement()
 {
     for (size_t fieldIndex = 0; fieldIndex < m_fields.size(); ++fieldIndex)
         m_fields[fieldIndex]->removeEventHandler();
-
-    if (m_spinButton)
-        m_spinButton->removeSpinButtonOwner();
 }
 
 void DateTimeEditElement::addField(PassRefPtr<DateTimeFieldElement> field)
@@ -277,7 +311,7 @@ size_t DateTimeEditElement::fieldIndexOf(const DateTimeFieldElement& field) cons
     return invalidFieldIndex;
 }
 
-void DateTimeEditElement::focusAndSelectSpinButtonOwner()
+void DateTimeEditElement::focusIfNoFocus()
 {
     if (focusedFieldIndex() != invalidFieldIndex)
         return;
@@ -348,6 +382,11 @@ bool DateTimeEditElement::isDisabled() const
     return m_editControlOwner && m_editControlOwner->isEditControlOwnerDisabled();
 }
 
+bool DateTimeEditElement::isFieldOwnerDisabledOrReadOnly() const
+{
+    return isDisabled() || isReadOnly();
+}
+
 bool DateTimeEditElement::isReadOnly() const
 {
     return m_editControlOwner && m_editControlOwner->isEditControlOwnerReadOnly();
@@ -384,10 +423,6 @@ void DateTimeEditElement::layout(const LayoutParameters& layoutParameters, const
                 break;
         }
     }
-
-    RefPtr<SpinButtonElement> spinButton = SpinButtonElement::create(document(), *this);
-    m_spinButton = spinButton.get();
-    appendChild(spinButton);
 }
 
 AtomicString DateTimeEditElement::localeIdentifier() const
@@ -417,12 +452,6 @@ void DateTimeEditElement::defaultEventHandler(Event* event)
             return;
     }
 
-    if (m_spinButton) {
-        m_spinButton->forwardEvent(event);
-        if (event->defaultHandled())
-            return;
-    }
-
     HTMLDivElement::defaultEventHandler(event);
 }
 
@@ -446,26 +475,18 @@ void DateTimeEditElement::setEmptyValue(const LayoutParameters& layoutParameters
         m_fields[fieldIndex]->setEmptyValue(dateForReadOnlyField, DateTimeFieldElement::DispatchNoEvent);
 }
 
-bool DateTimeEditElement::shouldSpinButtonRespondToMouseEvents()
+bool DateTimeEditElement::hasFocusedField()
 {
-    return !isDisabled() && !isReadOnly();
-}
-
-bool DateTimeEditElement::shouldSpinButtonRespondToWheelEvents()
-{
-    if (!shouldSpinButtonRespondToMouseEvents())
-        return false;
-
     return focusedFieldIndex() != invalidFieldIndex;
 }
 
-void DateTimeEditElement::spinButtonStepDown()
+void DateTimeEditElement::stepDown()
 {
     if (DateTimeFieldElement* const field = focusedField())
         field->stepDown();
 }
 
-void DateTimeEditElement::spinButtonStepUp()
+void DateTimeEditElement::stepUp()
 {
     if (DateTimeFieldElement* const field = focusedField())
         field->stepUp();
@@ -474,7 +495,6 @@ void DateTimeEditElement::spinButtonStepUp()
 void DateTimeEditElement::updateUIState()
 {
     if (isDisabled() || isReadOnly()) {
-        m_spinButton->releaseCapture();
         if (DateTimeFieldElement* field = focusedField())
             field->blur();
     }

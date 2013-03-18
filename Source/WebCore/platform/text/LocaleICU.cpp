@@ -33,6 +33,8 @@
 
 #include "LocalizedStrings.h"
 #include <limits>
+#include <unicode/udatpg.h>
+#include <unicode/uloc.h>
 #include <wtf/DateMath.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringBuilder.h>
@@ -42,7 +44,7 @@ using namespace std;
 
 namespace WebCore {
 
-PassOwnPtr<Localizer> Localizer::create(const AtomicString& locale)
+PassOwnPtr<Locale> Locale::create(const AtomicString& locale)
 {
     return LocaleICU::create(locale.string().utf8().data());
 }
@@ -79,17 +81,6 @@ PassOwnPtr<LocaleICU> LocaleICU::create(const char* localeString)
     return adoptPtr(new LocaleICU(localeString));
 }
 
-PassOwnPtr<LocaleICU> LocaleICU::createForCurrentLocale()
-{
-    return adoptPtr(new LocaleICU(0));
-}
-
-LocaleICU* LocaleICU::currentLocale()
-{
-    static LocaleICU* currentLocale = LocaleICU::createForCurrentLocale().leakPtr();
-    return currentLocale;
-}
-
 String LocaleICU::decimalSymbol(UNumberFormatSymbol symbol)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -121,7 +112,7 @@ String LocaleICU::decimalTextAttribute(UNumberFormatTextAttribute tag)
     return String::adopt(buffer);
 }
 
-void LocaleICU::initializeLocalizerData()
+void LocaleICU::initializeLocaleData()
 {
     if (m_didCreateDecimalFormat)
         return;
@@ -145,7 +136,7 @@ void LocaleICU::initializeLocalizerData()
     symbols.append(decimalSymbol(UNUM_DECIMAL_SEPARATOR_SYMBOL));
     symbols.append(decimalSymbol(UNUM_GROUPING_SEPARATOR_SYMBOL));
     ASSERT(symbols.size() == DecimalSymbolsSize);
-    setLocalizerData(symbols, decimalTextAttribute(UNUM_POSITIVE_PREFIX), decimalTextAttribute(UNUM_POSITIVE_SUFFIX), decimalTextAttribute(UNUM_NEGATIVE_PREFIX), decimalTextAttribute(UNUM_NEGATIVE_SUFFIX));
+    setLocaleData(symbols, decimalTextAttribute(UNUM_POSITIVE_PREFIX), decimalTextAttribute(UNUM_POSITIVE_SUFFIX), decimalTextAttribute(UNUM_NEGATIVE_PREFIX), decimalTextAttribute(UNUM_NEGATIVE_SUFFIX));
 }
 
 bool LocaleICU::initializeShortDateFormat()
@@ -182,25 +173,6 @@ double LocaleICU::parseDateTime(const String& input, DateComponents::Type type)
     return date;
 }
 
-String LocaleICU::formatDateTime(const DateComponents& dateComponents)
-{
-    if (dateComponents.type() != DateComponents::Date)
-        return String();
-    if (!initializeShortDateFormat())
-        return String();
-    double input = dateComponents.millisecondsSinceEpoch();
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t length = udat_format(m_shortDateFormat, input, 0, 0, 0, &status);
-    if (status != U_BUFFER_OVERFLOW_ERROR)
-        return String();
-    Vector<UChar> buffer(length);
-    status = U_ZERO_ERROR;
-    udat_format(m_shortDateFormat, input, buffer.data(), length, 0, &status);
-    if (U_FAILURE(status))
-        return String();
-    return String::adopt(buffer);
-}
-
 #if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
 static String getDateFormatPattern(const UDateFormat* dateFormat)
 {
@@ -221,76 +193,6 @@ static String getDateFormatPattern(const UDateFormat* dateFormat)
 #endif
 
 #if ENABLE(CALENDAR_PICKER)
-static inline bool isICUYearSymbol(UChar letter)
-{
-    return letter == 'y' || letter == 'Y';
-}
-
-static inline bool isICUMonthSymbol(UChar letter)
-{
-    return letter == 'M';
-}
-
-static inline bool isICUDayInMonthSymbol(UChar letter)
-{
-    return letter == 'd';
-}
-
-// Specification of the input:
-// http://icu-project.org/apiref/icu4c/classSimpleDateFormat.html#details
-static String localizeFormat(const String& buffer)
-{
-    StringBuilder builder;
-    UChar lastChar = 0;
-    bool inQuote = false;
-    for (unsigned i = 0; i < buffer.length(); ++i) {
-        if (inQuote) {
-            if (buffer[i] == '\'') {
-                inQuote = false;
-                lastChar = 0;
-                ASSERT(i);
-                if (buffer[i - 1] == '\'')
-                    builder.append('\'');
-            } else
-                builder.append(buffer[i]);
-        } else {
-            if (isASCIIAlpha(lastChar) && lastChar == buffer[i])
-                continue;
-            lastChar = buffer[i];
-            if (isICUYearSymbol(lastChar)) {
-                String text = dateFormatYearText();
-                builder.append(text.isEmpty() ? "Year" : text);
-            } else if (isICUMonthSymbol(lastChar)) {
-                String text = dateFormatMonthText();
-                builder.append(text.isEmpty() ? "Month" : text);
-            } else if (isICUDayInMonthSymbol(lastChar)) {
-                String text = dateFormatDayInMonthText();
-                builder.append(text.isEmpty() ? "Day" : text);
-            } else if (lastChar == '\'')
-                inQuote = true;
-            else
-                builder.append(lastChar);
-        }
-    }
-    return builder.toString();
-}
-
-void LocaleICU::initializeLocalizedDateFormatText()
-{
-    if (!m_localizedDateFormatText.isNull())
-        return;
-    m_localizedDateFormatText = emptyString();
-    if (!initializeShortDateFormat())
-        return;
-    m_localizedDateFormatText = localizeFormat(getDateFormatPattern(m_shortDateFormat));
-}
-
-String LocaleICU::dateFormatText()
-{
-    initializeLocalizedDateFormatText();
-    return m_localizedDateFormatText;
-}
-
 PassOwnPtr<Vector<String> > LocaleICU::createLabelVector(const UDateFormat* dateFormat, UDateFormatSymbolType type, int32_t startIndex, int32_t size)
 {
     if (!dateFormat)
@@ -315,15 +217,6 @@ PassOwnPtr<Vector<String> > LocaleICU::createLabelVector(const UDateFormat* date
     return labels.release();
 }
 
-static PassOwnPtr<Vector<String> > createFallbackMonthLabels()
-{
-    OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
-    labels->reserveCapacity(WTF_ARRAY_LENGTH(WTF::monthFullName));
-    for (unsigned i = 0; i < WTF_ARRAY_LENGTH(WTF::monthFullName); ++i)
-        labels->append(WTF::monthFullName[i]);
-    return labels.release();
-}
-
 static PassOwnPtr<Vector<String> > createFallbackWeekDayShortLabels()
 {
     OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
@@ -340,32 +233,47 @@ static PassOwnPtr<Vector<String> > createFallbackWeekDayShortLabels()
 
 void LocaleICU::initializeCalendar()
 {
-    if (m_monthLabels && m_weekDayShortLabels)
+    if (m_weekDayShortLabels)
         return;
 
     if (!initializeShortDateFormat()) {
         m_firstDayOfWeek = 0;
-        m_monthLabels = createFallbackMonthLabels();
         m_weekDayShortLabels = createFallbackWeekDayShortLabels();
         return;
     }
     m_firstDayOfWeek = ucal_getAttribute(udat_getCalendar(m_shortDateFormat), UCAL_FIRST_DAY_OF_WEEK) - UCAL_SUNDAY;
 
-    m_monthLabels = createLabelVector(m_shortDateFormat, UDAT_MONTHS, UCAL_JANUARY, 12);
-    if (!m_monthLabels)
-        m_monthLabels = createFallbackMonthLabels();
-
     m_weekDayShortLabels = createLabelVector(m_shortDateFormat, UDAT_SHORT_WEEKDAYS, UCAL_SUNDAY, 7);
     if (!m_weekDayShortLabels)
         m_weekDayShortLabels = createFallbackWeekDayShortLabels();
 }
+#endif
+
+#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+static PassOwnPtr<Vector<String> > createFallbackMonthLabels()
+{
+    OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
+    labels->reserveCapacity(WTF_ARRAY_LENGTH(WTF::monthFullName));
+    for (unsigned i = 0; i < WTF_ARRAY_LENGTH(WTF::monthFullName); ++i)
+        labels->append(WTF::monthFullName[i]);
+    return labels.release();
+}
 
 const Vector<String>& LocaleICU::monthLabels()
 {
-    initializeCalendar();
+    if (m_monthLabels)
+        return *m_monthLabels;
+    if (initializeShortDateFormat()) {
+        m_monthLabels = createLabelVector(m_shortDateFormat, UDAT_MONTHS, UCAL_JANUARY, 12);
+        if (m_monthLabels)
+            return *m_monthLabels;
+    }
+    m_monthLabels = createFallbackMonthLabels();
     return *m_monthLabels;
 }
+#endif
 
+#if ENABLE(CALENDAR_PICKER)
 const Vector<String>& LocaleICU::weekDayShortLabels()
 {
     initializeCalendar();
@@ -376,6 +284,12 @@ unsigned LocaleICU::firstDayOfWeek()
 {
     initializeCalendar();
     return m_firstDayOfWeek;
+}
+
+bool LocaleICU::isRTL()
+{
+    UErrorCode status = U_ZERO_ERROR;
+    return uloc_getCharacterOrientation(m_locale.data(), &status) == ULOC_LAYOUT_RTL;
 }
 #endif
 
@@ -398,10 +312,10 @@ void LocaleICU::initializeDateTimeFormat()
     // with LDML, because ICU specific pattern character "V" doesn't appear
     // in both medium and short time pattern.
     m_mediumTimeFormat = openDateFormat(UDAT_MEDIUM, UDAT_NONE);
-    m_localizedTimeFormatText = getDateFormatPattern(m_mediumTimeFormat);
+    m_timeFormatWithSeconds = getDateFormatPattern(m_mediumTimeFormat);
 
     m_shortTimeFormat = openDateFormat(UDAT_SHORT, UDAT_NONE);
-    m_localizedShortTimeFormatText = getDateFormatPattern(m_shortTimeFormat);
+    m_timeFormatWithoutSeconds = getDateFormatPattern(m_shortTimeFormat);
 
     OwnPtr<Vector<String> > timeAMPMLabels = createLabelVector(m_mediumTimeFormat, UDAT_AM_PMS, UCAL_AM, 2);
     if (!timeAMPMLabels)
@@ -413,20 +327,98 @@ void LocaleICU::initializeDateTimeFormat()
 
 String LocaleICU::dateFormat()
 {
-    // FIXME: We should have real implementation of LocaleICU::dateFormat().
-    return emptyString();
+    if (!m_dateFormat.isNull())
+        return m_dateFormat;
+    if (!initializeShortDateFormat())
+        return ASCIILiteral("dd/MM/yyyy");
+    m_dateFormat = getDateFormatPattern(m_shortDateFormat);
+    return m_dateFormat;
+}
+
+static String getFormatForSkeleton(const char* locale, const String& skeleton)
+{
+    String format = ASCIILiteral("yyyy-MM");
+    UErrorCode status = U_ZERO_ERROR;
+    UDateTimePatternGenerator* patternGenerator = udatpg_open(locale, &status);
+    if (!patternGenerator)
+        return format;
+    status = U_ZERO_ERROR;
+    int32_t length = udatpg_getBestPattern(patternGenerator, skeleton.characters(), skeleton.length(), 0, 0, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR && length) {
+        Vector<UChar> buffer(length);
+        status = U_ZERO_ERROR;
+        udatpg_getBestPattern(patternGenerator, skeleton.characters(), skeleton.length(), buffer.data(), length, &status);
+        if (U_SUCCESS(status))
+            format = String::adopt(buffer);
+    }
+    udatpg_close(patternGenerator);
+    return format;
+}
+
+String LocaleICU::monthFormat()
+{
+    if (!m_monthFormat.isNull())
+        return m_monthFormat;
+    // Gets a format for "MMMM" because Windows API always provides formats for
+    // "MMMM" in some locales.
+    m_monthFormat = getFormatForSkeleton(m_locale.data(), ASCIILiteral("yyyyMMMM"));
+    return m_monthFormat;
 }
 
 String LocaleICU::timeFormat()
 {
     initializeDateTimeFormat();
-    return m_localizedTimeFormatText;
+    return m_timeFormatWithSeconds;
 }
 
 String LocaleICU::shortTimeFormat()
 {
     initializeDateTimeFormat();
-    return m_localizedShortTimeFormatText;
+    return m_timeFormatWithoutSeconds;
+}
+
+const Vector<String>& LocaleICU::shortMonthLabels()
+{
+    if (!m_shortMonthLabels.isEmpty())
+        return m_shortMonthLabels;
+    if (initializeShortDateFormat()) {
+        if (OwnPtr<Vector<String> > labels = createLabelVector(m_shortDateFormat, UDAT_SHORT_MONTHS, UCAL_JANUARY, 12)) {
+            m_shortMonthLabels = *labels;
+            return m_shortMonthLabels;
+        }
+    }
+    m_shortMonthLabels.reserveCapacity(WTF_ARRAY_LENGTH(WTF::monthName));
+    for (unsigned i = 0; i < WTF_ARRAY_LENGTH(WTF::monthName); ++i)
+        m_shortMonthLabels.append(WTF::monthName[i]);
+    return m_shortMonthLabels;
+}
+
+const Vector<String>& LocaleICU::standAloneMonthLabels()
+{
+    if (!m_standAloneMonthLabels.isEmpty())
+        return m_standAloneMonthLabels;
+    if (initializeShortDateFormat()) {
+        if (OwnPtr<Vector<String> > labels = createLabelVector(m_shortDateFormat, UDAT_STANDALONE_MONTHS, UCAL_JANUARY, 12)) {
+            m_standAloneMonthLabels = *labels;
+            return m_standAloneMonthLabels;
+        }
+    }
+    m_standAloneMonthLabels = monthLabels();
+    return m_standAloneMonthLabels;
+}
+
+const Vector<String>& LocaleICU::shortStandAloneMonthLabels()
+{
+    if (!m_shortStandAloneMonthLabels.isEmpty())
+        return m_shortStandAloneMonthLabels;
+    if (initializeShortDateFormat()) {
+        if (OwnPtr<Vector<String> > labels = createLabelVector(m_shortDateFormat, UDAT_STANDALONE_SHORT_MONTHS, UCAL_JANUARY, 12)) {
+            m_shortStandAloneMonthLabels = *labels;
+            return m_shortStandAloneMonthLabels;
+        }
+    }
+    m_shortStandAloneMonthLabels = shortMonthLabels();
+    return m_shortStandAloneMonthLabels;
 }
 
 const Vector<String>& LocaleICU::timeAMPMLabels()

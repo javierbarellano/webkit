@@ -891,7 +891,8 @@
 /* If possible, try to enable a disassembler. This is optional. We proceed in two
    steps: first we try to find some disassembler that we can use, and then we
    decide if the high-level disassembler API can be enabled. */
-#if !defined(WTF_USE_UDIS86) && ENABLE(JIT) && PLATFORM(MAC) && (CPU(X86) || CPU(X86_64))
+#if !defined(WTF_USE_UDIS86) && ENABLE(JIT) && (PLATFORM(MAC) || (PLATFORM(QT) && OS(LINUX))) \
+    && (CPU(X86) || CPU(X86_64))
 #define WTF_USE_UDIS86 1
 #endif
 
@@ -1025,6 +1026,11 @@
 #define ENABLE_PAN_SCROLLING 1
 #endif
 
+/*Add other platforms as they update their platfrom specific code to handle TextRun's with 8 bit data. */
+#if PLATFORM(MAC)
+#define ENABLE_8BIT_TEXTRUN 1
+#endif
+
 /* Use the QXmlStreamReader implementation for XMLDocumentParser */
 /* Use the QXmlQuery implementation for XSLTProcessor */
 #if PLATFORM(QT)
@@ -1109,7 +1115,7 @@
    since most ports try to support sub-project independence, adding new headers
    to WTF causes many ports to break, and so this way we can address the build
    breakages one port at a time. */
-#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT) || PLATFORM(WX) || PLATFORM(BLACKBERRY))
+#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT) || PLATFORM(WX))
 #define WTF_USE_EXPORT_MACROS 1
 #endif
 
@@ -1174,6 +1180,14 @@
 #if ENABLE(NOTIFICATIONS) && PLATFORM(MAC)
 #define ENABLE_TEXT_NOTIFICATIONS_ONLY 1
 #endif
+
+#if !defined(ENABLE_EXTERNAL_SVG_REFERENCES)
+#if PLATFORM(CHROMIUM)
+#define ENABLE_EXTERNAL_SVG_REFERENCES 0
+#else
+#define ENABLE_EXTERNAL_SVG_REFERENCES 1
+#endif // PLATFORM(CHROMIUM)
+#endif // !defined(ENABLE_EXTERNAL_SVG_REFERENCES)
 
 #if !defined(WTF_USE_ZLIB) && !PLATFORM(QT)
 #define WTF_USE_ZLIB 1

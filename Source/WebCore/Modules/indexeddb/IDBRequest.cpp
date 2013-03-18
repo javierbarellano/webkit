@@ -41,6 +41,10 @@
 #include "IDBEventDispatcher.h"
 #include "IDBTracing.h"
 #include "IDBTransaction.h"
+#include "ScriptExecutionContext.h"
+#if USE(V8)
+#include "V8Binding.h"
+#endif
 
 namespace WebCore {
 
@@ -74,6 +78,10 @@ IDBRequest::IDBRequest(ScriptExecutionContext* context, PassRefPtr<IDBAny> sourc
     , m_cursorFinished(false)
     , m_pendingCursor(0)
     , m_didFireUpgradeNeededEvent(false)
+    , m_preventPropagation(false)
+#if USE(V8)
+    , m_worldContextHandle(UseCurrentWorld)
+#endif
 {
     if (m_transaction) {
         m_transaction->registerRequest(this);
@@ -282,6 +290,14 @@ void IDBRequest::onSuccess(PassRefPtr<IDBCursorBackendInterface> backend, PassRe
     if (!shouldEnqueueEvent())
         return;
 
+#if USE(V8)
+    v8::HandleScope handleScope;
+    v8::Local<v8::Context> context = toV8Context(scriptExecutionContext(), m_worldContextHandle);
+    if (context.IsEmpty())
+        CRASH();
+    v8::Context::Scope contextScope(context);
+#endif
+
     ScriptValue value = deserializeIDBValue(scriptExecutionContext(), serializedValue);
     ASSERT(m_cursorType != IDBCursorBackendInterface::InvalidCursorType);
     RefPtr<IDBCursor> cursor;
@@ -321,7 +337,7 @@ void IDBRequest::onSuccess(PassRefPtr<IDBTransactionBackendInterface> prpBackend
     if (!shouldEnqueueEvent())
         return;
 
-    RefPtr<IDBTransaction> frontend = IDBTransaction::create(scriptExecutionContext(), backend, IDBTransaction::VERSION_CHANGE, m_source->idbDatabase().get());
+    RefPtr<IDBTransaction> frontend = IDBTransaction::create(scriptExecutionContext(), backend, Vector<String>(), IDBTransaction::VERSION_CHANGE, m_source->idbDatabase().get());
     backend->setCallbacks(frontend.get());
     m_transaction = frontend;
 
@@ -337,6 +353,14 @@ void IDBRequest::onSuccess(PassRefPtr<SerializedScriptValue> serializedScriptVal
     IDB_TRACE("IDBRequest::onSuccess(SerializedScriptValue)");
     if (!shouldEnqueueEvent())
         return;
+
+#if USE(V8)
+    v8::HandleScope handleScope;
+    v8::Local<v8::Context> context = toV8Context(scriptExecutionContext(), m_worldContextHandle);
+    if (context.IsEmpty())
+        CRASH();
+    v8::Context::Scope contextScope(context);
+#endif
 
     ScriptValue value = deserializeIDBValue(scriptExecutionContext(), serializedScriptValue);
     onSuccessInternal(value);
@@ -361,6 +385,14 @@ void IDBRequest::onSuccess(PassRefPtr<SerializedScriptValue> prpSerializedScript
     if (!shouldEnqueueEvent())
         return;
 
+#if USE(V8)
+    v8::HandleScope handleScope;
+    v8::Local<v8::Context> context = toV8Context(scriptExecutionContext(), m_worldContextHandle);
+    if (context.IsEmpty())
+        CRASH();
+    v8::Context::Scope contextScope(context);
+#endif
+
 #ifndef NDEBUG
     ASSERT(keyPath == effectiveObjectStore(m_source)->keyPath());
 #endif
@@ -374,6 +406,16 @@ void IDBRequest::onSuccess(PassRefPtr<SerializedScriptValue> prpSerializedScript
     bool injected = injectIDBKeyIntoScriptValue(primaryKey, value, keyPath);
     ASSERT_UNUSED(injected, injected);
     onSuccessInternal(value);
+}
+
+void IDBRequest::onSuccess(int64_t value)
+{
+    return onSuccess(SerializedScriptValue::numberValue(value));
+}
+
+void IDBRequest::onSuccess()
+{
+    return onSuccess(SerializedScriptValue::undefinedValue());
 }
 
 void IDBRequest::onSuccessInternal(const ScriptValue& value)
@@ -391,6 +433,14 @@ void IDBRequest::onSuccess(PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey
     IDB_TRACE("IDBRequest::onSuccess(key, primaryKey, value)");
     if (!shouldEnqueueEvent())
         return;
+
+#if USE(V8)
+    v8::HandleScope handleScope;
+    v8::Local<v8::Context> context = toV8Context(scriptExecutionContext(), m_worldContextHandle);
+    if (context.IsEmpty())
+        CRASH();
+    v8::Context::Scope contextScope(context);
+#endif
 
     ScriptValue value = deserializeIDBValue(scriptExecutionContext(), serializedValue);
     ASSERT(m_pendingCursor);
@@ -437,6 +487,15 @@ bool IDBRequest::dispatchEvent(PassRefPtr<Event> event)
     ASSERT(scriptExecutionContext());
     ASSERT(event->target() == this);
     ASSERT_WITH_MESSAGE(m_readyState < DONE, "When dispatching event %s, m_readyState < DONE(%d), was %d", event->type().string().utf8().data(), DONE, m_readyState);
+
+#if USE(V8)
+    v8::HandleScope handleScope;
+    v8::Local<v8::Context> context = toV8Context(scriptExecutionContext(), m_worldContextHandle);
+    if (context.IsEmpty())
+        CRASH();
+    v8::Context::Scope contextScope(context);
+#endif
+
     if (event->type() != eventNames().blockedEvent)
         m_readyState = DONE;
 
@@ -447,7 +506,7 @@ bool IDBRequest::dispatchEvent(PassRefPtr<Event> event)
 
     Vector<RefPtr<EventTarget> > targets;
     targets.append(this);
-    if (m_transaction) {
+    if (m_transaction && !m_preventPropagation) {
         targets.append(m_transaction);
         // If there ever are events that are associated with a database but
         // that do not have a transaction, then this will not work and we need
@@ -460,8 +519,10 @@ bool IDBRequest::dispatchEvent(PassRefPtr<Event> event)
     RefPtr<IDBCursor> cursorToNotify;
     if (event->type() == eventNames().successEvent) {
         cursorToNotify = getResultCursor();
-        if (cursorToNotify)
-            cursorToNotify->setValueReady(m_cursorKey.release(), m_cursorPrimaryKey.release(), m_cursorValue);
+        if (cursorToNotify) {
+            cursorToNotify->setValueReady(scriptExecutionContext(), m_cursorKey.release(), m_cursorPrimaryKey.release(), m_cursorValue);
+            m_cursorValue.clear();
+        }
     }
 
     if (event->type() == eventNames().upgradeneededEvent) {
@@ -507,7 +568,7 @@ void IDBRequest::uncaughtExceptionInEventHandler()
 {
     if (m_transaction && !m_requestAborted) {
         m_transaction->setError(DOMError::create(IDBDatabaseException::getErrorName(IDBDatabaseException::IDB_ABORT_ERR)));
-        ExceptionCode unused; 
+        ExceptionCode unused;
         m_transaction->abort(unused);
     }
 }

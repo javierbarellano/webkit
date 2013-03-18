@@ -42,7 +42,24 @@
 #ifndef DRTTestRunner_h
 #define DRTTestRunner_h
 
-#include "TestRunner/TestRunner.h"
+#include "TestRunner/src/TestRunner.h"
+#include "WebDeliveredIntentClient.h"
+#include "WebTask.h"
+#include "WebTextDirection.h"
+#include "platform/WebArrayBufferView.h"
+#include "platform/WebString.h"
+#include "platform/WebURL.h"
+#include <wtf/Deque.h>
+#include <wtf/OwnPtr.h>
+
+namespace WebKit {
+class WebGeolocationClientMock;
+}
+
+namespace webkit_support {
+class ScopedTempDirectory;
+}
+
 
 class TestShell;
 
@@ -280,6 +297,7 @@ public:
     void evaluateScriptInIsolatedWorldAndReturnValue(const CppArgumentList&, CppVariant*);
     void evaluateScriptInIsolatedWorld(const CppArgumentList&, CppVariant*);
     void setIsolatedWorldSecurityOrigin(const CppArgumentList&, CppVariant*);
+    void setIsolatedWorldContentSecurityPolicy(const CppArgumentList&, CppVariant*);
 
     // The fallback method is called when a nonexistent method is called on
     // the layout test controller object.
@@ -354,8 +372,6 @@ public:
     void wasMockSpeechRecognitionAborted(const CppArgumentList&, CppVariant*);
 #endif
     void startSpeechInput(const CppArgumentList&, CppVariant*);
-
-    void layerTreeAsText(const CppArgumentList& args, CppVariant* result);
 
     void loseCompositorContext(const CppArgumentList& args, CppVariant* result);
 
@@ -513,7 +529,7 @@ public:
         virtual bool run(TestShell*) = 0;
     };
 
-    TaskList* taskList() { return &m_taskList; }
+    WebTestRunner::WebTaskList* taskList() { return &m_taskList; }
 
     bool shouldStayOnPageAfterHandlingBeforeUnload() const { return m_shouldStayOnPageAfterHandlingBeforeUnload; }
 
@@ -536,17 +552,17 @@ private:
 
         void setFrozen(bool frozen) { m_frozen = frozen; }
         bool isEmpty() { return m_queue.isEmpty(); }
-        TaskList* taskList() { return &m_taskList; }
+        WebTestRunner::WebTaskList* taskList() { return &m_taskList; }
 
     private:
         void processWork();
-        class WorkQueueTask: public MethodTask<WorkQueue> {
+        class WorkQueueTask: public WebTestRunner::WebMethodTask<WorkQueue> {
         public:
-            WorkQueueTask(WorkQueue* object): MethodTask<WorkQueue>(object) { }
+            WorkQueueTask(WorkQueue* object): WebTestRunner::WebMethodTask<WorkQueue>(object) { }
             virtual void runIfValid() { m_object->processWork(); }
         };
 
-        TaskList m_taskList;
+        WebTestRunner::WebTaskList m_taskList;
         Deque<WorkItem*> m_queue;
         bool m_frozen;
         DRTTestRunner* m_controller;
@@ -560,9 +576,9 @@ private:
 
     void logErrorToConsole(const std::string&);
     void completeNotifyDone(bool isTimeout);
-    class NotifyDoneTimedOutTask: public MethodTask<DRTTestRunner> {
+    class NotifyDoneTimedOutTask: public WebTestRunner::WebMethodTask<DRTTestRunner> {
     public:
-        NotifyDoneTimedOutTask(DRTTestRunner* object): MethodTask<DRTTestRunner>(object) { }
+        NotifyDoneTimedOutTask(DRTTestRunner* object): WebTestRunner::WebMethodTask<DRTTestRunner>(object) { }
         virtual void runIfValid() { m_object->completeNotifyDone(true); }
     };
 
@@ -573,7 +589,7 @@ private:
     int numberOfActiveAnimations();
 
     // Used for test timeouts.
-    TaskList m_taskList;
+    WebTestRunner::WebTaskList m_taskList;
 
     // Non-owning pointer. The DRTTestRunner is owned by the host.
     TestShell* m_shell;

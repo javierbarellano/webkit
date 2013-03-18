@@ -236,6 +236,7 @@ void TestRunner::simulateLegacyWebNotificationClick(const QString& title)
 
 void TestRunner::display()
 {
+    DumpRenderTreeSupportQt::setTrackRepaintRects(m_topLoadingFrame, true);
     emit showPage();
 }
 
@@ -405,11 +406,6 @@ QString TestRunner::decodeHostName(const QString& host)
     QString decoded = QUrl::fromAce(host.toLatin1() + QByteArray(".no"));
     decoded.truncate(decoded.length() - 3);
     return decoded;
-}
-
-void TestRunner::setMediaType(const QString& type)
-{
-    DumpRenderTreeSupportQt::setMediaType(m_drt->webPage()->mainFrame(), type);
 }
 
 void TestRunner::closeWebInspector()
@@ -677,6 +673,8 @@ void TestRunner::overridePreference(const QString& name, const QVariant& value)
         settings->setAttribute(QWebSettings::HyperlinkAuditingEnabled, value.toBool());
     else if (name == "WebKitAcceleratedCompositingEnabled")
         settings->setAttribute(QWebSettings::AcceleratedCompositingEnabled, value.toBool());
+    else if (name == "WebKitDisplayImagesKey")
+        settings->setAttribute(QWebSettings::AutoLoadImages, value.toBool());
     else
         printf("ERROR: TestRunner::overridePreference() does not support the '%s' preference\n",
             name.toLatin1().data());
@@ -936,11 +934,6 @@ void TestRunner::setPageVisibility(const char*)
 void TestRunner::setAutomaticLinkDetectionEnabled(bool)
 {
     // FIXME: Implement this.
-}
-
-QString TestRunner::layerTreeAsText()
-{
-    return DumpRenderTreeSupportQt::layerTreeAsText(m_drt->webPage()->mainFrame());
 }
 
 void TestRunner::setTextDirection(const QString& directionName)

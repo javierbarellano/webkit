@@ -23,8 +23,8 @@
 #include <wtf/text/WTFString.h>
 
 #if USE(CF)
-
 #include <CoreFoundation/CoreFoundation.h>
+#include <wtf/RetainPtr.h>
 
 namespace WTF {
 
@@ -37,13 +37,21 @@ String::String(CFStringRef str)
     if (size == 0)
         m_impl = StringImpl::empty();
     else {
+        Vector<LChar, 1024> lcharBuffer(size);
+        CFIndex usedBufLen;
+        CFIndex convertedsize = CFStringGetBytes(str, CFRangeMake(0, size), kCFStringEncodingISOLatin1, 0, false, lcharBuffer.data(), size, &usedBufLen);
+        if ((convertedsize == size) && (usedBufLen == size)) {
+            m_impl = StringImpl::create(lcharBuffer.data(), size);
+            return;
+        }
+
         Vector<UChar, 1024> buffer(size);
         CFStringGetCharacters(str, CFRangeMake(0, size), (UniChar*)buffer.data());
         m_impl = StringImpl::create(buffer.data(), size);
     }
 }
 
-CFStringRef String::createCFString() const
+RetainPtr<CFStringRef> String::createCFString() const
 {
     if (!m_impl)
         return CFSTR("");

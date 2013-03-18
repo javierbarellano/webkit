@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2012 Google Inc. All rights reserved.
  *
@@ -32,9 +33,13 @@
 
 #if ENABLE(MEDIA_STREAM)
 
+#include <public/WebMediaStreamComponent.h>
+#include <public/WebMediaStreamDescriptor.h>
 #include <public/WebRTCStatsRequest.h>
+#include <public/WebRTCStatsResponse.h>
 
 #include "RTCStatsRequest.h"
+#include "RTCStatsResponse.h"
 #include <wtf/PassOwnPtr.h>
 
 using namespace WebCore;
@@ -56,12 +61,31 @@ void WebRTCStatsRequest::reset()
     m_private.reset();
 }
 
-void WebRTCStatsRequest::requestSucceeded() const
+WebRTCStatsResponse WebRTCStatsRequest::createResponse() const
 {
-    m_private->requestSucceeded();
+    return WebRTCStatsResponse(m_private->createResponse());
+}
+
+bool WebRTCStatsRequest::hasSelector() const
+{
+    return m_private->hasSelector();
+}
+
+const WebMediaStreamDescriptor WebRTCStatsRequest::stream() const
+{
+    return WebMediaStreamDescriptor(m_private->stream());
+}
+
+const WebMediaStreamComponent WebRTCStatsRequest::component() const
+{
+    return WebMediaStreamComponent(m_private->component());
+}
+
+void WebRTCStatsRequest::requestSucceeded(const WebRTCStatsResponse& response) const
+{
+    m_private->requestSucceeded(response);
 }
 
 } // namespace WebKit
 
 #endif // ENABLE(MEDIA_STREAM)
-

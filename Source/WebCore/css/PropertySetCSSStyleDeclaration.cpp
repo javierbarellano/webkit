@@ -346,7 +346,7 @@ CSSValue* PropertySetCSSStyleDeclaration::cloneAndCacheForCSSOM(CSSValue* intern
     if (!m_cssomCSSValueClones)
         m_cssomCSSValueClones = adoptPtr(new HashMap<CSSValue*, RefPtr<CSSValue> >);
     
-    RefPtr<CSSValue>& clonedValue = m_cssomCSSValueClones->add(internalValue, RefPtr<CSSValue>()).iterator->second;
+    RefPtr<CSSValue>& clonedValue = m_cssomCSSValueClones->add(internalValue, RefPtr<CSSValue>()).iterator->value;
     if (!clonedValue)
         clonedValue = internalValue->cloneForCSSOM();
     return clonedValue.get();
@@ -369,7 +369,7 @@ PassRefPtr<StylePropertySet> PropertySetCSSStyleDeclaration::makeMutable()
     return m_propertySet;
 }
 
-bool PropertySetCSSStyleDeclaration::cssPropertyMatches(const CSSProperty* property) const
+bool PropertySetCSSStyleDeclaration::cssPropertyMatches(const StylePropertySet::PropertyReference& property) const
 {
     return m_propertySet->propertyMatches(property);
 }

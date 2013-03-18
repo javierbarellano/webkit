@@ -136,7 +136,7 @@ void TextureMapperLayer::updateBackingStore(TextureMapper* textureMapper, Graphi
 
     RefPtr<Image> image = imageBuffer->copyImage(DontCopyBackingStore);
     TextureMapperTiledBackingStore* backingStore = static_cast<TextureMapperTiledBackingStore*>(m_backingStore.get());
-    backingStore->updateContents(textureMapper, image.get(), m_size, dirtyRect);
+    backingStore->updateContents(textureMapper, image.get(), m_size, dirtyRect, BitmapTexture::UpdateCanModifyOriginalImageData);
 
     backingStore->setShowDebugBorders(layer->showDebugBorders());
     backingStore->setDebugBorder(m_debugBorderColor, m_debugBorderWidth);
@@ -183,7 +183,7 @@ int TextureMapperLayer::compareGraphicsLayersZValue(const void* a, const void* b
     return int(((*layerA)->m_centerZ - (*layerB)->m_centerZ) * 1000);
 }
 
-void TextureMapperLayer::sortByZOrder(Vector<TextureMapperLayer* >& array, int first, int last)
+void TextureMapperLayer::sortByZOrder(Vector<TextureMapperLayer* >& array, int /* first */, int /* last */)
 {
     qsort(array.data(), array.size(), sizeof(TextureMapperLayer*), compareGraphicsLayersZValue);
 }
@@ -223,12 +223,12 @@ IntRect TextureMapperLayer::intermediateSurfaceRect(const TransformationMatrix& 
     }
 
 #if ENABLE(CSS_FILTERS)
-    if (m_state.filters.hasOutsets()) {
+    if (m_filters.hasOutsets()) {
         int leftOutset;
         int topOutset;
         int bottomOutset;
         int rightOutset;
-        m_state.filters.getOutsets(topOutset, rightOutset, bottomOutset, leftOutset);
+        m_filters.getOutsets(topOutset, rightOutset, bottomOutset, leftOutset);
         IntRect unfilteredTargetRect(rect);
         rect.move(std::max(0, -leftOutset), std::max(0, -topOutset));
         rect.expand(leftOutset + rightOutset, topOutset + bottomOutset);
@@ -262,7 +262,7 @@ TextureMapperLayer::ContentsLayerCount TextureMapperLayer::countPotentialLayersW
 bool TextureMapperLayer::shouldPaintToIntermediateSurface() const
 {
 #if ENABLE(CSS_FILTERS)
-    if (m_state.filters.size())
+    if (m_filters.size())
         return true;
 #endif
     bool hasOpacity = m_opacity < 0.99;
@@ -381,7 +381,7 @@ void TextureMapperLayer::paintRecursive(const TextureMapperPaintOptions& options
         maskTexture = 0;
 
 #if ENABLE(CSS_FILTERS)
-    surface = applyFilters(m_state.filters, options.textureMapper, surface.get(), surfaceRect);
+    surface = applyFilters(m_filters, options.textureMapper, surface.get(), surfaceRect);
 #endif
 
     options.textureMapper->bindSurface(options.surface.get());
@@ -402,12 +402,12 @@ TextureMapperLayer::~TextureMapperLayer()
         m_parent->m_children.remove(m_parent->m_children.find(this));
 }
 
-void TextureMapperLayer::syncCompositingState(GraphicsLayerTextureMapper* graphicsLayer, int options)
+void TextureMapperLayer::flushCompositingState(GraphicsLayerTextureMapper* graphicsLayer, int options)
 {
-    syncCompositingState(graphicsLayer, rootLayer()->m_textureMapper, options);
+    flushCompositingState(graphicsLayer, rootLayer()->m_textureMapper, options);
 }
 
-void TextureMapperLayer::syncCompositingStateSelf(GraphicsLayerTextureMapper* graphicsLayer, TextureMapper* textureMapper)
+void TextureMapperLayer::flushCompositingStateSelf(GraphicsLayerTextureMapper* graphicsLayer, TextureMapper*)
 {
     int changeMask = graphicsLayer->changeMask();
 
@@ -510,6 +510,13 @@ bool TextureMapperLayer::descendantsOrSelfHaveRunningAnimations() const
     return false;
 }
 
+void TextureMapperLayer::applyAnimationsRecursively()
+{
+    syncAnimations();
+    for (size_t i = 0; i < m_children.size(); ++i)
+        m_children[i]->applyAnimationsRecursively();
+}
+
 void TextureMapperLayer::syncAnimations()
 {
     m_animations.apply(this);
@@ -517,20 +524,24 @@ void TextureMapperLayer::syncAnimations()
         setTransform(m_state.transform);
     if (!m_animations.hasActiveAnimationsOfType(AnimatedPropertyOpacity))
         setOpacity(m_state.opacity);
+#if ENABLE(CSS_FILTERS)
+    if (!m_animations.hasActiveAnimationsOfType(AnimatedPropertyWebkitFilter))
+        setFilters(m_state.filters);
+#endif
 }
 
-void TextureMapperLayer::syncCompositingState(GraphicsLayerTextureMapper* graphicsLayer, TextureMapper* textureMapper, int options)
+void TextureMapperLayer::flushCompositingState(GraphicsLayerTextureMapper* graphicsLayer, TextureMapper* textureMapper, int options)
 {
     if (!textureMapper)
         return;
 
     if (graphicsLayer && !(options & ComputationsOnly)) {
-        syncCompositingStateSelf(graphicsLayer, textureMapper);
+        flushCompositingStateSelf(graphicsLayer, textureMapper);
         graphicsLayer->didSynchronize();
     }
 
     if (graphicsLayer && m_state.maskLayer) {
-        m_state.maskLayer->syncCompositingState(toGraphicsLayerTextureMapper(graphicsLayer->maskLayer()), textureMapper);
+        m_state.maskLayer->flushCompositingState(toGraphicsLayerTextureMapper(graphicsLayer->maskLayer()), textureMapper);
 
         // A mask layer has its parent's size by default, in case it's not set specifically.
         if (m_state.maskLayer->m_size.isEmpty())
@@ -538,7 +549,7 @@ void TextureMapperLayer::syncCompositingState(GraphicsLayerTextureMapper* graphi
     }
 
     if (m_state.replicaLayer)
-        m_state.replicaLayer->syncCompositingState(toGraphicsLayerTextureMapper(graphicsLayer->replicaLayer()), textureMapper);
+        m_state.replicaLayer->flushCompositingState(toGraphicsLayerTextureMapper(graphicsLayer->replicaLayer()), textureMapper);
 
     syncAnimations();
     updateBackingStore(textureMapper, graphicsLayer);
@@ -552,11 +563,11 @@ void TextureMapperLayer::syncCompositingState(GraphicsLayerTextureMapper* graphi
             TextureMapperLayer* layer = toTextureMapperLayer(children[i]);
             if (!layer)
                 continue;
-            layer->syncCompositingState(toGraphicsLayerTextureMapper(children[i]), textureMapper, options);
+            layer->flushCompositingState(toGraphicsLayerTextureMapper(children[i]), textureMapper, options);
         }
     } else {
         for (int i = m_children.size() - 1; i >= 0; --i)
-            m_children[i]->syncCompositingState(0, textureMapper, options);
+            m_children[i]->flushCompositingState(0, textureMapper, options);
     }
 }
 

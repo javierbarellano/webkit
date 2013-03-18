@@ -108,7 +108,7 @@ PassRefPtr<DOMStringList> IDBDatabase::objectStoreNames() const
 {
     RefPtr<DOMStringList> objectStoreNames = DOMStringList::create();
     for (IDBDatabaseMetadata::ObjectStoreMap::const_iterator it = m_metadata.objectStores.begin(); it != m_metadata.objectStores.end(); ++it)
-        objectStoreNames->append(it->first);
+        objectStoreNames->append(it->value.name);
     objectStoreNames->sort();
     return objectStoreNames.release();
 }
@@ -142,7 +142,7 @@ PassRefPtr<IDBObjectStore> IDBDatabase::createObjectStore(const String& name, co
             keyPath = IDBKeyPath(keyPathString);
     }
 
-    if (m_metadata.objectStores.contains(name)) {
+    if (m_metadata.containsObjectStore(name)) {
         ec = IDBDatabaseException::CONSTRAINT_ERR;
         return 0;
     }
@@ -161,15 +161,17 @@ PassRefPtr<IDBObjectStore> IDBDatabase::createObjectStore(const String& name, co
         return 0;
     }
 
-    RefPtr<IDBObjectStoreBackendInterface> objectStoreBackend = m_backend->createObjectStore(name, keyPath, autoIncrement, m_versionChangeTransaction->backend(), ec);
+    int64_t objectStoreId = m_metadata.maxObjectStoreId + 1;
+    RefPtr<IDBObjectStoreBackendInterface> objectStoreBackend = m_backend->createObjectStore(objectStoreId, name, keyPath, autoIncrement, m_versionChangeTransaction->backend(), ec);
     if (!objectStoreBackend) {
         ASSERT(ec);
         return 0;
     }
 
-    IDBObjectStoreMetadata metadata(name, keyPath, autoIncrement);
+    IDBObjectStoreMetadata metadata(name, objectStoreId, keyPath, autoIncrement, IDBObjectStoreBackendInterface::MinimumIndexId);
     RefPtr<IDBObjectStore> objectStore = IDBObjectStore::create(metadata, objectStoreBackend.release(), m_versionChangeTransaction.get());
-    m_metadata.objectStores.set(name, metadata);
+    m_metadata.objectStores.set(metadata.id, metadata);
+    ++m_metadata.maxObjectStoreId;
 
     m_versionChangeTransaction->objectStoreCreated(name, objectStore);
     return objectStore.release();
@@ -185,7 +187,9 @@ void IDBDatabase::deleteObjectStore(const String& name, ExceptionCode& ec)
         ec = IDBDatabaseException::TRANSACTION_INACTIVE_ERR;
         return;
     }
-    if (!m_metadata.objectStores.contains(name)) {
+
+    int64 objectStoreId = m_metadata.findObjectStore(name);
+    if (objectStoreId == IDBObjectStoreMetadata::InvalidId) {
         ec = IDBDatabaseException::IDB_NOT_FOUND_ERR;
         return;
     }
@@ -193,7 +197,7 @@ void IDBDatabase::deleteObjectStore(const String& name, ExceptionCode& ec)
     m_backend->deleteObjectStore(name, m_versionChangeTransaction->backend(), ec);
     if (!ec) {
         m_versionChangeTransaction->objectStoreDeleted(name);
-        m_metadata.objectStores.remove(name);
+        m_metadata.objectStores.remove(objectStoreId);
     }
 }
 
@@ -230,13 +234,20 @@ PassRefPtr<IDBTransaction> IDBDatabase::transaction(ScriptExecutionContext* cont
         return 0;
     }
 
-    IDBTransaction::Mode mode = IDBTransaction::stringToMode(modeString, ec);
+    IDBTransaction::Mode mode = IDBTransaction::stringToMode(modeString, context, ec);
     if (ec)
         return 0;
 
     if (m_versionChangeTransaction || m_closePending) {
         ec = IDBDatabaseException::IDB_INVALID_STATE_ERR;
         return 0;
+    }
+
+    for (size_t i = 0; i < storeNames->length(); ++i) {
+        if (!m_metadata.containsObjectStore(storeNames->item(i))) {
+            ec = IDBDatabaseException::IDB_NOT_FOUND_ERR;
+            return 0;
+        }
     }
 
     // We need to create a new transaction synchronously. Locks are acquired asynchronously. Operations
@@ -248,7 +259,7 @@ PassRefPtr<IDBTransaction> IDBDatabase::transaction(ScriptExecutionContext* cont
         ASSERT(ec);
         return 0;
     }
-    RefPtr<IDBTransaction> transaction = IDBTransaction::create(context, transactionBackend, mode, this);
+    RefPtr<IDBTransaction> transaction = IDBTransaction::create(context, transactionBackend, *storeNames, mode, this);
     transactionBackend->setCallbacks(transaction.get());
     return transaction.release();
 }
@@ -258,25 +269,6 @@ PassRefPtr<IDBTransaction> IDBDatabase::transaction(ScriptExecutionContext* cont
     RefPtr<DOMStringList> storeNames = DOMStringList::create();
     storeNames->append(storeName);
     return transaction(context, storeNames, mode, ec);
-}
-
-PassRefPtr<IDBTransaction> IDBDatabase::transaction(ScriptExecutionContext* context, const String& storeName, unsigned short mode, ExceptionCode& ec)
-{
-    RefPtr<DOMStringList> storeNames = DOMStringList::create();
-    storeNames->append(storeName);
-    return transaction(context, storeNames, mode, ec);
-}
-
-PassRefPtr<IDBTransaction> IDBDatabase::transaction(ScriptExecutionContext* context, PassRefPtr<DOMStringList> prpStoreNames, unsigned short mode, ExceptionCode& ec)
-{
-    // FIXME: Is this thread-safe?
-    DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Numeric transaction modes are deprecated in IDBDatabase.transaction. Use \"readonly\" or \"readwrite\".")));
-    context->addConsoleMessage(JSMessageSource, LogMessageType, WarningMessageLevel, consoleMessage);
-    AtomicString modeString = IDBTransaction::modeToString(IDBTransaction::Mode(mode), ec);
-    if (ec)
-        return 0;
-
-    return transaction(context, prpStoreNames, modeString, ec);
 }
 
 void IDBDatabase::forceClose()

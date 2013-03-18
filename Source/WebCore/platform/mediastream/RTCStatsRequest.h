@@ -39,11 +39,19 @@
 
 namespace WebCore {
 
+class MediaStreamComponent;
+class MediaStreamDescriptor;
+class RTCStatsResponseBase;
+
 class RTCStatsRequest : public RefCounted<RTCStatsRequest> {
 public:
     virtual ~RTCStatsRequest() { }
 
-    virtual void requestSucceeded() = 0;
+    virtual PassRefPtr<RTCStatsResponseBase> createResponse() = 0;
+    virtual bool hasSelector() = 0;
+    virtual MediaStreamDescriptor* stream() = 0;
+    virtual MediaStreamComponent* component() = 0;
+    virtual void requestSucceeded(PassRefPtr<RTCStatsResponseBase>) = 0;
 
 protected:
     RTCStatsRequest() { }

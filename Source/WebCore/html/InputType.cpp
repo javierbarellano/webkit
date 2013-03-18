@@ -871,16 +871,6 @@ bool InputType::supportsPlaceholder() const
     return false;
 }
 
-bool InputType::usesFixedPlaceholder() const
-{
-    return false;
-}
-
-String InputType::fixedPlaceholder()
-{
-    return String();
-}
-
 void InputType::updateInnerTextValue()
 {
 }
@@ -930,6 +920,11 @@ Decimal InputType::findClosestTickMarkValue(const Decimal&)
 #endif
 
 bool InputType::supportsIndeterminateAppearance() const
+{
+    return false;
+}
+
+bool InputType::supportsSelectionAPI() const
 {
     return false;
 }

@@ -36,8 +36,8 @@
 #include "DFGBasicBlock.h"
 #include "DFGDominators.h"
 #include "DFGNode.h"
+#include "JSStack.h"
 #include "MethodOfGettingAValueProfile.h"
-#include "RegisterFile.h"
 #include <wtf/BitVector.h>
 #include <wtf/HashMap.h>
 #include <wtf/Vector.h>
@@ -57,10 +57,23 @@ struct StorageAccessData {
 
 struct ResolveGlobalData {
     unsigned identifierNumber;
-    unsigned resolveInfoIndex;
+    unsigned resolveOperationsIndex;
+    unsigned putToBaseOperationIndex;
+    unsigned resolvePropertyIndex;
 };
 
-// 
+struct ResolveOperationData {
+    unsigned identifierNumber;
+    unsigned resolveOperationsIndex;
+    unsigned putToBaseOperationIndex;
+};
+
+struct PutToBaseOperationData {
+    unsigned putToBaseOperationIndex;
+};
+
+
+//
 // === Graph ===
 //
 // The dataflow graph is an ordered vector of nodes.
@@ -477,11 +490,14 @@ public:
     // - and so on.
     bool byValIsPure(Node& node)
     {
-        switch (node.arrayMode()) {
+        switch (node.arrayMode().type()) {
         case Array::Generic:
-        case OUT_OF_BOUNDS_ARRAY_STORAGE_MODES:
-        case ALL_EFFECTFUL_ARRAY_STORAGE_MODES:
             return false;
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+            return !node.arrayMode().isOutOfBounds();
+        case Array::SlowPutArrayStorage:
+            return !node.arrayMode().mayStoreToHole();
         case Array::String:
             return node.op() == GetByVal;
 #if USE(JSVALUE32_64)
@@ -666,11 +682,14 @@ public:
     Vector<Edge, 16> m_varArgChildren;
     Vector<StorageAccessData> m_storageAccessData;
     Vector<ResolveGlobalData> m_resolveGlobalData;
+    Vector<ResolveOperationData> m_resolveOperationsData;
+    Vector<PutToBaseOperationData> m_putToBaseOperationData;
     Vector<NodeIndex, 8> m_arguments;
     SegmentedVector<VariableAccessData, 16> m_variableAccessData;
     SegmentedVector<ArgumentPosition, 8> m_argumentPositions;
     SegmentedVector<StructureSet, 16> m_structureSet;
     SegmentedVector<StructureTransitionData, 8> m_structureTransitionData;
+    SegmentedVector<NewArrayBufferData, 4> m_newArrayBufferData;
     bool m_hasArguments;
     HashSet<ExecutableBase*> m_executablesWhoseArgumentsEscaped;
     BitVector m_preservedVars;

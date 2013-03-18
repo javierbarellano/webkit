@@ -31,72 +31,51 @@
 #ifndef IntrusiveDOMWrapperMap_h
 #define IntrusiveDOMWrapperMap_h
 
-#include "DOMDataStore.h"
-#include "V8Node.h"
-#include "WebCoreMemoryInstrumentation.h"
-#include <wtf/HashSet.h>
+#include "DOMWrapperMap.h"
 
 namespace WebCore {
 
-class IntrusiveDOMWrapperMap : public AbstractWeakReferenceMap<Node, v8::Object> {
+class DOMNodeWrapperMap : public DOMWrapperMap<Node> {
 public:
-    IntrusiveDOMWrapperMap(v8::WeakReferenceCallback callback)
-        : AbstractWeakReferenceMap<Node, v8::Object>(callback)
-    {
-    }
-
-    virtual v8::Persistent<v8::Object> get(Node* node)
+    virtual v8::Persistent<v8::Object> get(Node* node) OVERRIDE
     {
         return node->wrapper();
     }
 
-    virtual void set(Node* node, v8::Persistent<v8::Object> wrapper)
+    virtual void set(Node* node, v8::Persistent<v8::Object> wrapper) OVERRIDE
     {
         ASSERT(node && node->wrapper().IsEmpty());
-        m_nodes.add(node);
+        ASSERT(wrapper.WrapperClassId() == v8DOMSubtreeClassId);
         node->setWrapper(wrapper);
-        wrapper.MakeWeak(node, weakReferenceCallback());
+        wrapper.MakeWeak(node, weakCallback);
     }
 
-    virtual bool contains(Node* node)
+    virtual void visit(DOMDataStore* store, DOMWrapperVisitor<Node>* visitor) OVERRIDE
     {
-        bool nodeHasWrapper = !node->wrapper().IsEmpty();
-        ASSERT(nodeHasWrapper == m_nodes.contains(node));
-        return nodeHasWrapper;
+        ASSERT_NOT_REACHED();
     }
 
-    virtual void visit(DOMDataStore* store, Visitor* visitor)
+    virtual void clear() OVERRIDE
     {
-        for (HashSet<Node*>::iterator it = m_nodes.begin(); it != m_nodes.end(); ++it)
-            visitor->visitDOMWrapper(store, *it, (*it)->wrapper());
-    }
-
-    virtual bool removeIfPresent(Node* node, v8::Persistent<v8::Object> value)
-    {
-        ASSERT(node);
-        v8::Persistent<v8::Object> wrapper = node->wrapper();
-        if (wrapper.IsEmpty())
-            return false;
-        if (wrapper != value)
-            return false;
-        node->disposeWrapper();
-        m_nodes.remove(node);
-        return true;
-    }
-
-    virtual void clear()
-    {
-        m_nodes.clear();
+        ASSERT_NOT_REACHED();
     }
 
     virtual void reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const OVERRIDE
     {
         MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::Binding);
-        info.addMember(m_nodes);
     }
 
 private:
-    HashSet<Node*> m_nodes;
+    static void weakCallback(v8::Persistent<v8::Value> value, void* context)
+    {
+        Node* node = static_cast<Node*>(context);
+        ASSERT(value->IsObject());
+        ASSERT(node->wrapper() == v8::Persistent<v8::Object>::Cast(value));
+
+        node->clearWrapper();
+        value.Dispose();
+        node->deref();
+    }
 };
 
 } // namespace WebCore

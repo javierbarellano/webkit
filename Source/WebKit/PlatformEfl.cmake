@@ -3,6 +3,7 @@ LIST(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/efl/ewk"
     "${WEBKIT_DIR}/efl/WebCoreSupport"
     "${JAVASCRIPTCORE_DIR}/ForwardingHeaders"
+    "${WEBCORE_DIR}/Modules/filesystem"
     "${WEBCORE_DIR}/platform/efl"
     "${WEBCORE_DIR}/platform/graphics/cairo"
     "${WEBCORE_DIR}/platform/graphics/efl"
@@ -77,7 +78,16 @@ IF (ENABLE_NAVIGATOR_CONTENT_UTILS)
   )
 ENDIF ()
 
+IF (WTF_USE_TEXTURE_MAPPER_GL)
+  LIST(APPEND WebKit_INCLUDE_DIRECTORIES
+    "${WEBCORE_DIR}/platform/graphics/surfaces"
+    "${WEBCORE_DIR}/platform/graphics/texmap"
+    "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
+  )
+ENDIF ()
+
 LIST(APPEND WebKit_SOURCES
+    efl/WebCoreSupport/AcceleratedCompositingContextEfl.cpp
     efl/WebCoreSupport/AssertMatchingEnums.cpp
     efl/WebCoreSupport/BatteryClientEfl.cpp
     efl/WebCoreSupport/ChromeClientEfl.cpp
@@ -124,7 +134,6 @@ LIST(APPEND WebKit_SOURCES
     efl/ewk/ewk_tiled_matrix.cpp
     efl/ewk/ewk_tiled_model.cpp
     efl/ewk/ewk_touch_event.cpp
-    efl/ewk/ewk_util.cpp
     efl/ewk/ewk_view.cpp
     efl/ewk/ewk_view_single.cpp
     efl/ewk/ewk_view_tiled.cpp
@@ -150,113 +159,6 @@ LIST(APPEND WebKit_LIBRARIES
     ${GLIB_LIBRARIES}
     ${GLIB_GOBJECT_LIBRARIES}
     ${LIBSOUP_LIBRARIES}
-)
-
-SET(WebKit_THEME_DEFINITION "")
-IF (ENABLE_PROGRESS_ELEMENT)
-  LIST(APPEND WebKit_THEME_DEFINITION "-DENABLE_PROGRESS_ELEMENT")
-ENDIF ()
-
-FILE(MAKE_DIRECTORY ${THEME_BINARY_DIR})
-SET(WebKit_THEME ${THEME_BINARY_DIR}/default.edj)
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${WebKit_THEME}
-  COMMAND ${EDJE_CC_EXECUTABLE} -v -id ${WEBKIT_DIR}/efl/DefaultTheme ${WebKit_THEME_DEFINITION} ${WEBKIT_DIR}/efl/DefaultTheme/default.edc ${WebKit_THEME}
-  DEPENDS
-    ${WEBKIT_DIR}/efl/DefaultTheme/default.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/button/button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/button/img_button_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/button/img_button_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/button/img_button_normal.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/button/img_button_press.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/check.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_off_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_off_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_off.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_on_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_on_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/check/img_check_on.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_focus_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_hover_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_normal_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_normal.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_press_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/combo_press.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/combo/icon.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/entry/entry.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/entry/img_focused.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/entry/img_hovered.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/entry/img_normal.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/file/file.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/file/file_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/file/file_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/file/file_normal.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/file/file_press.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/fullscreenbutton/enterfullscreenbutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/fullscreenbutton/exitfullscreenbutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/fullscreenbutton/fullscreen_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/mutebutton/mute_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/mutebutton/mutebutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/mutebutton/unmutebutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/playpausebutton/pausebutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/playpausebutton/playbutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/playpausebutton/playpause_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/seekbackwardbutton/seekbackward_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/seekbackwardbutton/seekbackwardbutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/seekforwardbutton/seekforward_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/seekforwardbutton/seekforwardbutton.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/togglecaptionsbutton/closedcaption_disabled.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/togglecaptionsbutton/closedcaption.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/mediacontrol/togglecaptionsbutton/toggle_captions_button.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/progressbar/bt_base.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/progressbar/progressbar.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/progressbar/shelf_inset.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_off_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_off_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_off.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_on_focus.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_on_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/img_radio_on.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/radio/radio.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/scrollbar/scrollbar.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/scrollbar/scrollbar_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/scrollbar/scrollbar_knob_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/scrollbar/scrollbar_knob_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/scrollbar/scrollbar_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/cancel/cancel_normal_button2.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/cancel/cancel_normal_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/cancel/search_cancel.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/decoration/decoration_normal_button.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/decoration/search_decoration.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/field/field_focused.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/field/field_hovered.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/field/field_normal.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/search/field/search_field.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_fill_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_fill_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_press_h.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_press_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_thumb_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/slider/slider_v.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_bg.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_down_default.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_down_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_down_pressed.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/spinner.edc
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_up_default.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_up_hover.png
-    ${WEBKIT_DIR}/efl/DefaultTheme/widget/spinner/sp_up_pressed.png
-  VERBATIM
-)
-
-LIST(APPEND WebKit_SOURCES
-     ${WebKit_THEME}
 )
 
 IF (SHARED_CORE)
@@ -297,9 +199,6 @@ SET(EWebKit_HEADERS
 
 INSTALL(FILES ${EWebKit_HEADERS}
         DESTINATION include/${WebKit_LIBRARY_NAME}-${PROJECT_VERSION_MAJOR})
-
-INSTALL(FILES ${WebKit_THEME}
-        DESTINATION ${DATA_INSTALL_DIR}/themes)
 
 INCLUDE_DIRECTORIES(${THIRDPARTY_DIR}/gtest/include)
 
@@ -344,6 +243,7 @@ ADD_DEFINITIONS(-DDEFAULT_TEST_PAGE_DIR=\"${DEFAULT_TEST_PAGE_DIR}\"
 
 ADD_LIBRARY(ewkTestUtils
     ${WEBKIT_DIR}/efl/tests/UnitTestUtils/EWKTestBase.cpp
+    ${WEBKIT_DIR}/efl/tests/UnitTestUtils/EWKTestEnvironment.cpp
     ${WEBKIT_DIR}/efl/tests/UnitTestUtils/EWKTestView.cpp
 )
 TARGET_LINK_LIBRARIES(ewkTestUtils ${EWKUnitTests_LIBRARIES})
@@ -351,6 +251,8 @@ TARGET_LINK_LIBRARIES(ewkTestUtils ${EWKUnitTests_LIBRARIES})
 SET(WEBKIT_EFL_TEST_DIR "${WEBKIT_DIR}/efl/tests/")
 
 SET(EWKUnitTests_BINARIES
+    test_ewk_contextmenu
+    test_ewk_frame
     test_ewk_view
 )
 
@@ -364,22 +266,3 @@ IF (ENABLE_API_TESTS)
     ENDFOREACH ()
 ENDIF ()
 
-IF (ENABLE_INSPECTOR)
-    SET(WEB_INSPECTOR_DIR ${CMAKE_BINARY_DIR}/WebKit/efl/webinspector)
-    ADD_DEFINITIONS(-DWEB_INSPECTOR_DIR="${WEB_INSPECTOR_DIR}")
-    ADD_DEFINITIONS(-DWEB_INSPECTOR_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/webinspector")
-    ADD_CUSTOM_TARGET(
-        web-inspector-resources ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${WEBCORE_DIR}/inspector/front-end ${WEB_INSPECTOR_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy ${WEBCORE_DIR}/English.lproj/localizedStrings.js ${WEB_INSPECTOR_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorBackendCommands.js ${WEB_INSPECTOR_DIR}/InspectorBackendCommands.js
-        DEPENDS ${WebCore_LIBRARY_NAME}
-    )
-    INSTALL(DIRECTORY ${WEB_INSPECTOR_DIR}
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}
-        FILES_MATCHING PATTERN "*.js"
-                       PATTERN "*.html"
-                       PATTERN "*.css"
-                       PATTERN "*.gif"
-                       PATTERN "*.png")
-ENDIF ()

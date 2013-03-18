@@ -28,6 +28,8 @@
 #include "config.h"
 #include "PluginProcessMainUnix.h"
 
+#if ENABLE(PLUGIN_PROCESS)
+
 #include "Logging.h"
 #include "NetscapePlugin.h"
 #include "PluginProcess.h"
@@ -45,10 +47,14 @@ using namespace WebCore;
 namespace WebKit {
 
 #ifdef XP_UNIX
-static const char* xErrorString = "The program '%s' received an X Window System error.\n"
+
+#if !LOG_DISABLED
+static const char xErrorString[] = "The program '%s' received an X Window System error.\n"
     "This probably reflects a bug in a browser plugin.\n"
     "The error was '%s'.\n"
     "  (Details: serial %ld error_code %d request_code %d minor_code %d)\n";
+#endif /* !LOG_DISABLED */
+
 static char* programName = 0;
 
 static int webkitXError(Display* xdisplay, XErrorEvent* error)
@@ -67,9 +73,9 @@ static int webkitXError(Display* xdisplay, XErrorEvent* error)
 
 WK_EXPORT int PluginProcessMainUnix(int argc, char* argv[])
 {
-    ASSERT(argc == 2 || argc == 3);
+    ASSERT_UNUSED(argc, argc == 2 || argc == 3);
     bool scanPlugin = !strcmp(argv[1], "-scanPlugin");
-    ASSERT(argc == 2 || (argc == 3 && scanPlugin));
+    ASSERT_UNUSED(argc, argc == 2 || (argc == 3 && scanPlugin));
 
 #if PLATFORM(GTK)
     gtk_init(&argc, &argv);
@@ -107,3 +113,5 @@ WK_EXPORT int PluginProcessMainUnix(int argc, char* argv[])
 }
 
 } // namespace WebKit
+
+#endif

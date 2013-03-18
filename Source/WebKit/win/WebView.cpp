@@ -471,7 +471,7 @@ void WebView::setCacheModel(WebCacheModel cacheModel)
     RetainPtr<CFURLCacheRef> cfurlCache(AdoptCF, CFURLCacheCopySharedURLCache());
     RetainPtr<CFStringRef> cfurlCacheDirectory(AdoptCF, wkCopyFoundationCacheDirectory(0));
     if (!cfurlCacheDirectory)
-        cfurlCacheDirectory.adoptCF(WebCore::localUserSpecificStorageDirectory().createCFString());
+        cfurlCacheDirectory = WebCore::localUserSpecificStorageDirectory().createCFString();
 
     // As a fudge factor, use 1000 instead of 1024, in case the reported byte 
     // count doesn't align exactly to a megabyte boundary.
@@ -4712,8 +4712,7 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         if (FAILED(hr))
             return hr;
 
-        RetainPtr<CFStringRef> urlString(AdoptCF, toString(str).createCFString());
-        RetainPtr<CFURLRef> url(AdoptCF, CFURLCreateWithString(kCFAllocatorDefault, urlString.get(), 0));
+        RetainPtr<CFURLRef> url(AdoptCF, CFURLCreateWithString(kCFAllocatorDefault, toString(str).createCFString().get(), 0));
 
         // Check if the passed in string is a path and convert it to a URL.
         // FIXME: This is a workaround for nightly builds until we can get Safari to pass 
@@ -6175,10 +6174,9 @@ HRESULT WebView::setMemoryCacheDelegateCallsEnabled(BOOL enabled)
     return S_OK;
 }
 
-HRESULT WebView::setJavaScriptURLsAreAllowed(BOOL areAllowed)
+HRESULT WebView::setJavaScriptURLsAreAllowed(BOOL)
 {
-    m_page->setJavaScriptURLsAreAllowed(areAllowed);
-    return S_OK;
+    return E_NOTIMPL;
 }
 
 HRESULT WebView::setCanStartPlugins(BOOL canStartPlugins)
@@ -6227,15 +6225,14 @@ void WebView::exitFullscreen()
 #endif
 }
 
-static PassOwnPtr<Vector<String> > toStringVector(unsigned patternsCount, BSTR* patterns)
+static Vector<String> toStringVector(unsigned patternsCount, BSTR* patterns)
 {
-    // Convert the patterns into a Vector.
-    if (patternsCount == 0)
-        return nullptr;
-    OwnPtr<Vector<String> > patternsVector = adoptPtr(new Vector<String>);
+    Vector<String> patternsVector;
+    if (!patternsCount)
+        return patternsVector;
     for (unsigned i = 0; i < patternsCount; ++i)
-        patternsVector->append(toString(patterns[i]));
-    return patternsVector.release();
+        patternsVector.append(toString(patterns[i]));
+    return patternsVector;
 }
 
 HRESULT WebView::addUserScriptToGroup(BSTR groupName, IWebScriptWorld* iWorld, BSTR source, BSTR url, 
@@ -6488,7 +6485,7 @@ void WebView::setAcceleratedCompositing(bool accelerated)
             // FIXME: We could perhaps get better performance by never allowing this layer to
             // become tiled (or choosing a higher-than-normal tiling threshold).
             // <http://webkit.org/b/52603>
-            m_backingLayer = GraphicsLayer::create(this);
+            m_backingLayer = GraphicsLayer::create(0, this);
             m_backingLayer->setDrawsContent(true);
             m_backingLayer->setContentsOpaque(true);
             RECT clientRect;
@@ -6631,7 +6628,7 @@ void WebView::notifyAnimationStarted(const GraphicsLayer*, double)
     ASSERT_NOT_REACHED();
 }
 
-void WebView::notifySyncRequired(const GraphicsLayer*)
+void WebView::notifyFlushRequired(const GraphicsLayer*)
 {
     flushPendingGraphicsLayerChangesSoon();
 }
@@ -6673,9 +6670,9 @@ void WebView::flushPendingGraphicsLayerChanges()
 
     // Updating layout might have taken us out of compositing mode.
     if (m_backingLayer)
-        m_backingLayer->syncCompositingStateForThisLayerOnly();
+        m_backingLayer->flushCompositingStateForThisLayerOnly();
 
-    view->syncCompositingStateIncludingSubframes();
+    view->flushCompositingStateIncludingSubframes();
 }
 
 #endif

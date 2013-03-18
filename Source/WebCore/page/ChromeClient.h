@@ -207,8 +207,8 @@ namespace WebCore {
         // the new cache.
         virtual void reachedApplicationCacheOriginQuota(SecurityOrigin*, int64_t totalSpaceNeeded) = 0;
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(WIDGET_REGION)
-        virtual void dashboardRegionsChanged();
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+        virtual void annotatedRegionsChanged();
 #endif
 
         virtual void populateVisitedLinks();
@@ -227,7 +227,7 @@ namespace WebCore {
 #endif
 
 #if ENABLE(CALENDAR_PICKER)
-        virtual PassOwnPtr<DateTimeChooser> openDateTimeChooser(DateTimeChooserClient*, const DateTimeChooserParameters&) = 0;
+        virtual PassRefPtr<DateTimeChooser> openDateTimeChooser(DateTimeChooserClient*, const DateTimeChooserParameters&) = 0;
 #endif
 
         virtual void runOpenPanel(Frame*, PassRefPtr<FileChooser>) = 0;
@@ -257,7 +257,7 @@ namespace WebCore {
         virtual void setNeedsOneShotDrawingSynchronization() = 0;
         // Sets a flag to specify that the view needs to be updated, so we need
         // to do an eager layout before the drawing.
-        virtual void scheduleCompositingLayerSync() = 0;
+        virtual void scheduleCompositingLayerFlush() = 0;
         // Returns whether or not the client can render the composited layer,
         // regardless of the settings.
         virtual bool allowsAcceleratedCompositing() const { return true; }
@@ -363,6 +363,8 @@ namespace WebCore {
         virtual void logDiagnosticMessage(const String& message, const String& description, const String& status) { UNUSED_PARAM(message); UNUSED_PARAM(description); UNUSED_PARAM(status); }
 
         virtual FloatSize minimumWindowSize() const { return FloatSize(100, 100); };
+
+        virtual bool isEmptyChromeClient() const { return false; }
 
     protected:
         virtual ~ChromeClient() { }

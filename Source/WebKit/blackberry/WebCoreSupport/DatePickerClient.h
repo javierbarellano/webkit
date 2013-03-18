@@ -23,9 +23,12 @@
 #include <BlackBerryPlatformInputEvents.h>
 
 namespace BlackBerry {
+namespace Platform {
+class String;
+}
+
 namespace WebKit {
 class WebPagePrivate;
-class WebString;
 }
 }
 
@@ -35,10 +38,10 @@ class HTMLInputElement;
 
 class DatePickerClient : public PagePopupClient {
 public:
-    DatePickerClient(BlackBerry::Platform::BlackBerryInputType, const BlackBerry::WebKit::WebString& value, const BlackBerry::WebKit::WebString& min, const BlackBerry::WebKit::WebString& max, double step, BlackBerry::WebKit::WebPagePrivate*, HTMLInputElement*);
+    DatePickerClient(BlackBerry::Platform::BlackBerryInputType, const BlackBerry::Platform::String& value, const BlackBerry::Platform::String& min, const BlackBerry::Platform::String& max, double step, BlackBerry::WebKit::WebPagePrivate*, HTMLInputElement*);
     ~DatePickerClient();
 
-    void generateHTML(BlackBerry::Platform::BlackBerryInputType, const BlackBerry::WebKit::WebString& value, const BlackBerry::WebKit::WebString& min, const BlackBerry::WebKit::WebString& max, double step);
+    void generateHTML(BlackBerry::Platform::BlackBerryInputType, const BlackBerry::Platform::String& value, const BlackBerry::Platform::String& min, const BlackBerry::Platform::String& max, double step);
 
     void writeDocument(DocumentWriter&);
     virtual IntSize contentSize();
@@ -52,7 +55,7 @@ private:
     BlackBerry::Platform::BlackBerryInputType m_type;
     String m_source;
     BlackBerry::WebKit::WebPagePrivate* m_webPage;
-    HTMLInputElement* m_element;
+    RefPtr<HTMLInputElement> m_element;
 };
 } // namespace WebCore
 #endif

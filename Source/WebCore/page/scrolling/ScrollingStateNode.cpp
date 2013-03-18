@@ -32,8 +32,9 @@
 
 namespace WebCore {
 
-ScrollingStateNode::ScrollingStateNode(ScrollingStateTree* scrollingStateTree)
+ScrollingStateNode::ScrollingStateNode(ScrollingStateTree* scrollingStateTree, ScrollingNodeID nodeID)
     : m_scrollingStateTree(scrollingStateTree)
+    , m_nodeID(nodeID)
     , m_parent(0)
     , m_scrollLayerDidChange(false)
 {
@@ -42,59 +43,65 @@ ScrollingStateNode::ScrollingStateNode(ScrollingStateTree* scrollingStateTree)
 // This copy constructor is used for cloning nodes in the tree, and it doesn't make sense
 // to clone the relationship pointers, so don't copy that information from the original
 // node.
-ScrollingStateNode::ScrollingStateNode(ScrollingStateNode* stateNode)
+ScrollingStateNode::ScrollingStateNode(const ScrollingStateNode& stateNode)
     : m_scrollingStateTree(0)
+    , m_nodeID(stateNode.scrollingNodeID())
     , m_parent(0)
-    , m_scrollLayerDidChange(stateNode->scrollLayerDidChange())
+    , m_scrollLayerDidChange(stateNode.scrollLayerDidChange())
 {
-    setScrollLayer(stateNode->platformScrollLayer());
+    setScrollLayer(stateNode.platformScrollLayer());
 }
 
 ScrollingStateNode::~ScrollingStateNode()
 {
 }
 
+PassOwnPtr<ScrollingStateNode> ScrollingStateNode::cloneAndReset()
+{
+    OwnPtr<ScrollingStateScrollingNode> clone = adoptPtr(new ScrollingStateScrollingNode(*toScrollingStateScrollingNode(this)));
+
+    // Now that this node is cloned, reset our change properties.
+    setScrollLayerDidChange(false);
+    resetChangedProperties();
+
+    cloneAndResetChildren(clone.get());
+    return clone.release();
+}
+
+void ScrollingStateNode::cloneAndResetChildren(ScrollingStateNode* clone)
+{
+    if (!m_children)
+        return;
+
+    size_t size = m_children->size();
+    for (size_t i = 0; i < size; ++i)
+        clone->appendChild(m_children->at(i)->cloneAndReset());
+}
+
 void ScrollingStateNode::appendChild(PassOwnPtr<ScrollingStateNode> childNode)
 {
     childNode->setParent(this);
-    
-    if (!m_firstChild) {
-        m_firstChild = childNode;
+
+    if (!m_children)
+        m_children = adoptPtr(new Vector<OwnPtr<ScrollingStateNode> >);
+
+    m_children->append(childNode);
+}
+
+void ScrollingStateNode::removeChild(ScrollingStateNode* node)
+{
+    if (!m_children)
+        return;
+
+    if (size_t index = m_children->find(node)) {
+        m_scrollingStateTree->didRemoveNode(node->scrollingNodeID());
+        m_children->remove(index);
         return;
     }
 
-    for (ScrollingStateNode* existingChild = firstChild(); existingChild; existingChild = existingChild->nextSibling()) {
-        if (!existingChild->nextSibling()) {
-            existingChild->setNextSibling(childNode);
-            return;
-        }
-    }
-
-    ASSERT_NOT_REACHED();
-}
-
-ScrollingStateNode* ScrollingStateNode::traverseNext() const
-{
-    ScrollingStateNode* child = firstChild();
-    if (child)
-        return child;
-
-    ScrollingStateNode* sibling = nextSibling();
-    if (sibling)
-        return sibling;
-
-    const ScrollingStateNode* stateNode = this;
-    while (!sibling) {
-        stateNode = stateNode->parent();
-        if (!stateNode)
-            return 0;
-        sibling = stateNode->nextSibling();
-    }
-
-    if (stateNode)
-        return sibling;
-
-    return 0;
+    size_t size = m_children->size();
+    for (size_t i = 0; i < size; ++i)
+        m_children->at(i)->removeChild(node);
 }
 
 } // namespace WebCore
