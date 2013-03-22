@@ -126,6 +126,8 @@ static const Ecore_Getopt options = {
              ecore_getopt_callback_geometry_parse, NULL),
         ECORE_GETOPT_STORE_STR
             ('t', "theme", "path to read the theme file from."),
+        ECORE_GETOPT_STORE_DEF_BOOL
+            ('T', "tiled-backing-store", "enable/disable WebCore's tiled backingstore(ewk_view_single only)", 0),
         ECORE_GETOPT_STORE_STR
             ('U', "user-agent", "custom user agent string to use."),
         ECORE_GETOPT_COUNT
@@ -143,16 +145,17 @@ static const Ecore_Getopt options = {
 };
 
 typedef struct _User_Arguments {
-    const char *engine;
+    char *engine;
     Eina_Bool quitOption;
-    const char *backingStore;
+    char *backingStore;
     Eina_Bool enableEncodingDetector;
+    Eina_Bool enableTiledBackingStore;
     Eina_Bool isFlattening;
     Eina_Bool isFullscreen;
     Eina_Rectangle geometry;
-    const char *theme;
-    const char *userAgent;
-    const char *databasePath;
+    char *theme;
+    char *userAgent;
+    char *databasePath;
 } User_Arguments;
 
 typedef struct _ELauncher {
@@ -576,14 +579,18 @@ on_key_down(void *data, Evas *e, Evas_Object *obj, void *event_info)
         Eina_Bool status = ewk_view_setting_spatial_navigation_get(obj);
         ewk_view_setting_spatial_navigation_set(obj, !status);
         info("Command::keyboard navigation toggle\n");
-    } else if (!strcmp(ev->key, "F7")) {
-        info("Zoom out (F7) was pressed.\n");
+    } else if ((!strcmp(ev->key, "minus") || !strcmp(ev->key, "KP_Subtract")) && ctrlPressed) {
         if (currentZoomLevel > MIN_ZOOM_LEVEL && zoom_level_set(obj, currentZoomLevel - 1))
             currentZoomLevel--;
-    } else if (!strcmp(ev->key, "F8")) {
-        info("Zoom in (F8) was pressed.\n");
+        info("Zoom out (Ctrl + '-') was pressed, zoom level became %.2f\n", zoomLevels[currentZoomLevel] / 100.0);
+    } else if ((!strcmp(ev->key, "equal") || !strcmp(ev->key, "KP_Add")) && ctrlPressed) {
         if (currentZoomLevel < MAX_ZOOM_LEVEL && zoom_level_set(obj, currentZoomLevel + 1))
             currentZoomLevel++;
+        info("Zoom in (Ctrl + '+') was pressed, zoom level became %.2f\n", zoomLevels[currentZoomLevel] / 100.0);
+    } else if (!strcmp(ev->key, "0") && ctrlPressed) {
+        if (zoom_level_set(obj, DEFAULT_ZOOM_LEVEL))
+            currentZoomLevel = DEFAULT_ZOOM_LEVEL;
+        info("Zoom to default (Ctrl + '0') was pressed, zoom level became %.2f\n", zoomLevels[currentZoomLevel] / 100.0);
     } else if (!strcmp(ev->key, "n") && ctrlPressed) {
         info("Create new window (Ctrl+n) was pressed.\n");
         browserCreate("http://www.google.com", app->userArgs);
@@ -843,6 +850,8 @@ windowCreate(User_Arguments *userArgs)
     } else {
         app->browser = ewk_view_single_add(app->evas);
         info("backing store: single\n");
+
+        ewk_view_setting_tiled_backing_store_enabled_set(app->browser, userArgs->enableTiledBackingStore);
     }
 
     ewk_view_theme_set(app->browser, themePath);
@@ -928,6 +937,7 @@ parseUserArguments(int argc, char *argv[], User_Arguments *userArgs)
     userArgs->quitOption = EINA_FALSE;
     userArgs->backingStore = (char *)backingStores[1];
     userArgs->enableEncodingDetector = EINA_FALSE;
+    userArgs->enableTiledBackingStore = EINA_FALSE;
     userArgs->isFlattening = EINA_FALSE;
     userArgs->isFullscreen = EINA_FALSE;
     userArgs->geometry.x = 0;
@@ -946,6 +956,7 @@ parseUserArguments(int argc, char *argv[], User_Arguments *userArgs)
         ECORE_GETOPT_VALUE_BOOL(userArgs->isFullscreen),
         ECORE_GETOPT_VALUE_PTR_CAST(userArgs->geometry),
         ECORE_GETOPT_VALUE_STR(userArgs->theme),
+        ECORE_GETOPT_VALUE_BOOL(userArgs->enableTiledBackingStore),
         ECORE_GETOPT_VALUE_STR(userArgs->userAgent),
         ECORE_GETOPT_VALUE_INT(verbose),
         ECORE_GETOPT_VALUE_BOOL(userArgs->quitOption),

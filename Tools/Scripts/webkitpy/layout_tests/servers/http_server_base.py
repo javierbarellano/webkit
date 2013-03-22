@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (C) 2011 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -194,7 +193,7 @@ class HttpServerBase(object):
             except IOError, e:
                 if e.errno in (errno.EALREADY, errno.EADDRINUSE):
                     raise ServerError('Port %d is already in use.' % port)
-                elif sys.platform == 'win32' and e.errno in (errno.WSAEACCES,):
+                elif sys.platform == 'win32' and e.errno in (errno.WSAEACCES,):  # pylint: disable-msg=E1101
                     raise ServerError('Port %d is already in use.' % port)
                 else:
                     raise

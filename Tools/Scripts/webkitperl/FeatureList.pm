@@ -49,6 +49,7 @@ my (
     $blobSupport,
     $channelMessagingSupport,
     $cspNextSupport,
+    $css3BackgroundSupport,
     $css3ConditionalRulesSupport,
     $css3TextSupport,
     $cssBoxDecorationBreakSupport,
@@ -105,6 +106,7 @@ my (
     $meterTagSupport,
     $mhtmlSupport,
     $microdataSupport,
+    $mouseCursorScaleSupport,
     $mutationObserversSupport,
     $netscapePluginAPISupport,
     $networkInfoSupport,
@@ -112,6 +114,7 @@ my (
     $orientationEventsSupport,
     $pageVisibilityAPISupport,
     $progressTagSupport,
+    $proximityEventsSupport,
     $quotaSupport,
     $resolutionMediaQuerySupport,
     $registerProtocolHandlerSupport,
@@ -125,11 +128,12 @@ my (
     $svgFontsSupport,
     $svgSupport,
     $systemMallocSupport,
+    $templateTagSupport,
     $textAutosizingSupport,
     $tiledBackingStoreSupport,
     $touchEventsSupport,
+    $touchSliderSupport,
     $touchIconLoadingSupport,
-    $undoManagerSupport,
     $vibrationSupport,
     $videoSupport,
     $videoTrackSupport,
@@ -182,9 +186,6 @@ my @features = (
     { option => "css3-text", desc => "Toggle CSS3 Text support",
       define => "ENABLE_CSS3_TEXT", default => isEfl(), value => \$css3TextSupport },
 
-    { option => "css-hierarchies", desc => "Toggle CSS Hierarchy support",
-      define => "ENABLE_CSS_HIERARCHIES", default => 0, value => \$cssHierarchiesSupport },
-
     { option => "css-box-decoration-break", desc => "Toggle CSS box-decoration-break support",
       define => "ENABLE_CSS_BOX_DECORATION_BREAK", default => 1, value => \$cssBoxDecorationBreakSupport },
 
@@ -192,7 +193,7 @@ my @features = (
       define => "ENABLE_CSS_IMAGE_ORIENTATION", default => 0, value => \$cssImageOrientationSupport },
 
     { option => "css-image-resolution", desc => "Toggle CSS image-resolution support",
-      define => "ENABLE_CSS_IMAGE_RESOLUTION", default => 0, value => \$cssImageResolutionSupport },
+      define => "ENABLE_CSS_IMAGE_RESOLUTION", default => isBlackBerry(), value => \$cssImageResolutionSupport },
 
     { option => "css-regions", desc => "Toggle CSS Regions support",
       define => "ENABLE_CSS_REGIONS", default => 1, value => \$cssRegionsSupport },
@@ -332,6 +333,9 @@ my @features = (
     { option => "microdata", desc => "Toggle Microdata support",
       define => "ENABLE_MICRODATA", default => (isEfl() || isBlackBerry()), value => \$microdataSupport },
 
+    { option => "mouse-cursor-scale", desc => "Toggle Scaled mouse cursor support",
+      define => "ENABLE_MOUSE_CURSOR_SCALE", default => 0, value => \$mouseCursorScaleSupport },
+
     { option => "mutation-observers", desc => "Toggle Mutation Observers support",
       define => "ENABLE_MUTATION_OBSERVERS", default => 1, value => \$mutationObserversSupport },
 
@@ -355,6 +359,9 @@ my @features = (
 
     { option => "progress-tag", desc => "Toggle Progress Tag support",
       define => "ENABLE_PROGRESS_ELEMENT", default => 1, value => \$progressTagSupport },
+
+    { option => "proximity-events", desc => "Toggle Proximity Events support",
+      define => "ENABLE_PROXIMITY_EVENTS", default => 0, value => \$proximityEventsSupport },
 
     { option => "quota", desc => "Toggle Quota support",
       define => "ENABLE_QUOTA", default => 0, value => \$quotaSupport },
@@ -392,20 +399,23 @@ my @features = (
     { option => "system-malloc", desc => "Toggle system allocator instead of TCmalloc",
       define => "USE_SYSTEM_MALLOC", default => isWinCE(), value => \$systemMallocSupport },
 
+    { option => "template-tag", desc => "Toggle Templates Tag support",
+      define => "ENABLE_TEMPLATE_ELEMENT", default => 0, value => \$templateTagSupport },
+
     { option => "text-autosizing", desc => "Toggle Text Autosizing support",
       define => "ENABLE_TEXT_AUTOSIZING", default => 0, value => \$textAutosizingSupport },
 
     { option => "tiled-backing-store", desc => "Toggle Tiled Backing Store support",
-      define => "WTF_USE_TILED_BACKING_STORE", default => isQt(), value => \$tiledBackingStoreSupport },
+      define => "WTF_USE_TILED_BACKING_STORE", default => (isQt() || isEfl()), value => \$tiledBackingStoreSupport },
 
     { option => "touch-events", desc => "Toggle Touch Events support",
       define => "ENABLE_TOUCH_EVENTS", default => (isQt() || isBlackBerry() || isEfl()), value => \$touchEventsSupport },
 
+    { option => "touch-slider", desc => "Toggle Touch Slider support",
+      define => "ENABLE_TOUCH_SLIDER", default => isBlackBerry(), value => \$touchSliderSupport },
+
     { option => "touch-icon-loading", desc => "Toggle Touch Icon Loading Support",
       define => "ENABLE_TOUCH_ICON_LOADING", default => 0, value => \$touchIconLoadingSupport },
-
-    { option => "undo-manager", desc => "Toggle Undo Manager support",
-      define => "ENABLE_UNDO_MANAGER", default => 0, value => \$undoManagerSupport },
 
     { option => "vibration", desc => "Toggle Vibration support",
       define => "ENABLE_VIBRATION", default => (isEfl() || isBlackBerry()), value => \$vibrationSupport },
@@ -417,7 +427,7 @@ my @features = (
       define => "ENABLE_VIDEO_TRACK", default => (isAppleWebKit() || isGtk() || isEfl() || isBlackBerry()), value => \$videoTrackSupport },
 
     { option => "webgl", desc => "Toggle WebGL support",
-      define => "ENABLE_WEBGL", default => (isAppleMacWebKit() || isGtk()), value => \$webglSupport },
+      define => "ENABLE_WEBGL", default => (isAppleMacWebKit() || isGtk() || isEfl()), value => \$webglSupport },
 
     { option => "web-audio", desc => "Toggle Web Audio support",
       define => "ENABLE_WEB_AUDIO", default => 0, value => \$webAudioSupport },

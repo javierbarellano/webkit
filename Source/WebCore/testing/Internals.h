@@ -29,6 +29,7 @@
 #include "ContextDestructionObserver.h"
 #include "ExceptionCodePlaceholder.h"
 #include "NodeList.h"
+#include <wtf/ArrayBuffer.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
@@ -53,6 +54,7 @@ class ScriptExecutionContext;
 class ShadowRoot;
 class WebKitPoint;
 class MallocStatistics;
+class SerializedScriptValue;
 
 typedef int ExceptionCode;
 
@@ -83,16 +85,22 @@ public:
     ShadowRootIfShadowDOMEnabledOrNode* oldestShadowRoot(Element* host, ExceptionCode&);
     ShadowRootIfShadowDOMEnabledOrNode* youngerShadowRoot(Node* shadow, ExceptionCode&);
     ShadowRootIfShadowDOMEnabledOrNode* olderShadowRoot(Node* shadow, ExceptionCode&);
+    String shadowRootType(const Node*, ExceptionCode&) const;
     bool hasShadowInsertionPoint(const Node*, ExceptionCode&) const;
+    bool hasContentElement(const Node*, ExceptionCode&) const;
+    size_t countElementShadow(const Node*, ExceptionCode&) const;
     Element* includerFor(Node*, ExceptionCode&);
     String shadowPseudoId(Element*, ExceptionCode&);
     void setShadowPseudoId(Element*, const String&, ExceptionCode&);
 
     PassRefPtr<Element> createContentElement(Document*, ExceptionCode&);
-    Element* getElementByIdInShadowRoot(Node* shadowRoot, const String& id, ExceptionCode&);
     bool isValidContentSelect(Element* insertionPoint, ExceptionCode&);
     Node* treeScopeRootNode(Node*, ExceptionCode&);
     Node* parentTreeScope(Node*, ExceptionCode&);
+    bool hasSelectorForIdInShadow(Element* host, const String& idValue, ExceptionCode&);
+    bool hasSelectorForClassInShadow(Element* host, const String& className, ExceptionCode&);
+    bool hasSelectorForAttributeInShadow(Element* host, const String& attributeName, ExceptionCode&);
+    bool hasSelectorForPseudoClassInShadow(Element* host, const String& pseudoClass, ExceptionCode&);
 
     bool attached(Node*, ExceptionCode&);
 
@@ -109,6 +117,7 @@ public:
 #endif
     PassRefPtr<DOMStringList> formControlStateOfPreviousHistoryItem(ExceptionCode&);
     void setFormControlStateOfPreviousHistoryItem(PassRefPtr<DOMStringList>, ExceptionCode&);
+    void setEnableMockPagePopup(bool, ExceptionCode&);
 #if ENABLE(PAGE_POPUP)
     PassRefPtr<PagePopupController> pagePopupController();
 #endif
@@ -190,16 +199,21 @@ public:
     enum {
         // Values need to be kept in sync with Internals.idl.
         LAYER_TREE_INCLUDES_VISIBLE_RECTS = 1,
-        LAYER_TREE_INCLUDES_TILE_CACHES = 2
+        LAYER_TREE_INCLUDES_TILE_CACHES = 2,
+        LAYER_TREE_INCLUDES_REPAINT_RECTS = 4
         
     };
     String layerTreeAsText(Document*, unsigned flags, ExceptionCode&) const;
     String layerTreeAsText(Document*, ExceptionCode&) const;
     String repaintRectsAsText(Document*, ExceptionCode&) const;
+    String scrollingStateTreeAsText(Document*, ExceptionCode&) const;
 
     void garbageCollectDocumentResources(Document*, ExceptionCode&) const;
 
     void allowRoundingHacks() const;
+
+    void insertAuthorCSS(Document*, const String&) const;
+    void insertUserCSS(Document*, const String&) const;
 
 #if ENABLE(INSPECTOR)
     unsigned numberOfLiveNodes() const;
@@ -220,6 +234,8 @@ public:
     String pageProperty(String, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
     String pageSizeAndMarginsInPixels(int, int, int, int, int, int, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
 
+    void setPageScaleFactor(float scaleFactor, int x, int y, ExceptionCode&);
+
 #if ENABLE(FULLSCREEN_API)
     void webkitWillEnterFullScreenForElement(Document*, Element*);
     void webkitDidEnterFullScreenForElement(Document*, Element*);
@@ -236,6 +252,13 @@ public:
 
     void startTrackingRepaints(Document*, ExceptionCode&);
     void stopTrackingRepaints(Document*, ExceptionCode&);
+
+    PassRefPtr<ArrayBuffer> serializeObject(PassRefPtr<SerializedScriptValue>) const;
+    PassRefPtr<SerializedScriptValue> deserializeBuffer(PassRefPtr<ArrayBuffer>) const;
+
+    void setUsesOverlayScrollbars(bool enabled);
+
+    String getCurrentCursorInfo(Document*, ExceptionCode&);
 
 private:
     explicit Internals(Document*);

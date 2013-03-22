@@ -39,6 +39,7 @@
 #include "CustomFilterProgramInfo.h"
 #include "NotImplemented.h"
 #include <wtf/HashMap.h>
+#include <wtf/Vector.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringHash.h>
 
@@ -192,7 +193,7 @@ CustomFilterValidatedProgram::CustomFilterValidatedProgram(CustomFilterGlobalCon
 
     // We need to add texture access, blending, and compositing code to shaders that are referenced from the CSS mix function.
     if (blendsElementTexture) {
-        rewriteMixVertexShader();
+        rewriteMixVertexShader(symbols);
         rewriteMixFragmentShader();
     }
 
@@ -204,6 +205,7 @@ PassRefPtr<CustomFilterCompiledProgram> CustomFilterValidatedProgram::compiledPr
     ASSERT(m_isInitialized && m_globalContext && !m_validatedVertexShader.isNull() && !m_validatedFragmentShader.isNull());
     if (!m_compiledProgram) {
         m_compiledProgram = CustomFilterCompiledProgram::create(m_globalContext->context(), m_validatedVertexShader, m_validatedFragmentShader, m_programInfo.programType());
+        ASSERT(m_compiledProgram->isInitialized());
         ASSERT(m_compiledProgram->samplerLocation() != -1 || !needsInputTexture());
     }
     return m_compiledProgram;
@@ -216,21 +218,32 @@ bool CustomFilterValidatedProgram::needsInputTexture() const
         && m_programInfo.mixSettings().compositeOperator != CompositeCopy;
 }
 
-void CustomFilterValidatedProgram::rewriteMixVertexShader()
+void CustomFilterValidatedProgram::rewriteMixVertexShader(const Vector<ANGLEShaderSymbol>& symbols)
 {
     ASSERT(m_programInfo.programType() == PROGRAM_TYPE_BLENDS_ELEMENT_TEXTURE);
+
+    // If the author defined a_texCoord, we can use it to shuttle the texture coordinate to the fragment shader.
+    // Note that vertex attributes are read-only in GLSL, so the author could not have changed a_texCoord's value.
+    // Also, note that we would have already rejected the shader if the author defined a_texCoord with the wrong type.
+    bool texCoordAttributeDefined = false;
+    for (size_t i = 0; i < symbols.size(); ++i) {
+        if (symbols[i].name == "a_texCoord")
+            texCoordAttributeDefined = true;
+    }
+
+    if (!texCoordAttributeDefined)
+        m_validatedVertexShader.append("attribute mediump vec2 a_texCoord;");
 
     // During validation, ANGLE renamed the author's "main" function to "css_main".
     // We write our own "main" function and call "css_main" from it.
     // This makes rewriting easy and ensures that our code runs after all author code.
     m_validatedVertexShader.append(SHADER(
-        attribute mediump vec2 css_a_texCoord;
         varying mediump vec2 css_v_texCoord;
 
         void main()
         {
             css_main();
-            css_v_texCoord = css_a_texCoord;
+            css_v_texCoord = a_texCoord;
         }
     ));
 }
@@ -261,7 +274,7 @@ void CustomFilterValidatedProgram::rewriteMixFragmentShader()
         {
             css_main();
             mediump vec4 originalColor = texture2D(css_u_texture, css_v_texCoord);
-            mediump vec4 multipliedColor = css_ColorMatrix * originalColor;
+            mediump vec4 multipliedColor = clamp(css_ColorMatrix * originalColor, 0.0, 1.0);
             mediump vec3 blendedColor = css_BlendColor(multipliedColor.rgb, css_MixColor.rgb);
             gl_FragColor = css_Composite(multipliedColor.rgb, multipliedColor.a, blendedColor.rgb, css_MixColor.a);
         }
@@ -500,7 +513,13 @@ CustomFilterValidatedProgram::~CustomFilterValidatedProgram()
         m_globalContext->removeValidatedProgram(this);
 }
 
-#if !PLATFORM(BLACKBERRY)
+CustomFilterProgramInfo CustomFilterValidatedProgram::validatedProgramInfo() const
+{
+    ASSERT(m_isInitialized);
+    return CustomFilterProgramInfo(m_validatedVertexShader, m_validatedFragmentShader, m_programInfo.programType(), m_programInfo.mixSettings(), m_programInfo.meshType());
+}
+
+#if !PLATFORM(BLACKBERRY) && !USE(TEXTURE_MAPPER)
 void CustomFilterValidatedProgram::platformInit()
 {
 }

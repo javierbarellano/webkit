@@ -52,8 +52,6 @@ class MockGraphicsLayerClient : public GraphicsLayerClient {
     virtual void notifyAnimationStarted(const GraphicsLayer*, double time) OVERRIDE { }
     virtual void notifyFlushRequired(const GraphicsLayer*) OVERRIDE { }
     virtual void paintContents(const GraphicsLayer*, GraphicsContext&, GraphicsLayerPaintingPhase, const IntRect& inClip) OVERRIDE { }
-    virtual bool showDebugBorders(const GraphicsLayer*) const OVERRIDE { return false; }
-    virtual bool showRepaintCounter(const GraphicsLayer*) const OVERRIDE { return false; }
     virtual float deviceScaleFactor() const OVERRIDE { return 2; }
 };
 
@@ -61,8 +59,6 @@ class GraphicsLayerChromiumTest : public testing::Test {
 public:
     GraphicsLayerChromiumTest()
     {
-        // For these tests, we will enable threaded animations.
-        Platform::current()->compositorSupport()->setAcceleratedAnimationEnabled(true);
         Platform::current()->compositorSupport()->initialize(0);
         m_graphicsLayer = static_pointer_cast<GraphicsLayerChromium>(GraphicsLayer::create(&m_client));
         m_platformLayer = m_graphicsLayer->platformLayer();
@@ -92,7 +88,7 @@ private:
     MockGraphicsLayerClient m_client;
 };
 
-TEST_F(GraphicsLayerChromiumTest, updateLayerPreserves3DWithAnimations)
+TEST_F(GraphicsLayerChromiumTest, DISABLED_updateLayerPreserves3DWithAnimations)
 {
     ASSERT_FALSE(m_platformLayer->hasActiveAnimation());
 

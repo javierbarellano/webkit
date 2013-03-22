@@ -38,6 +38,7 @@
 OBJC_CLASS CALayer;
 OBJC_CLASS WebTileCacheLayer;
 OBJC_CLASS WebTileLayer;
+OBJC_CLASS WebTiledScrollingIndicatorLayer;
 
 namespace WebCore {
 
@@ -61,6 +62,7 @@ public:
     void drawLayer(WebTileLayer *, CGContextRef);
 
     void setScale(CGFloat);
+    CGFloat scale() const { return m_scale; }
 
     bool acceleratesDrawing() const { return m_acceleratesDrawing; }
     void setAcceleratesDrawing(bool);
@@ -78,6 +80,9 @@ public:
     unsigned blankPixelCount() const;
     static unsigned blankPixelCountForTiles(const WebTileLayerList&, IntRect, IntPoint);
 
+    // Only public for the WebTileCacheMapLayer.
+    void drawTileMapContents(CGContextRef, CGRect);
+    
 private:
     TileCache(WebTileCacheLayer*);
 
@@ -88,15 +93,18 @@ private:
     virtual TileCoverage tileCoverage() const OVERRIDE { return m_tileCoverage; }
     virtual void forceRepaint() OVERRIDE;
     virtual IntSize tileSize() const OVERRIDE { return m_tileSize; }
+    virtual IntRect tileGridExtent() const OVERRIDE;
     virtual void setScrollingPerformanceLoggingEnabled(bool flag) OVERRIDE { m_scrollingPerformanceLoggingEnabled = flag; }
     virtual bool scrollingPerformanceLoggingEnabled() const OVERRIDE { return m_scrollingPerformanceLoggingEnabled; }
-    virtual IntRect tileCoverageRect() const;
-    
+    virtual IntRect tileCoverageRect() const OVERRIDE;
+    virtual CALayer *tiledScrollingIndicatorLayer() OVERRIDE;
+    virtual void setScrollingModeIndication(ScrollingModeIndication) OVERRIDE;
+
     IntRect bounds() const;
 
     typedef IntPoint TileIndex;
     IntRect rectForTileIndex(const TileIndex&) const;
-    void getTileIndexRangeForRect(const IntRect&, TileIndex& topLeft, TileIndex& bottomRight);
+    void getTileIndexRangeForRect(const IntRect&, TileIndex& topLeft, TileIndex& bottomRight) const;
 
     IntRect computeTileCoverageRect() const;
     IntSize tileSizeForCoverageRect(const IntRect&) const;
@@ -104,6 +112,7 @@ private:
     void scheduleTileRevalidation(double interval);
     void tileRevalidationTimerFired(Timer<TileCache>*);
     void revalidateTiles();
+    void updateTileCoverageMap();
 
     WebTileLayer* tileLayerAtIndex(const TileIndex&) const;
     RetainPtr<WebTileLayer> createTileLayer(const IntRect&);
@@ -113,6 +122,8 @@ private:
 
     WebTileCacheLayer* m_tileCacheLayer;
     RetainPtr<CALayer> m_tileContainerLayer;
+    RetainPtr<WebTiledScrollingIndicatorLayer> m_tiledScrollingIndicatorLayer; // Used for coverage visualization.
+
     IntSize m_tileSize;
     IntRect m_visibleRect;
 
@@ -132,6 +143,7 @@ private:
 
     RetainPtr<CGColorRef> m_tileDebugBorderColor;
     float m_tileDebugBorderWidth;
+    ScrollingModeIndication m_indicatorMode;
 };
 
 } // namespace WebCore

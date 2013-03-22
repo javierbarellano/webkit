@@ -1,4 +1,3 @@
-module discovery {
 	interface [
                Conditional=DISCOVERY,
 	           OmitConstructor,
@@ -29,4 +28,3 @@ module discovery {
             raises(EventException);
 
 	};
-}

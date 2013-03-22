@@ -32,6 +32,7 @@
 #include "PopupMenu.h"
 #include "PopupMenuClient.h"
 #include "RenderEmbeddedObject.h"
+#include "RenderSnapshottedPlugIn.h"
 #include "ScrollTypes.h"
 #include "SearchPopupMenu.h"
 #include "WebCoreKeyboardUIMode.h"
@@ -226,7 +227,13 @@ namespace WebCore {
         virtual PassOwnPtr<ColorChooser> createColorChooser(ColorChooserClient*, const Color&) = 0;
 #endif
 
-#if ENABLE(CALENDAR_PICKER)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+        // This function is used for:
+        //  - Mandatory date/time choosers if !ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+        //  - Date/time choosers for types for which RenderTheme::supportsCalendarPicker
+        //    returns true, if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+        //  - <datalist> UI for date/time input types regardless of
+        //    ENABLE(INPUT_MULTIPLE_FIELDS_UI)
         virtual PassRefPtr<DateTimeChooser> openDateTimeChooser(DateTimeChooserClient*, const DateTimeChooserParameters&) = 0;
 #endif
 
@@ -365,6 +372,8 @@ namespace WebCore {
         virtual FloatSize minimumWindowSize() const { return FloatSize(100, 100); };
 
         virtual bool isEmptyChromeClient() const { return false; }
+
+        virtual PassRefPtr<Image> plugInStartLabelImage(RenderSnapshottedPlugIn::LabelSize) const { return 0; }
 
     protected:
         virtual ~ChromeClient() { }

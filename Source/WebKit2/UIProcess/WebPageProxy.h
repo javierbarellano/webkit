@@ -168,6 +168,10 @@ struct WindowGeometry;
 class WebGestureEvent;
 #endif
 
+#if ENABLE(VIBRATION)
+class WebVibrationProxy;
+#endif
+
 #if ENABLE(WEB_INTENTS)
 struct IntentData;
 #endif
@@ -263,6 +267,10 @@ public:
 
 #if ENABLE(INSPECTOR)
     WebInspectorProxy* inspector();
+#endif
+
+#if ENABLE(VIBRATION)
+    WebVibrationProxy* vibration() { return m_vibration.get(); }
 #endif
 
 #if ENABLE(FULLSCREEN_API)
@@ -396,9 +404,12 @@ public:
     CGContextRef containingWindowGraphicsContext();
     bool shouldDelayWindowOrderingForEvent(const WebMouseEvent&);
     bool acceptsFirstMouse(int eventNumber, const WebMouseEvent&);
-    
+
+    void setAcceleratedCompositingRootLayer(const WebCore::GraphicsLayer*);
+
 #if USE(APPKIT)
     WKView* wkView() const;
+    void intrinsicContentSizeDidChange(const WebCore::IntSize& intrinsicContentSize);
 #endif
 #endif
 #if PLATFORM(WIN)
@@ -689,7 +700,7 @@ public:
     void endPrinting();
     void computePagesForPrinting(WebFrameProxy*, const PrintInfo&, PassRefPtr<ComputedPagesCallback>);
 #if PLATFORM(MAC) || PLATFORM(WIN)
-    void drawRectToPDF(WebFrameProxy*, const PrintInfo&, const WebCore::IntRect&, PassRefPtr<DataCallback>);
+    void drawRectToImage(WebFrameProxy*, const PrintInfo&, const WebCore::IntRect&, PassRefPtr<ImageCallback>);
     void drawPagesToPDF(WebFrameProxy*, const PrintInfo&, uint32_t first, uint32_t count, PassRefPtr<DataCallback>);
 #elif PLATFORM(GTK)
     void drawPagesForPrinting(WebFrameProxy*, const PrintInfo&, PassRefPtr<PrintFinishedCallback>);
@@ -713,6 +724,7 @@ public:
     static WebCore::Color backingStoreUpdatesFlashColor();
 
     void saveDataToFileInDownloadsFolder(const String& suggestedFilename, const String& mimeType, const String& originatingURLString, WebData*);
+    void savePDFToFileInDownloadsFolder(const String& suggestedFilename, const String& originatingURLString, const CoreIPC::DataReference&);
 
     void linkClicked(const String&, const WebMouseEvent&);
 
@@ -725,6 +737,7 @@ public:
     void printMainFrame();
     
     void setMediaVolume(float);
+    void setMayStartMediaWhenInWindow(bool);
 
     // WebPopupMenuProxy::Client
     virtual NativeWebMouseEvent* currentlyProcessedMouseDownEvent();
@@ -742,6 +755,11 @@ public:
     void setColorChooserColor(const WebCore::Color&);
     void endColorChooser();
 #endif
+
+    const WebLoaderClient& loaderClient() { return m_loaderClient; }
+
+    double minimumLayoutWidth() const { return m_minimumLayoutWidth; }
+    void setMinimumLayoutWidth(double);
 
 private:
     WebPageProxy(PageClient*, PassRefPtr<WebProcessProxy>, WebPageGroup*, uint64_t pageID);
@@ -881,6 +899,9 @@ private:
 #endif
 
     void editorStateChanged(const EditorState&);
+#if PLATFORM(QT)
+    void willSetInputMethodState();
+#endif
 
     // Back/Forward list management
     void backForwardAddItem(uint64_t itemID);
@@ -937,7 +958,7 @@ private:
     void searchWithSpotlight(const String&);
 
     // Dictionary.
-    void didPerformDictionaryLookup(const String&, const DictionaryPopupInfo&);
+    void didPerformDictionaryLookup(const AttributedString&, const DictionaryPopupInfo&);
 #endif
 
     // Spelling and grammar.
@@ -965,6 +986,7 @@ private:
 
     void voidCallback(uint64_t);
     void dataCallback(const CoreIPC::DataReference&, uint64_t);
+    void imageCallback(const ShareableBitmap::Handle&, uint64_t);
     void stringCallback(const String&, uint64_t);
     void scriptValueCallback(const CoreIPC::DataReference&, uint64_t);
     void computedPagesCallback(const Vector<WebCore::IntRect>&, double totalScaleFactorForPrinting, uint64_t);
@@ -993,12 +1015,10 @@ private:
 
 #if PLATFORM(MAC)
     void substitutionsPanelIsShowing(bool&);
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     void showCorrectionPanel(int32_t panelType, const WebCore::FloatRect& boundingBoxOfReplacedString, const String& replacedString, const String& replacementString, const Vector<String>& alternativeReplacementStrings);
     void dismissCorrectionPanel(int32_t reason);
     void dismissCorrectionPanelSoon(int32_t reason, String& result);
     void recordAutocorrectionResponse(int32_t responseType, const String& replacedString, const String& replacementString);
-#endif // __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 
 #if USE(DICTATION_ALTERNATIVES)
     void showDictationAlternativeUI(const WebCore::FloatRect& boundingBoxOfDictatedText, uint64_t dictationContext);
@@ -1063,8 +1083,13 @@ private:
     RefPtr<WebFullScreenManagerProxy> m_fullScreenManager;
 #endif
 
+#if ENABLE(VIBRATION)
+    RefPtr<WebVibrationProxy> m_vibration;
+#endif
+
     HashMap<uint64_t, RefPtr<VoidCallback> > m_voidCallbacks;
     HashMap<uint64_t, RefPtr<DataCallback> > m_dataCallbacks;
+    HashMap<uint64_t, RefPtr<ImageCallback> > m_imageCallbacks;
     HashMap<uint64_t, RefPtr<StringCallback> > m_stringCallbacks;
     HashSet<uint64_t> m_loadDependentStringCallbackIDs;
     HashMap<uint64_t, RefPtr<ScriptValueCallback> > m_scriptValueCallbacks;
@@ -1219,8 +1244,10 @@ private:
     bool m_shouldSendEventsSynchronously;
 
     bool m_suppressVisibilityUpdates;
+    float m_minimumLayoutWidth;
 
     float m_mediaVolume;
+    bool m_mayStartMediaWhenInWindow;
 
 #if PLATFORM(QT)
     WTF::HashSet<RefPtr<QtRefCountedNetworkRequestData> > m_applicationSchemeRequests;

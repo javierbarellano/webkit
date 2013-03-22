@@ -1,5 +1,0 @@
-Basic  
-Disabled  
-Read-only  
-RTL 
-With max  

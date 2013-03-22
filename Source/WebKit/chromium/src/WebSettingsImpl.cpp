@@ -31,8 +31,8 @@
 #include "config.h"
 #include "WebSettingsImpl.h"
 
+#include "DeferredImageDecoder.h"
 #include "FontRenderingMode.h"
-#include "ImageDecodingStore.h"
 #include "Settings.h"
 #include <public/WebString.h>
 #include <public/WebURL.h>
@@ -52,8 +52,9 @@ WebSettingsImpl::WebSettingsImpl(Settings* settings)
     , m_showPlatformLayerTree(false)
     , m_showPaintRects(false)
     , m_renderVSyncEnabled(true)
+    , m_lowLatencyRenderingEnabled(false)
     , m_viewportEnabled(false)
-    , m_applyDefaultDeviceScaleFactorInCompositor(false)
+    , m_applyDeviceScaleFactorInCompositor(false)
     , m_gestureTapHighlightEnabled(true)
     , m_autoZoomFocusedNodeToLegibleScale(false)
     , m_deferredImageDecodingEnabled(false)
@@ -139,9 +140,9 @@ bool WebSettingsImpl::deviceSupportsTouch()
     return m_settings->deviceSupportsTouch();
 }
 
-void WebSettingsImpl::setApplyDefaultDeviceScaleFactorInCompositor(bool applyDefaultDeviceScaleFactorInCompositor)
+void WebSettingsImpl::setApplyDeviceScaleFactorInCompositor(bool applyDeviceScaleFactorInCompositor)
 {
-    m_applyDefaultDeviceScaleFactorInCompositor = applyDefaultDeviceScaleFactorInCompositor;
+    m_applyDeviceScaleFactorInCompositor = applyDeviceScaleFactorInCompositor;
 }
 
 void WebSettingsImpl::setApplyPageScaleFactorInCompositor(bool applyPageScaleFactorInCompositor)
@@ -346,6 +347,11 @@ void WebSettingsImpl::setTextDirectionSubmenuInclusionBehaviorNeverIncluded()
     m_settings->setTextDirectionSubmenuInclusionBehavior(WebCore::TextDirectionSubmenuNeverIncluded);
 }
 
+void WebSettingsImpl::setTouchDragDropEnabled(bool enabled)
+{
+    m_settings->setTouchDragDropEnabled(enabled);
+}
+
 void WebSettingsImpl::setOfflineWebApplicationCacheEnabled(bool enabled)
 {
     m_settings->setOfflineWebApplicationCacheEnabled(enabled);
@@ -364,11 +370,6 @@ void WebSettingsImpl::setExperimentalWebGLEnabled(bool enabled)
 void WebSettingsImpl::setCSSStickyPositionEnabled(bool enabled)
 {
     m_settings->setCSSStickyPositionEnabled(enabled);
-}
-
-void WebSettingsImpl::setExperimentalCSSRegionsEnabled(bool enabled)
-{
-    m_settings->setCSSRegionsEnabled(enabled);
 }
 
 void WebSettingsImpl::setExperimentalCSSGridLayoutEnabled(bool enabled)
@@ -401,6 +402,11 @@ void WebSettingsImpl::setRenderVSyncEnabled(bool enabled)
     m_renderVSyncEnabled = enabled;
 }
 
+void WebSettingsImpl::setLowLatencyRenderingEnabled(bool lowLatencyRenderingEnabled)
+{
+    m_lowLatencyRenderingEnabled = lowLatencyRenderingEnabled;
+}
+
 void WebSettingsImpl::setWebGLErrorsToConsoleEnabled(bool enabled)
 {
     m_settings->setWebGLErrorsToConsoleEnabled(enabled);
@@ -429,6 +435,11 @@ void WebSettingsImpl::setShowPaintRects(bool show)
 void WebSettingsImpl::setEditingBehavior(EditingBehavior behavior)
 {
     m_settings->setEditingBehaviorType(static_cast<WebCore::EditingBehaviorType>(behavior));
+}
+
+void WebSettingsImpl::setAcceleratedAnimationEnabled(bool enabled)
+{
+    m_acceleratedAnimationEnabled = enabled;
 }
 
 void WebSettingsImpl::setAcceleratedCompositingEnabled(bool enabled)
@@ -478,6 +489,11 @@ void WebSettingsImpl::setAcceleratedCompositingForAnimationEnabled(bool enabled)
     m_settings->setAcceleratedCompositingForAnimationEnabled(enabled);
 }
 
+void WebSettingsImpl::setAcceleratedCompositingForScrollableFramesEnabled(bool enabled)
+{
+    m_settings->setAcceleratedCompositingForScrollableFramesEnabled(enabled);
+}
+
 void WebSettingsImpl::setAcceleratedFiltersEnabled(bool enabled)
 {
     m_settings->setAcceleratedFiltersEnabled(enabled);
@@ -495,10 +511,7 @@ void WebSettingsImpl::setDeferred2dCanvasEnabled(bool enabled)
 
 void WebSettingsImpl::setDeferredImageDecodingEnabled(bool enabled)
 {
-    if (!m_deferredImageDecodingEnabled && enabled)
-        ImageDecodingStore::initializeOnMainThread();
-    if (m_deferredImageDecodingEnabled && !enabled)
-        ImageDecodingStore::shutdown();
+    DeferredImageDecoder::setEnabled(enabled);
     m_deferredImageDecodingEnabled = enabled;
 }
 
@@ -586,6 +599,11 @@ void WebSettingsImpl::setPasswordEchoDurationInSeconds(double durationInSeconds)
     m_settings->setPasswordEchoDurationInSeconds(durationInSeconds);
 }
 
+void WebSettingsImpl::setPerTilePaintingEnabled(bool enabled)
+{
+    m_perTilePaintingEnabled = enabled;
+}
+
 void WebSettingsImpl::setShouldPrintBackgrounds(bool enabled)
 {
     m_settings->setShouldPrintBackgrounds(enabled);
@@ -598,6 +616,11 @@ void WebSettingsImpl::setEnableScrollAnimator(bool enabled)
 #else
     UNUSED_PARAM(enabled);
 #endif
+}
+
+void WebSettingsImpl::setEnableTouchAdjustment(bool enabled)
+{
+    m_settings->setTouchAdjustmentEnabled(enabled);
 }
 
 bool WebSettingsImpl::scrollAnimatorEnabled() const
@@ -694,6 +717,11 @@ void WebSettingsImpl::setGestureTapHighlightEnabled(bool enableHighlight)
 bool WebSettingsImpl::applyPageScaleFactorInCompositor() const
 {
     return m_settings->applyPageScaleFactorInCompositor();
+}
+
+void WebSettingsImpl::setAllowCustomScrollbarInMainFrame(bool enabled)
+{
+    m_settings->setAllowCustomScrollbarInMainFrame(enabled);
 }
 
 } // namespace WebKit

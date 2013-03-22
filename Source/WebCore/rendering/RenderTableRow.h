@@ -88,11 +88,13 @@ public:
     const BorderValue& borderAdjoiningStartCell(const RenderTableCell*) const;
     const BorderValue& borderAdjoiningEndCell(const RenderTableCell*) const;
 
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
+
 private:
     virtual RenderObjectChildList* virtualChildren() { return children(); }
     virtual const RenderObjectChildList* virtualChildren() const { return children(); }
 
-    virtual const char* renderName() const { return isAnonymous() ? "RenderTableRow (anonymous)" : "RenderTableRow"; }
+    virtual const char* renderName() const { return (isAnonymous() || isPseudoElement()) ? "RenderTableRow (anonymous)" : "RenderTableRow"; }
 
     virtual bool isTableRow() const { return true; }
 
@@ -100,7 +102,7 @@ private:
 
     virtual void addChild(RenderObject* child, RenderObject* beforeChild = 0);
     virtual void layout();
-    virtual LayoutRect clippedOverflowRectForRepaint(RenderLayerModelObject* repaintContainer) const;
+    virtual LayoutRect clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const;
     virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) OVERRIDE;
 
     virtual bool requiresLayer() const OVERRIDE { return hasOverflowClip() || hasTransform() || hasHiddenBackface() || hasClipPath() || createsGroup(); }

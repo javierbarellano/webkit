@@ -45,7 +45,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-PassRefPtr<HTMLPropertiesCollection> HTMLPropertiesCollection::create(Node* itemNode)
+PassRefPtr<HTMLPropertiesCollection> HTMLPropertiesCollection::create(Node* itemNode, CollectionType)
 {
     return adoptRef(new HTMLPropertiesCollection(itemNode));
 }
@@ -66,7 +66,7 @@ void HTMLPropertiesCollection::updateRefElements() const
 
     m_itemRefElements.clear();
     setItemRefElementsCacheValid();
-    toHTMLElement(base())->getItemRefElements(m_itemRefElements);
+    toHTMLElement(ownerNode())->getItemRefElements(m_itemRefElements);
 }
 
 static Node* nextNodeWithProperty(Node* rootNode, Node* previous, Node* ownerNode)
@@ -135,9 +135,9 @@ PassRefPtr<DOMStringList> HTMLPropertiesCollection::names() const
     return m_propertyNames;
 }
 
-PassRefPtr<PropertyNodeList> HTMLPropertiesCollection::namedItem(const String& name) const
+PassRefPtr<PropertyNodeList> HTMLPropertiesCollection::propertyNodeList(const String& name) const
 {
-    return base()->propertyNodeList(name);
+    return ownerNode()->propertyNodeList(name);
 }
 
 bool HTMLPropertiesCollection::hasNamedItem(const AtomicString& name) const

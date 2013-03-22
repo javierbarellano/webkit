@@ -131,9 +131,6 @@ public:
 
     virtual WebKit::WebLayer* platformLayer() const;
 
-    virtual void setDebugBackgroundColor(const Color&);
-    virtual void setDebugBorder(const Color&, float borderWidth);
-
     virtual void setAppliesPageScale(bool appliesScale) OVERRIDE;
     virtual bool appliesPageScale() const OVERRIDE;
 
@@ -154,6 +151,8 @@ public:
 
     // Exposed for tests.
     WebKit::WebLayer* contentsLayer() const { return m_contentsLayer; }
+
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
 
 private:
     void updateNames();

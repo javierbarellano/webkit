@@ -28,8 +28,9 @@
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "GraphicsLayerClutter.h"
-#include "GraphicsLayerFactory.h"
 
+#include "FloatRect.h"
+#include "GraphicsLayerFactory.h"
 #include "NotImplemented.h"
 
 namespace WebCore {
@@ -67,11 +68,13 @@ ClutterActor* GraphicsLayerClutter::platformLayer() const
 void GraphicsLayerClutter::setNeedsDisplay()
 {
     notImplemented();
+    addRepaintRect(FloatRect(FloatPoint(), m_size));
 }
 
-void GraphicsLayerClutter::setNeedsDisplayInRect(const FloatRect&)
+void GraphicsLayerClutter::setNeedsDisplayInRect(const FloatRect& rect)
 {
     notImplemented();
+    addRepaintRect(rect);
 }
 
 } // namespace WebCore

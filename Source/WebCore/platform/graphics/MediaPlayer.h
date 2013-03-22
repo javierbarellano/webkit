@@ -32,9 +32,10 @@
 #include "MediaPlayerProxy.h"
 #endif
 
+#include "InbandTextTrackPrivate.h"
 #include "IntRect.h"
 #include "KURL.h"
-#include "LayoutTypesInlineMethods.h"
+#include "LayoutRect.h"
 #include "Timer.h"
 #include <wtf/Forward.h>
 #include <wtf/HashSet.h>
@@ -94,6 +95,7 @@ struct PlatformMedia {
 
 extern const PlatformMedia NoPlatformMedia;
 
+class CachedResourceLoader;
 class ContentType;
 class FrameView;
 class GraphicsContext;
@@ -207,7 +209,10 @@ public:
     virtual String mediaPlayerReferrer() const { return String(); }
     virtual String mediaPlayerUserAgent() const { return String(); }
     virtual CORSMode mediaPlayerCORSMode() const { return Unspecified; }
+    virtual void mediaPlayerEnterFullscreen() { }
     virtual void mediaPlayerExitFullscreen() { }
+    virtual bool mediaPlayerIsFullscreen() const { return false; }
+    virtual bool mediaPlayerIsFullscreenPermitted() const { return false; }
     virtual bool mediaPlayerIsVideo() const { return false; }
     virtual LayoutRect mediaPlayerContentBoxRect() const { return LayoutRect(); }
     virtual void mediaPlayerSetSize(const IntSize&) { }
@@ -217,6 +222,12 @@ public:
     virtual bool mediaPlayerIsLooping() const { return false; }
     virtual HostWindow* mediaPlayerHostWindow() { return 0; }
     virtual IntRect mediaPlayerWindowClipRect() { return IntRect(); }
+    virtual CachedResourceLoader* mediaPlayerCachedResourceLoader() { return 0; }
+
+#if ENABLE(VIDEO_TRACK)
+    virtual void mediaPlayerDidAddTrack(PassRefPtr<InbandTextTrackPrivate>) { }
+    virtual void mediaPlayerDidRemoveTrack(PassRefPtr<InbandTextTrackPrivate>) { }
+#endif
 };
 
 class MediaPlayerSupportsTypeClient {
@@ -452,6 +463,13 @@ public:
     String userAgent() const;
 
     String engineDescription() const;
+
+    CachedResourceLoader* cachedResourceLoader();
+
+#if ENABLE(VIDEO_TRACK)
+    void addTextTrack(PassRefPtr<InbandTextTrackPrivate>);
+    void removeTextTrack(PassRefPtr<InbandTextTrackPrivate>);
+#endif
 
 private:
     MediaPlayer(MediaPlayerClient*);

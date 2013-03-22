@@ -37,6 +37,7 @@
 #include "WebCoreArgumentCoders.h"
 #include "WebDatabaseManager.h"
 #include "WebFrame.h"
+#include "WebFrameNetworkingContext.h"
 #include "WebGeolocationManagerMessages.h"
 #include "WebKeyValueStorageManager.h"
 #include "WebMediaCacheManager.h"
@@ -96,6 +97,10 @@
 
 #if !ENABLE(PLUGIN_PROCESS)
 #include "NetscapePluginModule.h"
+#endif
+
+#if ENABLE(CUSTOM_PROTOCOLS)
+#include "CustomProtocolManager.h"
 #endif
 
 using namespace JSC;
@@ -183,12 +188,15 @@ void WebProcess::initialize(CoreIPC::Connection::Identifier serverIdentifier, Ru
 {
     ASSERT(!m_connection);
 
-    m_connection = WebConnectionToUIProcess::create(this, serverIdentifier, runLoop);
+    m_connection = CoreIPC::Connection::createClientConnection(serverIdentifier, this, runLoop);
+    m_connection->setDidCloseOnConnectionWorkQueueCallback(ChildProcess::didCloseOnConnectionWorkQueue);
+    m_connection->setShouldExitOnSyncMessageSendFailure(true);
+    m_connection->addQueueClient(&m_eventDispatcher);
+    m_connection->addQueueClient(this);
+    m_connection->open();
 
-    m_connection->connection()->addQueueClient(&m_eventDispatcher);
-    m_connection->connection()->addQueueClient(this);
+    m_webConnection = WebConnectionToUIProcess::create(this);
 
-    m_connection->connection()->open();
     m_runLoop = runLoop;
 
     startRandomCrashThreadIfRequested();
@@ -266,6 +274,18 @@ void WebProcess::initializeWebProcess(const WebProcessCreationParameters& parame
     for (size_t i = 0; i < parameters.urlSchemesForWhichDomainRelaxationIsForbidden.size(); ++i)
         setDomainRelaxationForbiddenForURLScheme(parameters.urlSchemesForWhichDomainRelaxationIsForbidden[i]);
 
+    for (size_t i = 0; i < parameters.urlSchemesRegisteredAsLocal.size(); ++i)
+        registerURLSchemeAsLocal(parameters.urlSchemesRegisteredAsLocal[i]);
+
+    for (size_t i = 0; i < parameters.urlSchemesRegisteredAsNoAccess.size(); ++i)
+        registerURLSchemeAsNoAccess(parameters.urlSchemesRegisteredAsNoAccess[i]);
+
+    for (size_t i = 0; i < parameters.urlSchemesRegisteredAsDisplayIsolated.size(); ++i)
+        registerURLSchemeAsDisplayIsolated(parameters.urlSchemesRegisteredAsDisplayIsolated[i]);
+
+    for (size_t i = 0; i < parameters.urlSchemesRegisteredAsCORSEnabled.size(); ++i)
+        registerURLSchemeAsCORSEnabled(parameters.urlSchemesRegisteredAsCORSEnabled[i]);
+
     setDefaultRequestTimeoutInterval(parameters.defaultRequestTimeoutInterval);
 
     if (parameters.shouldAlwaysUseComplexTextCodePath)
@@ -274,8 +294,8 @@ void WebProcess::initializeWebProcess(const WebProcessCreationParameters& parame
     if (parameters.shouldUseFontSmoothing)
         setShouldUseFontSmoothing(true);
 
-#if USE(CFURLSTORAGESESSIONS)
-    WebCore::ResourceHandle::setPrivateBrowsingStorageSessionIdentifierBase(parameters.uiProcessBundleIdentifier);
+#if (PLATFORM(MAC) || USE(CFNETWORK)) && !PLATFORM(WIN)
+    WebFrameNetworkingContext::setPrivateBrowsingStorageSessionIdentifierBase(parameters.uiProcessBundleIdentifier);
 #endif
 
 #if ENABLE(NETWORK_PROCESS)
@@ -376,6 +396,20 @@ void WebProcess::userPreferredLanguagesChanged(const Vector<String>& languages) 
 void WebProcess::fullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled)
 {
     m_fullKeyboardAccessEnabled = fullKeyboardAccessEnabled;
+}
+
+void WebProcess::ensurePrivateBrowsingSession()
+{
+#if (PLATFORM(MAC) || USE(CFNETWORK)) && !PLATFORM(WIN)
+    WebFrameNetworkingContext::ensurePrivateBrowsingSession();
+#endif
+}
+
+void WebProcess::destroyPrivateBrowsingSession()
+{
+#if (PLATFORM(MAC) || USE(CFNETWORK)) && !PLATFORM(WIN)
+    WebFrameNetworkingContext::destroyPrivateBrowsingSession();
+#endif
 }
 
 void WebProcess::setVisitedLinkTable(const SharedMemory::Handle& handle)
@@ -654,6 +688,9 @@ void WebProcess::terminate()
     m_connection->invalidate();
     m_connection = nullptr;
 
+    m_webConnection->invalidate();
+    m_webConnection = nullptr;
+
     platformTerminate();
     m_runLoop->stop();
 }
@@ -706,6 +743,13 @@ void WebProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::Mes
         return;
     }
     
+#if ENABLE(CUSTOM_PROTOCOLS)
+    if (messageID.is<CoreIPC::MessageClassCustomProtocolManager>()) {
+        CustomProtocolManager::shared().didReceiveMessage(connection, messageID, decoder);
+        return;
+    }
+#endif
+
     if (messageID.is<CoreIPC::MessageClassWebPageGroupProxy>()) {
         uint64_t pageGroupID = decoder.destinationID();
         if (!pageGroupID)
@@ -1060,9 +1104,9 @@ void WebProcess::networkProcessCrashed(CoreIPC::Connection*)
 #endif
 
 #if ENABLE(PLUGIN_PROCESS)
-void WebProcess::pluginProcessCrashed(CoreIPC::Connection*, const String& pluginPath)
+void WebProcess::pluginProcessCrashed(CoreIPC::Connection*, const String& pluginPath, uint32_t processType)
 {
-    m_pluginProcessConnectionManager.pluginProcessCrashed(pluginPath);
+    m_pluginProcessConnectionManager.pluginProcessCrashed(pluginPath, static_cast<PluginProcess::Type>(processType));
 }
 #endif
 
@@ -1137,5 +1181,17 @@ void WebProcess::didGetPlugins(CoreIPC::Connection*, uint64_t requestID, const V
 #endif
 }
 #endif // ENABLE(PLUGIN_PROCESS)
+
+#if ENABLE(CUSTOM_PROTOCOLS)
+void WebProcess::registerSchemeForCustomProtocol(const WTF::String& scheme)
+{
+    CustomProtocolManager::shared().registerScheme(scheme);
+}
+
+void WebProcess::unregisterSchemeForCustomProtocol(const WTF::String& scheme)
+{
+    CustomProtocolManager::shared().unregisterScheme(scheme);
+}
+#endif
 
 } // namespace WebKit

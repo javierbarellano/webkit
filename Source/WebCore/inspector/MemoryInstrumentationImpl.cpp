@@ -70,10 +70,8 @@ void MemoryInstrumentationClientImpl::countObjectSize(const void* object, Memory
     if (!checkInstrumentedObjects())
         return;
 
-    if (object) {
+    if (object)
         m_countedObjects.add(object, size);
-        checkCountedObject(object);
-    }
 }
 
 bool MemoryInstrumentationClientImpl::visited(const void* object)
@@ -81,17 +79,19 @@ bool MemoryInstrumentationClientImpl::visited(const void* object)
     return !m_visitedObjects.add(object).isNewEntry;
 }
 
-void MemoryInstrumentationClientImpl::checkCountedObject(const void* object)
+bool MemoryInstrumentationClientImpl::checkCountedObject(const void* object)
 {
     if (!checkInstrumentedObjects())
-        return;
+        return true;
     if (!m_allocatedObjects.contains(object)) {
         ++m_totalObjectsNotInAllocatedSet;
+        return false;
 #if 0
         printf("Found unknown object referenced by pointer: %p\n", object);
         WTFReportBacktrace();
 #endif
     }
+    return true;
 }
 
 void MemoryInstrumentationClientImpl::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const

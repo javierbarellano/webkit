@@ -33,6 +33,7 @@
 #include "RenderTableCell.h"
 #include "RenderView.h"
 #include "StyleInheritedData.h"
+#include "WebCoreMemoryInstrumentation.h"
 
 namespace WebCore {
 
@@ -84,14 +85,14 @@ void RenderTableRow::styleDidChange(StyleDifference diff, const RenderStyle* old
 
 const BorderValue& RenderTableRow::borderAdjoiningStartCell(const RenderTableCell* cell) const
 {
-    ASSERT_UNUSED(cell, !table()->cellBefore(cell));
+    ASSERT_UNUSED(cell, cell->isFirstOrLastCellInRow());
     // FIXME: https://webkit.org/b/79272 - Add support for mixed directionality at the cell level.
     return style()->borderStart();
 }
 
 const BorderValue& RenderTableRow::borderAdjoiningEndCell(const RenderTableCell* cell) const
 {
-    ASSERT_UNUSED(cell, !table()->cellAfter(cell));
+    ASSERT_UNUSED(cell, cell->isFirstOrLastCellInRow());
     // FIXME: https://webkit.org/b/79272 - Add support for mixed directionality at the cell level.
     return style()->borderEnd();
 }
@@ -189,7 +190,7 @@ void RenderTableRow::layout()
     setNeedsLayout(false);
 }
 
-LayoutRect RenderTableRow::clippedOverflowRectForRepaint(RenderLayerModelObject* repaintContainer) const
+LayoutRect RenderTableRow::clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const
 {
     ASSERT(parent());
 
@@ -266,6 +267,13 @@ RenderTableRow* RenderTableRow::createAnonymousWithParentRenderer(const RenderOb
     RenderTableRow* newRow = new (parent->renderArena()) RenderTableRow(parent->document() /* is anonymous */);
     newRow->setStyle(newStyle.release());
     return newRow;
+}
+
+void RenderTableRow::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
+{
+    MemoryClassInfo info(memoryObjectInfo, this, PlatformMemoryTypes::Rendering);
+    RenderBox::reportMemoryUsage(memoryObjectInfo);
+    info.addMember(m_children);
 }
 
 } // namespace WebCore

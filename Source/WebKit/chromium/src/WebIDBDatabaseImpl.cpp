@@ -70,41 +70,30 @@ WebIDBObjectStore* WebIDBDatabaseImpl::createObjectStore(long long id, const Web
     return new WebIDBObjectStoreImpl(objectStore);
 }
 
-void WebIDBDatabaseImpl::deleteObjectStore(const WebString& name, const WebIDBTransaction& transaction, WebExceptionCode& ec)
-{
-    m_databaseBackend->deleteObjectStore(name, transaction.getIDBTransactionBackendInterface(), ec);
-}
-
 void WebIDBDatabaseImpl::deleteObjectStore(long long objectStoreId, const WebIDBTransaction& transaction, WebExceptionCode& ec)
 {
     m_databaseBackend->deleteObjectStore(objectStoreId, transaction.getIDBTransactionBackendInterface(), ec);
 }
 
-void WebIDBDatabaseImpl::setVersion(const WebString& version, WebIDBCallbacks* callbacks, WebExceptionCode& ec)
-{
-    m_databaseBackend->setVersion(version, IDBCallbacksProxy::create(adoptPtr(callbacks)), m_databaseCallbacks, ec);
-}
-
-WebIDBTransaction* WebIDBDatabaseImpl::transaction(const WebDOMStringList& names, unsigned short mode, WebExceptionCode& ec)
-{
-    RefPtr<DOMStringList> nameList = PassRefPtr<DOMStringList>(names);
-    RefPtr<IDBTransactionBackendInterface> transaction = m_databaseBackend->transaction(nameList.get(), mode, ec);
-    if (!transaction) {
-        ASSERT(ec);
-        return 0;
-    }
-    return new WebIDBTransactionImpl(transaction);
-}
-
-WebIDBTransaction* WebIDBDatabaseImpl::transaction(const WebVector<long long>& objectStoreIds, unsigned short mode)
+// FIXME: Remove this method in https://bugs.webkit.org/show_bug.cgi?id=103923.
+WebIDBTransaction* WebIDBDatabaseImpl::createTransaction(long long id, const WebVector<long long>& objectStoreIds, unsigned short mode)
 {
     Vector<int64_t> objectStoreIdList(objectStoreIds.size());
     for (size_t i = 0; i < objectStoreIds.size(); ++i)
         objectStoreIdList[i] = objectStoreIds[i];
-    RefPtr<IDBTransactionBackendInterface> transaction = m_databaseBackend->transaction(objectStoreIdList, mode);
+    RefPtr<IDBTransactionBackendInterface> transaction = m_databaseBackend->createTransaction(id, objectStoreIdList, static_cast<IDBTransaction::Mode>(mode));
     if (!transaction)
         return 0;
     return new WebIDBTransactionImpl(transaction);
+}
+
+void WebIDBDatabaseImpl::createTransaction(long long id, WebIDBDatabaseCallbacks* callbacks, const WebVector<long long>& objectStoreIds, unsigned short mode)
+{
+    Vector<int64_t> objectStoreIdList(objectStoreIds.size());
+    for (size_t i = 0; i < objectStoreIds.size(); ++i)
+        objectStoreIdList[i] = objectStoreIds[i];
+    RefPtr<IDBDatabaseCallbacksProxy> databaseCallbacksProxy = IDBDatabaseCallbacksProxy::create(adoptPtr(callbacks));
+    m_databaseBackend->createTransaction(id, databaseCallbacksProxy.get(), objectStoreIdList, mode);
 }
 
 void WebIDBDatabaseImpl::close()
@@ -123,6 +112,18 @@ void WebIDBDatabaseImpl::forceClose()
     RefPtr<IDBDatabaseCallbacksProxy> callbacks = m_databaseCallbacks.release();
     m_databaseBackend->close(callbacks);
     callbacks->onForcedClose();
+}
+
+void WebIDBDatabaseImpl::abort(long long transactionId)
+{
+    if (m_databaseBackend)
+        m_databaseBackend->abort(transactionId);
+}
+
+void WebIDBDatabaseImpl::commit(long long transactionId)
+{
+    if (m_databaseBackend)
+        m_databaseBackend->commit(transactionId);
 }
 
 } // namespace WebKit

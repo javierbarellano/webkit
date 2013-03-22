@@ -46,6 +46,7 @@
 namespace JSC {
 class DebuggerCallFrame;
 class JSGlobalObject;
+class ExecState;
 }
 namespace WebCore {
 
@@ -89,6 +90,11 @@ public:
     void recompileAllJSFunctionsSoon();
     virtual void recompileAllJSFunctions(Timer<ScriptDebugServer>* = 0) = 0;
 
+    void setScriptPreprocessor(const String&)
+    {
+        // FIXME(webkit.org/b/82203): Implement preprocessor.
+    }
+
     bool isPaused() { return m_paused; }
 
     void compileScript(ScriptState*, const String& expression, const String& sourceURL, String* scriptId, String* exceptionMessage);
@@ -113,6 +119,10 @@ protected:
     virtual void didPause(JSC::JSGlobalObject*) = 0;
     virtual void didContinue(JSC::JSGlobalObject*) = 0;
 
+    virtual void runEventLoopWhilePaused() = 0;
+
+    virtual bool isContentScript(JSC::ExecState*);
+
     bool hasBreakpoint(intptr_t sourceID, const TextPosition&) const;
 
     void dispatchFunctionToListeners(JavaScriptExecutionCallback, JSC::JSGlobalObject*);
@@ -122,7 +132,7 @@ protected:
     void dispatchDidParseSource(const ListenerSet& listeners, JSC::SourceProvider*, bool isContentScript);
     void dispatchFailedToParseSource(const ListenerSet& listeners, JSC::SourceProvider*, int errorLine, const String& errorMessage);
 
-    void createCallFrameAndPauseIfNeeded(const JSC::DebuggerCallFrame&, intptr_t sourceID, int lineNumber, int columnNumber);
+    void createCallFrame(const JSC::DebuggerCallFrame&, intptr_t sourceID, int lineNumber, int columnNumber);
     void updateCallFrameAndPauseIfNeeded(const JSC::DebuggerCallFrame&, intptr_t sourceID, int lineNumber, int columnNumber);
     void pauseIfNeeded(JSC::JSGlobalObject* dynamicGlobalObject);
 

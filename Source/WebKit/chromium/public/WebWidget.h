@@ -127,6 +127,9 @@ public:
     // animate or layout in this case.
     virtual void composite(bool finish) = 0;
 
+    // Returns true if we've started tracking repaint rectangles.
+    virtual bool isTrackingRepaints() const { return false; }
+
     // Indicates that the compositing surface associated with this WebWidget is
     // ready to use.
     virtual void setCompositorSurfaceReady() = 0;
@@ -153,6 +156,9 @@ public:
     // Called to inform the WebWidget of an input event. Returns true if
     // the event has been processed, false otherwise.
     virtual bool handleInputEvent(const WebInputEvent&) { return false; }
+
+    // Check whether the given point hits any registered touch event handlers.
+    virtual bool hasTouchEventHandlersAt(const WebPoint&) { return true; }
 
     // Called to inform the WebWidget that mouse capture was lost.
     virtual void mouseCaptureLost() { }

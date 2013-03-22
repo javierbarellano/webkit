@@ -38,7 +38,7 @@
 #include "JSCanvasPattern.cpp"
 #include "JSCanvasRenderingContext.cpp"
 #include "JSCanvasRenderingContext2D.cpp"
-#if ENABLE(WEBGL)    
+#if ENABLE(WEBGL)
 #include "JSWebGLRenderingContext.cpp"
 #endif
 #include "JSCDATASection.cpp"
@@ -101,9 +101,6 @@
 #include "JSDOMStringList.cpp"
 #include "JSDOMStringMap.cpp"
 #include "JSDOMTokenList.cpp"
-#if ENABLE(UNDO_MANAGER)
-#include "JSDOMTransaction.cpp"
-#endif
 #include "JSDOMURL.cpp"
 #include "JSDOMWindow.cpp"
 #include "JSElement.cpp"
@@ -166,6 +163,7 @@
 #include "JSHTMLEmbedElement.cpp"
 #include "JSHTMLFieldSetElement.cpp"
 #include "JSHTMLFontElement.cpp"
+#include "JSHTMLFormControlsCollection.cpp"
 #include "JSHTMLFormElement.cpp"
 #include "JSHTMLFrameElement.cpp"
 #include "JSHTMLFrameSetElement.cpp"
@@ -213,6 +211,9 @@
 #include "JSHTMLTableElement.cpp"
 #include "JSHTMLTableRowElement.cpp"
 #include "JSHTMLTableSectionElement.cpp"
+#if ENABLE(TEMPLATE_ELEMENT)
+#include "JSHTMLTemplateElement.cpp"
+#endif
 #include "JSHTMLTextAreaElement.cpp"
 #include "JSHTMLTitleElement.cpp"
 #include "JSHTMLUnknownElement.cpp"
@@ -221,7 +222,6 @@
 #include "JSIDBAny.cpp"
 #include "JSIDBCursor.cpp"
 #include "JSIDBDatabase.cpp"
-#include "JSIDBDatabaseException.cpp"
 #include "JSIDBFactory.cpp"
 #include "JSIDBIndex.cpp"
 #include "JSIDBKey.cpp"
@@ -486,9 +486,6 @@
 #include "JSUint8Array.cpp"
 #include "JSUint8ClampedArray.cpp"
 #include "JSUIEvent.cpp"
-#if ENABLE(UNDO_MANAGER)
-#include "JSUndoManager.cpp"
-#endif
 #include "JSUPnPEvent.cpp"
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
@@ -502,6 +499,9 @@
 #include "JSWebKitCSSKeyframesRule.cpp"
 #include "JSWebKitCSSTransformValue.cpp"
 #include "JSWebKitCSSMatrix.cpp"
+#if ENABLE(CSS_SHADERS)
+#include "JSWebKitCSSMixFunctionValue.cpp"
+#endif
 #include "JSWebKitCSSRegionRule.cpp"
 #include "JSWebKitNamedFlow.cpp"
 #include "JSWebKitPoint.cpp"

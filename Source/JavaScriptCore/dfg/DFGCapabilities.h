@@ -39,33 +39,12 @@ namespace JSC { namespace DFG {
 #if ENABLE(DFG_JIT)
 // Fast check functions; if they return true it is still necessary to
 // check opcodes.
-inline bool mightCompileEval(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount();
-}
-inline bool mightCompileProgram(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount();
-}
-inline bool mightCompileFunctionForCall(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount();
-}
-inline bool mightCompileFunctionForConstruct(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumOptimizationCandidateInstructionCount();
-}
-
-inline bool mightInlineFunctionForCall(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumFunctionForCallInlineCandidateInstructionCount()
-        && !codeBlock->ownerExecutable()->needsActivation();
-}
-inline bool mightInlineFunctionForConstruct(CodeBlock* codeBlock)
-{
-    return codeBlock->instructionCount() <= Options::maximumFunctionForConstructInlineCandidateInstructionCount()
-        && !codeBlock->ownerExecutable()->needsActivation();
-}
+bool mightCompileEval(CodeBlock*);
+bool mightCompileProgram(CodeBlock*);
+bool mightCompileFunctionForCall(CodeBlock*);
+bool mightCompileFunctionForConstruct(CodeBlock*);
+bool mightInlineFunctionForCall(CodeBlock*);
+bool mightInlineFunctionForConstruct(CodeBlock*);
 
 // Opcode checking.
 inline bool canInlineResolveOperations(OpcodeID opcode, ResolveOperations* operations)
@@ -82,6 +61,10 @@ inline bool canInlineResolveOperations(OpcodeID opcode, ResolveOperations* opera
         case ResolveOperation::GetAndReturnGlobalProperty:
         case ResolveOperation::GetAndReturnGlobalVar:
         case ResolveOperation::GetAndReturnGlobalVarWatchable:
+        case ResolveOperation::SkipScopes:
+        case ResolveOperation::SetBaseToScope:
+        case ResolveOperation::ReturnScopeAsBase:
+        case ResolveOperation::GetAndReturnScopedVar:
             continue;
 
         case ResolveOperation::Fail:
@@ -94,12 +77,8 @@ inline bool canInlineResolveOperations(OpcodeID opcode, ResolveOperations* opera
                 return false;
 
         case ResolveOperation::SkipTopScopeNode:
-        case ResolveOperation::SkipScopes:
-        case ResolveOperation::SetBaseToScope:
-        case ResolveOperation::ReturnScopeAsBase:
-        case ResolveOperation::GetAndReturnScopedVar:
-            // These opcodes would be easy to support with inlining, but we currently don't do it.
-            // The issue is that the scope chain will not be set correctly.
+            // We don't inline code blocks that create activations. Creation of
+            // activations is the only thing that leads to SkipTopScopeNode.
             return false;
 
         case ResolveOperation::CheckForDynamicEntriesBeforeGlobalScope:
@@ -116,6 +95,7 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_enter:
     case op_convert_this:
     case op_create_this:
+    case op_get_callee:
     case op_bitand:
     case op_bitor:
     case op_bitxor:
@@ -157,7 +137,6 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_nstricteq:
     case op_get_by_val:
     case op_put_by_val:
-    case op_method_check:
     case op_get_by_id:
     case op_get_by_id_out_of_line:
     case op_get_array_length:
@@ -167,6 +146,7 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_put_by_id_transition_direct_out_of_line:
     case op_put_by_id_transition_normal:
     case op_put_by_id_transition_normal_out_of_line:
+    case op_init_global_const_nop:
     case op_init_global_const:
     case op_init_global_const_check:
     case op_jmp:
@@ -200,7 +180,7 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_strcat:
     case op_to_primitive:
     case op_throw:
-    case op_throw_reference_error:
+    case op_throw_static_error:
     case op_call:
     case op_construct:
     case op_new_regexp: 

@@ -30,6 +30,7 @@
 
 #include "Connection.h"
 #include "Plugin.h"
+#include "PluginProcess.h"
 #include <WebCore/AffineTransform.h>
 #include <WebCore/IntRect.h>
 #include <WebCore/SecurityOrigin.h>
@@ -54,7 +55,7 @@ struct PluginCreationParameters;
 
 class PluginProxy : public Plugin {
 public:
-    static PassRefPtr<PluginProxy> create(const String& pluginPath);
+    static PassRefPtr<PluginProxy> create(const String& pluginPath, PluginProcess::Type);
     ~PluginProxy();
 
     uint64_t pluginInstanceID() const { return m_pluginInstanceID; }
@@ -66,7 +67,7 @@ public:
     bool isBeingAsynchronouslyInitialized() const { return m_waitingOnAsynchronousInitialization; }
 
 private:
-    explicit PluginProxy(const String& pluginPath);
+    explicit PluginProxy(const String& pluginPath, PluginProcess::Type);
 
     // Plugin
     virtual bool initialize(const Parameters&);
@@ -103,6 +104,7 @@ private:
     virtual void setFocus(bool);
     virtual bool handleEditingCommand(const String& commandName, const String& argument) OVERRIDE;
     virtual bool isEditingCommandEnabled(const String& commandName) OVERRIDE;
+    virtual bool shouldAllowScripting() OVERRIDE { return true; }
     
     virtual bool handlesPageScaleFactor();
     
@@ -123,6 +125,8 @@ private:
     virtual bool handleScroll(WebCore::ScrollDirection, WebCore::ScrollGranularity);
     virtual WebCore::Scrollbar* horizontalScrollbar();
     virtual WebCore::Scrollbar* verticalScrollbar();
+
+    virtual WebCore::IntPoint convertToRootView(const WebCore::IntPoint&) const OVERRIDE;
 
     float contentsScaleFactor();
     bool needsBackingStore() const;
@@ -202,6 +206,8 @@ private:
 #if PLATFORM(MAC)
     RetainPtr<CALayer> m_pluginLayer;
 #endif
+
+    PluginProcess::Type m_processType;
 };
 
 } // namespace WebKit

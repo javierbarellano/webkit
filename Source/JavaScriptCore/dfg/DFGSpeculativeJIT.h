@@ -53,6 +53,7 @@ class SpeculateCellOperand;
 class SpeculateBooleanOperand;
 
 enum GeneratedOperandType { GeneratedOperandTypeUnknown, GeneratedOperandInteger, GeneratedOperandDouble, GeneratedOperandJSValue};
+enum SpeculationDirection { ForwardSpeculation, BackwardSpeculation };
 
 // === SpeculativeJIT ===
 //
@@ -306,11 +307,11 @@ public:
 
     // Called by the speculative operand types, below, to fill operand to
     // machine registers, implicitly generating speculation checks as needed.
-    GPRReg fillSpeculateInt(NodeIndex, DataFormat& returnFormat);
+    GPRReg fillSpeculateInt(NodeIndex, DataFormat& returnFormat, SpeculationDirection);
     GPRReg fillSpeculateIntStrict(NodeIndex);
-    FPRReg fillSpeculateDouble(NodeIndex);
-    GPRReg fillSpeculateCell(NodeIndex, bool isForwardSpeculation = false);
-    GPRReg fillSpeculateBoolean(NodeIndex);
+    FPRReg fillSpeculateDouble(NodeIndex, SpeculationDirection);
+    GPRReg fillSpeculateCell(NodeIndex, SpeculationDirection);
+    GPRReg fillSpeculateBoolean(NodeIndex, SpeculationDirection);
     GeneratedOperandType checkGeneratedTypeForToInt32(NodeIndex);
 
     void addSlowPathGenerator(PassOwnPtr<SlowPathGenerator>);
@@ -1308,6 +1309,11 @@ public:
         m_jit.setupArgumentsWithExecState(arg1, TrustedImmPtr(identifier));
         return appendCallWithExceptionCheckSetResult(operation, result);
     }
+    JITCompiler::Call callOperation(J_DFGOperation_EDA operation, GPRReg result, FPRReg arg1, GPRReg arg2)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
     JITCompiler::Call callOperation(J_DFGOperation_EJA operation, GPRReg result, GPRReg arg1, GPRReg arg2)
     {
         m_jit.setupArgumentsWithExecState(arg1, arg2);
@@ -1361,6 +1367,11 @@ public:
     JITCompiler::Call callOperation(C_DFGOperation_EIcf operation, GPRReg result, InlineCallFrame* inlineCallFrame)
     {
         m_jit.setupArgumentsWithExecState(TrustedImmPtr(inlineCallFrame));
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_ESt operation, GPRReg result, Structure* structure)
+    {
+        m_jit.setupArgumentsWithExecState(TrustedImmPtr(structure));
         return appendCallWithExceptionCheckSetResult(operation, result);
     }
     JITCompiler::Call callOperation(S_DFGOperation_J operation, GPRReg result, GPRReg arg1)
@@ -1449,6 +1460,11 @@ public:
         return appendCallWithExceptionCheck(operation);
     }
     JITCompiler::Call callOperation(V_DFGOperation_EPZJ operation, GPRReg arg1, GPRReg arg2, GPRReg arg3)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
+        return appendCallWithExceptionCheck(operation);
+    }
+    JITCompiler::Call callOperation(V_DFGOperation_EOZD operation, GPRReg arg1, GPRReg arg2, FPRReg arg3)
     {
         m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
         return appendCallWithExceptionCheck(operation);
@@ -1661,7 +1677,17 @@ public:
         m_jit.setupArgumentsWithExecState(EABI_32BIT_DUMMY_ARG arg1Payload, TrustedImm32(arg1Tag), TrustedImmPtr(identifier));
         return appendCallWithExceptionCheckSetResult(operation, resultPayload, resultTag);
     }
+    JITCompiler::Call callOperation(J_DFGOperation_EDA operation, GPRReg resultTag, GPRReg resultPayload, FPRReg arg1, GPRReg arg2)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2);
+        return appendCallWithExceptionCheckSetResult(operation, resultPayload, resultTag);
+    }
     JITCompiler::Call callOperation(J_DFGOperation_EJA operation, GPRReg resultTag, GPRReg resultPayload, GPRReg arg1Tag, GPRReg arg1Payload, GPRReg arg2)
+    {
+        m_jit.setupArgumentsWithExecState(EABI_32BIT_DUMMY_ARG arg1Payload, arg1Tag, arg2);
+        return appendCallWithExceptionCheckSetResult(operation, resultPayload, resultTag);
+    }
+    JITCompiler::Call callOperation(J_DFGOperation_EJA operation, GPRReg resultTag, GPRReg resultPayload, TrustedImm32 arg1Tag, GPRReg arg1Payload, GPRReg arg2)
     {
         m_jit.setupArgumentsWithExecState(EABI_32BIT_DUMMY_ARG arg1Payload, arg1Tag, arg2);
         return appendCallWithExceptionCheckSetResult(operation, resultPayload, resultTag);
@@ -1714,6 +1740,11 @@ public:
     JITCompiler::Call callOperation(C_DFGOperation_EIcf operation, GPRReg result, InlineCallFrame* inlineCallFrame)
     {
         m_jit.setupArgumentsWithExecState(TrustedImmPtr(inlineCallFrame));
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_ESt operation, GPRReg result, Structure* structure)
+    {
+        m_jit.setupArgumentsWithExecState(TrustedImmPtr(structure));
         return appendCallWithExceptionCheckSetResult(operation, result);
     }
     JITCompiler::Call callOperation(S_DFGOperation_J operation, GPRReg result, GPRReg arg1Tag, GPRReg arg1Payload)
@@ -1819,7 +1850,17 @@ public:
         m_jit.setupArgumentsWithExecState(arg1, arg2, EABI_32BIT_DUMMY_ARG arg3Payload, arg3Tag);
         return appendCallWithExceptionCheck(operation);
     }
+    JITCompiler::Call callOperation(V_DFGOperation_EOZD operation, GPRReg arg1, GPRReg arg2, FPRReg arg3)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
+        return appendCallWithExceptionCheck(operation);
+    }
     JITCompiler::Call callOperation(V_DFGOperation_EOZJ operation, GPRReg arg1, GPRReg arg2, GPRReg arg3Tag, GPRReg arg3Payload)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2, EABI_32BIT_DUMMY_ARG arg3Payload, arg3Tag);
+        return appendCallWithExceptionCheck(operation);
+    }
+    JITCompiler::Call callOperation(V_DFGOperation_EOZJ operation, GPRReg arg1, GPRReg arg2, TrustedImm32 arg3Tag, GPRReg arg3Payload)
     {
         m_jit.setupArgumentsWithExecState(arg1, arg2, EABI_32BIT_DUMMY_ARG arg3Payload, arg3Tag);
         return appendCallWithExceptionCheck(operation);
@@ -2270,6 +2311,11 @@ public:
     void compileAllocatePropertyStorage(Node&);
     void compileReallocatePropertyStorage(Node&);
     
+#if USE(JSVALUE32_64)
+    template<typename BaseOperandType, typename PropertyOperandType, typename ValueOperandType, typename TagType>
+    void compileContiguousPutByVal(Node&, BaseOperandType&, PropertyOperandType&, ValueOperandType&, GPRReg valuePayloadReg, TagType valueTag);
+#endif
+    void compileDoublePutByVal(Node&, SpeculateCellOperand& base, SpeculateStrictInt32Operand& property);
     bool putByValWillNeedExtraRegister(ArrayMode arrayMode)
     {
         return arrayMode.mayStoreToHole();
@@ -2403,25 +2449,27 @@ public:
     // that you've ensured that there exists a MovHint prior to your use of forwardSpeculationCheck().
     void forwardSpeculationCheck(ExitKind, JSValueSource, NodeIndex, MacroAssembler::Jump jumpToFail, const ValueRecovery& = ValueRecovery());
     void forwardSpeculationCheck(ExitKind, JSValueSource, NodeIndex, const MacroAssembler::JumpList& jumpsToFail, const ValueRecovery& = ValueRecovery());
-    void speculationCheckWithConditionalDirection(ExitKind, JSValueSource, NodeIndex, MacroAssembler::Jump jumpToFail, bool isForward);
+    void speculationCheck(ExitKind, JSValueSource, NodeIndex, MacroAssembler::Jump jumpToFail, SpeculationDirection);
+    void speculationCheck(ExitKind, JSValueSource, NodeIndex, MacroAssembler::Jump jumpToFail, const SpeculationRecovery&, SpeculationDirection);
     // Called when we statically determine that a speculation will fail.
     void terminateSpeculativeExecution(ExitKind, JSValueRegs, NodeIndex);
     void terminateSpeculativeExecution(ExitKind, JSValueRegs, Edge);
-    void terminateSpeculativeExecutionWithConditionalDirection(ExitKind, JSValueRegs, NodeIndex, bool isForward);
+    void terminateSpeculativeExecution(ExitKind, JSValueRegs, NodeIndex, SpeculationDirection);
     // Issue a forward speculation watchpoint, which will exit to the next instruction rather
     // than the current one.
     JumpReplacementWatchpoint* forwardSpeculationWatchpoint(ExitKind = UncountableWatchpoint);
-    JumpReplacementWatchpoint* speculationWatchpointWithConditionalDirection(ExitKind, bool isForward);
+    JumpReplacementWatchpoint* speculationWatchpoint(ExitKind, SpeculationDirection);
     
     const TypedArrayDescriptor* typedArrayDescriptor(ArrayMode);
     
+    JITCompiler::Jump jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode, IndexingType, bool invert);
     JITCompiler::JumpList jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode, bool invert = false);
     void checkArray(Node&);
     void arrayify(Node&, GPRReg baseReg, GPRReg propertyReg);
     void arrayify(Node&);
     
     template<bool strict>
-    GPRReg fillSpeculateIntInternal(NodeIndex, DataFormat& returnFormat);
+    GPRReg fillSpeculateIntInternal(NodeIndex, DataFormat& returnFormat, SpeculationDirection);
     
     // It is possible, during speculative generation, to reach a situation in which we
     // can statically determine a speculation will fail (for example, when two nodes
@@ -2917,13 +2965,14 @@ private:
 
 class SpeculateIntegerOperand {
 public:
-    explicit SpeculateIntegerOperand(SpeculativeJIT* jit, Edge use)
+    explicit SpeculateIntegerOperand(SpeculativeJIT* jit, Edge use, SpeculationDirection direction = BackwardSpeculation)
         : m_jit(jit)
         , m_index(use.index())
         , m_gprOrInvalid(InvalidGPRReg)
 #ifndef NDEBUG
         , m_format(DataFormatNone)
 #endif
+        , m_direction(direction)
     {
         ASSERT(m_jit);
         ASSERT(use.useKind() != DoubleUse);
@@ -2952,8 +3001,13 @@ public:
     GPRReg gpr()
     {
         if (m_gprOrInvalid == InvalidGPRReg)
-            m_gprOrInvalid = m_jit->fillSpeculateInt(index(), m_format);
+            m_gprOrInvalid = m_jit->fillSpeculateInt(index(), m_format, m_direction);
         return m_gprOrInvalid;
+    }
+    
+    void use()
+    {
+        m_jit->use(m_index);
     }
 
 private:
@@ -2961,6 +3015,7 @@ private:
     NodeIndex m_index;
     GPRReg m_gprOrInvalid;
     DataFormat m_format;
+    SpeculationDirection m_direction;
 };
 
 class SpeculateStrictInt32Operand {
@@ -3007,10 +3062,11 @@ private:
 
 class SpeculateDoubleOperand {
 public:
-    explicit SpeculateDoubleOperand(SpeculativeJIT* jit, Edge use)
+    explicit SpeculateDoubleOperand(SpeculativeJIT* jit, Edge use, SpeculationDirection direction = BackwardSpeculation)
         : m_jit(jit)
         , m_index(use.index())
         , m_fprOrInvalid(InvalidFPRReg)
+        , m_direction(direction)
     {
         ASSERT(m_jit);
         ASSERT(use.useKind() == DoubleUse);
@@ -3032,23 +3088,29 @@ public:
     FPRReg fpr()
     {
         if (m_fprOrInvalid == InvalidFPRReg)
-            m_fprOrInvalid = m_jit->fillSpeculateDouble(index());
+            m_fprOrInvalid = m_jit->fillSpeculateDouble(index(), m_direction);
         return m_fprOrInvalid;
+    }
+    
+    void use()
+    {
+        m_jit->use(m_index);
     }
 
 private:
     SpeculativeJIT* m_jit;
     NodeIndex m_index;
     FPRReg m_fprOrInvalid;
+    SpeculationDirection m_direction;
 };
 
 class SpeculateCellOperand {
 public:
-    explicit SpeculateCellOperand(SpeculativeJIT* jit, Edge use, bool isForwardSpeculation = false)
+    explicit SpeculateCellOperand(SpeculativeJIT* jit, Edge use, SpeculationDirection direction = BackwardSpeculation)
         : m_jit(jit)
         , m_index(use.index())
         , m_gprOrInvalid(InvalidGPRReg)
-        , m_isForwardSpeculation(isForwardSpeculation)
+        , m_direction(direction)
     {
         ASSERT(m_jit);
         ASSERT(use.useKind() != DoubleUse);
@@ -3070,7 +3132,7 @@ public:
     GPRReg gpr()
     {
         if (m_gprOrInvalid == InvalidGPRReg)
-            m_gprOrInvalid = m_jit->fillSpeculateCell(index(), m_isForwardSpeculation);
+            m_gprOrInvalid = m_jit->fillSpeculateCell(index(), m_direction);
         return m_gprOrInvalid;
     }
     
@@ -3083,15 +3145,16 @@ private:
     SpeculativeJIT* m_jit;
     NodeIndex m_index;
     GPRReg m_gprOrInvalid;
-    bool m_isForwardSpeculation;
+    SpeculationDirection m_direction;
 };
 
 class SpeculateBooleanOperand {
 public:
-    explicit SpeculateBooleanOperand(SpeculativeJIT* jit, Edge use)
+    explicit SpeculateBooleanOperand(SpeculativeJIT* jit, Edge use, SpeculationDirection direction = BackwardSpeculation)
         : m_jit(jit)
         , m_index(use.index())
         , m_gprOrInvalid(InvalidGPRReg)
+        , m_direction(direction)
     {
         ASSERT(m_jit);
         ASSERT(use.useKind() != DoubleUse);
@@ -3113,7 +3176,7 @@ public:
     GPRReg gpr()
     {
         if (m_gprOrInvalid == InvalidGPRReg)
-            m_gprOrInvalid = m_jit->fillSpeculateBoolean(index());
+            m_gprOrInvalid = m_jit->fillSpeculateBoolean(index(), m_direction);
         return m_gprOrInvalid;
     }
     
@@ -3126,6 +3189,7 @@ private:
     SpeculativeJIT* m_jit;
     NodeIndex m_index;
     GPRReg m_gprOrInvalid;
+    SpeculationDirection m_direction;
 };
 
 } } // namespace JSC::DFG

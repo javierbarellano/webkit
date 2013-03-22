@@ -116,7 +116,7 @@ String HTMLTextFormControlElement::strippedPlaceholder() const
 {
     // According to the HTML5 specification, we need to remove CR and LF from
     // the attribute value.
-    const AtomicString& attributeValue = getAttribute(placeholderAttr);
+    const AtomicString& attributeValue = fastGetAttribute(placeholderAttr);
     if (!attributeValue.contains(newlineCharacter) && !attributeValue.contains(carriageReturn))
         return attributeValue;
 
@@ -136,7 +136,7 @@ static bool isNotLineBreak(UChar ch) { return ch != newlineCharacter && ch != ca
 
 bool HTMLTextFormControlElement::isPlaceholderEmpty() const
 {
-    const AtomicString& attributeValue = getAttribute(placeholderAttr);
+    const AtomicString& attributeValue = fastGetAttribute(placeholderAttr);
     return attributeValue.string().find(isNotLineBreak) == notFound;
 }
 
@@ -394,9 +394,9 @@ int HTMLTextFormControlElement::computeSelectionEnd() const
 
 static const AtomicString& directionString(TextFieldSelectionDirection direction)
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, none, ("none"));
-    DEFINE_STATIC_LOCAL(const AtomicString, forward, ("forward"));
-    DEFINE_STATIC_LOCAL(const AtomicString, backward, ("backward"));
+    DEFINE_STATIC_LOCAL(const AtomicString, none, ("none", AtomicString::ConstructFromLiteral));
+    DEFINE_STATIC_LOCAL(const AtomicString, forward, ("forward", AtomicString::ConstructFromLiteral));
+    DEFINE_STATIC_LOCAL(const AtomicString, backward, ("backward", AtomicString::ConstructFromLiteral));
 
     switch (direction) {
     case SelectionHasNoDirection:
@@ -503,16 +503,16 @@ void HTMLTextFormControlElement::selectionChanged(bool userTriggered)
     }
 }
 
-void HTMLTextFormControlElement::parseAttribute(const Attribute& attribute)
+void HTMLTextFormControlElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
-    if (attribute.name() == placeholderAttr)
+    if (name == placeholderAttr)
         updatePlaceholderVisibility(true);
-    else if (attribute.name() == onselectAttr)
-        setAttributeEventListener(eventNames().selectEvent, createAttributeEventListener(this, attribute));
-    else if (attribute.name() == onchangeAttr)
-        setAttributeEventListener(eventNames().changeEvent, createAttributeEventListener(this, attribute));
+    else if (name == onselectAttr)
+        setAttributeEventListener(eventNames().selectEvent, createAttributeEventListener(this, name, value));
+    else if (name == onchangeAttr)
+        setAttributeEventListener(eventNames().changeEvent, createAttributeEventListener(this, name, value));
     else
-        HTMLFormControlElementWithState::parseAttribute(attribute);
+        HTMLFormControlElementWithState::parseAttribute(name, value);
 }
 
 bool HTMLTextFormControlElement::lastChangeWasUserEdit() const
@@ -670,6 +670,13 @@ String HTMLTextFormControlElement::directionForFormData() const
     }
 
     return "ltr";
+}
+
+void HTMLTextFormControlElement::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
+{
+    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
+    HTMLFormControlElementWithState::reportMemoryUsage(memoryObjectInfo);
+    info.addMember(m_textAsOfLastFormControlChangeEvent);
 }
 
 } // namespace Webcore

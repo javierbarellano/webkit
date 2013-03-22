@@ -44,10 +44,13 @@
 namespace WebCore {
 class Frame;
 class HTMLPlugInElement;
+class MouseEvent;
 class RenderBoxModelObject;
 }
 
 namespace WebKit {
+
+class WebEvent;
 
 class PluginView : public WebCore::PluginViewBase, public PluginController, private WebCore::MediaCanStartListener, private WebFrame::LoadListener {
 public:
@@ -89,6 +92,8 @@ public:
 
     virtual bool handleEditingCommand(const String& commandName, const String& argument);
     virtual bool isEditingCommandEnabled(const String& commandName);
+
+    bool shouldAllowScripting();
 
 private:
     PluginView(PassRefPtr<WebCore::HTMLPlugInElement>, PassRefPtr<Plugin>, const Plugin::Parameters& parameters);
@@ -199,6 +204,8 @@ private:
     virtual void didFinishLoad(WebFrame*);
     virtual void didFailLoad(WebFrame*, bool wasCancelled);
 
+    PassOwnPtr<WebEvent> createWebEvent(WebCore::MouseEvent*) const;
+
     RefPtr<WebCore::HTMLPlugInElement> m_pluginElement;
     RefPtr<Plugin> m_plugin;
     WebPage* m_webPage;
@@ -243,6 +250,7 @@ private:
     RefPtr<ShareableBitmap> m_transientPaintingSnapshot;
     // This timer is used when plugin snapshotting is enabled, to capture a plugin placeholder.
     WebCore::DeferrableOneShotTimer<PluginView> m_pluginSnapshotTimer;
+    unsigned m_countSnapshotRetries;
 
     double m_pageScaleFactor;
 };

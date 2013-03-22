@@ -80,9 +80,6 @@ fast/forms/color
 # ENABLE(INPUT_TYPE_*) are not enabled.
 # https://bugs.webkit.org/show_bug.cgi?id=29359
 fast/forms/date
-fast/css/pseudo-in-range.html
-fast/css/pseudo-out-of-range.html
-fast/css/pseudo-in-range-invalid-value.html
 fast/forms/datetime
 fast/forms/datetimelocal
 fast/forms/month
@@ -187,146 +184,13 @@ compositing/visible-rect [ Skip ]
 
 # ENABLE(SHADOW_DOM) is disabled.
 editing/shadow
-fast/dom/shadow/access-key.html
-fast/dom/shadow/adopt-node-with-shadow-root.html
-fast/dom/shadow/athost-atrules.html
-fast/dom/shadow/composed-shadow-tree-walker.html
-fast/dom/shadow/composed-shadow-tree-walker-shadow-reprojection.html
-fast/dom/shadow/content-after-style.html
-fast/dom/shadow/content-element-api.html
-fast/dom/shadow/content-element-distributed-nodes.html
-fast/dom/shadow/content-element-in-media-element.html
-fast/dom/shadow/content-element-in-meter-element.html
-fast/dom/shadow/content-element-move.html
-fast/dom/shadow/content-element-outside-shadow.html
-fast/dom/shadow/content-element-outside-shadow-style.html
-fast/dom/shadow/content-reprojection-complex.html
-fast/dom/shadow/content-reprojection-dynamic.html
-fast/dom/shadow/content-reprojection-fallback-crash.html
-fast/dom/shadow/content-reprojection-fallback.html
-fast/dom/shadow/content-reprojection-fallback-reprojection.html
-fast/dom/shadow/content-reprojection-order.html
-fast/dom/shadow/content-reprojection-shadow.html
-fast/dom/shadow/drop-event-for-input-in-shadow.html
-fast/dom/shadow/drop-event-in-shadow.html
-fast/dom/shadow/elements-in-frameless-document.html
-fast/dom/shadow/events-stopped-at-shadow-boundary.html
-fast/dom/shadow/focus-navigation.html
-fast/dom/shadow/focus-navigation-with-distributed-nodes.html
-fast/dom/shadow/form-in-shadow.html
-fast/dom/shadow/get-element-by-id-in-shadow-mutation.html
-fast/dom/shadow/get-element-by-id-in-shadow-root.html
-fast/dom/shadow/has-shadow-insertion-point.html
-fast/dom/shadow/iframe-shadow.html
-fast/dom/shadow/input-with-validation.html
-fast/dom/shadow/input-with-validation-without-shadow.html
-fast/dom/shadow/insertion-point-list-menu-crash.html
-fast/dom/shadow/insertion-point-resetStyleInheritance.html
-fast/dom/shadow/insertion-point-shadow-crash.html
-fast/dom/shadow/insertion-point-video-crash.html
-fast/dom/shadow/invalidate-distribution.html
-fast/dom/shadow/link-in-shadow-tree.html
-fast/dom/shadow/multiple-shadowroot-adopt.html
-fast/dom/shadow/multiple-shadowroot.html
-fast/dom/shadow/multiple-shadowroot-rendering.html
-fast/dom/shadow/parent-tree-scope-in-shadow.html
-fast/dom/shadow/remove-styles-in-shadow-crash.html
-fast/dom/shadow/select-image-with-shadow.html
-fast/dom/shadow/selection-shouldnt-expose-shadow-dom.html
-fast/dom/shadow/selections-in-shadow.html
-fast/dom/shadow/shadow-and-list-elements.html
-fast/dom/shadow/shadow-boundary-events.html
-fast/dom/shadow/shadow-content-crash.html
-fast/dom/shadow/shadow-contents-fallback-dynamic.html
-fast/dom/shadow/shadow-contents-fallback.html
-fast/dom/shadow/shadow-disable.html
-fast/dom/shadow/shadow-div-reflow.html
-fast/dom/shadow/shadowdom-dynamic-styling.html
-fast/dom/shadow/shadow-dom-event-dispatching.html
-fast/dom/shadow/shadowdom-for-button-complex-shadow.html
-fast/dom/shadow/shadowdom-for-button.html
-fast/dom/shadow/shadowdom-for-button-only-shadow.html
-fast/dom/shadow/shadowdom-for-button-without-shadow.html
-fast/dom/shadow/shadowdom-for-fieldset-complex-shadow.html
-fast/dom/shadow/shadowdom-for-fieldset-only-shadow.html
-fast/dom/shadow/shadowdom-for-fieldset-without-shadow.html
-fast/dom/shadow/shadowdom-for-form-associated-element-useragent.html
-fast/dom/shadow/shadowdom-for-image-alt.html
-fast/dom/shadow/shadowdom-for-image-alt-update.html
-fast/dom/shadow/shadowdom-for-image-content.html
-fast/dom/shadow/shadowdom-for-image-dynamic.html
-fast/dom/shadow/shadowdom-for-image-event-click.html
-fast/dom/shadow/shadowdom-for-image-event.html
-fast/dom/shadow/shadowdom-for-image.html
-fast/dom/shadow/shadowdom-for-image-in-shadowdom.html
-fast/dom/shadow/shadowdom-for-image-map.html
-fast/dom/shadow/shadowdom-for-image-style.html
-fast/dom/shadow/shadowdom-for-image-with-multiple-shadow.html
-fast/dom/shadow/shadowdom-for-image-with-pseudo-id.html
-fast/dom/shadow/shadowdom-for-image-with-width-and-height.html
-fast/dom/shadow/shadowdom-for-keygen-complex-shadow.html
-fast/dom/shadow/shadowdom-for-keygen-only-shadow.html
-fast/dom/shadow/shadowdom-for-keygen-without-shadow.html
-fast/dom/shadow/shadowdom-for-media.html
-fast/dom/shadow/shadowdom-for-meter-dynamic.html
-fast/dom/shadow/shadowdom-for-meter.html
-fast/dom/shadow/shadowdom-for-meter-multiple.html
-fast/dom/shadow/shadowdom-for-meter-without-appearance.html
-fast/dom/shadow/shadowdom-for-meter-without-shadow-element.html
-fast/dom/shadow/shadowdom-for-meter-with-style.html
-fast/dom/shadow/shadowdom-for-object-complex-shadow.html
-fast/dom/shadow/shadowdom-for-object-only-shadow.html
-fast/dom/shadow/shadowdom-for-object-without-shadow.html
-fast/dom/shadow/shadowdom-for-output-complex-shadow.html
-fast/dom/shadow/shadowdom-for-output-only-shadow.html
-fast/dom/shadow/shadowdom-for-output-without-shadow.html
-fast/dom/shadow/shadowdom-for-progress-dynamic.html
-fast/dom/shadow/shadowdom-for-progress.html
-fast/dom/shadow/shadowdom-for-progress-multiple.html
-fast/dom/shadow/shadowdom-for-progress-without-appearance.html
-fast/dom/shadow/shadowdom-for-progress-without-shadow-element.html
-fast/dom/shadow/shadowdom-for-progress-with-style.html
-fast/dom/shadow/shadowdom-for-select-complex-shadow.html
-fast/dom/shadow/shadowdom-for-select-only-shadow.html
-fast/dom/shadow/shadowdom-for-select-without-shadow.html
-fast/dom/shadow/shadowdom-for-textarea-complex-shadow.html
-fast/dom/shadow/shadowdom-for-textarea.html
-fast/dom/shadow/shadowdom-for-textarea-only-shadow.html
-fast/dom/shadow/shadowdom-for-textarea-without-shadow.html
-fast/dom/shadow/shadowdom-for-textarea-with-placeholder.html
-fast/dom/shadow/shadowdom-reprojection-1.html
-fast/dom/shadow/shadowdom-reprojection-2.html
-fast/dom/shadow/shadow-dynamic-style-change-via-mutation-and-selector.html
-fast/dom/shadow/shadow-element.html
-fast/dom/shadow/shadow-element-rendering-multiple.html
-fast/dom/shadow/shadow-element-rendering-single.html
-fast/dom/shadow/shadow-nested-pseudo-id.html
-fast/dom/shadow/shadow-on-image.html
-fast/dom/shadow/shadow-removechild-and-blur-event.html
-fast/dom/shadow/shadow-reprojection.html
-fast/dom/shadow/shadow-reprojection2.html
-fast/dom/shadow/shadow-reprojection-click.html
-fast/dom/shadow/shadow-reprojection-dynamic.html
-fast/dom/shadow/shadow-reprojection-fallback.html
-fast/dom/shadow/shadow-root-activeElement.html
-fast/dom/shadow/shadow-root-append.html
-fast/dom/shadow/shadow-root-applyAuthorStyles.html
-fast/dom/shadow/shadow-root-attached.html
-fast/dom/shadow/shadow-root-blur.html
-fast/dom/shadow/shadowroot-clonenode.html
-fast/dom/shadow/shadow-root-innerHTML.html
-fast/dom/shadow/shadow-root-js-api.html
-fast/dom/shadow/shadow-root-new.html
-fast/dom/shadow/shadowroot-of-insertionpoint.html
-fast/dom/shadow/shadow-root-resetStyleInheritance.html
-fast/dom/shadow/shadow-ul-li.html
-fast/dom/shadow/style-of-distributed-node.html
-fast/dom/shadow/style-scoped-not-enabled.html
-fast/dom/shadow/suppress-mutation-events-in-shadow-characterdata.html
-fast/dom/shadow/tab-order-iframe-and-shadow.html
-fast/dom/shadow/transition-on-shadow-host-with-distributed-node.html
-fast/dom/shadow/user-modify-inheritance.html
+fast/dom/shadow
+fast/frames/detached-shadow-frame.html
 inspector/elements/update-shadowdom.html
+
+# ENABLE(TEMPLATE_ELEMENT) is disabled.
+fast/dom/HTMLTemplateElement
+html5lib/run-template.html
 
 # Fail until SUBPIXEL_LAYOUT is enabled
 # https://bugs.webkit.org/show_bug.cgi?id=85532
@@ -417,33 +281,6 @@ inspector/styles/svg-style.xhtml
 # https://bugs.webkit.org/show_bug.cgi?id=68610
 fast/dom/MicroData
 
-# ENABLE(MUTATION_OBSERVERS) is disabled
-fast/dom/HTMLElement/class-list-quirks.html
-fast/dom/HTMLElement/class-list.html
-fast/mutation/added-out-of-order.html
-fast/mutation/callback-arguments.html
-fast/mutation/clear-transient-without-delivery.html
-fast/mutation/create-during-delivery.html
-fast/mutation/cross-document.html
-fast/mutation/database-callback-delivery.html
-fast/mutation/delivery-order.html
-fast/mutation/disconnect-cancel-pending.html
-fast/mutation/document-fragment-insertion.html
-fast/mutation/inline-event-listener.html
-fast/mutation/mutate-during-delivery.html
-fast/mutation/mutation-observer-constructor.html
-fast/mutation/mutation-callback-non-element-crash.html
-fast/mutation/mutation-record-nullity.html
-fast/mutation/observe-attributes.html
-fast/mutation/observe-characterdata.html
-fast/mutation/observe-childList.html
-fast/mutation/observe-exceptions.html
-fast/mutation/observe-subtree.html
-fast/mutation/removed-out-of-order.html
-fast/mutation/shadow-dom.html
-fast/mutation/takeRecords.html
-fast/mutation/transient-gc-crash.html
-
 # Disable private names by default in WebCore
 # https://bugs.webkit.org/show_bug.cgi?id=87088
 fast/js/names.html
@@ -451,14 +288,22 @@ fast/js/names.html
 # Don't have GestureTapCancel event type
 touchadjustment/touch-links-active.html
 
+# Don't have gestureTapDown event type
+fast/events/touch/gesture/gesture-scrollbar.html
+
 # Don't have width/height on GestureLongPress necessary to enable adjustment
 touchadjustment/touch-links-longpress.html
+
+# Don't have gestureLongTap event type
+fast/events/touch/gesture/context-menu-on-long-tap.html
 
 # ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING) is disabled
 fast/dom/timer-throttling-hidden-page.html
 
 # ENABLE(INPUT_MULTIPLE_FIELDS_UI) is disabled
 fast/forms/date-multiple-fields
+fast/forms/datetime-multiple-fields
+fast/forms/datetimelocal-multiple-fields
 fast/forms/month-multiple-fields
 fast/forms/time-multiple-fields
 fast/forms/week-multiple-fields
@@ -479,9 +324,6 @@ webkit.org/b/92873 gamepad/gamepad-polling-access.html
 webkit.org/b/85580 fast/css/variables
 webkit.org/b/85580 inspector/styles/variables
 
-# UndoManager is not yet enabled.
-webkit.org/b/87908 editing/undomanager
-
 # CSS image-resolution is not yet enabled.
 webkit.org/b/85262 fast/css/image-resolution
 
@@ -490,6 +332,7 @@ webkit.org/b/89052 fast/css/image-orientation
 
 # CSS3 Text support is not yet enabled (needs ENABLE_CSS3_TEXT).
 webkit.org/b/58491 fast/css3-text/css3-text-decoration
+webkit.org/b/76173 fast/css3-text/css3-text-align-last
 
 # Web Inspector: Implement support for InspectorClient::overrideDeviceMetrics() in platforms other than Chromium
 # https://bugs.webkit.org/show_bug.cgi?id=82886
@@ -523,9 +366,6 @@ css3/filters/filter-property-parsing-invalid.html
 css3/filters/filter-property-parsing.html
 css3/filters/filter-property.html
 css3/filters/filter-repaint.html
-
-# CSS shaders
-css3/filters/custom
 
 # Support multipart responses is not implemented.
 # https://bugs.webkit.org/show_bug.cgi?id=47060
@@ -563,6 +403,8 @@ fast/dom/HTMLAnchorElement/anchor-download-unset.html
 
 # For now, Web Audio API is disabled
 webaudio/
+webkit.org/b/101729 inspector-protocol/nmi-webaudio.html
+webkit.org/b/101729 inspector-protocol/nmi-webaudio-leak-test.html
 
 # [Qt] Enable WebGL by default for QtWebKit
 # https://bugs.webkit.org/show_bug.cgi?id=65998
@@ -596,6 +438,7 @@ fast/events/page-visibility-iframe-move-test.html
 fast/events/page-visibility-iframe-propagation-test.html
 fast/events/page-visibility-null-view.html
 fast/events/page-visibility-transition-test.html
+fast/frames/page-visibility-crash.html
 
 # No CORS support for media elements is implemented yet.
 http/tests/security/video-cross-origin-readback.html
@@ -605,7 +448,7 @@ http/tests/security/video-cross-origin-readback.html
 http/tests/security/contentSecurityPolicy/1.1
 
 # Proximity Events is now supported.
-fast/dom/Proximity
+proximity
 fast/events/constructors/device-proximity-event-constructor.html
 
 # Missing support in DRT for Geolocation's Coordinate attributes.
@@ -616,6 +459,9 @@ webkit.org/b/84893 http/tests/w3c/webperf/submission/Intel/user-timing
 
 # Resource Timing is not enable yet, skip it.
 webkit.org/b/61138 http/tests/w3c/webperf/submission/Intel/resource-timing
+
+# Missing eventSender.scheduleAsynchronousKeyDown() implementation
+fast/mutation/inline-event-listener.html
 
 # =========================================================================== #
 #       Drag and Drop Support in DRT.                                         #
@@ -636,6 +482,7 @@ editing/pasteboard/drag-drop-url-with-style.html
 editing/pasteboard/file-drag-to-editable.html
 editing/pasteboard/file-input-files-access.html
 fast/events/prevent-drag-to-navigate.html
+fast/events/touch/gesture/long-press-on-draggable-element-triggers-drag.html
 fast/forms/file/input-file-re-render.html
 http/tests/security/clipboard/clipboard-file-access.html
 
@@ -815,19 +662,6 @@ http/tests/xmlhttprequest/cache-override.html
 # [Qt] New http/tests/xmlhttprequest/xmlhttprequest-check-get-readystate-for-404-without-body.htm fails
 # https://bugs.webkit.org/show_bug.cgi?id=86606
 http/tests/xmlhttprequest/xmlhttprequest-check-get-readystate-for-404-without-body.html
-
-# ResourceRequest needs to support setTimeoutInterval
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-aborted.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-abortedonmain.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-overridesexpires.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-simple.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-synconmain.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-twice.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-worker-aborted.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-worker-overridesexpires.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-worker-simple.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-worker-synconworker.html
-webkit.org/b/98397 http/tests/xmlhttprequest/timeout/xmlhttprequest-timeout-worker-twice.html
 
 # =========================================================================== #
 #       Failing editing/inserting tests.                                      #
@@ -1062,6 +896,40 @@ http/tests/misc/webtiming-origins.html
 # https://bugs.webkit.org/show_bug.cgi?id=57983
 media
 
+# Opera-submitted tests to W3C for <track>, a lot of failures still.
+webkit.org/b/103926 media/track/opera/idl/media-idl-tests.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/HTMLElement/HTMLMediaElement/crossOrigin.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/HTMLElement/HTMLTrackElement/kind.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/HTMLElement/HTMLTrackElement/src.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrack/activeCues.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrack/removeCue.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TrackEvent/constructor.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TrackEvent/createEvent.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/align.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/id.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/getCueAsHTML.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/line.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/onenter.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/onexit.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/pauseOnExit.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/snapToLines.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/text.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/track.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCue/vertical.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackCueList/getter.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackList/getter.html [ Skip ]
+webkit.org/b/103926 media/track/opera/interfaces/TextTrackList/onremovetrack.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/track-element/cloneNode.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/track-element/src-clear-cues.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/parsing/001.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/parsing-cue-data/tests/entities.html [ Skip ] 
+webkit.org/b/103926 media/track/opera/track/webvtt/parsing-cue-data/tests/tags.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/rendering/adhoc/12345_timestamps.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/parsing-cue-data/tests/timestamps.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/parsing-cue-data/tests/tree-building.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/rendering/adhoc/cue_font_size_transition.html [ Skip ]
+webkit.org/b/103926 media/track/opera/track/webvtt/rendering/adhoc/voice_with_evil_timestamp.html [ Skip ]
+
 # https://bugs.webkit.org/show_bug.cgi?id=38376
 media/media-document-audio-size.html
 
@@ -1210,7 +1078,6 @@ loader/go-back-to-different-window-size.html
 editing/text-iterator/findString.html
 
 # Missing layoutTestController.testRepaint()
-fast/images/repaint-subrect-grid.html
 fast/repaint/table-writing-modes-h.html
 fast/repaint/table-writing-modes-v.html
 fast/repaint/text-emphasis-h.html
@@ -1226,6 +1093,9 @@ editing/spelling/grammar-markers-hidpi.html
 editing/spelling/inline-spelling-markers-hidpi.html
 fast/canvas/2d.backingStorePixelRatio.html
 fast/canvas/2d.imageDataHD.html
+fast/canvas/canvas-as-image-hidpi.html
+fast/canvas/canvas-resize-reset-pixelRatio.html
+fast/events/mouse-cursor-image-set.html
 svg/as-image/svg-as-image-canvas.html
 
 # This requires didClearWindowObjectForFrameInIsolatedWorld foo in FrameLoaderClient
@@ -1309,12 +1179,24 @@ css3/filters/custom/filter-repaint-custom-clipped.html
 css3/filters/custom/filter-repaint-custom-rotated.html
 css3/filters/custom/filter-repaint-custom.html
 
+# The following tests need further investigation:
+# https://bugs.webkit.org/show_bug.cgi?id=101531
+css3/filters/custom/filter-fallback-to-software.html
+css3/filters/custom/composited/custom-filter-blend-modes.html
+css3/filters/custom/custom-filter-no-element-texture-access.html
+css3/filters/custom/effect-custom-transform-parameters.html
+css3/filters/custom/custom-filter-animation.html
+css3/filters/custom/custom-filter-transforms-animation.html
+css3/filters/custom/custom-filter-blend-modes.html
+css3/filters/custom/custom-filter-array-blending.html
+
 # ReferenceError: Can't find variable: MediaKeyError
 # http://trac.webkit.org/changeset/114067
 fast/events/constructors/media-key-event-constructor.html
 
 # missing testRunner.setStorageDatabaseIdleInterval() implementation
 storage/domstorage/storage-close-database-on-idle.html
+storage/domstorage/localstorage/close-idle-localstorage-databases-immediately.html
 
 # Missing targetDiv1.webkitRequestFullscreen() implementation
 # https://bugs.webkit.org/show_bug.cgi?id=92078
@@ -1407,6 +1289,9 @@ svg/text/text-intro-05-t.svg
 svg/text/text-tselect-02-f.svg
 
 webkit.org/b/98718 svg/animations/animate-css-xml-attributeType.html [ Failure Pass ]
+
+# https://bugs.webkit.org/show_bug.cgi?id=104054
+webkit.org/b/104054 svg/custom/use-href-update-crash.svg [ Failure Pass ]
 
 # [Qt] svg/animations/animate-path-nested-transforms.html fails
 # https://bugs.webkit.org/show_bug.cgi?id=48987
@@ -1582,7 +1467,6 @@ fast/forms/textarea-scrollbar.html
 fast/forms/textarea-scrolled-type.html
 fast/invalid/missing-end-tag.xhtml
 fast/invalid/residual-style.html
-fast/js/string-capitalization.html
 fast/lists/drag-into-marker.html
 fast/overflow/clip-rects-fixed-ancestor.html
 fast/overflow/overflow-rtl.html
@@ -1809,6 +1693,7 @@ fast/text/international/wrap-CJK-001.html
 fast/repaint/japanese-rl-selection-clear.html
 fast/repaint/japanese-rl-selection-repaint.html
 fast/repaint/japanese-rl-selection-repaint-in-regions.html
+fast/text/decorations-with-text-combine.html
 fast/text/international/bdi-neutral-wrapped.html
 fast/text/international/bidi-mirror-he-ar.html
 fast/text/international/bold-bengali.html
@@ -1817,6 +1702,7 @@ fast/text/international/plane2.html
 fast/text/international/unicode-bidi-plaintext.html
 fast/text/international/vertical-text-glyph-test.html
 fast/text/international/vertical-text-metrics-test.html
+fast/text/orientation-sideways.html
 fast/writing-mode/japanese-ruby-horizontal-bt.html
 fast/writing-mode/japanese-ruby-vertical-lr.html
 fast/writing-mode/japanese-ruby-vertical-rl.html
@@ -2028,14 +1914,21 @@ http/tests/inspector/console-websocket-error.html
 svg/as-image/animated-svg-repaints-completely-in-hidpi.html
 transitions/default-timing-function.html
 
+# --- new tests without expected files, need investigation
+fast/repaint/box-shadow-inset-repaint.html
+fast/text/word-space.html
+fast/events/touch/gesture/right-click-gestures-set-cursor-at-correct-position.html
+fast/events/touch/gesture/context-menu-on-long-press.html
+fast/xsl/xslt-extra-content-at-end.xml
+svg/filters/feImage-filterUnits-objectBoundingBox-primitiveUnits-userSpaceOnUse.svg
+css2.1/t100801-c548-ln-ht-01-b-ag.html
+css2.1/20110323/inline-non-replaced-height-003.htm
+css2.1/20110323/inline-non-replaced-height-002.htm
+
 
 # ============================================================================= #
 # Regressions occured after Qt version update
 # ============================================================================= #
-
-# [Qt] fast/forms/textarea-appearance-wrap.html fails with Qt >= 4.7.1
-# https://bugs.webkit.org/show_bug.cgi?id=50145
-fast/forms/textarea-appearance-wrap.html
 
 # [Qt] 4 css2.1/t1202-counter tests fail with Qt >= 4.7.1
 # https://bugs.webkit.org/show_bug.cgi?id=50146
@@ -2125,6 +2018,10 @@ fast/events/touch/gesture/gesture-scroll.html
 fast/events/touch/gesture/touch-gesture-scroll-sideways.html
 fast/events/touch/gesture/gesture-tap-active-state-iframe.html
 
+# New test introduced in https://bugs.webkit.org/show_bug.cgi?id=103355
+# Needs Qt implementation.
+fast/events/touch/gesture/touch-gesture-scroll-remove-node.html
+
 # Test fails because script pretty-print does not work in inspector on JSC when paused on breakpoint.
 # https://bugs.webkit.org/show_bug.cgi?id=71120
 inspector/debugger/selected-call-frame-after-formatting-source.html
@@ -2146,13 +2043,6 @@ fast/loader/form-submission-after-beforeunload-cancel.html
 
 # This test verifies that a mismatch reftest will fail as intended if both results are same.
 fast/harness/sample-fail-mismatch-reftest.html
-
-# [Qt] REGRESSION(r93937): 4 failing and 3 flaky tests
-# https://bugs.webkit.org/show_bug.cgi?id=67118
-# Flaky
-fast/forms/number/number-large-padding.html
-fast/forms/number/number-spinbutton-capturing.html
-fast/forms/number/number-spinbutton-change-and-input-events.html
 
 # [Qt] fast/text/line-initial-and-final-swashes.html fails
 # https://bugs.webkit.org/show_bug.cgi?id=69719
@@ -2222,10 +2112,6 @@ fast/notifications/notifications-without-permission.html
 # [Qt] unexpected result in fast/js/large-expressions.html
 # https://bugs.webkit.org/show_bug.cgi?id=76379
 fast/js/large-expressions.html
-
-# New fast/js/dfg-arrayify-elimination.html introduced in r132554 fails on 32 bit platforms
-# https://bugs.webkit.org/show_bug.cgi?id=100474
-fast/js/dfg-arrayify-elimination.html
 
 # This should only be a layer change.
 # http://webkit.org/b/82129
@@ -2487,6 +2373,8 @@ webkit.org/b/94006 fast/css/word-spacing-characters-complex-text.html [ ImageOnl
 webkit.org/b/98525 plugins/mouse-click-plugin-clears-selection.html
 webkit.org/b/98525 plugins/netscape-dom-access.html
 webkit.org/b/98525 plugins/resize-from-plugin.html
+
+# [Qt] plugins/refcount-leaks.html fails
 webkit.org/b/98640 plugins/refcount-leaks.html
 
 webkit.org/b/99893 svg/animations/mozilla/animateMotion-mpath-targetChange-1.svg [ ImageOnlyFailure ]
@@ -2499,17 +2387,65 @@ webkit.org/b/99306 animations/additive-transform-animations.html [ ImageOnlyFail
 webkit.org/b/99306 animations/cross-fade-webkit-mask-box-image.html [ ImageOnlyFailure ]
 webkit.org/b/99306 animations/missing-values-first-keyframe.html [ ImageOnlyFailure ]
 webkit.org/b/99306 animations/missing-values-last-keyframe.html [ ImageOnlyFailure ]
-webkit.org/b/99306 animations/opacity-transform-animation.html [ ImageOnlyFailure ]
 webkit.org/b/99306 css3/filters/effect-blur-hw.html [ ImageOnlyFailure ] # Blur effect radius is too small on WebKit1, the effect not applied at all on WebKit2.
 
 # REGRESSION(r132143): It made fast/xmlhttprequest/xmlhttprequest-recursive-sync-event.html flakey
 webkit.org/b/100117 fast/xmlhttprequest/xmlhttprequest-recursive-sync-event.html
+webkit.org/b/100117 editing/style/iframe-onload-crash-mac.html
+
+# [Qt] New fast/dom/Window/open-window-min-size.html test fails on Qt.
+webkit.org/b/102226 fast/dom/Window/open-window-min-size.html
 
 # [Qt] New http/tests/inspector/network/image-as-text-loading-data-url.html fails
 webkit.org/b/100196 http/tests/inspector/network/image-as-text-loading-data-url.html
 
-# REGRESSION(r132757): It made 2 jquery tests assert
-webkit.org/b/100636 jquery/manipulation.html
-webkit.org/b/100636 jquery/traversing.html
+webkit.org/b/100424 editing/selection/user-select-all-selection.html [ Failure ]
+
+webkit.org/b/101539 editing/execCommand/switch-list-type-with-orphaned-li.html [ Failure ]
 
 webkit.org/b/100846 inspector-protocol/debugger-pause-dedicated-worker.html [ Skip ]
+webkit.org/b/100846 inspector-protocol/debugger-terminate-dedicated-worker-while-paused.html [ Skip ]
+
+# QT still has the CC toggle button, not the menu of tracks.
+webkit.org/b/101670 media/video-controls-captions-trackmenu.html [ Skip ]
+
+# New, but failing test
+webkit.org/b/101035 fast/images/exif-orientation-image-document.html
+
+# These tests need to be rebaselined after https://bugs.webkit.org/show_bug.cgi?id=65643
+webkit.org/b/101397 svg/repaint/repaint-webkit-svg-shadow.svg
+webkit.org/b/101397 svg/css/composite-shadow-text.svg
+webkit.org/b/101397 svg/custom/simple-text-double-shadow.svg
+webkit.org/b/101397 svg/css/clippath-with-shadow.svg
+webkit.org/b/101397 svg/css/arrow-with-shadow.svg
+
+# Fails after test refactoring, maybe rebaseline needed
+webkit.org/b/98523 fast/images/repaint-subrect-grid.html
+
+# [Qt] New css3/filters/effect-reference-ordering-hw.html crashes
+webkit.org/b/101925 css3/filters/effect-reference-ordering-hw.html
+
+# [Qt] fast/block/float/overhanging-tall-block.html asserts after r135025
+webkit.org/b/102675 [ Debug ] fast/block/float/overhanging-tall-block.html
+
+# [Qt] New fast/frames/frame-unload-crash2.html fails with timeout
+webkit.org/b/102877 fast/frames/frame-unload-crash2.html
+
+# Fails until we enable the Resource Timing API.
+webkit.org/b/61138 http/tests/w3c/webperf/submission/resource-timing [ Skip ]
+
+# [Qt] A new compositing bug uncovered by r135859
+webkit.org/b/103424 fast/backgrounds/background-opaque-images-over-color.html
+
+# No support for exposing in-band text tracks
+webkit.org/b/103769 media/track/track-in-band.html [ Skip ]
+
+webkit.org/b/104150 fast/media/implicit-media-all.html [ ImageOnlyFailure ]
+
+# [Qt] new fast/exclusions/shape-inside/shape-inside-rounded-rectangle-fit-002.html fails since introduced in r136857
+webkit.org/b/104351 fast/exclusions/shape-inside/shape-inside-rounded-rectangle-fit-002.html
+
+# [Qt] new http/tests/xmlhttprequest/post-blob-content-type-sync.html and ~async.html fail since introduced in r136893
+# https://bugs.webkit.org/show_bug.cgi?id=104352
+http/tests/xmlhttprequest/post-blob-content-type-async.html
+http/tests/xmlhttprequest/post-blob-content-type-sync.html

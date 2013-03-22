@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (C) 2010 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,7 +63,6 @@ class TestInstance(object):
         self.actual_image = self.base + '\x8a' + '-png' + 'tEXtchecksum\x00' + self.actual_checksum
 
         self.expected_text = self.actual_text
-        self.expected_checksum = self.actual_checksum
         self.expected_image = self.actual_image
 
         self.actual_audio = None
@@ -99,6 +97,15 @@ class TestList(object):
     def __getitem__(self, item):
         return self.tests[item]
 
+#
+# These numbers may need to be updated whenever we add or delete tests.
+#
+TOTAL_TESTS = 104
+TOTAL_SKIPS = 28
+TOTAL_RETRIES = 14
+
+UNEXPECTED_PASSES = 6
+UNEXPECTED_FAILURES = 17
 
 def unit_test_list():
     tests = TestList()
@@ -117,16 +124,15 @@ def unit_test_list():
               actual_audio=base64.b64encode('audio_fail-wav'), expected_audio='audio-wav',
               actual_text=None, expected_text=None,
               actual_image=None, expected_image=None,
-              actual_checksum=None, expected_checksum=None)
+              actual_checksum=None)
     tests.add('failures/expected/keyboard.html', keyboard=True)
     tests.add('failures/expected/missing_check.html',
-              expected_checksum=None,
-              expected_image=None)
+              expected_image='missing_check-png')
     tests.add('failures/expected/missing_image.html', expected_image=None)
     tests.add('failures/expected/missing_audio.html', expected_audio=None,
               actual_text=None, expected_text=None,
               actual_image=None, expected_image=None,
-              actual_checksum=None, expected_checksum=None)
+              actual_checksum=None)
     tests.add('failures/expected/missing_text.html', expected_text=None)
     tests.add('failures/expected/newlines_leading.html',
               expected_text="\nfoo\n", actual_text="foo\n")
@@ -138,6 +144,7 @@ def unit_test_list():
     tests.add('failures/expected/skip_text.html', actual_text='text diff')
     tests.add('failures/flaky/text.html')
     tests.add('failures/unexpected/missing_text.html', expected_text=None)
+    tests.add('failures/unexpected/missing_check.html', expected_image='missing-check-png')
     tests.add('failures/unexpected/missing_image.html', expected_image=None)
     tests.add('failures/unexpected/missing_render_tree_dump.html', actual_text="""layer at (0,0) size 800x600
   RenderView at (0,0) size 800x600
@@ -152,12 +159,18 @@ layer at (0,0) size 800x34
               error="mock-std-error-output")
     tests.add('failures/unexpected/web-process-crash-with-stderr.html', web_process_crash=True,
               error="mock-std-error-output")
+    tests.add('failures/unexpected/pass.html')
+    tests.add('failures/unexpected/text-checksum.html',
+              actual_text='text-checksum_fail-txt',
+              actual_checksum='text-checksum_fail-checksum')
     tests.add('failures/unexpected/text-image-checksum.html',
               actual_text='text-image-checksum_fail-txt',
+              actual_image='text-image-checksum_fail-pngtEXtchecksum\x00checksum_fail',
               actual_checksum='text-image-checksum_fail-checksum')
     tests.add('failures/unexpected/checksum-with-matching-image.html',
               actual_checksum='text-image-checksum_fail-checksum')
     tests.add('failures/unexpected/skip_pass.html')
+    tests.add('failures/unexpected/text.html', actual_text='text_fail-txt')
     tests.add('failures/unexpected/timeout.html', timeout=True)
     tests.add('http/tests/passes/text.html')
     tests.add('http/tests/passes/image.html')
@@ -169,10 +182,9 @@ layer at (0,0) size 800x34
               actual_audio=base64.b64encode('audio-wav'), expected_audio='audio-wav',
               actual_text=None, expected_text=None,
               actual_image=None, expected_image=None,
-              actual_checksum=None, expected_checksum=None)
+              actual_checksum=None)
     tests.add('passes/platform_image.html')
     tests.add('passes/checksum_in_image.html',
-              expected_checksum=None,
               expected_image='tEXtchecksum\x00checksum_in_image-checksum')
     tests.add('passes/skipped/skip.html')
 
@@ -281,6 +293,7 @@ Bug(test) failures/expected/timeout.html [ Timeout ]
 Bug(test) failures/expected/hang.html [ WontFix ]
 Bug(test) failures/expected/keyboard.html [ WontFix ]
 Bug(test) failures/expected/exception.html [ WontFix ]
+Bug(test) failures/unexpected/pass.html [ Failure ]
 Bug(test) passes/skipped/skip.html [ Skip ]
 """)
 
@@ -429,9 +442,7 @@ class TestPort(Port):
     def webkit_base(self):
         return '/test.checkout'
 
-    def skipped_layout_tests(self, test_list):
-        # This allows us to test the handling Skipped files, both with a test
-        # that actually passes, and a test that does fail.
+    def _skipped_tests_for_unsupported_features(self, test_list):
         return set(['failures/expected/skip_text.html',
                     'failures/unexpected/skip_pass.html',
                     'virtual/skipped'])
@@ -531,12 +542,23 @@ class TestPort(Port):
 
 class TestDriver(Driver):
     """Test/Dummy implementation of the DumpRenderTree interface."""
+    next_pid = 1
+
+    def __init__(self, *args, **kwargs):
+        super(TestDriver, self).__init__(*args, **kwargs)
+        self.started = False
+        self.pid = 0
 
     def cmd_line(self, pixel_tests, per_test_args):
         pixel_tests_flag = '-p' if pixel_tests else ''
         return [self._port._path_to_driver()] + [pixel_tests_flag] + self._port.get_option('additional_drt_flag', []) + per_test_args
 
     def run_test(self, test_input, stop_when_done):
+        if not self.started:
+            self.started = True
+            self.pid = TestDriver.next_pid
+            TestDriver.next_pid += 1
+
         start_time = time.time()
         test_name = test_input.test_name
         test_args = test_input.args or []
@@ -584,10 +606,7 @@ class TestDriver(Driver):
         return DriverOutput(actual_text, image, test.actual_checksum, audio,
             crash=test.crash or test.web_process_crash, crashed_process_name=crashed_process_name,
             crashed_pid=crashed_pid, crash_log=crash_log,
-            test_time=time.time() - start_time, timeout=test.timeout, error=test.error)
-
-    def start(self, pixel_tests, per_test_args):
-        pass
+            test_time=time.time() - start_time, timeout=test.timeout, error=test.error, pid=self.pid)
 
     def stop(self):
-        pass
+        self.started = False

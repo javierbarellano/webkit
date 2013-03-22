@@ -1447,7 +1447,7 @@ void Range::surroundContents(PassRefPtr<Node> passNewParent, ExceptionCode& ec)
         return;
     }
     
-    if (m_start.container() == newParent || m_start.container()->isDescendantOf(newParent.get())) {
+    if (newParent->contains(m_start.container())) {
         ec = HIERARCHY_REQUEST_ERR;
         return;
     }
@@ -1562,7 +1562,7 @@ Node* Range::firstNode() const
 
 ShadowRoot* Range::shadowRoot() const
 {
-    return startContainer() ? startContainer()->shadowRoot() : 0;
+    return startContainer() ? startContainer()->containingShadowRoot() : 0;
 }
 
 Node* Range::pastLastNode() const

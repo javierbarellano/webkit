@@ -92,6 +92,7 @@ private:
     bool runTest(const char* pathOrURL);
 
     void platformInitialize();
+    void platformDestroy();
     void platformInitializeContext();
     void platformRunUntil(bool& done, double timeout);
     void platformDidCommitLoadForFrame(WKPageRef, WKFrameRef);
@@ -140,6 +141,7 @@ private:
     bool m_printSeparators;
     bool m_usingServerMode;
     bool m_gcBetweenTests;
+    bool m_shouldDumpPixelsForAllTests;
     std::vector<std::string> m_paths;
     WKRetainPtr<WKStringRef> m_injectedBundlePath;
     WKRetainPtr<WKStringRef> m_testPluginDirectory;
@@ -177,7 +179,14 @@ private:
     bool m_policyDelegateEnabled;
     bool m_policyDelegatePermissive;
 
-    EventSenderProxy* m_eventSenderProxy;
+#if PLATFORM(MAC) || PLATFORM(QT) || PLATFORM(GTK) || PLATFORM(EFL)
+    OwnPtr<EventSenderProxy> m_eventSenderProxy;
+#endif
+
+#if PLATFORM(QT)
+    class RunLoop;
+    RunLoop* m_runLoop;
+#endif
 
     WorkQueueManager m_workQueueManager;
 };

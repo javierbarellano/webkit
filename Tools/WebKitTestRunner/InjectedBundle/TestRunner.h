@@ -112,6 +112,7 @@ public:
     void setTabKeyCyclesThroughElements(bool);
     void setSerializeHTTPLoads();
     void dispatchPendingLoadRequests();
+    void setCacheModel(int);
 
     // Special DOM functions.
     JSValueRef computedStyleIncludingVisitedInfo(JSValueRef element);
@@ -242,6 +243,7 @@ public:
     // Custom full screen behavior.
     void setHasCustomFullScreenBehavior(bool value) { m_customFullScreenBehavior = value; }
     bool hasCustomFullScreenBehavior() const { return m_customFullScreenBehavior; }
+    void setViewModeMediaFeature(JSStringRef);
 
     // Web notifications.
     void grantWebNotificationPermission(JSStringRef origin);

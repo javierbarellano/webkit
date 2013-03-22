@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright (C) 2012 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +46,7 @@ from webkitpy.performance_tests.perftestsrunner import PerfTestsRunner
 
 class MainTest(unittest.TestCase):
     def assertWritten(self, stream, contents):
-        self.assertEquals(stream.buflist, contents)
+        self.assertEqual(stream.buflist, contents)
 
     def normalizeFinishedTime(self, log):
         return re.sub(r'Finished: [0-9\.]+ s', 'Finished: 0.1 s', log)
@@ -242,9 +241,8 @@ max 548000 bytes
             self.assertEqual(TestDriverWithStartCount.start_count, 1)
         finally:
             stdout, stderr, log = output.restore_output()
-        self.assertEqual(stderr, "Ready to run test?\n")
         self.assertEqual(self.normalizeFinishedTime(log),
-            "Running inspector/pass.html (1 of 1)\nRESULT group_name: test_name= 42 ms\nFinished: 0.1 s\n\n")
+            "Ready to run test?\nRunning inspector/pass.html (1 of 1)\nRESULT group_name: test_name= 42 ms\nFinished: 0.1 s\n\n")
 
     def test_run_test_set_for_parser_tests(self):
         runner, port = self.create_runner()
@@ -289,14 +287,16 @@ max 548000 bytes
             'RESULT Parser: memory-test: Malloc= 532000.0 bytes',
             'median= 529000.0 bytes, stdev= 13000.0 bytes, min= 511000.0 bytes, max= 548000.0 bytes',
             'Finished: 0.1 s',
-            '', '']))
+            '',
+            'MOCK: user.open_url: file://...',
+            '']))
         results = runner.load_output_json()[0]['results']
         values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
         self.assertEqual(results['Parser/memory-test'], {'min': 1080.0, 'max': 1120.0, 'median': 1101.0, 'stdev': 11.0, 'avg': 1100.0, 'unit': 'ms', 'values': values})
         self.assertEqual(results['Parser/memory-test:JSHeap'], {'min': 811000.0, 'max': 848000.0, 'median': 829000.0, 'stdev': 15000.0, 'avg': 832000.0, 'unit': 'bytes', 'values': values})
         self.assertEqual(results['Parser/memory-test:Malloc'], {'min': 511000.0, 'max': 548000.0, 'median': 529000.0, 'stdev': 13000.0, 'avg': 532000.0, 'unit': 'bytes', 'values': values})
 
-    def _test_run_with_json_output(self, runner, filesystem, upload_suceeds=False, expected_exit_code=0):
+    def _test_run_with_json_output(self, runner, filesystem, upload_suceeds=False, results_shown=True, expected_exit_code=0):
         filesystem.write_text_file(runner._base_path + '/inspector/pass.html', 'some content')
         filesystem.write_text_file(runner._base_path + '/Bindings/event-target-wrapper.html', 'some content')
 
@@ -318,18 +318,19 @@ max 548000 bytes
             stdout, stderr, logs = output_capture.restore_output()
 
         if not expected_exit_code:
-            self.assertEqual(self.normalizeFinishedTime(logs),
-                '\n'.join(['Running 2 tests',
-                'Running Bindings/event-target-wrapper.html (1 of 2)',
-                'RESULT Bindings: event-target-wrapper= 1489.05 ms',
-                'median= 1487.0 ms, stdev= 14.46 ms, min= 1471.0 ms, max= 1510.0 ms',
-                'Finished: 0.1 s',
-                '',
-                'Running inspector/pass.html (2 of 2)',
-                'RESULT group_name: test_name= 42 ms',
-                'Finished: 0.1 s',
-                '',
-                '']))
+            expected_logs = '\n'.join(['Running 2 tests',
+                                       'Running Bindings/event-target-wrapper.html (1 of 2)',
+                                       'RESULT Bindings: event-target-wrapper= 1489.05 ms',
+                                       'median= 1487.0 ms, stdev= 14.46 ms, min= 1471.0 ms, max= 1510.0 ms',
+                                       'Finished: 0.1 s',
+                                       '',
+                                       'Running inspector/pass.html (2 of 2)',
+                                       'RESULT group_name: test_name= 42 ms',
+                                       'Finished: 0.1 s',
+                                       '', ''])
+            if results_shown:
+                expected_logs += 'MOCK: user.open_url: file://...\n'
+            self.assertEqual(self.normalizeFinishedTime(logs), expected_logs)
 
         self.assertEqual(uploaded[0], upload_suceeds)
 
@@ -373,7 +374,7 @@ max 548000 bytes
     def test_run_respects_no_results(self):
         runner, port = self.create_runner(args=['--output-json-path=/mock-checkout/output.json',
             '--test-results-server=some.host', '--no-results'])
-        self._test_run_with_json_output(runner, port.host.filesystem, upload_suceeds=False)
+        self._test_run_with_json_output(runner, port.host.filesystem, upload_suceeds=False, results_shown=False)
         self.assertFalse(port.host.filesystem.isfile('/mock-checkout/output.json'))
 
     def test_run_generates_json_by_default(self):
@@ -428,7 +429,7 @@ max 548000 bytes
         page_shown = []
         port.show_results_html_file = lambda path: page_shown.append(path)
         filesystem = port.host.filesystem
-        self._test_run_with_json_output(runner, filesystem)
+        self._test_run_with_json_output(runner, filesystem, results_shown=False)
 
         expected_entry = {"timestamp": 123456789, "results": self._event_target_wrapper_and_inspector_results,
             "webkit-revision": "5678", "branch": "webkit-trunk"}
@@ -441,7 +442,7 @@ max 548000 bytes
             '<script>%s</script>END' % json_output)
         self.assertEqual(page_shown[0], '/mock-checkout/output.html')
 
-        self._test_run_with_json_output(runner, filesystem)
+        self._test_run_with_json_output(runner, filesystem, results_shown=False)
         json_output = port.host.filesystem.read_text_file('/mock-checkout/output.json')
         self.assertEqual(json.loads(json_output), [expected_entry, expected_entry])
         self.assertEqual(filesystem.read_text_file('/mock-checkout/output.html'),
@@ -454,14 +455,14 @@ max 548000 bytes
         runner, port = self.create_runner_and_setup_results_template(args=['--output-json-path=/mock-checkout/output.json'])
         page_shown = []
         port.show_results_html_file = show_results_html_file
-        self._test_run_with_json_output(runner, port.host.filesystem)
+        self._test_run_with_json_output(runner, port.host.filesystem, results_shown=False)
         self.assertEqual(page_shown[0], '/mock-checkout/output.html')
 
         runner, port = self.create_runner_and_setup_results_template(args=['--output-json-path=/mock-checkout/output.json',
             '--no-show-results'])
         page_shown = []
         port.show_results_html_file = show_results_html_file
-        self._test_run_with_json_output(runner, port.host.filesystem)
+        self._test_run_with_json_output(runner, port.host.filesystem, results_shown=False)
         self.assertEqual(page_shown, [])
 
     def test_run_with_bad_output_json(self):
@@ -598,13 +599,6 @@ max 548000 bytes
         port.skipped_perf_tests = lambda: ['inspector/unsupported_test1.html', 'unsupported']
         self.assertEqual(self._collect_tests_and_sort_test_name(runner), ['inspector/test1.html', 'inspector/test2.html', 'inspector/unsupported_test1.html', 'unsupported/unsupported_test2.html'])
 
-    def test_collect_tests_with_page_load_svg(self):
-        runner, port = self.create_runner()
-        self._add_file(runner, 'PageLoad', 'some-svg-test.svg')
-        tests = runner._collect_tests()
-        self.assertEqual(len(tests), 1)
-        self.assertEqual(tests[0].__class__.__name__, 'PageLoadingPerfTest')
-
     def test_collect_tests_should_ignore_replay_tests_by_default(self):
         runner, port = self.create_runner()
         self._add_file(runner, 'Replay', 'www.webkit.org.replay')
@@ -643,7 +637,3 @@ max 548000 bytes
         self.assertEqual(options.output_json_path, 'a/output.json')
         self.assertEqual(options.slave_config_json_path, 'a/source.json')
         self.assertEqual(options.test_results_server, 'somehost')
-
-
-if __name__ == '__main__':
-    unittest.main()

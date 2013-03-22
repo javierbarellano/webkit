@@ -33,7 +33,6 @@
 #include "LayerTreeRenderer.h"
 #include "PageViewportController.h"
 #include "TransformationMatrix.h"
-#include "ewk_view_private.h"
 
 using namespace WebCore;
 
@@ -41,8 +40,7 @@ namespace WebKit {
 
 PageViewportControllerClientEfl::PageViewportControllerClientEfl(EwkViewImpl* viewImpl)
     : m_viewImpl(viewImpl)
-    , m_scaleFactor(1)
-    , m_pageViewportController(0)
+    , m_controller(0)
 {
     ASSERT(m_viewImpl);
 }
@@ -61,70 +59,54 @@ void PageViewportControllerClientEfl::setRendererActive(bool active)
     drawingArea()->layerTreeCoordinatorProxy()->layerTreeRenderer()->setActive(active);
 }
 
-void PageViewportControllerClientEfl::display(const IntRect& rect, const IntPoint& viewPosition)
-{
-    WebCore::TransformationMatrix matrix;
-    matrix.setMatrix(m_scaleFactor, 0, 0, m_scaleFactor, -m_scrollPosition.x() * m_scaleFactor + viewPosition.x() , -m_scrollPosition.y() * m_scaleFactor + viewPosition.y());
-
-    LayerTreeRenderer* renderer = drawingArea()->layerTreeCoordinatorProxy()->layerTreeRenderer();
-    renderer->setActive(true);
-    renderer->syncRemoteContent();
-    IntRect clipRect(rect);
-    clipRect.move(viewPosition.x(), viewPosition.y());
-    renderer->paintToCurrentGLContext(matrix, 1, clipRect);
-}
-
 void PageViewportControllerClientEfl::updateViewportSize(const IntSize& viewportSize)
 {
     m_viewportSize = viewportSize;
-    m_viewImpl->page()->setViewportSize(viewportSize);
-    m_pageViewportController->didChangeViewportSize(viewportSize);
+
+    ASSERT(m_controller);
+    m_controller->didChangeViewportSize(viewportSize);
 }
 
-void PageViewportControllerClientEfl::setVisibleContentsRect(const IntPoint& newScrollPosition, float newScale, const FloatPoint& /*trajectory*/)
+void PageViewportControllerClientEfl::didChangeContentsSize(const WebCore::IntSize& contentsSize)
 {
-    m_scaleFactor = newScale;
-    m_scrollPosition = newScrollPosition;
-    m_pageViewportController->didChangeContentsVisibility(m_scrollPosition, m_scaleFactor, FloatPoint());
-}
-
-void PageViewportControllerClientEfl::didChangeContentsSize(const WebCore::IntSize& size)
-{
-    m_contentsSize = size;
-    IntRect rect = IntRect(IntPoint(), m_viewportSize);
-    m_viewImpl->redrawRegion(rect);
+    drawingArea()->layerTreeCoordinatorProxy()->setContentsSize(contentsSize);
+    m_viewImpl->update();
 }
 
 void PageViewportControllerClientEfl::setViewportPosition(const WebCore::FloatPoint& contentsPoint)
 {
-    setVisibleContentsRect(IntPoint(contentsPoint.x(), contentsPoint.y()), m_scaleFactor, FloatPoint());
+    m_contentPosition = contentsPoint;
+
+    FloatPoint pos(contentsPoint);
+    pos.scale(scaleFactor(), scaleFactor());
+    m_viewImpl->setPagePosition(pos);
+
+    m_controller->didChangeContentsVisibility(m_contentPosition, scaleFactor());
 }
 
-void PageViewportControllerClientEfl::setContentsScale(float newScale, bool treatAsInitialValue)
+void PageViewportControllerClientEfl::setContentsScale(float newScale)
 {
-    if (treatAsInitialValue)
-        m_scrollPosition = IntPoint();
-    m_scaleFactor = newScale;
+    m_viewImpl->setScaleFactor(newScale);
 }
 
 void PageViewportControllerClientEfl::didResumeContent()
 {
-    m_pageViewportController->didChangeContentsVisibility(m_scrollPosition, m_scaleFactor);
+    ASSERT(m_controller);
+    m_controller->didChangeContentsVisibility(m_contentPosition, scaleFactor());
 }
 
 void PageViewportControllerClientEfl::didChangeVisibleContents()
 {
-    IntRect rect = IntRect(IntPoint(), m_viewportSize);
-    m_viewImpl->redrawRegion(rect);
+    m_viewImpl->update();
 }
 
 void PageViewportControllerClientEfl::didChangeViewportAttributes()
 {
 }
 
-void PageViewportControllerClientEfl::setController(PageViewportController* pageViewportController)
+void PageViewportControllerClientEfl::setController(PageViewportController* controller)
 {
-    m_pageViewportController = pageViewportController;
+    m_controller = controller;
 }
 
 } // namespace WebKit

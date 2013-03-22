@@ -52,6 +52,7 @@
 #include "Document.h"
 #include "DocumentFragment.h"
 #include "DocumentType.h"
+#include "Element.h"
 #include "ElementShadow.h"
 #include "Event.h"
 #include "EventContext.h"
@@ -563,6 +564,11 @@ int InspectorDOMAgent::pushNodePathToFrontend(Node* nodeToPush)
     return map->get(nodeToPush);
 }
 
+int InspectorDOMAgent::pushNodePathForRenderLayerToFrontend(const RenderLayer* renderLayer)
+{
+    return pushNodePathToFrontend(renderLayer->renderer()->node());
+}
+
 int InspectorDOMAgent::boundNodeId(Node* node)
 {
     return m_documentNodeToIdMap.get(node);
@@ -1042,6 +1048,9 @@ PassOwnPtr<HighlightConfig> InspectorDOMAgent::highlightConfigFromInspectorObjec
     bool showInfo = false; // Default: false (do not show a tooltip).
     highlightInspectorObject->getBoolean("showInfo", &showInfo);
     highlightConfig->showInfo = showInfo;
+    bool showRulers = false; // Default: false (do not show rulers).
+    highlightInspectorObject->getBoolean("showRulers", &showRulers);
+    highlightConfig->showRulers = showRulers;
     highlightConfig->content = parseConfigColor("contentColor", highlightInspectorObject);
     highlightConfig->contentOutline = parseConfigColor("contentOutlineColor", highlightInspectorObject);
     highlightConfig->padding = parseConfigColor("paddingColor", highlightInspectorObject);
@@ -1063,12 +1072,19 @@ void InspectorDOMAgent::highlightRect(ErrorString*, int x, int y, int width, int
     m_overlay->highlightRect(adoptPtr(new IntRect(x, y, width, height)), *highlightConfig);
 }
 
-void InspectorDOMAgent::highlightNode(
-    ErrorString* errorString,
-    int nodeId,
-    const RefPtr<InspectorObject>& highlightInspectorObject)
+void InspectorDOMAgent::highlightNode(ErrorString* errorString, const RefPtr<InspectorObject>& highlightInspectorObject, const int* nodeId, const String* objectId)
 {
-    Node* node = nodeForId(nodeId);
+    Node* node = 0;
+    if (nodeId) {
+        node = assertNode(errorString, *nodeId);
+    } else if (objectId) {
+        InjectedScript injectedScript = m_injectedScriptManager->injectedScriptForObjectId(*objectId);
+        node = injectedScript.nodeForObjectId(*objectId);
+        if (!node)
+            *errorString = "Node for given objectId not found";
+    } else
+        *errorString = "Either nodeId or objectId must be specified";
+
     if (!node)
         return;
 
@@ -1146,17 +1162,29 @@ void InspectorDOMAgent::markUndoableState(ErrorString*)
     m_history->markUndoableState();
 }
 
-void InspectorDOMAgent::resolveNode(ErrorString* error, int nodeId, const String* const objectGroup, RefPtr<TypeBuilder::Runtime::RemoteObject>& result)
+void InspectorDOMAgent::focus(ErrorString* errorString, int nodeId)
+{
+    Element* element = assertElement(errorString, nodeId);
+    if (!element)
+        return;
+    if (!element->isFocusable()) {
+        *errorString = "Element is not focusable";
+        return;
+    }
+    element->focus();
+}
+
+void InspectorDOMAgent::resolveNode(ErrorString* errorString, int nodeId, const String* const objectGroup, RefPtr<TypeBuilder::Runtime::RemoteObject>& result)
 {
     String objectGroupName = objectGroup ? *objectGroup : "";
     Node* node = nodeForId(nodeId);
     if (!node) {
-        *error = "No node with given id found";
+        *errorString = "No node with given id found";
         return;
     }
     RefPtr<TypeBuilder::Runtime::RemoteObject> object = resolveNode(node, objectGroupName);
     if (!object) {
-        *error = "Node with given id does not belong to the document";
+        *errorString = "Node with given id does not belong to the document";
         return;
     }
     result = object;

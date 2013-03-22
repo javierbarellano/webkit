@@ -33,13 +33,12 @@
 
 #include "MockWebMediaStreamCenter.h"
 
-#include <public/WebICECandidateDescriptor.h>
+#include <public/WebAudioDestinationConsumer.h>
 #include <public/WebMediaStreamCenterClient.h>
 #include <public/WebMediaStreamComponent.h>
 #include <public/WebMediaStreamDescriptor.h>
 #include <public/WebMediaStreamSource.h>
 #include <public/WebMediaStreamSourcesRequest.h>
-#include <public/WebSessionDescriptionDescriptor.h>
 #include <public/WebVector.h>
 
 using namespace WebKit;
@@ -87,28 +86,25 @@ void MockWebMediaStreamCenter::didStopLocalMediaStream(const WebMediaStreamDescr
         videoComponents[i].source().setReadyState(WebMediaStreamSource::ReadyStateEnded);
 }
 
-void MockWebMediaStreamCenter::didCreateMediaStream(WebMediaStreamDescriptor&)
-{
-}
+class MockWebAudioDestinationConsumer : public WebAudioDestinationConsumer {
+public:
+    virtual ~MockWebAudioDestinationConsumer() { }
+    virtual void consumeAudio(const WebVector<const float*>&, size_t number_of_frames) OVERRIDE { }
+};
 
-WebString MockWebMediaStreamCenter::constructSDP(const WebICECandidateDescriptor& iceCandidate)
+void MockWebMediaStreamCenter::didCreateMediaStream(WebMediaStreamDescriptor& stream)
 {
-    string16 result = iceCandidate.label();
-    result += WebString(":");
-    result += iceCandidate.candidateLine();
-    result += WebString(";");
-    return result;
-}
-
-WebString MockWebMediaStreamCenter::constructSDP(const WebSessionDescriptionDescriptor& sessionDescription)
-{
-    string16 result = sessionDescription.initialSDP();
-    result += WebString(";");
-    for (size_t i = 0; i < sessionDescription.numberOfAddedCandidates(); ++i) {
-        result += constructSDP(sessionDescription.candidate(i));
-        result += WebString(";");
+    WebVector<WebMediaStreamComponent> audioComponents;
+    stream.audioSources(audioComponents);
+    for (size_t i = 0; i < audioComponents.size(); ++i) {
+        WebMediaStreamSource source = audioComponents[i].source();
+        if (source.requiresAudioConsumer()) {
+            MockWebAudioDestinationConsumer* consumer = new MockWebAudioDestinationConsumer();
+            source.addAudioConsumer(consumer);
+            source.removeAudioConsumer(consumer);
+            delete consumer;
+        }
     }
-    return result;
 }
 
 #endif // ENABLE(MEDIA_STREAM)

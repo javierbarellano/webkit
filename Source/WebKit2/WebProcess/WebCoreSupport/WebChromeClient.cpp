@@ -36,6 +36,7 @@
 #include "WebFrame.h"
 #include "WebFrameLoaderClient.h"
 #include "WebFullScreenManager.h"
+#include "WebImage.h"
 #include "WebOpenPanelParameters.h"
 #include "WebOpenPanelResultListener.h"
 #include "WebPage.h"
@@ -118,7 +119,11 @@ FloatRect WebChromeClient::windowRect()
 
 FloatRect WebChromeClient::pageRect()
 {
+#if USE(TILED_BACKING_STORE)
+    return FloatRect(FloatPoint(), m_page->viewportSize());
+#else
     return FloatRect(FloatPoint(), m_page->size());
+#endif
 }
 
 void WebChromeClient::focus()
@@ -428,7 +433,7 @@ PlatformPageClient WebChromeClient::platformPageClient() const
     return 0;
 }
 
-void WebChromeClient::contentsSizeChanged(Frame* frame, const IntSize& /*size*/) const
+void WebChromeClient::contentsSizeChanged(Frame* frame, const IntSize& size) const
 {
     if (!m_page->corePage()->settings()->frameFlatteningEnabled()) {
         WebFrame* largestFrame = findLargestFrameInFrameSet(m_page);
@@ -449,8 +454,11 @@ void WebChromeClient::contentsSizeChanged(Frame* frame, const IntSize& /*size*/)
     }
 
     m_page->send(Messages::WebPageProxy::DidChangeContentsSize(m_page->size()));
-
+#elif PLATFORM(EFL)
+    m_page->send(Messages::WebPageProxy::DidChangeContentsSize(size));
 #endif
+
+    m_page->drawingArea()->mainFrameContentSizeChanged(size);
 
     FrameView* frameView = frame->view();
     if (frameView && !frameView->delegatesScrolling())  {
@@ -473,19 +481,28 @@ void WebChromeClient::scrollRectIntoView(const IntRect&) const
 
 bool WebChromeClient::shouldUnavailablePluginMessageBeButton(RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason) const
 {
-    if (pluginUnavailabilityReason == RenderEmbeddedObject::PluginMissing || pluginUnavailabilityReason == RenderEmbeddedObject::InsecurePluginVersion) {
+    switch (pluginUnavailabilityReason) {
+    case RenderEmbeddedObject::PluginMissing:
         // FIXME: <rdar://problem/8794397> We should only return true when there is a
         // missingPluginButtonClicked callback defined on the Page UI client.
+    case RenderEmbeddedObject::InsecurePluginVersion:
+    case RenderEmbeddedObject::PluginInactive:
         return true;
+
+
+    case RenderEmbeddedObject::PluginCrashed:
+    case RenderEmbeddedObject::PluginBlockedByContentSecurityPolicy:
+        return false;
     }
 
+    ASSERT_NOT_REACHED();
     return false;
 }
     
 void WebChromeClient::unavailablePluginButtonClicked(Element* element, RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason) const
 {
     ASSERT(element->hasTagName(objectTag) || element->hasTagName(embedTag) || element->hasTagName(appletTag));
-    ASSERT(pluginUnavailabilityReason == RenderEmbeddedObject::PluginMissing || pluginUnavailabilityReason == RenderEmbeddedObject::InsecurePluginVersion);
+    ASSERT(pluginUnavailabilityReason == RenderEmbeddedObject::PluginMissing || pluginUnavailabilityReason == RenderEmbeddedObject::InsecurePluginVersion || pluginUnavailabilityReason == RenderEmbeddedObject::PluginInactive);
 
     HTMLPlugInImageElement* pluginElement = static_cast<HTMLPlugInImageElement*>(element);
 
@@ -800,6 +817,11 @@ void WebChromeClient::logDiagnosticMessage(const String& message, const String& 
         return;
 
     m_page->injectedBundleDiagnosticLoggingClient().logDiagnosticMessage(m_page, message, description, success);
+}
+
+PassRefPtr<Image> WebChromeClient::plugInStartLabelImage(RenderSnapshottedPlugIn::LabelSize size) const
+{
+    return m_page->injectedBundleUIClient().plugInStartLabelImage(size)->bitmap()->createImage();
 }
 
 } // namespace WebKit

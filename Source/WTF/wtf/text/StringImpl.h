@@ -709,6 +709,9 @@ public:
 
     WTF_EXPORT_STRING_API PassRefPtr<StringImpl> replace(UChar, UChar);
     WTF_EXPORT_STRING_API PassRefPtr<StringImpl> replace(UChar, StringImpl*);
+    ALWAYS_INLINE PassRefPtr<StringImpl> replace(UChar pattern, const char* replacement, unsigned replacementLength) { return replace(pattern, reinterpret_cast<const LChar*>(replacement), replacementLength); }
+    WTF_EXPORT_STRING_API PassRefPtr<StringImpl> replace(UChar, const LChar*, unsigned replacementLength);
+    PassRefPtr<StringImpl> replace(UChar, const UChar*, unsigned replacementLength);
     WTF_EXPORT_STRING_API PassRefPtr<StringImpl> replace(StringImpl*, StringImpl*);
     WTF_EXPORT_STRING_API PassRefPtr<StringImpl> replace(unsigned index, unsigned len, StringImpl*);
 
@@ -1065,9 +1068,9 @@ static inline int codePointCompare(unsigned l1, unsigned l2, const CharacterType
     const unsigned lmin = l1 < l2 ? l1 : l2;
     unsigned pos = 0;
     while (pos < lmin && *c1 == *c2) {
-        c1++;
-        c2++;
-        pos++;
+        ++c1;
+        ++c2;
+        ++pos;
     }
 
     if (pos < lmin)

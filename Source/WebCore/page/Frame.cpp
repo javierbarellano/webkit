@@ -40,7 +40,6 @@
 #include "DOMWindow.h"
 #include "CachedResourceLoader.h"
 #include "DocumentType.h"
-#include "EditingText.h"
 #include "EditorClient.h"
 #include "EventNames.h"
 #include "FloatQuad.h"
@@ -184,11 +183,7 @@ inline Frame::Frame(Page* page, HTMLFrameOwnerElement* ownerElement, FrameLoader
 #endif
     } else {
         page->incrementSubframeCount();
-
-        // Make sure we will not end up with two frames referencing the same owner element.
-        Frame*& contentFrameSlot = ownerElement->m_contentFrame;
-        ASSERT(!contentFrameSlot || contentFrameSlot->ownerElement() != ownerElement);
-        contentFrameSlot = this;
+        ownerElement->setContentFrame(this);
     }
 
 #ifndef NDEBUG
@@ -260,7 +255,7 @@ void Frame::setView(PassRefPtr<FrameView> view)
     // from messing with the view such that its scroll bars won't be torn down.
     // FIXME: We should revisit this.
     if (m_view)
-        m_view->detachCustomScrollbars();
+        m_view->prepareForDetach();
 
     // Prepare for destruction now, so any unload event handlers get run and the DOMWindow is
     // notified. If we wait until the view is destroyed, then things won't be hooked up enough for
@@ -607,14 +602,7 @@ void Frame::injectUserScriptsForWorld(DOMWrapperWorld* world, const UserScriptVe
 
 RenderView* Frame::contentRenderer() const
 {
-    Document* doc = document();
-    if (!doc)
-        return 0;
-    RenderObject* object = doc->renderer();
-    if (!object)
-        return 0;
-    ASSERT(object->isRenderView());
-    return toRenderView(object);
+    return document() ? document()->renderView() : 0;
 }
 
 RenderPart* Frame::ownerRenderer() const
@@ -669,8 +657,13 @@ void Frame::dispatchVisibilityStateChangeEvent()
 {
     if (m_doc)
         m_doc->dispatchVisibilityStateChangeEvent();
+
+    Vector<RefPtr<Frame> > childFrames;
     for (Frame* child = tree()->firstChild(); child; child = child->tree()->nextSibling())
-        child->dispatchVisibilityStateChangeEvent();
+        childFrames.append(child);
+
+    for (size_t i = 0; i < childFrames.size(); ++i)
+        childFrames[i]->dispatchVisibilityStateChangeEvent();
 }
 #endif
 
@@ -704,7 +697,7 @@ void Frame::disconnectOwnerElement()
     if (m_ownerElement) {
         if (Document* doc = document())
             doc->clearAXObjectCache();
-        m_ownerElement->m_contentFrame = 0;
+        m_ownerElement->clearContentFrame();
         if (m_page)
             m_page->decrementSubframeCount();
     }
@@ -1026,6 +1019,23 @@ void Frame::notifyChromeClientWheelEventHandlerCountChanged() const
     }
 
     m_page->chrome()->client()->numWheelEventHandlersChanged(count);
+}
+
+bool Frame::isURLAllowed(const KURL& url) const
+{
+    // We allow one level of self-reference because some sites depend on that,
+    // but we don't allow more than one.
+    if (m_page->subframeCount() >= Page::maxNumberOfFrames)
+        return false;
+    bool foundSelfReference = false;
+    for (const Frame* frame = this; frame; frame = frame->tree()->parent()) {
+        if (equalIgnoringFragmentIdentifier(frame->document()->url(), url)) {
+            if (foundSelfReference)
+                return false;
+            foundSelfReference = true;
+        }
+    }
+    return true;
 }
 
 #if !PLATFORM(MAC) && !PLATFORM(WIN)

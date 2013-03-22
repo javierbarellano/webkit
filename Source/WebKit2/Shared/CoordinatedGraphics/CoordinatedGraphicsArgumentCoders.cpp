@@ -52,15 +52,19 @@
 #endif
 
 #if ENABLE(CSS_SHADERS)
+#include "WebCustomFilterOperation.h"
 #include "WebCustomFilterProgram.h"
+#include "WebCustomFilterProgramProxy.h"
 #include <WebCore/CustomFilterArrayParameter.h>
 #include <WebCore/CustomFilterConstants.h>
 #include <WebCore/CustomFilterNumberParameter.h>
 #include <WebCore/CustomFilterOperation.h>
 #include <WebCore/CustomFilterProgram.h>
+#include <WebCore/CustomFilterProgramInfo.h>
 #include <WebCore/CustomFilterTransformParameter.h>
+#include <WebCore/CustomFilterValidatedProgram.h>
+#include <WebCore/ValidatedCustomFilterOperation.h>
 #endif
-
 
 #if USE(GRAPHICS_SURFACE)
 #include <WebCore/GraphicsSurface.h>
@@ -135,20 +139,23 @@ void ArgumentCoder<WebCore::FilterOperations>::encode(ArgumentEncoder& encoder, 
             break;
         }
 #if ENABLE(CSS_SHADERS)
-        case FilterOperation::CUSTOM: {
-            const CustomFilterOperation* customOperation = static_cast<const CustomFilterOperation*>(filter);
-
-            ASSERT(customOperation->program());
-            RefPtr<CustomFilterProgram> program = customOperation->program();
-            ASSERT(program->isLoaded());
-            encoder << program->vertexShaderString();
-            encoder << program->fragmentShaderString();
-            encoder.encodeEnum(program->programType());
-            CustomFilterProgramMixSettings mixSettings = program->mixSettings();
-            encoder.encodeEnum(mixSettings.blendMode);
-            encoder.encodeEnum(mixSettings.compositeOperator);
-            encoder.encodeEnum(program->meshType());
-
+        case FilterOperation::CUSTOM:
+            // Custom Filters are converted to VALIDATED_CUSTOM before reaching this point.
+            ASSERT_NOT_REACHED();
+            break;
+        case FilterOperation::VALIDATED_CUSTOM: {
+            const ValidatedCustomFilterOperation* customOperation = static_cast<const ValidatedCustomFilterOperation*>(filter);
+            ASSERT(customOperation->validatedProgram());
+            RefPtr<CustomFilterValidatedProgram> program = customOperation->validatedProgram();
+            ASSERT(program->isInitialized());
+            ASSERT(program->platformCompiledProgram());
+            ASSERT(program->platformCompiledProgram()->client());
+            WebCustomFilterProgramProxy* customFilterProgramProxy = static_cast<WebCustomFilterProgramProxy*>(program->platformCompiledProgram()->client());
+            const CustomFilterProgramInfo& programInfo = program->programInfo();
+            // FIXME: CustomFilterOperation should not need the meshType, it should just be encoded in the program itself.
+            // https://bugs.webkit.org/show_bug.cgi?id=102529
+            encoder.encodeEnum(programInfo.meshType());
+            encoder << customFilterProgramProxy->id();
             CustomFilterParameterList parameters = customOperation->parameters();
             encoder << static_cast<uint32_t>(parameters.size());
             for (size_t i = 0; i < parameters.size(); ++i) {
@@ -181,7 +188,9 @@ void ArgumentCoder<WebCore::FilterOperations>::encode(ArgumentEncoder& encoder, 
 
             encoder << customOperation->meshRows();
             encoder << customOperation->meshColumns();
-            encoder.encodeEnum(customOperation->meshBoxType());
+            // FIXME: The ValidatedCustomFilterOperation doesn't have the meshBoxType yet, we just use the default one for now.
+            // https://bugs.webkit.org/show_bug.cgi?id=100890
+            encoder.encodeEnum(MeshBoxTypeFilter);
             break;
         }
 #endif
@@ -247,25 +256,19 @@ bool ArgumentCoder<WebCore::FilterOperations>::decode(ArgumentDecoder* decoder, 
             break;
         }
 #if ENABLE(CSS_SHADERS)
-        case FilterOperation::CUSTOM: {
-            String vertexShaderString;
-            String fragmentShaderString;
-            CustomFilterProgramType programType;
-            CustomFilterProgramMixSettings mixSettings;
+        case FilterOperation::CUSTOM:
+            // Custom Filters are converted to VALIDATED_CUSTOM before reaching this point.
+            ASSERT_NOT_REACHED();
+            break;
+        case FilterOperation::VALIDATED_CUSTOM: {
+            // FIXME: CustomFilterOperation should not need the meshType.
+            // https://bugs.webkit.org/show_bug.cgi?id=102529
             CustomFilterMeshType meshType;
-            if (!decoder->decode(vertexShaderString))
-                return false;
-            if (!decoder->decode(fragmentShaderString))
-                return false;
-            if (!decoder->decodeEnum(programType))
-                return false;
-            if (!decoder->decodeEnum(mixSettings.blendMode))
-                return false;
-            if (!decoder->decodeEnum(mixSettings.compositeOperator))
-                return false;
             if (!decoder->decodeEnum(meshType))
                 return false;
-            RefPtr<CustomFilterProgram> program = WebCustomFilterProgram::create(vertexShaderString, fragmentShaderString, programType, mixSettings, meshType);
+            int programID = 0;
+            if (!decoder->decode(programID))
+                return false;
 
             uint32_t parametersSize;
             if (!decoder->decodeUInt32(parametersSize))
@@ -323,7 +326,7 @@ bool ArgumentCoder<WebCore::FilterOperations>::decode(ArgumentDecoder* decoder, 
 
             unsigned meshRows;
             unsigned meshColumns;
-            CustomFilterOperation::MeshBoxType meshBoxType;
+            CustomFilterMeshBoxType meshBoxType;
             if (!decoder->decode(meshRows))
                 return false;
             if (!decoder->decode(meshColumns))
@@ -331,7 +334,8 @@ bool ArgumentCoder<WebCore::FilterOperations>::decode(ArgumentDecoder* decoder, 
             if (!decoder->decodeEnum(meshBoxType))
                 return false;
 
-            filter = CustomFilterOperation::create(program, parameters, meshRows, meshColumns, meshBoxType, meshType);
+            // At this point the Shaders are already validated, so we just use WebCustomFilterOperation for transportation.
+            filter = WebCustomFilterOperation::create(0, programID, parameters, meshRows, meshColumns, meshBoxType, meshType);
             break;
         }
 #endif
@@ -346,6 +350,42 @@ bool ArgumentCoder<WebCore::FilterOperations>::decode(ArgumentDecoder* decoder, 
     return true;
 }
 #endif
+
+#if ENABLE(CSS_SHADERS)
+void ArgumentCoder<WebCore::CustomFilterProgramInfo>::encode(ArgumentEncoder& encoder, const CustomFilterProgramInfo& programInfo)
+{
+    encoder << programInfo.vertexShaderString();
+    encoder << programInfo.fragmentShaderString();
+    encoder.encodeEnum(programInfo.programType());
+    encoder.encodeEnum(programInfo.meshType());
+    const CustomFilterProgramMixSettings& mixSettings = programInfo.mixSettings();
+    encoder.encodeEnum(mixSettings.blendMode);
+    encoder.encodeEnum(mixSettings.compositeOperator);
+}
+
+bool ArgumentCoder<WebCore::CustomFilterProgramInfo>::decode(ArgumentDecoder* decoder, CustomFilterProgramInfo& programInfo)
+{
+    String vertexShaderString;
+    String fragmentShaderString;
+    CustomFilterProgramType programType;
+    CustomFilterMeshType meshType;
+    CustomFilterProgramMixSettings mixSettings;
+    if (!decoder->decode(vertexShaderString))
+        return false;
+    if (!decoder->decode(fragmentShaderString))
+        return false;
+    if (!decoder->decodeEnum(programType))
+        return false;
+    if (!decoder->decodeEnum(meshType))
+        return false;
+    if (!decoder->decodeEnum(mixSettings.blendMode))
+        return false;
+    if (!decoder->decodeEnum(mixSettings.compositeOperator))
+        return false;
+    programInfo = CustomFilterProgramInfo(vertexShaderString, fragmentShaderString, programType, mixSettings, meshType);
+    return true;
+}
+#endif // ENABLE(CSS_SHADERS)
 
 void ArgumentCoder<TransformOperations>::encode(ArgumentEncoder& encoder, const TransformOperations& transformOperations)
 {

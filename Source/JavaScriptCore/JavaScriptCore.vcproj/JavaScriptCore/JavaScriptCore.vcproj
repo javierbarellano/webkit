@@ -538,7 +538,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\ButterflyInlineMethods.h"
+				RelativePath="..\..\runtime\ButterflyInlines.h"
 				>
 			</File>
 			<File
@@ -546,7 +546,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\IndexingHeaderInlineMethods.h"
+				RelativePath="..\..\runtime\IndexingHeaderInlines.h"
 				>
 			</File>
 			<File
@@ -635,6 +635,22 @@
 			</File>
 			<File
 				RelativePath="..\..\runtime\ClassInfo.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\CodeCache.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\CodeCache.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\CodeSpecializationKind.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\runtime\CodeSpecializationKind.h"
 				>
 			</File>
 			<File
@@ -1002,7 +1018,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\runtime\JSValueInlineMethods.h"
+				RelativePath="..\..\runtime\JSValueInlines.h"
 				>
 			</File>
 			<File
@@ -1510,6 +1526,90 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\profiler\ProfilerBytecode.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerBytecode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerBytecodes.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerBytecodes.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompilation.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompilation.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompilationKind.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompilationKind.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompiledBytecode.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerCompiledBytecode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerDatabase.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerDatabase.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerExecutionCounter.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOrigin.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOrigin.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOriginStack.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOriginStack.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOSRExit.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOSRExit.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOSRExitSite.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerOSRExitSite.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\profiler\Profile.cpp"
 				>
 			</File>
@@ -1534,11 +1634,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\profiler\Profiler.cpp"
+				RelativePath="..\..\profiler\LegacyProfiler.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\profiler\Profiler.h"
+				RelativePath="..\..\profiler\LegacyProfiler.h"
 				>
 			</File>
 		</Filter>
@@ -1573,6 +1673,14 @@
 		<Filter
 			Name="bytecode"
 			>
+			<File
+				RelativePath="..\..\bytecode\ArrayAllocationProfile.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ArrayAllocationProfile.h"
+				>
+			</File>
 			<File
 				RelativePath="..\..\bytecode\ArrayProfile.cpp"
 				>
@@ -1614,11 +1722,31 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\bytecode\CodeBlockHash.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\CodeBlockHash.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\CodeBlockWithJITType.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\CodeOrigin.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\bytecode\CodeOrigin.h"
 				>
 			</File>
 			<File
 				RelativePath="..\..\bytecode\CodeType.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\CodeType.cpp"
 				>
 			</File>
 			<File
@@ -1635,6 +1763,14 @@
 			</File>
 			<File
 				RelativePath="..\..\bytecode\ExpressionRangeInfo.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ExitKind.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ExitKind.cpp"
 				>
 			</File>
 			<File
@@ -1678,22 +1814,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\bytecode\MethodCallLinkInfo.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\bytecode\MethodCallLinkInfo.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\bytecode\MethodCallLinkStatus.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\..\bytecode\MethodCallLinkStatus.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\bytecode\MethodOfGettingAValueProfile.cpp"
 				>
 			</File>
@@ -1711,6 +1831,14 @@
 			</File>
 			<File
 				RelativePath="..\..\bytecode\PolymorphicPutByIdList.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ReduceWhitespace.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\ReduceWhitespace.h"
 				>
 			</File>
 			<File
@@ -1759,6 +1887,14 @@
 			</File>
 			<File
 				RelativePath="..\..\bytecode\StructureStubInfo.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\UnlinkedCodeBlock.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\bytecode\UnlinkedCodeBlock.h"
 				>
 			</File>
 			<File
@@ -1922,6 +2058,14 @@
 			Name="jit"
 			>
 			<File
+				RelativePath="..\..\jit\ClosureCallStubRoutine.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\jit\ClosureCallStubRoutine.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\jit\ExecutableAllocator.cpp"
 				>
 			</File>
@@ -1966,7 +2110,19 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\jit\JITCode.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\jit\JITCode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\jit\JITDisassembler.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\jit\JITDisassembler.h"
 				>
 			</File>
 			<File
@@ -1978,7 +2134,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\jit\JITInlineMethods.h"
+				RelativePath="..\..\jit\JITInlines.h"
 				>
 			</File>
 			<File
@@ -2118,6 +2274,10 @@
 			Name="disassembler"
 			>
 			<File
+				RelativePath="..\..\disassembler\Disassembler.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\disassembler\Disassembler.h"
 				>
 			</File>
@@ -2246,6 +2406,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\parser\ParserModes.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\parser\ParserArena.cpp"
 				>
 			</File>
@@ -2350,7 +2514,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\heap\CopiedSpaceInlineMethods.h"
+				RelativePath="..\..\heap\CopiedSpaceInlines.h"
 				>
 			</File>
 			<File
@@ -2362,7 +2526,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\heap\CopyVisitorInlineMethods.h"
+				RelativePath="..\..\heap\CopyVisitorInlines.h"
 				>
 			</File>
 			<File
@@ -2550,7 +2714,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\heap\MarkStackInlineMethods.h"
+				RelativePath="..\..\heap\MarkStackInlines.h"
 				>
 			</File>
 			<File

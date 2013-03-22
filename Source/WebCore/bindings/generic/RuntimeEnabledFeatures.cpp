@@ -55,6 +55,7 @@ bool RuntimeEnabledFeatures::isDeviceMotionEnabled = true;
 bool RuntimeEnabledFeatures::isDeviceOrientationEnabled = true;
 bool RuntimeEnabledFeatures::isSpeechInputEnabled = true;
 bool RuntimeEnabledFeatures::isCSSExclusionsEnabled = false;
+bool RuntimeEnabledFeatures::isCSSRegionsEnabled = false;
 bool RuntimeEnabledFeatures::isLangAttributeAwareFormControlUIEnabled = false;
 
 #if ENABLE(SCRIPTED_SPEECH)
@@ -64,7 +65,6 @@ bool RuntimeEnabledFeatures::isScriptedSpeechEnabled = false;
 #if ENABLE(MEDIA_STREAM)
 bool RuntimeEnabledFeatures::isMediaStreamEnabled = true;
 bool RuntimeEnabledFeatures::isPeerConnectionEnabled = true;
-bool RuntimeEnabledFeatures::isDeprecatedPeerConnectionEnabled = false;
 #endif
 
 #if ENABLE(GAMEPAD)
@@ -167,10 +167,6 @@ bool RuntimeEnabledFeatures::isQuotaEnabled = false;
 bool RuntimeEnabledFeatures::isFullScreenAPIEnabled = true;
 #endif
 
-#if ENABLE(POINTER_LOCK)
-bool RuntimeEnabledFeatures::isPointerLockEnabled = false;
-#endif
-
 #if ENABLE(MEDIA_SOURCE)
 bool RuntimeEnabledFeatures::isMediaSourceEnabled = false;
 #endif
@@ -210,19 +206,11 @@ bool RuntimeEnabledFeatures::isInputTypeDateTimeEnabled = true;
 #endif
 
 #if ENABLE(INPUT_TYPE_DATETIMELOCAL)
-#if PLATFORM(CHROMIUM) && !OS(ANDROID)
-bool RuntimeEnabledFeatures::isInputTypeDateTimeLocalEnabled = false;
-#else
 bool RuntimeEnabledFeatures::isInputTypeDateTimeLocalEnabled = true;
-#endif
 #endif
 
 #if ENABLE(INPUT_TYPE_MONTH)
-#if PLATFORM(CHROMIUM) && !OS(ANDROID)
-bool RuntimeEnabledFeatures::isInputTypeMonthEnabled = false;
-#else
 bool RuntimeEnabledFeatures::isInputTypeMonthEnabled = true;
-#endif
 #endif
 
 #if ENABLE(INPUT_TYPE_TIME)
@@ -230,15 +218,23 @@ bool RuntimeEnabledFeatures::isInputTypeTimeEnabled = true;
 #endif
 
 #if ENABLE(INPUT_TYPE_WEEK)
-#if PLATFORM(CHROMIUM) && !OS(ANDROID)
-bool RuntimeEnabledFeatures::isInputTypeWeekEnabled = false;
-#else
 bool RuntimeEnabledFeatures::isInputTypeWeekEnabled = true;
-#endif
 #endif
 
 #if ENABLE(DIALOG_ELEMENT)
 bool RuntimeEnabledFeatures::isDialogElementEnabled = false;
+#endif
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+bool RuntimeEnabledFeatures::isRequestAutocompleteEnabled = false;
+#endif
+
+#if ENABLE(CSP_NEXT)
+bool RuntimeEnabledFeatures::areExperimentalContentSecurityPolicyFeaturesEnabled = false;
+#endif
+
+#if ENABLE(WEB_INTENTS)
+bool RuntimeEnabledFeatures::isWebIntentsEnabled = true;
 #endif
 
 } // namespace WebCore

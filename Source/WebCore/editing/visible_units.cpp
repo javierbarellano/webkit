@@ -215,7 +215,7 @@ static const InlineTextBox* logicallyPreviousBox(const VisiblePosition& visibleP
 
     while (1) {
         Node* startNode = startBox->renderer() ? startBox->renderer()->node() : 0;
-        if (!startNode)
+        if (!startNode || startNode->isPseudoElement())
             break;
 
         Position position = previousRootInlineBoxCandidatePosition(startNode, visiblePosition, ContentIsEditable);
@@ -256,7 +256,7 @@ static const InlineTextBox* logicallyNextBox(const VisiblePosition& visiblePosit
 
     while (1) {
         Node* startNode = startBox->renderer() ? startBox->renderer()->node() : 0;
-        if (!startNode)
+        if (!startNode || startNode->isPseudoElement())
             break;
 
         Position position = nextRootInlineBoxCandidatePosition(startNode, visiblePosition, ContentIsEditable);
@@ -322,7 +322,7 @@ static TextBreakIterator* wordBreakIteratorForMaxOffsetBoundary(const VisiblePos
     return wordBreakIterator(string.data(), len);
 } 
 
-bool isLogicalStartOfWord(TextBreakIterator* iter, int position, bool hardLineBreak)
+static bool isLogicalStartOfWord(TextBreakIterator* iter, int position, bool hardLineBreak)
 {
     bool boundary = hardLineBreak ? true : isTextBreak(iter, position);
     if (!boundary)
@@ -333,7 +333,7 @@ bool isLogicalStartOfWord(TextBreakIterator* iter, int position, bool hardLineBr
     return isWordTextBreak(iter);
 }
 
-bool islogicalEndOfWord(TextBreakIterator* iter, int position, bool hardLineBreak)
+static bool islogicalEndOfWord(TextBreakIterator* iter, int position, bool hardLineBreak)
 {
     bool boundary = isTextBreak(iter, position);
     return (hardLineBreak || boundary) && isWordTextBreak(iter);
@@ -744,7 +744,7 @@ static VisiblePosition startPositionForLine(const VisiblePosition& c, LineEndpoi
                 return VisiblePosition();
 
             startNode = startRenderer->node();
-            if (startNode)
+            if (startNode && !startNode->isPseudoElement())
                 break;
 
             startBox = startBox->nextLeafChild();
@@ -816,7 +816,7 @@ static VisiblePosition endPositionForLine(const VisiblePosition& c, LineEndpoint
                 return VisiblePosition();
 
             endNode = endRenderer->node();
-            if (endNode)
+            if (endNode && !endNode->isPseudoElement())
                 break;
             
             endBox = endBox->prevLeafChild();
@@ -1108,7 +1108,11 @@ VisiblePosition startOfParagraph(const VisiblePosition& c, EditingBoundaryCrossi
 
     Node* n = startNode;
     while (n) {
+#if ENABLE(USERSELECT_ALL)
+        if (boundaryCrossingRule == CannotCrossEditingBoundary && !Position::nodeIsUserSelectAll(n) && n->rendererIsEditable() != startNode->rendererIsEditable())
+#else
         if (boundaryCrossingRule == CannotCrossEditingBoundary && n->rendererIsEditable() != startNode->rendererIsEditable())
+#endif
             break;
         if (boundaryCrossingRule == CanSkipOverEditingBoundary) {
             while (n && n->rendererIsEditable() != startNode->rendererIsEditable())
@@ -1184,7 +1188,11 @@ VisiblePosition endOfParagraph(const VisiblePosition &c, EditingBoundaryCrossing
 
     Node* n = startNode;
     while (n) {
+#if ENABLE(USERSELECT_ALL)
+        if (boundaryCrossingRule == CannotCrossEditingBoundary && !Position::nodeIsUserSelectAll(n) && n->rendererIsEditable() != startNode->rendererIsEditable())
+#else
         if (boundaryCrossingRule == CannotCrossEditingBoundary && n->rendererIsEditable() != startNode->rendererIsEditable())
+#endif
             break;
         if (boundaryCrossingRule == CanSkipOverEditingBoundary) {
             while (n && n->rendererIsEditable() != startNode->rendererIsEditable())

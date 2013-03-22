@@ -481,7 +481,8 @@ bool ResourceLoader::shouldUseCredentialStorage()
 
 void ResourceLoader::didReceiveAuthenticationChallenge(const AuthenticationChallenge& challenge)
 {
-    ASSERT(handle()->hasAuthenticationChallenge());
+    ASSERT(!handle() || handle()->hasAuthenticationChallenge());
+
     // Protect this in this delegate method since the additional processing can do
     // anything including possibly derefing this; one example of this is Radar 3266216.
     RefPtr<ResourceLoader> protector(this);
@@ -494,7 +495,7 @@ void ResourceLoader::didReceiveAuthenticationChallenge(const AuthenticationChall
     }
     // Only these platforms provide a way to continue without credentials.
     // If we can't continue with credentials, we need to cancel the load altogether.
-#if PLATFORM(MAC) || USE(CFNETWORK) || USE(CURL) || PLATFORM(GTK)
+#if PLATFORM(MAC) || USE(CFNETWORK) || USE(CURL) || PLATFORM(GTK) || PLATFORM(EFL)
     handle()->receivedRequestToContinueWithoutCredential(challenge);
     ASSERT(!handle()->hasAuthenticationChallenge());
 #else
@@ -521,20 +522,6 @@ bool ResourceLoader::canAuthenticateAgainstProtectionSpace(const ProtectionSpace
 void ResourceLoader::receivedCancellation(const AuthenticationChallenge&)
 {
     cancel();
-}
-
-void ResourceLoader::willCacheResponse(ResourceHandle*, CacheStoragePolicy& policy)
-{
-    // <rdar://problem/7249553> - There are reports of crashes with this method being called
-    // with a null m_frame->settings(), which can only happen if the frame doesn't have a page.
-    // Sadly we have no reproducible cases of this.
-    // We think that any frame without a page shouldn't have any loads happening in it, yet
-    // there is at least one code path where that is not true.
-    ASSERT(m_frame->settings());
-    
-    // When in private browsing mode, prevent caching to disk
-    if (policy == StorageAllowed && m_frame->settings() && m_frame->settings()->privateBrowsingEnabled())
-        policy = StorageAllowedInMemoryOnly;    
 }
 
 #if ENABLE(BLOB)

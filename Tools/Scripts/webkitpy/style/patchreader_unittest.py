@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright (C) 2010 Google Inc. All rights reserved.
 # Copyright (C) 2009 Torch Mobile Inc.
 # Copyright (C) 2009 Apple Inc. All rights reserved.
@@ -64,9 +62,9 @@ class PatchReaderTest(unittest.TestCase):
         self._patch_checker.check(patch_string)
 
     def _assert_checked(self, passed_to_process_file, delete_only_file_count):
-        self.assertEquals(self._file_reader.passed_to_process_file,
+        self.assertEqual(self._file_reader.passed_to_process_file,
                           passed_to_process_file)
-        self.assertEquals(self._file_reader.delete_only_file_count,
+        self.assertEqual(self._file_reader.delete_only_file_count,
                           delete_only_file_count)
 
     def test_check_patch(self):

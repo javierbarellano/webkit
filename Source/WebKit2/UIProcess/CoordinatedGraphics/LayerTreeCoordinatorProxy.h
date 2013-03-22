@@ -24,10 +24,11 @@
 
 #include "BackingStore.h"
 #include "CoordinatedGraphicsArgumentCoders.h"
+#include "CoordinatedLayerInfo.h"
 #include "DrawingAreaProxy.h"
 #include "Region.h"
 #include "SurfaceUpdateInfo.h"
-#include "WebLayerTreeInfo.h"
+#include "WebCoordinatedSurface.h"
 #include <WebCore/GraphicsContext.h>
 #include <WebCore/GraphicsLayer.h>
 #include <WebCore/GraphicsLayerAnimation.h>
@@ -41,56 +42,68 @@
 
 namespace WebKit {
 
-class WebLayerInfo;
+class CoordinatedLayerInfo;
 class LayerTreeRenderer;
-class WebLayerUpdateInfo;
+class CoordinatedLayerUpdateInfo;
 
 class LayerTreeCoordinatorProxy {
+    WTF_MAKE_NONCOPYABLE(LayerTreeCoordinatorProxy);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    LayerTreeCoordinatorProxy(DrawingAreaProxy*);
-    virtual ~LayerTreeCoordinatorProxy();
-    void setCompositingLayerState(WebLayerID, const WebLayerInfo&);
-    void setCompositingLayerChildren(WebLayerID, const Vector<WebLayerID>&);
+    explicit LayerTreeCoordinatorProxy(DrawingAreaProxy*);
+    ~LayerTreeCoordinatorProxy();
+    void setCompositingLayerState(CoordinatedLayerID, const CoordinatedLayerInfo&);
+    void setCompositingLayerChildren(CoordinatedLayerID, const Vector<CoordinatedLayerID>&);
 #if ENABLE(CSS_FILTERS)
-    void setCompositingLayerFilters(WebLayerID, const WebCore::FilterOperations&);
+    void setCompositingLayerFilters(CoordinatedLayerID, const WebCore::FilterOperations&);
 #endif
-    void deleteCompositingLayer(WebLayerID);
-    void setRootCompositingLayer(WebLayerID);
+#if ENABLE(CSS_SHADERS)
+    void createCustomFilterProgram(int id, const WebCore::CustomFilterProgramInfo&);
+    void removeCustomFilterProgram(int id);
+#endif
+    void deleteCompositingLayer(CoordinatedLayerID);
+    void setRootCompositingLayer(CoordinatedLayerID);
     void setContentsSize(const WebCore::FloatSize&);
     void setVisibleContentsRect(const WebCore::FloatRect&, float scale, const WebCore::FloatPoint& trajectoryVector);
     void didRenderFrame(const WebCore::IntSize& contentsSize, const WebCore::IntRect& coveredRect);
-    void createTileForLayer(int layerID, int tileID, const WebCore::IntRect&, const SurfaceUpdateInfo&);
-    void updateTileForLayer(int layerID, int tileID, const WebCore::IntRect&, const SurfaceUpdateInfo&);
-    void removeTileForLayer(int layerID, int tileID);
-    void createDirectlyCompositedImage(int64_t, const WebKit::ShareableBitmap::Handle&);
-    void destroyDirectlyCompositedImage(int64_t);
+    void createTileForLayer(CoordinatedLayerID, uint32_t tileID, const WebCore::IntRect&, const SurfaceUpdateInfo&);
+    void updateTileForLayer(CoordinatedLayerID, uint32_t tileID, const WebCore::IntRect&, const SurfaceUpdateInfo&);
+    void removeTileForLayer(CoordinatedLayerID, uint32_t tileID);
+    void createUpdateAtlas(int atlasID, const WebCoordinatedSurface::Handle&);
+    void removeUpdateAtlas(int atlasID);
+    void createImageBacking(CoordinatedImageBackingID);
+    void updateImageBacking(CoordinatedImageBackingID, const WebCoordinatedSurface::Handle&);
+    void clearImageBackingContents(CoordinatedImageBackingID);
+    void removeImageBacking(CoordinatedImageBackingID);
     void didReceiveLayerTreeCoordinatorProxyMessage(CoreIPC::Connection*, CoreIPC::MessageID, CoreIPC::MessageDecoder&);
     void updateViewport();
     void renderNextFrame();
-    void didChangeScrollPosition(const WebCore::IntPoint& position);
+    void didChangeScrollPosition(const WebCore::FloatPoint& position);
 #if USE(GRAPHICS_SURFACE)
-    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, const WebCore::GraphicsSurfaceToken&, uint32_t frontBuffer);
+    void createCanvas(CoordinatedLayerID, const WebCore::IntSize&, const WebCore::GraphicsSurfaceToken&);
+    void syncCanvas(CoordinatedLayerID, uint32_t frontBuffer);
+    void destroyCanvas(CoordinatedLayerID);
 #endif
     void purgeBackingStores();
     LayerTreeRenderer* layerTreeRenderer() const { return m_renderer.get(); }
-    void setLayerAnimations(WebLayerID, const WebCore::GraphicsLayerAnimations&);
+    void setLayerAnimations(CoordinatedLayerID, const WebCore::GraphicsLayerAnimations&);
     void setAnimationsLocked(bool);
 #if ENABLE(REQUEST_ANIMATION_FRAME)
     void requestAnimationFrame();
     void animationFrameReady();
 #endif
+    void setBackgroundColor(const WebCore::Color&);
 
 protected:
     void dispatchUpdate(const Function<void()>&);
 
     DrawingAreaProxy* m_drawingAreaProxy;
     RefPtr<LayerTreeRenderer> m_renderer;
-    WebCore::IntRect m_lastSentVisibleRect;
+    WebCore::FloatRect m_lastSentVisibleRect;
     float m_lastSentScale;
     WebCore::FloatPoint m_lastSentTrajectoryVector;
-#if USE(GRAPHICS_SURFACE)
-    HashMap<WebCore::GraphicsSurfaceToken::BufferHandle, RefPtr<ShareableSurface> > m_surfaces;
-#endif
+    typedef HashMap<int /* atlasID */, RefPtr<CoordinatedSurface> > SurfaceMap;
+    SurfaceMap m_surfaces;
 };
 
 }

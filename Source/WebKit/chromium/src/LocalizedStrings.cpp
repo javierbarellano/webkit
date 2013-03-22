@@ -268,7 +268,9 @@ String placeholderForYearField()
 {
     return query(WebLocalizedString::PlaceholderForYearField);
 }
+#endif
 
+#if ENABLE(INPUT_TYPE_WEEK)
 String weekFormatInLDML()
 {
     String templ = query(WebLocalizedString::WeekFormatTemplate);
@@ -310,6 +312,12 @@ String blockedPluginByContentSecurityPolicyText()
 }
 
 String insecurePluginVersionText()
+{
+    notImplemented();
+    return String();
+}
+
+String inactivePluginText()
 {
     notImplemented();
     return String();
@@ -495,5 +503,17 @@ String validationMessageStepMismatchText(const String& base, const String& step)
 {
     return query(WebLocalizedString::ValidationStepMismatch, base, step);
 }
+
+String validationMessageBadInputForNumberText()
+{
+    return query(WebLocalizedString::ValidationBadInputForNumber);
+}
+
+#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+String validationMessageBadInputForDateTimeText()
+{
+    return query(WebLocalizedString::ValidationBadInputForDateTime);
+}
+#endif
 
 } // namespace WebCore

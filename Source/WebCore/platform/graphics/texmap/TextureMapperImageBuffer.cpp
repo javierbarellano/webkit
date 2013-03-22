@@ -125,14 +125,31 @@ void TextureMapperImageBuffer::drawTexture(const BitmapTexture& texture, const F
     context->restore();
 }
 
+void TextureMapperImageBuffer::drawSolidColor(const FloatRect& rect, const TransformationMatrix& matrix, const Color& color)
+{
+    GraphicsContext* context = currentContext();
+    if (!context)
+        return;
+
+    context->save();
+#if ENABLE(3D_RENDERING)
+    context->concat3DTransform(matrix);
+#else
+    context->concatCTM(matrix.toAffineTransform());
+#endif
+
+    context->fillRect(rect, color, ColorSpaceDeviceRGB);
+    context->restore();
+}
+
 #if ENABLE(CSS_FILTERS)
 PassRefPtr<BitmapTexture> BitmapTextureImageBuffer::applyFilters(TextureMapper*, const BitmapTexture& contentTexture, const FilterOperations& filters)
 {
     RefPtr<FilterEffectRenderer> renderer = FilterEffectRenderer::create();
     renderer->setSourceImageRect(FloatRect(FloatPoint::zero(), contentTexture.size()));
 
-    // The document parameter is only needed for CSS shaders.
-    renderer->build(0 /*document */, filters);
+    // The renderer parameter is only needed for CSS shaders and reference filters.
+    renderer->build(0 /*renderer */, filters);
     renderer->allocateBackingStoreIfNeeded();
     GraphicsContext* context = renderer->inputContext();
     context->drawImageBuffer(static_cast<const BitmapTextureImageBuffer&>(contentTexture).m_image.get(), ColorSpaceDeviceRGB, IntPoint::zero());

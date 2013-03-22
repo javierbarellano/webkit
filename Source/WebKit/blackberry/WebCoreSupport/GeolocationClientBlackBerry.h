@@ -22,7 +22,9 @@
 #include <BlackBerryPlatformGeoTracker.h>
 #include <BlackBerryPlatformGeoTrackerListener.h>
 #include <GeolocationClient.h>
+#include <wtf/HashMap.h>
 #include <wtf/RefPtr.h>
+#include <wtf/text/WTFString.h>
 
 namespace BlackBerry {
 namespace WebKit {
@@ -44,18 +46,18 @@ public:
     virtual void requestPermission(Geolocation*);
     virtual void cancelPermissionRequest(Geolocation*);
 
+    virtual bool requiresHighAccuracy() { return m_accuracy; }
     virtual void onLocationUpdate(double timestamp, double latitude, double longitude, double accuracy, double altitude, bool altitudeValid, double altitudeAccuracy,
                                   bool altitudeAccuracyValid, double speed, bool speedValid, double heading, bool headingValid);
     virtual void onLocationError(const char* error);
-    virtual void onPermission(bool isAllowed);
-    BlackBerry::Platform::GeoTracker* tracker() const { return m_tracker; }
+    virtual void onPermission(const BlackBerry::Platform::String& origin, bool isAllowed);
 
 private:
     BlackBerry::WebKit::WebPagePrivate* m_webPagePrivate;
-    BlackBerry::Platform::GeoTracker* m_tracker;
-    RefPtr<Geolocation> m_pendingPermissionGeolocation;
     RefPtr<GeolocationPosition> m_lastPosition;
+    HashMap<String, Vector<RefPtr<Geolocation> > > m_geolocationRequestMap;
     bool m_accuracy;
+    bool m_isActive;
 };
 }
 

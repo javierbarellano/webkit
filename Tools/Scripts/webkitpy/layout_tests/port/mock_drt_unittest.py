@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (C) 2011 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -257,7 +256,7 @@ class MockTestShellTest(MockDRTTest):
                         '\n',
                         '#EOF\n'],
             host=host)
-        self.assertEquals(host.filesystem.written_files,
+        self.assertEqual(host.filesystem.written_files,
             {'/tmp/png_result0.png': 'image_checksum\x8a-pngtEXtchecksum\x00image_checksum-checksum'})
 
     def test_test_shell_parse_options(self):
@@ -265,4 +264,4 @@ class MockTestShellTest(MockDRTTest):
             '--pixel-tests=/tmp/png_result0.png'])
         self.assertTrue(options.test_shell)
         self.assertTrue(options.pixel_tests)
-        self.assertEquals(options.pixel_path, '/tmp/png_result0.png')
+        self.assertEqual(options.pixel_path, '/tmp/png_result0.png')

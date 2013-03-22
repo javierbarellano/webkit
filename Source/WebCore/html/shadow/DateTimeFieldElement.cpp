@@ -111,7 +111,7 @@ void DateTimeFieldElement::defaultKeyboardEventHandler(KeyboardEvent* keyboardEv
 
     if (keyIdentifier == "U+0008" || keyIdentifier == "U+007F") {
         keyboardEvent->setDefaultHandled();
-        setEmptyValue(DateComponents(), DispatchEvent);
+        setEmptyValue(DispatchEvent);
         return;
     }
 }
@@ -135,13 +135,18 @@ void DateTimeFieldElement::focusOnNextField()
     m_fieldOwner->focusOnNextField(*this);
 }
 
-void DateTimeFieldElement::initialize(const AtomicString& shadowPseudoId, const String& axHelpText)
+void DateTimeFieldElement::initialize(const AtomicString& pseudo, const String& axHelpText)
 {
     setAttribute(aria_helpAttr, axHelpText);
     setAttribute(aria_valueminAttr, String::number(minimum()));
     setAttribute(aria_valuemaxAttr, String::number(maximum()));
-    setShadowPseudoId(shadowPseudoId);
+    setPseudo(pseudo);
     appendChild(Text::create(document(), visibleValue()));
+}
+
+bool DateTimeFieldElement::isDateTimeFieldElement() const
+{
+    return true;
 }
 
 bool DateTimeFieldElement::isFocusable() const
@@ -166,6 +171,12 @@ bool DateTimeFieldElement::isRTL() const
 AtomicString DateTimeFieldElement::localeIdentifier() const
 {
     return m_fieldOwner ? m_fieldOwner->localeIdentifier() : nullAtom;
+}
+
+float DateTimeFieldElement::maximumWidth(const Font&)
+{
+    const float paddingLeftAndRight = 2; // This should match to html.css.
+    return paddingLeftAndRight;
 }
 
 void DateTimeFieldElement::setReadOnly()

@@ -47,9 +47,10 @@ OBJC_CLASS CALayer;
 namespace WebCore {
 
 class IntPoint;
+class ScrollingStateNode;
+class ScrollingStateTree;
 class ScrollingTreeNode;
 class ScrollingTreeScrollingNode;
-class ScrollingStateTree;
 
 // The ScrollingTree class lives almost exclusively on the scrolling thread and manages the
 // hierarchy of scrollable regions on the page. It's also responsible for dispatching events
@@ -70,6 +71,7 @@ public:
     // Returns true if the wheel event can be handled on the scrolling thread and false if the
     // event must be sent again to the WebCore event handler.
     EventResult tryToHandleWheelEvent(const PlatformWheelEvent&);
+    bool hasWheelEventHandlers() const { return m_hasWheelEventHandlers; }
 
     // Can be called from any thread. Will update the back forward state of the page, used for rubber-banding.
     void updateBackForwardState(bool canGoBack, bool canGoForward);
@@ -82,8 +84,7 @@ public:
 
     void setMainFramePinState(bool pinnedToTheLeft, bool pinnedToTheRight);
 
-    void updateMainFrameScrollPosition(const IntPoint& scrollPosition);
-    void updateMainFrameScrollPositionAndScrollLayerPosition(const IntPoint& scrollPosition);
+    void updateMainFrameScrollPosition(const IntPoint& scrollPosition, SetOrSyncScrollingLayerPosition = SyncScrollingLayerPosition);
     IntPoint mainFrameScrollPosition();
 
 #if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
@@ -95,17 +96,11 @@ public:
 
     bool willWheelEventStartSwipeGesture(const PlatformWheelEvent&);
 
-#if PLATFORM(MAC)
-    void setDebugRootLayer(CALayer *);
-#endif
-
     void setScrollingPerformanceLoggingEnabled(bool flag);
     bool scrollingPerformanceLoggingEnabled();
 
 private:
     explicit ScrollingTree(ScrollingCoordinator*);
-
-    void updateDebugRootLayer();
 
     void removeDestroyedNodes(ScrollingStateTree*);
     void updateTreeFromStateNode(ScrollingStateNode*);

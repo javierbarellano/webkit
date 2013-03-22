@@ -39,19 +39,21 @@ namespace WebCore {
 
 JSValue toJS(ExecState* exec, JSDOMGlobalObject* globalObject, IDBKey* key)
 {
-    if (!key)
+    if (!key) {
+        // This should be undefined, not null.
+        // Spec: http://dvcs.w3.org/hg/IndexedDB/raw-file/tip/Overview.html#idl-def-IDBKeyRange
         return jsUndefined();
+    }
 
     switch (key->type()) {
     case IDBKey::ArrayType:
         {
             const IDBKey::KeyArray& inArray = key->array();
             size_t size = inArray.size();
-            JSArray* outArray = constructEmptyArray(exec, globalObject, size);
-            JSGlobalData& globalData = exec->globalData();
+            JSArray* outArray = constructEmptyArray(exec, 0, globalObject, size);
             for (size_t i = 0; i < size; ++i) {
                 IDBKey* arrayKey = inArray.at(i).get();
-                outArray->initializeIndex(globalData, i, toJS(exec, globalObject, arrayKey));
+                outArray->putDirectIndex(exec, i, toJS(exec, globalObject, arrayKey));
             }
             return JSValue(outArray);
         }

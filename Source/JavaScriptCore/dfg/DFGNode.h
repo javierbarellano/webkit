@@ -62,6 +62,7 @@ struct StructureTransitionData {
 struct NewArrayBufferData {
     unsigned startConstant;
     unsigned numConstants;
+    IndexingType indexingType;
 };
 
 // This type used in passing an immediate argument to Node constructor;
@@ -255,9 +256,9 @@ struct Node {
     
     void convertToStructureTransitionWatchpoint(Structure* structure)
     {
-        ASSERT(m_op == CheckStructure || m_op == ForwardCheckStructure);
+        ASSERT(m_op == CheckStructure || m_op == ForwardCheckStructure || m_op == ArrayifyToStructure);
         m_opInfo = bitwise_cast<uintptr_t>(structure);
-        if (m_op == CheckStructure)
+        if (m_op == CheckStructure || m_op == ArrayifyToStructure)
             m_op = StructureTransitionWatchpoint;
         else
             m_op = ForwardStructureTransitionWatchpoint;
@@ -266,6 +267,26 @@ struct Node {
     void convertToStructureTransitionWatchpoint()
     {
         convertToStructureTransitionWatchpoint(structureSet().singletonStructure());
+    }
+    
+    void convertToGetByOffset(unsigned storageAccessDataIndex, NodeIndex storage)
+    {
+        ASSERT(m_op == GetById || m_op == GetByIdFlush);
+        m_opInfo = storageAccessDataIndex;
+        children.setChild1(Edge(storage));
+        m_op = GetByOffset;
+        m_flags &= ~NodeClobbersWorld;
+    }
+    
+    void convertToPutByOffset(unsigned storageAccessDataIndex, NodeIndex storage)
+    {
+        ASSERT(m_op == PutById || m_op == PutByIdDirect);
+        m_opInfo = storageAccessDataIndex;
+        children.setChild3(children.child2());
+        children.setChild2(children.child1());
+        children.setChild1(Edge(storage));
+        m_op = PutByOffset;
+        m_flags &= ~NodeClobbersWorld;
     }
     
     JSCell* weakConstant()
@@ -433,6 +454,32 @@ struct Node {
         return newArrayBufferData()->numConstants;
     }
     
+    bool hasIndexingType()
+    {
+        switch (op()) {
+        case NewArray:
+        case NewArrayWithSize:
+        case NewArrayBuffer:
+            return true;
+        default:
+            return false;
+        }
+    }
+    
+    IndexingType indexingType()
+    {
+        ASSERT(hasIndexingType());
+        if (op() == NewArrayBuffer)
+            return newArrayBufferData()->indexingType;
+        return m_opInfo;
+    }
+    
+    void setIndexingType(IndexingType indexingType)
+    {
+        ASSERT(hasIndexingType());
+        m_opInfo = indexingType;
+    }
+    
     bool hasRegexpIndex()
     {
         return op() == NewRegexp;
@@ -476,23 +523,6 @@ struct Node {
         return bitwise_cast<WriteBarrier<Unknown>*>(m_opInfo);
     }
 
-    bool hasScopeChainDepth()
-    {
-        return op() == GetScope;
-    }
-    
-    unsigned scopeChainDepth()
-    {
-        ASSERT(hasScopeChainDepth());
-        return m_opInfo;
-    }
-
-    Edge scope()
-    {
-        ASSERT(op() == GetScopeRegisters);
-        return child1();
-    }
-
     bool hasResult()
     {
         return m_flags & NodeResultMask;
@@ -516,6 +546,11 @@ struct Node {
     bool hasBooleanResult()
     {
         return (m_flags & NodeResultMask) == NodeResultBoolean;
+    }
+
+    bool hasStorageResult()
+    {
+        return (m_flags & NodeResultMask) == NodeResultStorage;
     }
 
     bool isJump()
@@ -649,15 +684,23 @@ struct Node {
         return mergeSpeculation(m_opInfo2, prediction);
     }
     
-    bool hasFunctionCheckData()
+    bool hasFunction()
     {
-        return op() == CheckFunction;
+        switch (op()) {
+        case CheckFunction:
+        case InheritorIDWatchpoint:
+            return true;
+        default:
+            return false;
+        }
     }
 
-    JSFunction* function()
+    JSCell* function()
     {
-        ASSERT(hasFunctionCheckData());
-        return reinterpret_cast<JSFunction*>(m_opInfo);
+        ASSERT(hasFunction());
+        JSCell* result = reinterpret_cast<JSFunction*>(m_opInfo);
+        ASSERT(JSValue(result).isFunction());
+        return result;
     }
 
     bool hasStructureTransitionData()
@@ -702,6 +745,7 @@ struct Node {
         case StructureTransitionWatchpoint:
         case ForwardStructureTransitionWatchpoint:
         case ArrayifyToStructure:
+        case NewObject:
             return true;
         default:
             return false;
@@ -815,6 +859,16 @@ struct Node {
         ASSERT(hasArgumentPositionStart());
         return m_opInfo;
     }
+    
+    bool hasExecutionCounter()
+    {
+        return op() == CountExecution;
+    }
+    
+    Profiler::ExecutionCounter* executionCounter()
+    {
+        return bitwise_cast<Profiler::ExecutionCounter*>(m_opInfo);
+    }
 
     bool shouldGenerate()
     {
@@ -922,14 +976,34 @@ struct Node {
         return isInt32Speculation(prediction());
     }
     
+    bool shouldSpeculateIntegerForArithmetic()
+    {
+        return isInt32SpeculationForArithmetic(prediction());
+    }
+    
+    bool shouldSpeculateIntegerExpectingDefined()
+    {
+        return isInt32SpeculationExpectingDefined(prediction());
+    }
+    
     bool shouldSpeculateDouble()
     {
         return isDoubleSpeculation(prediction());
     }
     
+    bool shouldSpeculateDoubleForArithmetic()
+    {
+        return isDoubleSpeculationForArithmetic(prediction());
+    }
+    
     bool shouldSpeculateNumber()
     {
         return isNumberSpeculation(prediction());
+    }
+    
+    bool shouldSpeculateNumberExpectingDefined()
+    {
+        return isNumberSpeculationExpectingDefined(prediction());
     }
     
     bool shouldSpeculateBoolean()
@@ -1037,9 +1111,29 @@ struct Node {
         return op1.shouldSpeculateInteger() && op2.shouldSpeculateInteger();
     }
     
+    static bool shouldSpeculateIntegerForArithmetic(Node& op1, Node& op2)
+    {
+        return op1.shouldSpeculateIntegerForArithmetic() && op2.shouldSpeculateIntegerForArithmetic();
+    }
+    
+    static bool shouldSpeculateIntegerExpectingDefined(Node& op1, Node& op2)
+    {
+        return op1.shouldSpeculateIntegerExpectingDefined() && op2.shouldSpeculateIntegerExpectingDefined();
+    }
+    
+    static bool shouldSpeculateDoubleForArithmetic(Node& op1, Node& op2)
+    {
+        return op1.shouldSpeculateDoubleForArithmetic() && op2.shouldSpeculateDoubleForArithmetic();
+    }
+    
     static bool shouldSpeculateNumber(Node& op1, Node& op2)
     {
         return op1.shouldSpeculateNumber() && op2.shouldSpeculateNumber();
+    }
+    
+    static bool shouldSpeculateNumberExpectingDefined(Node& op1, Node& op2)
+    {
+        return op1.shouldSpeculateNumberExpectingDefined() && op2.shouldSpeculateNumberExpectingDefined();
     }
     
     static bool shouldSpeculateFinalObject(Node& op1, Node& op2)
@@ -1057,17 +1151,17 @@ struct Node {
         return nodeCanSpeculateInteger(arithNodeFlags());
     }
     
-    void dumpChildren(FILE* out)
+    void dumpChildren(PrintStream& out)
     {
         if (!child1())
             return;
-        fprintf(out, "@%u", child1().index());
+        out.printf("@%u", child1().index());
         if (!child2())
             return;
-        fprintf(out, ", @%u", child2().index());
+        out.printf(", @%u", child2().index());
         if (!child3())
             return;
-        fprintf(out, ", @%u", child3().index());
+        out.printf(", @%u", child3().index());
     }
     
     // Used to look up exception handling information (currently implemented as a bytecode index).

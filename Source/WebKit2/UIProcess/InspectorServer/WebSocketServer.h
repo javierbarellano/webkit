@@ -33,6 +33,11 @@
 #include <wtf/OwnPtr.h>
 #include <wtf/text/WTFString.h>
 
+#if USE(SOUP)
+#include <gio/gio.h>
+#include <wtf/gobject/GRefPtr.h>
+#endif
+
 #if PLATFORM(QT)
 namespace WebKit {
 class QtTcpServerHandler;
@@ -78,6 +83,8 @@ private:
     unsigned short m_port;
 #if PLATFORM(QT)
     OwnPtr<QtTcpServerHandler> m_tcpServerHandler;
+#elif USE(SOUP)
+    GRefPtr<GSocketService> m_socketService;
 #endif
     friend class WebSocketServerConnection;
 };

@@ -36,6 +36,7 @@
 #include "ExceptionCode.h"
 #include "Extensions3D.h"
 #include "Frame.h"
+#include "FrameLoaderClient.h"
 #include "FrameView.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
@@ -396,12 +397,24 @@ private:
 
 PassOwnPtr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasElement* canvas, WebGLContextAttributes* attrs)
 {
-    HostWindow* hostWindow = canvas->document()->view()->root()->hostWindow();
+    Document* document = canvas->document();
+    Frame* frame = document->frame();
+    if (!frame)
+        return nullptr;
+    Settings* settings = frame->settings();
+
+    // The FrameLoaderClient might creation of a new WebGL context despite the page settings; in
+    // particular, if WebGL contexts were lost one or more times via the GL_ARB_robustness extension.
+    if (!frame->loader()->client()->allowWebGL(settings && settings->webGLEnabled())) {
+        canvas->dispatchEvent(WebGLContextEvent::create(eventNames().webglcontextcreationerrorEvent, false, true, "Web page was not allowed to create a WebGL context."));
+        return nullptr;
+    }
+
+    HostWindow* hostWindow = document->view()->root()->hostWindow();
     GraphicsContext3D::Attributes attributes = attrs ? attrs->attributes() : GraphicsContext3D::Attributes();
 
     if (attributes.antialias) {
-        Page* p = canvas->document()->page();
-        if (p && !p->settings()->openGLMultisamplingEnabled())
+        if (settings && !settings->openGLMultisamplingEnabled())
             attributes.antialias = false;
     }
 
@@ -412,7 +425,7 @@ PassOwnPtr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasElemen
     attributes.shareResources = false;
 #endif
     attributes.preferDiscreteGPU = true;
-
+    attributes.topDocumentURL = document->topDocument()->url();
 
     RefPtr<GraphicsContext3D> context(GraphicsContext3D::create(attributes, hostWindow));
 
@@ -3558,9 +3571,7 @@ void WebGLRenderingContext::stencilOpSeparate(GC3Denum face, GC3Denum fail, GC3D
     cleanupAfterGraphicsCall(false);
 }
 
-void WebGLRenderingContext::texImage2DBase(GC3Denum target, GC3Dint level, GC3Denum internalformat,
-                                           GC3Dsizei width, GC3Dsizei height, GC3Dint border,
-                                           GC3Denum format, GC3Denum type, void* pixels, ExceptionCode& ec)
+void WebGLRenderingContext::texImage2DBase(GC3Denum target, GC3Dint level, GC3Denum internalformat, GC3Dsizei width, GC3Dsizei height, GC3Dint border, GC3Denum format, GC3Denum type, const void* pixels, ExceptionCode& ec)
 {
     // FIXME: For now we ignore any errors returned
     ec = 0;
@@ -3606,14 +3617,28 @@ void WebGLRenderingContext::texImage2DImpl(GC3Denum target, GC3Dint level, GC3De
     if (!validateSettableTexFormat("texImage2D", internalformat))
         return;
     Vector<uint8_t> data;
-    if (!m_context->extractImageData(image, format, type, flipY, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContext3D::NONE, data)) {
+    GraphicsContext3D::ImageExtractor imageExtractor(image, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContext3D::NONE);
+    if (!imageExtractor.extractSucceeded()) {
         synthesizeGLError(GraphicsContext3D::INVALID_VALUE, "texImage2D", "bad image data");
         return;
     }
+    GraphicsContext3D::SourceDataFormat sourceDataFormat = imageExtractor.imageSourceFormat();
+    GraphicsContext3D::AlphaOp alphaOp = imageExtractor.imageAlphaOp();
+    const void* imagePixelData = imageExtractor.imagePixelData();
+
+    bool needConversion = true;
+    if (type == GraphicsContext3D::UNSIGNED_BYTE && sourceDataFormat == GraphicsContext3D::SourceFormatRGBA8 && format == GraphicsContext3D::RGBA && alphaOp == GraphicsContext3D::AlphaDoNothing && !flipY)
+        needConversion = false;
+    else {
+        if (!m_context->packImageData(image, imagePixelData, format, type, flipY, alphaOp, sourceDataFormat, imageExtractor.imageWidth(), imageExtractor.imageHeight(), imageExtractor.imageSourceUnpackAlignment(), data)) {
+            synthesizeGLError(GraphicsContext3D::INVALID_VALUE, "texImage2D", "packImage error");
+            return;
+        }
+    }
+
     if (m_unpackAlignment != 1)
         m_context->pixelStorei(GraphicsContext3D::UNPACK_ALIGNMENT, 1);
-    texImage2DBase(target, level, internalformat, image->width(), image->height(), 0,
-                   format, type, data.data(), ec);
+    texImage2DBase(target, level, internalformat, image->width(), image->height(), 0, format, type, needConversion ? data.data() : imagePixelData, ec);
     if (m_unpackAlignment != 1)
         m_context->pixelStorei(GraphicsContext3D::UNPACK_ALIGNMENT, m_unpackAlignment);
 }
@@ -3700,10 +3725,10 @@ void WebGLRenderingContext::texImage2D(GC3Denum target, GC3Dint level, GC3Denum 
     // If possible, copy from the canvas element directly to the texture
     // via the GPU, without a read-back to system memory.
     //
-    // FIXME: restriction of RGBA/UNSIGNED_BYTE should be lifted when
+    // FIXME: restriction of (RGB || RGBA)/UNSIGNED_BYTE should be lifted when
     // ImageBuffer::copyToPlatformTexture implementations are fully functional.
     if (GraphicsContext3D::TEXTURE_2D == target && texture && type == texture->getType(target, level)
-        && format == GraphicsContext3D::RGBA && type == GraphicsContext3D::UNSIGNED_BYTE) {
+        && (format == GraphicsContext3D::RGB || format == GraphicsContext3D::RGBA) && type == GraphicsContext3D::UNSIGNED_BYTE) {
         ImageBuffer* buffer = canvas->buffer();
         if (buffer && buffer->copyToPlatformTexture(*m_context.get(), texture->object(), internalformat, m_unpackPremultiplyAlpha, m_unpackFlipY)) {
             texture->setLevelInfo(target, level, internalformat, canvas->width(), canvas->height(), type);
@@ -3805,9 +3830,7 @@ void WebGLRenderingContext::texParameteri(GC3Denum target, GC3Denum pname, GC3Di
     texParameter(target, pname, 0, param, false);
 }
 
-void WebGLRenderingContext::texSubImage2DBase(GC3Denum target, GC3Dint level, GC3Dint xoffset, GC3Dint yoffset,
-                                              GC3Dsizei width, GC3Dsizei height,
-                                              GC3Denum format, GC3Denum type, void* pixels, ExceptionCode& ec)
+void WebGLRenderingContext::texSubImage2DBase(GC3Denum target, GC3Dint level, GC3Dint xoffset, GC3Dint yoffset, GC3Dsizei width, GC3Dsizei height, GC3Denum format, GC3Denum type, const void* pixels, ExceptionCode& ec)
 {
     // FIXME: For now we ignore any errors returned
     ec = 0;
@@ -3842,14 +3865,28 @@ void WebGLRenderingContext::texSubImage2DImpl(GC3Denum target, GC3Dint level, GC
     if (isContextLost())
         return;
     Vector<uint8_t> data;
-    if (!m_context->extractImageData(image, format, type, flipY, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContext3D::NONE, data)) {
+    GraphicsContext3D::ImageExtractor imageExtractor(image, premultiplyAlpha, m_unpackColorspaceConversion == GraphicsContext3D::NONE);  
+    if (!imageExtractor.extractSucceeded()) {
         synthesizeGLError(GraphicsContext3D::INVALID_VALUE, "texSubImage2D", "bad image");
         return;
     }
+    GraphicsContext3D::SourceDataFormat sourceDataFormat = imageExtractor.imageSourceFormat();
+    GraphicsContext3D::AlphaOp alphaOp = imageExtractor.imageAlphaOp();
+    const void* imagePixelData = imageExtractor.imagePixelData();
+
+    bool needConversion = true;
+    if (type == GraphicsContext3D::UNSIGNED_BYTE && sourceDataFormat == GraphicsContext3D::SourceFormatRGBA8 && format == GraphicsContext3D::RGBA && alphaOp == GraphicsContext3D::AlphaDoNothing && !flipY)
+        needConversion = false;
+    else {
+        if (!m_context->packImageData(image, imagePixelData, format, type, flipY, alphaOp, sourceDataFormat, imageExtractor.imageWidth(), imageExtractor.imageHeight(), imageExtractor.imageSourceUnpackAlignment(), data)) {
+            synthesizeGLError(GraphicsContext3D::INVALID_VALUE, "texImage2D", "bad image data");
+            return;
+        }
+    }
+
     if (m_unpackAlignment != 1)
         m_context->pixelStorei(GraphicsContext3D::UNPACK_ALIGNMENT, 1);
-    texSubImage2DBase(target, level, xoffset, yoffset, image->width(), image->height(),
-                      format, type, data.data(), ec);
+    texSubImage2DBase(target, level, xoffset, yoffset, image->width(), image->height(), format, type,  needConversion ? data.data() : imagePixelData, ec);
     if (m_unpackAlignment != 1)
         m_context->pixelStorei(GraphicsContext3D::UNPACK_ALIGNMENT, m_unpackAlignment);
 }
@@ -4450,6 +4487,15 @@ void WebGLRenderingContext::loseContextImpl(WebGLRenderingContext::LostContextMo
 
     m_contextLost = true;
     m_contextLostMode = mode;
+
+    if (mode == RealLostContext) {
+        // Inform the embedder that a lost context was received. In response, the embedder might
+        // decide to take action such as asking the user for permission to use WebGL again.
+        if (Document* document = canvas()->document()) {
+            if (Frame* frame = document->frame())
+                frame->loader()->client()->didLoseWebGLContext(m_context->getExtensions()->getGraphicsResetStatusARB());
+        }
+    }
 
     detachAndRemoveAllObjects();
 
@@ -5209,7 +5255,7 @@ void WebGLRenderingContext::printWarningToConsole(const String& message)
     Document* document = canvas()->document();
     if (!document)
         return;
-    document->addConsoleMessage(HTMLMessageSource, LogMessageType, WarningMessageLevel, message, document->url().string());
+    document->addConsoleMessage(HTMLMessageSource, LogMessageType, WarningMessageLevel, message);
 }
 
 bool WebGLRenderingContext::validateFramebufferFuncParameters(const char* functionName, GC3Denum target, GC3Denum attachment)
@@ -5585,7 +5631,14 @@ void WebGLRenderingContext::maybeRestoreContext(Timer<WebGLRenderingContext>*)
     Document* document = canvas()->document();
     if (!document)
         return;
-    FrameView* view = document->view();
+    Frame* frame = document->frame();
+    if (!frame)
+        return;
+
+    if (!frame->loader()->client()->allowWebGL(frame->settings() && frame->settings()->webGLEnabled()))
+        return;
+
+    FrameView* view = frame->view();
     if (!view)
         return;
     ScrollView* root = view->root();

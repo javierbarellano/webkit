@@ -50,8 +50,6 @@ namespace WebKit {
 class LayerTreeContext;
 class LayerTreeCoordinatorProxy;
 class UpdateInfo;
-class WebLayerTreeInfo;
-class WebLayerUpdateInfo;
 class WebPageProxy;
 
 class DrawingAreaProxy {
@@ -81,6 +79,7 @@ public:
     virtual void waitForPossibleGeometryUpdate() { }
 
     virtual void colorSpaceDidChange() { }
+    virtual void minimumLayoutWidthDidChange() { }
 
 #if USE(COORDINATED_GRAPHICS)
     virtual void updateViewport();
@@ -118,7 +117,8 @@ private:
     virtual void updateAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
 #endif
 #if PLATFORM(MAC)
-    virtual void didUpdateGeometry() { }
+    virtual void didUpdateGeometry(const WebCore::IntSize& newIntrinsicContentSize) { }
+    virtual void intrinsicContentSizeDidChange(const WebCore::IntSize& newIntrinsicContentSize) { }
 #endif
 };
 

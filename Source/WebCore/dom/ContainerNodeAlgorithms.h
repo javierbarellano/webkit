@@ -23,6 +23,7 @@
 #define ContainerNodeAlgorithms_h
 
 #include "Document.h"
+#include "Frame.h"
 #include "HTMLFrameOwnerElement.h"
 #include "InspectorInstrumentation.h"
 #include <wtf/Assertions.h>
@@ -272,13 +273,16 @@ public:
     explicit ChildFrameDisconnector(Node* root, ShouldIncludeRoot shouldIncludeRoot = IncludeRoot)
         : m_root(root)
     {
+        // If we know there's no frames to disconnect then don't bother traversing
+        // the tree looking for them.
+        Frame* frame = root->document()->frame();
+        if (frame && !frame->tree()->firstChild())
+            return;
         collectDescendant(m_root, shouldIncludeRoot);
-        rootNodes().add(m_root);
     }
 
     ~ChildFrameDisconnector()
     {
-        rootNodes().remove(m_root);
     }
 
     void disconnect();
@@ -288,12 +292,6 @@ public:
 private:
     void collectDescendant(Node* root, ShouldIncludeRoot);
     void collectDescendant(ElementShadow*);
-
-    static HashSet<Node*>& rootNodes()
-    {
-        DEFINE_STATIC_LOCAL(HashSet<Node*>, nodes, ());
-        return nodes;
-    }
 
     class Target {
     public:
@@ -331,26 +329,15 @@ inline void ChildFrameDisconnector::collectDescendant(Node* root, ShouldIncludeR
 
 inline void ChildFrameDisconnector::disconnect()
 {
+    // Must disable frame loading in the subtree so an unload handler cannot
+    // insert more frames and create loaded frames in detached subtrees.
+    SubframeLoadingDisabler disabler(m_root);
     unsigned size = m_list.size();
     for (unsigned i = 0; i < size; ++i) {
         Target& target = m_list[i];
         if (target.isValid())
             target.disconnect();
     }
-}
-
-inline bool ChildFrameDisconnector::nodeHasDisconnector(Node* node)
-{
-    HashSet<Node*>& nodes = rootNodes();
-
-    if (nodes.isEmpty())
-        return false;
-
-    for (; node; node = node->parentNode())
-        if (nodes.contains(node))
-            return true;
-
-    return false;
 }
 
 } // namespace WebCore

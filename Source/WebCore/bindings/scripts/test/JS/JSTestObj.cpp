@@ -49,7 +49,6 @@
 #include "SVGDocument.h"
 #include "SVGStaticPropertyTearOff.h"
 #include "ScriptArguments.h"
-#include "ScriptCallStack.h"
 #include "ScriptCallStackFactory.h"
 #include "ScriptProfile.h"
 #include "SerializedScriptValue.h"
@@ -230,10 +229,8 @@ EncodedJSValue JSC_HOST_CALL JSTestObjConstructor::constructJSTestObj(ExecState*
     JSTestObjConstructor* castedThis = jsCast<JSTestObjConstructor*>(exec->callee());
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
-    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction()) {
-        setDOMException(exec, TYPE_MISMATCH_ERR);
-        return JSValue::encode(jsUndefined());
-    }
+    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction())
+        return throwVMTypeError(exec);
     RefPtr<TestCallback> testCallback = JSTestCallback::create(asObject(exec->argument(0)), castedThis->globalObject());
     RefPtr<TestObj> object = TestObj::create(testCallback);
     return JSValue::encode(asObject(toJS(exec, castedThis->globalObject(), object.get())));
@@ -772,9 +769,8 @@ JSValue jsTestObjWithScriptExecutionContextAndScriptStateWithSpacesAttribute(Exe
 JSValue jsTestObjWithScriptArgumentsAndCallStackAttribute(ExecState* exec, JSValue slotBase, PropertyName)
 {
     JSTestObj* castedThis = jsCast<JSTestObj*>(asObject(slotBase));
-    RefPtr<ScriptCallStack> callStack(createScriptCallStackForConsole(exec));
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
-    JSValue result = toJS(exec, castedThis->globalObject(), WTF::getPtr(impl->withScriptArgumentsAndCallStackAttribute(callStack)));
+    JSValue result = toJS(exec, castedThis->globalObject(), WTF::getPtr(impl->withScriptArgumentsAndCallStackAttribute()));
     return result;
 }
 
@@ -1287,8 +1283,7 @@ void setJSTestObjWithScriptArgumentsAndCallStackAttribute(ExecState* exec, JSObj
     UNUSED_PARAM(exec);
     JSTestObj* castedThis = jsCast<JSTestObj*>(thisObject);
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
-    RefPtr<ScriptCallStack> callStack(createScriptCallStackForConsole(exec));
-    impl->setWithScriptArgumentsAndCallStackAttribute(callStack, toTestObj(value));
+    impl->setWithScriptArgumentsAndCallStackAttribute(toTestObj(value));
 }
 
 
@@ -1541,7 +1536,7 @@ EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionMethodWithSequenceArg(Exe
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
-    Vector<ScriptProfile> sequenceArg(toNativeArray<ScriptProfile>(exec, MAYBE_MISSING_PARAMETER(exec, 0, DefaultIsUndefined)));
+    Vector<RefPtr<ScriptProfile> > sequenceArg((toRefPtrNativeArray<ScriptProfile, JSScriptProfile>(exec, MAYBE_MISSING_PARAMETER(exec, 0, DefaultIsUndefined), &toScriptProfile)));
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
     impl->methodWithSequenceArg(sequenceArg);
@@ -1842,8 +1837,7 @@ EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionWithScriptArgumentsAndCal
     ASSERT_GC_OBJECT_INHERITS(castedThis, &JSTestObj::s_info);
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
     RefPtr<ScriptArguments> scriptArguments(createScriptArguments(exec, 0));
-    RefPtr<ScriptCallStack> callStack(createScriptCallStackForConsole(exec));
-    impl->withScriptArgumentsAndCallStack(scriptArguments, callStack);
+    impl->withScriptArgumentsAndCallStack(scriptArguments.release());
     return JSValue::encode(jsUndefined());
 }
 
@@ -1993,10 +1987,8 @@ EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionMethodWithCallbackArg(Exe
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
-    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction()) {
-        setDOMException(exec, TYPE_MISMATCH_ERR);
-        return JSValue::encode(jsUndefined());
-    }
+    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction())
+        return throwVMTypeError(exec);
     RefPtr<TestCallback> callback = JSTestCallback::create(asObject(exec->argument(0)), castedThis->globalObject());
     impl->methodWithCallbackArg(callback);
     return JSValue::encode(jsUndefined());
@@ -2015,10 +2007,8 @@ EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionMethodWithNonCallbackArgA
     int nonCallback(MAYBE_MISSING_PARAMETER(exec, 0, DefaultIsUndefined).toInt32(exec));
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
-    if (exec->argumentCount() <= 1 || !exec->argument(1).isFunction()) {
-        setDOMException(exec, TYPE_MISMATCH_ERR);
-        return JSValue::encode(jsUndefined());
-    }
+    if (exec->argumentCount() <= 1 || !exec->argument(1).isFunction())
+        return throwVMTypeError(exec);
     RefPtr<TestCallback> callback = JSTestCallback::create(asObject(exec->argument(1)), castedThis->globalObject());
     impl->methodWithNonCallbackArgAndCallbackArg(nonCallback, callback);
     return JSValue::encode(jsUndefined());
@@ -2034,10 +2024,8 @@ EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionMethodWithCallbackAndOpti
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
     RefPtr<TestCallback> callback;
     if (exec->argumentCount() > 0 && !exec->argument(0).isUndefinedOrNull()) {
-        if (!exec->argument(0).isFunction()) {
-            setDOMException(exec, TYPE_MISMATCH_ERR);
-            return JSValue::encode(jsUndefined());
-        }
+        if (!exec->argument(0).isFunction())
+            return throwVMTypeError(exec);
         callback = JSTestCallback::create(asObject(exec->argument(0)), castedThis->globalObject());
     }
     impl->methodWithCallbackAndOptionalArg(callback);
@@ -2181,10 +2169,8 @@ static EncodedJSValue JSC_HOST_CALL jsTestObjPrototypeFunctionOverloadedMethod5(
     TestObj* impl = static_cast<TestObj*>(castedThis->impl());
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
-    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction()) {
-        setDOMException(exec, TYPE_MISMATCH_ERR);
-        return JSValue::encode(jsUndefined());
-    }
+    if (exec->argumentCount() <= 0 || !exec->argument(0).isFunction())
+        return throwVMTypeError(exec);
     RefPtr<TestCallback> callback = JSTestCallback::create(asObject(exec->argument(0)), castedThis->globalObject());
     impl->overloadedMethod(callback);
     return JSValue::encode(jsUndefined());

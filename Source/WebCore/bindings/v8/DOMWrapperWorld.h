@@ -31,9 +31,9 @@
 #ifndef DOMWrapperWorld_h
 #define DOMWrapperWorld_h
 
-#include "DOMDataStore.h"
 #include "SecurityOrigin.h"
-#include "V8DOMMap.h"
+#include "V8PerContextData.h"
+#include <v8.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
@@ -41,8 +41,10 @@
 
 namespace WebCore {
 
+class DOMDataStore;
+
 // This class represent a collection of DOM wrappers for a specific world.
-class DOMWrapperWorld : public WTF::RefCountedBase {
+class DOMWrapperWorld : public RefCounted<DOMWrapperWorld> {
 public:
     static const int mainWorldId = 0;
     static const int mainWorldExtensionGroup = 0;
@@ -50,8 +52,25 @@ public:
     static const int uninitializedExtensionGroup = -1;
     // If uninitializedWorldId is passed as worldId, the world will be assigned a temporary id instead.
     static PassRefPtr<DOMWrapperWorld> ensureIsolatedWorld(int worldId, int extensionGroup);
+    ~DOMWrapperWorld();
+
     static bool isolatedWorldsExist() { return isolatedWorldCount; }
     static bool isIsolatedWorldId(int worldId) { return worldId != mainWorldId && worldId != uninitializedWorldId; }
+    static void getAllWorlds(Vector<RefPtr<DOMWrapperWorld> >& worlds);
+
+    void makeContextWeak(v8::Handle<v8::Context>);
+    void setIsolatedWorldField(v8::Handle<v8::Context>);
+#ifndef NDEBUG
+    static void assertContextHasCorrectPrototype(v8::Handle<v8::Context>);
+#endif
+    static DOMWrapperWorld* isolated(v8::Handle<v8::Context> context)
+    {
+#ifndef NDEBUG
+        assertContextHasCorrectPrototype(context);
+#endif
+        return static_cast<DOMWrapperWorld*>(context->GetAlignedPointerFromEmbedderData(v8ContextIsolatedWorld));
+    }
+
     // Associates an isolated world (see above for description) with a security
     // origin. XMLHttpRequest instances used in that world will be considered
     // to come from that origin, not the frame's.
@@ -75,33 +94,23 @@ public:
     // Do not use this anywhere else!!
     static PassRefPtr<DOMWrapperWorld> createUninitializedWorld();
 
-    bool isMainWorld() { return m_worldId == mainWorldId; }
-    bool isIsolatedWorld() { return isIsolatedWorldId(m_worldId); }
+    bool isMainWorld() const { return m_worldId == mainWorldId; }
+    bool isIsolatedWorld() const { return isIsolatedWorldId(m_worldId); }
+    bool createdFromUnitializedWorld() const { return m_worldId < uninitializedWorldId; }
+
     int worldId() const { return m_worldId; }
     int extensionGroup() const { return m_extensionGroup; }
-    DOMDataStore* domDataStore() const
+    DOMDataStore* isolatedWorldDOMDataStore() const
     {
-        ASSERT(m_worldId != uninitializedWorldId);
+        ASSERT(isIsolatedWorld());
         return m_domDataStore.get();
-    }
-    void deref()
-    {
-        if (derefBase())
-            deallocate(this);
     }
 
 private:
     static int isolatedWorldCount;
     static PassRefPtr<DOMWrapperWorld> createMainWorld();
-    static void deallocate(DOMWrapperWorld*);
 
-    DOMWrapperWorld(int worldId, int extensionGroup)
-        : m_worldId(worldId)
-        , m_extensionGroup(extensionGroup)
-    {
-        if (worldId != uninitializedWorldId)
-            m_domDataStore = adoptPtr(new DOMDataStore(DOMDataStore::IsolatedWorld));
-    }
+    DOMWrapperWorld(int worldId, int extensionGroup);
 
     const int m_worldId;
     const int m_extensionGroup;

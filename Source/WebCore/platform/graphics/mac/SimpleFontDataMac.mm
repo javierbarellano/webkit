@@ -52,8 +52,6 @@ using namespace std;
 
 namespace WebCore {
   
-const float smallCapsFontSizeMultiplier = 0.7f;
-
 static bool fontHasVerticalGlyphs(CTFontRef ctFont)
 {
     // The check doesn't look neat but this is what AppKit does for vertical writing...
@@ -129,7 +127,7 @@ const SimpleFontData* SimpleFontData::getCompositeFontReferenceFontData(NSFont *
             bool syntheticBold = platformData().syntheticBold() && !(traits & kCTFontBoldTrait);
             bool syntheticOblique = platformData().syntheticOblique() && !(traits & kCTFontItalicTrait);
 
-            FontPlatformData substitutePlatform(substituteFont, platformData().size(), isUsingPrinterFont, syntheticBold, syntheticOblique, platformData().orientation(), platformData().textOrientation(), platformData().widthVariant());
+            FontPlatformData substitutePlatform(substituteFont, platformData().size(), isUsingPrinterFont, syntheticBold, syntheticOblique, platformData().orientation(), platformData().widthVariant());
             SimpleFontData* value = new SimpleFontData(substitutePlatform, isCustomFont());
             if (value) {
                 CFDictionaryAddValue(dictionary, key, value);
@@ -350,26 +348,6 @@ PassRefPtr<SimpleFontData> SimpleFontData::createScaledFontData(const FontDescri
     END_BLOCK_OBJC_EXCEPTIONS;
 
     return 0;
-}
-
-PassRefPtr<SimpleFontData> SimpleFontData::smallCapsFontData(const FontDescription& fontDescription) const
-{
-    if (!m_derivedFontData)
-        m_derivedFontData = DerivedFontData::create(isCustomFont());
-    if (!m_derivedFontData->smallCaps)
-        m_derivedFontData->smallCaps = createScaledFontData(fontDescription, smallCapsFontSizeMultiplier);
-
-    return m_derivedFontData->smallCaps;
-}
-
-PassRefPtr<SimpleFontData> SimpleFontData::emphasisMarkFontData(const FontDescription& fontDescription) const
-{
-    if (!m_derivedFontData)
-        m_derivedFontData = DerivedFontData::create(isCustomFont());
-    if (!m_derivedFontData->emphasisMark)
-        m_derivedFontData->emphasisMark = createScaledFontData(fontDescription, .5f);
-
-    return m_derivedFontData->emphasisMark;
 }
 
 bool SimpleFontData::containsCharacters(const UChar* characters, int length) const

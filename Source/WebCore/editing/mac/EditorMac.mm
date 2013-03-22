@@ -31,7 +31,6 @@
 #import "CachedResourceLoader.h"
 #import "DocumentFragment.h"
 #import "DOMRangeInternal.h"
-#import "EditingText.h"
 #import "Editor.h"
 #import "EditorClient.h"
 #import "Font.h"
@@ -47,6 +46,7 @@
 #import "RenderBlock.h"
 #import "RuntimeApplicationChecks.h"
 #import "Sound.h"
+#import "Text.h"
 #import "TypingCommand.h"
 #import "htmlediting.h"
 #import "WebNSAttributedStringExtras.h"
@@ -163,7 +163,8 @@ const SimpleFontData* Editor::fontForSelection(bool& hasMultipleFonts) const
 
     const SimpleFontData* font = 0;
     RefPtr<Range> range = m_frame->selection()->toNormalizedRange();
-    if (Node* startNode = adjustedSelectionStartForStyleComputation(m_frame->selection()->selection()).deprecatedNode()) {
+    Node* startNode = adjustedSelectionStartForStyleComputation(m_frame->selection()->selection()).deprecatedNode();
+    if (range && startNode) {
         Node* pastEnd = range->pastLastNode();
         // In the loop below, n should eventually match pastEnd and not become nil, but we've seen at least one
         // unreproducible case where this didn't happen, so check for null also.

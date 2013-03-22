@@ -92,12 +92,12 @@ bool TextTrackCueList::add(PassRefPtr<TextTrackCue> prpCue, size_t start, size_t
     // http://www.whatwg.org/specs/web-apps/current-work/#text-track-cue-order
     RefPtr<TextTrackCue> cue = prpCue;
     if (start == end) {
-        if (!m_list.isEmpty() && (m_list[start - 1].get() == cue.get()))
+        if (!m_list.isEmpty() && (start > 0) && (m_list[start - 1].get() == cue.get()))
             return false;
 
-       m_list.insert(start, cue);
-       invalidateCueIndexes(start);
-       return true;
+        m_list.insert(start, cue);
+        invalidateCueIndexes(start);
+        return true;
     }
 
     size_t index = (start + end) / 2;
@@ -121,6 +121,15 @@ bool TextTrackCueList::remove(TextTrackCue* cue)
 bool TextTrackCueList::contains(TextTrackCue* cue) const
 {
     return m_list.contains(cue);
+}
+
+bool TextTrackCueList::updateCueIndex(TextTrackCue* cue)
+{
+    if (!contains(cue))
+        return false;
+    
+    remove(cue);
+    return add(cue);
 }
 
 void TextTrackCueList::clear()

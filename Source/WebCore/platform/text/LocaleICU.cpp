@@ -58,7 +58,7 @@ LocaleICU::LocaleICU(const char* locale)
 #if ENABLE(CALENDAR_PICKER)
     , m_firstDayOfWeek(0)
 #endif
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     , m_mediumTimeFormat(0)
     , m_shortTimeFormat(0)
     , m_didCreateTimeFormat(false)
@@ -70,7 +70,7 @@ LocaleICU::~LocaleICU()
 {
     unum_close(m_numberFormat);
     udat_close(m_shortDateFormat);
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     udat_close(m_mediumTimeFormat);
     udat_close(m_shortTimeFormat);
 #endif
@@ -155,25 +155,7 @@ UDateFormat* LocaleICU::openDateFormat(UDateFormatStyle timeStyle, UDateFormatSt
     return udat_open(timeStyle, dateStyle, m_locale.data(), gmtTimezone, WTF_ARRAY_LENGTH(gmtTimezone), 0, -1, &status);
 }
 
-double LocaleICU::parseDateTime(const String& input, DateComponents::Type type)
-{
-    if (type != DateComponents::Date)
-        return std::numeric_limits<double>::quiet_NaN();
-    if (!initializeShortDateFormat())
-        return numeric_limits<double>::quiet_NaN();
-    if (input.length() > static_cast<unsigned>(numeric_limits<int32_t>::max()))
-        return numeric_limits<double>::quiet_NaN();
-    int32_t inputLength = static_cast<int32_t>(input.length());
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t parsePosition = 0;
-    UDate date = udat_parse(m_shortDateFormat, input.characters(), inputLength, &parsePosition, &status);
-    if (parsePosition != inputLength || U_FAILURE(status))
-        return numeric_limits<double>::quiet_NaN();
-    // UDate, which is an alias of double, is compatible with our expectation.
-    return date;
-}
-
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 static String getDateFormatPattern(const UDateFormat* dateFormat)
 {
     if (!dateFormat)
@@ -190,9 +172,7 @@ static String getDateFormatPattern(const UDateFormat* dateFormat)
         return emptyString();
     return String::adopt(buffer);
 }
-#endif
 
-#if ENABLE(CALENDAR_PICKER)
 PassOwnPtr<Vector<String> > LocaleICU::createLabelVector(const UDateFormat* dateFormat, UDateFormatSymbolType type, int32_t startIndex, int32_t size)
 {
     if (!dateFormat)
@@ -216,7 +196,9 @@ PassOwnPtr<Vector<String> > LocaleICU::createLabelVector(const UDateFormat* date
     }
     return labels.release();
 }
+#endif
 
+#if ENABLE(CALENDAR_PICKER)
 static PassOwnPtr<Vector<String> > createFallbackWeekDayShortLabels()
 {
     OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
@@ -249,7 +231,7 @@ void LocaleICU::initializeCalendar()
 }
 #endif
 
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 static PassOwnPtr<Vector<String> > createFallbackMonthLabels()
 {
     OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
@@ -293,7 +275,7 @@ bool LocaleICU::isRTL()
 }
 #endif
 
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 static PassOwnPtr<Vector<String> > createFallbackAMPMLabels()
 {
     OwnPtr<Vector<String> > labels = adoptPtr(new Vector<String>());
@@ -316,6 +298,14 @@ void LocaleICU::initializeDateTimeFormat()
 
     m_shortTimeFormat = openDateFormat(UDAT_SHORT, UDAT_NONE);
     m_timeFormatWithoutSeconds = getDateFormatPattern(m_shortTimeFormat);
+
+    UDateFormat* dateTimeFormatWithSeconds = openDateFormat(UDAT_MEDIUM, UDAT_SHORT);
+    m_dateTimeFormatWithSeconds = getDateFormatPattern(dateTimeFormatWithSeconds);
+    udat_close(dateTimeFormatWithSeconds);
+
+    UDateFormat* dateTimeFormatWithoutSeconds = openDateFormat(UDAT_SHORT, UDAT_SHORT);
+    m_dateTimeFormatWithoutSeconds = getDateFormatPattern(dateTimeFormatWithoutSeconds);
+    udat_close(dateTimeFormatWithoutSeconds);
 
     OwnPtr<Vector<String> > timeAMPMLabels = createLabelVector(m_mediumTimeFormat, UDAT_AM_PMS, UCAL_AM, 2);
     if (!timeAMPMLabels)
@@ -375,6 +365,18 @@ String LocaleICU::shortTimeFormat()
 {
     initializeDateTimeFormat();
     return m_timeFormatWithoutSeconds;
+}
+
+String LocaleICU::dateTimeFormatWithSeconds()
+{
+    initializeDateTimeFormat();
+    return m_dateTimeFormatWithSeconds;
+}
+
+String LocaleICU::dateTimeFormatWithoutSeconds()
+{
+    initializeDateTimeFormat();
+    return m_dateTimeFormatWithoutSeconds;
 }
 
 const Vector<String>& LocaleICU::shortMonthLabels()

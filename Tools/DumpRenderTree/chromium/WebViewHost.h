@@ -41,6 +41,7 @@
 #include "WebSpellCheckClient.h"
 #include "WebTask.h"
 #include "WebTestDelegate.h"
+#include "WebTestProxy.h"
 #include "WebViewClient.h"
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
@@ -86,6 +87,8 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     void setWebWidget(WebKit::WebWidget*);
     WebKit::WebView* webView() const;
     WebKit::WebWidget* webWidget() const;
+    WebTestRunner::WebTestProxyBase* proxy() const;
+    void setProxy(WebTestRunner::WebTestProxyBase*);
     void reset();
     void setSelectTrailingWhitespaceEnabled(bool);
     void setSmartInsertDeleteEnabled(bool);
@@ -99,7 +102,6 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     void setDeviceScaleFactor(float);
 
     void paintRect(const WebKit::WebRect&);
-    void updatePaintRect(const WebKit::WebRect&);
     void paintInvalidatedRegion();
     void paintPagesWithBoundaries();
     SkCanvas* canvas();
@@ -141,6 +143,10 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual WebKit::WebString registerIsolatedFileSystem(const WebKit::WebVector<WebKit::WebString>& absoluteFilenames) OVERRIDE;
     virtual long long getCurrentTimeInMillisecond() OVERRIDE;
     virtual WebKit::WebString getAbsoluteWebStringFromUTF8Path(const std::string& path) OVERRIDE;
+    virtual WebKit::WebURL localFileToDataURL(const WebKit::WebURL&) OVERRIDE;
+    virtual WebKit::WebURL rewriteLayoutTestsURL(const std::string&) OVERRIDE;
+    virtual WebTestRunner::WebPreferences* preferences() OVERRIDE;
+    virtual void applyPreferences() OVERRIDE;
 
     // NavigationHost
     virtual bool navigate(const TestNavigationEntry&, bool reload);
@@ -183,12 +189,10 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual bool runModalBeforeUnloadDialog(WebKit::WebFrame*, const WebKit::WebString&);
     virtual void showContextMenu(WebKit::WebFrame*, const WebKit::WebContextMenuData&);
     virtual void setStatusText(const WebKit::WebString&);
-    virtual void startDragging(WebKit::WebFrame*, const WebKit::WebDragData&, WebKit::WebDragOperationsMask, const WebKit::WebImage&, const WebKit::WebPoint&);
     virtual void didUpdateLayout();
     virtual void navigateBackForwardSoon(int offset);
     virtual int historyBackListCount();
     virtual int historyForwardListCount();
-    virtual void postAccessibilityNotification(const WebKit::WebAccessibilityObject&, WebKit::WebAccessibilityNotification);
 #if ENABLE(NOTIFICATIONS)
     virtual WebKit::WebNotificationPresenter* notificationPresenter();
 #endif
@@ -206,14 +210,8 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual void printPage(WebKit::WebFrame*);
 
     // WebKit::WebWidgetClient
-    virtual void didInvalidateRect(const WebKit::WebRect&);
-    virtual void didScrollRect(int dx, int dy, const WebKit::WebRect&);
     virtual void didAutoResize(const WebKit::WebSize& newSize);
-    virtual void scheduleComposite();
-#if ENABLE(REQUEST_ANIMATION_FRAME)
-    virtual void serviceAnimation();
     virtual void scheduleAnimation();
-#endif
     virtual void didFocus();
     virtual void didBlur();
     virtual void didChangeCursor(const WebKit::WebCursorInfo&);
@@ -266,6 +264,7 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual void didChangeLocationWithinPage(WebKit::WebFrame*);
     virtual void assignIdentifierToRequest(WebKit::WebFrame*, unsigned identifier, const WebKit::WebURLRequest&);
     virtual void removeIdentifierForRequest(unsigned identifier);
+    virtual void willRequestResource(WebKit::WebFrame*, const WebKit::WebCachedURLRequest&);
     virtual void willSendRequest(WebKit::WebFrame*, unsigned identifier, WebKit::WebURLRequest&, const WebKit::WebURLResponse&);
     virtual void didReceiveResponse(WebKit::WebFrame*, unsigned identifier, const WebKit::WebURLResponse&);
     virtual void didFinishResourceLoad(WebKit::WebFrame*, unsigned identifier);
@@ -369,6 +368,9 @@ private:
 
     // Non-owning pointer. The WebViewHost instance is owned by this TestShell instance.
     TestShell* m_shell;
+
+    // Non-owning pointer. This class needs to be wrapped in a WebTestProxy. This is the pointer to the WebTestProxyBase.
+    WebTestRunner::WebTestProxyBase* m_proxy;
 
     // This delegate works for the following widget.
     WebKit::WebWidget* m_webWidget;

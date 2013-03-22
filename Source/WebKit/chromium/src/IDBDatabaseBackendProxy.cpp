@@ -77,14 +77,6 @@ PassRefPtr<IDBObjectStoreBackendInterface> IDBDatabaseBackendProxy::createObject
     return IDBObjectStoreBackendProxy::create(objectStore.release());
 }
 
-void IDBDatabaseBackendProxy::deleteObjectStore(const String& name, IDBTransactionBackendInterface* transaction, ExceptionCode& ec)
-{
-    // The transaction pointer is guaranteed to be a pointer to a proxy object as, in the renderer,
-    // all implementations of IDB interfaces are proxy objects.
-    IDBTransactionBackendProxy* transactionProxy = static_cast<IDBTransactionBackendProxy*>(transaction);
-    m_webIDBDatabase->deleteObjectStore(name, *transactionProxy->getWebIDBTransaction(), ec);
-}
-
 void IDBDatabaseBackendProxy::deleteObjectStore(int64_t objectStoreId, IDBTransactionBackendInterface* transaction, ExceptionCode& ec)
 {
     // The transaction pointer is guaranteed to be a pointer to a proxy object as, in the renderer,
@@ -93,31 +85,30 @@ void IDBDatabaseBackendProxy::deleteObjectStore(int64_t objectStoreId, IDBTransa
     m_webIDBDatabase->deleteObjectStore(objectStoreId, *transactionProxy->getWebIDBTransaction(), ec);
 }
 
-void IDBDatabaseBackendProxy::setVersion(const String& version, PassRefPtr<IDBCallbacks> callbacks, PassRefPtr<IDBDatabaseCallbacks> databaseCallbacks, ExceptionCode& ec)
+PassRefPtr<IDBTransactionBackendInterface> IDBDatabaseBackendProxy::createTransaction(int64_t id, const Vector<int64_t>& objectStoreIds, IDBTransaction::Mode mode)
 {
-    ASSERT(m_webIDBDatabase);
-    m_webIDBDatabase->setVersion(version, new WebIDBCallbacksImpl(callbacks), ec);
-}
-
-PassRefPtr<IDBTransactionBackendInterface> IDBDatabaseBackendProxy::transaction(DOMStringList* storeNames, unsigned short mode, ExceptionCode& ec)
-{
-    WebDOMStringList names(storeNames);
-    OwnPtr<WebIDBTransaction> transaction = adoptPtr(m_webIDBDatabase->transaction(names, mode, ec));
-    if (!transaction) {
-        ASSERT(ec);
-        return 0;
-    }
-    return IDBTransactionBackendProxy::create(transaction.release());
-}
-
-PassRefPtr<IDBTransactionBackendInterface> IDBDatabaseBackendProxy::transaction(const Vector<int64_t>& objectStoreIds, unsigned short mode)
-{
-    OwnPtr<WebIDBTransaction> transaction = adoptPtr(m_webIDBDatabase->transaction(objectStoreIds, mode));
+    OwnPtr<WebIDBTransaction> transaction = adoptPtr(m_webIDBDatabase->createTransaction(id, objectStoreIds, mode));
     if (!transaction)
         return 0;
 
     return IDBTransactionBackendProxy::create(transaction.release());
 }
+
+void IDBDatabaseBackendProxy::createTransaction(int64_t id, PassRefPtr<IDBDatabaseCallbacks> callbacks, const Vector<int64_t>& objectStoreIds, unsigned short mode)
+{
+    m_webIDBDatabase->createTransaction(id, new WebIDBDatabaseCallbacksImpl(callbacks), objectStoreIds, mode);
+}
+
+void IDBDatabaseBackendProxy::commit(int64_t transactionId)
+{
+    m_webIDBDatabase->commit(transactionId);
+}
+
+void IDBDatabaseBackendProxy::abort(int64_t transactionId)
+{
+    m_webIDBDatabase->abort(transactionId);
+}
+
 
 void IDBDatabaseBackendProxy::close(PassRefPtr<IDBDatabaseCallbacks>)
 {

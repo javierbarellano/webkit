@@ -33,6 +33,9 @@
  */
 (function (InjectedScriptHost, inspectedWindow, injectedScriptId) {
 
+// Protect against Object overwritten by the user code.
+var Object = {}.constructor;
+
 /**
  * @param {Arguments} array
  * @param {number=} index
@@ -48,7 +51,7 @@ function slice(array, index)
 
 /**
  * Please use this bind, not the one from Function.prototype
- * @param {function()} func
+ * @param {function(...)} func
  * @param {Object} thisObject
  * @param {...number} var_args
  */
@@ -364,7 +367,7 @@ InjectedScript.prototype = {
                     if (!descriptor) {
                         // Not all bindings provide proper descriptors. Fall back to the writable, configurable property.
                         try {
-                            var descriptor = { name: name, value: object[name], writable: false, configurable: false, enumerable: false};
+                            descriptor = { name: name, value: object[name], writable: false, configurable: false, enumerable: false};
                             if (o === object) 
                                 descriptor.isOwn = true;
                             descriptors.push(descriptor);
@@ -398,11 +401,12 @@ InjectedScript.prototype = {
      * @param {string} objectGroup
      * @param {boolean} injectCommandLineAPI
      * @param {boolean} returnByValue
+     * @param {boolean} generatePreview
      * @return {*}
      */
-    evaluate: function(expression, objectGroup, injectCommandLineAPI, returnByValue)
+    evaluate: function(expression, objectGroup, injectCommandLineAPI, returnByValue, generatePreview)
     {
-        return this._evaluateAndWrap(InjectedScriptHost.evaluate, InjectedScriptHost, expression, objectGroup, false, injectCommandLineAPI, returnByValue);
+        return this._evaluateAndWrap(InjectedScriptHost.evaluate, InjectedScriptHost, expression, objectGroup, false, injectCommandLineAPI, returnByValue, generatePreview);
     },
 
     /**
@@ -460,13 +464,14 @@ InjectedScript.prototype = {
      * @param {boolean} isEvalOnCallFrame
      * @param {boolean} injectCommandLineAPI
      * @param {boolean} returnByValue
+     * @param {boolean} generatePreview
      * @return {*}
      */
-    _evaluateAndWrap: function(evalFunction, object, expression, objectGroup, isEvalOnCallFrame, injectCommandLineAPI, returnByValue)
+    _evaluateAndWrap: function(evalFunction, object, expression, objectGroup, isEvalOnCallFrame, injectCommandLineAPI, returnByValue, generatePreview)
     {
         try {
             return { wasThrown: false,
-                     result: this._wrapObject(this._evaluateOn(evalFunction, object, objectGroup, expression, isEvalOnCallFrame, injectCommandLineAPI), objectGroup, returnByValue, false) };
+                     result: this._wrapObject(this._evaluateOn(evalFunction, object, objectGroup, expression, isEvalOnCallFrame, injectCommandLineAPI), objectGroup, returnByValue, generatePreview) };
         } catch (e) {
             return this._createThrownValue(e, objectGroup);
         }
@@ -542,14 +547,15 @@ InjectedScript.prototype = {
      * @param {string} objectGroup
      * @param {boolean} injectCommandLineAPI
      * @param {boolean} returnByValue
+     * @param {boolean} generatePreview
      * @return {*}
      */
-    evaluateOnCallFrame: function(topCallFrame, callFrameId, expression, objectGroup, injectCommandLineAPI, returnByValue)
+    evaluateOnCallFrame: function(topCallFrame, callFrameId, expression, objectGroup, injectCommandLineAPI, returnByValue, generatePreview)
     {
         var callFrame = this._callFrameForId(topCallFrame, callFrameId);
         if (!callFrame)
             return "Could not find call frame with given id";
-        return this._evaluateAndWrap(callFrame.evaluate, callFrame, expression, objectGroup, true, injectCommandLineAPI, returnByValue);
+        return this._evaluateAndWrap(callFrame.evaluate, callFrame, expression, objectGroup, true, injectCommandLineAPI, returnByValue, generatePreview);
     },
 
     /**
@@ -611,7 +617,7 @@ InjectedScript.prototype = {
         var object = this.findObjectById(objectId);
         if (!object || this._subtype(object) !== "node")
             return null;
-        return /** @type {Node} */ object;
+        return /** @type {Node} */ (object);
     },
 
     /**
@@ -702,7 +708,7 @@ InjectedScript.prototype = {
         if (this.isPrimitiveValue(obj))
             return null;
 
-        obj = /** @type {Object} */ obj;
+        obj = /** @type {Object} */ (obj);
 
         // Type is object, get subtype.
         var subtype = this._subtype(obj);
@@ -717,7 +723,9 @@ InjectedScript.prototype = {
             var description = obj.nodeName.toLowerCase();
             switch (obj.nodeType) {
             case 1 /* Node.ELEMENT_NODE */:
-                description =  "<" + description + ">";
+                description += obj.id ? "#" + obj.id : "";
+                var className = obj.className;
+                description += className ? "." + className : "";
                 break;
             case 10 /*Node.DOCUMENT_TYPE_NODE */:
                 description = "<!DOCTYPE " + description + ">";
@@ -789,7 +797,7 @@ InjectedScript.RemoteObject = function(object, objectGroupName, forceValueType, 
         return;
     }
 
-    object = /** @type {Object} */ object;
+    object = /** @type {Object} */ (object);
 
     this.objectId = injectedScript._bind(object, objectGroupName);
     var subtype = injectedScript._subtype(object);
@@ -808,35 +816,48 @@ InjectedScript.RemoteObject.prototype = {
      */
     _generatePreview: function(object)
     {
-        var preview = {};
-        var isArray = this.subtype === "array";
-        var elementsToDump = isArray ? 100 : 5;
-  
-        var propertyNames = Object.getOwnPropertyNames(/** @type {!Object} */(object));
-        preview.lossless = true;
-        preview.overflow = false;
-        var properties = preview.properties = [];
+        this.preview = {};
+        this.preview.lossless = true;
+        this.preview.overflow = false;
+        this.preview.properties = [];
 
+        var isArray = this.subtype === "array";
+        var propertiesThreshold = {
+            properties: 5,
+            indexes: 100
+        };
+
+        for (var o = object; injectedScript._isDefined(o); o = o.__proto__)
+            this._generateProtoPreview(o, propertiesThreshold);
+    },
+
+    /**
+     * @param {Object} object
+     * @param {Object} propertiesThreshold
+     */
+    _generateProtoPreview: function(object, propertiesThreshold)
+    {
+        var propertyNames = Object.keys(/** @type {!Object} */(object));
         try {
             for (var i = 0; i < propertyNames.length; ++i) {
-                if (properties.length >= elementsToDump) {
-                    preview.overflow = true;
-                    preview.lossless = false;
+                if (!propertiesThreshold.properties || !propertiesThreshold.indexes) {
+                    this.preview.overflow = true;
+                    this.preview.lossless = false;
                     break;
                 }
                 var name = propertyNames[i];
-                if (isArray && name === "length")
+                if (this.subtype === "array" && name === "length")
                     continue;
 
                 var descriptor = Object.getOwnPropertyDescriptor(/** @type {!Object} */(object), name);
                 if (!("value" in descriptor) || !descriptor.enumerable) {
-                    preview.lossless = false;
+                    this.preview.lossless = false;
                     continue;
                 }
 
                 var value = descriptor.value;
                 if (value === null) {
-                    properties.push({ name: name, type: "object", value: "null" });
+                    this._appendPropertyPreview({ name: name, type: "object", value: "null" }, propertiesThreshold);
                     continue;
                 }
     
@@ -847,29 +868,41 @@ InjectedScript.RemoteObject.prototype = {
                     if (type === "string") {
                         if (value.length > maxLength) {
                             value = this._abbreviateString(value, maxLength, true);
-                            preview.lossless = false;
+                            this.preview.lossless = false;
                         }
                         value = "\"" + value.replace(/\n/g, "\u21B5") + "\"";
                     }
-                    properties.push({ name: name, type: type, value: value + "" });
+                    this._appendPropertyPreview({ name: name, type: type, value: value + "" }, propertiesThreshold);
                     continue;
                 }
     
-                preview.lossless = false;
-
-                if (type === "function")
-                    continue;
+                this.preview.lossless = false;
 
                 var subtype = injectedScript._subtype(value);
-                var property = { name: name, type: type, value: this._abbreviateString(/** @type {string} */ (injectedScript._describe(value)), maxLength, subtype === "regexp") };
+                var description = "";
+                if (type !== "function")
+                    description = this._abbreviateString(/** @type {string} */ (injectedScript._describe(value)), maxLength, subtype === "regexp");
+
+                var property = { name: name, type: type, value: description };
                 if (subtype)
                     property.subtype = subtype;
-                properties.push(property);
+                this._appendPropertyPreview(property, propertiesThreshold);
             }
-            if (properties.length)
-                this.preview = preview;
         } catch (e) {
         }
+    },
+
+    /**
+     * @param {Object} property
+     * @param {Object} propertiesThreshold
+     */
+    _appendPropertyPreview: function(property, propertiesThreshold)
+    {
+        if (isNaN(property.name))
+            propertiesThreshold.properties--;
+        else
+            propertiesThreshold.indexes--;
+        this.preview.properties.push(property);
     },
 
     /**

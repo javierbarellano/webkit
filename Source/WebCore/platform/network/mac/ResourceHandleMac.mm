@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007, 2008, 2009, 2010, 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2006, 2007, 2008, 2009, 2010, 2011, 2012 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -124,10 +124,6 @@ private:
 
 namespace WebCore {
 
-#ifndef NDEBUG
-static bool isInitializingConnection;
-#endif
-    
 static void applyBasicAuthorizationHeader(ResourceRequest& request, const Credential& credential)
 {
     String authenticationHeader = "Basic " + base64Encode(String(credential.user() + ":" + credential.password()).utf8());
@@ -147,36 +143,22 @@ ResourceHandle::~ResourceHandle()
     LOG(Network, "Handle %p destroyed", this);
 }
 
-static bool shouldRelaxThirdPartyCookiePolicy(const KURL& url)
+static bool shouldRelaxThirdPartyCookiePolicy(NetworkingContext* context, const KURL& url)
 {
     // If a URL already has cookies, then we'll relax the 3rd party cookie policy and accept new cookies.
 
-    NSHTTPCookieStorage *sharedStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
-
-    NSHTTPCookieAcceptPolicy cookieAcceptPolicy;
-#if USE(CFURLSTORAGESESSIONS)
-    RetainPtr<CFHTTPCookieStorageRef> cfCookieStorage = currentCFHTTPCookieStorage();
-    if (cfCookieStorage)
-        cookieAcceptPolicy = static_cast<NSHTTPCookieAcceptPolicy>(wkGetHTTPCookieAcceptPolicy(cfCookieStorage.get()));
-    else
-#endif
-        cookieAcceptPolicy = [sharedStorage cookieAcceptPolicy];
+    RetainPtr<CFHTTPCookieStorageRef> cfCookieStorage = currentCFHTTPCookieStorage(context);
+    NSHTTPCookieAcceptPolicy cookieAcceptPolicy = static_cast<NSHTTPCookieAcceptPolicy>(wkGetHTTPCookieAcceptPolicy(cfCookieStorage.get()));
 
     if (cookieAcceptPolicy != NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain)
         return false;
 
-    NSArray *cookies;
-#if USE(CFURLSTORAGESESSIONS)
-    if (cfCookieStorage)
-        cookies = wkHTTPCookiesForURL(cfCookieStorage.get(), url);
-    else
-#endif
-        cookies = [sharedStorage cookiesForURL:url];
+    NSArray *cookies = wkHTTPCookiesForURL(cfCookieStorage.get(), url);
 
     return [cookies count];
 }
 
-void ResourceHandle::createNSURLConnection(id delegate, bool shouldUseCredentialStorage, bool shouldContentSniff)
+void ResourceHandle::createNSURLConnection(id delegate, bool shouldUseCredentialStorage, bool shouldRelaxThirdPartyCookiePolicy, bool shouldContentSniff)
 {
     // Credentials for ftp can only be passed in URL, the connection:didReceiveAuthenticationChallenge: delegate call won't be made.
     if ((!d->m_user.isEmpty() || !d->m_pass.isEmpty()) && !firstRequest().url().protocolIsInHTTPFamily()) {
@@ -186,7 +168,7 @@ void ResourceHandle::createNSURLConnection(id delegate, bool shouldUseCredential
         firstRequest().setURL(urlWithCredentials);
     }
 
-    if (shouldRelaxThirdPartyCookiePolicy(firstRequest().url()))
+    if (shouldRelaxThirdPartyCookiePolicy)
         firstRequest().setFirstPartyForCookies(firstRequest().url());
 
     if (shouldUseCredentialStorage && firstRequest().url().protocolIsInHTTPFamily()) {
@@ -221,10 +203,8 @@ void ResourceHandle::createNSURLConnection(id delegate, bool shouldUseCredential
     static bool supportsSettingConnectionProperties = [NSURLConnection instancesRespondToSelector:@selector(_initWithRequest:delegate:usesCache:maxContentLength:startImmediately:connectionProperties:)];
 #endif
 
-#if USE(CFURLSTORAGESESSIONS)
-    if (CFURLStorageSessionRef storageSession = currentStorageSession())
-        nsRequest = [wkCopyRequestWithStorageSession(storageSession, nsRequest) autorelease];
-#endif
+    if (d->m_storageSession)
+        nsRequest = [wkCopyRequestWithStorageSession(d->m_storageSession.get(), nsRequest) autorelease];
 
     if (supportsSettingConnectionProperties) {
         NSDictionary *sessionID = shouldUseCredentialStorage ? [NSDictionary dictionary] : [NSDictionary dictionaryWithObject:@"WebKitPrivateSession" forKey:@"_kCFURLConnectionSessionID"];
@@ -250,9 +230,7 @@ bool ResourceHandle::start(NetworkingContext* context)
     if (!context->isValid())
         return false;
 
-#ifndef NDEBUG
-    isInitializingConnection = YES;
-#endif
+    d->m_storageSession = context->storageSession();
 
     ASSERT(!d->m_proxy);
     d->m_proxy.adoptNS(wkCreateNSURLConnectionDelegateProxy());
@@ -265,6 +243,7 @@ bool ResourceHandle::start(NetworkingContext* context)
     createNSURLConnection(
         d->m_proxy.get(),
         shouldUseCredentialStorage,
+        shouldRelaxThirdPartyCookiePolicy(context, firstRequest().url()),
         d->m_shouldContentSniff || context->localFileContentSniffingEnabled());
 
     bool scheduled = false;
@@ -278,16 +257,18 @@ bool ResourceHandle::start(NetworkingContext* context)
         }
     }
 
+    if (NSOperationQueue *operationQueue = context->scheduledOperationQueue()) {
+        ASSERT(!scheduled);
+        [connection() setDelegateQueue:operationQueue];
+        scheduled = true;
+    }
+
     // Start the connection if we did schedule with at least one runloop.
     // We can't start the connection until we have one runloop scheduled.
     if (scheduled)
         [connection() start];
     else
         d->m_startWhenScheduled = true;
-
-#ifndef NDEBUG
-    isInitializingConnection = NO;
-#endif
 
     LOG(Network, "Handle %p starting connection %p for %@", this, connection(), firstRequest().nsURLRequest());
     
@@ -381,8 +362,8 @@ bool ResourceHandle::willLoadFromCache(ResourceRequest& request, Frame*)
     request.setCachePolicy(ReturnCacheDataDontLoad);
     NSURLResponse *nsURLResponse = nil;
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
-    
-   [NSURLConnection sendSynchronousRequest:request.nsURLRequest() returningResponse:&nsURLResponse error:nil];
+
+    [NSURLConnection sendSynchronousRequest:request.nsURLRequest() returningResponse:&nsURLResponse error:nil];
     
     END_BLOCK_OBJC_EXCEPTIONS;
     
@@ -415,6 +396,8 @@ void ResourceHandle::loadResourceSynchronously(NetworkingContext* context, const
 
     RefPtr<ResourceHandle> handle = adoptRef(new ResourceHandle(request, client.get(), false /*defersLoading*/, true /*shouldContentSniff*/));
 
+    handle->d->m_storageSession = context->storageSession();
+
     if (context && handle->d->m_scheduledFailureType != NoFailure) {
         error = context->blockedError(request);
         return;
@@ -423,7 +406,8 @@ void ResourceHandle::loadResourceSynchronously(NetworkingContext* context, const
     handle->createNSURLConnection(
         handle->delegate(), // A synchronous request cannot turn into a download, so there is no need to proxy the delegate.
         storedCredentials == AllowStoredCredentials,
-        handle->shouldContentSniff() || (context && context->localFileContentSniffingEnabled()));
+        shouldRelaxThirdPartyCookiePolicy(context, request.url()),
+        handle->shouldContentSniff() || context->localFileContentSniffingEnabled());
 
     [handle->connection() scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:(NSString *)synchronousLoadRunLoopMode()];
     [handle->connection() start];
@@ -488,10 +472,8 @@ void ResourceHandle::willSendRequest(ResourceRequest& request, const ResourceRes
         }
     }
 
-#if USE(CFURLSTORAGESESSIONS)
-    if (CFURLStorageSessionRef storageSession = currentStorageSession())
-        request.setStorageSession(storageSession);
-#endif
+    if (d->m_storageSession)
+        request.setStorageSession(d->m_storageSession.get());
 
     client()->willSendRequest(this, request, redirectResponse);
 }
@@ -637,15 +619,6 @@ void ResourceHandle::receivedCancellation(const AuthenticationChallenge& challen
         client()->receivedCancellation(this, challenge);
 }
 
-#if USE(CFURLSTORAGESESSIONS)
-
-String ResourceHandle::privateBrowsingStorageSessionIdentifierDefaultBase()
-{
-    return String([[NSBundle mainBundle] bundleIdentifier]);
-}
-
-#endif
-
 } // namespace WebCore
 
 @implementation WebCoreResourceHandleAsDelegate
@@ -786,7 +759,7 @@ String ResourceHandle::privateBrowsingStorageSessionIdentifierDefaultBase()
     m_handle->client()->didReceiveResponse(m_handle, r);
 }
 
-#if HAVE(NETWORK_CFDATA_ARRAY_CALLBACK)
+#if USE(NETWORK_CFDATA_ARRAY_CALLBACK)
 - (void)connection:(NSURLConnection *)connection didReceiveDataArray:(NSArray *)dataArray
 {
     UNUSED_PARAM(connection);
@@ -879,11 +852,6 @@ String ResourceHandle::privateBrowsingStorageSessionIdentifierDefaultBase()
 
     UNUSED_PARAM(connection);
 
-#ifndef NDEBUG
-    if (isInitializingConnection)
-        LOG_ERROR("connection:willCacheResponse: was called inside of [NSURLConnection initWithRequest:delegate:] (4067625)");
-#endif
-
     if (!m_handle || !m_handle->client())
         return nil;
 
@@ -897,16 +865,6 @@ String ResourceHandle::privateBrowsingStorageSessionIdentifierDefaultBase()
     if (newResponse != cachedResponse)
         return newResponse;
     
-    CacheStoragePolicy policy = static_cast<CacheStoragePolicy>([newResponse storagePolicy]);
-        
-    m_handle->client()->willCacheResponse(m_handle, policy);
-
-    if (static_cast<NSURLCacheStoragePolicy>(policy) != [newResponse storagePolicy])
-        newResponse = [[[NSCachedURLResponse alloc] initWithResponse:[newResponse response]
-                                                                data:[newResponse data]
-                                                            userInfo:[newResponse userInfo]
-                                                       storagePolicy:static_cast<NSURLCacheStoragePolicy>(policy)] autorelease];
-
     return newResponse;
 }
 

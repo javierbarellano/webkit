@@ -27,7 +27,7 @@
 #include "WebProcessCreationParameters.h"
 
 #include "ArgumentCoders.h"
-#if USE(CFURLSTORAGESESSIONS) && PLATFORM(WIN)
+#if PLATFORM(WIN) && USE(CFNETWORK)
 #include "ArgumentCodersCF.h"
 #endif
 
@@ -73,6 +73,12 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << urlSchemesRegisteredAsNoAccess;
     encoder << urlSchemesRegisteredAsDisplayIsolated;
     encoder << urlSchemesRegisteredAsCORSEnabled;
+#if ENABLE(CUSTOM_PROTOCOLS)
+    encoder << urlSchemesRegisteredForCustomProtocols;
+#endif
+#if USE(SOUP)
+    encoder << urlSchemesRegistered;
+#endif
     encoder.encodeEnum(cacheModel);
     encoder << shouldTrackVisitedLinks;
     encoder << shouldAlwaysUseComplexTextCodePath;
@@ -83,11 +89,10 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << textCheckerState;
     encoder << fullKeyboardAccessEnabled;
     encoder << defaultRequestTimeoutInterval;
-#if PLATFORM(MAC) || USE(CFURLSTORAGESESSIONS)
+#if PLATFORM(MAC) || USE(CFNETWORK)
     encoder << uiProcessBundleIdentifier;
 #endif
 #if PLATFORM(MAC)
-    encoder << parentProcessName;
     encoder << presenterApplicationPid;
     encoder << nsURLCacheMemoryCapacity;
     encoder << nsURLCacheDiskCapacity;
@@ -101,12 +106,12 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << cfURLCacheDiskCapacity;
     encoder << cfURLCacheMemoryCapacity;
     encoder << initialHTTPCookieAcceptPolicy;
-#if USE(CFURLSTORAGESESSIONS)
+#if USE(CFNETWORK)
     CFDataRef storageSession = serializedDefaultStorageSession.get();
     encoder << static_cast<bool>(storageSession);
     if (storageSession)
         CoreIPC::encode(encoder, storageSession);
-#endif // USE(CFURLSTORAGESESSIONS)
+#endif
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
@@ -158,6 +163,14 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, Web
         return false;
     if (!decoder->decode(parameters.urlSchemesRegisteredAsCORSEnabled))
         return false;
+#if ENABLE(CUSTOM_PROTOCOLS)
+    if (!decoder->decode(parameters.urlSchemesRegisteredForCustomProtocols))
+        return false;
+#endif
+#if USE(SOUP)
+    if (!decoder->decode(parameters.urlSchemesRegistered))
+        return false;
+#endif
     if (!decoder->decodeEnum(parameters.cacheModel))
         return false;
     if (!decoder->decode(parameters.shouldTrackVisitedLinks))
@@ -178,14 +191,12 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, Web
         return false;
     if (!decoder->decode(parameters.defaultRequestTimeoutInterval))
         return false;
-#if PLATFORM(MAC) || USE(CFURLSTORAGESESSIONS)
+#if PLATFORM(MAC) || USE(CFNETWORK)
     if (!decoder->decode(parameters.uiProcessBundleIdentifier))
         return false;
 #endif
 
 #if PLATFORM(MAC)
-    if (!decoder->decode(parameters.parentProcessName))
-        return false;
     if (!decoder->decode(parameters.presenterApplicationPid))
         return false;
     if (!decoder->decode(parameters.nsURLCacheMemoryCapacity))
@@ -211,13 +222,13 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, Web
         return false;
     if (!decoder->decode(parameters.initialHTTPCookieAcceptPolicy))
         return false;
-#if USE(CFURLSTORAGESESSIONS)
+#if PLATFORM(MAC) || USE(CFNETWORK)
     bool hasStorageSession = false;
     if (!decoder->decode(hasStorageSession))
         return false;
     if (hasStorageSession && !CoreIPC::decode(decoder, parameters.serializedDefaultStorageSession))
         return false;
-#endif // USE(CFURLSTORAGESESSIONS)
+#endif
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)

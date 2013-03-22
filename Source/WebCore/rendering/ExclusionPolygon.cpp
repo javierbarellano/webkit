@@ -47,6 +47,44 @@ struct EdgeIntersection {
     EdgeIntersectionType type;
 };
 
+static inline float determinant(const FloatSize& a, const FloatSize& b)
+{
+    return a.width() * b.height() - a.height() * b.width();
+}
+
+static inline bool areCollinearPoints(const FloatPoint& p0, const FloatPoint& p1, const FloatPoint& p2)
+{
+    return !determinant(p1 - p0, p2 - p0);
+}
+
+static inline bool areCoincidentPoints(const FloatPoint& p0, const FloatPoint& p1)
+{
+    return p0.x() == p1.x() && p0.y() == p1.y();
+}
+
+static inline unsigned nextVertexIndex(unsigned vertexIndex, unsigned nVertices, bool clockwise)
+{
+    return ((clockwise) ? vertexIndex + 1 : vertexIndex - 1 + nVertices) % nVertices;
+}
+
+unsigned ExclusionPolygon::findNextEdgeVertexIndex(unsigned vertexIndex1, bool clockwise) const
+{
+    unsigned nVertices = numberOfVertices();
+    unsigned vertexIndex2 = nextVertexIndex(vertexIndex1, nVertices, clockwise);
+
+    while (vertexIndex2 && areCoincidentPoints(vertexAt(vertexIndex1), vertexAt(vertexIndex2)))
+        vertexIndex2 = nextVertexIndex(vertexIndex2, nVertices, clockwise);
+
+    while (vertexIndex2) {
+        unsigned vertexIndex3 = nextVertexIndex(vertexIndex2, nVertices, clockwise);
+        if (!areCollinearPoints(vertexAt(vertexIndex1), vertexAt(vertexIndex2), vertexAt(vertexIndex3)))
+            break;
+        vertexIndex2 = vertexIndex3;
+    }
+
+    return vertexIndex2;
+}
+
 ExclusionPolygon::ExclusionPolygon(PassOwnPtr<Vector<FloatPoint> > vertices, WindRule fillRule)
     : ExclusionShape()
     , m_vertices(vertices)
@@ -59,14 +97,46 @@ ExclusionPolygon::ExclusionPolygon(PassOwnPtr<Vector<FloatPoint> > vertices, Win
     if (nVertices)
         m_boundingBox.setLocation(vertexAt(0));
 
-    for (unsigned i = 0; i < nVertices; i++) {
+    if (m_empty)
+        return;
+
+    unsigned minVertexIndex = 0;
+    for (unsigned i = 1; i < nVertices; ++i) {
         const FloatPoint& vertex = vertexAt(i);
-        m_boundingBox.extend(vertex);
-        m_edges[i].polygon = this;
-        m_edges[i].vertexIndex1 = i;
-        m_edges[i].vertexIndex2 = (i + 1) % nVertices;
-        m_edges[i].edgeIndex = i;
+        if (vertex.y() < vertexAt(minVertexIndex).y() || (vertex.y() == vertexAt(minVertexIndex).y() && vertex.x() < vertexAt(minVertexIndex).x()))
+            minVertexIndex = i;
     }
+    FloatPoint nextVertex = vertexAt((minVertexIndex + 1) % nVertices);
+    FloatPoint prevVertex = vertexAt((minVertexIndex + nVertices - 1) % nVertices);
+    bool clockwise = determinant(vertexAt(minVertexIndex) - prevVertex, nextVertex - prevVertex) > 0;
+
+    unsigned edgeIndex = 0;
+    unsigned vertexIndex1 = 0;
+    do {
+        m_boundingBox.extend(vertexAt(vertexIndex1));
+        unsigned vertexIndex2 = findNextEdgeVertexIndex(vertexIndex1, clockwise);
+        m_edges[edgeIndex].polygon = this;
+        m_edges[edgeIndex].vertexIndex1 = vertexIndex1;
+        m_edges[edgeIndex].vertexIndex2 = vertexIndex2;
+        m_edges[edgeIndex].edgeIndex = edgeIndex;
+        edgeIndex++;
+        vertexIndex1 = vertexIndex2;
+    } while (vertexIndex1);
+
+    if (edgeIndex > 3) {
+        const ExclusionPolygonEdge& firstEdge = m_edges[0];
+        const ExclusionPolygonEdge& lastEdge = m_edges[edgeIndex - 1];
+        if (areCollinearPoints(lastEdge.vertex1(), lastEdge.vertex2(), firstEdge.vertex2())) {
+            m_edges[0].vertexIndex1 = lastEdge.vertexIndex1;
+            edgeIndex--;
+        }
+    }
+
+    m_edges.resize(edgeIndex);
+    m_empty = m_edges.size() < 3;
+
+    if (m_empty)
+        return;
 
     for (unsigned i = 0; i < m_edges.size(); i++) {
         ExclusionPolygonEdge* edge = &m_edges[i];
@@ -120,19 +190,19 @@ static inline bool getVertexIntersectionVertices(const EdgeIntersection& interse
 
     if ((intersection.type == VertexMinY && (thisEdge.vertex1().y() < thisEdge.vertex2().y()))
         || (intersection.type == VertexMaxY && (thisEdge.vertex1().y() > thisEdge.vertex2().y()))) {
-        prevVertex = polygon.vertexAt(thisEdge.previousEdge().vertexIndex2);
+        prevVertex = polygon.vertexAt(thisEdge.previousEdge().vertexIndex1);
         thisVertex = polygon.vertexAt(thisEdge.vertexIndex1);
         nextVertex = polygon.vertexAt(thisEdge.vertexIndex2);
     } else {
         prevVertex = polygon.vertexAt(thisEdge.vertexIndex1);
         thisVertex = polygon.vertexAt(thisEdge.vertexIndex2);
-        nextVertex = polygon.vertexAt(thisEdge.nextEdge().vertexIndex1);
+        nextVertex = polygon.vertexAt(thisEdge.nextEdge().vertexIndex2);
     }
 
     return true;
 }
 
-static bool appendIntervalX(float x, bool inside, Vector<ExclusionInterval>& result)
+static inline bool appendIntervalX(float x, bool inside, Vector<ExclusionInterval>& result)
 {
     if (!inside)
         result.append(ExclusionInterval(x));
@@ -149,7 +219,7 @@ static bool compareEdgeIntersectionX(const EdgeIntersection& intersection1, cons
     return (x1 == x2) ? intersection1.type < intersection2.type : x1 < x2;
 }
 
-void ExclusionPolygon::computeXIntersections(float y, Vector<ExclusionInterval>& result) const
+void ExclusionPolygon::computeXIntersections(float y, bool isMinY, Vector<ExclusionInterval>& result) const
 {
     Vector<ExclusionPolygon::EdgeInterval> overlappingEdges;
     m_edgeTree.allOverlaps(ExclusionPolygon::EdgeInterval(y, y, 0), overlappingEdges);
@@ -195,19 +265,19 @@ void ExclusionPolygon::computeXIntersections(float y, Vector<ExclusionInterval>&
         }
 
         if (evenOddCrossing) {
-            bool edgeCrossing = false;
-            if (thisIntersection.type == Normal || !inside || index == intersections.size() - 1)
-                edgeCrossing = true;
-            else {
+            bool edgeCrossing = thisIntersection.type == Normal;
+            if (!edgeCrossing) {
                 FloatPoint prevVertex;
                 FloatPoint thisVertex;
                 FloatPoint nextVertex;
 
                 if (getVertexIntersectionVertices(thisIntersection, prevVertex, thisVertex, nextVertex)) {
-                    if (prevVertex.y() == y)
-                        edgeCrossing =  (thisVertex.x() > prevVertex.x()) ? nextVertex.y() > y : nextVertex.y() < y;
+                    if (nextVertex.y() == y)
+                        edgeCrossing = (isMinY) ? prevVertex.y() > y : prevVertex.y() < y;
+                    else if (prevVertex.y() == y)
+                        edgeCrossing = (isMinY) ? nextVertex.y() > y : nextVertex.y() < y;
                     else
-                        edgeCrossing = (nextVertex.y() != y);
+                        edgeCrossing = true;
                 }
             }
             if (edgeCrossing)
@@ -261,8 +331,8 @@ void ExclusionPolygon::getExcludedIntervals(float logicalTop, float logicalHeigh
     float y2 = maxYForLogicalLine(logicalTop, logicalHeight);
 
     Vector<ExclusionInterval> y1XIntervals, y2XIntervals;
-    computeXIntersections(y1, y1XIntervals);
-    computeXIntersections(y2, y2XIntervals);
+    computeXIntersections(y1, true, y1XIntervals);
+    computeXIntersections(y2, false, y2XIntervals);
 
     Vector<ExclusionInterval> mergedIntervals;
     mergeExclusionIntervals(y1XIntervals, y2XIntervals, mergedIntervals);
@@ -288,8 +358,8 @@ void ExclusionPolygon::getIncludedIntervals(float logicalTop, float logicalHeigh
     float y2 = maxYForLogicalLine(logicalTop, logicalHeight);
 
     Vector<ExclusionInterval> y1XIntervals, y2XIntervals;
-    computeXIntersections(y1, y1XIntervals);
-    computeXIntersections(y2, y2XIntervals);
+    computeXIntersections(y1, true, y1XIntervals);
+    computeXIntersections(y2, false, y2XIntervals);
 
     Vector<ExclusionInterval> commonIntervals;
     intersectExclusionIntervals(y1XIntervals, y2XIntervals, commonIntervals);
@@ -304,6 +374,22 @@ void ExclusionPolygon::getIncludedIntervals(float logicalTop, float logicalHeigh
         ExclusionInterval interval = includedIntervals[i];
         result.append(LineSegment(interval.x1, interval.x2));
     }
+}
+
+bool ExclusionPolygon::firstIncludedIntervalLogicalTop(float minLogicalIntervalTop, const FloatSize& minLogicalIntervalSize, float& result) const
+{
+    // FIXME: This is just a temporary stub, https://bugs.webkit.org/show_bug.cgi?id=103429
+
+    if (minLogicalIntervalSize.width() > m_boundingBox.width())
+        return false;
+
+    float minY = minYForLogicalLine(minLogicalIntervalTop, minLogicalIntervalSize.height());
+    float maxY = maxYForLogicalLine(minLogicalIntervalTop, minLogicalIntervalSize.height());
+    if (minY < m_boundingBox.y() || maxY > m_boundingBox.maxY())
+        return false;
+
+    result = minLogicalIntervalTop;
+    return true;
 }
 
 } // namespace WebCore

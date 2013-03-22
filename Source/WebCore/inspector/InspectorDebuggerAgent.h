@@ -77,7 +77,6 @@ public:
     virtual void clearFrontend();
     virtual void restore();
 
-    void didClearMainFrameWindowObject();
     bool isPaused();
     void addMessageToConsole(MessageSource, MessageType);
 
@@ -107,6 +106,7 @@ public:
                              const bool* includeCommandLineAPI,
                              const bool* doNotPauseOnExceptionsAndMuteConsole,
                              const bool* returnByValue,
+                             const bool* generatePreview,
                              RefPtr<TypeBuilder::Runtime::RemoteObject>& result,
                              TypeBuilder::OptOutput<bool>* wasThrown);
     void compileScript(ErrorString*, const String& expression, const String& sourceURL, TypeBuilder::OptOutput<TypeBuilder::Debugger::ScriptId>*, TypeBuilder::OptOutput<String>* syntaxErrorMessage);
@@ -143,6 +143,7 @@ protected:
     virtual void disable();
     virtual void didPause(ScriptState*, const ScriptValue& callFrames, const ScriptValue& exception);
     virtual void didContinue();
+    void reset();
 
 private:
     void enable();

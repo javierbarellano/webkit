@@ -10,6 +10,7 @@
 
 #if ENABLE(VIDEO)
 
+#include "HTMLMediaElement.h"
 #include "HTMLOptionElement.h"
 #include "MediaControlElements.h"
 
@@ -23,13 +24,15 @@ namespace WebCore
 
 class MediaSelectElement;
 class MouseEvent;
+class MediaControls;
 
-class MediaSelControlElements: public MediaControlElement {
+class MediaSelControlElements {
 public:
 	virtual ~MediaSelControlElements(){}
 
 protected:
-	MediaSelControlElements(Document* doc) : MediaControlElement(doc) {}
+	MediaSelControlElements(Document* doc, MediaControlElementType type)
+	{}
 };
 
 
@@ -68,8 +71,8 @@ public:
 
 	void createShadowSubtree();
 
-	virtual void setMediaController(MediaControllerInterface* controller) { m_mediaController = controller; }
-	MediaControllerInterface* mediaController() const { return m_mediaController; }
+	void setMediaController(MediaControllerInterface* controller);
+	MediaControllerInterface* mediaController() const;
 
 	int selectedIndex() const;
 	void setSelectedIndex(int);
@@ -113,12 +116,16 @@ public:
 	// For use in the implementation of HTMLOptionElement.
 	void optionSelectionStateChanged(HTMLOptionElement*, bool optionIsSelected);
 protected:
-	MediaSelectElement(Document*, MediaControlElementType displayType);
+	MediaSelectElement(Document*, MediaControlElementType displayType, MediaControls* controls);
 	virtual void selectChanged(int newIndex) {}
 
 	virtual void defaultEventHandler(Event*);
 	void fixEventState(Event *event);
 	bool m_hasFocus;
+
+    MediaControls* m_controls;
+
+	MediaControllerInterface* m_mediaController;
 
 private:
 	virtual bool isMediaControlElement() const { return false; }
@@ -197,8 +204,6 @@ private:
 	mutable bool m_shouldRecalcListItems;
 	MediaControlElementType m_displayType;
 
-
-	MediaControllerInterface* m_mediaController;
 };
 
 inline bool isMediaSelectElement(const Node* node)
@@ -234,7 +239,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaVideoTrackSelButton;}
 
-    bool hasTracks() { int index; return mediaController()->getSelVideoTrackNames(&index).size()>1; }
+    bool hasTracks() { int index; return m_mediaController->getSelVideoTrackNames(&index).size()>1; }
 
     void display();
 
@@ -246,7 +251,6 @@ private:
 
     virtual const AtomicString& shadowPseudoId() const;
 
-    MediaControls* m_controls;
 };
 
 // ----------------------------
@@ -261,7 +265,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaAudioTrackSelButton;}
 
-    bool hasTracks() { int index; return mediaController()->getSelAudioTrackNames(&index).size()>1; }
+    bool hasTracks() { int index; return m_mediaController->getSelAudioTrackNames(&index).size()>1; }
 
     void display();
 
@@ -273,7 +277,6 @@ private:
 
     virtual const AtomicString& shadowPseudoId() const;
 
-    MediaControls* m_controls;
 };
 
 // ----------------------------
@@ -288,7 +291,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaTextTrackSelButton;}
 
-    bool hasTracks() { int index; return mediaController()->getSelTextTrackNames(&index).size()>0; }  // We add none so compare against 0
+    bool hasTracks() { int index; return m_mediaController->getSelTextTrackNames(&index).size()>0; }  // We add none so compare against 0
 
     void display();
 
@@ -300,7 +303,6 @@ private:
 
     virtual const AtomicString& shadowPseudoId() const;
 
-    MediaControls* m_controls;
 };
 
 }

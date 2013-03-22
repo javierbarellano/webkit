@@ -33,28 +33,29 @@
 #include "ewk_private.h"
 #include "ewk_url_request_private.h"
 #include <wtf/PassRefPtr.h>
-#include <wtf/RefCounted.h>
 
 /**
- * \struct  Ewk_Navigation_Data
+ * \struct  EwkNavigationData
  * @brief   Contains the navigation data details.
  */
-class Ewk_Navigation_Data : public RefCounted<Ewk_Navigation_Data> {
+class EwkNavigationData : public EwkObject {
 public:
-    static PassRefPtr<Ewk_Navigation_Data> create(WKNavigationDataRef dataRef)
+    EWK_OBJECT_DECLARE(EwkNavigationData)
+
+    static PassRefPtr<EwkNavigationData> create(WKNavigationDataRef dataRef)
     {
-        return adoptRef(new Ewk_Navigation_Data(dataRef));
+        return adoptRef(new EwkNavigationData(dataRef));
     }
 
-    Ewk_Url_Request* originalRequest() const;
+    EwkUrlRequest* originalRequest() const;
 
     const char* title() const;
     const char* url() const;
 
 private:
-    explicit Ewk_Navigation_Data(WKNavigationDataRef dataRef);
+    explicit EwkNavigationData(WKNavigationDataRef dataRef);
 
-    RefPtr<Ewk_Url_Request> m_request;
+    RefPtr<EwkUrlRequest> m_request;
     WKEinaSharedString m_title;
     WKEinaSharedString m_url;
 };

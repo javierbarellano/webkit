@@ -69,13 +69,15 @@ class WebResourceCacheManagerProxy;
 #if USE(SOUP)
 class WebSoupRequestManagerProxy;
 #endif
-#if ENABLE(VIBRATION)
-class WebVibrationProxy;
-#endif
 struct StatisticsData;
 struct WebProcessCreationParameters;
     
 typedef GenericCallback<WKDictionaryRef> DictionaryCallback;
+
+#if PLATFORM(MAC)
+extern NSString *SchemeForCustomProtocolRegisteredNotificationName;
+extern NSString *SchemeForCustomProtocolUnregisteredNotificationName;
+#endif
 
 class WebContext : public APIObject, private CoreIPC::MessageReceiver {
 public:
@@ -113,8 +115,6 @@ public:
     void disconnectProcess(WebProcessProxy*);
 
     PassRefPtr<WebPageProxy> createWebPage(PageClient*, WebPageGroup*, WebPageProxy* relatedPage = 0);
-
-    WebProcessProxy* relaunchProcessIfNecessary();
 
     const String& injectedBundlePath() const { return m_injectedBundlePath; }
 
@@ -203,9 +203,6 @@ public:
 #if USE(SOUP)
     WebSoupRequestManagerProxy* soupRequestManagerProxy() const { return m_soupRequestManagerProxy.get(); }
 #endif
-#if ENABLE(VIBRATION)
-    WebVibrationProxy* vibrationProxy() const { return m_vibrationProxy.get(); }
-#endif
 
     struct Statistics {
         unsigned wkViewCount;
@@ -221,7 +218,7 @@ public:
     void setDiskCacheDirectory(const String& dir) { m_overrideDiskCacheDirectory = dir; }
     void setCookieStorageDirectory(const String& dir) { m_overrideCookieStorageDirectory = dir; }
 
-    void ensureSharedWebProcess();
+    WebProcessProxy* ensureSharedWebProcess();
     PassRefPtr<WebProcessProxy> createNewWebProcess();
     void warmInitialProcess();
 
@@ -247,6 +244,14 @@ public:
     void textCheckerStateChanged();
 
     void setUsesNetworkProcess(bool);
+    bool usesNetworkProcess() const;
+
+#if PLATFORM(MAC)
+    static bool applicationIsOccluded() { return s_applicationIsOccluded; }
+#endif
+
+    static void willStartUsingPrivateBrowsing();
+    static void willStopUsingPrivateBrowsing();
 
 private:
     WebContext(ProcessModel, const String& injectedBundlePath);
@@ -302,6 +307,13 @@ private:
     String cookieStorageDirectory() const;
     String platformDefaultCookieStorageDirectory() const;
 
+#if PLATFORM(MAC)
+    static void applicationBecameVisible(uint32_t, void*, uint32_t, void*, uint32_t);
+    static void applicationBecameOccluded(uint32_t, void*, uint32_t, void*, uint32_t);
+    static void initializeProcessSuppressionSupport();
+    static void registerOcclusionNotificationHandlers();
+#endif
+
     ProcessModel m_processModel;
     
     Vector<RefPtr<WebProcessProxy> > m_processes;
@@ -332,6 +344,10 @@ private:
 
     bool m_alwaysUsesComplexTextCodePath;
     bool m_shouldUseFontSmoothing;
+
+    // How many times an API call was used to enable the preference.
+    // The variable can be 0 when private browsing is used if it's enabled due to a persistent preference.
+    static unsigned m_privateBrowsingEnterCount;
 
     // Messages that were posted before any pages were created.
     // The client should use initialization messages instead, so that a restarted process would get the same state.
@@ -368,9 +384,6 @@ private:
 #if USE(SOUP)
     RefPtr<WebSoupRequestManagerProxy> m_soupRequestManagerProxy;
 #endif
-#if ENABLE(VIBRATION)
-    RefPtr<WebVibrationProxy> m_vibrationProxy;
-#endif
 
 #if PLATFORM(WIN)
     bool m_shouldPaintNativeControls;
@@ -379,6 +392,8 @@ private:
 
 #if PLATFORM(MAC)
     RetainPtr<CFTypeRef> m_enhancedAccessibilityObserver;
+    RetainPtr<CFTypeRef> m_customSchemeRegisteredObserver;
+    RetainPtr<CFTypeRef> m_customSchemeUnregisteredObserver;
 #endif
 
     String m_overrideDatabaseDirectory;
@@ -396,6 +411,10 @@ private:
     HashMap<uint64_t, RefPtr<DictionaryCallback> > m_dictionaryCallbacks;
 
     CoreIPC::MessageReceiverMap m_messageReceiverMap;
+
+#if PLATFORM(MAC)
+    static bool s_applicationIsOccluded;
+#endif
 };
 
 template<typename U> inline void WebContext::sendToAllProcesses(const U& message)
@@ -412,7 +431,7 @@ template<typename U> void WebContext::sendToAllProcessesRelaunchingThemIfNecessa
 {
 // FIXME (Multi-WebProcess): WebContext doesn't track processes that have exited, so it cannot relaunch these. Perhaps this functionality won't be needed in this mode.
     if (m_processModel == ProcessModelSharedSecondaryProcess)
-        relaunchProcessIfNecessary();
+        ensureSharedWebProcess();
     sendToAllProcesses(message);
 }
 

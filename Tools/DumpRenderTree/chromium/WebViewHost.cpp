@@ -38,9 +38,7 @@
 #include "Task.h"
 #include "TestNavigationController.h"
 #include "TestShell.h"
-#include "TestWebPlugin.h"
-#include "WebAccessibilityController.h"
-#include "WebAccessibilityObject.h"
+#include "WebCachedURLRequest.h"
 #include "WebConsoleMessage.h"
 #include "WebContextMenuData.h"
 #include "WebDOMMessageEvent.h"
@@ -63,6 +61,7 @@
 #include "WebRange.h"
 #include "WebScreenInfo.h"
 #include "WebStorageNamespace.h"
+#include "WebTestPlugin.h"
 #include "WebTextCheckingCompletion.h"
 #include "WebTextCheckingResult.h"
 #include "WebUserMediaClientMock.h"
@@ -76,6 +75,7 @@
 #include "webkit/support/webkit_support.h"
 #include <public/WebCString.h>
 #include <public/WebCompositorOutputSurface.h>
+#include <public/WebCompositorSupport.h>
 #include <public/WebDragData.h>
 #include <public/WebRect.h>
 #include <public/WebSize.h>
@@ -146,16 +146,6 @@ static string descriptionSuitableForTestResult(const string& url)
         return "ERROR:" + url;
 
     return url.substr(pos + 1);
-}
-
-// Adds a file called "DRTFakeFile" to dragData (CF_HDROP). Use to fake
-// dragging a file.
-static void addDRTFakeFileToDataObject(WebDragData* dragData)
-{
-    WebDragData::Item item;
-    item.storageType = WebDragData::Item::StorageTypeFilename;
-    item.filenameData = WebString::fromUTF8("DRTFakeFile");
-    dragData->addItem(item);
 }
 
 // Get a debugging string from a WebNavigationType.
@@ -298,9 +288,18 @@ WebCompositorOutputSurface* WebViewHost::createOutputSurface()
     if (!webView())
         return 0;
 
-    if (m_shell->softwareCompositingEnabled())
-        return WebViewHostOutputSurface::createSoftware(adoptPtr(new WebViewHostSoftwareOutputDevice)).leakPtr();
-    return WebViewHostOutputSurface::create3d(adoptPtr(webkit_support::CreateGraphicsContext3D(WebGraphicsContext3D::Attributes(), webView()))).leakPtr();
+    if (m_shell->softwareCompositingEnabled()) {
+        WebCompositorOutputSurface* surface = WebKit::Platform::current()->compositorSupport()->createOutputSurfaceForSoftware();
+        if (!surface)
+            surface = WebViewHostOutputSurface::createSoftware(adoptPtr(new WebViewHostSoftwareOutputDevice)).leakPtr();
+        return surface;
+    }
+
+    WebGraphicsContext3D* context = webkit_support::CreateGraphicsContext3D(WebGraphicsContext3D::Attributes(), webView());
+    WebCompositorOutputSurface* surface = WebKit::Platform::current()->compositorSupport()->createOutputSurfaceFor3D(context);
+    if (!surface)
+        surface = WebViewHostOutputSurface::create3d(adoptPtr(context)).leakPtr();
+    return surface;
 }
 
 void WebViewHost::didAddMessageToConsole(const WebConsoleMessage& message, const WebString& sourceName, unsigned sourceLine)
@@ -345,7 +344,7 @@ bool WebViewHost::shouldBeginEditing(const WebRange& range)
         printRangeDescription(range);
         fputs("\n", stdout);
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldEndEditing(const WebRange& range)
@@ -355,7 +354,7 @@ bool WebViewHost::shouldEndEditing(const WebRange& range)
         printRangeDescription(range);
         fputs("\n", stdout);
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldInsertNode(const WebNode& node, const WebRange& range, WebEditingAction action)
@@ -367,7 +366,7 @@ bool WebViewHost::shouldInsertNode(const WebNode& node, const WebRange& range, W
         printRangeDescription(range);
         printf(" givenAction:%s\n", editingActionDescription(action).c_str());
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldInsertText(const WebString& text, const WebRange& range, WebEditingAction action)
@@ -377,7 +376,7 @@ bool WebViewHost::shouldInsertText(const WebString& text, const WebRange& range,
         printRangeDescription(range);
         printf(" givenAction:%s\n", editingActionDescription(action).c_str());
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldChangeSelectedRange(
@@ -392,7 +391,7 @@ bool WebViewHost::shouldChangeSelectedRange(
                textAffinityDescription(affinity).c_str(),
                (stillSelecting ? "TRUE" : "FALSE"));
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldDeleteRange(const WebRange& range)
@@ -402,7 +401,7 @@ bool WebViewHost::shouldDeleteRange(const WebRange& range)
         printRangeDescription(range);
         fputs("\n", stdout);
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::shouldApplyStyle(const WebString& style, const WebRange& range)
@@ -412,7 +411,7 @@ bool WebViewHost::shouldApplyStyle(const WebString& style, const WebRange& range
         printRangeDescription(range);
         fputs("\n", stdout);
     }
-    return testRunner()->acceptsEditing();
+    return true;
 }
 
 bool WebViewHost::isSmartInsertDeleteEnabled()
@@ -589,19 +588,6 @@ void WebViewHost::setStatusText(const WebString& text)
     printf("UI DELEGATE STATUS CALLBACK: setStatusText:%s\n", text.utf8().data());
 }
 
-void WebViewHost::startDragging(WebFrame*, const WebDragData& data, WebDragOperationsMask mask, const WebImage&, const WebPoint&)
-{
-    WebDragData mutableDragData = data;
-    if (testRunner()->shouldAddFileToPasteboard()) {
-        // Add a file called DRTFakeFile to the drag&drop clipboard.
-        addDRTFakeFileToDataObject(&mutableDragData);
-    }
-
-    // When running a test, we need to fake a drag drop operation otherwise
-    // Windows waits for real mouse events to know when the drag is over.
-    m_shell->eventSender()->doDragDrop(mutableDragData, mask);
-}
-
 void WebViewHost::didUpdateLayout()
 {
 #if OS(MAC_OS_X)
@@ -633,94 +619,6 @@ int WebViewHost::historyForwardListCount()
 {
     int currentIndex =navigationController()->lastCommittedEntryIndex();
     return navigationController()->entryCount() - currentIndex - 1;
-}
-
-void WebViewHost::postAccessibilityNotification(const WebAccessibilityObject& obj, WebAccessibilityNotification notification)
-{
-    if (notification == WebAccessibilityNotificationFocusedUIElementChanged)
-        m_shell->accessibilityController()->setFocusedElement(obj);
-
-    const char* notificationName;
-    switch (notification) {
-    case WebAccessibilityNotificationActiveDescendantChanged:
-        notificationName = "ActiveDescendantChanged";
-        break;
-    case WebAccessibilityNotificationAutocorrectionOccured:
-        notificationName = "AutocorrectionOccured";
-        break;
-    case WebAccessibilityNotificationCheckedStateChanged:
-        notificationName = "CheckedStateChanged";
-        break;
-    case WebAccessibilityNotificationChildrenChanged:
-        notificationName = "ChildrenChanged";
-        break;
-    case WebAccessibilityNotificationFocusedUIElementChanged:
-        notificationName = "FocusedUIElementChanged";
-        break;
-    case WebAccessibilityNotificationLayoutComplete:
-        notificationName = "LayoutComplete";
-        break;
-    case WebAccessibilityNotificationLoadComplete:
-        notificationName = "LoadComplete";
-        break;
-    case WebAccessibilityNotificationSelectedChildrenChanged:
-        notificationName = "SelectedChildrenChanged";
-        break;
-    case WebAccessibilityNotificationSelectedTextChanged:
-        notificationName = "SelectedTextChanged";
-        break;
-    case WebAccessibilityNotificationValueChanged:
-        notificationName = "ValueChanged";
-        break;
-    case WebAccessibilityNotificationScrolledToAnchor:
-        notificationName = "ScrolledToAnchor";
-        break;
-    case WebAccessibilityNotificationLiveRegionChanged:
-        notificationName = "LiveRegionChanged";
-        break;
-    case WebAccessibilityNotificationMenuListItemSelected:
-        notificationName = "MenuListItemSelected";
-        break;
-    case WebAccessibilityNotificationMenuListValueChanged:
-        notificationName = "MenuListValueChanged";
-        break;
-    case WebAccessibilityNotificationRowCountChanged:
-        notificationName = "RowCountChanged";
-        break;
-    case WebAccessibilityNotificationRowCollapsed:
-        notificationName = "RowCollapsed";
-        break;
-    case WebAccessibilityNotificationRowExpanded:
-        notificationName = "RowExpanded";
-        break;
-    case WebAccessibilityNotificationInvalidStatusChanged:
-        notificationName = "InvalidStatusChanged";
-        break;
-    case WebAccessibilityNotificationTextChanged:
-        notificationName = "TextChanged";
-        break;
-    case WebAccessibilityNotificationAriaAttributeChanged:
-        notificationName = "AriaAttributeChanged";
-        break;
-    default:
-        notificationName = "UnknownNotification";
-        break;
-    }
-
-    m_shell->accessibilityController()->notificationReceived(obj, notificationName);
-
-    if (m_shell->accessibilityController()->shouldLogAccessibilityEvents()) {
-        printf("AccessibilityNotification - %s", notificationName);
-
-        WebKit::WebNode node = obj.node();
-        if (!node.isNull() && node.isElementNode()) {
-            WebKit::WebElement element = node.to<WebKit::WebElement>();
-            if (element.hasAttribute("id"))
-                printf(" - id:%s", element.getAttribute("id").utf8().data());
-        }
-
-        printf("\n");
-    }
 }
 
 #if ENABLE(NOTIFICATIONS)
@@ -793,18 +691,6 @@ WebUserMediaClientMock* WebViewHost::userMediaClientMock()
 
 // WebWidgetClient -----------------------------------------------------------
 
-void WebViewHost::didInvalidateRect(const WebRect& rect)
-{
-    updatePaintRect(rect);
-}
-
-void WebViewHost::didScrollRect(int, int, const WebRect& clipRect)
-{
-    // This is used for optimizing painting when the renderer is scrolled. We're
-    // currently not doing any optimizations so just invalidate the region.
-    didInvalidateRect(clipRect);
-}
-
 void WebViewHost::didAutoResize(const WebSize& newSize)
 {
     // Purposely don't include the virtualWindowBorder in this case so that
@@ -812,26 +698,11 @@ void WebViewHost::didAutoResize(const WebSize& newSize)
     setWindowRect(WebRect(0, 0, newSize.width, newSize.height));
 }
 
-void WebViewHost::scheduleComposite()
-{
-    WebSize widgetSize = webWidget()->size();
-    WebRect clientRect(0, 0, widgetSize.width, widgetSize.height);
-    didInvalidateRect(clientRect);
-}
-
-#if ENABLE(REQUEST_ANIMATION_FRAME)
-void WebViewHost::serviceAnimation()
+void WebViewHost::scheduleAnimation()
 {
     if (webView()->settings()->scrollAnimatorEnabled())
         webView()->animate(0.0);
-    scheduleComposite();
 }
-
-void WebViewHost::scheduleAnimation()
-{
-    postDelayedTask(new HostMethodTask(this, &WebViewHost::serviceAnimation), 0);
-}
-#endif
 
 void WebViewHost::didFocus()
 {
@@ -918,8 +789,6 @@ void WebViewHost::didLosePointerLock()
 void WebViewHost::show(WebNavigationPolicy)
 {
     m_hasWindow = true;
-    WebSize size = webWidget()->size();
-    updatePaintRect(WebRect(0, 0, size.width, size.height));
 }
 
 
@@ -960,7 +829,6 @@ void WebViewHost::setWindowRect(const WebRect& rect)
     int height = m_windowRect.height - border2;
     discardBackingStore();
     webWidget()->resize(WebSize(width, height));
-    updatePaintRect(WebRect(0, 0, width, height));
 }
 
 WebRect WebViewHost::rootWindowRect()
@@ -1008,8 +876,8 @@ void WebViewHost::exitFullScreen()
 
 WebPlugin* WebViewHost::createPlugin(WebFrame* frame, const WebPluginParams& params)
 {
-    if (params.mimeType == TestWebPlugin::mimeType())
-        return new TestWebPlugin(frame, params);
+    if (params.mimeType == WebTestPlugin::mimeType())
+        return WebTestPlugin::create(frame, params, this);
 
     return webkit_support::CreateWebPlugin(frame, params);
 }
@@ -1282,6 +1150,23 @@ static bool hostIsUsedBySomeTestsToGenerateError(const string& host)
     return host == "255.255.255.255";
 }
 
+void WebViewHost::willRequestResource(WebKit::WebFrame* frame, const WebKit::WebCachedURLRequest& request)
+{
+    if (m_shell->shouldDumpResourceRequestCallbacks()) {
+        printFrameDescription(frame);
+        WebElement element = request.initiatorElement();
+        if (!element.isNull()) {
+            printf(" - element with ");
+            if (element.hasAttribute("id"))
+                printf("id '%s'", element.getAttribute("id").utf8().data());
+            else
+                printf("no id");
+        } else
+            printf(" - %s", request.initiatorName().utf8().data());
+        printf(" requested '%s'\n", URLDescription(request.urlRequest().url()).c_str());
+    }
+}
+
 void WebViewHost::willSendRequest(WebFrame* frame, unsigned identifier, WebURLRequest& request, const WebURLResponse& redirectResponse)
 {
     // Need to use GURL for host() and SchemeIs()
@@ -1516,10 +1401,31 @@ WebKit::WebString WebViewHost::getAbsoluteWebStringFromUTF8Path(const std::strin
     return webkit_support::GetAbsoluteWebStringFromUTF8Path(path);
 }
 
+WebURL WebViewHost::localFileToDataURL(const WebKit::WebURL& url)
+{
+    return webkit_support::LocalFileToDataURL(url);
+}
+
+WebURL WebViewHost::rewriteLayoutTestsURL(const std::string& url)
+{
+    return webkit_support::RewriteLayoutTestsURL(url);
+}
+
+WebPreferences* WebViewHost::preferences()
+{
+    return m_shell->preferences();
+}
+
+void WebViewHost::applyPreferences()
+{
+    m_shell->applyPreferences();
+}
+
 // Public functions -----------------------------------------------------------
 
 WebViewHost::WebViewHost(TestShell* shell)
     : m_shell(shell)
+    , m_proxy(0)
     , m_webWidget(0)
     , m_lastRequestedTextCheckingCompletion(0)
 {
@@ -1566,6 +1472,19 @@ WebWidget* WebViewHost::webWidget() const
     return m_webWidget;
 }
 
+WebTestProxyBase* WebViewHost::proxy() const
+{
+    ASSERT(m_proxy);
+    return m_proxy;
+}
+
+void WebViewHost::setProxy(WebTestProxyBase* proxy)
+{
+    ASSERT(!m_proxy);
+    ASSERT(proxy);
+    m_proxy = proxy;
+}
+
 void WebViewHost::reset()
 {
     m_policyDelegateEnabled = false;
@@ -1610,7 +1529,9 @@ void WebViewHost::reset()
 
     m_currentCursor = WebCursorInfo();
     m_windowRect = WebRect();
-    m_paintRect = WebRect();
+    // m_proxy is not set when reset() is invoked from the constructor.
+    if (m_proxy)
+        proxy()->setPaintRect(WebRect());
 
     if (m_webWidget) {
         webView()->mainFrame()->setName(WebString());
@@ -1732,7 +1653,8 @@ void WebViewHost::updateForCommittedLoad(WebFrame* frame, bool isNewNavigation)
 {
     // Code duplicated from RenderView::DidCommitLoadForFrame.
     TestShellExtraData* extraData = static_cast<TestShellExtraData*>(frame->dataSource()->extraData());
-    bool nonBlankPageAfterReset = m_pageId == -1 && strcmp(frame->dataSource()->request().url().spec().data(), "about:blank");
+    const WebURL& url = frame->dataSource()->request().url();
+    bool nonBlankPageAfterReset = m_pageId == -1 && !url.isEmpty() && strcmp(url.spec().data(), "about:blank");
 
     if (isNewNavigation || nonBlankPageAfterReset) {
         // New navigation.
@@ -1847,18 +1769,12 @@ void WebViewHost::setAddressBarURL(const WebURL&)
 
 void WebViewHost::enterFullScreenNow()
 {
-    if (testRunner()->hasCustomFullScreenBehavior())
-        return;
-
     webView()->willEnterFullScreen();
     webView()->didEnterFullScreen();
 }
 
 void WebViewHost::exitFullScreenNow()
 {
-    if (testRunner()->hasCustomFullScreenBehavior())
-        return;
-
     webView()->willExitFullScreen();
     webView()->didExitFullScreen();
 }
@@ -1873,22 +1789,6 @@ webkit_support::TestMediaStreamClient* WebViewHost::testMediaStreamClient()
 #endif
 
 // Painting functions ---------------------------------------------------------
-
-void WebViewHost::updatePaintRect(const WebRect& rect)
-{
-    // m_paintRect = m_paintRect U rect
-    if (rect.isEmpty())
-        return;
-    if (m_paintRect.isEmpty()) {
-        m_paintRect = rect;
-        return;
-    }
-    int left = min(m_paintRect.x, rect.x);
-    int top = min(m_paintRect.y, rect.y);
-    int right = max(m_paintRect.x + m_paintRect.width, rect.x + rect.width);
-    int bottom = max(m_paintRect.y + m_paintRect.height, rect.y + rect.height);
-    m_paintRect = WebRect(left, top, right - left, bottom - top);
-}
 
 void WebViewHost::paintRect(const WebRect& rect)
 {
@@ -1920,23 +1820,22 @@ void WebViewHost::paintInvalidatedRegion()
     // Store the total area painted in total_paint. Then tell the gdk window
     // to update that area after we're done painting it.
     for (int i = 0; i < 3; ++i) {
-        // m_paintRect = intersect(m_paintRect , clientRect)
-        int left = max(m_paintRect.x, clientRect.x);
-        int top = max(m_paintRect.y, clientRect.y);
-        int right = min(m_paintRect.x + m_paintRect.width, clientRect.x + clientRect.width);
-        int bottom = min(m_paintRect.y + m_paintRect.height, clientRect.y + clientRect.height);
-        if (left >= right || top >= bottom)
-            m_paintRect = WebRect();
-        else
-            m_paintRect = WebRect(left, top, right - left, bottom - top);
+        // rect = intersect(proxy()->paintRect() , clientRect)
+        WebRect damageRect = proxy()->paintRect();
+        int left = max(damageRect.x, clientRect.x);
+        int top = max(damageRect.y, clientRect.y);
+        int right = min(damageRect.x + damageRect.width, clientRect.x + clientRect.width);
+        int bottom = min(damageRect.y + damageRect.height, clientRect.y + clientRect.height);
+        WebRect rect;
+        if (left < right && top < bottom)
+            rect = WebRect(left, top, right - left, bottom - top);
 
-        if (m_paintRect.isEmpty())
+        proxy()->setPaintRect(WebRect());
+        if (rect.isEmpty())
             continue;
-        WebRect rect(m_paintRect);
-        m_paintRect = WebRect();
         paintRect(rect);
     }
-    ASSERT(m_paintRect.isEmpty());
+    ASSERT(proxy()->paintRect().isEmpty());
 }
 
 void WebViewHost::paintPagesWithBoundaries()

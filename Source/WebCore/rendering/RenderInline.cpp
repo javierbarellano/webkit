@@ -39,6 +39,7 @@
 #include "StyleInheritedData.h"
 #include "TransformState.h"
 #include "VisiblePosition.h"
+#include "WebCoreMemoryInstrumentation.h"
 
 #include <wtf/TemporaryChange.h>
 
@@ -455,6 +456,7 @@ void RenderInline::splitFlow(RenderObject* beforeChild, RenderBlock* newBlockBox
         // We can reuse this block and make it the preBlock of the next continuation.
         pre = block;
         pre->removePositionedObjects(0);
+        pre->removeFloatingObjects();
         block = block->containingBlock();
     } else {
         // No anonymous block available for use.  Make one.
@@ -761,6 +763,9 @@ const char* RenderInline::renderName() const
         return "RenderInline (relative positioned)";
     if (isStickyPositioned())
         return "RenderInline (sticky positioned)";
+    // FIXME: Temporary hack while the new generated content system is being implemented.
+    if (isPseudoElement())
+        return "RenderInline (generated)";
     if (isAnonymous())
         return "RenderInline (generated)";
     if (isRunIn())
@@ -772,6 +777,47 @@ bool RenderInline::nodeAtPoint(const HitTestRequest& request, HitTestResult& res
                                 const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction hitTestAction)
 {
     return m_lineBoxes.hitTest(this, request, result, locationInContainer, accumulatedOffset, hitTestAction);
+}
+
+namespace {
+
+class HitTestCulledInlinesGeneratorContext {
+public:
+    HitTestCulledInlinesGeneratorContext(Region& region, const HitTestLocation& location) : m_intersected(false), m_region(region), m_location(location) { }
+    void operator()(const FloatRect& rect)
+    {
+        m_intersected = m_intersected || m_location.intersects(rect);
+        m_region.unite(enclosingIntRect(rect));
+    }
+    bool intersected() const { return m_intersected; }
+private:
+    bool m_intersected;
+    Region& m_region;
+    const HitTestLocation& m_location;
+};
+
+} // unnamed namespace
+
+bool RenderInline::hitTestCulledInline(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset)
+{
+    ASSERT(result.isRectBasedTest() && !alwaysCreateLineBoxes());
+    if (!visibleToHitTesting())
+        return false;
+
+    HitTestLocation tmpLocation(locationInContainer, -toLayoutSize(accumulatedOffset));
+
+    Region regionResult;
+    HitTestCulledInlinesGeneratorContext context(regionResult, tmpLocation);
+    generateCulledLineBoxRects(context, this);
+
+    if (context.intersected()) {
+        updateHitTestResult(result, tmpLocation.point());
+        // We can not use addNodeToRectBasedTestResult to determine if we fully enclose the hit-test area
+        // because it can only handle rectangular targets.
+        result.addNodeToRectBasedTestResult(node(), request, locationInContainer);
+        return regionResult.contains(enclosingIntRect(tmpLocation.boundingBox()));
+    }
+    return false;
 }
 
 VisiblePosition RenderInline::positionForPoint(const LayoutPoint& point)
@@ -949,8 +995,8 @@ LayoutRect RenderInline::linesVisualOverflowBoundingBox() const
         return LayoutRect();
 
     // Return the width of the minimal left side and the maximal right side.
-    LayoutUnit logicalLeftSide = MAX_LAYOUT_UNIT;
-    LayoutUnit logicalRightSide = MIN_LAYOUT_UNIT;
+    LayoutUnit logicalLeftSide = LayoutUnit::max();
+    LayoutUnit logicalRightSide = LayoutUnit::min();
     for (InlineFlowBox* curr = firstLineBox(); curr; curr = curr->nextLineBox()) {
         logicalLeftSide = min(logicalLeftSide, curr->logicalLeftVisualOverflow());
         logicalRightSide = max(logicalRightSide, curr->logicalRightVisualOverflow());
@@ -969,7 +1015,7 @@ LayoutRect RenderInline::linesVisualOverflowBoundingBox() const
     return rect;
 }
 
-LayoutRect RenderInline::clippedOverflowRectForRepaint(RenderLayerModelObject* repaintContainer) const
+LayoutRect RenderInline::clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const
 {
     // Only run-ins are allowed in here during layout.
     ASSERT(!view() || !view()->layoutStateEnabled() || isRunIn());
@@ -1020,7 +1066,7 @@ LayoutRect RenderInline::clippedOverflowRectForRepaint(RenderLayerModelObject* r
     return repaintRect;
 }
 
-LayoutRect RenderInline::rectWithOutlineForRepaint(RenderLayerModelObject* repaintContainer, LayoutUnit outlineWidth) const
+LayoutRect RenderInline::rectWithOutlineForRepaint(const RenderLayerModelObject* repaintContainer, LayoutUnit outlineWidth) const
 {
     LayoutRect r(RenderBoxModelObject::rectWithOutlineForRepaint(repaintContainer, outlineWidth));
     for (RenderObject* curr = firstChild(); curr; curr = curr->nextSibling()) {
@@ -1030,7 +1076,7 @@ LayoutRect RenderInline::rectWithOutlineForRepaint(RenderLayerModelObject* repai
     return r;
 }
 
-void RenderInline::computeRectForRepaint(RenderLayerModelObject* repaintContainer, LayoutRect& rect, bool fixed) const
+void RenderInline::computeRectForRepaint(const RenderLayerModelObject* repaintContainer, LayoutRect& rect, bool fixed) const
 {
     if (RenderView* v = view()) {
         // LayoutState is only valid for root-relative repainting
@@ -1112,7 +1158,7 @@ LayoutSize RenderInline::offsetFromContainer(RenderObject* container, const Layo
     return offset;
 }
 
-void RenderInline::mapLocalToContainer(RenderLayerModelObject* repaintContainer, TransformState& transformState, MapCoordinatesFlags mode, bool* wasFixed) const
+void RenderInline::mapLocalToContainer(const RenderLayerModelObject* repaintContainer, TransformState& transformState, MapCoordinatesFlags mode, bool* wasFixed) const
 {
     if (repaintContainer == this)
         return;
@@ -1182,6 +1228,8 @@ const RenderObject* RenderInline::pushMappingToContainer(const RenderLayerModelO
 
     bool offsetDependsOnPoint = false;
     LayoutSize containerOffset = offsetFromContainer(container, LayoutPoint(), &offsetDependsOnPoint);
+    if (geometryMap.mapCoordinatesFlags() & SnapOffsetForTransforms)
+        containerOffset = roundedIntSize(containerOffset);
 
     bool preserve3D = container->style()->preserves3D() || style()->preserves3D();
     if (shouldUseTransformFromContainer(container)) {
@@ -1596,5 +1644,13 @@ void RenderInline::addAnnotatedRegions(Vector<AnnotatedRegionValue>& regions)
 #endif
 }
 #endif
+
+void RenderInline::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
+{
+    MemoryClassInfo info(memoryObjectInfo, this, PlatformMemoryTypes::Rendering);
+    RenderBoxModelObject::reportMemoryUsage(memoryObjectInfo);
+    info.addMember(m_children);
+    info.addMember(m_lineBoxes);
+}
 
 } // namespace WebCore

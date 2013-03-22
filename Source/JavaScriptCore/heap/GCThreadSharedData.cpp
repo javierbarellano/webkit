@@ -27,12 +27,12 @@
 #include "GCThreadSharedData.h"
 
 #include "CopyVisitor.h"
-#include "CopyVisitorInlineMethods.h"
+#include "CopyVisitorInlines.h"
 #include "GCThread.h"
 #include "JSGlobalData.h"
 #include "MarkStack.h"
 #include "SlotVisitor.h"
-#include "SlotVisitorInlineMethods.h"
+#include "SlotVisitorInlines.h"
 
 namespace JSC {
 
@@ -56,10 +56,9 @@ GCThreadSharedData::GCThreadSharedData(JSGlobalData* globalData)
     : m_globalData(globalData)
     , m_copiedSpace(&globalData->heap.m_storageSpace)
     , m_shouldHashConst(false)
-    , m_sharedMarkStack(m_segmentAllocator)
+    , m_sharedMarkStack(globalData->heap.blockAllocator())
     , m_numberOfActiveParallelMarkers(0)
     , m_parallelMarkersShouldExit(false)
-    , m_blocksToCopy(globalData->heap.m_blockSnapshot)
     , m_copyIndex(0)
     , m_numberOfActiveGCThreads(0)
     , m_gcThreadsShouldWait(false)
@@ -110,7 +109,6 @@ void GCThreadSharedData::reset()
     ASSERT(m_sharedMarkStack.isEmpty());
     
 #if ENABLE(PARALLEL_GC)
-    m_segmentAllocator.shrinkReserve();
     m_opaqueRoots.clear();
 #else
     ASSERT(m_opaqueRoots.isEmpty());
@@ -167,7 +165,7 @@ void GCThreadSharedData::didStartCopying()
 {
     {
         SpinLockHolder locker(&m_copyLock);
-        m_blocksToCopy = m_globalData->heap.m_blockSnapshot;
+        WTF::copyToVector(m_copiedSpace->m_blockSet, m_blocksToCopy);
         m_copyIndex = 0;
     }
 

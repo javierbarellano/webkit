@@ -43,7 +43,7 @@ typedef QApplication ApplicationType;
 namespace WebKit {
 Q_DECL_IMPORT int WebProcessMainQt(QGuiApplication*);
 #if !defined(QT_NO_WIDGETS)
-Q_DECL_IMPORT void initializeWebKit2Theme();
+Q_DECL_IMPORT void initializeWebKitWidgets();
 #endif
 }
 
@@ -82,15 +82,20 @@ int main(int argc, char** argv)
     }
 #endif
 
-#if !defined(QT_NO_WIDGETS)
-    WebKit::initializeWebKit2Theme();
-#endif
-
     // Has to be done before QApplication is constructed in case
     // QApplication itself produces debug output.
     QByteArray suppressOutput = qgetenv("QT_WEBKIT_SUPPRESS_WEB_PROCESS_OUTPUT");
     if (!suppressOutput.isEmpty() && suppressOutput != "0")
         qInstallMessageHandler(messageHandler);
 
-    return WebKit::WebProcessMainQt(new ApplicationType(argc, argv));
+    // QApplication must be created before we call initializeWebKitWidgets() so that
+    // the standard pixmaps can be fetched from the style.
+    ApplicationType* appInstance = new ApplicationType(argc, argv);
+
+#if !defined(QT_NO_WIDGETS)
+    if (qgetenv("QT_WEBKIT_THEME_NAME") == "qstyle")
+        WebKit::initializeWebKitWidgets();
+#endif
+
+    return WebKit::WebProcessMainQt(appInstance);
 }

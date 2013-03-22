@@ -26,9 +26,28 @@
 #include "config.h"
 #include "V8StringResource.h"
 
+#include "BindingVisitors.h"
 #include "V8Binding.h"
 
 namespace WebCore {
+
+WebCoreStringResourceBase* WebCoreStringResourceBase::toWebCoreStringResourceBase(v8::Handle<v8::String> string)
+{
+    v8::String::Encoding encoding;
+    v8::String::ExternalStringResourceBase* resource = string->GetExternalStringResourceBase(&encoding);
+    if (!resource)
+        return 0;
+    if (encoding == v8::String::ASCII_ENCODING)
+        return static_cast<WebCoreStringResource8*>(resource);
+    return static_cast<WebCoreStringResource16*>(resource);
+}
+
+void WebCoreStringResourceBase::visitStrings(ExternalStringVisitor* visitor)
+{
+    visitor->visitJSExternalString(m_plainString.impl());
+    if (m_plainString.impl() != m_atomicString.impl() && !m_atomicString.isNull())
+        visitor->visitJSExternalString(m_atomicString.impl());
+}
 
 template<class StringClass> struct StringTraits {
     static const StringClass& fromStringResource(WebCoreStringResourceBase*);
@@ -86,9 +105,9 @@ AtomicString StringTraits<AtomicString>::fromV8String<false>(v8::Handle<v8::Stri
         return AtomicString(inlineBuffer, length);
     }
     UChar* buffer;
-    String string = String::createUninitialized(length, buffer);
+    String result = String::createUninitialized(length, buffer);
     v8String->Write(reinterpret_cast<uint16_t*>(buffer), 0, length);
-    return AtomicString(string);
+    return AtomicString(result);
 }
 
 template<>
@@ -102,11 +121,19 @@ String StringTraits<String>::fromV8String<true>(v8::Handle<v8::String> v8String,
 }
 
 template<>
-inline AtomicString StringTraits<AtomicString>::fromV8String<true>(v8::Handle<v8::String> v8String, int length)
+AtomicString StringTraits<AtomicString>::fromV8String<true>(v8::Handle<v8::String> v8String, int length)
 {
-    // FIXME: There is no inline fast path for 8 bit atomic strings.
-    String result = StringTraits<String>::fromV8String<true>(v8String, length);
-    return AtomicString(result);
+    ASSERT(v8String->Length() == length);
+    static const int inlineBufferSize = 32;
+    if (length <= inlineBufferSize) {
+        LChar inlineBuffer[inlineBufferSize];
+        v8String->WriteAscii(reinterpret_cast<char*>(inlineBuffer), 0, length, v8::String::PRESERVE_ASCII_NULL);
+        return AtomicString(inlineBuffer, length);
+    }
+    LChar* buffer;
+    String string = String::createUninitialized(length, buffer);
+    v8String->WriteAscii(reinterpret_cast<char*>(buffer), 0, length, v8::String::PRESERVE_ASCII_NULL);
+    return AtomicString(string);
 }
 
 template<typename StringType>

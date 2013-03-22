@@ -37,9 +37,8 @@
 #include "InspectorValues.h"
 #include "KURL.h"
 #include "PingLoader.h"
+#include "RuntimeEnabledFeatures.h"
 #include "SchemeRegistry.h"
-#include "ScriptCallStack.h"
-#include "ScriptCallStackFactory.h"
 #include "ScriptState.h"
 #include "SecurityOrigin.h"
 #include "TextEncoding.h"
@@ -140,6 +139,22 @@ bool isDirectiveName(const String& name)
         || equalIgnoringCase(name, scriptNonce)
 #endif
     );
+}
+
+FeatureObserver::Feature getFeatureObserverType(ContentSecurityPolicy::HeaderType type)
+{
+    switch (type) {
+    case ContentSecurityPolicy::EnforceAllDirectives:
+        return FeatureObserver::PrefixedContentSecurityPolicy;
+    case ContentSecurityPolicy::EnforceStableDirectives:
+        return FeatureObserver::ContentSecurityPolicy;
+    case ContentSecurityPolicy::ReportAllDirectives:
+        return FeatureObserver::PrefixedContentSecurityPolicyReportOnly;
+    case ContentSecurityPolicy::ReportStableDirectives:
+        return FeatureObserver::ContentSecurityPolicyReportOnly;
+    }
+    ASSERT_NOT_REACHED();
+    return FeatureObserver::NumberOfFeatures;
 }
 
 } // namespace
@@ -1191,7 +1206,7 @@ bool CSPDirectiveList::parseDirective(const UChar* begin, const UChar* end, Stri
     // The directive-name must be non-empty.
     if (nameBegin == position) {
         skipWhile<isNotASCIISpace>(position, end);
-        m_policy->reportUnrecognizedDirective(String(nameBegin, position - nameBegin));
+        m_policy->reportUnsupportedDirective(String(nameBegin, position - nameBegin));
         return false;
     }
 
@@ -1202,7 +1217,7 @@ bool CSPDirectiveList::parseDirective(const UChar* begin, const UChar* end, Stri
 
     if (!skipExactly<isASCIISpace>(position, end)) {
         skipWhile<isNotASCIISpace>(position, end);
-        m_policy->reportUnrecognizedDirective(String(nameBegin, position - nameBegin));
+        m_policy->reportUnsupportedDirective(String(nameBegin, position - nameBegin));
         return false;
     }
 
@@ -1264,7 +1279,10 @@ void CSPDirectiveList::applySandboxPolicy(const String& name, const String& sand
         return;
     }
     m_haveSandboxPolicy = true;
-    m_policy->enforceSandboxFlags(SecurityContext::parseSandboxPolicy(sandboxPolicy));
+    String invalidTokens;
+    m_policy->enforceSandboxFlags(SecurityContext::parseSandboxPolicy(sandboxPolicy, invalidTokens));
+    if (!invalidTokens.isNull())
+        m_policy->reportInvalidSandboxFlags(invalidTokens);
 }
 
 void CSPDirectiveList::addDirective(const String& name, const String& value)
@@ -1294,7 +1312,7 @@ void CSPDirectiveList::addDirective(const String& name, const String& value)
     else if (equalIgnoringCase(name, reportURI))
         parseReportURI(name, value);
 #if ENABLE(CSP_NEXT)
-    else if (m_experimental) {
+    else if (m_experimental && m_policy->experimentalFeaturesEnabled()) {
         if (equalIgnoringCase(name, formAction))
             setCSPDirective<SourceListDirective>(name, value, m_formAction);
         else if (equalIgnoringCase(name, pluginTypes))
@@ -1304,7 +1322,7 @@ void CSPDirectiveList::addDirective(const String& name, const String& value)
     }
 #endif
     else
-        m_policy->reportUnrecognizedDirective(name);
+        m_policy->reportUnsupportedDirective(name);
 }
 
 ContentSecurityPolicy::ContentSecurityPolicy(ScriptExecutionContext* scriptExecutionContext)
@@ -1329,7 +1347,7 @@ void ContentSecurityPolicy::didReceiveHeader(const String& header, HeaderType ty
     if (m_scriptExecutionContext->isDocument()) {
         Document* document = static_cast<Document*>(m_scriptExecutionContext);
         if (document->domWindow())
-            FeatureObserver::observe(document->domWindow(), FeatureObserver::PrefixedContentSecurityPolicy);
+            FeatureObserver::observe(document->domWindow(), getFeatureObserverType(type));
     }
 
     // RFC2616, section 4.2 specifies that headers appearing multiple times can
@@ -1593,12 +1611,26 @@ void ContentSecurityPolicy::reportViolation(const String& directiveText, const S
     RefPtr<FormData> report = FormData::create(reportObject->toJSONString().utf8());
 
     for (size_t i = 0; i < reportURIs.size(); ++i)
-        PingLoader::reportContentSecurityPolicyViolation(frame, reportURIs[i], report);
+        PingLoader::sendViolationReport(frame, reportURIs[i], report);
 }
 
-void ContentSecurityPolicy::reportUnrecognizedDirective(const String& name) const
+void ContentSecurityPolicy::reportUnsupportedDirective(const String& name) const
 {
+    DEFINE_STATIC_LOCAL(String, allow, (ASCIILiteral("allow")));
+    DEFINE_STATIC_LOCAL(String, options, (ASCIILiteral("options")));
+    DEFINE_STATIC_LOCAL(String, policyURI, (ASCIILiteral("policy-uri")));
+    DEFINE_STATIC_LOCAL(String, allowMessage, (ASCIILiteral("The 'allow' directive has been replaced with 'default-src'. Please use that directive instead, as 'allow' has no effect.")));
+    DEFINE_STATIC_LOCAL(String, optionsMessage, (ASCIILiteral("The 'options' directive has been replaced with 'unsafe-inline' and 'unsafe-eval' source expressions for the 'script-src' and 'style-src' directives. Please use those directives instead, as 'options' has no effect.")));
+    DEFINE_STATIC_LOCAL(String, policyURIMessage, (ASCIILiteral("The 'policy-uri' directive has been removed from the specification. Please specify a complete policy via the Content-Security-Policy header.")));
+
     String message = makeString("Unrecognized Content-Security-Policy directive '", name, "'.\n");
+    if (equalIgnoringCase(name, allow))
+        message = allowMessage;
+    else if (equalIgnoringCase(name, options))
+        message = optionsMessage;
+    else if (equalIgnoringCase(name, policyURI))
+        message = policyURIMessage;
+
     logToConsole(message);
 }
 
@@ -1622,6 +1654,11 @@ void ContentSecurityPolicy::reportInvalidPluginTypes(const String& pluginType) c
     else
         message = makeString("Invalid plugin type in 'plugin-types' Content Security Policy directive: '", pluginType, "'.\n");
     logToConsole(message);
+}
+
+void ContentSecurityPolicy::reportInvalidSandboxFlags(const String& invalidFlags) const
+{
+    logToConsole("Error while parsing the 'sandbox' Content Security Policy directive: " + invalidFlags);
 }
 
 void ContentSecurityPolicy::reportInvalidDirectiveValueCharacter(const String& directiveName, const String& value) const
@@ -1655,21 +1692,21 @@ void ContentSecurityPolicy::reportInvalidSourceExpression(const String& directiv
 
 void ContentSecurityPolicy::logToConsole(const String& message, const String& contextURL, const WTF::OrdinalNumber& contextLine, ScriptState* state) const
 {
-    RefPtr<ScriptCallStack> callStack;
-    if (InspectorInstrumentation::consoleAgentEnabled(m_scriptExecutionContext)) {
-        if (state)
-            callStack = createScriptCallStackForConsole(state);
-        else
-            callStack = createScriptCallStack(ScriptCallStack::maxCallStackSizeToCapture, true);
-        if (callStack && !callStack->size())
-            callStack = 0;
-    }
-    m_scriptExecutionContext->addConsoleMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, message, contextURL, contextLine.oneBasedInt(), callStack);
+    m_scriptExecutionContext->addConsoleMessage(JSMessageSource, LogMessageType, ErrorMessageLevel, message, contextURL, contextLine.oneBasedInt(), state);
 }
 
 void ContentSecurityPolicy::reportBlockedScriptExecutionToInspector(const String& directiveText) const
 {
     InspectorInstrumentation::scriptExecutionBlockedByCSP(m_scriptExecutionContext, directiveText);
+}
+
+bool ContentSecurityPolicy::experimentalFeaturesEnabled() const
+{
+#if ENABLE(CSP_NEXT)
+    return RuntimeEnabledFeatures::experimentalContentSecurityPolicyFeaturesEnabled();
+#else
+    return false;
+#endif
 }
 
 }

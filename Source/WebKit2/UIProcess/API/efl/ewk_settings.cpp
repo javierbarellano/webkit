@@ -43,12 +43,12 @@
 
 using namespace WebKit;
 
-const WebKit::WebPreferences* Ewk_Settings::preferences() const
+const WebKit::WebPreferences* EwkSettings::preferences() const
 {
     return m_viewImpl->page()->pageGroup()->preferences();
 }
 
-WebKit::WebPreferences* Ewk_Settings::preferences()
+WebKit::WebPreferences* EwkSettings::preferences()
 {
     return m_viewImpl->page()->pageGroup()->preferences();
 }
@@ -225,7 +225,7 @@ void ewk_settings_continuous_spell_checking_enabled_set(Eina_Bool enable)
         WKTextCheckerContinuousSpellCheckingEnabledStateChanged(enable);
 
         // Sets the default language if user didn't specify any.
-        if (enable && Ewk_Text_Checker::loadedSpellCheckingLanguages().isEmpty())
+        if (enable && !Ewk_Text_Checker::hasDictionary())
             spellCheckingLanguagesSet(Vector<String>());
 
         if (ewkTextCheckerSettings.onContinuousSpellChecking)
@@ -270,3 +270,157 @@ Eina_List* ewk_settings_spell_checking_languages_get()
 #endif
     return listOflanguages;
 }
+
+Eina_Bool ewk_settings_encoding_detector_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setUsesEncodingDetector(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_encoding_detector_enabled_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->usesEncodingDetector();
+}
+
+Eina_Bool ewk_settings_preferred_minimum_contents_width_set(Ewk_Settings *settings, unsigned width)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setLayoutFallbackWidth(width);
+
+    return true;
+}
+
+unsigned ewk_settings_preferred_minimum_contents_width_get(const Ewk_Settings *settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->layoutFallbackWidth();
+}
+
+Eina_Bool ewk_settings_offline_web_application_cache_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+    settings->preferences()->setOfflineWebApplicationCacheEnabled(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_offline_web_application_cache_enabled_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->offlineWebApplicationCacheEnabled();
+}
+
+Eina_Bool ewk_settings_scripts_can_open_windows_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+    settings->preferences()->setJavaScriptCanOpenWindowsAutomatically(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_scripts_can_open_windows_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->javaScriptCanOpenWindowsAutomatically();
+}
+
+Eina_Bool ewk_settings_local_storage_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setLocalStorageEnabled(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_local_storage_enabled_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->localStorageEnabled();
+}
+
+Eina_Bool ewk_settings_plugins_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setPluginsEnabled(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_plugins_enabled_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->pluginsEnabled();
+}
+
+Eina_Bool ewk_settings_default_font_size_set(Ewk_Settings* settings, int size)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setDefaultFontSize(size);
+
+    return true;
+}
+
+int ewk_settings_default_font_size_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, 0);
+
+    return settings->preferences()->defaultFontSize();
+}
+
+Eina_Bool ewk_settings_private_browsing_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setPrivateBrowsingEnabled(enable);
+
+    return true;
+}
+
+Eina_Bool ewk_settings_private_browsing_enabled_get(const Ewk_Settings* settings)
+{
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->privateBrowsingEnabled();
+}
+
+Eina_Bool ewk_settings_text_autosizing_enabled_set(Ewk_Settings* settings, Eina_Bool enable)
+{
+#if ENABLE(TEXT_AUTOSIZING)
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    settings->preferences()->setTextAutosizingEnabled(enable);
+
+    return true;
+#else
+    UNUSED_PARAM(settings);
+    UNUSED_PARAM(enable);
+    return false;
+#endif
+}
+
+Eina_Bool ewk_settings_text_autosizing_enabled_get(const Ewk_Settings* settings)
+{
+#if ENABLE(TEXT_AUTOSIZING)
+    EINA_SAFETY_ON_NULL_RETURN_VAL(settings, false);
+
+    return settings->preferences()->textAutosizingEnabled();
+#else
+    UNUSED_PARAM(settings);
+    return false;
+#endif
+}
+

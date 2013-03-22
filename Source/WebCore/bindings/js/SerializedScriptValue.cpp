@@ -1628,7 +1628,7 @@ DeserializationResult CloneDeserializer::deserialize()
                 fail();
                 goto error;
             }
-            JSArray* outArray = constructEmptyArray(m_exec, m_globalObject, length);
+            JSArray* outArray = constructEmptyArray(m_exec, 0, m_globalObject, length);
             m_gcBuffer.append(outArray);
             outputArrayStack.append(outArray);
             // fallthrough
@@ -1840,19 +1840,6 @@ PassRefPtr<SerializedScriptValue> SerializedScriptValue::create(JSC::ExecState* 
     return SerializedScriptValue::create(exec, value, 0, 0);
 }
 
-String SerializedScriptValue::toWireString() const
-{
-    return CloneDeserializer::toWireString(m_data);
-}
-
-PassRefPtr<SerializedScriptValue> SerializedScriptValue::createFromWire(const String& value)
-{
-    Vector<uint8_t> buffer;
-    if (!writeLittleEndian(buffer, value.impl()->characters(), value.length()))
-        return 0;
-    return adoptRef(new SerializedScriptValue(buffer));
-}
-
 PassRefPtr<SerializedScriptValue> SerializedScriptValue::numberValue(double value)
 {
     Vector<uint8_t> buffer;
@@ -1865,6 +1852,19 @@ JSValue SerializedScriptValue::deserialize(JSC::ExecState* exec, JSC::JSGlobalOb
     return deserialize(exec, globalObject, 0);
 }
 #endif
+
+String SerializedScriptValue::toWireString() const
+{
+    return CloneDeserializer::toWireString(m_data);
+}
+
+PassRefPtr<SerializedScriptValue> SerializedScriptValue::createFromWire(const String& value)
+{
+    Vector<uint8_t> buffer;
+    if (!writeLittleEndian(buffer, value.impl()->characters(), value.length()))
+        return 0;
+    return adoptRef(new SerializedScriptValue(buffer));
+}
 
 PassRefPtr<SerializedScriptValue> SerializedScriptValue::create(JSContextRef originContext, JSValueRef apiValue, 
                                                                 MessagePortArray* messagePorts, ArrayBufferArray* arrayBuffers,
@@ -1983,6 +1983,11 @@ void SerializedScriptValue::maybeThrowExceptionIfSerializationFailed(ExecState* 
 bool SerializedScriptValue::serializationDidCompleteSuccessfully(SerializationReturnCode code)
 {
     return (code == SuccessfullyCompleted);
+}
+
+uint32_t SerializedScriptValue::wireFormatVersion()
+{
+    return CurrentVersion;
 }
 
 }

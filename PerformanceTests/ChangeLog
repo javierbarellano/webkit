@@ -1,3 +1,194 @@
+2012-12-05  Shinya Kawanaka  <shinyak@chromium.org>
+
+        [Shadow] Performance tests for ShadowDOM distribution
+        https://bugs.webkit.org/show_bug.cgi?id=103617
+
+        Reviewed by Dimitri Glazkov.
+
+        We would like to measure ShadowDOM distribution performance in various cases.
+        In this patch, we add performance tests for several distribution patterns.
+
+        * ShadowDOM/ContentReprojection.html: Added.
+        * ShadowDOM/DistributionWithMultipleShadowRoots.html: Added.
+        * ShadowDOM/LargeDistributionWithLayout.html: Added.
+        * ShadowDOM/MultipleInsertionPoints.html: Added.
+        * ShadowDOM/ShadowReprojection.html: Added.
+        * ShadowDOM/SmallDistributionWithLayout.html: Added.
+
+2012-12-05  Shinya Kawanaka  <shinyak@chromium.org>
+
+        [Shadow] Performance tests of distribution for changing className
+        https://bugs.webkit.org/show_bug.cgi?id=103612
+
+        Reviewed by Dimitri Glazkov.
+
+        We would like to measure ShadowDOM performance and compare it to the similar functional HTML without using ShadowDOM.
+        In this patch, we add a case when classNames of distributed elemeents are changed.
+
+        * ShadowDOM/ChangingClassName.html: Added.
+        * ShadowDOM/ChangingClassNameShadowDOM.html: Added.
+
+2012-12-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Dromaeo should report individual test result
+        https://bugs.webkit.org/show_bug.cgi?id=99800
+
+        Reviewed by Eric Seidel.
+
+        Made one small modification to Droameo's webrunner.js so that it reports individual runs/s values
+        for each subtest. This allows us to compute the aggregated run/s for each iteration like other
+        performance tests.
+
+        Also stop measuring memory usage in Dromaeo tests because some Dromaeo tests (e.g. jslib-modify-jquery)
+        have unrealistic memory usage, and measuring them at the time of teardown doesn't make much sense.
+
+        * Animation/balls.html: Fixed typo: measureValueAync.
+        * Dromaeo/resources/dromaeo/web/webrunner.js:
+
+        * Dromaeo/resources/dromaeorunner.js:
+        (DRT.setup): Call prepareToMeasureValuesAsync so that DRT.teardown can use meausreValueAsync, and log
+        "Running 5 times". Since the log container will be inserted before iframe, we need to explicitly insert
+        the iframe as the first child of the body element to avoid logs from affecting the iframe's position.
+        Also specify the number of iterations by calling PerfTestRunner.iterationCount() so that we may adjust
+        the number of iterations in PerfTestRunner.
+
+        (DRT.progress): Log individual measurement for each subtest.
+        (DRT.teardown): Compute the aggregated result for each iteration, and log them using measureValueAsync.
+
+        * resources/runner.js:
+        (PerfTestRunner.logStatistics): Merged printStatistics since it's no longer needed after r131638.
+        (PerfTestRunner): Removed getAndPrintMemoryStatistics since it was used only in Dromaeo tests but
+        we no longer measure memory usage in Dromaeo tests.
+
+        (start): Increment completedRuns from -1 to 0 for Dromaeo tests where we don't want to ignore the initial
+        measurement. Note that ignoreWarmUpAndLog ignores the measurements for which completedRuns is negative.
+
+        (ignoreWarmUpAndLog): We don't measure memory usage in Dromaeo tests. See above.
+        (PerfTestRunner.iterationCount): Added. This abstraction allows us to auto-adjust the number of iterations from
+        run-perf-tests in near future.
+        (PerfTestRunner.measureValueAsync): Renamed from measureValueAync.
+
+2012-11-29  Shinya Kawanaka  <shinyak@chromium.org>
+
+        [Shadow] Performance tests of distribution for changing select attribute
+        https://bugs.webkit.org/show_bug.cgi?id=103611
+
+        Reviewed by Hajime Morita.
+
+        We would like to measure ShadowDOM performance and compare it to the similar functional HTML without using ShadowDOM.
+        In this patch, we add a case when select attribute of HTMLContentElement is changed.
+
+        * ShadowDOM/ChangingSelect.html: Added.
+        * ShadowDOM/ChangingSelectWithoutShadow.html: Added.
+        * Skipped:
+
+2012-11-19  Shinya Kawanaka  <shinyak@chromium.org>
+
+        Changing id, className, or attribute should invalidate distribution
+        https://bugs.webkit.org/show_bug.cgi?id=100738
+
+        Reviewed by Dimitri Glazkov.
+
+        Added test code to modify id/class/attribute.
+
+        * DOM/ModifyAttribute.html: Added.
+        * DOM/resources/dom-perf/modify-attribute.js: Added.
+        (ModifyAttribute.CreateElementToSetUp):
+        (ModifyAttribute.ModifyId):
+        (ModifyAttribute.ModifyClass):
+        (ModifyAttribute.ModifyTitle):
+
+2012-11-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        runCount in runner.js should be renamed to iterationCount
+        https://bugs.webkit.org/show_bug.cgi?id=102208
+
+        Reviewed by Tony Chang.
+
+        Prior to this patch, there were terminology confusions between "runs" and "iterations".
+        The term "run" should refer to running a performance test once, and "iteration" should
+        refer to one measurement in the test. i.e. Executing run-perf-should once will result in
+        a single "run" of performance tests and each test may execute multiple "iterations"
+        to complete the run.
+
+        Unfortunately, we still overload the meaning of "runs" in "runs/s" (is "function calls/s")
+        but that could be addressed in a separate patch.
+
+        * Animation/balls.html:
+        * DOM/DOMTable.html:
+        * DOM/resources/dom-perf.js:
+        * Layout/floats_100_100.html:
+        * Layout/floats_100_100_nested.html:
+        * Layout/floats_20_100.html:
+        * Layout/floats_20_100_nested.html:
+        * Layout/floats_2_100.html:
+        * Layout/floats_2_100_nested.html:
+        * Layout/floats_50_100.html:
+        * Layout/floats_50_100_nested.html:
+        * Layout/subtree-detaching.html:
+        * Parser/html5-full-render.html:
+        * SVG/SvgHitTesting.html:
+        * resources/runner.js:
+
+2012-11-13  Dimitri Glazkov  <dglazkov@chromium.org>
+
+        Unreviewed, rolling out r134367.
+        http://trac.webkit.org/changeset/134367
+        https://bugs.webkit.org/show_bug.cgi?id=100738
+
+        Speculative rollout, could have cause Dromaeo setAttribute
+        perf regression.
+
+        * DOM/ModifyAttribute.html: Removed.
+        * DOM/resources/dom-perf/modify-attribute.js: Removed.
+
+2012-11-12  Shinya Kawanaka  <shinyak@chromium.org>
+
+        Changing id, className, or attribute should invalidate distribution
+        https://bugs.webkit.org/show_bug.cgi?id=100738
+
+        Reviewed by Dimitri Glazkov.
+
+        Added test code to modify id/class/attribute.
+
+        * DOM/ModifyAttribute.html: Added.
+        * DOM/resources/dom-perf/modify-attribute.js: Added.
+        (ModifyAttribute.CreateElementToSetUp):
+        (ModifyAttribute.ModifyId):
+        (ModifyAttribute.ModifyClass):
+        (ModifyAttribute.ModifyTitle):
+
+2012-11-06  Adam Barth  <abarth@webkit.org>
+
+        DOMImplementation should use ScriptWrappable
+        https://bugs.webkit.org/show_bug.cgi?id=101279
+
+        Reviewed by Eric Seidel.
+
+        This simple PerformanceTest measure how quickly we can access
+        document.implementation. The goal of this performance test is just to
+        validate that using ScriptWrappable actually makes the bindings faster.
+
+        * Bindings/document-implementation.html: Added.
+
+2012-11-05  Geoffrey Garen  <ggaren@apple.com>
+
+        WebKit should have performance tests for book chapter reflow
+        https://bugs.webkit.org/show_bug.cgi?id=101271
+
+        Reviewed by Dan Bernstein.
+
+        I grabbed a book chapter from the Project Gutenberg front page:
+
+        * Layout/chapter-reflow-once.html: Added.
+        * Layout/chapter-reflow-thrice.html: Added.
+        * Layout/chapter-reflow-twice.html: Added.
+        * Layout/chapter-reflow.html: Added.
+
+        I also created a torture-test random text generator:
+
+        * Layout/chapter-reflow-once-random.html: Added.
+
 2012-10-29  Zoltan Horvath  <zoltan@webkit.org>
 
         Turn PageLoad tests into simple performancetests, commit #7 (last) 

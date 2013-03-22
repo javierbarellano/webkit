@@ -41,6 +41,9 @@ using namespace std;
 
 namespace WebCore {
 
+const float smallCapsFontSizeMultiplier = 0.7f;
+const float emphasisMarkFontSizeMultiplier = 0.5f;
+
 SimpleFontData::SimpleFontData(const FontPlatformData& platformData, bool isCustomFont, bool isLoading, bool isTextOrientationFallback)
     : m_maxCharWidth(-1)
     , m_avgCharWidth(-1)
@@ -61,7 +64,7 @@ SimpleFontData::SimpleFontData(const FontPlatformData& platformData, bool isCust
 #if ENABLE(OPENTYPE_VERTICAL)
     if (platformData.orientation() == Vertical && !isTextOrientationFallback) {
         m_verticalData = platformData.verticalData();
-        m_hasVerticalGlyphs = m_verticalData && m_verticalData->hasVerticalMetrics();
+        m_hasVerticalGlyphs = m_verticalData.get() && m_verticalData->hasVerticalMetrics();
     }
 #endif
 }
@@ -191,6 +194,26 @@ PassRefPtr<SimpleFontData> SimpleFontData::uprightOrientationFontData() const
     if (!m_derivedFontData->uprightOrientation)
         m_derivedFontData->uprightOrientation = create(m_platformData, isCustomFont(), false, true);
     return m_derivedFontData->uprightOrientation;
+}
+
+PassRefPtr<SimpleFontData> SimpleFontData::smallCapsFontData(const FontDescription& fontDescription) const
+{
+    if (!m_derivedFontData)
+        m_derivedFontData = DerivedFontData::create(isCustomFont());
+    if (!m_derivedFontData->smallCaps)
+        m_derivedFontData->smallCaps = createScaledFontData(fontDescription, smallCapsFontSizeMultiplier);
+
+    return m_derivedFontData->smallCaps;
+}
+
+PassRefPtr<SimpleFontData> SimpleFontData::emphasisMarkFontData(const FontDescription& fontDescription) const
+{
+    if (!m_derivedFontData)
+        m_derivedFontData = DerivedFontData::create(isCustomFont());
+    if (!m_derivedFontData->emphasisMark)
+        m_derivedFontData->emphasisMark = createScaledFontData(fontDescription, emphasisMarkFontSizeMultiplier);
+
+    return m_derivedFontData->emphasisMark;
 }
 
 PassRefPtr<SimpleFontData> SimpleFontData::brokenIdeographFontData() const

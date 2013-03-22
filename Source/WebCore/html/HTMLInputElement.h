@@ -41,6 +41,7 @@ class Icon;
 class InputType;
 class KURL;
 class ListAttributeTargetObserver;
+struct DateTimeChooserParameters;
 
 class HTMLInputElement : public HTMLTextFormControlElement, public ImageLoaderClientBase<HTMLInputElement> {
 public:
@@ -54,6 +55,7 @@ public:
     virtual bool shouldAutocomplete() const;
 
     // For ValidityState
+    virtual bool hasBadInput() const OVERRIDE;
     virtual bool patternMismatch() const OVERRIDE;
     virtual bool rangeUnderflow() const OVERRIDE;
     virtual bool rangeOverflow() const;
@@ -162,9 +164,6 @@ public:
 
     // The value which is drawn by a renderer.
     String visibleValue() const;
-    String convertFromVisibleValue(const String&) const;
-    // Returns true if the specified string can be set as the value of HTMLInputElement.
-    bool isAcceptableValue(const String&) const;
 
     const String& suggestedValue() const;
     void setSuggestedValue(const String&);
@@ -176,9 +175,6 @@ public:
 
     double valueAsNumber() const;
     void setValueAsNumber(double, ExceptionCode&, TextFieldEventBehavior = DispatchNoEvent);
-
-    virtual String placeholder() const;
-    virtual void setPlaceholder(const String&);
 
     String valueWithDefault() const;
 
@@ -286,10 +282,19 @@ public:
 
     virtual const AtomicString& name() const OVERRIDE;
 
+    void endEditing();
+
     static Vector<FileChooserFileInfo> filesFromFileInputFormControlState(const FormControlState&);
 
+    virtual bool shouldMatchReadOnlySelector() const OVERRIDE;
+    virtual bool shouldMatchReadWriteSelector() const OVERRIDE;
     virtual void setRangeText(const String& replacement, ExceptionCode&) OVERRIDE;
     virtual void setRangeText(const String& replacement, unsigned start, unsigned end, const String& selectionMode, ExceptionCode&) OVERRIDE;
+
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+    bool setupDateTimeChooserParameters(DateTimeChooserParameters&);
+#endif
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
 
 protected:
     HTMLInputElement(const QualifiedName&, Document*, HTMLFormElement*, bool createdByParser);
@@ -314,7 +319,6 @@ private:
     virtual bool isEnumeratable() const;
     virtual bool supportLabels() const OVERRIDE;
     virtual void updateFocusAppearance(bool restorePreviousSelection);
-    virtual void aboutToUnload();
     virtual bool shouldUseInputMethod();
 
     virtual bool isTextFormControl() const { return isTextField(); }
@@ -331,9 +335,9 @@ private:
 
     virtual void accessKeyAction(bool sendMouseEvents);
 
-    virtual void parseAttribute(const Attribute&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
-    virtual void collectStyleForAttribute(const Attribute&, StylePropertySet*) OVERRIDE;
+    virtual void collectStyleForPresentationAttribute(const Attribute&, StylePropertySet*) OVERRIDE;
     virtual void finishParsingChildren();
 
     virtual void copyNonAttributePropertiesFromElement(const Element&);
@@ -350,8 +354,6 @@ private:
     virtual void postDispatchEventHandler(Event*, void* dataFromPreDispatch);
 
     virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
-
-    virtual bool hasUnacceptableValue() const;
 
     virtual bool isInRange() const;
     virtual bool isOutOfRange() const;
@@ -387,7 +389,7 @@ private:
 #if ENABLE(DATALIST_ELEMENT)
     void resetListAttributeTargetObserver();
 #endif
-    void parseMaxLengthAttribute(const Attribute&);
+    void parseMaxLengthAttribute(const AtomicString&);
     void updateValueIfNeeded();
 
     // Returns null if this isn't associated with any radio button group.
@@ -424,12 +426,6 @@ private:
     OwnPtr<ListAttributeTargetObserver> m_listAttributeTargetObserver;
 #endif
 };
-
-inline bool isHTMLInputElement(Node* node)
-{
-    ASSERT(node);
-    return node->hasTagName(HTMLNames::inputTag);
-}
 
 } //namespace
 #endif

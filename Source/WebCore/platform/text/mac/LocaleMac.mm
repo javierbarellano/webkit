@@ -114,17 +114,7 @@ RetainPtr<NSDateFormatter> LocaleMac::shortDateFormatter()
     return createDateTimeFormatter(m_locale.get(), m_gregorianCalendar.get(), NSDateFormatterShortStyle, NSDateFormatterNoStyle);
 }
 
-double LocaleMac::parseDateTime(const String& input, DateComponents::Type type)
-{
-    if (type != DateComponents::Date)
-        return std::numeric_limits<double>::quiet_NaN();
-    NSDate *date = [shortDateFormatter().get() dateFromString:input];
-    if (!date)
-        return std::numeric_limits<double>::quiet_NaN();
-    return [date timeIntervalSince1970] * msPerSecond;
-}
-
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 const Vector<String>& LocaleMac::monthLabels()
 {
     if (!m_monthLabels.isEmpty())
@@ -175,7 +165,7 @@ bool LocaleMac::isRTL()
 }
 #endif
 
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 RetainPtr<NSDateFormatter> LocaleMac::timeFormatter()
 {
     return createDateTimeFormatter(m_locale.get(), m_gregorianCalendar.get(), NSDateFormatterNoStyle, NSDateFormatterMediumStyle);
@@ -184,6 +174,16 @@ RetainPtr<NSDateFormatter> LocaleMac::timeFormatter()
 RetainPtr<NSDateFormatter> LocaleMac::shortTimeFormatter()
 {
     return createDateTimeFormatter(m_locale.get(), m_gregorianCalendar.get(), NSDateFormatterNoStyle, NSDateFormatterShortStyle);
+}
+
+RetainPtr<NSDateFormatter> LocaleMac::dateTimeFormatterWithSeconds()
+{
+    return createDateTimeFormatter(m_locale.get(), m_gregorianCalendar.get(), NSDateFormatterShortStyle, NSDateFormatterMediumStyle);
+}
+
+RetainPtr<NSDateFormatter> LocaleMac::dateTimeFormatterWithoutSeconds()
+{
+    return createDateTimeFormatter(m_locale.get(), m_gregorianCalendar.get(), NSDateFormatterShortStyle, NSDateFormatterShortStyle);
 }
 
 String LocaleMac::dateFormat()
@@ -218,6 +218,22 @@ String LocaleMac::shortTimeFormat()
         return m_timeFormatWithoutSeconds;
     m_timeFormatWithoutSeconds = [shortTimeFormatter().get() dateFormat];
     return m_timeFormatWithoutSeconds;
+}
+
+String LocaleMac::dateTimeFormatWithSeconds()
+{
+    if (!m_dateTimeFormatWithSeconds.isNull())
+        return m_dateTimeFormatWithSeconds;
+    m_dateTimeFormatWithSeconds = [dateTimeFormatterWithSeconds().get() dateFormat];
+    return m_dateTimeFormatWithSeconds;
+}
+
+String LocaleMac::dateTimeFormatWithoutSeconds()
+{
+    if (!m_dateTimeFormatWithoutSeconds.isNull())
+        return m_dateTimeFormatWithoutSeconds;
+    m_dateTimeFormatWithoutSeconds = [dateTimeFormatterWithoutSeconds().get() dateFormat];
+    return m_dateTimeFormatWithoutSeconds;
 }
 
 const Vector<String>& LocaleMac::shortMonthLabels()

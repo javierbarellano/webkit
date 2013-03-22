@@ -1,6 +1,5 @@
 
 
-module window {
     interface [
                Conditional=DISCOVERY,
                Callback
@@ -8,5 +7,3 @@ module window {
     {
         boolean handleEvent(in NavServices services);
     };
-
-}

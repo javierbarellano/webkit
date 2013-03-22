@@ -55,6 +55,7 @@
 #include <WebCore/Editor.h>
 #include <WebCore/FrameLoaderTypes.h>
 #include <WebCore/IntRect.h>
+#include <WebCore/Page.h>
 #if ENABLE(PAGE_VISIBILITY_API)
 #include <WebCore/PageVisibilityState.h>
 #endif
@@ -305,6 +306,7 @@ public:
     void setPageZoomFactor(double);
     void setPageAndTextZoomFactors(double pageZoomFactor, double textZoomFactor);
     void windowScreenDidChange(uint64_t);
+    void setViewMode(WebCore::Page::ViewMode);
 
     void scalePage(double scale, const WebCore::IntPoint& origin);
     double pageScaleFactor() const;
@@ -518,13 +520,14 @@ public:
     void endPrinting();
     void computePagesForPrinting(uint64_t frameID, const PrintInfo&, uint64_t callbackID);
 #if PLATFORM(MAC) || PLATFORM(WIN)
-    void drawRectToPDF(uint64_t frameID, const PrintInfo&, const WebCore::IntRect&, uint64_t callbackID);
+    void drawRectToImage(uint64_t frameID, const PrintInfo&, const WebCore::IntRect&, uint64_t callbackID);
     void drawPagesToPDF(uint64_t frameID, const PrintInfo&, uint32_t first, uint32_t count, uint64_t callbackID);
 #elif PLATFORM(GTK)
     void drawPagesForPrinting(uint64_t frameID, const PrintInfo&, uint64_t callbackID);
 #endif
 
     void setMediaVolume(float);
+    void setMayStartMediaWhenInWindow(bool);
 
     bool mainFrameHasCustomRepresentation() const;
 
@@ -549,7 +552,7 @@ public:
 
     void unmarkAllMisspellings();
     void unmarkAllBadGrammar();
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if PLATFORM(MAC)
     void handleAlternativeTextUIResult(const String&);
 #endif
 
@@ -724,7 +727,7 @@ private:
 
     RetainPtr<PDFDocument> pdfDocumentForPrintingFrame(WebCore::Frame*);
     void computePagesForPrintingPDFDocument(uint64_t frameID, const PrintInfo&, Vector<WebCore::IntRect>& resultPageRects);
-    void drawRectToPDFFromPDFDocument(CGContextRef, PDFDocument *, const PrintInfo&, const WebCore::IntRect&);
+    void drawPDFDocument(CGContextRef, PDFDocument *, const PrintInfo&, const WebCore::IntRect&);
     void drawPagesToPDFFromPDFDocument(CGContextRef, PDFDocument *, const PrintInfo&, uint32_t first, uint32_t count);
 #endif
 
@@ -779,6 +782,8 @@ private:
 
     void changeSelectedIndex(int32_t index);
     void setCanStartMediaTimerFired();
+
+    bool canHandleUserEvents() const;
 
     static bool platformCanHandleRequest(const WebCore::ResourceRequest&);
 
@@ -851,6 +856,7 @@ private:
 #endif
     
     WebCore::RunLoop::Timer<WebPage> m_setCanStartMediaTimer;
+    bool m_mayStartMediaWhenInWindow;
 
     HashMap<uint64_t, RefPtr<WebUndoStep> > m_undoStepMap;
 
@@ -945,6 +951,7 @@ private:
     WebInspectorClient* m_inspectorClient;
 
     HashSet<String, CaseFoldingHash> m_mimeTypesWithCustomRepresentations;
+    WebCore::Color m_backgroundColor;
 };
 
 } // namespace WebKit

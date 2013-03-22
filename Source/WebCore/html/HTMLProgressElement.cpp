@@ -31,6 +31,7 @@
 #include "HTMLParserIdioms.h"
 #include "ProgressShadowElement.h"
 #include "RenderProgress.h"
+#include "SelectRuleFeatureSet.h"
 #include "ShadowRoot.h"
 #include <wtf/StdLibExtras.h>
 
@@ -93,20 +94,21 @@ bool HTMLProgressElement::supportsFocus() const
     return Node::supportsFocus() && !disabled();
 }
 
-void HTMLProgressElement::parseAttribute(const Attribute& attribute)
+void HTMLProgressElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
-    if (attribute.name() == valueAttr)
+    if (name == valueAttr)
         didElementStateChange();
-    else if (attribute.name() == maxAttr)
+    else if (name == maxAttr)
         didElementStateChange();
     else
-        LabelableElement::parseAttribute(attribute);
+        LabelableElement::parseAttribute(name, value);
 }
 
 void HTMLProgressElement::attach()
 {
     LabelableElement::attach();
-    didElementStateChange();
+    if (RenderProgress* render = renderProgress())
+        render->updateFromElement();
 }
 
 double HTMLProgressElement::value() const
@@ -157,8 +159,10 @@ void HTMLProgressElement::didElementStateChange()
     if (RenderProgress* render = renderProgress()) {
         bool wasDeterminate = render->isDeterminate();
         render->updateFromElement();
-        if (wasDeterminate != isDeterminate())
+        if (wasDeterminate != isDeterminate()) {
             setNeedsStyleRecalc();
+            invalidateParentDistributionIfNecessary(this, SelectRuleFeatureSet::RuleFeatureIndeterminate);
+        }
     }
 }
 
@@ -175,6 +179,7 @@ void HTMLProgressElement::createShadowSubtree()
     RefPtr<ProgressBarElement> bar = ProgressBarElement::create(document());
     RefPtr<ProgressValueElement> value = ProgressValueElement::create(document());
     m_value = value.get();
+    m_value->setWidthPercentage(HTMLProgressElement::IndeterminatePosition * 100);
     bar->appendChild(m_value, ASSERT_NO_EXCEPTION);
 
     inner->appendChild(bar, ASSERT_NO_EXCEPTION);

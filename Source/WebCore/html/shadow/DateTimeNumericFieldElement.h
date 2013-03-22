@@ -62,18 +62,16 @@ protected:
     // DateTimeFieldElement functions.
     virtual bool hasValue() const OVERRIDE FINAL;
     virtual int maximum() const OVERRIDE FINAL;
-    virtual void setEmptyValue(const DateComponents& dateForReadOnlyField, EventBehavior = DispatchNoEvent) OVERRIDE FINAL;
+    virtual void setEmptyValue(EventBehavior = DispatchNoEvent) OVERRIDE FINAL;
     virtual void setValueAsInteger(int, EventBehavior = DispatchNoEvent) OVERRIDE;
     virtual int valueAsInteger() const OVERRIDE;
     virtual String visibleValue() const OVERRIDE FINAL;
 
 private:
-    // Element function.
-    virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
-
     // DateTimeFieldElement functions.
     virtual void didBlur() OVERRIDE FINAL;
     virtual void handleKeyboardEvent(KeyboardEvent*) OVERRIDE FINAL;
+    virtual float maximumWidth(const Font&) OVERRIDE;
     virtual int minimum() const OVERRIDE FINAL;
     virtual void stepDown() OVERRIDE FINAL;
     virtual void stepUp() OVERRIDE FINAL;

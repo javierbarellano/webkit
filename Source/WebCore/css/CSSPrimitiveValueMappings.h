@@ -46,7 +46,6 @@
 #include "RenderStyleConstants.h"
 #include "SVGRenderStyleDefs.h"
 #include "TextDirection.h"
-#include "TextOrientation.h"
 #include "TextRenderingMode.h"
 #include "ThemeTypes.h"
 #include "UnicodeBidi.h"
@@ -149,26 +148,32 @@ template<> inline CSSPrimitiveValue::operator LineClampValue() const
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ColumnSpan columnSpan)
     : CSSValue(PrimitiveClass)
 {
+    m_primitiveUnitType = CSS_IDENT;
     switch (columnSpan) {
     case ColumnSpanAll:
-        m_primitiveUnitType = CSS_IDENT;
         m_value.ident = CSSValueAll;
         break;
-    case ColumnSpanOne:
-        m_primitiveUnitType = CSS_NUMBER;
-        m_value.num = 1;
+    case ColumnSpanNone:
+        m_value.ident = CSSValueNone;
         break;
     }
 }
 
 template<> inline CSSPrimitiveValue::operator ColumnSpan() const
 {
-    if (m_primitiveUnitType == CSS_IDENT && m_value.ident == CSSValueAll)
-        return ColumnSpanAll;
+    // Map 1 to none for compatibility reasons.
     if (m_primitiveUnitType == CSS_NUMBER && m_value.num == 1)
-        return ColumnSpanOne;
+        return ColumnSpanNone;
+
+    switch (m_value.ident) {
+    case CSSValueAll:
+        return ColumnSpanAll;
+    case CSSValueNone:
+        return ColumnSpanNone;
+    }
+
     ASSERT_NOT_REACHED();
-    return ColumnSpanOne;
+    return ColumnSpanNone;
 }
 
 
@@ -793,6 +798,43 @@ template<> inline CSSPrimitiveValue::operator EBoxDecorationBreak() const
     return DSLICE;
 }
 #endif
+
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(BackgroundEdgeOrigin e)
+    : CSSValue(PrimitiveClass)
+{
+    m_primitiveUnitType = CSS_IDENT;
+    switch (e) {
+    case TopEdge:
+        m_value.ident = CSSValueTop;
+        break;
+    case RightEdge:
+        m_value.ident = CSSValueRight;
+        break;
+    case BottomEdge:
+        m_value.ident = CSSValueBottom;
+        break;
+    case LeftEdge:
+        m_value.ident = CSSValueLeft;
+        break;
+    }
+}
+
+template<> inline CSSPrimitiveValue::operator BackgroundEdgeOrigin() const
+{
+    switch (m_value.ident) {
+    case CSSValueTop:
+        return TopEdge;
+    case CSSValueRight:
+        return RightEdge;
+    case CSSValueBottom:
+        return BottomEdge;
+    case CSSValueLeft:
+        return LeftEdge;
+    }
+
+    ASSERT_NOT_REACHED();
+    return TopEdge;
+}
 
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(EBoxSizing e)
     : CSSValue(PrimitiveClass)
@@ -2214,6 +2256,60 @@ template<> inline CSSPrimitiveValue::operator ETextAlign() const
     }
 }
 
+#if ENABLE(CSS3_TEXT)
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ETextAlignLast e)
+    : CSSValue(PrimitiveClass)
+{
+    m_primitiveUnitType = CSS_IDENT;
+    switch (e) {
+    case TextAlignLastStart:
+        m_value.ident = CSSValueStart;
+        break;
+    case TextAlignLastEnd:
+        m_value.ident = CSSValueEnd;
+        break;
+    case TextAlignLastLeft:
+        m_value.ident = CSSValueLeft;
+        break;
+    case TextAlignLastRight:
+        m_value.ident = CSSValueRight;
+        break;
+    case TextAlignLastCenter:
+        m_value.ident = CSSValueCenter;
+        break;
+    case TextAlignLastJustify:
+        m_value.ident = CSSValueJustify;
+        break;
+    case TextAlignLastAuto:
+        m_value.ident = CSSValueAuto;
+        break;
+    }
+}
+
+template<> inline CSSPrimitiveValue::operator ETextAlignLast() const
+{
+    switch (m_value.ident) {
+    case CSSValueAuto:
+        return TextAlignLastAuto;
+    case CSSValueStart:
+        return TextAlignLastStart;
+    case CSSValueEnd:
+        return TextAlignLastEnd;
+    case CSSValueLeft:
+        return TextAlignLastLeft;
+    case CSSValueRight:
+        return TextAlignLastRight;
+    case CSSValueCenter:
+        return TextAlignLastCenter;
+    case CSSValueJustify:
+        return TextAlignLastJustify;
+    }
+
+    ASSERT_NOT_REACHED();
+    return TextAlignLastAuto;
+}
+#endif // CSS3_TEXT
+
 template<> inline CSSPrimitiveValue::operator ETextDecoration() const
 {
     switch (m_value.ident) {
@@ -2902,6 +2998,12 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(TextOrientation e)
 {
     m_primitiveUnitType = CSS_IDENT;
     switch (e) {
+    case TextOrientationSideways:
+        m_value.ident = CSSValueSideways;
+        break;
+    case TextOrientationSidewaysRight:
+        m_value.ident = CSSValueSidewaysRight;
+        break;
     case TextOrientationVerticalRight:
         m_value.ident = CSSValueVerticalRight;
         break;
@@ -2914,6 +3016,10 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(TextOrientation e)
 template<> inline CSSPrimitiveValue::operator TextOrientation() const
 {
     switch (m_value.ident) {
+    case CSSValueSideways:
+        return TextOrientationSideways;
+    case CSSValueSidewaysRight:
+        return TextOrientationSidewaysRight;
     case CSSValueVerticalRight:
         return TextOrientationVerticalRight;
     case CSSValueUpright:
@@ -3430,41 +3536,41 @@ template<> inline CSSPrimitiveValue::operator ESpeak() const
 }
 
 #if ENABLE(CSS_SHADERS)
-template<> inline CSSPrimitiveValue::CSSPrimitiveValue(CustomFilterOperation::MeshBoxType meshBoxType)
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(CustomFilterMeshBoxType meshBoxType)
     : CSSValue(PrimitiveClass)
 {
     m_primitiveUnitType = CSS_IDENT;
     switch (meshBoxType) {
-    case CustomFilterOperation::FILTER_BOX:
+    case MeshBoxTypeFilter:
         m_value.ident = CSSValueFilterBox;
         break;
-    case CustomFilterOperation::BORDER_BOX:
+    case MeshBoxTypeBorder:
         m_value.ident = CSSValueBorderBox;
         break;
-    case CustomFilterOperation::PADDING_BOX:
+    case MeshBoxTypePadding:
         m_value.ident = CSSValuePaddingBox;
         break;
-    case CustomFilterOperation::CONTENT_BOX:
+    case MeshBoxTypeContent:
         m_value.ident = CSSValueContentBox;
         break;
     }
 }
 
-template<> inline CSSPrimitiveValue::operator CustomFilterOperation::MeshBoxType() const
+template<> inline CSSPrimitiveValue::operator CustomFilterMeshBoxType() const
 {
     switch (m_value.ident) {
     case CSSValueFilterBox:
-        return CustomFilterOperation::FILTER_BOX;
+        return MeshBoxTypeFilter;
     case CSSValueBorderBox:
-        return CustomFilterOperation::BORDER_BOX;
+        return MeshBoxTypeBorder;
     case CSSValuePaddingBox:
-        return CustomFilterOperation::PADDING_BOX;
+        return MeshBoxTypePadding;
     case CSSValueContentBox:
-        return CustomFilterOperation::CONTENT_BOX;
+        return MeshBoxTypeContent;
     }
 
     ASSERT_NOT_REACHED();
-    return CustomFilterOperation::FILTER_BOX;
+    return MeshBoxTypeFilter;
 }
 #endif // ENABLE(CSS_SHADERS)
 

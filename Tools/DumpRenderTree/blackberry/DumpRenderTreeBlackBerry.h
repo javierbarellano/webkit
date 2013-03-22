@@ -23,11 +23,11 @@
 
 
 #include "DumpRenderTreeClient.h"
-#include "PlatformString.h"
 #include "Timer.h"
 #include <BlackBerryPlatformLayoutTest.h>
 #include <FindOptions.h>
 #include <wtf/Vector.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 class Credential;
@@ -71,7 +71,8 @@ public:
     void didFinishDocumentLoadForFrame(WebCore::Frame*);
     void didClearWindowObjectInWorld(WebCore::DOMWrapperWorld*, JSGlobalContextRef, JSObjectRef windowObject);
     void didReceiveTitleForFrame(const String& title, WebCore::Frame*);
-    void didDecidePolicyForNavigationAction(const WebCore::NavigationAction&, const WebCore::ResourceRequest&);
+    void didDecidePolicyForNavigationAction(const WebCore::NavigationAction&, const WebCore::ResourceRequest&, WebCore::Frame*);
+    void didDecidePolicyForResponse(const WebCore::ResourceResponse&);
     void didDispatchWillPerformClientRedirect();
     void didHandleOnloadEventsForFrame(WebCore::Frame*);
     void didReceiveResponseForFrame(WebCore::Frame*, const WebCore::ResourceResponse&);
@@ -94,7 +95,6 @@ public:
     void didEndEditing();
     void didChange();
     void didChangeSelection();
-    bool findString(const String&, WebCore::FindOptions);
     bool shouldBeginEditingInDOMRange(WebCore::Range*);
     bool shouldEndEditingInDOMRange(WebCore::Range*);
     bool shouldDeleteDOMRange(WebCore::Range*);
@@ -108,6 +108,7 @@ public:
 
     // BlackBerry::Platform::BlackBerryPlatformLayoutTestClient method
     virtual void addTest(const char* testFile);
+    void setCustomPolicyDelegate(bool setDelegate, bool permissive);
 private:
     void runTest(const String& url, const String& imageHash);
     void runTests();
@@ -148,6 +149,7 @@ private:
     bool m_acceptsEditing;
     bool m_loadFinished;
     static bool s_selectTrailingWhitespaceEnabled;
+    bool m_policyDelegateEnabled;
 };
 }
 }

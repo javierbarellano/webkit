@@ -22,7 +22,7 @@
 #if USE(ACCELERATED_COMPOSITING)
 #include "GraphicsLayerAnimation.h"
 
-#include "FractionalLayoutSize.h"
+#include "LayoutSize.h"
 #include "UnitBezier.h"
 #include <wtf/CurrentTime.h>
 
@@ -221,6 +221,8 @@ GraphicsLayerAnimation::GraphicsLayerAnimation(const String& name, const Keyfram
     , m_listsMatch(listsMatch)
     , m_startTime(startTime)
     , m_pauseTime(0)
+    , m_totalRunningTime(0)
+    , m_lastRefreshedTime(m_startTime)
     , m_state(PlayingState)
 {
 }
@@ -276,7 +278,7 @@ void GraphicsLayerAnimation::apply(Client* client)
     if (!isActive())
         return;
 
-    double totalRunningTime = m_state == PausedState ? m_pauseTime : WTF::currentTime() - m_startTime;
+    double totalRunningTime = computeTotalRunningTime();
     double normalizedValue = normalizedAnimationValue(totalRunningTime, m_animation->duration(), m_animation->direction(), m_animation->iterationCount());
 
     if (m_animation->iterationCount() != Animation::IterationCountInfinite && totalRunningTime >= m_animation->duration() * m_animation->iterationCount()) {
@@ -315,14 +317,35 @@ void GraphicsLayerAnimation::apply(Client* client)
     }
 }
 
+double GraphicsLayerAnimation::computeTotalRunningTime()
+{
+    if (state() == PausedState)
+        return m_pauseTime;
+
+    double oldLastRefreshedTime = m_lastRefreshedTime;
+    m_lastRefreshedTime = WTF::currentTime();
+    m_totalRunningTime += m_lastRefreshedTime - oldLastRefreshedTime;
+    return m_totalRunningTime;
+}
+
 void GraphicsLayerAnimation::pause(double time)
 {
     setState(PausedState);
     m_pauseTime = time;
 }
 
+void GraphicsLayerAnimation::resume()
+{
+    setState(PlayingState);
+    m_totalRunningTime = m_pauseTime;
+    m_lastRefreshedTime = WTF::currentTime();
+}
+
 void GraphicsLayerAnimations::add(const GraphicsLayerAnimation& animation)
 {
+    // Remove the old state if we are resuming a paused animation.
+    remove(animation.name(), animation.property());
+
     m_animations.append(animation);
 }
 
@@ -334,10 +357,30 @@ void GraphicsLayerAnimations::pause(const String& name, double offset)
     }
 }
 
+void GraphicsLayerAnimations::suspend(double offset)
+{
+    for (size_t i = 0; i < m_animations.size(); ++i)
+        m_animations[i].pause(offset);
+}
+
+void GraphicsLayerAnimations::resume()
+{
+    for (size_t i = 0; i < m_animations.size(); ++i)
+        m_animations[i].resume();
+}
+
 void GraphicsLayerAnimations::remove(const String& name)
 {
     for (int i = m_animations.size() - 1; i >= 0; --i) {
         if (m_animations[i].name() == name)
+            m_animations.remove(i);
+    }
+}
+
+void GraphicsLayerAnimations::remove(const String& name, AnimatedPropertyID property)
+{
+    for (int i = m_animations.size() - 1; i >= 0; --i) {
+        if (m_animations[i].name() == name && m_animations[i].property() == property)
             m_animations.remove(i);
     }
 }

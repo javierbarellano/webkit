@@ -30,6 +30,7 @@
 
 #include "DOMWindowProperty.h"
 #include "NavigatorBase.h"
+#include "ScriptWrappable.h"
 #include "Supplementable.h"
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
@@ -53,7 +54,7 @@ class NavEventCB;
 
 typedef int ExceptionCode;
 
-class Navigator : public NavigatorBase, public RefCounted<Navigator>, public DOMWindowProperty, public Supplementable<Navigator> {
+class Navigator : public NavigatorBase, public ScriptWrappable, public RefCounted<Navigator>, public DOMWindowProperty, public Supplementable<Navigator> {
 public:
     static PassRefPtr<Navigator> create(Frame* frame) { return adoptRef(new Navigator(frame)); }
     virtual ~Navigator();

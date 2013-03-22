@@ -41,12 +41,11 @@ static Ecore_Evas* initEcoreEvas()
 {
     ASSERT(ecore_evas_init());
 
-    Ecore_Evas* ecoreEvas;
-
-    if (useX11Window)
-        ecoreEvas = ecore_evas_new(0, 0, 0, 800, 600, 0);
-    else
-        ecoreEvas = ecore_evas_buffer_new(800, 600);
+    const char* engine = 0;
+#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+    engine = "opengl_x11";
+#endif
+    Ecore_Evas* ecoreEvas = ecore_evas_new(engine, 0, 0, 800, 600, 0);
 
     ASSERT(ecoreEvas);
 
@@ -55,12 +54,20 @@ static Ecore_Evas* initEcoreEvas()
     return ecoreEvas;
 }
 
+static void onWebProcessCrashed(void*, Evas_Object*, void* eventInfo)
+{
+    bool* handled = static_cast<bool*>(eventInfo);
+    *handled = true;
+}
+
 PlatformWebView::PlatformWebView(WKContextRef contextRef, WKPageGroupRef pageGroupRef)
 {
     m_window = initEcoreEvas();
     Evas* evas = ecore_evas_get(m_window);
     m_view = toImpl(WKViewCreate(evas, contextRef, pageGroupRef));
     ewk_view_theme_set(m_view, THEME_DIR"/default.edj");
+    evas_object_smart_callback_add(m_view, "webprocess,crashed", onWebProcessCrashed, 0);
+    resizeTo(600, 800);
 }
 
 PlatformWebView::~PlatformWebView()
@@ -70,9 +77,38 @@ PlatformWebView::~PlatformWebView()
     ecore_evas_shutdown();
 }
 
+void PlatformWebView::resizeTo(unsigned width, unsigned height)
+{
+    evas_object_resize(m_view, width, height);
+}
+
 WKPageRef PlatformWebView::page() const
 {
     return WKViewGetPage(toAPI(m_view));
+}
+
+void PlatformWebView::simulateSpacebarKeyPress()
+{
+    Evas* evas = ecore_evas_get(m_window);
+    evas_object_focus_set(m_view, true);
+    evas_event_feed_key_down(evas, "space", "space", " ", 0, 0, 0);
+    evas_event_feed_key_up(evas, "space", "space", " ", 0, 1, 0);
+}
+
+void PlatformWebView::simulateMouseMove(unsigned x, unsigned y)
+{
+    Evas* evas = ecore_evas_get(m_window);
+    evas_object_show(m_view);
+    evas_event_feed_mouse_move(evas, x, y, 0, 0);
+}
+
+void PlatformWebView::simulateRightClick(unsigned x, unsigned y)
+{
+    Evas* evas = ecore_evas_get(m_window);
+    evas_object_show(m_view);
+    evas_event_feed_mouse_move(evas, x, y, 0, 0);
+    evas_event_feed_mouse_down(evas, 3, EVAS_BUTTON_NONE, 0, 0);
+    evas_event_feed_mouse_up(evas, 3, EVAS_BUTTON_NONE, 0, 0);
 }
 
 } // namespace TestWebKitAPI

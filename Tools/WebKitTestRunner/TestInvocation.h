@@ -29,6 +29,8 @@
 #include <string>
 #include <WebKit2/WKRetainPtr.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/OwnPtr.h>
+#include <wtf/text/StringBuilder.h>
 
 namespace WTR {
 
@@ -44,16 +46,15 @@ public:
     void didReceiveMessageFromInjectedBundle(WKStringRef messageName, WKTypeRef messageBody);
     WKRetainPtr<WKTypeRef> didReceiveSynchronousMessageFromInjectedBundle(WKStringRef messageName, WKTypeRef messageBody);
 
-    static void dumpWebProcessUnresponsiveness(const char* textToStdout);
+    void dumpWebProcessUnresponsiveness();
 private:
     void dumpResults();
     static void dump(const char* textToStdout, const char* textToStderr = 0, bool seenError = false);
     void dumpPixelsAndCompareWithExpected(WKImageRef, WKArrayRef repaintRects);
     bool compareActualHashToExpectedAndDumpResults(const char[33]);
 
-#if PLATFORM(QT)
+#if PLATFORM(QT) || PLATFORM(EFL)
     static void forceRepaintDoneCallback(WKErrorRef, void* context);
-    void forceRepaintDone();
 #endif
     
     WKRetainPtr<WKURLRef> m_url;
@@ -68,9 +69,12 @@ private:
     bool m_gotRepaint;
     bool m_error;
 
-    WKRetainPtr<WKStringRef> m_textOutput;
+    StringBuilder m_textOutput;
     WKRetainPtr<WKImageRef> m_pixelResult;
     WKRetainPtr<WKArrayRef> m_repaintRects;
+    std::string m_errorMessage;
+    bool m_webProcessIsUnresponsive;
+
 };
 
 } // namespace WTR

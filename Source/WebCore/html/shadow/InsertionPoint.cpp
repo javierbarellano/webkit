@@ -32,14 +32,17 @@
 #include "InsertionPoint.h"
 
 #include "ElementShadow.h"
+#include "HTMLNames.h"
+#include "QualifiedName.h"
 #include "ShadowRoot.h"
 #include "StaticNodeList.h"
 
 namespace WebCore {
 
+using namespace HTMLNames;
+
 InsertionPoint::InsertionPoint(const QualifiedName& tagName, Document* document)
-    : HTMLElement(tagName, document)
-    , m_shouldResetStyleInheritance(false)
+    : HTMLElement(tagName, document, CreateInsertionPoint)
 {
 }
 
@@ -49,7 +52,7 @@ InsertionPoint::~InsertionPoint()
 
 void InsertionPoint::attach()
 {
-    if (ShadowRoot* root = shadowRoot())
+    if (ShadowRoot* root = containingShadowRoot())
         root->owner()->ensureDistribution();
     for (size_t i = 0; i < m_distribution.size(); ++i) {
         if (!m_distribution.at(i)->attached())
@@ -61,7 +64,7 @@ void InsertionPoint::attach()
 
 void InsertionPoint::detach()
 {
-    if (ShadowRoot* root = shadowRoot())
+    if (ShadowRoot* root = containingShadowRoot())
         root->owner()->ensureDistribution();
     for (size_t i = 0; i < m_distribution.size(); ++i)
         m_distribution.at(i)->detach();
@@ -81,11 +84,11 @@ bool InsertionPoint::isShadowBoundary() const
 
 bool InsertionPoint::isActive() const
 {
-    if (!shadowRoot())
+    if (!containingShadowRoot())
         return false;
     const Node* node = parentNode();
     while (node) {
-        if (WebCore::isInsertionPoint(node))
+        if (node->isInsertionPoint())
             return false;
 
         node = node->parentNode();
@@ -109,26 +112,10 @@ bool InsertionPoint::rendererIsNeeded(const NodeRenderingContext& context)
     return !isShadowBoundary() && HTMLElement::rendererIsNeeded(context);
 }
 
-Node* InsertionPoint::nextTo(const Node* node) const
-{
-    size_t index = m_distribution.find(node);
-    if (index == notFound || index + 1 == m_distribution.size())
-        return 0;
-    return m_distribution.at(index + 1).get();
-}
-
-Node* InsertionPoint::previousTo(const Node* node) const
-{
-    size_t index = m_distribution.find(node);
-    if (index == notFound || !index)
-        return 0;
-    return m_distribution.at(index - 1).get();
-}
-
 void InsertionPoint::childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta)
 {
     HTMLElement::childrenChanged(changedByParser, beforeChange, afterChange, childCountDelta);
-    if (ShadowRoot* root = shadowRoot())
+    if (ShadowRoot* root = containingShadowRoot())
         root->owner()->invalidateDistribution();
 }
 
@@ -136,7 +123,7 @@ Node::InsertionNotificationRequest InsertionPoint::insertedInto(ContainerNode* i
 {
     HTMLElement::insertedInto(insertionPoint);
     if (insertionPoint->inDocument()) {
-        if (ShadowRoot* root = shadowRoot()) {
+        if (ShadowRoot* root = containingShadowRoot()) {
             root->owner()->setValidityUndetermined();
             root->owner()->invalidateDistribution();
         }
@@ -148,9 +135,9 @@ Node::InsertionNotificationRequest InsertionPoint::insertedInto(ContainerNode* i
 void InsertionPoint::removedFrom(ContainerNode* insertionPoint)
 {
     if (insertionPoint->inDocument()) {
-        ShadowRoot* root = shadowRoot();
+        ShadowRoot* root = containingShadowRoot();
         if (!root)
-            root = insertionPoint->shadowRoot();
+            root = insertionPoint->containingShadowRoot();
 
         // host can be null when removedFrom() is called from ElementShadow destructor.
         if (root && root->host())
@@ -163,18 +150,24 @@ void InsertionPoint::removedFrom(ContainerNode* insertionPoint)
     HTMLElement::removedFrom(insertionPoint);
 }
 
+void InsertionPoint::parseAttribute(const QualifiedName& name, const AtomicString& value)
+{
+    if (name == reset_style_inheritanceAttr) {
+        if (!inDocument() || !attached() || !isActive())
+            return;
+        containingShadowRoot()->host()->setNeedsStyleRecalc();
+    } else
+        HTMLElement::parseAttribute(name, value);
+}
+
 bool InsertionPoint::resetStyleInheritance() const
 {
-    return m_shouldResetStyleInheritance;
+    return fastHasAttribute(reset_style_inheritanceAttr);
 }
 
 void InsertionPoint::setResetStyleInheritance(bool value)
 {
-    if (value != m_shouldResetStyleInheritance) {
-        m_shouldResetStyleInheritance = value;
-        if (attached() && isActive())
-            shadowRoot()->host()->setNeedsStyleRecalc();
-    }
+    setBooleanAttribute(reset_style_inheritanceAttr, value);
 }
 
 } // namespace WebCore

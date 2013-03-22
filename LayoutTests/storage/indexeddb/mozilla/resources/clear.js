@@ -11,39 +11,27 @@ if (this.importScripts) {
 
 description("Test IndexedDB's clearing an object store");
 
-function test()
+indexedDBTest(prepareDatabase, clear);
+function prepareDatabase()
 {
-    removeVendorPrefixes();
-
-    name = self.location.pathname;
-    request = evalAndLog("indexedDB.open(name)");
-    request.onsuccess = openSuccess;
-    request.onerror = unexpectedErrorCallback;
-}
-
-function openSuccess()
-{
-    db = evalAndLog("db = event.target.result");
-
-    request = evalAndLog("request = db.setVersion('1')");
-    request.onsuccess = cleanDatabase;
-    request.onerror = unexpectedErrorCallback;
-}
-
-function cleanDatabase()
-{
-    deleteAllObjectStores(db);
-
+    db = event.target.result;
+    event.target.transaction.onabort = unexpectedAbortCallback;
     objectStore = evalAndLog("objectStore = db.createObjectStore('foo', { autoIncrement: true });");
     request = evalAndLog("request = objectStore.add({});");
     request.onerror = unexpectedErrorCallback;
-    event.target.result.oncomplete = clear;
 }
 
 function clear()
 {
-    evalAndExpectException("db.transaction('foo').objectStore('foo').clear();", "IDBDatabaseException.READ_ONLY_ERR");
-    evalAndLog("db.transaction('foo', 'readwrite').objectStore('foo').clear();");
+    evalAndExpectException("db.transaction('foo').objectStore('foo').clear();", "0", "'ReadOnlyError'");
+    transaction = evalAndLog("db.transaction('foo', 'readwrite')");
+    evalAndLog("transaction.objectStore('foo').clear();");
+    transaction.oncomplete = cleared;
+    transaction.onabort = unexpectedAbortCallback;
+}
+
+function cleared()
+{
     request = evalAndLog("request = db.transaction('foo').objectStore('foo').openCursor();");
     request.onsuccess = areWeClearYet;
     request.onerror = unexpectedErrorCallback;
@@ -55,5 +43,3 @@ function areWeClearYet()
     shouldBe("cursor", "null");
     finishJSTest();
 }
-
-test();

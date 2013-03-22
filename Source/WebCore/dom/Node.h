@@ -27,12 +27,12 @@
 
 #include "EditingBoundary.h"
 #include "EventTarget.h"
-#include "FractionalLayoutRect.h"
 #include "KURLHash.h"
-#include "LayoutTypes.h"
+#include "LayoutRect.h"
 #include "MutationObserver.h"
 #include "RenderStyleConstants.h"
 #include "ScriptWrappable.h"
+#include "SimulatedClickOptions.h"
 #include "TreeShared.h"
 #include <wtf/Forward.h>
 #include <wtf/ListHashSet.h>
@@ -55,7 +55,6 @@ class ClassNodeList;
 class ContainerNode;
 class DOMSettableTokenList;
 class Document;
-class DynamicSubtreeNodeList;
 class Element;
 class Event;
 class EventContext;
@@ -99,7 +98,7 @@ class PropertyNodeList;
 
 typedef int ExceptionCode;
 
-const int nodeStyleChangeShift = 20;
+const int nodeStyleChangeShift = 17;
 
 // SyntheticStyleChange means that we need to go through the entire style change logic even though
 // no style property has actually changed. It is used to restructure the tree when, for instance,
@@ -109,6 +108,25 @@ enum StyleChangeType {
     InlineStyleChange = 1 << nodeStyleChangeShift, 
     FullStyleChange = 2 << nodeStyleChangeShift, 
     SyntheticStyleChange = 3 << nodeStyleChangeShift
+};
+
+class NodeRareDataBase {
+public:
+    RenderObject* renderer() const { return m_renderer; }
+    void setRenderer(RenderObject* renderer) { m_renderer = renderer; }
+
+    TreeScope* treeScope() const { return m_treeScope; }
+    void setTreeScope(TreeScope* scope) { m_treeScope = scope; }
+
+    virtual ~NodeRareDataBase() { }
+protected:
+    NodeRareDataBase(TreeScope* scope)
+        : m_treeScope(scope)
+    {
+    }
+private:
+    RenderObject* m_renderer;
+    TreeScope* m_treeScope;
 };
 
 class Node : public EventTarget, public ScriptWrappable, public TreeShared<Node, ContainerNode> {
@@ -172,6 +190,9 @@ public:
     bool hasAttributes() const;
     NamedNodeMap* attributes() const;
 
+    Node* pseudoAwarePreviousSibling() const;
+    Node* pseudoAwareNextSibling() const;
+
     virtual KURL baseURI() const;
     
     void getSubresourceURLs(ListHashSet<KURL>&) const;
@@ -216,6 +237,11 @@ public:
     bool isHTMLElement() const { return getFlag(IsHTMLFlag); }
     bool isSVGElement() const { return getFlag(IsSVGFlag); }
 
+    bool isPseudoElement() const { return pseudoId() != NOPSEUDO; }
+    bool isBeforePseudoElement() const { return pseudoId() == BEFORE; }
+    bool isAfterPseudoElement() const { return pseudoId() == AFTER; }
+    PseudoId pseudoId() const { return (isElementNode() && hasCustomCallbacks()) ? customPseudoId() : NOPSEUDO; }
+
     virtual bool isMediaControlElement() const { return false; }
     virtual bool isMediaControls() const { return false; }
     bool isStyledElement() const { return getFlag(IsStyledElementFlag); }
@@ -223,18 +249,23 @@ public:
     virtual bool isCharacterDataNode() const { return false; }
     virtual bool isFrameOwnerElement() const { return false; }
     virtual bool isPluginElement() const { return false; }
+    virtual bool documentFragmentIsShadowRoot() const;
     bool isDocumentNode() const;
-    bool isShadowRoot() const { return getFlag(IsShadowRootFlag); }
+    bool isDocumentFragment() const { return getFlag(IsDocumentFragmentFlag); }
+    bool isShadowRoot() const { return isDocumentFragment() && documentFragmentIsShadowRoot(); }
+    bool isInsertionPoint() const { return getFlag(IsInsertionPointFlag); }
     bool inNamedFlow() const { return getFlag(InNamedFlowFlag); }
-    bool hasAttrList() const { return getFlag(HasAttrListFlag); }
     bool hasCustomCallbacks() const { return getFlag(HasCustomCallbacksFlag); }
+
+    bool hasSyntheticAttrChildNodes() const { return getFlag(HasSyntheticAttrChildNodesFlag); }
+    void setHasSyntheticAttrChildNodes(bool flag) { setFlag(flag, HasSyntheticAttrChildNodesFlag); }
 
     // If this node is in a shadow tree, returns its shadow host. Otherwise, returns 0.
     Element* shadowHost() const;
     // If this node is in a shadow tree, returns its shadow host. Otherwise, returns this.
     // Deprecated. Should use shadowHost() and check the return value.
     Node* shadowAncestorNode() const;
-    ShadowRoot* shadowRoot() const;
+    ShadowRoot* containingShadowRoot() const;
     ShadowRoot* youngestShadowRoot() const;
 
     // Returns 0, a child of ShadowRoot, or a legacy shadow root.
@@ -299,16 +330,12 @@ public:
     virtual void finishParsingChildren() { }
     virtual void beginParsingChildren() { }
 
-    // Called on the focused node right before dispatching an unload event.
-    virtual void aboutToUnload() { }
-
     // For <link> and <style> elements.
     virtual bool sheetLoaded() { return true; }
     virtual void notifyLoadedSheetAndAllCriticalSubresources(bool /* error loading subresource */) { }
     virtual void startLoadingDynamicSheet() { ASSERT_NOT_REACHED(); }
 
-    bool attributeStyleDirty() const { return getFlag(AttributeStyleDirtyFlag); }
-    bool hasName() const { return getFlag(HasNameFlag); }
+    bool hasName() const { return !isTextNode() && getFlag(HasNameOrIsEditingTextFlag); }
     bool hasID() const;
     bool hasClass() const;
 
@@ -322,11 +349,9 @@ public:
     StyleChangeType styleChangeType() const { return static_cast<StyleChangeType>(m_nodeFlags & StyleChangeMask); }
     bool childNeedsStyleRecalc() const { return getFlag(ChildNeedsStyleRecalcFlag); }
     bool isLink() const { return getFlag(IsLinkFlag); }
+    bool isEditingText() const { return isTextNode() && getFlag(HasNameOrIsEditingTextFlag); }
 
-    void setAttributeStyleDirty() { setFlag(AttributeStyleDirtyFlag); }
-    void clearAttributeStyleDirty() { clearFlag(AttributeStyleDirtyFlag); }
-
-    void setHasName(bool f) { setFlag(f, HasNameFlag); }
+    void setHasName(bool f) { ASSERT(!isTextNode()); setFlag(f, HasNameOrIsEditingTextFlag); }
     void setChildNeedsStyleRecalc() { setFlag(ChildNeedsStyleRecalcFlag); }
     void clearChildNeedsStyleRecalc() { clearFlag(ChildNeedsStyleRecalcFlag); }
 
@@ -344,14 +369,14 @@ public:
     void setInNamedFlow() { setFlag(InNamedFlowFlag); }
     void clearInNamedFlow() { clearFlag(InNamedFlowFlag); }
 
-    void setHasAttrList() { setFlag(HasAttrListFlag); }
-    void clearHasAttrList() { clearFlag(HasAttrListFlag); }
-
     bool hasScopedHTMLStyleChild() const { return getFlag(HasScopedHTMLStyleChildFlag); }
     void setHasScopedHTMLStyleChild(bool flag) { setFlag(flag, HasScopedHTMLStyleChildFlag); }
 
     bool hasEventTargetData() const { return getFlag(HasEventTargetDataFlag); }
     void setHasEventTargetData(bool flag) { setFlag(flag, HasEventTargetDataFlag); }
+
+    bool isV8CollectableDuringMinorGC() const { return getFlag(V8CollectableDuringMinorGCFlag); }
+    void setV8CollectableDuringMinorGC(bool flag) { setFlag(flag, V8CollectableDuringMinorGCFlag); }
 
     enum ShouldSetAttached {
         SetAttached,
@@ -375,16 +400,20 @@ public:
     virtual bool isMouseFocusable() const;
     virtual Node* focusDelegate();
 
-    bool isContentEditable();
+    enum UserSelectAllTreatment {
+        UserSelectAllDoesNotAffectEditability,
+        UserSelectAllIsAlwaysNonEditable
+    };
+    bool isContentEditable(UserSelectAllTreatment = UserSelectAllDoesNotAffectEditability);
     bool isContentRichlyEditable();
 
     void inspect();
 
-    bool rendererIsEditable(EditableType editableType = ContentIsEditable) const
+    bool rendererIsEditable(EditableType editableType = ContentIsEditable, UserSelectAllTreatment treatment = UserSelectAllIsAlwaysNonEditable) const
     {
         switch (editableType) {
         case ContentIsEditable:
-            return rendererIsEditable(Editable);
+            return rendererIsEditable(Editable, treatment);
         case HasEditableAXRole:
             return isEditableToAccessibility(Editable);
         }
@@ -396,7 +425,7 @@ public:
     {
         switch (editableType) {
         case ContentIsEditable:
-            return rendererIsEditable(RichlyEditable);
+            return rendererIsEditable(RichlyEditable, UserSelectAllIsAlwaysNonEditable);
         case HasEditableAXRole:
             return isEditableToAccessibility(RichlyEditable);
         }
@@ -443,6 +472,7 @@ public:
     }
 
     bool isReadOnlyNode() const { return nodeType() == ENTITY_REFERENCE_NODE; }
+    bool isDocumentTypeNode() const { return nodeType() == DOCUMENT_TYPE_NODE; }
     virtual bool childTypeAllowed(NodeType) const { return false; }
     unsigned childNodeCount() const;
     Node* childNode(unsigned index) const;
@@ -476,13 +506,6 @@ public:
     bool contains(const Node*) const;
     bool containsIncludingShadowDOM(Node*);
 
-    // This method is used to do strict error-checking when adding children via
-    // the public DOM API (e.g., appendChild()).
-    void checkAddChild(Node* newChild, ExceptionCode&); // Error-checking when adding via the DOM API
-
-    void checkReplaceChild(Node* newChild, Node* oldChild, ExceptionCode&);
-    virtual bool canReplaceChild(Node* newChild, Node* oldChild);
-    
     // Used to determine whether range offsets use characters or node indices.
     virtual bool offsetInCharacters() const;
     // Number of DOM 16-bit units contained in node. Note that rendered text length can be different - e.g. because of
@@ -499,9 +522,16 @@ public:
     // -----------------------------------------------------------------------------
     // Integration with rendering tree
 
-    RenderObject* renderer() const { return m_renderer; }
-    void setRenderer(RenderObject* renderer) { m_renderer = renderer; }
-    
+    // As renderer() includes a branch you should avoid calling it repeatedly in hot code paths.
+    RenderObject* renderer() const { return hasRareData() ? m_data.m_rareData->renderer() : m_data.m_renderer; };
+    void setRenderer(RenderObject* renderer)
+    {
+        if (hasRareData())
+            m_data.m_rareData->setRenderer(renderer);
+        else
+            m_data.m_renderer = renderer;
+    }
+
     // Use these two methods with caution.
     RenderBox* renderBox() const;
     RenderBoxModelObject* renderBoxModelObject() const;
@@ -521,10 +551,6 @@ public:
 
     void reattach();
     void reattachIfAttached();
-    void createRendererIfNeeded();
-    virtual bool rendererIsNeeded(const NodeRenderingContext&);
-    virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const { return true; }
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
     ContainerNode* parentNodeForRenderingAndStyle();
     
     // Wrapper for nodes that don't have a renderer, but still cache the style (like HTMLOptionElement).
@@ -575,7 +601,6 @@ public:
 
     void invalidateNodeListCachesInAncestors(const QualifiedName* attrName = 0, Element* attributeOwnerElement = 0);
     NodeListsNodeData* nodeLists();
-    void removeCachedChildNodeList();
 
     PassRefPtr<NodeList> getElementsByTagName(const AtomicString&);
     PassRefPtr<NodeList> getElementsByTagNameNS(const AtomicString& namespaceURI, const AtomicString& localName);
@@ -624,7 +649,7 @@ public:
 #if ENABLE(GESTURE_EVENTS)
     bool dispatchGestureEvent(const PlatformGestureEvent&);
 #endif
-    void dispatchSimulatedClick(PassRefPtr<Event> underlyingEvent, bool sendMouseEvents = false, bool showPressedLook = true);
+    void dispatchSimulatedClick(Event* underlyingEvent, SimulatedClickMouseEventOptions = SendNoEvents, SimulatedClickVisualOptions = ShowPressedLook);
     bool dispatchBeforeLoadEvent(const String& sourceURL);
 
     virtual void dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode);
@@ -685,39 +710,33 @@ private:
         IsHoveredFlag = 1 << 11,
         InActiveChainFlag = 1 << 12,
         HasRareDataFlag = 1 << 13,
-        IsShadowRootFlag = 1 << 14,
+        IsDocumentFragmentFlag = 1 << 14,
 
         // These bits are used by derived classes, pulled up here so they can
         // be stored in the same memory word as the Node bits above.
         IsParsingChildrenFinishedFlag = 1 << 15, // Element
-        IsStyleAttributeValidFlag = 1 << 16, // StyledElement
 #if ENABLE(SVG)
-        AreSVGAttributesValidFlag = 1 << 17, // Element
-        IsSynchronizingSVGAttributesFlag = 1 << 18, // SVGElement
-        HasSVGRareDataFlag = 1 << 19, // SVGElement
+        HasSVGRareDataFlag = 1 << 16, // SVGElement
 #endif
 
         StyleChangeMask = 1 << nodeStyleChangeShift | 1 << (nodeStyleChangeShift + 1),
 
-        SelfOrAncestorHasDirAutoFlag = 1 << 22,
+        SelfOrAncestorHasDirAutoFlag = 1 << 19,
 
-        HasNameFlag = 1 << 23,
+        HasNameOrIsEditingTextFlag = 1 << 20,
 
-        AttributeStyleDirtyFlag = 1 << 24,
+        InNamedFlowFlag = 1 << 21,
+        HasSyntheticAttrChildNodesFlag = 1 << 22,
+        HasCustomCallbacksFlag = 1 << 23,
+        HasScopedHTMLStyleChildFlag = 1 << 24,
+        HasEventTargetDataFlag = 1 << 25,
+        V8CollectableDuringMinorGCFlag = 1 << 26,
+        IsInsertionPointFlag = 1 << 27,
 
-#if ENABLE(SVG)
-        DefaultNodeFlags = IsParsingChildrenFinishedFlag | IsStyleAttributeValidFlag | AreSVGAttributesValidFlag,
-#else
-        DefaultNodeFlags = IsParsingChildrenFinishedFlag | IsStyleAttributeValidFlag,
-#endif
-        InNamedFlowFlag = 1 << 26,
-        HasAttrListFlag = 1 << 27,
-        HasCustomCallbacksFlag = 1 << 28,
-        HasScopedHTMLStyleChildFlag = 1 << 29,
-        HasEventTargetDataFlag = 1 << 30,
+        DefaultNodeFlags = IsParsingChildrenFinishedFlag
     };
 
-    // 2 bits remaining
+    // 4 bits remaining
 
     bool getFlag(NodeFlags mask) const { return m_nodeFlags & mask; }
     void setFlag(bool f, NodeFlags mask) const { m_nodeFlags = (m_nodeFlags & ~mask) | (-(int32_t)f & mask); } 
@@ -730,14 +749,24 @@ protected:
         CreateText = DefaultNodeFlags | IsTextFlag,
         CreateContainer = DefaultNodeFlags | IsContainerFlag, 
         CreateElement = CreateContainer | IsElementFlag, 
-        CreateShadowRoot = CreateContainer | IsShadowRootFlag,
+        CreatePseudoElement =  CreateElement | InDocumentFlag,
+        CreateShadowRoot = CreateContainer | IsDocumentFragmentFlag,
+        CreateDocumentFragment = CreateContainer | IsDocumentFragmentFlag,
         CreateStyledElement = CreateElement | IsStyledElementFlag, 
         CreateHTMLElement = CreateStyledElement | IsHTMLFlag, 
         CreateFrameOwnerElement = CreateHTMLElement | HasCustomCallbacksFlag,
         CreateSVGElement = CreateStyledElement | IsSVGFlag,
-        CreateDocument = CreateContainer | InDocumentFlag
+        CreateDocument = CreateContainer | InDocumentFlag,
+        CreateInsertionPoint = CreateHTMLElement | IsInsertionPointFlag,
+        CreateEditingText = CreateText | HasNameOrIsEditingTextFlag,
     };
     Node(Document*, ConstructionType);
+
+    virtual PseudoId customPseudoId() const
+    {
+        ASSERT(hasCustomCallbacks());
+        return NOPSEUDO;
+    }
 
     virtual void didMoveToNewDocument(Document* oldDocument);
     
@@ -763,12 +792,11 @@ private:
     void removedLastRef();
 
     // These API should be only used for a tree scope migration.
-    // setTreeScope() returns NodeRareData to save extra nodeRareData() invocations on the caller site.
-    NodeRareData* setTreeScope(TreeScope*);
+    void setTreeScope(TreeScope*);
     void setDocument(Document*);
 
     enum EditableLevel { Editable, RichlyEditable };
-    bool rendererIsEditable(EditableLevel) const;
+    bool rendererIsEditable(EditableLevel, UserSelectAllTreatment = UserSelectAllIsAlwaysNonEditable) const;
     bool isEditableToAccessibility(EditableLevel) const;
 
     void setStyleChange(StyleChangeType);
@@ -779,7 +807,7 @@ private:
     virtual void refEventTarget();
     virtual void derefEventTarget();
 
-    virtual OwnPtr<NodeRareData> createRareData();
+    virtual PassOwnPtr<NodeRareData> createRareData();
     bool rareDataFocused() const;
 
     virtual RenderStyle* nonRendererStyle() const { return 0; }
@@ -811,13 +839,12 @@ private:
     Document* m_document;
     Node* m_previous;
     Node* m_next;
-    RenderObject* m_renderer;
-
-public:
-    bool isStyleAttributeValid() const { return getFlag(IsStyleAttributeValidFlag); }
-    void setIsStyleAttributeValid(bool f) { setFlag(f, IsStyleAttributeValidFlag); }
-    void setIsStyleAttributeValid() const { setFlag(IsStyleAttributeValidFlag); }
-    void clearIsStyleAttributeValid() { clearFlag(IsStyleAttributeValidFlag); }
+    // When a node has rare data we move the renderer into the rare data.
+    union DataUnion {
+        DataUnion() : m_renderer(0) { }
+        RenderObject* m_renderer;
+        NodeRareDataBase* m_rareData;
+    } m_data;
 
 protected:
     bool isParsingChildrenFinished() const { return getFlag(IsParsingChildrenFinishedFlag); }
@@ -825,12 +852,6 @@ protected:
     void clearIsParsingChildrenFinished() { clearFlag(IsParsingChildrenFinishedFlag); }
 
 #if ENABLE(SVG)
-    bool areSVGAttributesValid() const { return getFlag(AreSVGAttributesValidFlag); }
-    void setAreSVGAttributesValid() const { setFlag(AreSVGAttributesValidFlag); }
-    void clearAreSVGAttributesValid() { clearFlag(AreSVGAttributesValidFlag); }
-    bool isSynchronizingSVGAttributes() const { return getFlag(IsSynchronizingSVGAttributesFlag); }
-    void setIsSynchronizingSVGAttributes() const { setFlag(IsSynchronizingSVGAttributesFlag); }
-    void clearIsSynchronizingSVGAttributes() const { clearFlag(IsSynchronizingSVGAttributesFlag); }
     bool hasSVGRareData() const { return getFlag(HasSVGRareDataFlag); }
     void setHasSVGRareData() { setFlag(HasSVGRareDataFlag); }
     void clearHasSVGRareData() { clearFlag(HasSVGRareDataFlag); }
@@ -852,7 +873,7 @@ inline void addSubresourceURL(ListHashSet<KURL>& urls, const KURL& url)
 
 inline ContainerNode* Node::parentNode() const
 {
-    return getFlag(IsShadowRootFlag) ? 0 : parent();
+    return isShadowRoot() ? 0 : parent();
 }
 
 inline void Node::setParentOrHostNode(ContainerNode* parent)
@@ -867,7 +888,7 @@ inline ContainerNode* Node::parentOrHostNode() const
 
 inline ContainerNode* Node::parentNodeGuaranteedHostFree() const
 {
-    ASSERT(!getFlag(IsShadowRootFlag));
+    ASSERT(!isShadowRoot());
     return parentOrHostNode();
 }
 

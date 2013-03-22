@@ -23,6 +23,7 @@
 		1ADBEFE3130C6AA100D61D19 /* simple-accelerated-compositing.html in Copy Resources */ = {isa = PBXBuildFile; fileRef = 1ADBEFBC130C6A0100D61D19 /* simple-accelerated-compositing.html */; };
 		1AEDE22613E5E7E700E62FE8 /* InjectedBundleControllerMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1AEDE22413E5E7A000E62FE8 /* InjectedBundleControllerMac.mm */; };
 		261516D615B0E60500A2C201 /* SetAndUpdateCacheModel.mm in Sources */ = {isa = PBXBuildFile; fileRef = 261516D515B0E60500A2C201 /* SetAndUpdateCacheModel.mm */; };
+		26300B1816755CD90066886D /* ListHashSet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26300B1716755CD90066886D /* ListHashSet.cpp */; };
 		265AF55015D1E48A00B0CB4A /* WTFString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 265AF54F15D1E48A00B0CB4A /* WTFString.cpp */; };
 		266FAFD315E5775200F61D5B /* IntegerToStringConversion.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 266FAFD215E5775200F61D5B /* IntegerToStringConversion.cpp */; };
 		26A2C72F15E2E73C005B1A14 /* CString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26A2C72E15E2E73C005B1A14 /* CString.cpp */; };
@@ -32,6 +33,8 @@
 		26F1B44415CA434F00D1E4BF /* AtomicString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26F1B44215CA434F00D1E4BF /* AtomicString.cpp */; };
 		26F1B44515CA434F00D1E4BF /* StringImpl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26F1B44315CA434F00D1E4BF /* StringImpl.cpp */; };
 		2943BE86161DFEB800999E3D /* UserContentTest.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2943BE84161DFEB800999E3D /* UserContentTest.mm */; };
+		29AB8AA1164C735800D49BEC /* CustomProtocolsTest.mm in Sources */ = {isa = PBXBuildFile; fileRef = 29AB8A9F164C735800D49BEC /* CustomProtocolsTest.mm */; };
+		29AB8AA4164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 29AB8AA2164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.mm */; };
 		333B9CE21277F23100FEFCE3 /* PreventEmptyUserAgent.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 333B9CE11277F23100FEFCE3 /* PreventEmptyUserAgent.cpp */; };
 		33BE5AF5137B5A6C00705813 /* MouseMoveAfterCrash.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 33BE5AF4137B5A6C00705813 /* MouseMoveAfterCrash.cpp */; };
 		33BE5AF9137B5AAE00705813 /* MouseMoveAfterCrash_Bundle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 33BE5AF8137B5AAE00705813 /* MouseMoveAfterCrash_Bundle.cpp */; };
@@ -265,6 +268,7 @@
 		1ADBEFBC130C6A0100D61D19 /* simple-accelerated-compositing.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = "simple-accelerated-compositing.html"; sourceTree = "<group>"; };
 		1AEDE22413E5E7A000E62FE8 /* InjectedBundleControllerMac.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = InjectedBundleControllerMac.mm; sourceTree = "<group>"; };
 		261516D515B0E60500A2C201 /* SetAndUpdateCacheModel.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = SetAndUpdateCacheModel.mm; sourceTree = "<group>"; };
+		26300B1716755CD90066886D /* ListHashSet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ListHashSet.cpp; path = WTF/ListHashSet.cpp; sourceTree = "<group>"; };
 		265AF54F15D1E48A00B0CB4A /* WTFString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = WTFString.cpp; path = WTF/WTFString.cpp; sourceTree = "<group>"; };
 		266FAFD215E5775200F61D5B /* IntegerToStringConversion.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = IntegerToStringConversion.cpp; path = WTF/IntegerToStringConversion.cpp; sourceTree = "<group>"; };
 		26A2C72E15E2E73C005B1A14 /* CString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CString.cpp; path = WTF/CString.cpp; sourceTree = "<group>"; };
@@ -274,6 +278,9 @@
 		26F1B44215CA434F00D1E4BF /* AtomicString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AtomicString.cpp; path = WTF/AtomicString.cpp; sourceTree = "<group>"; };
 		26F1B44315CA434F00D1E4BF /* StringImpl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = StringImpl.cpp; path = WTF/StringImpl.cpp; sourceTree = "<group>"; };
 		2943BE84161DFEB800999E3D /* UserContentTest.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = UserContentTest.mm; path = WebKit2ObjC/UserContentTest.mm; sourceTree = "<group>"; };
+		29AB8A9F164C735800D49BEC /* CustomProtocolsTest.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = CustomProtocolsTest.mm; path = WebKit2ObjC/CustomProtocolsTest.mm; sourceTree = "<group>"; };
+		29AB8AA2164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TestBrowsingContextLoadDelegate.mm; sourceTree = "<group>"; };
+		29AB8AA3164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestBrowsingContextLoadDelegate.h; sourceTree = "<group>"; };
 		333B9CE11277F23100FEFCE3 /* PreventEmptyUserAgent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PreventEmptyUserAgent.cpp; sourceTree = "<group>"; };
 		33BE5AF4137B5A6C00705813 /* MouseMoveAfterCrash.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MouseMoveAfterCrash.cpp; sourceTree = "<group>"; };
 		33BE5AF8137B5AAE00705813 /* MouseMoveAfterCrash_Bundle.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MouseMoveAfterCrash_Bundle.cpp; sourceTree = "<group>"; };
@@ -541,6 +548,7 @@
 		BC3C4C6F14575B1D0025FB62 /* WebKit2 Objective-C */ = {
 			isa = PBXGroup;
 			children = (
+				29AB8A9F164C735800D49BEC /* CustomProtocolsTest.mm */,
 				2943BE84161DFEB800999E3D /* UserContentTest.mm */,
 				BC3C4C7D14587AA60025FB62 /* WKBrowsingContextGroupTest.mm */,
 				BC3C4C7014575B6A0025FB62 /* WKBrowsingContextLoadDelegateTest.mm */,
@@ -660,6 +668,7 @@
 				1AA9E55714980A9900001A8A /* Functional.cpp */,
 				0BCD833414857CE400EA2003 /* HashMap.cpp */,
 				26B2DFF815BDE599004F691D /* HashSet.cpp */,
+				26300B1716755CD90066886D /* ListHashSet.cpp */,
 				B4039F9C15E6D8B3007255D6 /* MathExtras.cpp */,
 				14F3B11215E45EAB00210069 /* SaturatedArithmeticOperations.cpp */,
 				266FAFD215E5775200F61D5B /* IntegerToStringConversion.cpp */,
@@ -711,6 +720,8 @@
 				BC90955C125548AA00083756 /* PlatformWebViewMac.mm */,
 				C081224313FC19EC00DC39AE /* SyntheticBackingScaleFactorWindow.h */,
 				C081224413FC19EC00DC39AE /* SyntheticBackingScaleFactorWindow.m */,
+				29AB8AA3164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.h */,
+				29AB8AA2164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.mm */,
 				C08587BE13FE956C001EF4E5 /* WebKitAgnosticTest.h */,
 				C08587BD13FE956C001EF4E5 /* WebKitAgnosticTest.mm */,
 			);
@@ -951,6 +962,7 @@
 				C0ADBE7C12FCA4D000D2C129 /* JavaScriptTest.cpp in Sources */,
 				C081224213FC172400DC39AE /* JavaScriptTestMac.mm in Sources */,
 				440A1D3914A0103A008A66F2 /* KURL.cpp in Sources */,
+				26300B1816755CD90066886D /* ListHashSet.cpp in Sources */,
 				52CB47411448FB9300873995 /* LoadAlternateHTMLStringWithNonDirectoryURL.cpp in Sources */,
 				33DC8911141953A300747EF7 /* LoadCanceledNoServerRedirectCallback.cpp in Sources */,
 				BC131A9B1171316900B69727 /* main.mm in Sources */,
@@ -1016,6 +1028,8 @@
 				4F4D2C0E1626FE2700320FE1 /* MemoryInstrumentationTest.cpp in Sources */,
 				378E64731632646D00B6C676 /* InjectedBundleFrameHitTest.cpp in Sources */,
 				FE217ECD1640A54A0052988B /* VMInspector.cpp in Sources */,
+				29AB8AA1164C735800D49BEC /* CustomProtocolsTest.mm in Sources */,
+				29AB8AA4164C7A9300D49BEC /* TestBrowsingContextLoadDelegate.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

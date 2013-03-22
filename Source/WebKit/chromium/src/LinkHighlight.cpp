@@ -30,7 +30,6 @@
 #include "Color.h"
 #include "Frame.h"
 #include "FrameView.h"
-#include "LayoutTypes.h"
 #include "Node.h"
 #include "NonCompositedContentHost.h"
 #include "PlatformContextSkia.h"
@@ -49,6 +48,7 @@
 #include <public/WebRect.h>
 #include <public/WebSize.h>
 #include <public/WebTransformationMatrix.h>
+#include <wtf/CurrentTime.h>
 
 using namespace WebCore;
 
@@ -67,6 +67,7 @@ LinkHighlight::LinkHighlight(Node* node, WebViewImpl* owningWebViewImpl)
     , m_currentGraphicsLayer(0)
     , m_geometryNeedsUpdate(false)
     , m_isAnimating(false)
+    , m_startTime(monotonicallyIncreasingTime())
 {
     ASSERT(m_node);
     ASSERT(owningWebViewImpl);
@@ -226,7 +227,7 @@ bool LinkHighlight::computeHighlightLayerPathAndPosition(RenderLayer* compositin
     return pathHasChanged;
 }
 
-void LinkHighlight::paintContents(WebCanvas* canvas, const WebRect& webClipRect, WebFloatRect&)
+void LinkHighlight::paintContents(WebCanvas* canvas, const WebRect& webClipRect, bool, WebFloatRect&)
 {
     if (!m_node || !m_node->renderer())
         return;
@@ -247,7 +248,8 @@ void LinkHighlight::startHighlightAnimationIfNeeded()
     m_isAnimating = true;
     const float startOpacity = 1;
     // FIXME: Should duration be configurable?
-    const float duration = 0.1f;
+    const float fadeDuration = 0.1f;
+    const float minPreFadeDuration = 0.1f;
 
     m_contentLayer->layer()->setOpacity(startOpacity);
 
@@ -256,9 +258,12 @@ void LinkHighlight::startHighlightAnimationIfNeeded()
     OwnPtr<WebFloatAnimationCurve> curve = adoptPtr(compositorSupport->createFloatAnimationCurve());
 
     curve->add(WebFloatKeyframe(0, startOpacity));
-    curve->add(WebFloatKeyframe(duration / 2, startOpacity));
+    // Make sure we have displayed for at least minPreFadeDuration before starting to fade out.
+    float extraDurationRequired = std::max(0.f, minPreFadeDuration - static_cast<float>(monotonicallyIncreasingTime() - m_startTime));
+    if (extraDurationRequired)
+        curve->add(WebFloatKeyframe(extraDurationRequired, startOpacity));
     // For layout tests we don't fade out.
-    curve->add(WebFloatKeyframe(duration, WebKit::layoutTestMode() ? startOpacity : 0));
+    curve->add(WebFloatKeyframe(fadeDuration + extraDurationRequired, WebKit::layoutTestMode() ? startOpacity : 0));
 
     m_animation = adoptPtr(compositorSupport->createAnimation(*curve, WebAnimation::TargetPropertyOpacity));
 
@@ -303,6 +308,9 @@ void LinkHighlight::updateGeometry()
         // We only need to invalidate the layer if the highlight size has changed, otherwise
         // we can just re-position the layer without needing to repaint.
         m_contentLayer->layer()->invalidate();
+
+        if (m_currentGraphicsLayer)
+            m_currentGraphicsLayer->addRepaintRect(FloatRect(layer()->position().x, layer()->position().y, layer()->bounds().width, layer()->bounds().height));
     }
 }
 

@@ -45,12 +45,14 @@ public:
     virtual WebCore::IDBDatabaseMetadata metadata() const;
 
     virtual PassRefPtr<WebCore::IDBObjectStoreBackendInterface> createObjectStore(int64_t, const String& name, const WebCore::IDBKeyPath&, bool autoIncrement, WebCore::IDBTransactionBackendInterface*, WebCore::ExceptionCode&);
-    virtual void deleteObjectStore(const String& name, WebCore::IDBTransactionBackendInterface*, WebCore::ExceptionCode&);
     virtual void deleteObjectStore(int64_t, WebCore::IDBTransactionBackendInterface*, WebCore::ExceptionCode&);
-    virtual void setVersion(const String& version, PassRefPtr<WebCore::IDBCallbacks>, PassRefPtr<WebCore::IDBDatabaseCallbacks>, WebCore::ExceptionCode&);
-    virtual PassRefPtr<WebCore::IDBTransactionBackendInterface> transaction(WebCore::DOMStringList* storeNames, unsigned short mode, WebCore::ExceptionCode&);
-    virtual PassRefPtr<WebCore::IDBTransactionBackendInterface> transaction(const Vector<int64_t>&, unsigned short mode);
+    // FIXME: Remove this method in https://bugs.webkit.org/show_bug.cgi?id=103923.
+    virtual PassRefPtr<WebCore::IDBTransactionBackendInterface> createTransaction(int64_t, const Vector<int64_t>&, WebCore::IDBTransaction::Mode);
+    virtual void createTransaction(int64_t, PassRefPtr<WebCore::IDBDatabaseCallbacks>, const Vector<int64_t>&, unsigned short mode);
     virtual void close(PassRefPtr<WebCore::IDBDatabaseCallbacks>);
+
+    virtual void commit(int64_t);
+    virtual void abort(int64_t);
 
 private:
     IDBDatabaseBackendProxy(PassOwnPtr<WebIDBDatabase>);

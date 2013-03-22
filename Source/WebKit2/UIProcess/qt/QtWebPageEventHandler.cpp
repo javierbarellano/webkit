@@ -435,6 +435,12 @@ void QtWebPageEventHandler::updateTextInputState()
     setInputPanelVisible(editor.isContentEditable);
 }
 
+void QtWebPageEventHandler::handleWillSetInputMethodState()
+{
+    if (qApp->inputMethod()->isVisible())
+        qApp->inputMethod()->commit();
+}
+
 void QtWebPageEventHandler::doneWithGestureEvent(const WebGestureEvent& event, bool wasEventHandled)
 {
     if (event.type() != WebEvent::GestureSingleTap)
@@ -500,6 +506,7 @@ void QtWebPageEventHandler::handleInputEvent(const QInputEvent* event)
         m_isMouseButtonPressed = false;
         break;
     case QEvent::MouseButtonDblClick:
+        ASSERT_NOT_REACHED();
         return;
     default:
         break;

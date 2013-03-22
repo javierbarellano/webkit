@@ -139,13 +139,6 @@ static void notifyStatus(WebKitWebFrame* frame, WebKitLoadStatus loadStatus)
     }
 }
 
-static void loadDone(WebKitWebFrame* frame, bool didSucceed)
-{
-    // FIXME: load-done is deprecated. Please remove when signal's been removed.
-    g_signal_emit_by_name(frame, "load-done", didSucceed);
-    notifyStatus(frame, WEBKIT_LOAD_FINISHED);
-}
-
 WTF::PassRefPtr<WebCore::DocumentLoader> FrameLoaderClient::createDocumentLoader(const WebCore::ResourceRequest& request, const SubstituteData& substituteData)
 {
     RefPtr<WebKit::DocumentLoader> loader = WebKit::DocumentLoader::create(request, substituteData);
@@ -192,21 +185,21 @@ void FrameLoaderClient::committedLoad(WebCore::DocumentLoader* loader, const cha
     }
 }
 
-bool
-FrameLoaderClient::shouldUseCredentialStorage(WebCore::DocumentLoader*, unsigned long  identifier)
+bool FrameLoaderClient::shouldUseCredentialStorage(WebCore::DocumentLoader*, unsigned long  identifier)
 {
-    notImplemented();
-    return false;
+    return true;
 }
 
 void FrameLoaderClient::dispatchDidReceiveAuthenticationChallenge(WebCore::DocumentLoader*, unsigned long  identifier, const AuthenticationChallenge& challenge)
 {
-    if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled())
+    if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled()) {
+        challenge.authenticationClient()->receivedRequestToContinueWithoutCredential(challenge);
         return;
+    }
 
     GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(webkit_web_frame_get_web_view(m_frame)));
     GtkWindow* toplevelWindow = widgetIsOnscreenToplevelWindow(toplevel) ? GTK_WINDOW(toplevel) : 0;
-    GtkAuthenticationDialog* dialog = new GtkAuthenticationDialog(toplevelWindow, challenge.soupSession(), challenge.soupMessage(), challenge.soupAuth());
+    GtkAuthenticationDialog* dialog = new GtkAuthenticationDialog(toplevelWindow, challenge);
     dialog->show();
 }
 
@@ -626,8 +619,7 @@ void FrameLoaderClient::dispatchDidFinishLoad()
         m_loadingErrorPage = false;
         return;
     }
-
-    loadDone(m_frame, true);
+    notifyStatus(m_frame, WEBKIT_LOAD_FINISHED);
 }
 
 void FrameLoaderClient::frameLoadCompleted()

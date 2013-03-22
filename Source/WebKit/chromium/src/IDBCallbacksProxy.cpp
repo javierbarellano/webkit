@@ -31,6 +31,7 @@
 
 #if ENABLE(INDEXED_DATABASE)
 
+#include "DOMStringList.h"
 #include "IDBCursorBackendInterface.h"
 #include "IDBDatabaseBackendInterface.h"
 #include "IDBDatabaseBackendProxy.h"
@@ -84,11 +85,6 @@ void IDBCallbacksProxy::onSuccess(PassRefPtr<IDBDatabaseBackendInterface> backen
 void IDBCallbacksProxy::onSuccess(PassRefPtr<IDBKey> idbKey)
 {
     m_callbacks->onSuccess(WebIDBKey(idbKey));
-}
-
-void IDBCallbacksProxy::onSuccess(PassRefPtr<IDBTransactionBackendInterface> backend)
-{
-    m_callbacks->onSuccess(new WebIDBTransactionImpl(backend));
 }
 
 void IDBCallbacksProxy::onSuccess(PassRefPtr<DOMStringList> domStringList)

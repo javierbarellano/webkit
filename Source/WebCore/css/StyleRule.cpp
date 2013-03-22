@@ -28,6 +28,7 @@
 #include "CSSMediaRule.h"
 #include "CSSPageRule.h"
 #include "CSSStyleRule.h"
+#include "CSSUnknownRule.h"
 #include "StyleRuleImport.h"
 #include "WebCoreMemoryInstrumentation.h"
 #include "WebKitCSSKeyframeRule.h"
@@ -220,6 +221,9 @@ PassRefPtr<CSSRule> StyleRuleBase::createCSSOMWrapper(CSSStyleSheet* parentSheet
         break;
 #endif
     case Host:
+        // FIXME: The current CSSOM editor's draft (http://dev.w3.org/csswg/cssom/) does not handle @host rules (see bug 102344).
+        rule = adoptRef(new CSSUnknownRule());
+        break;
     case Unknown:
     case Charset:
     case Keyframe:
@@ -236,7 +240,7 @@ PassRefPtr<CSSRule> StyleRuleBase::createCSSOMWrapper(CSSStyleSheet* parentSheet
 
 unsigned StyleRule::averageSizeInBytes()
 {
-    return sizeof(StyleRule) + StylePropertySet::averageSizeInBytes();
+    return sizeof(StyleRule) + sizeof(CSSSelector) + StylePropertySet::averageSizeInBytes();
 }
 
 void StyleRule::reportDescendantMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
@@ -392,7 +396,7 @@ void StyleRuleMedia::reportDescendantMemoryUsage(MemoryObjectInfo* memoryObjectI
     info.addMember(m_mediaQueries);
 }
 
-StyleRuleRegion::StyleRuleRegion(CSSSelectorVector* selectors, Vector<RefPtr<StyleRuleBase> >& adoptRules)
+StyleRuleRegion::StyleRuleRegion(Vector<OwnPtr<CSSParserSelector> >* selectors, Vector<RefPtr<StyleRuleBase> >& adoptRules)
     : StyleRuleBlock(Region, adoptRules)
 {
     m_selectorList.adoptSelectorVector(*selectors);

@@ -10,6 +10,7 @@
       <dep package="fonts"/>
       <dep package="fontconfig"/>
       <dep package="freetype6"/>
+      <dep package="harfbuzz"/>
       <dep package="libxml2"/>
       <dep package="gdk-pixbuf"/>
       <dep package="gtk+"/>
@@ -54,10 +55,10 @@
       <dep package="fontconfig"/>
       <dep package="pixman"/>
     </dependencies>
-    <branch module="releases/cairo-1.10.2.tar.gz" version="1.10.2"
+    <branch module="releases/cairo-1.12.8.tar.xz" version="1.12.8"
             repo="cairographics.org"
-            hash="sha256:32018c7998358eebc2ad578ff8d8559d34fc80252095f110a572ed23d989fc41"
-            md5sum="f101a9e88b783337b20b2e26dfd26d5f">
+            hash="sha256:8fbb6fc66117ab4100bad830cb4479497e53c6f3facb98bf05c8d298554ebdd9"
+            md5sum="8b3dcade859c44fb7e56fc68edfe9a45">
     </branch>
   </autotools>
 
@@ -84,6 +85,16 @@
             hash="sha256:9a987aef8c50d9bcfdfdc9f012f8bd0de6095cc1a5524e62c1a037deb8dacbfe"
             md5sum="647ee8ed266f9a4117c8d0a4855b3d3e"/>
   </tarball>
+
+ <autotools id="harfbuzz" autogen-sh="configure">
+   <branch module="software/harfbuzz/release/harfbuzz-0.9.6.tar.bz2" version="0.9.6"
+           checkoutdir="harfbuzz-0.9.6"
+           repo="freedesktop.org"
+           hash="sha256:394a849d6061993018754b0cc04110891ad215e3df3f6953b75dcc55a11f9d9b"
+           md5sum="f3a100a0512c185b211a0deb4790c34c">
+     <patch file="harfbuzz-icu-detection-fix.patch" strip="1" />
+   </branch>
+ </autotools>
 
   <autotools id="libffi" autogen-sh="configure">
     <branch module="/pub/libffi/libffi-3.0.10.tar.gz" version="3.0.10"
@@ -114,25 +125,11 @@
             md5sum="89d483f30a7c77245b7ee02faaea5a5a"/>
   </autotools>
 
-  <autotools id="pango"
-             autogenargs="--disable-introspection">
-    <dependencies>
-      <dep package="glib"/>
-      <dep package="freetype6"/>
-      <dep package="cairo"/>
-    </dependencies>
-    <branch module="/pub/GNOME/sources/pango/1.30/pango-1.30.0.tar.xz" version="1.30.0"
-            repo="ftp.gnome.org"
-            hash="sha256:7c6d2ab024affaed0e942f9279b818235f9c6a36d9fc50688f48d387f4102dff"
-            md5sum="2a70627ffd9f43c52c04cc0b05fe359f"/>
-  </autotools>
-
   <autotools id="gtk+" autogen-sh="configure"
              autogenargs="--disable-introspection">
     <dependencies>
       <dep package="glib"/>
       <dep package="cairo"/>
-      <dep package="pango"/>
       <dep package="gdk-pixbuf"/>
     </dependencies>
     <branch module="/pub/GNOME/sources/gtk+/3.4/gtk+-3.4.2.tar.xz" version="3.4.2"
@@ -167,9 +164,10 @@
     <dependencies>
       <dep package="glib-networking"/>
     </dependencies>
-    <branch module="libsoup" version="2.39.2"
-            repo="git.gnome.org"
-            tag="LIBSOUP_2_39_2"/>
+    <branch module="/pub/gnome/sources/libsoup/2.40/libsoup-2.40.1.tar.xz" version="2.40.1"
+            repo="ftp.gnome.org"
+            hash="sha256:77a55d57e7e8055acd2f44e0cc889b9ba48052e8b7f07e829157d57417ac650a"
+            md5sum="2fa30bab92d770eeb6535e1504ab2ded"/>
   </autotools>
 
   <autotools id="fontconfig" autogen-sh="configure">
@@ -228,10 +226,10 @@
   </autotools>
 
   <autotools id="libxml2">
-    <branch module="/libxml2/libxml2-2.8.0.tar.gz" version="2.8.0"
+    <branch module="/libxml2/libxml2-2.9.0.tar.gz" version="2.9.0"
             repo="xmlsoft.org"
-            hash="sha256:f2e2d0e322685193d1affec83b21dc05d599e17a7306d7b90de95bb5b9ac622a"
-            md5sum="c62106f02ee00b6437f0fb9d370c1093"/>
+            hash="sha256:ad25d91958b7212abdc12b9611cfb4dc4e5cddb6d1e9891532f48aacee422b82"
+            md5sum="5b9bebf4f5d2200ae2c4efe8fa6103f7"/>
   </autotools>
 
 </moduleset>

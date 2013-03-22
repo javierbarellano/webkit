@@ -75,6 +75,11 @@ namespace WebCore {
         Deferred
     };
 
+    enum ScaleBehavior {
+        Scaled,
+        Unscaled
+    };
+
     class ImageBuffer {
         WTF_MAKE_NONCOPYABLE(ImageBuffer); WTF_MAKE_FAST_ALLOCATED;
     public:
@@ -88,6 +93,8 @@ namespace WebCore {
             return buf.release();
         }
 
+        static PassOwnPtr<ImageBuffer> createCompatibleBuffer(const IntSize&, float resolutionScale, ColorSpace, const GraphicsContext*, bool hasAlpha);
+
         ~ImageBuffer();
 
         // The actual resolution of the backing store
@@ -96,7 +103,7 @@ namespace WebCore {
 
         GraphicsContext* context() const;
 
-        PassRefPtr<Image> copyImage(BackingStoreCopy = CopyBackingStore) const;
+        PassRefPtr<Image> copyImage(BackingStoreCopy = CopyBackingStore, ScaleBehavior = Scaled) const;
 
         enum CoordinateSystem { LogicalCoordinateSystem, BackingStoreCoordinateSystem };
 
@@ -120,7 +127,7 @@ namespace WebCore {
 #endif
 
         // FIXME: current implementations of this method have the restriction that they only work
-        // with textures that are RGBA format and UNSIGNED_BYTE type.
+        // with textures that are RGB or RGBA format, and UNSIGNED_BYTE type.
         bool copyToPlatformTexture(GraphicsContext3D&, Platform3DObject, GC3Denum, bool, bool);
 
         void reportMemoryUsage(MemoryObjectInfo*) const;
@@ -131,7 +138,7 @@ namespace WebCore {
 #endif
         void clip(GraphicsContext*, const FloatRect&) const;
 
-        void draw(GraphicsContext*, ColorSpace, const FloatRect& destRect, const FloatRect& srcRect = FloatRect(0, 0, -1, -1), CompositeOperator = CompositeSourceOver, bool useLowQualityScale = false);
+        void draw(GraphicsContext*, ColorSpace, const FloatRect& destRect, const FloatRect& srcRect = FloatRect(0, 0, -1, -1), CompositeOperator = CompositeSourceOver, BlendMode = BlendModeNormal, bool useLowQualityScale = false);
         void drawPattern(GraphicsContext*, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator, const FloatRect& destRect);
 
         inline void genericConvertToLuminanceMask();
@@ -151,6 +158,9 @@ namespace WebCore {
         // This constructor will place its success into the given out-variable
         // so that create() knows when it should return failure.
         ImageBuffer(const IntSize&, float resolutionScale, ColorSpace, RenderingMode, DeferralMode, bool& success);
+#if USE(SKIA)
+        ImageBuffer(const IntSize&, float resolutionScale, ColorSpace, const GraphicsContext*, bool hasAlpha, bool& success);
+#endif
     };
 
 #if USE(CG) || USE(SKIA)

@@ -27,13 +27,14 @@
 #if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
 #include "DateTimeNumericFieldElement.h"
 
-#include "FontCache.h"
+#include "CSSPropertyNames.h"
+#include "CSSValueKeywords.h"
+#include "Font.h"
 #include "KeyboardEvent.h"
 #include "PlatformLocale.h"
-#include "RenderStyle.h"
-#include "StyleResolver.h"
-#include "TextRun.h"
 #include <wtf/text/StringBuilder.h>
+
+using namespace WTF::Unicode;
 
 namespace WebCore {
 
@@ -66,7 +67,15 @@ DateTimeNumericFieldElement::DateTimeNumericFieldElement(Document* document, Fie
     , m_value(0)
     , m_hasValue(false)
 {
-    setHasCustomCallbacks();
+    // We show a direction-neutral string such as "--" as a placeholder. It
+    // should follow the direction of numeric values.
+    if (localeForOwner().isRTL()) {
+        Direction dir = direction(formatValue(this->maximum())[0]);
+        if (dir == LeftToRight || dir == EuropeanNumber || dir == ArabicNumber) {
+            setInlineStyleProperty(CSSPropertyUnicodeBidi, CSSValueBidiOverride);
+            setInlineStyleProperty(CSSPropertyDirection, CSSValueLtr);
+        }
+    }
 }
 
 int DateTimeNumericFieldElement::clampValueForHardLimits(int value) const
@@ -74,16 +83,12 @@ int DateTimeNumericFieldElement::clampValueForHardLimits(int value) const
     return clampValue(value);
 }
 
-PassRefPtr<RenderStyle> DateTimeNumericFieldElement::customStyleForRenderer()
+float DateTimeNumericFieldElement::maximumWidth(const Font& font)
 {
-    FontCachePurgePreventer fontCachePurgePreventer;
-    RefPtr<RenderStyle> originalStyle = document()->styleResolver()->styleForElement(this);
-    RefPtr<RenderStyle> style = RenderStyle::clone(originalStyle.get());
-    float maxiumWidth = style->font().width(m_placeholder);
-    maxiumWidth = std::max(maxiumWidth, style->font().width(formatValue(maximum())));
-    maxiumWidth = std::max(maxiumWidth, style->font().width(value()));
-    style->setMinWidth(Length(maxiumWidth, Fixed));
-    return style.release();
+    float maximumWidth = font.width(m_placeholder);
+    maximumWidth = std::max(maximumWidth, font.width(formatValue(maximum())));
+    maximumWidth = std::max(maximumWidth, font.width(value()));
+    return maximumWidth + DateTimeFieldElement::maximumWidth(font);
 }
 
 int DateTimeNumericFieldElement::defaultValueForStepDown() const
@@ -160,14 +165,12 @@ int DateTimeNumericFieldElement::minimum() const
     return m_range.minimum;
 }
 
-void DateTimeNumericFieldElement::setEmptyValue(const DateComponents& dateForReadOnlyField, EventBehavior eventBehavior)
+void DateTimeNumericFieldElement::setEmptyValue(EventBehavior eventBehavior)
 {
     m_lastDigitCharTime = 0;
 
-    if (isReadOnly()) {
-        setValueAsDate(dateForReadOnlyField);
+    if (isReadOnly())
         return;
-    }
 
     m_hasValue = false;
     m_value = 0;

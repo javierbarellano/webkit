@@ -26,7 +26,9 @@
 #import "config.h"
 #import "WebProcess.h"
 
+#import "CustomProtocolManager.h"
 #import "SandboxExtension.h"
+#import "SecItemShimMethods.h"
 #import "WKFullKeyboardAccessWatcher.h"
 #import "WebInspector.h"
 #import "WebPage.h"
@@ -45,12 +47,6 @@
 #import <mach/mach_error.h>
 #import <objc/runtime.h>
 #import <stdio.h>
-
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == 1060
-#import "KeychainItemShimMethods.h"
-#else
-#import "SecItemShimMethods.h"
-#endif
 
 #if ENABLE(WEB_PROCESS_SANDBOX)
 #import <pwd.h>
@@ -263,11 +259,6 @@ void WebProcess::platformInitializeWebProcess(const WebProcessCreationParameters
     SandboxExtension::consumePermanently(parameters.applicationCacheDirectoryExtensionHandle);
     SandboxExtension::consumePermanently(parameters.diskCacheDirectoryExtensionHandle);
 
-    if (!parameters.parentProcessName.isNull()) {
-        NSString *applicationName = [NSString stringWithFormat:WEB_UI_STRING("%@ Web Content", "Visible name of the web process. The argument is the application name."), (NSString *)parameters.parentProcessName];
-        WKSetVisibleApplicationName((CFStringRef)applicationName);
-    }
-
     if (!parameters.diskCacheDirectory.isNull()) {
         NSUInteger cacheMemoryCapacity = parameters.nsURLCacheMemoryCapacity;
         NSUInteger cacheDiskCapacity = parameters.nsURLCacheDiskCapacity;
@@ -291,15 +282,16 @@ void WebProcess::platformInitializeWebProcess(const WebProcessCreationParameters
     // no window in WK2, NSApplication needs to use the focused page's focused element.
     Method methodToPatch = class_getInstanceMethod([NSApplication class], @selector(accessibilityFocusedUIElement));
     method_setImplementation(methodToPatch, (IMP)NSApplicationAccessibilityFocusedUIElement);
+    
+    for (size_t i = 0; i < parameters.urlSchemesRegisteredForCustomProtocols.size(); ++i)
+        CustomProtocolManager::shared().registerScheme(parameters.urlSchemesRegisteredForCustomProtocols[i]);
+    
+    CustomProtocolManager::registerCustomProtocolClass();
 }
 
 void WebProcess::initializeShim()
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == 1060
-    initializeKeychainItemShim();
-#else
     initializeSecItemShim();
-#endif
 }
 
 void WebProcess::platformTerminate()
@@ -313,16 +305,7 @@ void WebProcess::platformTerminate()
 
 void WebProcess::secItemResponse(CoreIPC::Connection*, uint64_t requestID, const SecItemResponseData& response)
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     didReceiveSecItemResponse(requestID, response);
-#endif
-}
-
-void WebProcess::secKeychainItemResponse(CoreIPC::Connection*, uint64_t requestID, const SecKeychainItemResponseData& response)
-{
-#if __MAC_OS_X_VERSION_MIN_REQUIRED == 1060
-    didReceiveSecKeychainItemResponse(requestID, response);
-#endif
 }
 
 } // namespace WebKit

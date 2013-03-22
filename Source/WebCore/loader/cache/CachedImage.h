@@ -24,9 +24,10 @@
 #define CachedImage_h
 
 #include "CachedResource.h"
-#include "SVGImageCache.h"
 #include "ImageObserver.h"
 #include "IntRect.h"
+#include "LayoutSize.h"
+#include "SVGImageCache.h"
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -51,6 +52,7 @@ public:
     Image* image(); // Returns the nullImage() if the image is not available yet.
     Image* imageForRenderer(const RenderObject*); // Returns the nullImage() if the image is not available yet.
     bool hasImage() const { return m_image.get(); }
+    bool currentFrameHasAlpha(const RenderObject*); // Side effect: ensures decoded image is in cache, therefore should only be called when about to draw the image.
 
     std::pair<Image*, float> brokenImage(float deviceScaleFactor) const; // Returns an image and the image's resolution scale factor.
     bool willPaintBrokenImage() const; 
@@ -63,7 +65,7 @@ public:
     bool imageHasRelativeHeight() const;
     
     // This method takes a zoom multiplier that can be used to increase the natural size of the image by the zoom.
-    IntSize imageSizeForRenderer(const RenderObject*, float multiplier); // returns the size of the complete image.
+    LayoutSize imageSizeForRenderer(const RenderObject*, float multiplier); // returns the size of the complete image.
     void computeIntrinsicDimensions(Length& intrinsicWidth, Length& intrinsicHeight, FloatSize& intrinsicRatio);
 
     virtual void didAddClient(CachedResourceClient*);

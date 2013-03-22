@@ -26,10 +26,7 @@
 #include "config.h"
 
 #include "UnitTestUtils/EWK2UnitTestBase.h"
-#include "UnitTestUtils/EWK2UnitTestEnvironment.h"
 #include "UnitTestUtils/EWK2UnitTestServer.h"
-#include <EWebKit2.h>
-#include <Ecore.h>
 
 using namespace EWK2UnitTest;
 
@@ -43,7 +40,7 @@ static void onFileChooserRequest(void* userData, Evas_Object*, void* eventInfo)
     ASSERT_TRUE(request);
 
     // Ref the request to process asynchronously.
-    *returnRequest = ewk_file_chooser_request_ref(request);
+    *returnRequest = ewk_object_ref(request);
 }
 
 static int compareStrings(const void* string1, const void* string2)
@@ -95,7 +92,7 @@ TEST_F(EWK2UnitTestBase, ewk_file_chooser_request_files_choose)
     ASSERT_FALSE(ewk_file_chooser_request_files_choose(request, files));
     freeStringList(&files);
 
-    ewk_file_chooser_request_unref(request);
+    ewk_object_unref(request);
 
     // Check that the JS side received the files.
     EXPECT_TRUE(waitUntilTitleChangedTo("file1.png|file2.png"));
@@ -121,7 +118,7 @@ TEST_F(EWK2UnitTestBase, ewk_file_chooser_request_file_choose)
     ASSERT_TRUE(ewk_file_chooser_request_file_choose(request, "/tmp/file3.png"));
     ASSERT_FALSE(ewk_file_chooser_request_file_choose(request, "/tmp/file3.png"));
 
-    ewk_file_chooser_request_unref(request);
+    ewk_object_unref(request);
 
     // Check that the JS side received the file.
     EXPECT_TRUE(waitUntilTitleChangedTo("file3.png"));
@@ -146,7 +143,7 @@ TEST_F(EWK2UnitTestBase, ewk_file_chooser_request_file_cancel)
     ASSERT_TRUE(ewk_file_chooser_request_cancel(request));
     ASSERT_FALSE(ewk_file_chooser_request_cancel(request));
 
-    ewk_file_chooser_request_unref(request);
+    ewk_object_unref(request);
 
     ecore_main_loop_iterate();
     EXPECT_STREQ("File chooser test", ewk_view_title_get(webView()));
@@ -164,7 +161,7 @@ TEST_F(EWK2UnitTestBase, ewk_file_chooser_request_file_cancel)
     evas_object_smart_callback_del(webView(), "file,chooser,request", onFileChooserRequest);
     ASSERT_TRUE(request);
 
-    ewk_file_chooser_request_unref(request);
+    ewk_object_unref(request);
 
     ecore_main_loop_iterate();
     EXPECT_STREQ("File chooser test", ewk_view_title_get(webView()));

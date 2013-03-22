@@ -44,7 +44,22 @@
 
 #include <algorithm> // for std::min
 
+#if PLATFORM(MAC)
+#include <mach-o/dyld.h>
+#endif
+
 using namespace JSC;
+
+#if PLATFORM(MAC)
+static bool evernoteHackNeeded()
+{
+    static const int32_t webkitLastVersionWithEvernoteHack = 35133959;
+    static bool hackNeeded = CFEqual(CFBundleGetIdentifier(CFBundleGetMainBundle()), CFSTR("com.evernote.Evernote"))
+        && NSVersionOfLinkTimeLibrary("JavaScriptCore") <= webkitLastVersionWithEvernoteHack;
+
+    return hackNeeded;
+}
+#endif
 
 ::JSType JSValueGetType(JSContextRef ctx, JSValueRef value)
 {
@@ -217,7 +232,7 @@ JSValueRef JSValueMakeNumber(JSContextRef ctx, double value)
     // generated internally to JavaScriptCore naturally have that representation,
     // but an external NaN might not.
     if (isnan(value))
-        value = std::numeric_limits<double>::quiet_NaN();
+        value = QNaN;
 
     return toRef(exec, jsNumber(value));
 }
@@ -282,7 +297,7 @@ double JSValueToNumber(JSContextRef ctx, JSValueRef value, JSValueRef* exception
         if (exception)
             *exception = toRef(exec, exec->exception());
         exec->clearException();
-        number = std::numeric_limits<double>::quiet_NaN();
+        number = QNaN;
     }
     return number;
 }
@@ -332,6 +347,11 @@ void JSValueProtect(JSContextRef ctx, JSValueRef value)
 
 void JSValueUnprotect(JSContextRef ctx, JSValueRef value)
 {
+#if PLATFORM(MAC)
+    if ((!value || !ctx) && evernoteHackNeeded())
+        return;
+#endif
+
     ExecState* exec = toJS(ctx);
     APIEntryShim entryShim(exec);
 

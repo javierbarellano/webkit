@@ -24,8 +24,9 @@
 
 #include "ExceptionHelpers.h"
 #include "Interpreter.h"
+#include "JSProxy.h"
 #include "JSString.h"
-#include "JSValueInlineMethods.h"
+#include "JSValueInlines.h"
 
 namespace JSC {
 
@@ -85,6 +86,7 @@ namespace JSC {
 
             if (ropeBuilder.length() < oldLength) // True for overflow
                 return throwOutOfMemoryError(exec);
+            oldLength = ropeBuilder.length();
         }
 
         return ropeBuilder.release();
@@ -104,6 +106,7 @@ namespace JSC {
 
             if (ropeBuilder.length() < oldLength) // True for overflow
                 return throwOutOfMemoryError(exec);
+            oldLength = ropeBuilder.length();
         }
 
         return ropeBuilder.release();
@@ -297,19 +300,24 @@ namespace JSC {
         return jsAddSlowCase(callFrame, v1, v2);
     }
 
+#define InvalidPrototypeChain (std::numeric_limits<size_t>::max())
+
     inline size_t normalizePrototypeChain(CallFrame* callFrame, JSValue base, JSValue slotBase, const Identifier& propertyName, PropertyOffset& slotOffset)
     {
         JSCell* cell = base.asCell();
         size_t count = 0;
 
         while (slotBase != cell) {
+            if (cell->isProxy())
+                return InvalidPrototypeChain;
+            
             JSValue v = cell->structure()->prototypeForLookup(callFrame);
 
             // If we didn't find slotBase in base's prototype chain, then base
             // must be a proxy for another object.
 
             if (v.isNull())
-                return 0;
+                return InvalidPrototypeChain;
 
             cell = v.asCell();
 
@@ -332,6 +340,9 @@ namespace JSC {
     {
         size_t count = 0;
         while (1) {
+            if (base->isProxy())
+                return InvalidPrototypeChain;
+            
             JSValue v = base->structure()->prototypeForLookup(callFrame);
             if (v.isNull())
                 return count;
@@ -344,6 +355,23 @@ namespace JSC {
                 asObject(base)->flattenDictionaryObject(callFrame->globalData());
 
             ++count;
+        }
+    }
+
+    inline bool isPrototypeChainNormalized(JSGlobalObject* globalObject, Structure* structure)
+    {
+        for (;;) {
+            if (structure->typeInfo().type() == ProxyType)
+                return false;
+            
+            JSValue v = structure->prototypeForLookup(globalObject);
+            if (v.isNull())
+                return true;
+            
+            structure = v.asCell()->structure();
+            
+            if (structure->isDictionary())
+                return false;
         }
     }
 

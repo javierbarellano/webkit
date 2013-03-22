@@ -28,6 +28,13 @@ messages -> NetworkProcess {
 
     # Creates a connection for communication with a WebProcess
     CreateNetworkConnectionToWebProcess()
+
+    EnsurePrivateBrowsingSession()
+    DestroyPrivateBrowsingSession()
+
+#if PLATFORM(MAC)
+    SetApplicationIsOccluded(bool flag)
+#endif
 }
 
 #endif // ENABLE(NETWORK_PROCESS)

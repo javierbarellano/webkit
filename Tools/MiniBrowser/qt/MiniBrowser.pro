@@ -9,10 +9,10 @@ TEMPLATE = app
 WEBKIT += wtf
 
 INCLUDEPATH += \
+    $${ROOT_WEBKIT_DIR}/Source/WebCore/platform/qt \
     $${ROOT_WEBKIT_DIR}/Tools/DumpRenderTree/qt/
 
 SOURCES += \
-    $${ROOT_WEBKIT_DIR}/Tools/DumpRenderTree/qt/QtInitializeTestFonts.cpp \
     BrowserWindow.cpp \
     main.cpp \
     MiniBrowserApplication.cpp \
@@ -20,7 +20,6 @@ SOURCES += \
     utils.cpp \
 
 HEADERS += \
-    $${ROOT_WEBKIT_DIR}/Tools/DumpRenderTree/qt/QtInitializeTestFonts.h \
     BrowserWindow.h \
     MiniBrowserApplication.h \
     UrlLoader.h \
@@ -31,7 +30,7 @@ DESTDIR = $${ROOT_BUILD_DIR}/bin
 
 have?(FONTCONFIG): PKGCONFIG += fontconfig
 
-QT += network gui-private quick quick-private webkitwidgets webkitwidgets-private
+QT += network gui-private quick quick-private webkit webkit-private
 macx: QT += xml
 
 RESOURCES += MiniBrowser.qrc

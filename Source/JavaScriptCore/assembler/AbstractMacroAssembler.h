@@ -528,6 +528,13 @@ public:
         {
         }
 #endif
+        
+        Label label() const
+        {
+            Label result;
+            result.m_label = m_label;
+            return result;
+        }
 
         void link(AbstractMacroAssembler<AssemblerType>* masm) const
         {
@@ -586,6 +593,13 @@ public:
 
     public:
         typedef Vector<Jump, 16> JumpVector;
+        
+        JumpList() { }
+        
+        JumpList(Jump jump)
+        {
+            append(jump);
+        }
 
         void link(AbstractMacroAssembler<AssemblerType>* masm)
         {

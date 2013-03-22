@@ -111,6 +111,10 @@
 #include "WebSoupRequestManagerProxy.h"
 #endif
 
+#if ENABLE(VIBRATION)
+#include "WebVibrationProxy.h"
+#endif
+
 #ifndef NDEBUG
 #include <wtf/RefCountedLeakCounter.h>
 #endif
@@ -229,7 +233,9 @@ WebPageProxy::WebPageProxy(PageClient* pageClient, PassRefPtr<WebProcessProxy> p
     , m_renderTreeSize(0)
     , m_shouldSendEventsSynchronously(false)
     , m_suppressVisibilityUpdates(false)
+    , m_minimumLayoutWidth(0)
     , m_mediaVolume(1)
+    , m_mayStartMediaWhenInWindow(true)
 #if ENABLE(PAGE_VISIBILITY_API)
     , m_visibilityState(PageVisibilityStateVisible)
 #endif
@@ -245,6 +251,10 @@ WebPageProxy::WebPageProxy(PageClient* pageClient, PassRefPtr<WebProcessProxy> p
     WebContext::statistics().wkPageCount++;
 
     m_pageGroup->addPage(this);
+
+#if ENABLE(VIBRATION)
+    m_vibration = WebVibrationProxy::create(this);
+#endif
 }
 
 WebPageProxy::~WebPageProxy()
@@ -288,11 +298,11 @@ bool WebPageProxy::isValid()
 
 PassRefPtr<ImmutableArray> WebPageProxy::relatedPages() const
 {
+    // pages() returns a list of pages in WebProcess, so this page may or may not be among them - a client can use a reference to WebPageProxy after the page has closed.
     Vector<WebPageProxy*> pages = m_process->pages();
-    ASSERT(pages.contains(this));
 
     Vector<RefPtr<APIObject> > result;
-    result.reserveCapacity(pages.size() - 1);
+    result.reserveCapacity(pages.size());
     for (size_t i = 0; i < pages.size(); ++i) {
         if (pages[i] != this)
             result.append(pages[i]);
@@ -372,7 +382,10 @@ void WebPageProxy::reattachToWebProcess()
 
     m_isValid = true;
 
-    m_process = m_process->context()->createNewWebProcess();
+    if (m_process->context()->processModel() == ProcessModelSharedSecondaryProcess)
+        m_process = m_process->context()->ensureSharedWebProcess();
+    else
+        m_process = m_process->context()->createNewWebProcess();
     m_process->addExistingWebPage(this, m_pageID);
 
     initializeWebPage();
@@ -447,6 +460,10 @@ void WebPageProxy::close()
     }
 #endif
 
+#if ENABLE(VIBRATION)
+    m_vibration->invalidate();
+#endif
+
     if (m_openPanelResultListener) {
         m_openPanelResultListener->invalidate();
         m_openPanelResultListener = 0;
@@ -484,6 +501,7 @@ void WebPageProxy::close()
 
     invalidateCallbackMap(m_voidCallbacks);
     invalidateCallbackMap(m_dataCallbacks);
+    invalidateCallbackMap(m_imageCallbacks);
     invalidateCallbackMap(m_stringCallbacks);
     m_loadDependentStringCallbackIDs.clear();
     invalidateCallbackMap(m_scriptValueCallbacks);
@@ -2083,11 +2101,9 @@ void WebPageProxy::didCommitLoadForFrame(uint64_t frameID, const String& mimeTyp
     // FIXME (bug 59111): didCommitLoadForFrame comes too late when restoring a page from b/f cache, making us disable secure event mode in password fields.
     // FIXME (bug 59121): A load going on in one frame shouldn't affect typing in sibling frames.
     m_pageClient->resetTextInputState();
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     // FIXME: Should this be moved inside resetTextInputState()?
     dismissCorrectionPanel(ReasonForDismissingAlternativeTextIgnored);
     m_pageClient->dismissDictionaryLookupPanel();
-#endif
 #endif
 
     clearLoadDependentCallbacks();
@@ -2592,6 +2608,19 @@ void WebPageProxy::unavailablePluginButtonClicked(uint32_t opaquePluginUnavailab
         pluginUnavailabilityReason = kWKPluginUnavailabilityReasonPluginCrashed;
         break;
 
+    case RenderEmbeddedObject::PluginInactive: {
+#if ENABLE(NETSCAPE_PLUGIN_API)
+        String newMimeType = mimeType;
+        PluginModuleInfo plugin = m_process->context()->pluginInfoStore().findPlugin(newMimeType, KURL(KURL(), url));
+
+        if (!plugin.path.isEmpty() && PluginInfoStore::reactivateInactivePlugin(plugin)) {
+            // The plug-in has been reactivated now; reload the page so it'll be instantiated.
+            reload(false);
+        }
+        return;
+#endif
+    }
+
     case RenderEmbeddedObject::PluginBlockedByContentSecurityPolicy:
         ASSERT_NOT_REACHED();
     }
@@ -2696,7 +2725,7 @@ void WebPageProxy::didChangeViewportProperties(const ViewportAttributes& attr)
 void WebPageProxy::pageDidScroll()
 {
     m_uiClient.pageDidScroll(this);
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if PLATFORM(MAC)
     dismissCorrectionPanel(ReasonForDismissingAlternativeTextIgnored);
 #endif
 }
@@ -2751,6 +2780,19 @@ void WebPageProxy::setMediaVolume(float volume)
         return;
     
     m_process->send(Messages::WebPage::SetMediaVolume(volume), m_pageID);    
+}
+
+void WebPageProxy::setMayStartMediaWhenInWindow(bool mayStartMedia)
+{
+    if (mayStartMedia == m_mayStartMediaWhenInWindow)
+        return;
+
+    m_mayStartMediaWhenInWindow = mayStartMedia;
+
+    if (!isValid())
+        return;
+
+    process()->send(Messages::WebPage::SetMayStartMediaWhenInWindow(mayStartMedia), m_pageID);
 }
 
 #if PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(GTK)
@@ -3450,6 +3492,17 @@ void WebPageProxy::dataCallback(const CoreIPC::DataReference& dataReference, uin
     callback->performCallbackWithReturnValue(WebData::create(dataReference.data(), dataReference.size()).get());
 }
 
+void WebPageProxy::imageCallback(const ShareableBitmap::Handle& bitmapHandle, uint64_t callbackID)
+{
+    RefPtr<ImageCallback> callback = m_imageCallbacks.take(callbackID);
+    if (!callback) {
+        // FIXME: Log error or assert.
+        return;
+    }
+
+    callback->performCallbackWithReturnValue(bitmapHandle);
+}
+
 void WebPageProxy::stringCallback(const String& resultString, uint64_t callbackID)
 {
     RefPtr<StringCallback> callback = m_stringCallbacks.take(callbackID);
@@ -3598,6 +3651,10 @@ void WebPageProxy::processDidCrash()
     }
 #endif
 
+#if ENABLE(VIBRATION)
+    m_vibration->invalidate();
+#endif
+
     if (m_openPanelResultListener) {
         m_openPanelResultListener->invalidate();
         m_openPanelResultListener = nullptr;
@@ -3684,7 +3741,7 @@ void WebPageProxy::processDidCrash()
     m_touchEventQueue.clear();
 #endif
 
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if PLATFORM(MAC)
     dismissCorrectionPanel(ReasonForDismissingAlternativeTextIgnored);
     m_pageClient->dismissDictionaryLookupPanel();
 #endif
@@ -3719,6 +3776,7 @@ WebPageCreationParameters WebPageProxy::creationParameters() const
     parameters.canRunModal = m_canRunModal;
     parameters.deviceScaleFactor = m_intrinsicDeviceScaleFactor;
     parameters.mediaVolume = m_mediaVolume;
+    parameters.mayStartMediaWhenInWindow = m_mayStartMediaWhenInWindow;
 
 #if PLATFORM(MAC)
     parameters.isSmartInsertDeleteEnabled = m_isSmartInsertDeleteEnabled;
@@ -3874,8 +3932,6 @@ void WebPageProxy::didChangeScrollbarsForMainFrame(bool hasHorizontalScrollbar, 
 {
     m_mainFrameHasHorizontalScrollbar = hasHorizontalScrollbar;
     m_mainFrameHasVerticalScrollbar = hasVerticalScrollbar;
-
-    m_pageClient->didChangeScrollbarsForMainFrame();
 }
 
 void WebPageProxy::didChangeScrollOffsetPinningForMainFrame(bool pinnedToLeftSide, bool pinnedToRightSide, bool pinnedToTopSide, bool pinnedToBottomSide)
@@ -3980,17 +4036,17 @@ void WebPageProxy::computePagesForPrinting(WebFrameProxy* frame, const PrintInfo
 }
 
 #if PLATFORM(MAC) || PLATFORM(WIN)
-void WebPageProxy::drawRectToPDF(WebFrameProxy* frame, const PrintInfo& printInfo, const IntRect& rect, PassRefPtr<DataCallback> prpCallback)
+void WebPageProxy::drawRectToImage(WebFrameProxy* frame, const PrintInfo& printInfo, const IntRect& rect, PassRefPtr<ImageCallback> prpCallback)
 {
-    RefPtr<DataCallback> callback = prpCallback;
+    RefPtr<ImageCallback> callback = prpCallback;
     if (!isValid()) {
         callback->invalidate();
         return;
     }
     
     uint64_t callbackID = callback->callbackID();
-    m_dataCallbacks.set(callbackID, callback.get());
-    m_process->send(Messages::WebPage::DrawRectToPDF(frame->frameID(), printInfo, rect, callbackID), m_pageID, m_isPerformingDOMPrintOperation ? CoreIPC::DispatchMessageEvenWhenWaitingForSyncReply : 0);
+    m_imageCallbacks.set(callbackID, callback.get());
+    m_process->send(Messages::WebPage::DrawRectToImage(frame->frameID(), printInfo, rect, callbackID), m_pageID, m_isPerformingDOMPrintOperation ? CoreIPC::DispatchMessageEvenWhenWaitingForSyncReply : 0);
 }
 
 void WebPageProxy::drawPagesToPDF(WebFrameProxy* frame, const PrintInfo& printInfo, uint32_t first, uint32_t count, PassRefPtr<DataCallback> prpCallback)
@@ -4055,9 +4111,33 @@ void WebPageProxy::saveDataToFileInDownloadsFolder(const String& suggestedFilena
     m_uiClient.saveDataToFileInDownloadsFolder(this, suggestedFilename, mimeType, originatingURLString, data);
 }
 
+void WebPageProxy::savePDFToFileInDownloadsFolder(const String& suggestedFilename, const String& originatingURLString, const CoreIPC::DataReference& data)
+{
+    if (!suggestedFilename.endsWith(".pdf", false))
+        return;
+
+    RefPtr<WebData> webData = WebData::create(data.data(), data.size());
+
+    saveDataToFileInDownloadsFolder(suggestedFilename, "application/pdf", originatingURLString, webData.get());
+}
+
 void WebPageProxy::linkClicked(const String& url, const WebMouseEvent& event)
 {
     m_process->send(Messages::WebPage::LinkClicked(url, event), m_pageID, 0);
+}
+
+void WebPageProxy::setMinimumLayoutWidth(double minimumLayoutWidth)
+{
+    if (m_minimumLayoutWidth == minimumLayoutWidth)
+        return;
+
+    m_minimumLayoutWidth = minimumLayoutWidth;
+    m_drawingArea->minimumLayoutWidthDidChange();
+
+#if PLATFORM(MAC)
+    if (m_minimumLayoutWidth <= 0)
+        intrinsicContentSizeDidChange(IntSize(-1, -1));
+#endif
 }
 
 #if PLATFORM(MAC)
@@ -4067,7 +4147,6 @@ void WebPageProxy::substitutionsPanelIsShowing(bool& isShowing)
     isShowing = TextChecker::substitutionsPanelIsShowing();
 }
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 void WebPageProxy::showCorrectionPanel(int32_t panelType, const FloatRect& boundingBoxOfReplacedString, const String& replacedString, const String& replacementString, const Vector<String>& alternativeReplacementStrings)
 {
     m_pageClient->showCorrectionPanel((AlternativeTextType)panelType, boundingBoxOfReplacedString, replacedString, replacementString, alternativeReplacementStrings);
@@ -4087,14 +4166,11 @@ void WebPageProxy::recordAutocorrectionResponse(int32_t responseType, const Stri
 {
     m_pageClient->recordAutocorrectionResponse((AutocorrectionResponseType)responseType, replacedString, replacementString);
 }
-#endif // __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 
 void WebPageProxy::handleAlternativeTextUIResult(const String& result)
 {
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     if (!isClosed())
         m_process->send(Messages::WebPage::HandleAlternativeTextUIResult(result), m_pageID, 0);
-#endif
 }
 
 #if USE(DICTATION_ALTERNATIVES)

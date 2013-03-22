@@ -48,7 +48,7 @@ namespace WebCore {
 
 struct SameSizeAsInlineFlowBox : public InlineBox {
     void* pointers[5];
-    uint32_t bitfields : 24;
+    uint32_t bitfields : 23;
 };
 
 COMPILE_ASSERT(sizeof(InlineFlowBox) == sizeof(SameSizeAsInlineFlowBox), InlineFlowBox_should_stay_small);
@@ -369,15 +369,24 @@ void InlineFlowBox::determineSpacingForFlowBoxes(bool lastLine, bool isLogically
 float InlineFlowBox::placeBoxesInInlineDirection(float logicalLeft, bool& needsWordSpacing, GlyphOverflowAndFallbackFontsMap& textBoxDataMap)
 {
     // Set our x position.
-    setLogicalLeft(logicalLeft);
-  
+    beginPlacingBoxRangesInInlineDirection(logicalLeft);
+
     float startLogicalLeft = logicalLeft;
     logicalLeft += borderLogicalLeft() + paddingLogicalLeft();
 
     float minLogicalLeft = startLogicalLeft;
     float maxLogicalRight = logicalLeft;
 
-    for (InlineBox* curr = firstChild(); curr; curr = curr->nextOnLine()) {
+    placeBoxRangeInInlineDirection(firstChild(), 0, logicalLeft, minLogicalLeft, maxLogicalRight, needsWordSpacing, textBoxDataMap);
+
+    logicalLeft += borderLogicalRight() + paddingLogicalRight();
+    endPlacingBoxRangesInInlineDirection(startLogicalLeft, logicalLeft, minLogicalLeft, maxLogicalRight);
+    return logicalLeft;
+}
+
+float InlineFlowBox::placeBoxRangeInInlineDirection(InlineBox* firstChild, InlineBox* lastChild, float& logicalLeft, float& minLogicalLeft, float& maxLogicalRight, bool& needsWordSpacing, GlyphOverflowAndFallbackFontsMap& textBoxDataMap)
+{
+    for (InlineBox* curr = firstChild; curr && curr != lastChild; curr = curr->nextOnLine()) {
         if (curr->renderer()->isText()) {
             InlineTextBox* text = toInlineTextBox(curr);
             RenderText* rt = toRenderText(text->renderer());
@@ -429,11 +438,6 @@ float InlineFlowBox::placeBoxesInInlineDirection(float logicalLeft, bool& needsW
             }
         }
     }
-
-    logicalLeft += borderLogicalRight() + paddingLogicalRight();
-    setLogicalWidth(logicalLeft - startLogicalLeft);
-    if (knownToHaveNoOverflow() && (minLogicalLeft < startLogicalLeft || maxLogicalRight > logicalLeft))
-        clearKnownToHaveNoOverflow();
     return logicalLeft;
 }
 
@@ -442,7 +446,7 @@ bool InlineFlowBox::requiresIdeographicBaseline(const GlyphOverflowAndFallbackFo
     if (isHorizontal())
         return false;
     
-    if (renderer()->style(isFirstLineStyle())->fontDescription().textOrientation() == TextOrientationUpright
+    if (renderer()->style(isFirstLineStyle())->fontDescription().nonCJKGlyphOrientation() == NonCJKGlyphOrientationUpright
         || renderer()->style(isFirstLineStyle())->font().primaryFont()->hasVerticalGlyphs())
         return true;
 
@@ -677,8 +681,8 @@ void InlineFlowBox::placeBoxesInBlockDirection(LayoutUnit top, LayoutUnit maxHei
 
                 RenderRubyRun* rubyRun = toRenderRubyRun(curr->renderer());
                 if (RenderRubyBase* rubyBase = rubyRun->rubyBase()) {
-                    LayoutUnit bottomRubyBaseLeading = (curr->logicalHeight() - rubyBase->logicalBottom()) + rubyBase->logicalHeight() - (rubyBase->lastRootBox() ? rubyBase->lastRootBox()->lineBottom() : ZERO_LAYOUT_UNIT);
-                    LayoutUnit topRubyBaseLeading = rubyBase->logicalTop() + (rubyBase->firstRootBox() ? rubyBase->firstRootBox()->lineTop() : ZERO_LAYOUT_UNIT);
+                    LayoutUnit bottomRubyBaseLeading = (curr->logicalHeight() - rubyBase->logicalBottom()) + rubyBase->logicalHeight() - (rubyBase->lastRootBox() ? rubyBase->lastRootBox()->lineBottom() : LayoutUnit());
+                    LayoutUnit topRubyBaseLeading = rubyBase->logicalTop() + (rubyBase->firstRootBox() ? rubyBase->firstRootBox()->lineTop() : LayoutUnit());
                     newLogicalTop += !renderer()->style()->isFlippedLinesWritingMode() ? topRubyBaseLeading : bottomRubyBaseLeading;
                     boxHeight -= (topRubyBaseLeading + bottomRubyBaseLeading);
                 }
@@ -791,7 +795,7 @@ inline void InlineFlowBox::addBorderOutsetVisualOverflow(LayoutRect& logicalVisu
     if (!style->hasBorderImageOutsets())
         return;
 
-    FractionalLayoutBoxExtent borderOutsets = style->borderImageOutsets();
+    LayoutBoxExtent borderOutsets = style->borderImageOutsets();
 
     LayoutUnit borderOutsetLogicalTop = borderOutsets.logicalTop(style->writingMode());
     LayoutUnit borderOutsetLogicalBottom = borderOutsets.logicalBottom(style->writingMode());
@@ -806,8 +810,8 @@ inline void InlineFlowBox::addBorderOutsetVisualOverflow(LayoutRect& logicalVisu
     LayoutUnit logicalTopVisualOverflow = min(pixelSnappedLogicalTop() - outsetLogicalTop, logicalVisualOverflow.y());
     LayoutUnit logicalBottomVisualOverflow = max(pixelSnappedLogicalBottom() + outsetLogicalBottom, logicalVisualOverflow.maxY());
 
-    LayoutUnit outsetLogicalLeft = includeLogicalLeftEdge() ? borderOutsetLogicalLeft : ZERO_LAYOUT_UNIT;
-    LayoutUnit outsetLogicalRight = includeLogicalRightEdge() ? borderOutsetLogicalRight : ZERO_LAYOUT_UNIT;
+    LayoutUnit outsetLogicalLeft = includeLogicalLeftEdge() ? borderOutsetLogicalLeft : LayoutUnit();
+    LayoutUnit outsetLogicalRight = includeLogicalRightEdge() ? borderOutsetLogicalRight : LayoutUnit();
 
     LayoutUnit logicalLeftVisualOverflow = min(pixelSnappedLogicalLeft() - outsetLogicalLeft, logicalVisualOverflow.x());
     LayoutUnit logicalRightVisualOverflow = max(pixelSnappedLogicalRight() + outsetLogicalRight, logicalVisualOverflow.maxX());
@@ -981,11 +985,40 @@ bool InlineFlowBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& re
         return false;
 
     // Check children first.
+    // We need to account for culled inline parents of the hit-tested nodes, so that they may also get included in area-based hit-tests.
+    RenderObject* culledParent = 0;
     for (InlineBox* curr = lastChild(); curr; curr = curr->prevOnLine()) {
-        if ((curr->renderer()->isText() || !curr->boxModelObject()->hasSelfPaintingLayer()) && curr->nodeAtPoint(request, result, locationInContainer, accumulatedOffset, lineTop, lineBottom)) {
-            renderer()->updateHitTestResult(result, locationInContainer.point() - toLayoutSize(accumulatedOffset));
-            return true;
+        if (curr->renderer()->isText() || !curr->boxModelObject()->hasSelfPaintingLayer()) {
+            RenderObject* newParent = 0;
+            // Culled parents are only relevant for area-based hit-tests, so ignore it in point-based ones.
+            if (locationInContainer.isRectBasedTest()) {
+                newParent = curr->renderer()->parent();
+                if (newParent == renderer())
+                    newParent = 0;
+            }
+            // Check the culled parent after all its children have been checked, to do this we wait until
+            // we are about to test an element with a different parent.
+            if (newParent != culledParent) {
+                if (!newParent || !newParent->isDescendantOf(culledParent)) {
+                    while (culledParent && culledParent != renderer() && culledParent != newParent) {
+                        if (culledParent->isRenderInline() && toRenderInline(culledParent)->hitTestCulledInline(request, result, locationInContainer, accumulatedOffset))
+                            return true;
+                        culledParent = culledParent->parent();
+                    }
+                }
+                culledParent = newParent;
+            }
+            if (curr->nodeAtPoint(request, result, locationInContainer, accumulatedOffset, lineTop, lineBottom)) {
+                renderer()->updateHitTestResult(result, locationInContainer.point() - toLayoutSize(accumulatedOffset));
+                return true;
+            }
         }
+    }
+    // Check any culled ancestor of the final children tested.
+    while (culledParent && culledParent != renderer()) {
+        if (culledParent->isRenderInline() && toRenderInline(culledParent)->hitTestCulledInline(request, result, locationInContainer, accumulatedOffset))
+            return true;
+        culledParent = culledParent->parent();
     }
 
     // Now check ourselves. Pixel snap hit testing.
@@ -1142,8 +1175,8 @@ void InlineFlowBox::paintFillLayer(const PaintInfo& paintInfo, const Color& c, c
             for (InlineFlowBox* curr = this; curr; curr = curr->prevLineBox())
                 totalLogicalWidth += curr->logicalWidth();
         }
-        LayoutUnit stripX = rect.x() - (isHorizontal() ? logicalOffsetOnLine : ZERO_LAYOUT_UNIT);
-        LayoutUnit stripY = rect.y() - (isHorizontal() ? ZERO_LAYOUT_UNIT : logicalOffsetOnLine);
+        LayoutUnit stripX = rect.x() - (isHorizontal() ? logicalOffsetOnLine : LayoutUnit());
+        LayoutUnit stripY = rect.y() - (isHorizontal() ? LayoutUnit() : logicalOffsetOnLine);
         LayoutUnit stripWidth = isHorizontal() ? totalLogicalWidth : static_cast<LayoutUnit>(width());
         LayoutUnit stripHeight = isHorizontal() ? static_cast<LayoutUnit>(height()) : totalLogicalWidth;
 
@@ -1269,8 +1302,8 @@ void InlineFlowBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&
                 LayoutUnit totalLogicalWidth = logicalOffsetOnLine;
                 for (InlineFlowBox* curr = this; curr; curr = curr->nextLineBox())
                     totalLogicalWidth += curr->logicalWidth();
-                LayoutUnit stripX = adjustedPaintoffset.x() - (isHorizontal() ? logicalOffsetOnLine : ZERO_LAYOUT_UNIT);
-                LayoutUnit stripY = adjustedPaintoffset.y() - (isHorizontal() ? ZERO_LAYOUT_UNIT : logicalOffsetOnLine);
+                LayoutUnit stripX = adjustedPaintoffset.x() - (isHorizontal() ? logicalOffsetOnLine : LayoutUnit());
+                LayoutUnit stripY = adjustedPaintoffset.y() - (isHorizontal() ? LayoutUnit() : logicalOffsetOnLine);
                 LayoutUnit stripWidth = isHorizontal() ? totalLogicalWidth : frameRect.width();
                 LayoutUnit stripHeight = isHorizontal() ? frameRect.height() : totalLogicalWidth;
 
@@ -1341,8 +1374,8 @@ void InlineFlowBox::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffs
         LayoutUnit totalLogicalWidth = logicalOffsetOnLine;
         for (InlineFlowBox* curr = this; curr; curr = curr->nextLineBox())
             totalLogicalWidth += curr->logicalWidth();
-        LayoutUnit stripX = adjustedPaintOffset.x() - (isHorizontal() ? logicalOffsetOnLine : ZERO_LAYOUT_UNIT);
-        LayoutUnit stripY = adjustedPaintOffset.y() - (isHorizontal() ? ZERO_LAYOUT_UNIT : logicalOffsetOnLine);
+        LayoutUnit stripX = adjustedPaintOffset.x() - (isHorizontal() ? logicalOffsetOnLine : LayoutUnit());
+        LayoutUnit stripY = adjustedPaintOffset.y() - (isHorizontal() ? LayoutUnit() : logicalOffsetOnLine);
         LayoutUnit stripWidth = isHorizontal() ? totalLogicalWidth : frameRect.width();
         LayoutUnit stripHeight = isHorizontal() ? frameRect.height() : totalLogicalWidth;
 
@@ -1439,7 +1472,7 @@ LayoutUnit InlineFlowBox::computeOverAnnotationAdjustment(LayoutUnit allowedPosi
                 continue;
             
             if (!rubyRun->style()->isFlippedLinesWritingMode()) {
-                LayoutUnit topOfFirstRubyTextLine = rubyText->logicalTop() + (rubyText->firstRootBox() ? rubyText->firstRootBox()->lineTop() : ZERO_LAYOUT_UNIT);
+                LayoutUnit topOfFirstRubyTextLine = rubyText->logicalTop() + (rubyText->firstRootBox() ? rubyText->firstRootBox()->lineTop() : LayoutUnit());
                 if (topOfFirstRubyTextLine >= 0)
                     continue;
                 topOfFirstRubyTextLine += curr->logicalTop();

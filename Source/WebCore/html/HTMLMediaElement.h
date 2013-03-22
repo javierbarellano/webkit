@@ -81,6 +81,8 @@ class DisplaySleepDisabler;
 #endif
 
 #if ENABLE(VIDEO_TRACK)
+class InbandTextTrackPrivate;
+
 typedef PODIntervalTree<double, TextTrackCue*> CueIntervalTree;
 typedef Vector<CueIntervalTree::IntervalType> CueList;
 #endif
@@ -149,7 +151,7 @@ public:
     void setPreload(const String&);
 
     PassRefPtr<TimeRanges> buffered() const;
-    void load(ExceptionCode&);
+    void load();
     String canPlayType(const String& mimeType, const String& keySystem = String(), const KURL& = KURL()) const;
 
 // ready state
@@ -217,12 +219,6 @@ public:
     bool muted() const;
     void setMuted(bool);
 
-// Subtitles
-    bool hasSubtitles() const;
-    bool webkitHasSubtitles() const { return hasSubtitles();}
-    void setWebkitHasSubtitles(bool hasSubtitles) { m_hasSubtitles = hasSubtitles;}
-    bool webkitSubtitlesVisible() const { return m_subtitlesVisible;}
-
     void togglePlayState();
     void beginScrubbing();
     void endScrubbing();
@@ -236,13 +232,14 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, const String& label, ExceptionCode& ec) { return addTextTrack(kind, label, emptyString(), ec); }
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
-    virtual void mediaPlayerAddTextTrackCue(MediaPlayer*, int index, const String& data, float start, float end);
-
     TextTrackList* textTracks();
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     virtual void didAddTrack(HTMLTrackElement*);
-    virtual void willRemoveTrack(HTMLTrackElement*);
+    virtual void didRemoveTrack(HTMLTrackElement*);
+
+    virtual void mediaPlayerDidAddTrack(PassRefPtr<InbandTextTrackPrivate>) OVERRIDE;
+    virtual void mediaPlayerDidRemoveTrack(PassRefPtr<InbandTextTrackPrivate>) OVERRIDE;
 
     struct TrackGroup {
         enum GroupKind { CaptionsAndSubtitles, Description, Chapter, Metadata, Other };
@@ -255,9 +252,9 @@ public:
         {
         }
 
-        Vector<HTMLTrackElement*> tracks;
-        HTMLTrackElement* visibleTrack;
-        HTMLTrackElement* defaultTrack;
+        Vector<RefPtr<TextTrack> > tracks;
+        RefPtr<TextTrack> visibleTrack;
+        RefPtr<TextTrack> defaultTrack;
         GroupKind kind;
         bool hasSrcLang;
     };
@@ -265,6 +262,10 @@ public:
     void configureTextTrackGroupForLanguage(const TrackGroup&) const;
     void configureTextTracks();
     void configureTextTrackGroup(const TrackGroup&) const;
+
+    void toggleTrackAtIndex(int index, bool exclusive = true);
+    static int textTracksOffIndex() { return -1; }
+    static int textTracksIndexNotFound() { return -2; }
 
     bool userPrefersCaptions() const;
     bool userIsInterestedInThisTrackKind(String) const;
@@ -345,6 +346,8 @@ public:
 
     virtual bool willRespondToMouseClickEvents() OVERRIDE;
 
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const;
+
 public: // Rate Change
     // Events
     DEFINE_ATTRIBUTE_EVENT_LISTENER(ratechange);
@@ -387,7 +390,7 @@ protected:
     HTMLMediaElement(const QualifiedName&, Document*, bool);
     virtual ~HTMLMediaElement();
 
-    virtual void parseAttribute(const Attribute&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual void finishParsingChildren();
     virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
     virtual void attach() OVERRIDE;
@@ -491,7 +494,10 @@ private:
     virtual bool mediaPlayerNeedsSiteSpecificHacks() const OVERRIDE;
     virtual String mediaPlayerDocumentHost() const OVERRIDE;
 
+    virtual void mediaPlayerEnterFullscreen() OVERRIDE;
     virtual void mediaPlayerExitFullscreen() OVERRIDE;
+    virtual bool mediaPlayerIsFullscreen() const OVERRIDE;
+    virtual bool mediaPlayerIsFullscreenPermitted() const OVERRIDE;
     virtual bool mediaPlayerIsVideo() const OVERRIDE;
     virtual LayoutRect mediaPlayerContentBoxRect() const OVERRIDE;
     virtual void mediaPlayerSetSize(const IntSize&) OVERRIDE;
@@ -501,6 +507,7 @@ private:
     virtual bool mediaPlayerIsLooping() const OVERRIDE;
     virtual HostWindow* mediaPlayerHostWindow() OVERRIDE;
     virtual IntRect mediaPlayerWindowClipRect() OVERRIDE;
+    virtual CachedResourceLoader* mediaPlayerCachedResourceLoader() OVERRIDE;
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
     virtual GraphicsDeviceAdapter* mediaPlayerGraphicsDeviceAdapter(const MediaPlayer*) const OVERRIDE;
@@ -527,6 +534,7 @@ private:
     void scheduleNextSourceChild();
     void loadNextSourceChild();
     void userCancelledLoad();
+    void clearMediaPlayer(int flags);
     bool havePotentialSourceChild();
     void noneSupported();
     void mediaEngineError(PassRefPtr<MediaError> err);
@@ -718,9 +726,6 @@ private:
 
     bool m_isFullscreen : 1;
     bool m_closedCaptionsVisible : 1;
-
-    bool m_subtitlesVisible : 1;
-    bool m_hasSubtitles : 1;
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     bool m_needWidgetUpdate : 1;

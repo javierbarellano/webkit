@@ -87,7 +87,6 @@
 #import <WebKit/WebTypesInternal.h>
 #import <WebKit/WebViewPrivate.h>
 #import <getopt.h>
-#import <objc/objc-runtime.h>
 #import <wtf/Assertions.h>
 #import <wtf/FastMalloc.h>
 #import <wtf/RetainPtr.h>
@@ -145,6 +144,7 @@ static HistoryDelegate *historyDelegate;
 PolicyDelegate *policyDelegate;
 StorageTrackerDelegate *storageDelegate;
 
+static int dumpPixelsForAllTests = NO;
 static bool dumpPixelsForCurrentTest;
 static int threaded;
 static int dumpTree = YES;
@@ -692,6 +692,9 @@ static void resetDefaultsToConsistentValues()
 // Called once on DumpRenderTree startup.
 static void setDefaultsToConsistentValuesForTesting()
 {
+    // FIXME: We'd like to start with a clean state for every test, but this function can't be used more than once yet.
+    [WebPreferences _switchNetworkLoaderToNewTestingSession];
+
     resetDefaultsToConsistentValues();
 
     NSString *path = libraryPathForDumpRenderTree();
@@ -701,8 +704,6 @@ static void setDefaultsToConsistentValuesForTesting()
                                           diskPath:[path stringByAppendingPathComponent:@"URLCache"]];
     [NSURLCache setSharedURLCache:sharedCache];
     [sharedCache release];
-
-    [WebPreferences _switchNetworkLoaderToNewTestingSession];
 }
 
 static void runThread(void* arg)
@@ -792,6 +793,7 @@ static void initializeGlobalsFromCommandLineOptions(int argc, const char *argv[]
 {
     struct option options[] = {
         {"notree", no_argument, &dumpTree, NO},
+        {"pixel-tests", no_argument, &dumpPixelsForAllTests, YES},
         {"tree", no_argument, &dumpTree, YES},
         {"threaded", no_argument, &threaded, YES},
         {"complex-text", no_argument, &forceComplexText, YES},
@@ -1300,7 +1302,7 @@ static void runTest(const string& inputLine)
 
     TestCommand command = parseInputLine(inputLine);
     const string& pathOrURL = command.pathOrURL;
-    dumpPixelsForCurrentTest = command.shouldDumpPixels;
+    dumpPixelsForCurrentTest = command.shouldDumpPixels || dumpPixelsForAllTests;
 
     NSString *pathOrURLString = [NSString stringWithUTF8String:pathOrURL.c_str()];
     if (!pathOrURLString) {

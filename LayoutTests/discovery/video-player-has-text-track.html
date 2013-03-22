@@ -25,6 +25,7 @@ function addTrack(trackEvent) {
 	} else {
 		testFailed("No Video tag found, probably bad context.");
 	}
+	vid.audioTracks.onaddtrack = null;
 	getInfo();
 }
 

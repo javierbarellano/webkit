@@ -72,6 +72,7 @@ interface TestRunner {
     void setTabKeyCyclesThroughElements(in boolean enabled);
     void setSerializeHTTPLoads();
     void dispatchPendingLoadRequests();
+    void setCacheModel(in int model);
 
     // Special DOM functions.
     void clearBackForwardList();
@@ -168,6 +169,7 @@ interface TestRunner {
 
     // Control full screen behavior.
     void setHasCustomFullScreenBehavior(in boolean value);
+    void setViewModeMediaFeature(in DOMString mode);
 
     // Web notifications support
     void grantWebNotificationPermission(in DOMString origin);

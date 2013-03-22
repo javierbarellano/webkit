@@ -77,7 +77,7 @@ protected:
     virtual void attach();
     virtual void detach();
 
-    virtual void parseAttribute(const Attribute&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void accessKeyAction(bool);
@@ -93,8 +93,6 @@ protected:
 
     String collectOptionInnerText() const;
 
-    String m_value;
-    String m_label;
     bool m_disabled;
     bool m_isSelected;
     RefPtr<RenderStyle> m_style;

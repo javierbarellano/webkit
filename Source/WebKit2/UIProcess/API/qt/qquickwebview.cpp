@@ -280,6 +280,7 @@ QQuickWebViewPrivate::QQuickWebViewPrivate(QQuickWebView* viewport)
     viewport->setPixelAligned(true);
     QObject::connect(viewport, SIGNAL(visibleChanged()), viewport, SLOT(_q_onVisibleChanged()));
     QObject::connect(viewport, SIGNAL(urlChanged()), viewport, SLOT(_q_onUrlChanged()));
+    QObject::connect(experimental, SIGNAL(devicePixelRatioChanged()), experimental->test(), SIGNAL(devicePixelRatioChanged()));
     pageView.reset(new QQuickWebPage(viewport));
 }
 
@@ -319,12 +320,14 @@ void QQuickWebViewPrivate::initialize(WKContextRef contextRef, WKPageGroupRef pa
     webPageProxy->pageGroup()->preferences()->setAcceleratedCompositingEnabled(true);
     webPageProxy->pageGroup()->preferences()->setForceCompositingMode(true);
     webPageProxy->pageGroup()->preferences()->setFrameFlatteningEnabled(true);
+    webPageProxy->pageGroup()->preferences()->setWebGLEnabled(true);
 
     pageClient.initialize(q_ptr, pageViewPrivate->eventHandler.data(), &undoController);
     webPageProxy->initializeWebPage();
 
     q_ptr->setAcceptedMouseButtons(Qt::MouseButtonMask);
     q_ptr->setAcceptHoverEvents(true);
+    q_ptr->setFlag(QQuickItem::ItemAcceptsDrops, true);
 }
 
 void QQuickWebViewPrivate::loadDidStop()
@@ -423,9 +426,6 @@ void QQuickWebViewPrivate::handleMouseEvent(QMouseEvent* event)
 {
     switch (event->type()) {
     case QEvent::MouseButtonPress:
-    case QEvent::MouseButtonDblClick:
-        // If a MouseButtonDblClick was received then we got a MouseButtonPress before
-        // handleMousePressEvent will take care of double clicks.
         pageView->eventHandler()->handleMousePressEvent(event);
         break;
     case QEvent::MouseMove:
@@ -433,6 +433,11 @@ void QQuickWebViewPrivate::handleMouseEvent(QMouseEvent* event)
         break;
     case QEvent::MouseButtonRelease:
         pageView->eventHandler()->handleMouseReleaseEvent(event);
+        break;
+    case QEvent::MouseButtonDblClick:
+        // If a MouseButtonDblClick was received then we got a MouseButtonPress before.
+        // WebCore will build double-clicks out of press events.
+        event->accept();
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -863,6 +868,11 @@ void QQuickWebViewFlickablePrivate::onComponentComplete()
     m_pageViewportController.reset(new PageViewportController(webPageProxy.get(), m_pageViewportControllerClient.data()));
     pageView->eventHandler()->setViewportController(m_pageViewportControllerClient.data());
 
+    // Notify about device pixel ratio here because due to the delayed instantiation
+    // of the viewport controller the correct value might not have reached QWebKitTest
+    // in time it was used from QML.
+    emit experimental->test()->devicePixelRatioChanged();
+
     // Trigger setting of correct visibility flags after everything was allocated and initialized.
     _q_onVisibleChanged();
 }
@@ -885,15 +895,6 @@ void QQuickWebViewFlickablePrivate::pageDidRequestScroll(const QPoint& pos)
 {
     if (m_pageViewportController)
         m_pageViewportController->pageDidRequestScroll(pos);
-}
-
-void QQuickWebViewFlickablePrivate::handleMouseEvent(QMouseEvent* event)
-{
-    if (!pageView->eventHandler())
-        return;
-
-    // FIXME: Update the axis locker for mouse events as well.
-    pageView->eventHandler()->handleInputEvent(event);
 }
 
 QQuickWebViewExperimental::QQuickWebViewExperimental(QQuickWebView *webView, QQuickWebViewPrivate* webViewPrivate)

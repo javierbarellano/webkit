@@ -66,10 +66,12 @@ public:
     virtual bool isEmpty() const OVERRIDE { return m_empty; }
     virtual void getExcludedIntervals(float logicalTop, float logicalHeight, SegmentList&) const OVERRIDE;
     virtual void getIncludedIntervals(float logicalTop, float logicalHeight, SegmentList&) const OVERRIDE;
+    virtual bool firstIncludedIntervalLogicalTop(float minLogicalIntervalTop, const FloatSize& minLogicalIntervalSize, float&) const OVERRIDE;
 
 private:
-    void computeXIntersections(float y, Vector<ExclusionInterval>&) const;
+    void computeXIntersections(float y, bool isMinY, Vector<ExclusionInterval>&) const;
     void computeEdgeIntersections(float minY, float maxY, Vector<ExclusionInterval>&) const;
+    unsigned findNextEdgeVertexIndex(unsigned vertexIndex1, bool clockwise) const;
 
     typedef PODInterval<float, ExclusionPolygonEdge*> EdgeInterval;
     typedef PODIntervalTree<float, ExclusionPolygonEdge*> EdgeIntervalTree;
@@ -101,7 +103,7 @@ struct ExclusionPolygonEdge {
     const ExclusionPolygonEdge& previousEdge() const
     {
         ASSERT(polygon && polygon->numberOfEdges() > 1);
-        return polygon->edgeAt((edgeIndex + polygon->numberOfEdges() - 2) % polygon->numberOfEdges());
+        return polygon->edgeAt((edgeIndex + polygon->numberOfEdges() - 1) % polygon->numberOfEdges());
     }
 
     const ExclusionPolygonEdge& nextEdge() const

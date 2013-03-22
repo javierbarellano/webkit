@@ -36,6 +36,7 @@
 #include "BooleanConstructor.h"
 #include "BooleanPrototype.h"
 #include "CodeBlock.h"
+#include "CodeCache.h"
 #include "DateConstructor.h"
 #include "DatePrototype.h"
 #include "Debugger.h"
@@ -57,6 +58,7 @@
 #include "JSNameScope.h"
 #include "JSONObject.h"
 #include "JSWithScope.h"
+#include "LegacyProfiler.h"
 #include "Lookup.h"
 #include "MathObject.h"
 #include "NameConstructor.h"
@@ -68,7 +70,6 @@
 #include "NumberPrototype.h"
 #include "ObjectConstructor.h"
 #include "ObjectPrototype.h"
-#include "Profiler.h"
 #include "RegExpConstructor.h"
 #include "RegExpMatchesArray.h"
 #include "RegExpObject.h"
@@ -121,7 +122,7 @@ JSGlobalObject::~JSGlobalObject()
     if (m_debugger)
         m_debugger->detach(this);
 
-    if (Profiler* profiler = globalData().enabledProfiler())
+    if (LegacyProfiler* profiler = globalData().enabledProfiler())
         profiler->stopProfiling(this);
 }
 
@@ -229,9 +230,16 @@ void JSGlobalObject::reset(JSValue prototype)
     m_callbackObjectStructure.set(exec->globalData(), this, JSCallbackObject<JSDestructibleObject>::createStructure(exec->globalData(), this, m_objectPrototype.get()));
 
     m_arrayPrototype.set(exec->globalData(), this, ArrayPrototype::create(exec, this, ArrayPrototype::createStructure(exec->globalData(), this, m_objectPrototype.get())));
-    m_arrayStructure.set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithContiguous));
-    m_arrayStructureWithArrayStorage.set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithArrayStorage));
-    m_arrayStructureForSlowPut.set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithSlowPutArrayStorage));
+    
+    m_originalArrayStructureForIndexingShape[UndecidedShape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithUndecided));
+    m_originalArrayStructureForIndexingShape[Int32Shape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithInt32));
+    m_originalArrayStructureForIndexingShape[DoubleShape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithDouble));
+    m_originalArrayStructureForIndexingShape[ContiguousShape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithContiguous));
+    m_originalArrayStructureForIndexingShape[ArrayStorageShape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithArrayStorage));
+    m_originalArrayStructureForIndexingShape[SlowPutArrayStorageShape >> IndexingShapeShift].set(exec->globalData(), this, JSArray::createStructure(exec->globalData(), this, m_arrayPrototype.get(), ArrayWithSlowPutArrayStorage));
+    for (unsigned i = 0; i < NumberOfIndexingShapes; ++i)
+        m_arrayStructureForIndexingShapeDuringAllocation[i] = m_originalArrayStructureForIndexingShape[i];
+    
     m_regExpMatchesArrayStructure.set(exec->globalData(), this, RegExpMatchesArray::createStructure(exec->globalData(), this, m_arrayPrototype.get()));
 
     m_stringPrototype.set(exec->globalData(), this, StringPrototype::create(exec, this, StringPrototype::createStructure(exec->globalData(), this, m_objectPrototype.get())));
@@ -250,8 +258,6 @@ void JSGlobalObject::reset(JSValue prototype)
     
     m_regExpPrototype.set(exec->globalData(), this, RegExpPrototype::create(exec, this, RegExpPrototype::createStructure(exec->globalData(), this, m_objectPrototype.get()), emptyRegex));
     m_regExpStructure.set(exec->globalData(), this, RegExpObject::createStructure(exec->globalData(), this, m_regExpPrototype.get()));
-
-    m_methodCallDummy.set(exec->globalData(), this, constructEmptyObject(exec));
 
     m_errorPrototype.set(exec->globalData(), this, ErrorPrototype::create(exec, this, ErrorPrototype::createStructure(exec->globalData(), this, m_objectPrototype.get())));
     m_errorStructure.set(exec->globalData(), this, ErrorInstance::createStructure(exec->globalData(), this, m_errorPrototype.get()));
@@ -359,7 +365,9 @@ inline bool hasBrokenIndexing(JSObject* object)
 {
     // This will change if we have more indexing types.
     IndexingType type = object->structure()->indexingType();
-    return hasContiguous(type) || hasFastArrayStorage(type);
+    // This could be made obviously more efficient, but isn't made so right now, because
+    // we expect this to be an unlikely slow path anyway.
+    return hasUndecided(type) || hasInt32(type) || hasDouble(type) || hasContiguous(type) || hasFastArrayStorage(type);
 }
 
 void ObjectsWithBrokenIndexingFinder::operator()(JSCell* cell)
@@ -411,8 +419,8 @@ void JSGlobalObject::haveABadTime(JSGlobalData& globalData)
     
     // Make sure that all JSArray allocations that load the appropriate structure from
     // this object now load a structure that uses SlowPut.
-    m_arrayStructure.set(globalData, this, m_arrayStructureForSlowPut.get());
-    m_arrayStructureWithArrayStorage.set(globalData, this, m_arrayStructureForSlowPut.get());
+    for (unsigned i = 0; i < NumberOfIndexingShapes; ++i)
+        m_arrayStructureForIndexingShapeDuringAllocation[i].set(globalData, this, originalArrayStructureForIndexingType(ArrayWithSlowPutArrayStorage));
     
     // Make sure that all objects that have indexed storage switch to the slow kind of
     // indexed storage.
@@ -425,6 +433,14 @@ void JSGlobalObject::haveABadTime(JSGlobalData& globalData)
         ASSERT(hasBrokenIndexing(object));
         object->switchToSlowPutArrayStorage(globalData);
     }
+}
+
+bool JSGlobalObject::arrayPrototypeChainIsSane()
+{
+    return !hasIndexedProperties(m_arrayPrototype->structure()->indexingType())
+        && m_arrayPrototype->prototype() == m_objectPrototype.get()
+        && !hasIndexedProperties(m_objectPrototype->structure()->indexingType())
+        && m_objectPrototype->prototype().isNull();
 }
 
 void JSGlobalObject::createThrowTypeError(ExecState* exec)
@@ -456,7 +472,6 @@ void JSGlobalObject::visitChildren(JSCell* cell, SlotVisitor& visitor)
     Base::visitChildren(thisObject, visitor);
 
     visitor.append(&thisObject->m_globalThis);
-    visitor.append(&thisObject->m_methodCallDummy);
 
     visitor.append(&thisObject->m_regExpConstructor);
     visitor.append(&thisObject->m_errorConstructor);
@@ -487,9 +502,10 @@ void JSGlobalObject::visitChildren(JSCell* cell, SlotVisitor& visitor)
     visitor.append(&thisObject->m_activationStructure);
     visitor.append(&thisObject->m_nameScopeStructure);
     visitor.append(&thisObject->m_argumentsStructure);
-    visitor.append(&thisObject->m_arrayStructure);
-    visitor.append(&thisObject->m_arrayStructureWithArrayStorage);
-    visitor.append(&thisObject->m_arrayStructureForSlowPut);
+    for (unsigned i = 0; i < NumberOfIndexingShapes; ++i)
+        visitor.append(&thisObject->m_originalArrayStructureForIndexingShape[i]);
+    for (unsigned i = 0; i < NumberOfIndexingShapes; ++i)
+        visitor.append(&thisObject->m_arrayStructureForIndexingShapeDuringAllocation[i]);
     visitor.append(&thisObject->m_booleanObjectStructure);
     visitor.append(&thisObject->m_callbackConstructorStructure);
     visitor.append(&thisObject->m_callbackFunctionStructure);
@@ -579,5 +595,59 @@ void slowValidateCell(JSGlobalObject* globalObject)
         CRASH();
     ASSERT_GC_OBJECT_INHERITS(globalObject, &JSGlobalObject::s_info);
 }
+
+UnlinkedProgramCodeBlock* JSGlobalObject::createProgramCodeBlock(CallFrame* callFrame, ProgramExecutable* executable, JSObject** exception)
+{
+    ParserError error;
+    JSParserStrictness strictness = executable->isStrictMode() ? JSParseStrict : JSParseNormal;
+    DebuggerMode debuggerMode = hasDebugger() ? DebuggerOn : DebuggerOff;
+    ProfilerMode profilerMode = hasProfiler() ? ProfilerOn : ProfilerOff;
+    UnlinkedProgramCodeBlock* unlinkedCode = globalData().codeCache()->getProgramCodeBlock(globalData(), executable, executable->source(), strictness, debuggerMode, profilerMode, error);
+
+    if (hasDebugger())
+        debugger()->sourceParsed(callFrame, executable->source().provider(), error.m_line, error.m_message);
+
+    if (error.m_type != ParserError::ErrorNone) {
+        *exception = error.toErrorObject(this, executable->source());
+        return 0;
+    }
+    
+    return unlinkedCode;
+}
+
+UnlinkedEvalCodeBlock* JSGlobalObject::createEvalCodeBlock(CallFrame* callFrame, EvalExecutable* executable, JSObject** exception)
+{
+    ParserError error;
+    JSParserStrictness strictness = executable->isStrictMode() ? JSParseStrict : JSParseNormal;
+    DebuggerMode debuggerMode = hasDebugger() ? DebuggerOn : DebuggerOff;
+    ProfilerMode profilerMode = hasProfiler() ? ProfilerOn : ProfilerOff;
+    UnlinkedEvalCodeBlock* unlinkedCode = globalData().codeCache()->getEvalCodeBlock(globalData(), executable, executable->source(), strictness, debuggerMode, profilerMode, error);
+
+    if (hasDebugger())
+        debugger()->sourceParsed(callFrame, executable->source().provider(), error.m_line, error.m_message);
+
+    if (error.m_type != ParserError::ErrorNone) {
+        *exception = error.toErrorObject(this, executable->source());
+        return 0;
+    }
+
+    return unlinkedCode;
+}
+
+UnlinkedFunctionExecutable* JSGlobalObject::createFunctionExecutableFromGlobalCode(CallFrame* callFrame, const Identifier& name, const SourceCode& code, JSObject** exception)
+{
+    ParserError error;
+    UnlinkedFunctionExecutable* executable = globalData().codeCache()->getFunctionExecutableFromGlobalCode(globalData(), name, code, error);
+    if (hasDebugger())
+        debugger()->sourceParsed(callFrame, code.provider(), error.m_line, error.m_message);
+
+    if (error.m_type != ParserError::ErrorNone) {
+        *exception = error.toErrorObject(this, code);
+        return 0;
+    }
+
+    return executable;
+}
+
 
 } // namespace JSC

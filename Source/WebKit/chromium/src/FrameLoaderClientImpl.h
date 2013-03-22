@@ -118,6 +118,7 @@ public:
     virtual void dispatchDecidePolicyForNavigationAction(WebCore::FramePolicyFunction function, const WebCore::NavigationAction& action, const WebCore::ResourceRequest& request, PassRefPtr<WebCore::FormState> form_state);
     virtual void cancelPolicyCheck();
     virtual void dispatchUnableToImplementPolicy(const WebCore::ResourceError&);
+    virtual void dispatchWillRequestResource(WebCore::CachedResourceRequest*);
     virtual void dispatchWillSendSubmitEvent(PassRefPtr<WebCore::FormState>);
     virtual void dispatchWillSubmitForm(WebCore::FramePolicyFunction, PassRefPtr<WebCore::FormState>);
     virtual void revertToProvisionalState(WebCore::DocumentLoader*) { }
@@ -137,6 +138,7 @@ public:
     virtual void updateGlobalHistoryRedirectLinks();
     virtual bool shouldGoToHistoryItem(WebCore::HistoryItem*) const;
     virtual bool shouldStopLoadingForHistoryItem(WebCore::HistoryItem*) const;
+    virtual void didDisownOpener();
     virtual void didDisplayInsecureContent();
     virtual void didRunInsecureContent(WebCore::SecurityOrigin*, const WebCore::KURL& insecureURL);
     virtual void didDetectXSS(const WebCore::KURL&, bool didBlockEntirePage);
@@ -223,6 +225,15 @@ public:
 
 #if ENABLE(MEDIA_STREAM)
     virtual void dispatchWillStartUsingPeerConnectionHandler(WebCore::RTCPeerConnectionHandler*) OVERRIDE;
+#endif
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    virtual void didRequestAutocomplete(PassRefPtr<WebCore::FormState>) OVERRIDE;
+#endif
+
+#if ENABLE(WEBGL)
+    virtual bool allowWebGL(bool enabledPerSettings) OVERRIDE;
+    virtual void didLoseWebGLContext(int arbRobustnessContextLostReason) OVERRIDE;
 #endif
 
 private:

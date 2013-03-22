@@ -55,6 +55,10 @@ messages -> WebProcess {
     SetShouldPaintNativeControls(bool shouldPaintNativeControls)
 #endif
 
+    // Private browsing session is per process. Individual pages or page groups may use the private session or the default one as appropriate.
+    EnsurePrivateBrowsingSession()
+    DestroyPrivateBrowsingSession()
+
     # Plug-ins.
 #if ENABLE(NETSCAPE_PLUGIN_API)
     DidGetPlugins(uint64_t requestID, Vector<WebCore::PluginInfo> plugins) DispatchOnConnectionQueue
@@ -69,7 +73,7 @@ messages -> WebProcess {
 #endif
 
 #if ENABLE(PLUGIN_PROCESS)
-    PluginProcessCrashed(String pluginProcess) DispatchOnConnectionQueue
+    PluginProcessCrashed(String pluginProcess, uint32_t processType) DispatchOnConnectionQueue
 #endif
 
     void StartMemorySampler(WebKit::SandboxExtension::Handle sampleLogFileHandle, WTF::String sampleLogFilePath, double interval);
@@ -95,6 +99,14 @@ messages -> WebProcess {
 
 #if USE(SECURITY_FRAMEWORK)
     SecItemResponse(uint64_t requestID, WebKit::SecItemResponseData response) DispatchOnConnectionQueue
-    SecKeychainItemResponse(uint64_t requestID, WebKit::SecKeychainItemResponseData response) DispatchOnConnectionQueue
+#endif
+
+#if PLATFORM(MAC)
+    SetApplicationIsOccluded(bool flag);
+#endif
+
+#if ENABLE(CUSTOM_PROTOCOLS)
+    RegisterSchemeForCustomProtocol(WTF::String name)
+    UnregisterSchemeForCustomProtocol(WTF::String name)
 #endif
 }

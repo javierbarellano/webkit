@@ -3,6 +3,7 @@
  *  Copyright (C) 2003, 2004, 2005, 2006, 2008, 2009 Apple Inc. All rights reserved.
  *  Copyright (C) 2007 Samuel Weinig <sam@webkit.org>
  *  Copyright (C) 2009 Google, Inc. All rights reserved.
+ *  Copyright (C) 2012 Ericsson AB. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -32,8 +33,10 @@
 #include "Document.h"
 #include "Element.h"
 #include "MediaList.h"
+#include "ScriptWrappable.h"
 #include "StylePropertySet.h"
 #include "StyledElement.h"
+#include <heap/SlotVisitor.h>
 #include <heap/Weak.h>
 #include <runtime/Error.h>
 #include <runtime/FunctionPrototype.h>
@@ -55,6 +58,7 @@ enum ParameterDefaultPolicy {
 
 #define MAYBE_MISSING_PARAMETER(exec, index, policy) (((policy) == DefaultIsNullString && (index) >= (exec)->argumentCount()) ? (JSValue()) : ((exec)->argument(index)))
 
+    class CachedScript;
     class Frame;
     class KURL;
 
@@ -129,10 +133,32 @@ enum ParameterDefaultPolicy {
         return JSC::jsCast<JSC::JSObject*>(asObject(getDOMStructure<WrapperClass>(exec, JSC::jsCast<JSDOMGlobalObject*>(globalObject))->storedPrototype()));
     }
 
-    // Overload these functions to provide a fast path for wrapper access.
     inline JSDOMWrapper* getInlineCachedWrapper(DOMWrapperWorld*, void*) { return 0; }
-    inline bool setInlineCachedWrapper(DOMWrapperWorld*, void*, JSDOMWrapper*) { return false; }
+    inline bool setInlineCachedWrapper(DOMWrapperWorld*, void*, JSDOMWrapper*, JSC::WeakHandleOwner*, void*) { return false; }
     inline bool clearInlineCachedWrapper(DOMWrapperWorld*, void*, JSDOMWrapper*) { return false; }
+
+    inline JSDOMWrapper* getInlineCachedWrapper(DOMWrapperWorld* world, ScriptWrappable* domObject)
+    {
+        if (!world->isNormal())
+            return 0;
+        return domObject->wrapper();
+    }
+
+    inline bool setInlineCachedWrapper(DOMWrapperWorld* world, ScriptWrappable* domObject, JSDOMWrapper* wrapper, JSC::WeakHandleOwner* wrapperOwner, void* context)
+    {
+        if (!world->isNormal())
+            return false;
+        domObject->setWrapper(*world->globalData(), wrapper, wrapperOwner, context);
+        return true;
+    }
+
+    inline bool clearInlineCachedWrapper(DOMWrapperWorld* world, ScriptWrappable* domObject, JSDOMWrapper* wrapper)
+    {
+        if (!world->isNormal())
+            return false;
+        domObject->clearWrapper(wrapper);
+        return true;
+    }
 
     template <typename DOMClass> inline JSDOMWrapper* getCachedWrapper(DOMWrapperWorld* world, DOMClass* domObject)
     {
@@ -143,9 +169,11 @@ enum ParameterDefaultPolicy {
 
     template <typename DOMClass> inline void cacheWrapper(DOMWrapperWorld* world, DOMClass* domObject, JSDOMWrapper* wrapper)
     {
-        if (setInlineCachedWrapper(world, domObject, wrapper))
+        JSC::WeakHandleOwner* owner = wrapperOwner(world, domObject);
+        void* context = wrapperContext(world, domObject);
+        if (setInlineCachedWrapper(world, domObject, wrapper, owner, context))
             return;
-        JSC::PassWeak<JSDOMWrapper> passWeak(wrapper, wrapperOwner(world, domObject), wrapperContext(world, domObject));
+        JSC::PassWeak<JSDOMWrapper> passWeak(wrapper, owner, context);
         weakAdd(world->m_wrappers, (void*)domObject, passWeak);
     }
 
@@ -227,7 +255,7 @@ enum ParameterDefaultPolicy {
 
     const JSC::HashTable* getHashTableForGlobalData(JSC::JSGlobalData&, const JSC::HashTable* staticTable);
 
-    void reportException(JSC::ExecState*, JSC::JSValue exception);
+    void reportException(JSC::ExecState*, JSC::JSValue exception, CachedScript* = 0);
     void reportCurrentException(JSC::ExecState*);
 
     // Convert a DOM implementation exception code into a JavaScript exception in the execution state.
@@ -344,7 +372,7 @@ enum ParameterDefaultPolicy {
         for (typename Vector<T, inlineCapacity>::const_iterator iter = iterator.begin(); iter != end; ++iter)
             list.append(TraitsType::arrayJSValue(exec, globalObject, *iter));
 
-        return JSC::constructArray(exec, globalObject, list);
+        return JSC::constructArray(exec, 0, globalObject, list);
     }
 
     JSC::JSValue jsArray(JSC::ExecState*, JSDOMGlobalObject*, PassRefPtr<DOMStringList>);
@@ -383,6 +411,26 @@ enum ParameterDefaultPolicy {
             return !exec->hadException();
         }
     };
+
+    template <class T, class JST>
+    Vector<RefPtr<T> > toRefPtrNativeArray(JSC::ExecState* exec, JSC::JSValue value, T* (*toT)(JSC::JSValue value))
+    {
+        if (!isJSArray(value))
+            return Vector<RefPtr<T> >();
+
+        Vector<RefPtr<T> > result;
+        JSC::JSArray* array = asArray(value);
+        for (size_t i = 0; i < array->length(); ++i) {
+            JSC::JSValue element = array->getIndex(exec, i);
+            if (element.inherits(&JST::s_info))
+                result.append((*toT)(element));
+            else {
+                throwVMError(exec, createTypeError(exec, "Invalid Array element type"));
+                return Vector<RefPtr<T> >();
+            }
+        }
+        return result;
+    }
 
     template <class T>
     Vector<T> toNativeArray(JSC::ExecState* exec, JSC::JSValue value)

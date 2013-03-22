@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010, 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +38,7 @@
 #include <WebKit2/WKRetainPtr.h>
 #include <wtf/OwnArrayPtr.h>
 #include <wtf/PassOwnArrayPtr.h>
+#include <wtf/PassOwnPtr.h>
 #include <wtf/text/CString.h>
 
 #if PLATFORM(MAC)
@@ -104,6 +106,7 @@ TestInvocation::TestInvocation(const std::string& pathOrURL)
     , m_gotFinalMessage(false)
     , m_gotRepaint(false)
     , m_error(false)
+    , m_webProcessIsUnresponsive(false)
 {
 }
 
@@ -164,10 +167,34 @@ static void updateTiledDrawingForCurrentTest(const char* pathOrURL)
 #endif
 }
 
+#if ENABLE(CSS_DEVICE_ADAPTATION)
+static bool shouldUseFixedLayout(const char* pathOrURL)
+{
+    return strstr(pathOrURL, "device-adapt/") || strstr(pathOrURL, "device-adapt\\");
+}
+#endif
+
+static void updateLayoutType(const char* pathOrURL)
+{
+#if ENABLE(CSS_DEVICE_ADAPTATION)
+    WKRetainPtr<WKMutableDictionaryRef> viewOptions = adoptWK(WKMutableDictionaryCreate());
+    WKRetainPtr<WKStringRef> useFixedLayoutKey = adoptWK(WKStringCreateWithUTF8CString("UseFixedLayout"));
+    WKRetainPtr<WKBooleanRef> useFixedLayoutValue = adoptWK(WKBooleanCreate(shouldUseFixedLayout(pathOrURL)));
+    WKDictionaryAddItem(viewOptions.get(), useFixedLayoutKey.get(), useFixedLayoutValue.get());
+
+    TestController::shared().ensureViewSupportsOptions(viewOptions.get());
+#else
+    UNUSED_PARAM(pathOrURL);
+#endif
+}
+
 void TestInvocation::invoke()
 {
     sizeWebViewForCurrentTest(m_pathOrURL.c_str());
+    updateLayoutType(m_pathOrURL.c_str());
     updateTiledDrawingForCurrentTest(m_pathOrURL.c_str());
+
+    m_textOutput.clear();
 
     WKRetainPtr<WKStringRef> messageName = adoptWK(WKStringCreateWithUTF8CString("BeginTest"));
     WKRetainPtr<WKMutableDictionaryRef> beginTestMessageBody = adoptWK(WKMutableDictionaryCreate());
@@ -186,16 +213,14 @@ void TestInvocation::invoke()
 
     WKContextPostMessageToInjectedBundle(TestController::shared().context(), messageName.get(), beginTestMessageBody.get());
 
-    const char* errorMessage = 0;
     TestController::shared().runUntil(m_gotInitialResponse, TestController::ShortTimeout);
     if (!m_gotInitialResponse) {
-        errorMessage = "Timed out waiting for initial response from web process\n";
+        m_errorMessage = "Timed out waiting for initial response from web process\n";
+        m_webProcessIsUnresponsive = true;
         goto end;
     }
-    if (m_error) {
-        errorMessage = "FAIL\n";
+    if (m_error)
         goto end;
-    }
 
 #if ENABLE(INSPECTOR)
     if (shouldOpenWebInspector(m_pathOrURL.c_str()))
@@ -206,13 +231,12 @@ void TestInvocation::invoke()
 
     TestController::shared().runUntil(m_gotFinalMessage, TestController::shared().useWaitToDumpWatchdogTimer() ? TestController::LongTimeout : TestController::NoTimeout);
     if (!m_gotFinalMessage) {
-        errorMessage = "Timed out waiting for final message from web process\n";
+        m_errorMessage = "Timed out waiting for final message from web process\n";
+        m_webProcessIsUnresponsive = true;
         goto end;
     }
-    if (m_error) {
-        errorMessage = "FAIL\n";
+    if (m_error)
         goto end;
-    }
 
     dumpResults();
 
@@ -222,13 +246,15 @@ end:
         WKInspectorClose(WKPageGetInspector(TestController::shared().mainWebView()->page()));
 #endif // ENABLE(INSPECTOR)
 
-    if (errorMessage)
-        dumpWebProcessUnresponsiveness(errorMessage);
-    else if (!TestController::shared().resetStateToConsistentValues())
-        dumpWebProcessUnresponsiveness("Timed out loading about:blank before the next test");
+    if (m_webProcessIsUnresponsive)
+        dumpWebProcessUnresponsiveness();
+    else if (!TestController::shared().resetStateToConsistentValues()) {
+        m_errorMessage = "Timed out loading about:blank before the next test";
+        dumpWebProcessUnresponsiveness();
+    }
 }
 
-void TestInvocation::dumpWebProcessUnresponsiveness(const char* textToStdout)
+void TestInvocation::dumpWebProcessUnresponsiveness()
 {
     const char* errorMessageToStderr = 0;
 #if PLATFORM(MAC)
@@ -240,7 +266,7 @@ void TestInvocation::dumpWebProcessUnresponsiveness(const char* textToStdout)
     errorMessageToStderr = "#PROCESS UNRESPONSIVE - WebProcess";
 #endif
 
-    dump(textToStdout, errorMessageToStderr, true);
+    dump(m_errorMessage.c_str(), errorMessageToStderr, true);
 }
 
 void TestInvocation::dump(const char* textToStdout, const char* textToStderr, bool seenError)
@@ -261,7 +287,7 @@ void TestInvocation::dump(const char* textToStdout, const char* textToStderr, bo
 
 void TestInvocation::dumpResults()
 {
-    dump(toWTFString(m_textOutput.get()).utf8().data());
+    dump(m_textOutput.toString().utf8().data());
 
     if (m_dumpPixels && m_pixelResult)
         dumpPixelsAndCompareWithExpected(m_pixelResult.get(), m_repaintRects.get());
@@ -292,6 +318,7 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         m_gotInitialResponse = true;
         m_gotFinalMessage = true;
         m_error = true;
+        m_errorMessage = "FAIL\n";
         TestController::shared().notifyDone();
         return;
     }
@@ -312,9 +339,6 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         ASSERT(WKGetTypeID(messageBody) == WKDictionaryGetTypeID());
         WKDictionaryRef messageBodyDictionary = static_cast<WKDictionaryRef>(messageBody);
 
-        WKRetainPtr<WKStringRef> textOutputKey(AdoptWK, WKStringCreateWithUTF8CString("TextOutput"));
-        m_textOutput = static_cast<WKStringRef>(WKDictionaryGetItemForKey(messageBodyDictionary, textOutputKey.get()));
-
         WKRetainPtr<WKStringRef> pixelResultKey = adoptWK(WKStringCreateWithUTF8CString("PixelResult"));
         m_pixelResult = static_cast<WKImageRef>(WKDictionaryGetItemForKey(messageBodyDictionary, pixelResultKey.get()));
         ASSERT(!m_pixelResult || m_dumpPixels);
@@ -326,7 +350,14 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         TestController::shared().notifyDone();
         return;
     }
-    
+
+    if (WKStringIsEqualToUTF8CString(messageName, "TextOutput")) {
+        ASSERT(WKGetTypeID(messageBody) == WKStringGetTypeID());
+        WKStringRef textOutput = static_cast<WKStringRef>(messageBody);
+        m_textOutput.append(toWTFString(textOutput));
+        return;
+    }
+
     if (WKStringIsEqualToUTF8CString(messageName, "BeforeUnloadReturnValue")) {
         ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
         WKBooleanRef beforeUnloadReturnValue = static_cast<WKBooleanRef>(messageBody);

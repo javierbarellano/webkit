@@ -206,6 +206,8 @@ private:
 
     virtual bool handleEditingCommand(const String& commandName, const String& argument) OVERRIDE;
     virtual bool isEditingCommandEnabled(const String&) OVERRIDE;
+
+    virtual bool shouldAllowScripting() OVERRIDE;
     
     virtual bool handlesPageScaleFactor() OVERRIDE;
 
@@ -237,7 +239,7 @@ private:
     bool supportsSnapshotting() const;
 
     // Convert the given point from plug-in coordinates to root view coordinates.
-    WebCore::IntPoint convertToRootView(const WebCore::IntPoint&) const;
+    virtual WebCore::IntPoint convertToRootView(const WebCore::IntPoint&) const OVERRIDE;
 
     // Convert the given point from root view coordinates to plug-in coordinates. Returns false if the point can't be
     // converted (if the transformation matrix isn't invertible).

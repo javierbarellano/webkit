@@ -190,16 +190,17 @@ public:
     }
 
     // CodeBlock is optional, but may allow additional information to be dumped (e.g. Identifier names).
-    void dump();
+    void dump(PrintStream& = WTF::dataFile());
     enum PhiNodeDumpMode { DumpLivePhisOnly, DumpAllPhis };
-    void dumpBlockHeader(const char* prefix, BlockIndex, PhiNodeDumpMode);
-    void dump(const char* prefix, NodeIndex);
+    void dumpBlockHeader(PrintStream&, const char* prefix, BlockIndex, PhiNodeDumpMode);
+    void dump(PrintStream&, Edge);
+    void dump(PrintStream&, const char* prefix, NodeIndex);
     static int amountOfNodeWhiteSpace(Node&);
-    static void printNodeWhiteSpace(Node&);
+    static void printNodeWhiteSpace(PrintStream&, Node&);
 
     // Dump the code origin of the given node as a diff from the code origin of the
-    // preceding node.
-    void dumpCodeOrigin(const char* prefix, NodeIndex, NodeIndex);
+    // preceding node. Returns true if anything was printed.
+    bool dumpCodeOrigin(PrintStream&, const char* prefix, NodeIndex, NodeIndex);
 
     BlockIndex blockIndexForBytecodeOffset(Vector<BlockIndex>& blocks, unsigned bytecodeBegin);
 
@@ -220,7 +221,7 @@ public:
         if (right.hasConstant())
             return addImmediateShouldSpeculateInteger(add, left, right);
         
-        return Node::shouldSpeculateInteger(left, right) && add.canSpeculateInteger();
+        return Node::shouldSpeculateIntegerExpectingDefined(left, right) && add.canSpeculateInteger();
     }
     
     bool mulShouldSpeculateInteger(Node& mul)
@@ -230,18 +231,13 @@ public:
         Node& left = at(mul.child1());
         Node& right = at(mul.child2());
         
-        if (left.hasConstant())
-            return mulImmediateShouldSpeculateInteger(mul, right, left);
-        if (right.hasConstant())
-            return mulImmediateShouldSpeculateInteger(mul, left, right);
-        
-        return Node::shouldSpeculateInteger(left, right) && mul.canSpeculateInteger() && !nodeMayOverflow(mul.arithNodeFlags());
+        return Node::shouldSpeculateIntegerForArithmetic(left, right) && mul.canSpeculateInteger();
     }
     
     bool negateShouldSpeculateInteger(Node& negate)
     {
         ASSERT(negate.op() == ArithNegate);
-        return at(negate.child1()).shouldSpeculateInteger() && negate.canSpeculateInteger();
+        return at(negate.child1()).shouldSpeculateIntegerForArithmetic() && negate.canSpeculateInteger();
     }
     
     bool addShouldSpeculateInteger(NodeIndex nodeIndex)
@@ -331,9 +327,6 @@ public:
 
     static const char *opName(NodeType);
     
-    // This is O(n), and should only be used for verbose dumps.
-    const char* nameOfVariableAccessData(VariableAccessData*);
-
     void predictArgumentTypes();
     
     StructureSet* addStructureSet(const StructureSet& structureSet)
@@ -493,6 +486,8 @@ public:
         switch (node.arrayMode().type()) {
         case Array::Generic:
             return false;
+        case Array::Int32:
+        case Array::Double:
         case Array::Contiguous:
         case Array::ArrayStorage:
             return !node.arrayMode().isOutOfBounds();
@@ -676,6 +671,7 @@ public:
     
     JSGlobalData& m_globalData;
     CodeBlock* m_codeBlock;
+    RefPtr<Profiler::Compilation> m_compilation;
     CodeBlock* m_profiledBlock;
 
     Vector< OwnPtr<BasicBlock> , 8> m_blocks;
@@ -712,7 +708,7 @@ private:
         if (!immediateValue.isNumber())
             return false;
         
-        if (!variable.shouldSpeculateInteger())
+        if (!variable.shouldSpeculateIntegerExpectingDefined())
             return false;
         
         if (immediateValue.isInt32())
@@ -734,7 +730,7 @@ private:
         if (!immediateValue.isInt32())
             return false;
         
-        if (!variable.shouldSpeculateInteger())
+        if (!variable.shouldSpeculateIntegerForArithmetic())
             return false;
         
         int32_t intImmediate = immediateValue.asInt32();

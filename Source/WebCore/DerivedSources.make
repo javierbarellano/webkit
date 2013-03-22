@@ -105,7 +105,6 @@ BINDING_IDLS = \
     $(WebCore)/Modules/indexeddb/IDBAny.idl \
     $(WebCore)/Modules/indexeddb/IDBCursor.idl \
     $(WebCore)/Modules/indexeddb/IDBDatabase.idl \
-    $(WebCore)/Modules/indexeddb/IDBDatabaseException.idl \
     $(WebCore)/Modules/indexeddb/IDBFactory.idl \
     $(WebCore)/Modules/indexeddb/IDBIndex.idl \
     $(WebCore)/Modules/indexeddb/IDBKey.idl \
@@ -204,8 +203,10 @@ BINDING_IDLS = \
     $(WebCore)/css/WebKitCSSKeyframeRule.idl \
     $(WebCore)/css/WebKitCSSKeyframesRule.idl \
     $(WebCore)/css/WebKitCSSMatrix.idl \
+    $(WebCore)/css/WebKitCSSMixFunctionValue.idl \
     $(WebCore)/css/WebKitCSSRegionRule.idl \
     $(WebCore)/css/WebKitCSSTransformValue.idl \
+    $(WebCore)/css/WebKitCSSViewportRule.idl \
     $(WebCore)/dom/Attr.idl \
     $(WebCore)/dom/BeforeLoadEvent.idl \
     $(WebCore)/dom/CDATASection.idl \
@@ -276,8 +277,6 @@ BINDING_IDLS = \
     $(WebCore)/dom/WebKitNamedFlow.idl \
     $(WebCore)/dom/WebKitTransitionEvent.idl \
     $(WebCore)/dom/WheelEvent.idl \
-    $(WebCore)/editing/DOMTransaction.idl \
-    $(WebCore)/editing/UndoManager.idl \
     $(WebCore)/fileapi/Blob.idl \
     $(WebCore)/fileapi/File.idl \
     $(WebCore)/fileapi/FileError.idl \
@@ -312,6 +311,7 @@ BINDING_IDLS = \
     $(WebCore)/html/HTMLEmbedElement.idl \
     $(WebCore)/html/HTMLFieldSetElement.idl \
     $(WebCore)/html/HTMLFontElement.idl \
+    $(WebCore)/html/HTMLFormControlsCollection.idl \
     $(WebCore)/html/HTMLFormElement.idl \
     $(WebCore)/html/HTMLFrameElement.idl \
     $(WebCore)/html/HTMLFrameSetElement.idl \
@@ -357,6 +357,7 @@ BINDING_IDLS = \
     $(WebCore)/html/HTMLTableElement.idl \
     $(WebCore)/html/HTMLTableRowElement.idl \
     $(WebCore)/html/HTMLTableSectionElement.idl \
+    $(WebCore)/html/HTMLTemplateElement.idl \
     $(WebCore)/html/HTMLTextAreaElement.idl \
     $(WebCore)/html/HTMLTitleElement.idl \
     $(WebCore)/html/HTMLTrackElement.idl \
@@ -937,12 +938,18 @@ MathMLElementFactory.cpp MathMLNames.cpp : dom/make_names.pl mathml/mathtags.in 
 
 # --------
 
+all : SettingsMacros.h
+
+SettingsMacros.h : page/make_settings.pl page/Settings.in
+	perl -I $(WebCore)/bindings/scripts $< --input $(WebCore)/page/Settings.in
+
+# --------
+
 # Common generator things
 
 GENERATE_SCRIPTS = \
     bindings/scripts/CodeGenerator.pm \
     bindings/scripts/IDLParser.pm \
-    bindings/scripts/IDLStructure.pm \
     bindings/scripts/generate-bindings.pl \
     bindings/scripts/preprocessor.pm
 

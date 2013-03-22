@@ -122,9 +122,9 @@ PassRefPtr<SimpleFontData> FontCache::getSimilarFontPlatformData(const Font& fon
 
 PassRefPtr<SimpleFontData> FontCache::getLastResortFallbackFont(const FontDescription& description, ShouldRetain shouldRetain)
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, serif, ("Serif"));
-    DEFINE_STATIC_LOCAL(const AtomicString, monospace, ("Monospace"));
-    DEFINE_STATIC_LOCAL(const AtomicString, sans, ("Sans"));
+    DEFINE_STATIC_LOCAL(const AtomicString, serif, ("Serif", AtomicString::ConstructFromLiteral));
+    DEFINE_STATIC_LOCAL(const AtomicString, monospace, ("Monospace", AtomicString::ConstructFromLiteral));
+    DEFINE_STATIC_LOCAL(const AtomicString, sans, ("Sans", AtomicString::ConstructFromLiteral));
 
     FontPlatformData* fontPlatformData = 0;
     switch (description.genericFamily()) {
@@ -178,8 +178,7 @@ FontPlatformData* FontCache::createFontPlatformData(const FontDescription& fontD
             result = new FontPlatformData(typeface, name, fontDescription.computedSize(),
                                           (style & SkTypeface::kBold) && !typeface->isBold(),
                                           (style & SkTypeface::kItalic) && !typeface->isItalic(),
-                                          fontDescription.orientation(),
-                                          fontDescription.textOrientation());
+                                          fontDescription.orientation());
     } else {
         typeface = SkTypeface::CreateFromName(name, SkTypeface::kNormal);
 
@@ -203,8 +202,7 @@ FontPlatformData* FontCache::createFontPlatformData(const FontDescription& fontD
             result = new FontPlatformData(typeface, name, fontDescription.computedSize(),
                                           (style & SkTypeface::kBold) && !typeface->isBold(),
                                           (style & SkTypeface::kItalic) && !typeface->isItalic(),
-                                          fontDescription.orientation(),
-                                          fontDescription.textOrientation());
+                                          fontDescription.orientation());
         }
     }
 

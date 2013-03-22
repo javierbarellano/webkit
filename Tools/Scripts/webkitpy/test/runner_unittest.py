@@ -92,10 +92,6 @@ class RunnerTest(unittest.TestCase):
                             ('test3 (Foo)', 'E', 'test3\nerred'))
         runner = Runner(Printer(stream, options), loader)
         runner.run(['Foo.test1', 'Foo.test2', 'Foo.test3'], 1)
-        self.assertEquals(runner.tests_run, 3)
-        self.assertEquals(len(runner.failures), 1)
-        self.assertEquals(len(runner.errors), 1)
-
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(runner.tests_run, 3)
+        self.assertEqual(len(runner.failures), 1)
+        self.assertEqual(len(runner.errors), 1)

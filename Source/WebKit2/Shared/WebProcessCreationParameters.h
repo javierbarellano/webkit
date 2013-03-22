@@ -72,6 +72,12 @@ struct WebProcessCreationParameters {
     Vector<String> urlSchemesRegisteredAsNoAccess;
     Vector<String> urlSchemesRegisteredAsDisplayIsolated;
     Vector<String> urlSchemesRegisteredAsCORSEnabled;
+#if ENABLE(CUSTOM_PROTOCOLS)
+    Vector<String> urlSchemesRegisteredForCustomProtocols;
+#endif
+#if USE(SOUP)
+    Vector<String> urlSchemesRegistered;
+#endif
 
     CacheModel cacheModel;
     bool shouldTrackVisitedLinks;
@@ -91,13 +97,11 @@ struct WebProcessCreationParameters {
 
     double defaultRequestTimeoutInterval;
 
-#if PLATFORM(MAC) || USE(CFURLSTORAGESESSIONS)
+#if PLATFORM(MAC) || USE(CFNETWORK)
     String uiProcessBundleIdentifier;
 #endif
 
 #if PLATFORM(MAC)
-    String parentProcessName;
-
     pid_t presenterApplicationPid;
 
     uint64_t nsURLCacheMemoryCapacity;
@@ -119,9 +123,9 @@ struct WebProcessCreationParameters {
 
     bool shouldPaintNativeControls;
 
-#if USE(CFURLSTORAGESESSIONS)
+#if USE(CFNETWORK)
     RetainPtr<CFDataRef> serializedDefaultStorageSession;
-#endif // USE(CFURLSTORAGESESSIONS)
+#endif
 #endif // PLATFORM(WIN)
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)

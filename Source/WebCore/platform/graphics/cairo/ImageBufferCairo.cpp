@@ -82,7 +82,7 @@ GraphicsContext* ImageBuffer::context() const
     return m_context.get();
 }
 
-PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior) const
+PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior, ScaleBehavior) const
 {
     if (copyBehavior == CopyBackingStore)
         return BitmapImage::create(copyCairoImageSurface(m_data.m_surface).leakRef());
@@ -97,11 +97,11 @@ void ImageBuffer::clip(GraphicsContext* context, const FloatRect& maskRect) cons
 }
 
 void ImageBuffer::draw(GraphicsContext* destinationContext, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect,
-                       CompositeOperator op , bool useLowQualityScale)
+    CompositeOperator op, BlendMode blendMode, bool useLowQualityScale)
 {
     BackingStoreCopy copyMode = destinationContext == context() ? CopyBackingStore : DontCopyBackingStore;
     RefPtr<Image> image = copyImage(copyMode);
-    destinationContext->drawImage(image.get(), styleColorSpace, destRect, srcRect, op, DoNotRespectImageOrientation, useLowQualityScale);
+    destinationContext->drawImage(image.get(), styleColorSpace, destRect, srcRect, op, blendMode, DoNotRespectImageOrientation, useLowQualityScale);
 }
 
 void ImageBuffer::drawPattern(GraphicsContext* context, const FloatRect& srcRect, const AffineTransform& patternTransform,

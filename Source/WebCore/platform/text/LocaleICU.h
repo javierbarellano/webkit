@@ -49,21 +49,19 @@ public:
     static PassOwnPtr<LocaleICU> create(const char* localeString);
     virtual ~LocaleICU();
 
-    // For LocalizedDate
-    virtual double parseDateTime(const String&, DateComponents::Type) OVERRIDE;
 #if ENABLE(CALENDAR_PICKER)
     virtual const Vector<String>& weekDayShortLabels() OVERRIDE;
     virtual unsigned firstDayOfWeek() OVERRIDE;
     virtual bool isRTL() OVERRIDE;
 #endif
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    virtual const Vector<String>& monthLabels() OVERRIDE;
-#endif
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     virtual String dateFormat() OVERRIDE;
     virtual String monthFormat() OVERRIDE;
     virtual String timeFormat() OVERRIDE;
     virtual String shortTimeFormat() OVERRIDE;
+    virtual String dateTimeFormatWithSeconds() OVERRIDE;
+    virtual String dateTimeFormatWithoutSeconds() OVERRIDE;
+    virtual const Vector<String>& monthLabels() OVERRIDE;
     virtual const Vector<String>& shortMonthLabels() OVERRIDE;
     virtual const Vector<String>& standAloneMonthLabels() OVERRIDE;
     virtual const Vector<String>& shortStandAloneMonthLabels() OVERRIDE;
@@ -86,11 +84,8 @@ private:
     void initializeCalendar();
 #endif
 
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     PassOwnPtr<Vector<String> > createLabelVector(const UDateFormat*, UDateFormatSymbolType, int32_t startIndex, int32_t size);
-#endif
-
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
     void initializeDateTimeFormat();
 #endif
 
@@ -104,14 +99,14 @@ private:
     OwnPtr<Vector<String> > m_weekDayShortLabels;
     unsigned m_firstDayOfWeek;
 #endif
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     OwnPtr<Vector<String> > m_monthLabels;
-#endif
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
     String m_dateFormat;
     String m_monthFormat;
     String m_timeFormatWithSeconds;
     String m_timeFormatWithoutSeconds;
+    String m_dateTimeFormatWithSeconds;
+    String m_dateTimeFormatWithoutSeconds;
     UDateFormat* m_mediumTimeFormat;
     UDateFormat* m_shortTimeFormat;
     Vector<String> m_shortMonthLabels;

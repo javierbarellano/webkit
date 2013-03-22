@@ -67,7 +67,9 @@
 #include <wtf/MathExtras.h>
 
 #if OS(WINDOWS)
+QT_BEGIN_NAMESPACE
 Q_GUI_EXPORT QPixmap qt_pixmapFromWinHBITMAP(HBITMAP, int hbitmapFormat = 0);
+QT_END_NAMESPACE
 
 enum HBitmapFormat {
     HBitmapNoAlpha,
@@ -1241,7 +1243,7 @@ void GraphicsContext::setAlpha(float opacity)
     p->setOpacity(opacity);
 }
 
-void GraphicsContext::setPlatformCompositeOperation(CompositeOperator op)
+void GraphicsContext::setPlatformCompositeOperation(CompositeOperator op, BlendMode)
 {
     if (paintingDisabled())
         return;

@@ -23,8 +23,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-module html {
-
     interface [
         Conditional=VIDEO_TRACK,
         V8EnabledAtRuntime=webkitVideoTrack,
@@ -48,4 +46,3 @@ module html {
         boolean dispatchEvent(in Event evt)
             raises(EventException);
 	};
-}

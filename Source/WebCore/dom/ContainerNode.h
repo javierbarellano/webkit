@@ -78,6 +78,7 @@ private:
 };
 
 class ContainerNode : public Node {
+    friend class PostAttachCallbackDisabler;
 public:
     virtual ~ContainerNode();
 
@@ -131,6 +132,8 @@ public:
 
     void disconnectDescendantFrames();
 
+    virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const { return true; }
+
     // More efficient versions of these two functions for the case where we are starting with a ContainerNode.
     Node* traverseNextNode() const;
     Node* traverseNextNode(const Node* stayWithin) const;
@@ -148,8 +151,6 @@ protected:
 
     static void queuePostAttachCallback(NodeCallback, Node*, unsigned = 0);
     static bool postAttachCallbacksAreSuspended();
-    void suspendPostAttachCallbacks();
-    void resumePostAttachCallbacks();
 
     template<class GenericNode, class GenericNodeContainer>
     friend void appendChildToContainer(GenericNode* child, GenericNodeContainer*);
@@ -165,6 +166,8 @@ private:
     void insertBeforeCommon(Node* nextChild, Node* oldChild);
 
     static void dispatchPostAttachCallbacks();
+    void suspendPostAttachCallbacks();
+    void resumePostAttachCallbacks();
 
     bool getUpperLeftCorner(FloatPoint&) const;
     bool getLowerRightCorner(FloatPoint&) const;
@@ -314,7 +317,11 @@ inline Node* ContainerNode::traverseNextNode(const Node* stayWithin) const
     return traverseNextSibling(stayWithin);
 }
 
-typedef Vector<RefPtr<Node>, 11> NodeVector;
+// This constant controls how much buffer is initially allocated
+// for a Node Vector that is used to store child Nodes of a given Node.
+// FIXME: Optimize the value.
+const int initialNodeVectorSize = 11;
+typedef Vector<RefPtr<Node>, initialNodeVectorSize> NodeVector;
 
 inline void getChildNodes(Node* node, NodeVector& nodes)
 {
@@ -386,6 +393,24 @@ private:
     unsigned m_currentIndex;
     OwnPtr<Vector<RefPtr<Node> > > m_childNodes; // Lazily instantiated.
     ChildNodesLazySnapshot* m_nextSnapshot;
+};
+
+class PostAttachCallbackDisabler {
+public:
+    PostAttachCallbackDisabler(ContainerNode* node)
+        : m_node(node)
+    {
+        ASSERT(m_node);
+        m_node->suspendPostAttachCallbacks();
+    }
+
+    ~PostAttachCallbackDisabler()
+    {
+        m_node->resumePostAttachCallbacks();
+    }
+
+private:
+    ContainerNode* m_node;
 };
 
 } // namespace WebCore

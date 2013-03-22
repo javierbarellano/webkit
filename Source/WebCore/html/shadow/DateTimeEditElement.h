@@ -86,6 +86,7 @@ public:
 
     virtual ~DateTimeEditElement();
     void addField(PassRefPtr<DateTimeFieldElement>);
+    bool anyEditableFieldsHaveValues() const;
     void blurByOwner();
     virtual void defaultEventHandler(Event*) OVERRIDE;
     void disabledStateChanged();
@@ -97,7 +98,8 @@ public:
     void resetFields();
     void setEmptyValue(const LayoutParameters&, const DateComponents& dateForReadOnlyField);
     void setValueAsDate(const LayoutParameters&, const DateComponents&);
-    void setValueAsDateTimeFieldsState(const DateTimeFieldsState&, const DateComponents& dateForReadOnlyField);
+    void setValueAsDateTimeFieldsState(const DateTimeFieldsState&);
+    void setOnlyYearMonthDay(const DateComponents&);
     void stepDown();
     void stepUp();
     String value() const;
@@ -127,6 +129,9 @@ private:
     bool isReadOnly() const;
     void layout(const LayoutParameters&, const DateComponents&);
     void updateUIState();
+
+    // Element function.
+    virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
 
     // DateTimeFieldElement::FieldOwner functions.
     virtual void didBlurFromField() OVERRIDE FINAL;

@@ -42,8 +42,10 @@
 #include "PagePopupClient.h"
 #include "PageWidgetDelegate.h"
 #include "Settings.h"
+#include "WebCursorInfo.h"
 #include "WebInputEventConversion.h"
 #include "WebPagePopup.h"
+#include "WebSettingsImpl.h"
 #include "WebViewClient.h"
 #include "WebViewImpl.h"
 #include "WebWidgetClient.h"
@@ -130,6 +132,12 @@ private:
         return PlatformPageClient(this);
     }
 
+    virtual void setCursor(const WebCore::Cursor& cursor) OVERRIDE
+    {
+        if (m_popup->m_webView->client())
+            m_popup->m_webView->client()->didChangeCursor(WebCursorInfo(cursor));
+    }
+
     // PageClientChromium methods:
     virtual WebKit::WebScreenInfo screenInfo() OVERRIDE
     {
@@ -164,7 +172,7 @@ WebPagePopupImpl::~WebPagePopupImpl()
     ASSERT(!m_page);
 }
 
-bool WebPagePopupImpl::init(WebViewImpl* webView, PagePopupClient* popupClient, const IntRect&)
+bool WebPagePopupImpl::initialize(WebViewImpl* webView, PagePopupClient* popupClient, const IntRect&)
 {
     ASSERT(webView);
     ASSERT(popupClient);
@@ -173,7 +181,7 @@ bool WebPagePopupImpl::init(WebViewImpl* webView, PagePopupClient* popupClient, 
 
     resize(m_popupClient->contentSize());
 
-    if (!initPage())
+    if (!initializePage())
         return false;
     m_widgetClient->show(WebNavigationPolicy());
     setFocus(true);
@@ -181,7 +189,7 @@ bool WebPagePopupImpl::init(WebViewImpl* webView, PagePopupClient* popupClient, 
     return true;
 }
 
-bool WebPagePopupImpl::initPage()
+bool WebPagePopupImpl::initializePage()
 {
     Page::PageClients pageClients;
     fillWithEmptyClients(pageClients);
@@ -217,6 +225,17 @@ bool WebPagePopupImpl::initPage()
     return true;
 }
 
+void WebPagePopupImpl::destoryPage()
+{
+    if (!m_page)
+        return;
+
+    if (m_page->mainFrame())
+        m_page->mainFrame()->loader()->frameDetached();
+
+    m_page.clear();
+}
+
 WebSize WebPagePopupImpl::size()
 {
     return m_popupClient->contentSize();
@@ -242,7 +261,8 @@ void WebPagePopupImpl::layout()
 
 void WebPagePopupImpl::paint(WebCanvas* canvas, const WebRect& rect, PaintOptions)
 {
-    PageWidgetDelegate::paint(m_page.get(), 0, canvas, rect, PageWidgetDelegate::Opaque);
+    if (!m_closing)
+        PageWidgetDelegate::paint(m_page.get(), 0, canvas, rect, PageWidgetDelegate::Opaque, m_webView->settingsImpl()->applyDeviceScaleFactorInCompositor());
 }
 
 void WebPagePopupImpl::resize(const WebSize& newSize)
@@ -304,9 +324,8 @@ void WebPagePopupImpl::setFocus(bool enable)
 
 void WebPagePopupImpl::close()
 {
-    if (m_page && m_page->mainFrame())
-        m_page->mainFrame()->loader()->frameDetached();
-    m_page.clear();
+    m_closing = true;
+    destoryPage(); // In case closePopup() was not called.
     m_widgetClient = 0;
     deref();
 }
@@ -320,6 +339,9 @@ void WebPagePopupImpl::closePopup()
         DOMWindowPagePopup::uninstall(m_page->mainFrame()->document()->domWindow());
     }
     m_closing = true;
+
+    destoryPage();
+
     // m_widgetClient might be 0 because this widget might be already closed.
     if (m_widgetClient) {
         // closeWidgetSoon() will call this->close() later.

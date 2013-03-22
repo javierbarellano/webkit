@@ -39,6 +39,7 @@
 #include "JSValue.h"
 #include "LLIntData.h"
 #include "NumericStrings.h"
+#include "ProfilerDatabase.h"
 #include "PrivateName.h"
 #include "SmallStrings.h"
 #include "Strong.h"
@@ -63,6 +64,7 @@ struct OpaqueJSClassContextData;
 namespace JSC {
 
     class CodeBlock;
+    class CodeCache;
     class CommonIdentifiers;
     class HandleStack;
     class IdentifierTable;
@@ -71,15 +73,19 @@ namespace JSC {
     class JSObject;
     class Keywords;
     class LLIntOffsetsExtractor;
+    class LegacyProfiler;
     class NativeExecutable;
     class ParserArena;
-    class Profiler;
     class RegExpCache;
     class Stringifier;
     class Structure;
 #if ENABLE(REGEXP_TRACING)
     class RegExp;
 #endif
+    class UnlinkedCodeBlock;
+    class UnlinkedEvalCodeBlock;
+    class UnlinkedFunctionExecutable;
+    class UnlinkedProgramCodeBlock;
 
     struct HashTable;
     struct Instruction;
@@ -223,6 +229,11 @@ namespace JSC {
         Strong<Structure> sharedSymbolTableStructure;
         Strong<Structure> structureChainStructure;
         Strong<Structure> sparseArrayValueMapStructure;
+        Strong<Structure> withScopeStructure;
+        Strong<Structure> unlinkedFunctionExecutableStructure;
+        Strong<Structure> unlinkedProgramCodeBlockStructure;
+        Strong<Structure> unlinkedEvalCodeBlockStructure;
+        Strong<Structure> unlinkedFunctionCodeBlockStructure;
 
         IdentifierTable* identifierTable;
         CommonIdentifiers* propertyNames;
@@ -253,7 +264,7 @@ namespace JSC {
             return m_inDefineOwnProperty;
         }
 
-        Profiler* enabledProfiler()
+        LegacyProfiler* enabledProfiler()
         {
             return m_enabledProfiler;
         }
@@ -341,7 +352,8 @@ namespace JSC {
         String cachedDateString;
         double cachedDateStringValue;
 
-        Profiler* m_enabledProfiler;
+        LegacyProfiler* m_enabledProfiler;
+        OwnPtr<Profiler::Database> m_perBytecodeProfiler;
         RegExpCache* m_regExpCache;
         BumpPointerAllocator m_regExpAllocator;
 
@@ -436,6 +448,9 @@ namespace JSC {
         }
 
         JSLock& apiLock() { return m_apiLock; }
+        CodeCache* codeCache() { return m_codeCache.get(); }
+
+        JS_EXPORT_PRIVATE void discardAllCode();
 
     private:
         friend class LLIntOffsetsExtractor;
@@ -456,6 +471,7 @@ namespace JSC {
         const ClassInfo* m_initializingObjectClass;
 #endif
         bool m_inDefineOwnProperty;
+        OwnPtr<CodeCache> m_codeCache;
 
         TypedArrayDescriptor m_int8ArrayDescriptor;
         TypedArrayDescriptor m_int16ArrayDescriptor;

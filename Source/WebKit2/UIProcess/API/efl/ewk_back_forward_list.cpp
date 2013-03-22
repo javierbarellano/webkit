@@ -30,42 +30,43 @@
 #include "WKArray.h"
 #include "WKBackForwardList.h"
 #include "ewk_back_forward_list_private.h"
+#include "ewk_object.h"
 #include <wtf/text/CString.h>
 
 using namespace WebKit;
 
-Ewk_Back_Forward_List::Ewk_Back_Forward_List(WKBackForwardListRef listRef)
+EwkBackForwardList::EwkBackForwardList(WKBackForwardListRef listRef)
     : m_wkList(listRef)
 { }
 
-Ewk_Back_Forward_List_Item* Ewk_Back_Forward_List::nextItem() const
+EwkBackForwardListItem* EwkBackForwardList::nextItem() const
 {
     return getFromCacheOrCreate(WKBackForwardListGetForwardItem(m_wkList.get()));
 }
 
-Ewk_Back_Forward_List_Item* Ewk_Back_Forward_List::previousItem() const
+EwkBackForwardListItem* EwkBackForwardList::previousItem() const
 {
     return getFromCacheOrCreate(WKBackForwardListGetBackItem(m_wkList.get()));
 }
 
-Ewk_Back_Forward_List_Item* Ewk_Back_Forward_List::currentItem() const
+EwkBackForwardListItem* EwkBackForwardList::currentItem() const
 {
     return getFromCacheOrCreate(WKBackForwardListGetCurrentItem(m_wkList.get()));
 }
 
-Ewk_Back_Forward_List_Item* Ewk_Back_Forward_List::itemAt(int index) const
+EwkBackForwardListItem* EwkBackForwardList::itemAt(int index) const
 {
     return getFromCacheOrCreate(WKBackForwardListGetItemAtIndex(m_wkList.get(), index));
 }
 
-unsigned Ewk_Back_Forward_List::size() const
+unsigned EwkBackForwardList::size() const
 {
     const unsigned currentItem = WKBackForwardListGetCurrentItem(m_wkList.get()) ? 1 : 0;
 
     return WKBackForwardListGetBackListCount(m_wkList.get()) + WKBackForwardListGetForwardListCount(m_wkList.get()) + currentItem;
 }
 
-WKRetainPtr<WKArrayRef> Ewk_Back_Forward_List::backList(int limit) const
+WKRetainPtr<WKArrayRef> EwkBackForwardList::backList(int limit) const
 {
     if (limit == -1)
         limit = WKBackForwardListGetBackListCount(m_wkList.get());
@@ -74,7 +75,7 @@ WKRetainPtr<WKArrayRef> Ewk_Back_Forward_List::backList(int limit) const
     return adoptWK(WKBackForwardListCopyBackListWithLimit(m_wkList.get(), limit));
 }
 
-WKRetainPtr<WKArrayRef> Ewk_Back_Forward_List::forwardList(int limit) const
+WKRetainPtr<WKArrayRef> EwkBackForwardList::forwardList(int limit) const
 {
     if (limit == -1)
         limit = WKBackForwardListGetForwardListCount(m_wkList.get());
@@ -83,21 +84,21 @@ WKRetainPtr<WKArrayRef> Ewk_Back_Forward_List::forwardList(int limit) const
     return adoptWK(WKBackForwardListCopyForwardListWithLimit(m_wkList.get(), limit));
 }
 
-Ewk_Back_Forward_List_Item* Ewk_Back_Forward_List::getFromCacheOrCreate(WKBackForwardListItemRef wkItem) const
+EwkBackForwardListItem* EwkBackForwardList::getFromCacheOrCreate(WKBackForwardListItemRef wkItem) const
 {
     if (!wkItem)
         return 0;
 
-    RefPtr<Ewk_Back_Forward_List_Item> item = m_wrapperCache.get(wkItem);
+    RefPtr<EwkBackForwardListItem> item = m_wrapperCache.get(wkItem);
     if (!item) {
-        item = Ewk_Back_Forward_List_Item::create(wkItem);
+        item = EwkBackForwardListItem::create(wkItem);
         m_wrapperCache.set(wkItem, item);
     }
 
     return item.get();
 }
 
-Eina_List* Ewk_Back_Forward_List::createEinaList(WKArrayRef wkList) const
+Eina_List* EwkBackForwardList::createEinaList(WKArrayRef wkList) const
 {
     if (!wkList)
         return 0;
@@ -107,8 +108,8 @@ Eina_List* Ewk_Back_Forward_List::createEinaList(WKArrayRef wkList) const
     const size_t count = WKArrayGetSize(wkList);
     for (size_t i = 0; i < count; ++i) {
         WKBackForwardListItemRef wkItem = static_cast<WKBackForwardListItemRef>(WKArrayGetItemAtIndex(wkList, i));
-        Ewk_Back_Forward_List_Item* item = getFromCacheOrCreate(wkItem);
-        result = eina_list_append(result, ewk_back_forward_list_item_ref(item));
+        EwkBackForwardListItem* item = getFromCacheOrCreate(wkItem);
+        result = eina_list_append(result, ewk_object_ref(item));
     }
 
     return result;
@@ -118,7 +119,7 @@ Eina_List* Ewk_Back_Forward_List::createEinaList(WKArrayRef wkList) const
  * @internal
  * Updates items cache.
  */
-void Ewk_Back_Forward_List::update(WKBackForwardListItemRef wkAddedItem, WKArrayRef wkRemovedItems)
+void EwkBackForwardList::update(WKBackForwardListItemRef wkAddedItem, WKArrayRef wkRemovedItems)
 {
     if (wkAddedItem) // Checking also here to avoid EINA_SAFETY_ON_NULL_RETURN_VAL warnings.
         getFromCacheOrCreate(wkAddedItem); // Puts new item to the cache.

@@ -26,6 +26,7 @@
 #include <wtf/FastAllocBase.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/Vector.h>
+#include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -43,11 +44,13 @@ public:
     Vector<String> getGuessesForWord(const String&);
     void updateSpellCheckingLanguages(const Vector<String>& languages);
     Vector<String> loadedSpellCheckingLanguages() const;
+    bool hasDictionary() const { return !m_enchantDictionaries.isEmpty(); }
     Vector<String> availableSpellCheckingLanguages() const;
 
 private:
     TextCheckerEnchant();
     void freeEnchantBrokerDictionaries();
+    void checkSpellingOfWord(const CString&, int start, int end, int& misspellingLocation, int& misspellingLength);
 
     EnchantBroker* m_broker;
     Vector<EnchantDict*> m_enchantDictionaries;

@@ -1,10 +1,7 @@
 
-module window {
 	interface [
                Conditional=DISCOVERY,
                Callback
     ] NavDscCB {
         boolean handleEvent(in NavService service);
     };
-
-}

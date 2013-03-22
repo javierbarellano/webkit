@@ -487,6 +487,8 @@ WebInspector.ElementsTreeOutline.prototype = {
 
         function focusElement()
         {
+            // Force elements module load.
+            WebInspector.showPanel("elements");
             WebInspector.domAgent.inspectElement(treeElement.representedObject.id);
         }
         var contextMenu = new WebInspector.ContextMenu(event);
@@ -557,6 +559,10 @@ WebInspector.ElementsTreeOutline.prototype = {
             }
         }
 
+        if (event.keyCode === WebInspector.KeyboardShortcut.Keys.H.code) {
+            WebInspector.cssModel.toggleInlineVisibility(node.id);
+            return;
+        }
     },
 
     _toggleEditAsHTML: function(node)
@@ -1726,7 +1732,7 @@ WebInspector.ElementsTreeElement.prototype = {
      */
     _buildTagDOM: function(parentElement, tagName, isClosingTag, isDistinctTreeElement, linkify)
     {
-        var node = /** @type WebInspector.DOMNode */ this.representedObject;
+        var node = /** @type WebInspector.DOMNode */ (this.representedObject);
         var classes = [ "webkit-html-tag" ];
         if (isClosingTag && isDistinctTreeElement)
             classes.push("close");
@@ -2008,7 +2014,7 @@ WebInspector.ElementsTreeElement.prototype = {
                 object.callFunction(scrollIntoView);
         }
         
-        var node = /** @type {WebInspector.DOMNode} */ this.representedObject;
+        var node = /** @type {WebInspector.DOMNode} */ (this.representedObject);
         WebInspector.RemoteObject.resolveNode(node, "", scrollIntoViewCallback);
     },
 
@@ -2044,7 +2050,7 @@ WebInspector.ElementsTreeUpdater.prototype = {
         if (this._treeOutline._visible)
             this._updateModifiedNodesSoon();
 
-        var entry = /** @type {WebInspector.ElementsTreeUpdater.UpdateEntry} */ this._recentlyModifiedNodes.get(node);
+        var entry = /** @type {WebInspector.ElementsTreeUpdater.UpdateEntry} */ (this._recentlyModifiedNodes.get(node));
         if (!entry) {
             entry = new WebInspector.ElementsTreeUpdater.UpdateEntry(isUpdated, parentNode);
             this._recentlyModifiedNodes.put(node, entry);

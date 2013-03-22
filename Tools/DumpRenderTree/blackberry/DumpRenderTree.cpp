@@ -37,9 +37,13 @@
 #include "FrameLoaderTypes.h"
 #include "FrameTree.h"
 #include "FrameView.h"
+#include "HTTPParsers.h"
 #include "HistoryItem.h"
+#include "HitTestResult.h"
 #include "IntSize.h"
 #include "JSDOMBinding.h"
+#include "MouseEvent.h"
+#include "Node.h"
 #include "NotImplemented.h"
 #include "Page.h"
 #include "PageGroup.h"
@@ -59,6 +63,7 @@
 #include "WorkQueue.h"
 #include "WorkQueueItem.h"
 #include <BlackBerryPlatformLayoutTest.h>
+#include <BlackBerryPlatformPrimitives.h>
 #include <WebSettings.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -137,6 +142,11 @@ static bool shouldLogFrameLoadDelegates(const String& url)
     return url.contains("loading/");
 }
 
+static bool shouldDumpAsText(const String& url)
+{
+    return url.contains("dumpAsText/");
+}
+
 namespace BlackBerry {
 namespace WebKit {
 
@@ -157,6 +167,7 @@ DumpRenderTree::DumpRenderTree(BlackBerry::WebKit::WebPage* page)
     , m_waitToDumpWatchdogTimer(this, &DumpRenderTree::waitToDumpWatchdogTimerFired)
     , m_workTimer(this, &DumpRenderTree::processWork)
     , m_acceptsEditing(true)
+    , m_policyDelegateEnabled(false)
 {
     const char* workerNumber = getenv("WORKER_NUMBER") ? getenv("WORKER_NUMBER") : "0";
     String sdcardPath = SDCARD_PATH;
@@ -164,7 +175,7 @@ DumpRenderTree::DumpRenderTree(BlackBerry::WebKit::WebPage* page)
     m_doneFile = sdcardPath + "/done" + workerNumber;
     m_currentTestFile = sdcardPath + "/current" + workerNumber + ".drt";
     m_page->resetVirtualViewportOnCommitted(false);
-    m_page->setVirtualViewportSize(800, 600);
+    m_page->setVirtualViewportSize(Platform::IntSize(800, 600));
     s_currentInstance = this;
 }
 
@@ -254,6 +265,10 @@ void DumpRenderTree::resetToConsistentStateBeforeTesting(const String& url, cons
 {
     gTestRunner = TestRunner::create(url.utf8().data(), imageHash.utf8().data());
 
+    if (shouldDumpAsText(url)) {
+        gTestRunner->setDumpAsText(true);
+        gTestRunner->setGeneratePixelResults(false);
+    }
     gTestRunner->setIconDatabaseEnabled(false);
 
     DumpRenderTreeSupport::resetGeolocationMock(m_page);
@@ -261,12 +276,15 @@ void DumpRenderTree::resetToConsistentStateBeforeTesting(const String& url, cons
     topLoadingFrame = 0;
     m_loadFinished = false;
     s_selectTrailingWhitespaceEnabled = false;
-
+    m_policyDelegateEnabled = false;
+    waitForPolicy = false;
     testDone = false;
     WorkQueue::shared()->clear();
     WorkQueue::shared()->setFrozen(false);
 
     WebSettings* settings = m_page->settings();
+    // Apply new settings to current page, see more in the destructor of WebSettingsTransaction.
+    WebSettingsTransaction webSettingTransaction(settings);
 
     settings->setTextReflowMode(WebSettings::TextReflowDisabled);
     settings->setJavaScriptEnabled(true);
@@ -284,15 +302,13 @@ void DumpRenderTree::resetToConsistentStateBeforeTesting(const String& url, cons
     settings->setFrameFlatteningEnabled(false);
     settings->setMaximumPagesInCache(0);
     settings->setPluginsEnabled(true);
-    // Apply new settings to current page, see more in the destructor of WebSettingsTransaction.
-    WebSettingsTransaction webSettingTransaction(settings);
 
     BlackBerry::WebKit::DumpRenderTree::currentInstance()->page()->clearBackForwardList(false);
 
     setAcceptsEditing(true);
     DumpRenderTreeSupport::setLinksIncludedInFocusChain(true);
 
-    m_page->setVirtualViewportSize(800, 600);
+    m_page->setVirtualViewportSize(Platform::IntSize(800, 600));
     m_page->resetVirtualViewportOnCommitted(false);
     m_page->setUserScalable(true);
     m_page->setJavaScriptCanAccessClipboard(true);
@@ -373,12 +389,12 @@ String DumpRenderTree::dumpFramesAsText(WebCore::Frame* frame)
     if (frame->tree()->parent())
         s = String::format("\n--------\nFrame: '%s'\n--------\n", frame->tree()->uniqueName().string().utf8().data());
 
-    s += documentElement->innerText() + "\n";
+    s = s + documentElement->innerText() + "\n";
 
     if (gTestRunner->dumpChildFramesAsText()) {
         WebCore::FrameTree* tree = frame->tree();
         for (WebCore::Frame* child = tree->firstChild(); child; child = child->tree()->nextSibling())
-            s += dumpFramesAsText(child);
+            s = s + dumpFramesAsText(child);
     }
     return s;
 }
@@ -426,11 +442,11 @@ static String dumpHistoryItem(PassRefPtr<WebCore::HistoryItem> item, int indent,
 
     int start = 0;
     if (current) {
-        result += "curr->";
+        result = result + "curr->";
         start = 6;
     }
     for (int i = start; i < indent; i++)
-        result += " ";
+        result = result + " ";
 
     String url = item->urlString();
     if (url.contains("file://")) {
@@ -441,25 +457,25 @@ static String dumpHistoryItem(PassRefPtr<WebCore::HistoryItem> item, int indent,
         if (res.isEmpty())
             return result;
 
-        result += fileTestString;
-        result += res;
+        result = result + fileTestString;
+        result = result + res;
     } else
-        result += url;
+        result = result + url;
 
     String target = item->target();
     if (!target.isEmpty())
-        result += " (in frame \"" + target + "\")";
+        result = result + " (in frame \"" + target + "\")";
 
     if (item->isTargetItem())
-        result += "  **nav target**";
-    result += "\n";
+        result = result + "  **nav target**";
+    result = result + "\n";
 
     WebCore::HistoryItemVector children = item->children();
     // Must sort to eliminate arbitrary result ordering which defeats reproducible testing.
     nonCopyingSort(children.begin(), children.end(), historyItemCompare);
     unsigned resultSize = children.size();
     for (unsigned i = 0; i < resultSize; ++i)
-        result += dumpHistoryItem(children[i], indent + 4, false);
+        result = result + dumpHistoryItem(children[i], indent + 4, false);
 
     return result;
 }
@@ -476,16 +492,16 @@ static String dumpBackForwardListForWebView()
     bfList->backListWithLimit(maxItems, entries);
     unsigned resultSize = entries.size();
     for (unsigned i = 0; i < resultSize; ++i)
-        result += dumpHistoryItem(entries[i], 8, false);
+        result = result + dumpHistoryItem(entries[i], 8, false);
 
-    result += dumpHistoryItem(bfList->currentItem(), 8, true);
+    result = result + dumpHistoryItem(bfList->currentItem(), 8, true);
 
     bfList->forwardListWithLimit(maxItems, entries);
     resultSize = entries.size();
     for (unsigned i = 0; i < resultSize; ++i)
-        result += dumpHistoryItem(entries[i], 8, false);
+        result = result + dumpHistoryItem(entries[i], 8, false);
 
-    result += "===============================================\n";
+    result = result +  "===============================================\n";
 
     return result;
 }
@@ -506,16 +522,13 @@ void DumpRenderTree::dump()
     String data = dumpAsText ? dumpFramesAsText(mainFrame) : renderTreeDump();
 
     if (gTestRunner->dumpBackForwardList())
-        data += dumpBackForwardListForWebView();
+        data = data + dumpBackForwardListForWebView();
 
     String result = "Content-Type: " + resultMimeType + "\n" + data;
 
     dumpToFile(result);
 
     if (!runFromCommandLine) {
-        // signal end of text block
-        fputs("#EOF\n", stdout);
-
         // There are two scenarios for dumping pixels:
         // 1. When the test case explicitly asks for it by calling dumpAsText(true) with that extra true passed as a parameter value, from JavaScript
         bool explicitPixelResults = gTestRunner->dumpAsText() && gTestRunner->generatePixelResults();
@@ -524,8 +537,11 @@ void DumpRenderTree::dump()
 
         // But only if m_enablePixelTests is set, to say that the user wants to run pixel tests at all.
         bool generatePixelResults = m_enablePixelTests && (explicitPixelResults || implicitPixelResults);
-        if (generatePixelResults)
+        if (generatePixelResults) {
+            // signal end of text block
+            fputs("#EOF\n", stdout);
             dumpWebViewAsPixelsAndCompareWithExpected(gTestRunner->expectedPixelHash());
+        }
 
         String crashFile = dumpFile + ".crash";
         unlink(crashFile.utf8().data());
@@ -620,9 +636,10 @@ void DumpRenderTree::didFinishLoadForFrame(WebCore::Frame* frame)
     if (!testDone && gTestRunner->dumpFrameLoadCallbacks())
         printf("%s - didFinishLoadForFrame\n", drtFrameDescription(frame).utf8().data());
 
-    if (frame == topLoadingFrame)
+    if (frame == topLoadingFrame) {
         m_loadFinished = true;
-    locationChangeForFrame(frame);
+        locationChangeForFrame(frame);
+    }
 }
 
 void DumpRenderTree::didFinishDocumentLoadForFrame(WebCore::Frame* frame)
@@ -631,7 +648,7 @@ void DumpRenderTree::didFinishDocumentLoadForFrame(WebCore::Frame* frame)
         if (gTestRunner->dumpFrameLoadCallbacks())
             printf("%s - didFinishDocumentLoadForFrame\n", drtFrameDescription(frame).utf8().data());
         else {
-            unsigned pendingFrameUnloadEvents = frame->domWindow()->pendingUnloadEventListeners();
+            unsigned pendingFrameUnloadEvents = frame->document()->domWindow()->pendingUnloadEventListeners();
             if (pendingFrameUnloadEvents)
                 printf("%s - has %u onunload handler(s)\n", drtFrameDescription(frame).utf8().data(), pendingFrameUnloadEvents);
         }
@@ -664,7 +681,7 @@ void DumpRenderTree::didReceiveTitleForFrame(const String& title, WebCore::Frame
         printf("%s - didReceiveTitle: %s\n", drtFrameDescription(frame).utf8().data(), title.utf8().data());
 
     if (gTestRunner->dumpTitleChanges())
-        printf("TITLE CHANGED: '%s'\n", title.utf8().data());
+        printf("TITLE CHANGED: %s\n", title.utf8().data());
 }
 
 // ChromeClient delegates.
@@ -691,10 +708,8 @@ void DumpRenderTree::addMessageToConsole(const String& message, unsigned lineNum
 
 void DumpRenderTree::runJavaScriptAlert(const String& message)
 {
-    if (!testDone) {
+    if (!testDone)
         printf("ALERT: %s\n", message.utf8().data());
-        fflush(stdout);
-    }
 }
 
 bool DumpRenderTree::runJavaScriptConfirm(const String& message)
@@ -767,12 +782,6 @@ void DumpRenderTree::didChangeSelection()
         printf("EDITING DELEGATE: webViewDidChangeSelection:%s\n", "WebViewDidChangeSelectionNotification");
 }
 
-bool DumpRenderTree::findString(const String& string, WebCore::FindOptions options)
-{
-    WebCore::Page* page = mainFrame ? mainFrame->page() : 0;
-    return page && page->findString(string, options);
-}
-
 bool DumpRenderTree::shouldBeginEditingInDOMRange(WebCore::Range* range)
 {
     if (!testDone && gTestRunner->dumpEditingCallbacks())
@@ -829,9 +838,9 @@ bool DumpRenderTree::shouldInsertText(const String& text, WebCore::Range* range,
     return m_acceptsEditing;
 }
 
-void DumpRenderTree::didDecidePolicyForNavigationAction(const WebCore::NavigationAction& action, const WebCore::ResourceRequest& request)
+void DumpRenderTree::didDecidePolicyForNavigationAction(const WebCore::NavigationAction& action, const WebCore::ResourceRequest& request, WebCore::Frame* frame)
 {
-    if (!waitForPolicy)
+    if (testDone || !m_policyDelegateEnabled)
         return;
 
     const char* typeDescription;
@@ -858,10 +867,34 @@ void DumpRenderTree::didDecidePolicyForNavigationAction(const WebCore::Navigatio
         typeDescription = "illegal value";
     }
 
-    printf("Policy delegate: attempt to load %s with navigation type '%s'\n", request.url().string().utf8().data(), typeDescription);
-    // FIXME: do originating part.
+    bool shouldWaitForResponse = !request.url().string().startsWith("mailto:");
+    printf("Policy delegate: attempt to load %s with navigation type '%s'", request.url().string().utf8().data(), typeDescription);
+    // Originating part, borrowed from Chromium.
+    RefPtr<WebCore::Node> node;
+    for (const WebCore::Event* event = action.event(); event; event = event->underlyingEvent()) {
+        if (event->isMouseEvent()) {
+            const WebCore::MouseEvent* mouseEvent = static_cast<const WebCore::MouseEvent*>(event);
+            node = frame->eventHandler()->hitTestResultAtPoint(mouseEvent->absoluteLocation(), false).innerNonSharedNode();
+            break;
+        }
+    }
+    if (node.get())
+        printf(" originating from %s\n", drtDumpPath(node.get()).utf8().data());
+    else
+        printf("\n");
 
-    gTestRunner->notifyDone();
+    if (waitForPolicy && !shouldWaitForResponse)
+        gTestRunner->notifyDone();
+}
+
+void DumpRenderTree::didDecidePolicyForResponse(const WebCore::ResourceResponse& response)
+{
+    if (!testDone && m_policyDelegateEnabled) {
+        if (WebCore::contentDispositionType(response.httpHeaderField("Content-Disposition")) == WebCore::ContentDispositionAttachment)
+            printf("Policy delegate: resource is an attachment, suggested file name '%s'\n", response.suggestedFilename().utf8().data());
+        if (waitForPolicy)
+            gTestRunner->notifyDone();
+    }
 }
 
 void DumpRenderTree::didDispatchWillPerformClientRedirect()
@@ -896,6 +929,11 @@ bool DumpRenderTree::didReceiveAuthenticationChallenge(WebCore::Credential& cred
     return true;
 }
 
+void DumpRenderTree::setCustomPolicyDelegate(bool setDelegate, bool permissive)
+{
+    m_policyDelegateEnabled = setDelegate;
+    UNUSED_PARAM(permissive);
+}
 }
 }
 

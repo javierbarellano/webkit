@@ -26,6 +26,7 @@
 #ifndef ResourceLoadClientEfl_h
 #define ResourceLoadClientEfl_h
 
+#include "ewk_resource.h"
 #include "ewk_resource_private.h"
 #include <wtf/HashMap.h>
 #include <wtf/PassOwnPtr.h>
@@ -55,7 +56,7 @@ private:
     static void onViewProvisionalLoadStarted(void* userData, Evas_Object* view, void* clientInfo);
 
     EwkViewImpl* m_viewImpl;
-    HashMap< uint64_t, RefPtr<Ewk_Resource> > m_loadingResourcesMap;
+    HashMap< uint64_t, RefPtr<EwkResource> > m_loadingResourcesMap;
 };
 
 } // namespace WebKit

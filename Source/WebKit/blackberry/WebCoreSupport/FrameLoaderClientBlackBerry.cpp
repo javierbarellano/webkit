@@ -34,6 +34,7 @@
 #include "CredentialTransformData.h"
 #include "DumpRenderTreeClient.h"
 #include "ExternalExtension.h"
+#include "FrameLoadRequest.h"
 #include "FrameNetworkingContextBlackBerry.h"
 #include "FrameView.h"
 #include "HTMLFormElement.h"
@@ -74,7 +75,6 @@
 
 #include <BlackBerryPlatformExecutableMessage.h>
 #include <BlackBerryPlatformLog.h>
-#include <BlackBerryPlatformMediaDocument.h>
 #include <BlackBerryPlatformMessageClient.h>
 #include <BlackBerryPlatformScreen.h>
 #include <JavaScriptCore/APICast.h>
@@ -200,6 +200,9 @@ void FrameLoaderClientBlackBerry::dispatchDecidePolicyForResponse(FramePolicyFun
     else if (ResourceRequest::TargetIsMainFrame == request.targetType() && m_webPagePrivate->m_client->downloadAllowed(request.url().string()))
         policy = PolicyDownload;
 
+    if (m_webPagePrivate->m_dumpRenderTree)
+        m_webPagePrivate->m_dumpRenderTree->didDecidePolicyForResponse(response);
+
     (m_frame->loader()->policyChecker()->*function)(policy);
 }
 
@@ -243,10 +246,10 @@ void FrameLoaderClientBlackBerry::dispatchDecidePolicyForNavigationAction(FrameP
     if (decision == PolicyIgnore)
         dispatchDidCancelClientRedirect();
 
-    (m_frame->loader()->policyChecker()->*function)(decision);
-
     if (m_webPagePrivate->m_dumpRenderTree)
-        m_webPagePrivate->m_dumpRenderTree->didDecidePolicyForNavigationAction(action, request);
+        m_webPagePrivate->m_dumpRenderTree->didDecidePolicyForNavigationAction(action, request, m_frame);
+
+    (m_frame->loader()->policyChecker()->*function)(decision);
 }
 
 void FrameLoaderClientBlackBerry::delayPolicyCheckUntilFragmentExists(const String& fragment, FramePolicyFunction function)
@@ -404,8 +407,7 @@ PassRefPtr<DocumentLoader> FrameLoaderClientBlackBerry::createDocumentLoader(con
             // The first 6 letters is "about:"
             String aboutWhat = request.url().string().substring(6);
             source = aboutData(aboutWhat);
-        } else if (request.url().protocolIs("rtsp"))
-            source = BlackBerry::Platform::mediaDocument(request.url().string());
+        }
 
         if (!source.isEmpty()) {
             // Always ignore existing substitute data if any.
@@ -435,8 +437,11 @@ void FrameLoaderClientBlackBerry::transitionToCommittedForNewPage()
     // in the backing store from another thread (see BackingStorePrivate::blitVisibleContents method),
     // so we suspend and resume screen update to make sure we do not get a invalid FrameView
     // state.
-    if (isMainFrame() && m_webPagePrivate->backingStoreClient())
-        m_webPagePrivate->backingStoreClient()->backingStore()->d->suspendScreenAndBackingStoreUpdates();
+    if (isMainFrame() && m_webPagePrivate->backingStoreClient()) {
+        // FIXME: Do we really need to suspend/resume both backingstore and screen here?
+        m_webPagePrivate->backingStoreClient()->backingStore()->d->suspendBackingStoreUpdates();
+        m_webPagePrivate->backingStoreClient()->backingStore()->d->suspendScreenUpdates();
+    }
 
     // We are navigating away from this document, so clean up any footprint we might have.
     if (m_frame->document())
@@ -445,19 +450,22 @@ void FrameLoaderClientBlackBerry::transitionToCommittedForNewPage()
     Color backgroundColor(m_webPagePrivate->m_webSettings->backgroundColor());
 
     m_frame->createView(m_webPagePrivate->viewportSize(),      /* viewport */
-                        backgroundColor,                       /* background color */
-                        backgroundColor.hasAlpha(),            /* is transparent */
-                        m_webPagePrivate->actualVisibleSize(), /* fixed reported size */
-                        m_webPagePrivate->fixedLayoutSize(),   /* fixed layout size */
-                        IntRect(),                             /* fixed visible content rect */
-                        m_webPagePrivate->useFixedLayout(),    /* use fixed layout */
-                        ScrollbarAlwaysOff,                    /* hor mode */
-                        true,                                  /* lock the mode */
-                        ScrollbarAlwaysOff,                    /* ver mode */
-                        true);                                 /* lock the mode */
+        backgroundColor,                       /* background color */
+        backgroundColor.hasAlpha(),            /* is transparent */
+        m_webPagePrivate->actualVisibleSize(), /* fixed reported size */
+        m_webPagePrivate->fixedLayoutSize(),   /* fixed layout size */
+        IntRect(),                             /* fixed visible content rect */
+        m_webPagePrivate->useFixedLayout(),    /* use fixed layout */
+        ScrollbarAlwaysOff,                    /* hor mode */
+        true,                                  /* lock the mode */
+        ScrollbarAlwaysOff,                    /* ver mode */
+        true);                                 /* lock the mode */
 
-    if (isMainFrame() && m_webPagePrivate->backingStoreClient())
-        m_webPagePrivate->backingStoreClient()->backingStore()->d->resumeScreenAndBackingStoreUpdates(BackingStore::None);
+    if (isMainFrame() && m_webPagePrivate->backingStoreClient()) {
+        // FIXME: Do we really need to suspend/resume both backingstore and screen here?
+        m_webPagePrivate->backingStoreClient()->backingStore()->d->resumeBackingStoreUpdates();
+        m_webPagePrivate->backingStoreClient()->backingStore()->d->resumeScreenUpdates(BackingStore::None);
+    }
 
     m_frame->view()->updateCanHaveScrollbars();
 
@@ -596,7 +604,7 @@ void FrameLoaderClientBlackBerry::dispatchDidFinishLoad()
 
     // Process document metadata.
     RefPtr<NodeList> nodeList = headElement->getElementsByTagName(HTMLNames::metaTag.localName());
-    unsigned int size = nodeList->length();
+    unsigned size = nodeList->length();
     ScopeArray<BlackBerry::Platform::String> headers;
 
     // This may allocate more space than needed since not all meta elements will be http-equiv.
@@ -692,7 +700,7 @@ void FrameLoaderClientBlackBerry::dispatchDidFailProvisionalLoad(const ResourceE
         m_webPagePrivate->setLoadState(WebPagePrivate::Failed);
 
         if (error.domain() == ResourceError::platformErrorDomain
-                && (error.errorCode() == BlackBerry::Platform::FilterStream::StatusErrorAlreadyHandled)) {
+            && (error.errorCode() == BlackBerry::Platform::FilterStream::StatusErrorAlreadyHandled)) {
             // Error has already been displayed by client.
             return;
         }
@@ -709,33 +717,44 @@ void FrameLoaderClientBlackBerry::dispatchDidFailProvisionalLoad(const ResourceE
     if (!isMainFrame())
         return;
 
-    String errorPage = m_webPagePrivate->m_client->getErrorPage(error.errorCode(), error.localizedDescription(), error.failingURL());
+    if (error.domain() == ResourceError::platformErrorDomain
+        && (error.errorCode() == BlackBerry::Platform::FilterStream::StatusDeniedByApplication)) {
+        // Do not display error page for loading DENYed by application.
+        return;
+    }
 
     // Make sure we're still in the provisionalLoad state - getErrorPage runs a
     // nested event loop while it's waiting for client resources to load so
     // there's a small window for the user to hit stop.
-    if (m_frame->loader()->provisionalDocumentLoader()) {
-        SubstituteData errorData(utf8Buffer(errorPage), "text/html", "utf-8", KURL(KURL(), error.failingURL()));
+    if (!m_frame->loader()->provisionalDocumentLoader())
+        return;
 
-        ResourceRequest originalRequest = m_frame->loader()->provisionalDocumentLoader()->originalRequest();
+    ResourceRequest originalRequest = m_frame->loader()->provisionalDocumentLoader()->originalRequest();
 
-        // Loading using SubstituteData will replace the original request with our
-        // error data. This must be done within dispatchDidFailProvisionalLoad,
-        // and do NOT call stopAllLoaders first, because the loader checks the
-        // provisionalDocumentLoader to decide the load type; if called any other
-        // way, the error page is added to the end of the history instead of
-        // replacing the failed load.
-        //
-        // If this comes from a back/forward navigation, we need to save the current viewstate
-        // to original historyitem, and prevent the restore of view state to the error page.
-        if (isBackForwardLoadType(m_frame->loader()->loadType())) {
-            m_frame->loader()->history()->saveScrollPositionAndViewStateToItem(m_frame->loader()->history()->currentItem());
-            ASSERT(m_frame->loader()->history()->provisionalItem());
-            m_frame->loader()->history()->provisionalItem()->viewState().shouldSaveViewState = false;
-        }
-        m_loadingErrorPage = true;
-        m_frame->loader()->load(originalRequest, errorData, false);
+    // Do not show error page for a failed download.
+    if (originalRequest.forceDownload())
+        return;
+
+    String errorPage = m_webPagePrivate->m_client->getErrorPage(error.errorCode(), error.localizedDescription(), error.failingURL());
+    SubstituteData errorData(utf8Buffer(errorPage), "text/html", "utf-8", KURL(KURL(), error.failingURL()));
+
+    // Loading using SubstituteData will replace the original request with our
+    // error data. This must be done within dispatchDidFailProvisionalLoad,
+    // and do NOT call stopAllLoaders first, because the loader checks the
+    // provisionalDocumentLoader to decide the load type; if called any other
+    // way, the error page is added to the end of the history instead of
+    // replacing the failed load.
+    //
+    // If this comes from a back/forward navigation, we need to save the current viewstate
+    // to original historyitem, and prevent the restore of view state to the error page.
+    if (isBackForwardLoadType(m_frame->loader()->loadType())) {
+        m_frame->loader()->history()->saveScrollPositionAndViewStateToItem(m_frame->loader()->history()->currentItem());
+        ASSERT(m_frame->loader()->history()->provisionalItem());
+        m_frame->loader()->history()->provisionalItem()->viewState().shouldSaveViewState = false;
     }
+
+    m_loadingErrorPage = true;
+    m_frame->loader()->load(FrameLoadRequest(m_frame, originalRequest, errorData));
 }
 
 void FrameLoaderClientBlackBerry::dispatchWillSubmitForm(FramePolicyFunction function, PassRefPtr<FormState>)
@@ -751,7 +770,7 @@ void FrameLoaderClientBlackBerry::dispatchWillSendSubmitEvent(PassRefPtr<FormSta
             m_webPagePrivate->m_autofillManager->saveTextFields(prpFormState->form());
 #if ENABLE(BLACKBERRY_CREDENTIAL_PERSIST)
         if (m_webPagePrivate->m_webSettings->isCredentialAutofillEnabled())
-            credentialManager().saveCredentialIfConfirmed(m_webPagePrivate, CredentialTransformData(prpFormState->form()));
+            credentialManager().saveCredentialIfConfirmed(m_webPagePrivate, CredentialTransformData(prpFormState->form(), true));
 #endif
     }
 }
@@ -872,7 +891,7 @@ void FrameLoaderClientBlackBerry::dispatchDidLayout(LayoutMilestones milestones)
             if (backingStorePrivate->renderVisibleContents()) {
                 if (!backingStorePrivate->shouldDirectRenderingToWindow())
                     backingStorePrivate->blitVisibleContents();
-                m_webPagePrivate->m_client->notifyContentRendered(backingStorePrivate->visibleContentsRect());
+                m_webPagePrivate->m_client->notifyPixelContentRendered(backingStorePrivate->visibleContentsRect());
             }
         }
 
@@ -946,7 +965,8 @@ void FrameLoaderClientBlackBerry::notifyBackForwardListChanged() const
 
 Frame* FrameLoaderClientBlackBerry::dispatchCreatePage(const NavigationAction& navigation)
 {
-    WebPage* webPage = m_webPagePrivate->m_client->createWindow(0, 0, -1, -1, WebPageClient::FlagWindowDefault, navigation.url().string(), BlackBerry::Platform::String::emptyString());
+    UNUSED_PARAM(navigation);
+    WebPage* webPage = m_webPagePrivate->m_client->createWindow(0, 0, -1, -1, WebPageClient::FlagWindowDefault, BlackBerry::Platform::String::emptyString(), BlackBerry::Platform::String::emptyString());
     if (!webPage)
         return 0;
 
@@ -962,7 +982,7 @@ void FrameLoaderClientBlackBerry::detachedFromParent2()
     m_webPagePrivate->m_client->notifyFrameDetached(m_frame);
 }
 
-void FrameLoaderClientBlackBerry::dispatchWillSendRequest(DocumentLoader* docLoader, long unsigned int, ResourceRequest& request, const ResourceResponse&)
+void FrameLoaderClientBlackBerry::dispatchWillSendRequest(DocumentLoader* docLoader, long unsigned, ResourceRequest& request, const ResourceResponse&)
 {
     // If the request is being loaded by the provisional document loader, then
     // it is a new top level request which has not been commited.
@@ -1043,6 +1063,7 @@ void FrameLoaderClientBlackBerry::saveViewStateToItem(HistoryItem* item)
         viewState.minimumScale = m_webPagePrivate->m_minimumScale;
         viewState.maximumScale = m_webPagePrivate->m_maximumScale;
         viewState.isUserScalable = m_webPagePrivate->m_userScalable;
+        viewState.webPageClientState = m_webPagePrivate->m_client->serializePageCacheState();
     }
 }
 
@@ -1060,6 +1081,9 @@ void FrameLoaderClientBlackBerry::restoreViewState()
     HistoryItemViewState& viewState = currentItem->viewState();
     if (!viewState.shouldSaveViewState)
         return;
+
+    m_webPagePrivate->m_client->deserializePageCacheState(viewState.webPageClientState);
+
     // WebPagePrivate is messing up FrameView::wasScrolledByUser() by sending
     // scroll events that look like they were user generated all the time.
     //
@@ -1107,7 +1131,9 @@ void FrameLoaderClientBlackBerry::restoreViewState()
 
     // Don't flash checkerboard before WebPagePrivate::restoreHistoryViewState() finished.
     // This call will be balanced by BackingStorePrivate::resumeScreenAndBackingStoreUpdates() in WebPagePrivate::restoreHistoryViewState().
-    m_webPagePrivate->m_backingStore->d->suspendScreenAndBackingStoreUpdates();
+    // FIXME: Do we really need to suspend/resume both backingstore and screen here?
+    m_webPagePrivate->m_backingStore->d->suspendBackingStoreUpdates();
+    m_webPagePrivate->m_backingStore->d->suspendScreenUpdates();
 
     // It is not safe to render the page at this point. So we post a message instead. Messages have higher priority than timers.
     BlackBerry::Platform::webKitThreadMessageClient()->dispatchMessage(BlackBerry::Platform::createMethodCallMessage(
@@ -1130,9 +1156,9 @@ PolicyAction FrameLoaderClientBlackBerry::decidePolicyForExternalLoad(const Reso
 #endif
 
     if (m_webPagePrivate->m_webSettings->areLinksHandledExternally()
-            && isMainFrame()
-            && !request.mustHandleInternally()
-            && !isFragmentScroll) {
+        && isMainFrame()
+        && !request.mustHandleInternally()
+        && !isFragmentScroll) {
         NetworkRequest platformRequest;
         request.initializePlatformRequest(platformRequest, cookiesEnabled());
         if (platformRequest.getTargetType() == NetworkRequest::TargetIsUnknown)

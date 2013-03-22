@@ -46,9 +46,15 @@ public:
 
     void ensureNetworkProcess();
 
+    NetworkProcessProxy* process() { return m_networkProcess.get(); }
+
     void getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply>);
     
     void removeNetworkProcessProxy(NetworkProcessProxy*);
+
+#if PLATFORM(MAC)
+    void setApplicationIsOccluded(bool);
+#endif
 
 private:
     NetworkProcessManager();

@@ -120,6 +120,7 @@ public:
         GestureDoubleTap,
         GestureTwoFingerTap,
         GestureLongPress,
+        GestureLongTap,
         GesturePinchBegin,
         GesturePinchEnd,
         GesturePinchUpdate,
@@ -156,6 +157,14 @@ public:
         // Left/right modifiers for keyboard events.
         IsLeft           = 1 << 11,
         IsRight          = 1 << 12,
+
+        // Last input event to be sent for the current vsync interval. If this
+        // flag is set, the sender guarantees that no more input events will be
+        // delivered until the next vsync and the receiver can schedule
+        // rendering accordingly. If it isn't set, the receiver should not make
+        // any assumptions about the delivery times of future input events
+        // w.r.t. vsync.
+        IsLastInputEventForCurrentVSync = 1 << 13,
     };
 
     static const int InputModifiers = ShiftKey | ControlKey | AltKey | MetaKey;
@@ -194,6 +203,16 @@ public:
             || type == TouchCancel;
     }
 
+    // Returns true if the WebInputEvent |type| should be handled as user gesture.
+    static bool isUserGestureEventType(int type)
+    {
+        return isKeyboardEventType(type)
+            || type == MouseDown
+            || type == MouseUp
+            || type == TouchStart
+            || type == TouchEnd;
+    }
+
     // Returns true if the WebInputEvent is a gesture event.
     static bool isGestureEventType(int type)
     {
@@ -211,6 +230,7 @@ public:
             || type == GestureDoubleTap
             || type == GestureTwoFingerTap
             || type == GestureLongPress
+            || type == GestureLongTap
             || type == GesturePinchBegin
             || type == GesturePinchEnd
             || type == GesturePinchUpdate;
@@ -377,6 +397,7 @@ public:
     int y;
     int globalX;
     int globalY;
+    SourceDevice sourceDevice;
 
     union {
         struct {
@@ -410,6 +431,7 @@ public:
         struct {
             float velocityX;
             float velocityY;
+            // FIXME: Remove this when Chromium uses the top-level field.
             SourceDevice sourceDevice;
         } flingStart;
 

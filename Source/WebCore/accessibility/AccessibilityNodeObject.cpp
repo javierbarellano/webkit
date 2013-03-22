@@ -234,7 +234,7 @@ LayoutRect AccessibilityNodeObject::boundingBoxRect() const
     for (AccessibilityObject* positionProvider = parentObject(); positionProvider; positionProvider = positionProvider->parentObject()) {
         if (positionProvider->isAccessibilityRenderObject()) {
             LayoutRect parentRect = positionProvider->elementRect();
-            boundingBox.setSize(LayoutSize(parentRect.width(), FractionalLayoutUnit(std::min(10.0f, parentRect.height().toFloat()))));
+            boundingBox.setSize(LayoutSize(parentRect.width(), LayoutUnit(std::min(10.0f, parentRect.height().toFloat()))));
             boundingBox.setLocation(parentRect.location());
             break;
         }
@@ -686,7 +686,7 @@ bool AccessibilityNodeObject::isRequired() const
 
     Node* n = this->node();
     if (n && (n->isElementNode() && toElement(n)->isFormControlElement()))
-        return static_cast<HTMLFormControlElement*>(n)->required();
+        return static_cast<HTMLFormControlElement*>(n)->isRequired();
 
     return false;
 }

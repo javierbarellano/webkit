@@ -1,7 +1,5 @@
 
 
-module window {
-
     interface [
                Conditional=DISCOVERY,
                Supplemental=Navigator
@@ -15,4 +13,3 @@ module window {
 
     };
 
-}

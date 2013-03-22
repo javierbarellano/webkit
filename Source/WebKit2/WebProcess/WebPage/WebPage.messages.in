@@ -217,7 +217,7 @@ messages -> WebPage {
     EndPrinting()
     ComputePagesForPrinting(uint64_t frameID, WebKit::PrintInfo printInfo, uint64_t callbackID)
 #if PLATFORM(MAC) || PLATFORM(WIN)
-    DrawRectToPDF(uint64_t frameID, WebKit::PrintInfo printInfo, WebCore::IntRect rect, uint64_t callbackID)
+    DrawRectToImage(uint64_t frameID, WebKit::PrintInfo printInfo, WebCore::IntRect rect, uint64_t callbackID)
     DrawPagesToPDF(uint64_t frameID, WebKit::PrintInfo printInfo, uint32_t first, uint32_t count, uint64_t callbackID)
 #endif
 #if PLATFORM(GTK)
@@ -226,6 +226,7 @@ messages -> WebPage {
 
     # Media
     SetMediaVolume(float volume)
+    SetMayStartMediaWhenInWindow(bool mayStartMedia)
 
     SetMemoryCacheMessagesEnabled(bool memoryCacheMessagesEnabled)
 
@@ -301,7 +302,7 @@ messages -> WebPage {
     FindZoomableAreaForPoint(WebCore::IntPoint point, WebCore::IntSize area)
 #endif
 
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if PLATFORM(MAC)
     HandleAlternativeTextUIResult(String result)
 #endif
 

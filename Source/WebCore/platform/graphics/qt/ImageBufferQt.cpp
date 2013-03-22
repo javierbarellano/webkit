@@ -117,7 +117,7 @@ GraphicsContext* ImageBuffer::context() const
     return m_context.get();
 }
 
-PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior) const
+PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior, ScaleBehavior) const
 {
     if (copyBehavior == CopyBackingStore)
         return StillImage::create(m_data.m_pixmap);
@@ -126,7 +126,7 @@ PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior) const
 }
 
 void ImageBuffer::draw(GraphicsContext* destContext, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect,
-                       CompositeOperator op, bool useLowQualityScale)
+    CompositeOperator op, BlendMode, bool useLowQualityScale)
 {
     if (destContext == context()) {
         // We're drawing into our own buffer.  In order for this to work, we need to copy the source buffer first.

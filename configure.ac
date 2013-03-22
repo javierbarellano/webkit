@@ -2,14 +2,14 @@ AC_PREREQ(2.60)
 
 m4_define([webkit_major_version], [1])
 m4_define([webkit_minor_version], [11])
-m4_define([webkit_micro_version], [1])
+m4_define([webkit_micro_version], [2])
 
 # This is the version we'll be using as part of our User-Agent string
 # e.g., AppleWebKit/$(webkit_user_agent_version) ...
 #
 # Sourced from Source/WebCore/Configurations/Version.xcconfig
 m4_define([webkit_user_agent_major_version], [537])
-m4_define([webkit_user_agent_minor_version], [16])
+m4_define([webkit_user_agent_minor_version], [20])
 
 AC_INIT([WebKitGTK],[webkit_major_version.webkit_minor_version.webkit_micro_version],[http://bugs.webkit.org/])
 
@@ -35,13 +35,13 @@ AC_CONFIG_SRCDIR([Source/WebCore/config.h])
 
 dnl # Libtool library version, not to confuse with API version
 dnl # see http://www.gnu.org/software/libtool/manual/html_node/Libtool-versioning.html
-LIBWEBKITGTK_VERSION=17:0:17
+LIBWEBKITGTK_VERSION=17:1:17
 AC_SUBST([LIBWEBKITGTK_VERSION])
 
-LIBJAVASCRIPTCOREGTK_VERSION=13:6:13
+LIBJAVASCRIPTCOREGTK_VERSION=13:7:13
 AC_SUBST([LIBJAVASCRIPTCOREGTK_VERSION])
 
-LIBWEBKIT2GTK_VERSION=18:0:18
+LIBWEBKIT2GTK_VERSION=19:0:19
 AC_SUBST([LIBWEBKIT2GTK_VERSION])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz no-dist-gzip tar-ustar])
@@ -373,7 +373,7 @@ CAIRO_REQUIRED_VERSION=1.10
 FONTCONFIG_REQUIRED_VERSION=2.4
 FREETYPE2_REQUIRED_VERSION=9.0
 GLIB_REQUIRED_VERSION=2.32.0
-LIBSOUP_REQUIRED_VERSION=2.39.2
+LIBSOUP_REQUIRED_VERSION=2.40.0
 LIBXML_REQUIRED_VERSION=2.6
 PANGO_REQUIRED_VERSION=1.21.0
 
@@ -962,17 +962,23 @@ PKG_CHECK_MODULES([LIBSOUP],
 AC_SUBST([LIBSOUP_CFLAGS])
 AC_SUBST([LIBSOUP_LIBS])
 
+PKG_CHECK_MODULES([LIBSECRET], [libsecret-1])
+AC_SUBST([LIBSECRET_CFLAGS])
+AC_SUBST([LIBSECRET_LIBS])
+
 # check if FreeType/FontConfig are available
 if test "$with_font_backend" = "freetype"; then
    if test "$with_target" = "directfb"; then
    PKG_CHECK_MODULES([FREETYPE],
                      [fontconfig >= $FONTCONFIG_REQUIRED_VERSION
-                     freetype2 >= $FREETYPE2_REQUIRED_VERSION])
+                     freetype2 >= $FREETYPE2_REQUIRED_VERSION
+                     harfbuzz])
    else
    PKG_CHECK_MODULES([FREETYPE],
                      [cairo-ft
                      fontconfig >= $FONTCONFIG_REQUIRED_VERSION
-                     freetype2 >= $FREETYPE2_REQUIRED_VERSION])
+                     freetype2 >= $FREETYPE2_REQUIRED_VERSION
+                     harfbuzz])
    fi
    AC_SUBST([FREETYPE_CFLAGS])
    AC_SUBST([FREETYPE_LIBS])
@@ -1105,6 +1111,13 @@ if test "$enable_webkit2" = "yes"; then
    AC_SUBST(GTK_UNIX_PRINTING_LIBS)
    if test "$have_gtk_unix_printing" = "yes"; then
        AC_DEFINE([HAVE_GTK_UNIX_PRINTING], [1], [Define if GTK+ UNIX Printing is available])
+   fi
+
+   # On some Linux/Unix platforms, shm_* may only be available if linking
+   # against librt
+   if test "$os_win32" = "no"; then
+       AC_SEARCH_LIBS([shm_open], [rt], [SHM_LIBS="-lrt"])
+       AC_SUBST(SHM_LIBS)
    fi
 fi
 

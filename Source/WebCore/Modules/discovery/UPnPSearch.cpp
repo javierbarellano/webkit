@@ -547,9 +547,8 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 			std::string url = d.descURL;
 
 			getHostPort(url.c_str(),lhost, &lport);
-			//printf("hostPortOk(): host: %s, port: %d\n", lhost, lport);
 
-			if (lport== port && !strcmp(host,lhost)) {
+			if (lport == port && !strcmp(host,lhost)) {
 				devLock_->unlock();
 				return true;
 			}

@@ -535,6 +535,12 @@ String validationMessageValueMissingForSelectText()
     return validationMessageValueMissingText();
 }
 
+String validationMessageBadInputForNumberText()
+{
+    notImplemented();
+    return validationMessageTypeMismatchText();
+}
+
 String missingPluginText()
 {
     return String::fromUTF8("missing plugin");
@@ -567,6 +573,12 @@ String blockedPluginByContentSecurityPolicyText()
 }
 
 String insecurePluginVersionText()
+{
+    notImplemented();
+    return String();
+}
+
+String inactivePluginText()
 {
     notImplemented();
     return String();

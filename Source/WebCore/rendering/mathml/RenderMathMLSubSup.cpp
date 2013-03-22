@@ -61,8 +61,12 @@ RenderBoxModelObject* RenderMathMLSubSup::base() const
     return toRenderBoxModelObject(base);
 }
 
-void RenderMathMLSubSup::fixScriptsStyle()
+void RenderMathMLSubSup::fixAnonymousStyles()
 {
+    // Set the base wrapper's style so that baseHeight in layout() will be an unstretched height.
+    ASSERT(firstChild() && firstChild()->style()->refCount() == 1);
+    firstChild()->style()->setAlignSelf(AlignFlexStart);
+    
     ASSERT(m_scripts && m_scripts->style()->refCount() == 1);
     RenderStyle* scriptsStyle = m_scripts->style();
     scriptsStyle->setFlexDirection(FlowColumn);
@@ -80,7 +84,8 @@ void RenderMathMLSubSup::addChild(RenderObject* child, RenderObject* beforeChild
         
         m_scripts = createAnonymousMathMLBlock();
         RenderMathMLBlock::addChild(m_scripts);
-        fixScriptsStyle();
+        
+        fixAnonymousStyles();
     }
     
     if (firstChild()->isEmpty())
@@ -93,8 +98,8 @@ void RenderMathMLSubSup::styleDidChange(StyleDifference diff, const RenderStyle*
 {
     RenderMathMLBlock::styleDidChange(diff, oldStyle);
     
-    if (m_scripts)
-        fixScriptsStyle();
+    if (!isEmpty())
+        fixAnonymousStyles();
 }
 
 RenderMathMLOperator* RenderMathMLSubSup::unembellishedOperator()
@@ -108,37 +113,45 @@ RenderMathMLOperator* RenderMathMLSubSup::unembellishedOperator()
 void RenderMathMLSubSup::layout()
 {
     RenderMathMLBlock::layout();
-    
+
     RenderMathMLBlock* baseWrapper = toRenderMathMLBlock(firstChild());
     if (!baseWrapper || !m_scripts)
         return;
     RenderBox* base = baseWrapper->firstChildBox();
     if (!base)
         return;
-    
+
     // Our layout rules include: Don't let the superscript go below the "axis" (half x-height above the
     // baseline), or the subscript above the axis. Also, don't let the superscript's top edge be
     // below the base's top edge, or the subscript's bottom edge above the base's bottom edge.
     //
     // FIXME: Check any subscriptshift or superscriptshift attributes, and maybe use more sophisticated
     // heuristics from TeX or elsewhere. See https://bugs.webkit.org/show_bug.cgi?id=79274#c5.
-    
+
     LayoutUnit baseHeight = base->logicalHeight();
     LayoutUnit baseBaseline = base->firstLineBoxBaseline();
     if (baseBaseline == -1)
         baseBaseline = baseHeight;
     LayoutUnit axis = style()->fontMetrics().xHeight() / 2;
     int fontSize = style()->fontSize();
-    
+
+    ASSERT(baseWrapper->style()->hasOneRef());
+    bool needsSecondLayout = false;
+
     if (RenderBox* superscript = m_kind == Sub ? 0 : m_scripts->lastChildBox()) {
         LayoutUnit superscriptHeight = superscript->logicalHeight();
         LayoutUnit superscriptBaseline = superscript->firstLineBoxBaseline();
         if (superscriptBaseline == -1)
             superscriptBaseline = superscriptHeight;
         LayoutUnit minBaseline = max<LayoutUnit>(fontSize / 3 + 1 + superscriptBaseline, superscriptHeight + axis);
-        baseWrapper->style()->setPaddingTop(Length(max<LayoutUnit>(minBaseline - baseBaseline, 0), Fixed));
+
+        Length newPadding = Length(max<LayoutUnit>(minBaseline - baseBaseline, 0), Fixed);
+        if (newPadding != baseWrapper->style()->paddingTop()) {
+            baseWrapper->style()->setPaddingTop(newPadding);
+            needsSecondLayout = true;
+        }
     }
-    
+
     if (RenderBox* subscript = m_kind == Super ? 0 : m_scripts->firstChildBox()) {
         LayoutUnit subscriptHeight = subscript->logicalHeight();
         LayoutUnit subscriptBaseline = subscript->firstLineBoxBaseline();
@@ -147,12 +160,20 @@ void RenderMathMLSubSup::layout()
         LayoutUnit baseExtendUnderBaseline = baseHeight - baseBaseline;
         LayoutUnit subscriptUnderItsBaseline = subscriptHeight - subscriptBaseline;
         LayoutUnit minExtendUnderBaseline = max<LayoutUnit>(fontSize / 5 + 1 + subscriptUnderItsBaseline, subscriptHeight - axis);
-        baseWrapper->style()->setPaddingBottom(Length(max<LayoutUnit>(minExtendUnderBaseline - baseExtendUnderBaseline, 0), Fixed));
+
+        Length newPadding = Length(max<LayoutUnit>(minExtendUnderBaseline - baseExtendUnderBaseline, 0), Fixed);
+        if (newPadding != baseWrapper->style()->paddingBottom()) {
+            baseWrapper->style()->setPaddingBottom(newPadding);
+            needsSecondLayout = true;
+        }
     }
-    
-    setChildNeedsLayout(true, MarkOnlyThis);
-    baseWrapper->setNeedsLayout(true, MarkOnlyThis);
-    
+
+    if (!needsSecondLayout)
+        return;
+
+    setNeedsLayout(true, MarkOnlyThis);
+    baseWrapper->setChildNeedsLayout(true, MarkOnlyThis);
+
     RenderMathMLBlock::layout();
 }
 

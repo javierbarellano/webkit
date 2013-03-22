@@ -840,7 +840,7 @@ bool Position::hasRenderedNonAnonymousDescendantsWithHeight(RenderObject* render
 {
     RenderObject* stop = renderer->nextInPreOrderAfterChildren();
     for (RenderObject *o = renderer->firstChild(); o && o != stop; o = o->nextInPreOrder())
-        if (o->node()) {
+        if (o->node() && !o->node()->isPseudoElement()) {
             if ((o->isText() && toRenderText(o)->linesBoundingBox().height()) ||
                 (o->isBox() && toRenderBox(o)->borderBoundingBox().height()))
                 return true;
@@ -864,6 +864,35 @@ ContainerNode* Position::findParent(const Node* node)
 
     return node->nonShadowBoundaryParentNode();
 }
+
+#if ENABLE(USERSELECT_ALL)
+bool Position::nodeIsUserSelectAll(const Node* node)
+{
+    return node && node->renderer() && node->renderer()->style()->userSelect() == SELECT_ALL;
+}
+
+Node* Position::rootUserSelectAllForNode(Node* node)
+{
+    if (!node || !nodeIsUserSelectAll(node))
+        return 0;
+    Node* parent = node->parentNode();
+    if (!parent)
+        return node;
+
+    Node* candidateRoot = node;
+    while (parent) {
+        if (!parent->renderer()) {
+            parent = parent->parentNode();
+            continue;
+        }
+        if (!nodeIsUserSelectAll(parent))
+            break;
+        candidateRoot = parent;
+        parent = candidateRoot->parentNode();
+    }
+    return candidateRoot;
+}
+#endif
 
 bool Position::isCandidate() const
 {

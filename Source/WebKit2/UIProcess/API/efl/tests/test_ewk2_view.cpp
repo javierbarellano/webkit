@@ -20,13 +20,7 @@
 #include "config.h"
 
 #include "UnitTestUtils/EWK2UnitTestBase.h"
-#include "UnitTestUtils/EWK2UnitTestEnvironment.h"
 #include "UnitTestUtils/EWK2UnitTestServer.h"
-#include <EWebKit2.h>
-#include <Ecore.h>
-#include <Eina.h>
-#include <Evas.h>
-#include <gtest/gtest.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/UnusedParam.h>
@@ -140,14 +134,14 @@ TEST_F(EWK2UnitTestBase, ewk_view_navigation)
     ASSERT_FALSE(ewk_view_forward_possible(webView()));
 }
 
-TEST_F(EWK2UnitTestBase, ewk_view_setting_encoding_custom)
+TEST_F(EWK2UnitTestBase, DISABLED_ewk_view_setting_encoding_custom)
 {
-    ASSERT_FALSE(ewk_view_setting_encoding_custom_get(webView()));
-    ASSERT_TRUE(ewk_view_setting_encoding_custom_set(webView(), "UTF-8"));
-    ASSERT_STREQ("UTF-8", ewk_view_setting_encoding_custom_get(webView()));
+    ASSERT_FALSE(ewk_view_custom_encoding_get(webView()));
+    ASSERT_TRUE(ewk_view_custom_encoding_set(webView(), "UTF-8"));
+    ASSERT_STREQ("UTF-8", ewk_view_custom_encoding_get(webView()));
     // Set the default charset.
-    ASSERT_TRUE(ewk_view_setting_encoding_custom_set(webView(), 0));
-    ASSERT_FALSE(ewk_view_setting_encoding_custom_get(webView()));
+    ASSERT_TRUE(ewk_view_custom_encoding_set(webView(), 0));
+    ASSERT_FALSE(ewk_view_custom_encoding_get(webView()));
 }
 
 static void onFormAboutToBeSubmitted(void* userData, Evas_Object*, void* eventInfo)
@@ -225,9 +219,9 @@ TEST_F(EWK2UnitTestBase, ewk_view_theme_set)
     ewk_view_html_string_load(webView(), buttonHTML, "file:///", 0);
     EXPECT_TRUE(waitUntilTitleChangedTo("30")); // the result should be same as default theme
 
-    ewk_view_theme_set(webView(), environment->pathForResource("big_button_theme.edj").data());
+    ewk_view_theme_set(webView(), environment->pathForTheme("big_button_theme.edj").data());
     ewk_view_html_string_load(webView(), buttonHTML, "file:///", 0);
-    EXPECT_TRUE(waitUntilTitleChangedTo("299")); // button of big button theme has 299px as padding (150 to -150)
+    EXPECT_TRUE(waitUntilTitleChangedTo("299")); // button of big button theme has 299px as padding (15 to -285)
 }
 
 TEST_F(EWK2UnitTestBase, ewk_view_mouse_events_enabled)
@@ -242,7 +236,13 @@ TEST_F(EWK2UnitTestBase, ewk_view_mouse_events_enabled)
     ASSERT_FALSE(ewk_view_mouse_events_enabled_get(webView()));
 }
 
-static Eina_Bool fullScreenCallback(Ewk_View_Smart_Data* smartData)
+static Eina_Bool fullScreenCallback(Ewk_View_Smart_Data* smartData, Ewk_Security_Origin*)
+{
+    fullScreenCallbackCalled = true;
+    return false;
+}
+
+static Eina_Bool fullScreenExitCallback(Ewk_View_Smart_Data* smartData)
 {
     fullScreenCallbackCalled = true;
     return false;
@@ -278,7 +278,7 @@ TEST_F(EWK2UnitTestBase, ewk_view_full_screen_exit)
         "}</script></head>"
         "<body><div id=\"fullscreen\" style=\"width:100px; height:100px\" onclick=\"makeFullScreenAndExit()\"></div></body>";
 
-    ewkViewClass()->fullscreen_exit = fullScreenCallback;
+    ewkViewClass()->fullscreen_exit = fullScreenExitCallback;
 
     ewk_view_html_string_load(webView(), fullscreenHTML, "file:///", 0);
     ASSERT_TRUE(waitUntilLoadFinished());
@@ -796,4 +796,123 @@ TEST_F(EWK2UnitTestBase, ewk_view_pagination)
     ASSERT_TRUE(ewk_view_pagination_mode_set(webView(), EWK_PAGINATION_MODE_UNPAGINATED));
     ASSERT_TRUE(loadUrlSync(environment->defaultTestPageUrl()));
     ASSERT_EQ(EWK_PAGINATION_MODE_UNPAGINATED, ewk_view_pagination_mode_get(webView()));
+}
+
+struct VibrationCbData {
+    bool didReceiveVibrate; // Whether the vibration event received.
+    bool didReceiveCancelVibration; // Whether the cancel vibration event received.
+    unsigned vibrateCalledCount; // Vibrate callbacks count.
+    uint64_t expectedVibrationTime; // Expected vibration time.
+};
+
+static void onVibrate(void* userData, Evas_Object*, void* eventInfo)
+{
+    VibrationCbData* data = static_cast<VibrationCbData*>(userData);
+    uint64_t* vibrationTime = static_cast<uint64_t*>(eventInfo);
+    if (*vibrationTime == data->expectedVibrationTime)
+        data->didReceiveVibrate = true;
+    data->vibrateCalledCount++;
+}
+
+static void onCancelVibration(void* userData, Evas_Object*, void*)
+{
+    VibrationCbData* data = static_cast<VibrationCbData*>(userData);
+    data->didReceiveCancelVibration = true;
+}
+
+static void loadVibrationHTMLString(Evas_Object* webView, const char* vibrationPattern, bool waitForVibrationEvent, VibrationCbData* data)
+{
+    const char* content =
+        "<html><head><script type='text/javascript'>function vibrate() { navigator.vibrate(%s);"
+        " document.title = \"Loaded\"; }</script></head><body onload='vibrate()'></body></html>";
+
+    data->didReceiveVibrate = false;
+    data->didReceiveCancelVibration = false;
+    data->vibrateCalledCount = 0;
+    Eina_Strbuf* buffer = eina_strbuf_new();
+    eina_strbuf_append_printf(buffer, content, vibrationPattern);
+    ewk_view_html_string_load(webView, eina_strbuf_string_get(buffer), 0, 0);
+    eina_strbuf_free(buffer);
+
+    if (!waitForVibrationEvent)
+        return;
+
+    while (!data->didReceiveVibrate && !data->didReceiveCancelVibration)
+        ecore_main_loop_iterate();
+}
+
+TEST_F(EWK2UnitTestBase, ewk_context_vibration_client_callbacks_set)
+{
+    VibrationCbData data = { false, false, 0, 5000 };
+    evas_object_smart_callback_add(webView(), "vibrate", onVibrate, &data);
+    evas_object_smart_callback_add(webView(), "cancel,vibration", onCancelVibration, &data);
+
+    // Vibrate for 5 seconds.
+    loadVibrationHTMLString(webView(), "5000", true, &data);
+    ASSERT_TRUE(data.didReceiveVibrate);
+
+    // Cancel any existing vibrations.
+    loadVibrationHTMLString(webView(), "0", true, &data);
+    ASSERT_TRUE(data.didReceiveCancelVibration);
+
+    // This case the pattern will cause the device to vibrate for 200 ms, be still for 100 ms, and then vibrate for 5000 ms.
+    loadVibrationHTMLString(webView(), "[200, 100, 5000]", true, &data);
+    ASSERT_EQ(2, data.vibrateCalledCount);
+    ASSERT_TRUE(data.didReceiveVibrate);
+
+    // Cancel outstanding vibration pattern.
+    loadVibrationHTMLString(webView(), "[0]", true, &data);
+    ASSERT_TRUE(data.didReceiveCancelVibration);
+
+    // Stop listening for vibration events, by calling the function with null for the callbacks.
+    evas_object_smart_callback_del(webView(), "vibrate", onVibrate);
+    evas_object_smart_callback_del(webView(), "cancel,vibration", onCancelVibration);
+
+    // Make sure we don't receive vibration event.
+    loadVibrationHTMLString(webView(), "[5000]", false, &data);
+    ASSERT_TRUE(waitUntilTitleChangedTo("Loaded"));
+    ASSERT_STREQ("Loaded", ewk_view_title_get(webView()));
+    ASSERT_FALSE(data.didReceiveVibrate);
+
+    // Make sure we don't receive cancel vibration event.
+    loadVibrationHTMLString(webView(), "0", false, &data);
+    ASSERT_TRUE(waitUntilTitleChangedTo("Loaded"));
+    ASSERT_STREQ("Loaded", ewk_view_title_get(webView()));
+    ASSERT_FALSE(data.didReceiveCancelVibration);
+}
+
+static void onContentsSizeChanged(void* userData, Evas_Object*, void* eventInfo)
+{
+    bool* result = static_cast<bool*>(userData);
+    Ewk_CSS_Size* size = static_cast<Ewk_CSS_Size*>(eventInfo);
+
+    if (size->w == 2000 && size->h == 3000)
+        *result = true;
+}
+
+TEST_F(EWK2UnitTestBase, ewk_view_contents_size_changed)
+{
+    const char contentsSizeHTML[] =
+        "<!DOCTYPE html>"
+        "<body style=\"margin:0px;width:2000px;height:3000px\"></body>";
+
+    bool sizeChanged = false;
+    evas_object_smart_callback_add(webView(), "contents,size,changed", onContentsSizeChanged, &sizeChanged);
+    ewk_view_html_string_load(webView(), contentsSizeHTML, 0, 0);
+    while (!sizeChanged)
+        ecore_main_loop_iterate();
+
+    ewk_view_device_pixel_ratio_set(webView(), 2);
+    ewk_view_html_string_load(webView(), contentsSizeHTML, 0, 0);
+    sizeChanged = false;
+    while (!sizeChanged)
+        ecore_main_loop_iterate();
+
+    ewk_view_scale_set(webView(), 3, 0, 0);
+    ewk_view_html_string_load(webView(), contentsSizeHTML, 0, 0);
+    sizeChanged = false;
+    while (!sizeChanged)
+        ecore_main_loop_iterate();
+
+    evas_object_smart_callback_del(webView(), "contents,size,changed", onContentsSizeChanged);
 }

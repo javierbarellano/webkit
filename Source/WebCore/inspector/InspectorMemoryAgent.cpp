@@ -85,6 +85,14 @@ public:
     {
         m_sizesMap = m_client->sizesMap();
 
+        // FIXME: We filter out Rendering type because the coverage is not good enough at the moment
+        // and report RenderArena size instead.
+        for (TypeNameToSizeMap::iterator i = m_sizesMap.begin(); i != m_sizesMap.end(); ++i) {
+            if (i->key == PlatformMemoryTypes::Rendering) {
+                m_sizesMap.remove(i);
+                break;
+            }
+        }
         Vector<String> objectTypes;
         objectTypes.appendRange(m_sizesMap.keys().begin(), m_sizesMap.keys().end());
 
@@ -118,7 +126,9 @@ private:
     size_t buildObjectForIndex(size_t index, const Vector<String>& objectTypes, InspectorMemoryBlocks* array)
     {
         String typeName = objectTypes[index];
-        RefPtr<InspectorMemoryBlock> block = InspectorMemoryBlock::create().setName(typeName);
+        size_t dotPosition = typeName.reverseFind('.');
+        String blockName = (dotPosition == notFound) ? typeName : typeName.substring(dotPosition + 1);
+        RefPtr<InspectorMemoryBlock> block = InspectorMemoryBlock::create().setName(blockName);
         block->setSize(m_sizesMap.get(typeName));
         String prefix = typeName;
         prefix.append('.');
@@ -533,6 +543,8 @@ void InspectorMemoryAgent::getProcessMemoryDistribution(ErrorString*, RefPtr<Ins
     reportJSHeapInfo(memoryInstrumentationClient);
     reportRenderTreeInfo(memoryInstrumentationClient, m_page);
     collectDomTreeInfo(memoryInstrumentation, m_page); // FIXME: collect for all pages?
+
+    PlatformMemoryInstrumentation::reportMemoryUsage(&memoryInstrumentation);
 
     RefPtr<InspectorMemoryBlocks> children = InspectorMemoryBlocks::create();
     addPlatformComponentsInfo(children);

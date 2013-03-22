@@ -88,6 +88,11 @@ String contextMenuItemTagOpenLinkInNewWindow()
     return QCoreApplication::translate("QWebPage", "Open in New Window", "Open in New Window context menu item");
 }
 
+String contextMenuItemTagOpenLinkInThisWindow()
+{
+    return QCoreApplication::translate("QWebPage", "Open in This Window", "Open in This Window context menu item");
+}
+
 String contextMenuItemTagDownloadLinkToDisk()
 {
     return QCoreApplication::translate("QWebPage", "Save Link...", "Download Linked File context menu item");
@@ -457,6 +462,12 @@ String insecurePluginVersionText()
     return String();
 }
 
+String inactivePluginText()
+{
+    notImplemented();
+    return String();
+}
+
 String multipleFileUploadText(unsigned)
 {
     notImplemented();
@@ -698,6 +709,12 @@ String validationMessageStepMismatchText(const String& base, const String& step)
 {
     notImplemented();
     return String();
+}
+
+String validationMessageBadInputForNumberText()
+{
+    notImplemented();
+    return validationMessageTypeMismatchText();
 }
 
 String localizedString(const char* key)

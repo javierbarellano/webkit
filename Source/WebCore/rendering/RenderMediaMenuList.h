@@ -23,6 +23,7 @@ public:
 	virtual void didSetSelectedIndex(int listIndex);
 	virtual void showPopup();
 protected:
+    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
 	virtual void updateOptionsWidth();
 	virtual void updateFromElement();
 	virtual void setTextFromOption(int optionIndex);

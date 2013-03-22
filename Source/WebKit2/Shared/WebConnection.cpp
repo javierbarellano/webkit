@@ -27,15 +27,13 @@
 #include "WebConnection.h"
 
 #include "ArgumentCoders.h"
-#include "Connection.h"
 #include "DataReference.h"
 #include "WebConnectionMessages.h"
 #include <wtf/text/WTFString.h>
 
 namespace WebKit {
 
-WebConnection::WebConnection(PassRefPtr<CoreIPC::Connection> connection)
-    : m_connection(connection)
+WebConnection::WebConnection()
 {
 }
 
@@ -50,35 +48,37 @@ void WebConnection::initializeConnectionClient(const WKConnectionClient* client)
 
 void WebConnection::postMessage(const String& messageName, APIObject* messageBody)
 {
-    if (!m_connection)
+    if (!hasValidConnection())
         return;
 
-    OwnPtr<CoreIPC::ArgumentEncoder> messageData = CoreIPC::ArgumentEncoder::create();
-    messageData->encode(messageName);
-    encodeMessageBody(*messageData, messageBody);
+    OwnPtr<CoreIPC::MessageEncoder> encoder = CoreIPC::MessageEncoder::create(Messages::WebConnection::HandleMessage::receiverName(), Messages::WebConnection::HandleMessage::name(), 0);
+    encoder->encode(messageName);
+    encodeMessageBody(*encoder, messageBody);
 
-    m_connection->send(Messages::WebConnection::HandleMessage(CoreIPC::DataReference(messageData->buffer(), messageData->bufferSize())), 0);
+    sendMessage(CoreIPC::MessageID(Messages::WebConnection::HandleMessage::messageID), encoder.release());
 }
 
-void WebConnection::handleMessage(const CoreIPC::DataReference& messageData)
+void WebConnection::didClose()
 {
-    OwnPtr<CoreIPC::ArgumentDecoder> decoder = CoreIPC::ArgumentDecoder::create(messageData.data(), messageData.size());
+    m_client.didClose(this);
+}
 
+void WebConnection::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::MessageDecoder& decoder)
+{
+    didReceiveWebConnectionMessage(connection, messageID, decoder);
+}
+
+void WebConnection::handleMessage(CoreIPC::MessageDecoder& decoder)
+{
     String messageName;
-    if (!decoder->decode(messageName))
+    if (!decoder.decode(messageName))
         return;
 
     RefPtr<APIObject> messageBody;
-    if (!decodeMessageBody(*decoder, messageBody))
+    if (!decodeMessageBody(decoder, messageBody))
         return;
 
     m_client.didReceiveMessage(this, messageName, messageBody.get());
-}
-
-void WebConnection::invalidate()
-{
-    m_connection->invalidate();
-    m_connection = nullptr;
 }
 
 } // namespace WebKit

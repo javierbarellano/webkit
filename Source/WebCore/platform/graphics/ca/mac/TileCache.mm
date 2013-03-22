@@ -29,10 +29,13 @@
 #import "IntRect.h"
 #import "PlatformCALayer.h"
 #import "Region.h"
+#import "LayerPool.h"
 #import "WebLayer.h"
 #import "WebTileCacheLayer.h"
 #import "WebTileLayer.h"
+#import <QuartzCore/QuartzCore.h>
 #import <wtf/MainThread.h>
+#import <WebCore/BlockExceptions.h>
 #import <utility>
 
 using namespace std;
@@ -42,6 +45,39 @@ using namespace std;
 - (void)setAcceleratesDrawing:(BOOL)flag;
 @end
 #endif
+
+@interface WebTiledScrollingIndicatorLayer : CALayer {
+    WebCore::TileCache* _tileCache;
+    CALayer *_visibleRectFrameLayer; // Owned by being a sublayer.
+}
+@property (assign) WebCore::TileCache* tileCache;
+@property (assign) CALayer* visibleRectFrameLayer;
+@end
+
+@implementation WebTiledScrollingIndicatorLayer
+@synthesize tileCache = _tileCache;
+@synthesize visibleRectFrameLayer = _visibleRectFrameLayer;
+- (id)init
+{
+    if ((self = [super init])) {
+        [self setStyle:[NSDictionary dictionaryWithObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNull null], @"bounds", [NSNull null], @"position", [NSNull null], @"contents", nil] forKey:@"actions"]];
+
+        _visibleRectFrameLayer = [CALayer layer];
+        [_visibleRectFrameLayer setStyle:[NSDictionary dictionaryWithObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNull null], @"bounds", [NSNull null], @"position", nil] forKey:@"actions"]];
+        [self addSublayer:_visibleRectFrameLayer];
+        [_visibleRectFrameLayer setBorderColor:WebCore::cachedCGColor(WebCore::Color(255, 0, 0), WebCore::ColorSpaceDeviceRGB)];
+        [_visibleRectFrameLayer setBorderWidth:2];
+        return self;
+    }
+    return nil;
+}
+
+- (void)drawInContext:(CGContextRef)context
+{
+    if (_tileCache)
+        _tileCache->drawTileMapContents(context, [self bounds]);
+}
+@end
 
 namespace WebCore {
 
@@ -66,6 +102,7 @@ TileCache::TileCache(WebTileCacheLayer* tileCacheLayer)
     , m_acceleratesDrawing(false)
     , m_tilesAreOpaque(false)
     , m_tileDebugBorderWidth(0)
+    , m_indicatorMode(ThreadedScrollingIndication)
 {
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
@@ -84,6 +121,9 @@ TileCache::~TileCache()
         WebTileLayer* tileLayer = it->value.get();
         [tileLayer setTileCache:0];
     }
+    
+    if (m_tiledScrollingIndicatorLayer)
+        [m_tiledScrollingIndicatorLayer.get() setTileCache:nil];
 }
 
 void TileCache::tileCacheLayerBoundsChanged()
@@ -295,7 +335,7 @@ IntRect TileCache::rectForTileIndex(const TileIndex& tileIndex) const
     return rect;
 }
 
-void TileCache::getTileIndexRangeForRect(const IntRect& rect, TileIndex& topLeft, TileIndex& bottomRight)
+void TileCache::getTileIndexRangeForRect(const IntRect& rect, TileIndex& topLeft, TileIndex& bottomRight) const
 {
     IntRect clampedRect = bounds();
     clampedRect.scale(m_scale);
@@ -370,7 +410,7 @@ unsigned TileCache::blankPixelCountForTiles(const WebTileLayerList& tiles, IntRe
         IntRect visiblePart(CGRectOffset([tileLayer frame], tileTranslation.x(), tileTranslation.y()));
         visiblePart.intersect(visibleRect);
 
-        if (!visiblePart.isEmpty() && [tileLayer repaintCount])
+        if (!visiblePart.isEmpty() && [tileLayer paintCount])
             paintedVisibleTiles.unite(visiblePart);
     }
 
@@ -419,7 +459,7 @@ void TileCache::revalidateTiles()
     // the tiles that are outside the coverage rect. When we know that we're going to be scrolling up,
     // we might want to remove the ones below the coverage rect but keep the ones above.
     for (size_t i = 0; i < tilesToRemove.size(); ++i)
-        m_tiles.remove(tilesToRemove[i]);
+        LayerPool::sharedPool()->addLayer(m_tiles.take(tilesToRemove[i]));
 
     TileIndex topLeft;
     TileIndex bottomRight;
@@ -457,9 +497,64 @@ void TileCache::revalidateTiles()
         m_tileCoverageRect.unite(rectForTileIndex(tileIndex));
     }
 
+    if (m_tiledScrollingIndicatorLayer)
+        updateTileCoverageMap();
+
     if (dirtyRects.isEmpty())
         return;
     platformLayer->owner()->platformCALayerDidCreateTiles(dirtyRects);
+}
+
+void TileCache::updateTileCoverageMap()
+{
+    FloatRect containerBounds = bounds();
+    FloatRect visibleRect = this->visibleRect();
+
+    float widthScale = 1;
+    float scale = 1;
+    if (!containerBounds.isEmpty()) {
+        widthScale = std::min<float>(visibleRect.width() / containerBounds.width(), 0.1);
+        scale = std::min(widthScale, visibleRect.height() / containerBounds.height());
+    }
+    
+    FloatRect mapBounds = containerBounds;
+    mapBounds.scale(scale, scale);
+    
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
+    
+    [m_tiledScrollingIndicatorLayer.get() setBounds:mapBounds];
+    [m_tiledScrollingIndicatorLayer.get() setNeedsDisplay];
+
+    visibleRect.scale(scale, scale);
+    visibleRect.expand(2, 2);
+    [[m_tiledScrollingIndicatorLayer.get() visibleRectFrameLayer] setFrame:visibleRect];
+
+    Color backgroundColor;
+    switch (m_indicatorMode) {
+    case MainThreadScrollingBecauseOfStyleIndictaion:
+        backgroundColor = Color(255, 0, 0);
+        break;
+    case MainThreadScrollingBecauseOfEventHandlersIndication:
+        backgroundColor = Color(255, 255, 0);
+        break;
+    case ThreadedScrollingIndication:
+        backgroundColor = Color(0, 200, 0);
+        break;
+    }
+
+    [[m_tiledScrollingIndicatorLayer.get() visibleRectFrameLayer] setBorderColor:cachedCGColor(backgroundColor, ColorSpaceDeviceRGB)];
+
+    END_BLOCK_OBJC_EXCEPTIONS
+}
+
+IntRect TileCache::tileGridExtent() const
+{
+    TileIndex topLeft;
+    TileIndex bottomRight;
+    getTileIndexRangeForRect(m_tileCoverageRect, topLeft, bottomRight);
+
+    // Return index of top, left tile and the number of tiles across and down.
+    return IntRect(topLeft.x(), topLeft.y(), bottomRight.x() - topLeft.x() + 1, bottomRight.y() - topLeft.y() + 1);
 }
 
 // Return the rect in layer coords, not tile coords.
@@ -470,6 +565,31 @@ IntRect TileCache::tileCoverageRect() const
     return coverageRectInLayerCoords;
 }
 
+CALayer *TileCache::tiledScrollingIndicatorLayer()
+{
+    if (!m_tiledScrollingIndicatorLayer) {
+        m_tiledScrollingIndicatorLayer = [WebTiledScrollingIndicatorLayer layer];
+        [m_tiledScrollingIndicatorLayer.get() setTileCache:this];
+        [m_tiledScrollingIndicatorLayer.get() setOpacity:0.75];
+        [m_tiledScrollingIndicatorLayer.get() setAnchorPoint:CGPointZero];
+        [m_tiledScrollingIndicatorLayer.get() setBorderColor:cachedCGColor(Color::black, ColorSpaceDeviceRGB)];
+        [m_tiledScrollingIndicatorLayer.get() setBorderWidth:1];
+        [m_tiledScrollingIndicatorLayer.get() setPosition:CGPointMake(2, 2)];
+        updateTileCoverageMap();
+    }
+
+    return m_tiledScrollingIndicatorLayer.get();
+}
+
+void TileCache::setScrollingModeIndication(ScrollingModeIndication scrollingMode)
+{
+    if (scrollingMode == m_indicatorMode)
+        return;
+
+    m_indicatorMode = scrollingMode;
+    updateTileCoverageMap();
+}
+
 WebTileLayer* TileCache::tileLayerAtIndex(const TileIndex& index) const
 {
     return m_tiles.get(index).get();
@@ -477,7 +597,14 @@ WebTileLayer* TileCache::tileLayerAtIndex(const TileIndex& index) const
 
 RetainPtr<WebTileLayer> TileCache::createTileLayer(const IntRect& tileRect)
 {
-    RetainPtr<WebTileLayer> layer = adoptNS([[WebTileLayer alloc] init]);
+    RetainPtr<WebTileLayer> layer = LayerPool::sharedPool()->takeLayerWithSize(tileRect.size());
+    if (layer) {
+        // If we were able to restore a layer from the LayerPool, we should call setNeedsDisplay to
+        // ensure we avoid stale content.
+        [layer resetPaintCount];
+        [layer setNeedsDisplay];
+    } else
+        layer = adoptNS([[WebTileLayer alloc] init]);
     [layer.get() setAnchorPoint:CGPointZero];
     [layer.get() setFrame:tileRect];
     [layer.get() setTileCache:this];
@@ -513,13 +640,13 @@ bool TileCache::shouldShowRepaintCounters() const
 
 void TileCache::drawRepaintCounter(WebTileLayer *layer, CGContextRef context)
 {
-    unsigned repaintCount = [layer incrementRepaintCount];
+    unsigned paintCount = [layer incrementPaintCount];
     if (!shouldShowRepaintCounters())
         return;
 
     // FIXME: Some of this code could be shared with WebLayer.
     char text[16]; // that's a lot of repaints
-    snprintf(text, sizeof(text), "%d", repaintCount);
+    snprintf(text, sizeof(text), "%d", paintCount);
 
     CGRect indicatorBox = [layer bounds];
     indicatorBox.size.width = 12 + 10 * strlen(text);
@@ -539,12 +666,38 @@ void TileCache::drawRepaintCounter(WebTileLayer *layer, CGContextRef context)
     else
         CGContextSetRGBFillColor(context, 1, 1, 1, 1);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CGContextSetTextMatrix(context, CGAffineTransformMakeScale(1, -1));
     CGContextSelectFont(context, "Helvetica", 22, kCGEncodingMacRoman);
     CGContextShowTextAtPoint(context, indicatorBox.origin.x + 5, indicatorBox.origin.y + 22, text, strlen(text));
+#pragma clang diagnostic pop
 
     CGContextEndTransparencyLayer(context);
     CGContextRestoreGState(context);
 }
+
+void TileCache::drawTileMapContents(CGContextRef context, CGRect layerBounds)
+{
+    CGContextSetRGBFillColor(context, 0.5, 0.5, 0.5, 1);
+    CGContextFillRect(context, layerBounds);
+
+    CGFloat scaleFactor = layerBounds.size.width / bounds().width();
+    
+    CGContextSetRGBFillColor(context, 1, 1, 1, 1);
+    CGContextSetRGBStrokeColor(context, 0, 0, 0, 1);
+    CGContextSetLineWidth(context, 1 / scaleFactor);
+
+    CGFloat contextScale = scaleFactor / scale();
+    CGContextScaleCTM(context, contextScale, contextScale);
+    
+    for (TileMap::const_iterator it = m_tiles.begin(), end = m_tiles.end(); it != end; ++it) {
+        WebTileLayer* tileLayer = it->value.get();
+        CGRect frame = [tileLayer frame];
+        CGContextStrokeRect(context, frame);
+        CGContextFillRect(context, frame);
+    }
+}
+    
 
 } // namespace WebCore

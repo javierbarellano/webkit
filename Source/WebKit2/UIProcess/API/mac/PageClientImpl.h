@@ -62,6 +62,7 @@ private:
     virtual bool isViewInWindow();
     virtual LayerHostingMode viewLayerHostingMode() OVERRIDE;
     virtual ColorSpaceData colorSpace() OVERRIDE;
+    virtual void setAcceleratedCompositingRootLayer(CALayer *) OVERRIDE;
 
     virtual void processDidCrash();
     virtual void pageClosed();
@@ -115,8 +116,6 @@ private:
     
     virtual CGContextRef containingWindowGraphicsContext();
 
-    virtual void didChangeScrollbarsForMainFrame() const;
-
     virtual void didCommitLoadForMainFrame(bool useCustomRepresentation);
     virtual void didFinishLoadingDataForCustomRepresentation(const String& suggestedFilename, const CoreIPC::DataReference&);
 
@@ -127,7 +126,7 @@ private:
 
     virtual void flashBackingStoreUpdates(const Vector<WebCore::IntRect>& updateRects);
 
-    virtual void didPerformDictionaryLookup(const String&, double scaleFactor, const DictionaryPopupInfo&);
+    virtual void didPerformDictionaryLookup(const AttributedString&, const DictionaryPopupInfo&);
     virtual void dismissDictionaryLookupPanel();
 
     virtual void showCorrectionPanel(WebCore::AlternativeTextType, const WebCore::FloatRect& boundingBoxOfReplacedString, const String& replacedString, const String& replacementString, const Vector<String>& alternativeReplacementStrings);
@@ -138,6 +137,7 @@ private:
     virtual void recommendedScrollbarStyleDidChange(int32_t newStyle);
 
     virtual WKView* wkView() const { return m_wkView; }
+    virtual void intrinsicContentSizeDidChange(const WebCore::IntSize& intrinsicContentSize) OVERRIDE;
 
 #if USE(DICTATION_ALTERNATIVES)
     virtual uint64_t addDictationAlternatives(const RetainPtr<NSTextAlternatives>&);

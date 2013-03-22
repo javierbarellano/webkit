@@ -63,6 +63,7 @@ namespace WebCore {
 
     class AuthenticationChallenge;
     class CachedFrame;
+    class CachedResourceRequest;
     class Color;
     class DOMWindowExtension;
     class DOMWrapperWorld;
@@ -179,6 +180,8 @@ namespace WebCore {
 
         virtual void dispatchUnableToImplementPolicy(const ResourceError&) = 0;
 
+        virtual void dispatchWillRequestResource(CachedResourceRequest*) { }
+
         virtual void dispatchWillSendSubmitEvent(PassRefPtr<FormState>) = 0;
         virtual void dispatchWillSubmitForm(FramePolicyFunction, PassRefPtr<FormState>) = 0;
 
@@ -208,6 +211,11 @@ namespace WebCore {
         virtual bool shouldGoToHistoryItem(HistoryItem*) const = 0;
         virtual bool shouldStopLoadingForHistoryItem(HistoryItem*) const = 0;
         virtual void updateGlobalHistoryItemForPage() { }
+
+        // This frame has set its opener to null, disowning it for the lifetime of the frame.
+        // See http://html.spec.whatwg.org/#dom-opener.
+        // FIXME: JSC should allow disowning opener. - <https://bugs.webkit.org/show_bug.cgi?id=103913>.
+        virtual void didDisownOpener() { }
 
         // This frame has displayed inactive content (such as an image) from an
         // insecure source.  Inactive content cannot spread to other frames.
@@ -348,6 +356,17 @@ namespace WebCore {
 
 #if ENABLE(MEDIA_STREAM)
         virtual void dispatchWillStartUsingPeerConnectionHandler(RTCPeerConnectionHandler*) { }
+#endif
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+        virtual void didRequestAutocomplete(PassRefPtr<FormState>) = 0;
+#endif
+
+#if ENABLE(WEBGL)
+        virtual bool allowWebGL(bool enabledPerSettings) { return enabledPerSettings; }
+        // Informs the embedder that a WebGL canvas inside this frame received a lost context
+        // notification with the given GL_ARB_robustness guilt/innocence code (see Extensions3D.h).
+        virtual void didLoseWebGLContext(int) { }
 #endif
     };
 

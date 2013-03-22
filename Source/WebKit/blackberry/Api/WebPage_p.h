@@ -31,6 +31,9 @@
 #include <EGL/egl.h>
 #endif
 #include "KURL.h"
+#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
+#include "NotificationManager.h"
+#endif
 #include "PageClientBlackBerry.h"
 #include "PlatformMouseEvent.h"
 #include "ScriptSourceCode.h"
@@ -72,7 +75,6 @@ namespace WebKit {
 
 class BackingStore;
 class BackingStoreClient;
-class BackingStoreTile;
 class DumpRenderTreeClient;
 class InPageSearchManager;
 class InputHandler;
@@ -152,7 +154,6 @@ public:
     WebCore::IntPoint scrollPosition() const;
     WebCore::IntPoint maximumScrollPosition() const;
     void setScrollPosition(const WebCore::IntPoint&);
-    void scrollBy(int deltaX, int deltaY);
 
     void notifyInRegionScrollStopped();
     void setScrollOriginPoint(const Platform::IntPoint&);
@@ -166,7 +167,12 @@ public:
 
     // Modifies the zoomToFit algorithm logic to construct a scale such that the viewportSize above is equal to this size.
     bool hasVirtualViewport() const;
-    bool isUserScalable() const { return m_userScalable; }
+    bool isUserScalable() const
+    {
+        if (!respectViewport())
+            return true;
+        return m_userScalable;
+    }
     void setUserScalable(bool userScalable) { m_userScalable = userScalable; }
 
     // Sets default layout size without doing layout or marking as needing layout.
@@ -215,10 +221,10 @@ public:
     void exitFullScreenForElement(WebCore::Element*);
 #endif
     void contentsSizeChanged(const WebCore::IntSize&);
-    void overflowExceedsContentsSize() { m_overflowExceedsContentsSize = true; }
+    void overflowExceedsContentsSize();
     void layoutFinished();
     void setNeedTouchEvents(bool);
-    void notifyPopupAutofillDialog(const Vector<String>&, const WebCore::IntRect&);
+    void notifyPopupAutofillDialog(const Vector<String>&);
     void notifyDismissAutofillDialog();
 
     bool shouldZoomToInitialScaleOnLoad() const { return loadState() == Committed || m_shouldZoomToInitialScaleAfterLoadFinished; }
@@ -233,11 +239,12 @@ public:
     // Various scale factors.
     double currentScale() const { return m_transformationMatrix->m11(); }
     double zoomToFitScale() const;
+    bool respectViewport() const;
     double initialScale() const;
     void setInitialScale(double scale) { m_initialScale = scale; }
     double minimumScale() const
     {
-        return (m_minimumScale > zoomToFitScale() && m_minimumScale <= maximumScale()) ? m_minimumScale : zoomToFitScale();
+        return (m_minimumScale > zoomToFitScale() && m_minimumScale <= maximumScale() && respectViewport()) ? m_minimumScale : zoomToFitScale();
     }
 
     void setMinimumScale(double scale) { m_minimumScale = scale; }
@@ -304,9 +311,6 @@ public:
     double newScaleForBlockZoomRect(const WebCore::IntRect&, double oldScale, double margin);
     double maxBlockZoomScale() const;
 
-    // Plugin Methods.
-    void notifyPluginRectChanged(int id, const WebCore::IntRect& rectChanged);
-
     // Context Methods.
     Platform::WebContext webContext(TargetDetectionStrategy);
     PassRefPtr<WebCore::Node> contextNode(TargetDetectionStrategy);
@@ -347,7 +351,7 @@ public:
 #endif
 
     void dispatchViewportPropertiesDidChange(const WebCore::ViewportArguments&);
-    WebCore::IntSize recomputeVirtualViewportFromViewportArguments();
+    Platform::IntSize recomputeVirtualViewportFromViewportArguments();
 
     void resetBlockZoom();
 
@@ -371,15 +375,11 @@ public:
     // Scroll and/or zoom so that the WebPage fits the new actual
     // visible size.
     void setViewportSize(const WebCore::IntSize& transformedActualVisibleSize, bool ensureFocusElementVisible);
-    void resizeSurfaceIfNeeded(); // Helper method for setViewportSize().
 
     void scheduleDeferrableTimer(WebCore::Timer<WebPagePrivate>*, double timeOut);
     void unscheduleAllDeferrableTimers();
     void willDeferLoading();
     void didResumeLoading();
-
-    // Returns true if the escape key handler should zoom.
-    bool shouldZoomOnEscape() const;
 
     WebCore::TransformationMatrix* transformationMatrix() const
     {
@@ -401,8 +401,6 @@ public:
     virtual void notifyAnimationStarted(const WebCore::GraphicsLayer*, double time) { }
     virtual void notifyFlushRequired(const WebCore::GraphicsLayer*);
     virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect& inClip) { }
-    virtual bool showDebugBorders(const WebCore::GraphicsLayer*) const;
-    virtual bool showRepaintCounter(const WebCore::GraphicsLayer*) const;
 
     // WebKit thread, plumbed through from ChromeClientBlackBerry.
     void setRootLayerWebKitThread(WebCore::Frame*, WebCore::LayerWebKitThread*);
@@ -468,6 +466,13 @@ public:
 
     WebCore::IntSize screenSize() const;
 
+    void willComposite();
+    void didComposite();
+
+#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
+    NotificationManager& notificationManager() { return m_notificationManager; };
+#endif
+
     WebPage* m_webPage;
     WebPageClient* m_client;
     WebCore::InspectorClientBlackBerry* m_inspectorClient;
@@ -490,7 +495,6 @@ public:
     bool m_overflowExceedsContentsSize;
     bool m_resetVirtualViewportOnCommitted;
     bool m_shouldUseFixedDesktopMode;
-    bool m_needTouchEvents;
     int m_preventIdleDimmingCount;
 
 #if ENABLE(TOUCH_EVENTS)
@@ -500,8 +504,7 @@ public:
     WebCore::IntSize m_previousContentsSize;
     int m_actualVisibleWidth;
     int m_actualVisibleHeight;
-    int m_virtualViewportWidth;
-    int m_virtualViewportHeight;
+    WebCore::IntSize m_virtualViewportSize;
     WebCore::IntSize m_defaultLayoutSize;
     WebCore::ViewportArguments m_viewportArguments; // We keep this around since we may need to re-evaluate the arguments on rotation.
     WebCore::ViewportArguments m_userViewportArguments; // A fallback set of Viewport Arguments supplied by the WebPageClient
@@ -536,6 +539,7 @@ public:
     double m_initialScale;
     double m_minimumScale;
     double m_maximumScale;
+    bool m_forceRespectViewportArguments;
 
     // Block zoom animation data.
     WebCore::FloatPoint m_finalBlockPoint;
@@ -546,6 +550,7 @@ public:
     RefPtr<WebCore::Node> m_currentBlockZoomNode;
     RefPtr<WebCore::Node> m_currentBlockZoomAdjustedNode;
     bool m_shouldReflowBlock;
+    bool m_shouldConstrainScrollingToContentEdge;
 
     double m_lastUserEventTimestamp; // Used to detect user scrolling.
 
@@ -575,7 +580,6 @@ public:
     bool m_suspendRootLayerCommit;
 #endif
 
-    bool m_hasPendingSurfaceSizeChange;
     int m_pendingOrientation;
 
     RefPtr<WebCore::Node> m_fullscreenVideoNode;
@@ -644,6 +648,11 @@ public:
 
     WebCore::IntPoint m_cachedHitTestContentPos;
     WebCore::HitTestResult m_cachedHitTestResult;
+
+#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
+    NotificationManager m_notificationManager;
+#endif
+
 protected:
     virtual ~WebPagePrivate();
 };

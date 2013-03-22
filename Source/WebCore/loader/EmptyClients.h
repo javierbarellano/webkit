@@ -173,7 +173,7 @@ public:
     virtual PassOwnPtr<ColorChooser> createColorChooser(ColorChooserClient*, const Color&) OVERRIDE;
 #endif
 
-#if ENABLE(CALENDAR_PICKER)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     virtual PassRefPtr<DateTimeChooser> openDateTimeChooser(DateTimeChooserClient*, const DateTimeChooserParameters&) OVERRIDE;
 #endif
 
@@ -384,6 +384,10 @@ public:
 #if ENABLE(WEB_INTENTS)
     virtual void dispatchIntent(PassRefPtr<IntentRequest>) OVERRIDE;
 #endif
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    virtual void didRequestAutocomplete(PassRefPtr<FormState>) OVERRIDE;
+#endif
 };
 
 class EmptyTextCheckerClient : public TextCheckerClient {
@@ -573,11 +577,15 @@ public:
     virtual void hideHighlight() { }
 };
 
+class EmptyDeviceClient : public DeviceClient {
+public:
+    virtual void startUpdating() OVERRIDE { }
+    virtual void stopUpdating() OVERRIDE { }
+};
+
 class EmptyDeviceMotionClient : public DeviceMotionClient {
 public:
     virtual void setController(DeviceMotionController*) { }
-    virtual void startUpdating() { }
-    virtual void stopUpdating() { }
     virtual DeviceMotionData* lastMotion() const { return 0; }
     virtual void deviceMotionControllerDestroyed() { }
 };
@@ -585,8 +593,6 @@ public:
 class EmptyDeviceOrientationClient : public DeviceOrientationClient {
 public:
     virtual void setController(DeviceOrientationController*) { }
-    virtual void startUpdating() { }
-    virtual void stopUpdating() { }
     virtual DeviceOrientationData* lastOrientation() const { return 0; }
     virtual void deviceOrientationControllerDestroyed() { }
 };

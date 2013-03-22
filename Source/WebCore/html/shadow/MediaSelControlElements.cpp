@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include "MediaControlElements.h"
+#include "MediaControls.h"
 #include "MediaSelControlElements.h"
 
 #include "NodeRenderingContext.h"
@@ -212,14 +213,27 @@ void MediaOptionElement::setRenderStyle(PassRefPtr<RenderStyle> newStyle)
 
 // ----------------------------
 
-MediaSelectElement::MediaSelectElement(Document* document, MediaControlElementType displayType)
+MediaSelectElement::MediaSelectElement(Document* document, MediaControlElementType displayType, MediaControls* controls)
     : HTMLFormControlElementWithState(selectTag, document, NULL)
 	, m_hasFocus(false)
+	, m_controls(controls)
     , m_mediaController(0)
 {
 	m_displayType = displayType;
 	m_multiple = false;
 }
+
+void MediaSelectElement::setMediaController(MediaControllerInterface* controller)
+{
+	m_mediaController = controller;
+	//m_controls->setMediaController(controller);
+}
+
+MediaControllerInterface* MediaSelectElement::mediaController() const
+{
+	return m_mediaController;
+}
+
 
 void MediaSelectElement::show()
 {
@@ -352,12 +366,14 @@ void MediaSelectElement::listBoxSelectItem(int listIndex, bool allowMultiplySele
 
 bool MediaSelectElement::usesMenuList() const
 {
-   const Page* page = document()->page();
-    RefPtr<RenderTheme> renderTheme = page ? page->theme() : RenderTheme::defaultTheme();
-    if (renderTheme->delegatesMenuListRendering())
-        return true;
+	return true;
 
-    return !m_multiple && m_size <= 1;
+//   const Page* page = document()->page();
+//    RefPtr<RenderTheme> renderTheme = page ? page->theme() : RenderTheme::defaultTheme();
+//    if (renderTheme->delegatesMenuListRendering())
+//        return true;
+//
+//    return !m_multiple && m_size <= 1;
 }
 
 void MediaSelectElement::add(HTMLElement* element, HTMLElement* before, ExceptionCode& ec)
@@ -422,13 +438,13 @@ void MediaSelectElement::optionElementChildrenChanged()
 void MediaSelectElement::accessKeyAction(bool sendMouseEvents)
 {
     focus();
-    dispatchSimulatedClick(0, sendMouseEvents);
+    dispatchSimulatedClick(0, sendMouseEvents ? SendMouseUpDownEvents:SendNoEvents);
 }
 
 
 bool MediaSelectElement::isRequiredFormControl() const
 {
-    return required();
+    return false;
 }
 
 // Returns the 1st valid item |skip| items from |listIndex| in direction |direction| if there is one.

@@ -28,7 +28,6 @@
 
 #include "AXObjectCache.h"
 #include "Document.h"
-#include "EditingText.h"
 #include "Editor.h"
 #include "Frame.h"
 #include "HTMLBRElement.h"
@@ -1100,7 +1099,7 @@ int indexForVisiblePosition(const VisiblePosition& visiblePosition, RefPtr<Conta
 
     Position p(visiblePosition.deepEquivalent());
     Document* document = p.anchorNode()->document();
-    ShadowRoot* shadowRoot = p.anchorNode()->shadowRoot();
+    ShadowRoot* shadowRoot = p.anchorNode()->containingShadowRoot();
 
     if (shadowRoot)
         scope = shadowRoot;

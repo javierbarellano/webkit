@@ -36,18 +36,17 @@ public:
 
 private:
     virtual void initializeLocaleData() OVERRIDE FINAL;
-    virtual double parseDateTime(const String&, DateComponents::Type) OVERRIDE;
 #if ENABLE(CALENDAR_PICKER)
     virtual bool isRTL() OVERRIDE;
 #endif
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    virtual const Vector<String>& monthLabels() OVERRIDE;
-#endif
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
     virtual String dateFormat() OVERRIDE;
     virtual String monthFormat() OVERRIDE;
     virtual String timeFormat() OVERRIDE;
     virtual String shortTimeFormat() OVERRIDE;
+    virtual String dateTimeFormatWithSeconds() OVERRIDE;
+    virtual String dateTimeFormatWithoutSeconds() OVERRIDE;
+    virtual const Vector<String>& monthLabels() OVERRIDE;
     virtual const Vector<String>& shortMonthLabels() OVERRIDE;
     virtual const Vector<String>& standAloneMonthLabels() OVERRIDE;
     virtual const Vector<String>& shortStandAloneMonthLabels() OVERRIDE;
@@ -55,8 +54,6 @@ private:
 
     Vector<String> m_timeAMPMLabels;
     Vector<String> m_shortMonthLabels;
-#endif
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
     Vector<String> m_monthLabels;
 #endif
 };
@@ -74,11 +71,6 @@ void LocaleNone::initializeLocaleData()
 {
 }
 
-double LocaleNone::parseDateTime(const String&, DateComponents::Type)
-{
-    return std::numeric_limits<double>::quiet_NaN();
-}
-
 #if ENABLE(CALENDAR_PICKER)
 bool LocaleNone::isRTL()
 {
@@ -86,7 +78,7 @@ bool LocaleNone::isRTL()
 }
 #endif
 
-#if ENABLE(CALENDAR_PICKER) || ENABLE(INPUT_MULTIPLE_FIELDS_UI)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
 const Vector<String>& LocaleNone::monthLabels()
 {
     if (!m_monthLabels.isEmpty())
@@ -96,9 +88,7 @@ const Vector<String>& LocaleNone::monthLabels()
         m_monthLabels.append(WTF::monthFullName[i]);
     return m_monthLabels;
 }
-#endif
 
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
 String LocaleNone::dateFormat()
 {
     return ASCIILiteral("dd/MM/yyyyy");
@@ -117,6 +107,16 @@ String LocaleNone::timeFormat()
 String LocaleNone::shortTimeFormat()
 {
     return ASCIILiteral("HH:mm");
+}
+
+String LocaleNone::dateTimeFormatWithSeconds()
+{
+    return ASCIILiteral("dd/MM/yyyyy HH:mm:ss");
+}
+
+String LocaleNone::dateTimeFormatWithoutSeconds()
+{
+    return ASCIILiteral("dd/MM/yyyyy HH:mm");
 }
 
 const Vector<String>& LocaleNone::shortMonthLabels()

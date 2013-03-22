@@ -31,16 +31,21 @@
 #define ValidatedCustomFilterOperation_h
 
 #if ENABLE(CSS_SHADERS)
+#include "CustomFilterConstants.h"
+#include "CustomFilterParameterList.h"
 #include "FilterOperation.h"
-#include "LayoutTypes.h"
+#include "LayoutSize.h"
 
 namespace WebCore {
 
+class CustomFilterValidatedProgram;
+
 class ValidatedCustomFilterOperation : public FilterOperation {
 public:
-    static PassRefPtr<ValidatedCustomFilterOperation> create()
+    static PassRefPtr<ValidatedCustomFilterOperation> create(PassRefPtr<CustomFilterValidatedProgram> validatedProgram, 
+        const CustomFilterParameterList& sortedParameters, unsigned meshRows, unsigned meshColumns, CustomFilterMeshBoxType meshBoxType, CustomFilterMeshType meshType)
     {
-        return adoptRef(new ValidatedCustomFilterOperation());
+        return adoptRef(new ValidatedCustomFilterOperation(validatedProgram, sortedParameters, meshRows, meshColumns, meshBoxType, meshType));
     }
 
     virtual ~ValidatedCustomFilterOperation();
@@ -50,16 +55,40 @@ public:
     virtual bool blendingNeedsRendererSize() const { return true; }
 
     virtual PassRefPtr<FilterOperation> blend(const FilterOperation* from, double progress, const LayoutSize&, bool blendToPassthrough = false);
+
+    CustomFilterValidatedProgram* validatedProgram() const { return m_validatedProgram.get(); }
+    const CustomFilterParameterList& parameters() const { return m_parameters; }
+
+    unsigned meshRows() const { return m_meshRows; }
+    unsigned meshColumns() const { return m_meshColumns; }
+
+    CustomFilterMeshBoxType meshBoxType() const { return m_meshBoxType; }
+    CustomFilterMeshType meshType() const { return m_meshType; }
+
 private:
     virtual bool operator==(const FilterOperation& o) const
     {
         if (!isSameType(o))
             return false;
 
-        return true;
+        const ValidatedCustomFilterOperation* other = static_cast<const ValidatedCustomFilterOperation*>(&o);
+        return m_validatedProgram.get() == other->m_validatedProgram.get()
+            && m_meshRows == other->m_meshRows
+            && m_meshColumns == other->m_meshColumns
+            && m_meshBoxType == other->m_meshBoxType
+            && m_meshType == other->m_meshType
+            && m_parameters == other->m_parameters;
     }
 
-    ValidatedCustomFilterOperation();
+    ValidatedCustomFilterOperation(PassRefPtr<CustomFilterValidatedProgram>, const CustomFilterParameterList&, unsigned meshRows, unsigned meshColumns, CustomFilterMeshBoxType, CustomFilterMeshType);
+
+    RefPtr<CustomFilterValidatedProgram> m_validatedProgram;
+
+    CustomFilterParameterList m_parameters;
+    unsigned m_meshRows;
+    unsigned m_meshColumns;
+    CustomFilterMeshBoxType m_meshBoxType;
+    CustomFilterMeshType m_meshType;
 };
 
 } // namespace WebCore

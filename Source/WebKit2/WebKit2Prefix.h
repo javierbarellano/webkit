@@ -32,9 +32,7 @@
 
 #if PLATFORM(MAC)
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 #define ENABLE_WEB_PROCESS_SANDBOX 1
-#endif
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
 #define ENABLE_PLUGIN_PROCESS 1
@@ -43,6 +41,8 @@
 #define ENABLE_NETWORK_PROCESS 1
 
 #define ENABLE_MEMORY_SAMPLER 1
+
+#define ENABLE_CUSTOM_PROTOCOLS 1
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>

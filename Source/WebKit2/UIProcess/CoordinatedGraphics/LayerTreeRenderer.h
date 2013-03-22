@@ -22,10 +22,10 @@
 
 #if USE(COORDINATED_GRAPHICS)
 #include "BackingStore.h"
-#include "ShareableSurface.h"
+#include "CoordinatedLayerInfo.h"
+#include "CoordinatedSurface.h"
 #include "TextureMapper.h"
 #include "TextureMapperBackingStore.h"
-#include "WebLayerTreeInfo.h"
 #include <WebCore/GraphicsContext.h>
 #include <WebCore/GraphicsLayer.h>
 #include <WebCore/GraphicsLayerAnimation.h>
@@ -38,124 +38,165 @@
 #include <wtf/HashSet.h>
 #include <wtf/ThreadingPrimitives.h>
 
+namespace WebCore {
+class CustomFilterProgram;
+class CustomFilterProgramInfo;
+class TextureMapperLayer;
+}
+
 namespace WebKit {
 
 class CoordinatedBackingStore;
 class LayerTreeCoordinatorProxy;
-class WebLayerInfo;
-class WebLayerUpdateInfo;
+class CoordinatedLayerInfo;
+class CoordinatedLayerUpdateInfo;
 
 class LayerTreeRenderer : public ThreadSafeRefCounted<LayerTreeRenderer>, public WebCore::GraphicsLayerClient {
 public:
     struct TileUpdate {
         WebCore::IntRect sourceRect;
-        WebCore::IntRect targetRect;
-        RefPtr<ShareableSurface> surface;
+        WebCore::IntRect tileRect;
+        RefPtr<CoordinatedSurface> surface;
         WebCore::IntPoint offset;
-        TileUpdate(const WebCore::IntRect& source, const WebCore::IntRect& target, PassRefPtr<ShareableSurface> newSurface, const WebCore::IntPoint& newOffset)
+        TileUpdate(const WebCore::IntRect& source, const WebCore::IntRect& tile, PassRefPtr<CoordinatedSurface> newSurface, const WebCore::IntPoint& newOffset)
             : sourceRect(source)
-            , targetRect(target)
+            , tileRect(tile)
             , surface(newSurface)
             , offset(newOffset)
         {
         }
     };
-    LayerTreeRenderer(LayerTreeCoordinatorProxy*);
+    explicit LayerTreeRenderer(LayerTreeCoordinatorProxy*);
     virtual ~LayerTreeRenderer();
-    void purgeGLResources();
     void paintToCurrentGLContext(const WebCore::TransformationMatrix&, float, const WebCore::FloatRect&, WebCore::TextureMapper::PaintFlags = 0);
     void paintToGraphicsContext(BackingStore::PlatformGraphicsContext);
-    void syncRemoteContent();
     void setContentsSize(const WebCore::FloatSize&);
     void setVisibleContentsRect(const WebCore::FloatRect&);
-    void didChangeScrollPosition(const WebCore::IntPoint& position);
+    void didChangeScrollPosition(const WebCore::FloatPoint& position);
 #if USE(GRAPHICS_SURFACE)
-    void syncCanvas(uint32_t id, const WebCore::IntSize& canvasSize, const WebCore::GraphicsSurfaceToken&, uint32_t frontBuffer);
+    void createCanvas(CoordinatedLayerID, const WebCore::IntSize&, PassRefPtr<WebCore::GraphicsSurface>);
+    void syncCanvas(CoordinatedLayerID, uint32_t frontBuffer);
+    void destroyCanvas(CoordinatedLayerID);
 #endif
 
     void detach();
     void appendUpdate(const Function<void()>&);
-    void updateViewport();
+
+    // The painting thread must lock the main thread to use below two methods, because two methods access members that the main thread manages. See m_layerTreeCoordinatorProxy.
+    // Currently, QQuickWebPage::updatePaintNode() locks the main thread before calling both methods.
+    void purgeGLResources();
     void setActive(bool);
 
-    void deleteLayer(WebLayerID);
-    void setRootLayerID(WebLayerID);
-    void setLayerChildren(WebLayerID, const Vector<WebLayerID>&);
-    void setLayerState(WebLayerID, const WebLayerInfo&);
+    void deleteLayer(CoordinatedLayerID);
+    void setRootLayerID(CoordinatedLayerID);
+    void setLayerChildren(CoordinatedLayerID, const Vector<CoordinatedLayerID>&);
+    void setLayerState(CoordinatedLayerID, const CoordinatedLayerInfo&);
 #if ENABLE(CSS_FILTERS)
-    void setLayerFilters(WebLayerID, const WebCore::FilterOperations&);
+    void setLayerFilters(CoordinatedLayerID, const WebCore::FilterOperations&);
+#endif
+#if ENABLE(CSS_SHADERS)
+    void injectCachedCustomFilterPrograms(const WebCore::FilterOperations& filters) const;
+    void createCustomFilterProgram(int id, const WebCore::CustomFilterProgramInfo&);
+    void removeCustomFilterProgram(int id);
 #endif
 
-    void createTile(WebLayerID, int, float scale);
-    void removeTile(WebLayerID, int);
-    void updateTile(WebLayerID, int, const TileUpdate&);
+    void createTile(CoordinatedLayerID, uint32_t tileID, float scale);
+    void removeTile(CoordinatedLayerID, uint32_t tileID);
+    void updateTile(CoordinatedLayerID, uint32_t tileID, const TileUpdate&);
     void flushLayerChanges();
-    void createImage(int64_t, PassRefPtr<ShareableBitmap>);
-    void destroyImage(int64_t);
-    void setLayerAnimations(WebLayerID, const WebCore::GraphicsLayerAnimations&);
+    void createImageBacking(CoordinatedImageBackingID);
+    void updateImageBacking(CoordinatedImageBackingID, PassRefPtr<CoordinatedSurface>);
+    void clearImageBackingContents(CoordinatedImageBackingID);
+    void removeImageBacking(CoordinatedImageBackingID);
+    void setLayerAnimations(CoordinatedLayerID, const WebCore::GraphicsLayerAnimations&);
     void setAnimationsLocked(bool);
-
+    void setBackgroundColor(const WebCore::Color&);
+    void setDrawsBackground(bool enable) { m_setDrawsBackground = enable; }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
     void requestAnimationFrame();
-    void animationFrameReady();
 #endif
 
 private:
-    PassOwnPtr<WebCore::GraphicsLayer> createLayer(WebLayerID);
+    PassOwnPtr<WebCore::GraphicsLayer> createLayer(CoordinatedLayerID);
 
-    WebCore::GraphicsLayer* layerByID(WebLayerID id) { return (id == InvalidWebLayerID) ? 0 : m_layers.get(id); }
+    WebCore::GraphicsLayer* layerByID(CoordinatedLayerID id) { return (id == InvalidCoordinatedLayerID) ? 0 : m_layers.get(id); }
     WebCore::GraphicsLayer* rootLayer() { return m_rootLayer.get(); }
+
+    void syncRemoteContent();
+    void adjustPositionForFixedLayers();
 
     // Reimplementations from WebCore::GraphicsLayerClient.
     virtual void notifyAnimationStarted(const WebCore::GraphicsLayer*, double) { }
     virtual void notifyFlushRequired(const WebCore::GraphicsLayer*) { }
-    virtual bool showDebugBorders(const WebCore::GraphicsLayer*) const { return false; }
-    virtual bool showRepaintCounter(const WebCore::GraphicsLayer*) const { return false; }
-    void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect&) { }
-    void dispatchOnMainThread(const Function<void()>&);
-    void adjustPositionForFixedLayers();
+    virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect&) OVERRIDE { }
 
-    typedef HashMap<WebLayerID, WebCore::GraphicsLayer*> LayerMap;
+    void dispatchOnMainThread(const Function<void()>&);
+    void updateViewport();
+#if ENABLE(REQUEST_ANIMATION_FRAME)
+    void animationFrameReady();
+#endif
+    void renderNextFrame();
+    void purgeBackingStores();
+
+    void assignImageBackingToLayer(WebCore::GraphicsLayer*, CoordinatedImageBackingID);
+    void removeReleasedImageBackingsIfNeeded();
+    void ensureRootLayer();
+    WebCore::GraphicsLayer* ensureLayer(CoordinatedLayerID);
+    void commitPendingBackingStoreOperations();
+
+    CoordinatedBackingStore* getBackingStore(WebCore::GraphicsLayer*);
+    void prepareContentBackingStore(WebCore::GraphicsLayer*);
+    void createBackingStoreIfNeeded(WebCore::GraphicsLayer*);
+    void removeBackingStoreIfNeeded(WebCore::GraphicsLayer*);
+    void resetBackingStoreSizeToLayerSize(WebCore::GraphicsLayer*);
+
     WebCore::FloatSize m_contentsSize;
     WebCore::FloatRect m_visibleContentsRect;
 
     // Render queue can be accessed ony from main thread or updatePaintNode call stack!
     Vector<Function<void()> > m_renderQueue;
+    Mutex m_renderQueueMutex;
 
-#if USE(TEXTURE_MAPPER)
     OwnPtr<WebCore::TextureMapper> m_textureMapper;
-    PassRefPtr<CoordinatedBackingStore> getBackingStore(WebLayerID);
-    HashMap<int64_t, RefPtr<WebCore::TextureMapperBackingStore> > m_directlyCompositedImages;
+
+    typedef HashMap<CoordinatedImageBackingID, RefPtr<CoordinatedBackingStore> > ImageBackingMap;
+    ImageBackingMap m_imageBackings;
+    Vector<RefPtr<CoordinatedBackingStore> > m_releasedImageBackings;
+
+    typedef HashMap<WebCore::TextureMapperLayer*, RefPtr<CoordinatedBackingStore> > BackingStoreMap;
+    BackingStoreMap m_pendingSyncBackingStores;
+
     HashSet<RefPtr<CoordinatedBackingStore> > m_backingStoresWithPendingBuffers;
-#endif
+
 #if USE(GRAPHICS_SURFACE)
-    typedef HashMap<WebLayerID, RefPtr<WebCore::TextureMapperSurfaceBackingStore> > SurfaceBackingStoreMap;
+    typedef HashMap<CoordinatedLayerID, RefPtr<WebCore::TextureMapperSurfaceBackingStore> > SurfaceBackingStoreMap;
     SurfaceBackingStoreMap m_surfaceBackingStores;
 #endif
 
-    void scheduleWebViewUpdate();
-    void synchronizeViewport();
-    void assignImageToLayer(WebCore::GraphicsLayer*, int64_t imageID);
-    void ensureRootLayer();
-    void ensureLayer(WebLayerID);
-    void commitTileOperations();
-    void syncAnimations();
-    void renderNextFrame();
-    void purgeBackingStores();
-
+    // Below two members are accessed by only the main thread. The painting thread must lock the main thread to access both members.
     LayerTreeCoordinatorProxy* m_layerTreeCoordinatorProxy;
+    bool m_isActive;
+
     OwnPtr<WebCore::GraphicsLayer> m_rootLayer;
 
+    typedef HashMap<CoordinatedLayerID, OwnPtr<WebCore::GraphicsLayer> > LayerMap;
     LayerMap m_layers;
-    LayerMap m_fixedLayers;
-    WebLayerID m_rootLayerID;
-    WebCore::IntPoint m_renderedContentsScrollPosition;
-    WebCore::IntPoint m_pendingRenderedContentsScrollPosition;
-    bool m_isActive;
+    typedef HashMap<CoordinatedLayerID, WebCore::GraphicsLayer*> LayerRawPtrMap;
+    LayerRawPtrMap m_fixedLayers;
+    CoordinatedLayerID m_rootLayerID;
+    WebCore::FloatPoint m_renderedContentsScrollPosition;
+    WebCore::FloatPoint m_pendingRenderedContentsScrollPosition;
     bool m_animationsLocked;
 #if ENABLE(REQUEST_ANIMATION_FRAME)
     bool m_animationFrameRequested;
+#endif
+    WebCore::Color m_backgroundColor;
+    bool m_setDrawsBackground;
+
+#if ENABLE(CSS_SHADERS)
+    typedef HashMap<int, RefPtr<WebCore::CustomFilterProgram> > CustomFilterProgramMap;
+    CustomFilterProgramMap m_customFilterPrograms;
 #endif
 };
 

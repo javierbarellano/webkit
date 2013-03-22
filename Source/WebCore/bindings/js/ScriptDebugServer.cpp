@@ -34,7 +34,6 @@
 #include "ScriptDebugServer.h"
 
 #include "ContentSearchUtils.h"
-#include "EventLoop.h"
 #include "Frame.h"
 #include "JSJavaScriptCallFrame.h"
 #include "JavaScriptCallFrame.h"
@@ -334,7 +333,7 @@ void ScriptDebugServer::dispatchFailedToParseSource(const ListenerSet& listeners
         copy[i]->failedToParseSource(url, data, firstLine, errorLine, errorMessage);
 }
 
-static bool isContentScript(ExecState* exec)
+bool ScriptDebugServer::isContentScript(ExecState* exec)
 {
     return currentWorld(exec) != mainThreadNormalWorld();
 }
@@ -396,7 +395,7 @@ void ScriptDebugServer::dispatchFunctionToListeners(JavaScriptExecutionCallback 
     m_callingListeners = false;
 }
 
-void ScriptDebugServer::createCallFrameAndPauseIfNeeded(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
+void ScriptDebugServer::createCallFrame(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
 {
     TextPosition textPosition(OrdinalNumber::fromOneBasedInt(lineNumber), OrdinalNumber::fromZeroBasedInt(columnNumber));
     m_currentCallFrame = JavaScriptCallFrame::create(debuggerCallFrame, m_currentCallFrame, sourceID, textPosition);
@@ -404,7 +403,6 @@ void ScriptDebugServer::createCallFrameAndPauseIfNeeded(const DebuggerCallFrame&
         m_lastExecutedLine = -1;
         m_lastExecutedSourceId = sourceID;
     }
-    pauseIfNeeded(debuggerCallFrame.dynamicGlobalObject());
 }
 
 void ScriptDebugServer::updateCallFrameAndPauseIfNeeded(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
@@ -442,10 +440,8 @@ void ScriptDebugServer::pauseIfNeeded(JSGlobalObject* dynamicGlobalObject)
 
     TimerBase::fireTimersInNestedEventLoop();
 
-    EventLoop loop;
     m_doneProcessingDebuggerEvents = false;
-    while (!m_doneProcessingDebuggerEvents && !loop.ended())
-        loop.cycle();
+    runEventLoopWhilePaused();
 
     didContinue(dynamicGlobalObject);
     dispatchFunctionToListeners(&ScriptDebugServer::dispatchDidContinue, dynamicGlobalObject);
@@ -455,8 +451,10 @@ void ScriptDebugServer::pauseIfNeeded(JSGlobalObject* dynamicGlobalObject)
 
 void ScriptDebugServer::callEvent(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
 {
-    if (!m_paused)
-        createCallFrameAndPauseIfNeeded(debuggerCallFrame, sourceID, lineNumber, columnNumber);
+    if (!m_paused) {
+        createCallFrame(debuggerCallFrame, sourceID, lineNumber, columnNumber);
+        pauseIfNeeded(debuggerCallFrame.dynamicGlobalObject());
+    }
 }
 
 void ScriptDebugServer::atStatement(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
@@ -495,8 +493,10 @@ void ScriptDebugServer::exception(const DebuggerCallFrame& debuggerCallFrame, in
 
 void ScriptDebugServer::willExecuteProgram(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)
 {
-    if (!m_paused)
-        createCallFrameAndPauseIfNeeded(debuggerCallFrame, sourceID, lineNumber, columnNumber);
+    if (!m_paused) {
+        createCallFrame(debuggerCallFrame, sourceID, lineNumber, columnNumber);
+        pauseIfNeeded(debuggerCallFrame.dynamicGlobalObject());
+    }
 }
 
 void ScriptDebugServer::didExecuteProgram(const DebuggerCallFrame& debuggerCallFrame, intptr_t sourceID, int lineNumber, int columnNumber)

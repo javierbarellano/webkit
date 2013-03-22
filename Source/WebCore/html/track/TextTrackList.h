@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,15 +51,15 @@ public:
     ~TextTrackList();
 
     unsigned length() const;
-    unsigned getTrackIndex(TextTrack*);
+    int getTrackIndex(TextTrack*);
+    int getTrackIndexRelativeToRenderedTracks(TextTrack*);
     long selectedIndex() const;
     void setSelectedIndex(long);
 
     TextTrack* item(unsigned index);
-    TextTrack* inBandTrack(unsigned index);
     void append(PassRefPtr<TextTrack>);
-    void clear();
     void remove(TextTrack*);
+    void clear();
 
     // EventTarget
     virtual const AtomicString& interfaceName() const;
@@ -71,7 +71,7 @@ public:
 
     void clearOwner() { m_owner = 0; }
     Node* owner() const;
-    
+
     bool isFiringEventListeners() { return m_dispatchingEvents; }
 
 private:
@@ -86,6 +86,8 @@ private:
     void scheduleAddTrackEvent(PassRefPtr<TextTrack>);
     void asyncEventTimerFired(Timer<TextTrackList>*);
 
+    void invalidateTrackIndexesAfterTrack(TextTrack*);
+
     ScriptExecutionContext* m_context;
     HTMLMediaElement* m_owner;
 
@@ -93,10 +95,10 @@ private:
     Timer<TextTrackList> m_pendingEventTimer;
 
     EventTargetData m_eventTargetData;
-    Vector<RefPtr<TextTrack> > m_inbandTracks;
     Vector<RefPtr<TextTrack> > m_addTrackTracks;
     Vector<RefPtr<TextTrack> > m_elementTracks;
-    
+    Vector<RefPtr<TextTrack> > m_inbandTracks;
+
     int m_dispatchingEvents;
 };
 

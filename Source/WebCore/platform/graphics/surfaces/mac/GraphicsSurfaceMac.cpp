@@ -72,11 +72,14 @@ static uint32_t createTexture(IOSurfaceRef handle)
 
 struct GraphicsSurfacePrivate {
 public:
-    GraphicsSurfacePrivate(const GraphicsSurfaceToken& token)
+    GraphicsSurfacePrivate(const GraphicsSurfaceToken& token, const IntSize& size)
         : m_context(0)
+        , m_size(size)
         , m_token(token)
         , m_frontBufferTexture(0)
+        , m_frontBufferReadTexture(0)
         , m_backBufferTexture(0)
+        , m_backBufferReadTexture(0)
         , m_readFbo(0)
         , m_drawFbo(0)
     {
@@ -86,28 +89,20 @@ public:
 
     GraphicsSurfacePrivate(const PlatformGraphicsContext3D shareContext, const IntSize& size, GraphicsSurface::Flags flags)
         : m_context(0)
+        , m_size(size)
         , m_frontBufferTexture(0)
+        , m_frontBufferReadTexture(0)
         , m_backBufferTexture(0)
+        , m_backBufferReadTexture(0)
         , m_readFbo(0)
         , m_drawFbo(0)
     {
 #if PLATFORM(QT)
-#if 0
-        // This code path requires QCocoaNativeInterface::nativeResourceForContext() which is not availble in Qt5 on the build bots yet.
         QPlatformNativeInterface* nativeInterface = QGuiApplication::platformNativeInterface();
         CGLContextObj shareContextObject = static_cast<CGLContextObj>(nativeInterface->nativeResourceForContext(QByteArrayLiteral("cglContextObj"), shareContext));
         if (!shareContextObject)
             return;
-#else
-        // This code path should be removed as soon as QCocoaNativeInterface::nativeResourceForContext() has become available in Qt5 on the build bots.
-        CGLContextObj previousContext = CGLGetCurrentContext();
-        QSurface* currentSurface = shareContext->surface();
-        shareContext->makeCurrent(currentSurface);
 
-        CGLContextObj shareContextObject = CGLGetCurrentContext();
-
-        CGLSetCurrentContext(previousContext);
-#endif
         CGLPixelFormatObj pixelFormatObject = CGLGetPixelFormat(shareContextObject);
         if (kCGLNoError != CGLCreateContext(pixelFormatObject, shareContextObject, &m_context))
             return;
@@ -117,8 +112,8 @@ public:
 
         unsigned pixelFormat = 'BGRA';
         unsigned bytesPerElement = 4;
-        int width = size.width();
-        int height = size.height();
+        int width = m_size.width();
+        int height = m_size.height();
 
         unsigned long bytesPerRow = IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, width * bytesPerElement);
         if (!bytesPerRow)
@@ -161,8 +156,14 @@ public:
         if (m_frontBufferTexture)
             glDeleteTextures(1, &m_frontBufferTexture);
 
+        if (m_frontBufferReadTexture)
+            glDeleteTextures(1, &m_frontBufferReadTexture);
+
         if (m_backBufferTexture)
             glDeleteTextures(1, &m_backBufferTexture);
+
+        if (m_backBufferReadTexture)
+            glDeleteTextures(1, &m_backBufferReadTexture);
 
         if (m_frontBuffer)
             CFRelease(IOSurfaceRef(m_frontBuffer));
@@ -190,6 +191,7 @@ public:
     {
         std::swap(m_frontBuffer, m_backBuffer);
         std::swap(m_frontBufferTexture, m_backBufferTexture);
+        std::swap(m_frontBufferReadTexture, m_backBufferReadTexture);
 
         return IOSurfaceGetID(m_frontBuffer);
     }
@@ -246,6 +248,7 @@ public:
         // Flushing the gl command buffer is necessary to ensure the texture has correctly been bound to the IOSurface.
         glFlush();
 
+        swapBuffers();
         doneCurrent();
     }
 
@@ -256,10 +259,10 @@ public:
 
     uint32_t frontBufferTextureID()
     {
-        if (!m_frontBufferTexture)
-            m_frontBufferTexture = createTexture(m_frontBuffer);
+        if (!m_frontBufferReadTexture)
+            m_frontBufferReadTexture = createTexture(m_frontBuffer);
 
-        return m_frontBufferTexture;
+        return m_frontBufferReadTexture;
     }
 
     uint32_t backBufferTextureID()
@@ -280,13 +283,21 @@ public:
         return m_backBuffer;
     }
 
+    IntSize size() const
+    {
+        return m_size;
+    }
+
 private:
     CGLContextObj m_context;
+    IntSize m_size;
     CGLContextObj m_detachedContext;
     PlatformGraphicsSurface m_frontBuffer;
     PlatformGraphicsSurface m_backBuffer;
     uint32_t m_frontBufferTexture;
+    uint32_t m_frontBufferReadTexture;
     uint32_t m_backBufferTexture;
+    uint32_t m_backBufferReadTexture;
     uint32_t m_readFbo;
     uint32_t m_drawFbo;
     GraphicsSurfaceToken m_token;
@@ -333,8 +344,8 @@ void GraphicsSurface::platformCopyFromTexture(uint32_t texture, const IntRect& s
 void GraphicsSurface::platformPaintToTextureMapper(TextureMapper* textureMapper, const FloatRect& targetRect, const TransformationMatrix& transform, float opacity, BitmapTexture* mask)
 {
     TransformationMatrix adjustedTransform = transform;
-    adjustedTransform.multiply(TransformationMatrix::rectToRect(FloatRect(FloatPoint::zero(), m_size), targetRect));
-    static_cast<TextureMapperGL*>(textureMapper)->drawTextureRectangleARB(m_private->frontBufferTextureID(), 0, m_size, targetRect, adjustedTransform, opacity, mask);
+    adjustedTransform.multiply(TransformationMatrix::rectToRect(FloatRect(FloatPoint::zero(), m_private->size()), targetRect));
+    static_cast<TextureMapperGL*>(textureMapper)->drawTextureRectangleARB(m_private->frontBufferTextureID(), 0, m_private->size(), targetRect, adjustedTransform, opacity, mask);
 }
 
 uint32_t GraphicsSurface::platformFrontBuffer() const
@@ -345,6 +356,11 @@ uint32_t GraphicsSurface::platformFrontBuffer() const
 uint32_t GraphicsSurface::platformSwapBuffers()
 {
     return m_private->swapBuffers();
+}
+
+IntSize GraphicsSurface::platformSize() const
+{
+    return m_private->size();
 }
 
 PassRefPtr<GraphicsSurface> GraphicsSurface::platformCreate(const IntSize& size, Flags flags, const PlatformGraphicsContext3D shareContext)
@@ -373,7 +389,7 @@ PassRefPtr<GraphicsSurface> GraphicsSurface::platformImport(const IntSize& size,
         return PassRefPtr<GraphicsSurface>();
 
     RefPtr<GraphicsSurface> surface = adoptRef(new GraphicsSurface(size, flags));
-    surface->m_private = new GraphicsSurfacePrivate(token);
+    surface->m_private = new GraphicsSurfacePrivate(token, size);
 
     if (!surface->m_private->frontBuffer() || !surface->m_private->backBuffer())
         return PassRefPtr<GraphicsSurface>();

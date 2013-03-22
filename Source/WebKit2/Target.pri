@@ -71,9 +71,9 @@ HEADERS += \
     Shared/API/c/qt/WKImageQt.h \
     Shared/APIClientTraits.h \
     Shared/ShareableBitmap.h \
-    Shared/ShareableSurface.h \
     Shared/CacheModel.h \
     Shared/ChildProcess.h \
+    Shared/ChildProcessProxy.h \
     Shared/ConnectionStack.h \
     Shared/DictionaryPopupInfo.h \
     Shared/EditorState.h \
@@ -120,7 +120,6 @@ HEADERS += \
     Shared/WebHitTestResult.h \
     Shared/WebImage.h \
     Shared/WebIntentServiceInfo.h \
-    Shared/WebLayerTreeInfo.h \
     Shared/WebNavigationDataStore.h \
     Shared/WebNumber.h \
     Shared/WebOpenPanelParameters.h \
@@ -135,6 +134,9 @@ HEADERS += \
     Shared/WebURLResponse.h \
     Shared/WebUserContentURLPattern.h \
     Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.h \
+    Shared/CoordinatedGraphics/CoordinatedLayerInfo.h \
+    Shared/CoordinatedGraphics/CoordinatedSurface.h \
+    Shared/CoordinatedGraphics/WebCoordinatedSurface.h \
     Shared/CoordinatedGraphics/WebCustomFilterProgram.h \
     Shared/Plugins/Netscape/NetscapePluginModule.h \
     Shared/Plugins/NPRemoteObjectMap.h \
@@ -170,6 +172,7 @@ HEADERS += \
     UIProcess/API/C/WKGeolocationManager.h \
     UIProcess/API/C/WKGeolocationPermissionRequest.h \
     UIProcess/API/C/WKGeolocationPosition.h \
+    UIProcess/API/C/WKGrammarDetail.h \
     UIProcess/API/C/WKHitTestResult.h \
     UIProcess/API/C/WKIconDatabase.h \
     UIProcess/API/C/WKInspector.h \
@@ -192,6 +195,7 @@ HEADERS += \
     UIProcess/API/C/WKPreferencesPrivate.h \
     UIProcess/API/C/WKProtectionSpace.h \
     UIProcess/API/C/WKProtectionSpaceTypes.h \
+    UIProcess/API/C/WKTextChecker.h \
     UIProcess/API/C/WKVibration.h \
     UIProcess/API/C/WebKit2_C.h \
     UIProcess/API/C/qt/WKNativeEvent.h \
@@ -259,6 +263,7 @@ HEADERS += \
     UIProcess/WebFullScreenManagerProxy.h \
     UIProcess/WebGeolocationManagerProxy.h \
     UIProcess/WebGeolocationProvider.h \
+    UIProcess/WebGrammarDetail.h \
     UIProcess/WebHistoryClient.h \
     UIProcess/WebIconDatabase.h \
     UIProcess/WebIconDatabaseClient.h \
@@ -277,6 +282,8 @@ HEADERS += \
     UIProcess/WebProcessProxy.h \
     UIProcess/WebResourceCacheManagerProxy.h \
     UIProcess/WebResourceLoadClient.h \
+    UIProcess/WebTextChecker.h \
+    UIProcess/WebTextCheckerClient.h \
     UIProcess/WebUIClient.h \
     UIProcess/WebVibrationProvider.h \
     UIProcess/WebVibrationProxy.h \
@@ -358,17 +365,18 @@ HEADERS += \
     WebProcess/WebCoreSupport/WebSearchPopupMenu.h \
     WebProcess/WebCoreSupport/WebVibrationClient.h \
     WebProcess/WebCoreSupport/qt/WebFrameNetworkingContext.h \
-    WebProcess/WebPage/AreaAllocator.h \
     WebProcess/WebPage/DrawingArea.h \
     WebProcess/WebPage/DrawingAreaImpl.h \
     WebProcess/WebPage/EventDispatcher.h \
     WebProcess/WebPage/FindController.h \
+    WebProcess/WebPage/CoordinatedGraphics/AreaAllocator.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedGraphicsLayer.h \
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedImageBacking.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedTile.h \
     WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.h \
+    WebProcess/WebPage/CoordinatedGraphics/UpdateAtlas.h \
     WebProcess/WebPage/TapHighlightController.h \
     WebProcess/WebPage/PageOverlay.h \
-    WebProcess/WebPage/UpdateAtlas.h \
     WebProcess/WebPage/WebContextMenu.h \
     WebProcess/WebPage/WebFrame.h \
     WebProcess/WebPage/WebInspector.h \
@@ -435,7 +443,6 @@ SOURCES += \
     Shared/Plugins/Netscape/NetscapePluginModuleNone.cpp \
     Shared/Plugins/Netscape/x11/NetscapePluginModuleX11.cpp \
     Shared/ShareableBitmap.cpp \
-    Shared/ShareableSurface.cpp \
     Shared/Plugins/NPRemoteObjectMap.cpp \
     Shared/Plugins/NPIdentifierData.cpp \
     Shared/Plugins/NPObjectMessageReceiver.cpp \
@@ -444,6 +451,7 @@ SOURCES += \
     Shared/Plugins/PluginModuleInfo.cpp \
     Shared/Plugins/PluginProcessCreationParameters.cpp \
     Shared/ChildProcess.cpp \
+    Shared/ChildProcessProxy.cpp \
     Shared/ConnectionStack.cpp \
     Shared/DictionaryPopupInfo.cpp \
     Shared/EditorState.cpp \
@@ -480,7 +488,6 @@ SOURCES += \
     Shared/WebKeyboardEvent.cpp \
     Shared/WebImage.cpp \
     Shared/WebIntentServiceInfo.cpp \
-    Shared/WebLayerTreeInfo.cpp \
     Shared/WebMouseEvent.cpp \
     Shared/WebNetworkInfo.cpp \
     Shared/WebOpenPanelParameters.cpp \
@@ -497,6 +504,9 @@ SOURCES += \
     Shared/WebURLResponse.cpp \
     Shared/WebWheelEvent.cpp \
     Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp \
+    Shared/CoordinatedGraphics/CoordinatedLayerInfo.cpp \
+    Shared/CoordinatedGraphics/WebCoordinatedSurface.cpp \
+    Shared/CoordinatedGraphics/WebCustomFilterProgramProxy.cpp \
     Shared/qt/ArgumentCodersQt.cpp \
     Shared/qt/LayerTreeContextQt.cpp \
     Shared/qt/ShareableBitmapQt.cpp \
@@ -527,6 +537,7 @@ SOURCES += \
     UIProcess/API/C/WKGeolocationManager.cpp \
     UIProcess/API/C/WKGeolocationPermissionRequest.cpp \
     UIProcess/API/C/WKGeolocationPosition.cpp \
+    UIProcess/API/C/WKGrammarDetail.cpp \
     UIProcess/API/C/WKHitTestResult.cpp \
     UIProcess/API/C/WKIconDatabase.cpp \
     UIProcess/API/C/WKInspector.cpp \
@@ -546,6 +557,7 @@ SOURCES += \
     UIProcess/API/C/WKPreferences.cpp \
     UIProcess/API/C/WKProtectionSpace.cpp \
     UIProcess/API/C/WKResourceCacheManager.cpp \
+    UIProcess/API/C/WKTextChecker.cpp \
     UIProcess/API/C/WKVibration.cpp \
     UIProcess/API/cpp/qt/WKStringQt.cpp \
     UIProcess/API/cpp/qt/WKURLQt.cpp \
@@ -608,6 +620,7 @@ SOURCES += \
     UIProcess/WebFullScreenManagerProxy.cpp \
     UIProcess/WebGeolocationManagerProxy.cpp \
     UIProcess/WebGeolocationProvider.cpp \
+    UIProcess/WebGrammarDetail.cpp \
     UIProcess/WebHistoryClient.cpp \
     UIProcess/WebIconDatabase.cpp \
     UIProcess/WebIconDatabaseClient.cpp \
@@ -628,6 +641,8 @@ SOURCES += \
     UIProcess/WebProcessProxy.cpp \
     UIProcess/WebResourceCacheManagerProxy.cpp \
     UIProcess/WebResourceLoadClient.cpp \
+    UIProcess/WebTextChecker.cpp \
+    UIProcess/WebTextCheckerClient.cpp \
     UIProcess/WebUIClient.cpp \
     UIProcess/WebVibrationProvider.cpp \
     UIProcess/WebVibrationProxy.cpp \
@@ -732,20 +747,21 @@ SOURCES += \
     WebProcess/WebCoreSupport/qt/WebDragClientQt.cpp \
     WebProcess/WebCoreSupport/qt/WebFrameNetworkingContext.cpp \
     WebProcess/WebCoreSupport/qt/WebPopupMenuQt.cpp \
-    WebProcess/WebPage/AreaAllocator.cpp \
     WebProcess/WebPage/DecoderAdapter.cpp \
     WebProcess/WebPage/DrawingArea.cpp \
     WebProcess/WebPage/DrawingAreaImpl.cpp \
     WebProcess/WebPage/EncoderAdapter.cpp \
     WebProcess/WebPage/EventDispatcher.cpp \
     WebProcess/WebPage/FindController.cpp \
+    WebProcess/WebPage/CoordinatedGraphics/AreaAllocator.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedGraphicsLayer.cpp \
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedImageBacking.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedTile.cpp \
     WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.cpp \
+    WebProcess/WebPage/CoordinatedGraphics/UpdateAtlas.cpp \
     WebProcess/WebPage/TapHighlightController.cpp \
     WebProcess/WebPage/LayerTreeHost.cpp \
     WebProcess/WebPage/PageOverlay.cpp \
-    WebProcess/WebPage/UpdateAtlas.cpp \
     WebProcess/WebPage/WebBackForwardListProxy.cpp \
     WebProcess/WebPage/WebContextMenu.cpp \
     WebProcess/WebPage/WebFrame.cpp \

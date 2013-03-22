@@ -28,7 +28,6 @@ NavServices conditional=DISCOVERY
 NetworkInfoConnection conditional=NETWORK_INFO
 Node
 Notification conditional=NOTIFICATIONS|LEGACY_NOTIFICATIONS
-PeerConnection00 conditional=MEDIA_STREAM
 Performance conditional=WEB_TIMING
 RTCDataChannel conditional=MEDIA_STREAM
 RTCPeerConnection conditional=MEDIA_STREAM

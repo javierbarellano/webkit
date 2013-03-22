@@ -35,7 +35,7 @@
 #include <wtf/ListHashSet.h>
 
 #if ENABLE(CSS_EXCLUSIONS)
-#include "ExclusionShapeInsideInfo.h"
+#include "ExclusionShapeValue.h"
 #endif
 
 namespace WebCore {
@@ -52,6 +52,10 @@ struct BidiRun;
 struct PaintInfo;
 class LineInfo;
 class RenderRubyRun;
+#if ENABLE(CSS_EXCLUSIONS)
+class BasicShape;
+class ExclusionShapeInsideInfo;
+#endif
 class TextLayout;
 class WordMeasurement;
 
@@ -61,11 +65,12 @@ template <class Iterator> struct MidpointState;
 typedef BidiResolver<InlineIterator, BidiRun> InlineBidiResolver;
 typedef MidpointState<InlineIterator> LineMidpointState;
 typedef WTF::ListHashSet<RenderBox*, 16> TrackedRendererListHashSet;
-typedef WTF::HashMap<const RenderBlock*, TrackedRendererListHashSet*> TrackedDescendantsMap;
-typedef WTF::HashMap<const RenderBox*, HashSet<RenderBlock*>*> TrackedContainerMap;
+typedef WTF::HashMap<const RenderBlock*, OwnPtr<TrackedRendererListHashSet> > TrackedDescendantsMap;
+typedef WTF::HashMap<const RenderBox*, OwnPtr<HashSet<RenderBlock*> > > TrackedContainerMap;
 typedef Vector<WordMeasurement, 64> WordMeasurements;
 
 enum CaretType { CursorCaret, DragCaret };
+enum ContainingBlockState { NewContainingBlock, SameContainingBlock };
 
 enum TextRunFlag {
     DefaultTextRunFlags = 0,
@@ -113,7 +118,9 @@ public:
 
     void insertPositionedObject(RenderBox*);
     static void removePositionedObject(RenderBox*);
-    void removePositionedObjects(RenderBlock*);
+    void removePositionedObjects(RenderBlock*, ContainingBlockState = SameContainingBlock);
+
+    void removeFloatingObjects();
 
     TrackedRendererListHashSet* positionedObjects() const;
     bool hasPositionedObjects() const
@@ -149,7 +156,7 @@ public:
     // compute the region all over again when you already know it.
     LayoutUnit availableLogicalWidthForLine(LayoutUnit position, bool firstLine, RenderRegion* region, LayoutUnit offsetFromLogicalTopOfFirstPage, LayoutUnit logicalHeight = 0) const
     {
-        return max(ZERO_LAYOUT_UNIT, logicalRightOffsetForLine(position, firstLine, region, offsetFromLogicalTopOfFirstPage, logicalHeight)
+        return max<LayoutUnit>(0, logicalRightOffsetForLine(position, firstLine, region, offsetFromLogicalTopOfFirstPage, logicalHeight)
             - logicalLeftOffsetForLine(position, firstLine, region, offsetFromLogicalTopOfFirstPage, logicalHeight));
     }
     LayoutUnit logicalRightOffsetForLine(LayoutUnit position, bool firstLine, RenderRegion* region, LayoutUnit offsetFromLogicalTopOfFirstPage, LayoutUnit logicalHeight = 0) const 
@@ -221,7 +228,7 @@ public:
 
     bool containsNonZeroBidiLevel() const;
 
-    GapRects selectionGapRectsForRepaint(RenderLayerModelObject* repaintContainer);
+    GapRects selectionGapRectsForRepaint(const RenderLayerModelObject* repaintContainer);
     LayoutRect logicalLeftSelectionGap(RenderBlock* rootBlock, const LayoutPoint& rootBlockPhysicalPosition, const LayoutSize& offsetFromRootBlock,
                                        RenderObject* selObj, LayoutUnit logicalLeft, LayoutUnit logicalTop, LayoutUnit logicalHeight, const PaintInfo*);
     LayoutRect logicalRightSelectionGap(RenderBlock* rootBlock, const LayoutPoint& rootBlockPhysicalPosition, const LayoutSize& offsetFromRootBlock,
@@ -297,12 +304,17 @@ public:
     unsigned columnCount(ColumnInfo*) const;
     LayoutRect columnRectAt(ColumnInfo*, unsigned) const;
 
-    LayoutUnit paginationStrut() const { return m_rareData ? m_rareData->m_paginationStrut : ZERO_LAYOUT_UNIT; }
+    LayoutUnit paginationStrut() const { return m_rareData ? m_rareData->m_paginationStrut : LayoutUnit(); }
     void setPaginationStrut(LayoutUnit);
-    
+
+    bool shouldBreakAtLineToAvoidWidow() const { return m_rareData && m_rareData->m_shouldBreakAtLineToAvoidWidow; }
+    void clearShouldBreakAtLineToAvoidWidow() const;
+    RootInlineBox* lineBreakToAvoidWidow() const { return m_rareData ? m_rareData->m_lineBreakToAvoidWidow : 0; }
+    void setBreakAtLineToAvoidWidow(RootInlineBox*);
+
     // The page logical offset is the object's offset from the top of the page in the page progression
     // direction (so an x-offset in vertical text and a y-offset for horizontal text).
-    LayoutUnit pageLogicalOffset() const { return m_rareData ? m_rareData->m_pageLogicalOffset : ZERO_LAYOUT_UNIT; }
+    LayoutUnit pageLogicalOffset() const { return m_rareData ? m_rareData->m_pageLogicalOffset : LayoutUnit(); }
     void setPageLogicalOffset(LayoutUnit);
 
     RootInlineBox* lineGridBox() const { return m_rareData ? m_rareData->m_lineGridBox : 0; }
@@ -371,7 +383,7 @@ public:
     LayoutUnit logicalRightOffsetForContent(RenderRegion*, LayoutUnit offsetFromLogicalTopOfFirstPage) const;
     LayoutUnit availableLogicalWidthForContent(RenderRegion* region, LayoutUnit offsetFromLogicalTopOfFirstPage) const
     { 
-        return max(ZERO_LAYOUT_UNIT, logicalRightOffsetForContent(region, offsetFromLogicalTopOfFirstPage) -
+        return max<LayoutUnit>(0, logicalRightOffsetForContent(region, offsetFromLogicalTopOfFirstPage) -
             logicalLeftOffsetForContent(region, offsetFromLogicalTopOfFirstPage)); }
     LayoutUnit startOffsetForContent(RenderRegion* region, LayoutUnit offsetFromLogicalTopOfFirstPage) const
     {
@@ -421,11 +433,10 @@ public:
 #endif
 
 #if ENABLE(CSS_EXCLUSIONS)
-    ExclusionShapeInsideInfo* exclusionShapeInsideInfo() const
-    {
-        return style()->shapeInside() && ExclusionShapeInsideInfo::isExclusionShapeInsideInfoEnabledForRenderBlock(this) ? ExclusionShapeInsideInfo::exclusionShapeInsideInfoForRenderBlock(this) : 0;
-    }
+    ExclusionShapeInsideInfo* exclusionShapeInsideInfo() const;
 #endif
+
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
 
 protected:
     virtual void willBeDestroyed();
@@ -521,7 +532,7 @@ protected:
 private:
 #if ENABLE(CSS_EXCLUSIONS)
     void computeExclusionShapeSize();
-    void updateExclusionShapeInsideInfoAfterStyleChange(const BasicShape*, const BasicShape* oldWrapShape);
+    void updateExclusionShapeInsideInfoAfterStyleChange(const ExclusionShapeValue*, const ExclusionShapeValue* oldExclusionShape);
 #endif
     virtual RenderObjectChildList* virtualChildren() { return children(); }
     virtual const RenderObjectChildList* virtualChildren() const { return children(); }
@@ -570,6 +581,8 @@ private:
 
     void createFirstLetterRenderer(RenderObject* firstLetterBlock, RenderObject* currentChild);
     void updateFirstLetterStyle(RenderObject* firstLetterBlock, RenderObject* firstLetterContainer);
+
+    Node* nodeForHitTest() const;
 
     struct FloatWithRect {
         FloatWithRect(RenderBox* f)
@@ -757,6 +770,7 @@ private:
     private:
         void reset();
         
+        InlineIterator nextSegmentBreak(InlineBidiResolver&, LineInfo&, RenderTextInfo&, FloatingObject* lastFloatFromPreviousLine, unsigned consecutiveHyphenatedLines, WordMeasurements&);
         void skipTrailingWhitespace(InlineIterator&, const LineInfo&);
         void skipLeadingWhitespace(InlineBidiResolver&, LineInfo&, FloatingObject* lastFloatFromPreviousLine, LineWidth&);
         
@@ -773,10 +787,12 @@ private:
     bool checkPaginationAndFloatsAtEndLine(LineLayoutState&);
     
     RootInlineBox* constructLine(BidiRunList<BidiRun>&, const LineInfo&);
-    InlineFlowBox* createLineBoxes(RenderObject*, const LineInfo&, InlineBox* childBox);
+    InlineFlowBox* createLineBoxes(RenderObject*, const LineInfo&, InlineBox* childBox, bool startsNewSegment);
 
     void setMarginsForRubyRun(BidiRun*, RenderRubyRun*, RenderObject*, const LineInfo&);
 
+    BidiRun* computeInlineDirectionPositionsForSegment(RootInlineBox*, const LineInfo&, ETextAlign, float& logicalLeft,
+        float& availableLogicalWidth, BidiRun* firstRun, BidiRun* trailingSpaceRun, GlyphOverflowAndFallbackFontsMap& textBoxDataMap, VerticalPositionCache&, WordMeasurements&);
     void computeInlineDirectionPositionsForLine(RootInlineBox*, const LineInfo&, BidiRun* firstRun, BidiRun* trailingSpaceRun, bool reachedEnd, GlyphOverflowAndFallbackFontsMap&, VerticalPositionCache&, WordMeasurements&);
     void computeBlockDirectionPositionsForLine(RootInlineBox*, BidiRun*, GlyphOverflowAndFallbackFontsMap&, VerticalPositionCache&);
     void deleteEllipsisLineBoxes();
@@ -831,14 +847,14 @@ private:
     // children.
     virtual RenderBlock* firstLineBlock() const;
 
-    virtual LayoutRect rectWithOutlineForRepaint(RenderLayerModelObject* repaintContainer, LayoutUnit outlineWidth) const OVERRIDE;
+    virtual LayoutRect rectWithOutlineForRepaint(const RenderLayerModelObject* repaintContainer, LayoutUnit outlineWidth) const OVERRIDE;
     virtual RenderStyle* outlineStyleForRepaint() const;
     
     virtual RenderObject* hoverAncestor() const;
     virtual void updateDragState(bool dragOn);
     virtual void childBecameNonInline(RenderObject* child);
 
-    virtual LayoutRect selectionRectForRepaint(RenderLayerModelObject* repaintContainer, bool /*clipToVisibleContent*/) OVERRIDE
+    virtual LayoutRect selectionRectForRepaint(const RenderLayerModelObject* repaintContainer, bool /*clipToVisibleContent*/) OVERRIDE
     {
         return selectionGapRectsForRepaint(repaintContainer);
     }
@@ -986,6 +1002,7 @@ private:
     RootInlineBox* createLineBoxesFromBidiRuns(BidiRunList<BidiRun>&, const InlineIterator& end, LineInfo&, VerticalPositionCache&, BidiRun* trailingSpaceRun, WordMeasurements&);
     void layoutRunsAndFloats(LineLayoutState&, bool hasInlineChild);
     void layoutRunsAndFloatsInRange(LineLayoutState&, InlineBidiResolver&, const InlineIterator& cleanLineStart, const BidiStatus& cleanLineBidiStatus, unsigned consecutiveHyphenatedLines);
+    const InlineIterator& restartLayoutRunsAndFloatsInRange(LayoutUnit oldLogicalHeight, LayoutUnit newLogicalHeight,  FloatingObject* lastFloatFromPreviousLine, InlineBidiResolver&,  const InlineIterator&);
     void linkToEndLineIfNeeded(LineLayoutState&);
     static void repaintDirtyFloats(Vector<FloatWithRect>& floats);
 
@@ -1137,25 +1154,27 @@ protected:
             , m_paginationStrut(0)
             , m_pageLogicalOffset(0)
             , m_lineGridBox(0)
+            , m_shouldBreakAtLineToAvoidWidow(false)
+            , m_lineBreakToAvoidWidow(0)
         { 
         }
 
         static LayoutUnit positiveMarginBeforeDefault(const RenderBlock* block)
         { 
-            return std::max(block->marginBefore(), ZERO_LAYOUT_UNIT);
+            return std::max<LayoutUnit>(block->marginBefore(), 0);
         }
         
         static LayoutUnit negativeMarginBeforeDefault(const RenderBlock* block)
         { 
-            return std::max(-block->marginBefore(), ZERO_LAYOUT_UNIT);
+            return std::max<LayoutUnit>(-block->marginBefore(), 0);
         }
         static LayoutUnit positiveMarginAfterDefault(const RenderBlock* block)
         {
-            return std::max(block->marginAfter(), ZERO_LAYOUT_UNIT);
+            return std::max<LayoutUnit>(block->marginAfter(), 0);
         }
         static LayoutUnit negativeMarginAfterDefault(const RenderBlock* block)
         {
-            return std::max(-block->marginAfter(), ZERO_LAYOUT_UNIT);
+            return std::max<LayoutUnit>(-block->marginAfter(), 0);
         }
         
         MarginValues m_margins;
@@ -1163,6 +1182,9 @@ protected:
         LayoutUnit m_pageLogicalOffset;
         
         RootInlineBox* m_lineGridBox;
+
+        bool m_shouldBreakAtLineToAvoidWidow;
+        RootInlineBox* m_lineBreakToAvoidWidow;
      };
 
     OwnPtr<RenderBlockRareData> m_rareData;

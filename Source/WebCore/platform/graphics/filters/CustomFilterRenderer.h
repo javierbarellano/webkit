@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2012 Adobe Systems Incorporated. All rights reserved.
  * Copyright (C) 2011 Adobe Systems Incorporated. All rights reserved.
  * Copyright (C) 2012 Company 100, Inc. All rights reserved.
  *
@@ -34,8 +35,9 @@
 #if ENABLE(CSS_SHADERS) && USE(3D_GRAPHICS)
 
 #include "CustomFilterConstants.h"
-#include "CustomFilterOperation.h"
+#include "CustomFilterParameterList.h"
 #include "GraphicsTypes3D.h"
+#include "IntSize.h"
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
@@ -46,14 +48,12 @@ class CustomFilterCompiledProgram;
 class CustomFilterMesh;
 class CustomFilterNumberParameter;
 class CustomFilterTransformParameter;
-class CustomFilterValidatedProgram;
 class GraphicsContext3D;
-class IntSize;
 
 class CustomFilterRenderer : public RefCounted<CustomFilterRenderer> {
 public:
-    static PassRefPtr<CustomFilterRenderer> create(PassRefPtr<GraphicsContext3D>, PassRefPtr<CustomFilterValidatedProgram>, const CustomFilterParameterList&,
-        unsigned meshRows, unsigned meshColumns, CustomFilterOperation::MeshBoxType, CustomFilterMeshType);
+    static PassRefPtr<CustomFilterRenderer> create(PassRefPtr<GraphicsContext3D>, CustomFilterProgramType, const CustomFilterParameterList&,
+        unsigned meshRows, unsigned meshColumns, CustomFilterMeshBoxType, CustomFilterMeshType);
     ~CustomFilterRenderer();
 
     bool premultipliedAlpha() const;
@@ -63,9 +63,12 @@ public:
 
     void draw(Platform3DObject, const IntSize&);
 
+    CustomFilterCompiledProgram* compiledProgram() const { return m_compiledProgram.get(); }
+    void setCompiledProgram(PassRefPtr<CustomFilterCompiledProgram>);
+
 private:
-    CustomFilterRenderer(PassRefPtr<GraphicsContext3D>, PassRefPtr<CustomFilterValidatedProgram>, const CustomFilterParameterList&,
-        unsigned meshRows, unsigned meshColumns, CustomFilterOperation::MeshBoxType, CustomFilterMeshType);
+    CustomFilterRenderer(PassRefPtr<GraphicsContext3D>, CustomFilterProgramType, const CustomFilterParameterList&,
+        unsigned meshRows, unsigned meshColumns, CustomFilterMeshBoxType, CustomFilterMeshType);
 
     void initializeCompiledProgramIfNeeded();
     void initializeMeshIfNeeded();
@@ -80,8 +83,8 @@ private:
     void unbindVertexAttributes();
 
     RefPtr<GraphicsContext3D> m_context;
-    RefPtr<CustomFilterValidatedProgram> m_validatedProgram;
     RefPtr<CustomFilterCompiledProgram> m_compiledProgram;
+    CustomFilterProgramType m_programType;    
     RefPtr<CustomFilterMesh> m_mesh;
     IntSize m_contextSize;
 

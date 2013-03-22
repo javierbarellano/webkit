@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,30 +28,31 @@
 
 #if ENABLE(VIDEO) && USE(AVFOUNDATION)
 
+#include "CachedResourceClient.h"
 #include "MediaPlayerPrivateAVFoundation.h"
 #include <wtf/HashMap.h>
 
 OBJC_CLASS AVURLAsset;
 OBJC_CLASS AVPlayer;
 OBJC_CLASS AVPlayerItem;
+OBJC_CLASS AVPlayerItemLegibleOutput;
 OBJC_CLASS AVPlayerItemVideoOutput;
 OBJC_CLASS AVPlayerLayer;
 OBJC_CLASS AVAssetImageGenerator;
 OBJC_CLASS WebCoreAVFMovieObserver;
 
-#if ENABLE(ENCRYPTED_MEDIA) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 OBJC_CLASS WebCoreAVFLoaderDelegate;
 OBJC_CLASS AVAssetResourceLoadingRequest;
-#endif
-
-#ifndef __OBJC__
-typedef struct objc_object *id;
 #endif
 
 typedef struct CGImage *CGImageRef;
 typedef struct __CVBuffer *CVPixelBufferRef;
 
 namespace WebCore {
+
+class WebCoreAVFResourceLoader;
+class InbandTextTrackPrivateAVFObjC;
 
 class MediaPlayerPrivateAVFoundationObjC : public MediaPlayerPrivateAVFoundation {
 public:
@@ -62,8 +63,14 @@ public:
     void setAsset(id);
     virtual void tracksChanged();
 
-#if ENABLE(ENCRYPTED_MEDIA) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if HAVE(AVFOUNDATION_TEXT_TRACK_SUPPORT)
+    RetainPtr<AVPlayerItem> playerItem() const { return m_avPlayerItem; }
+    void processCue(NSArray *, double);
+#endif
+    
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
     bool shouldWaitForLoadingOfResource(AVAssetResourceLoadingRequest*);
+    void didCancelLoadingRequest(AVAssetResourceLoadingRequest*);
 #endif
 
 private:
@@ -125,7 +132,7 @@ private:
     virtual bool hasLayerRenderer() const;
 
     virtual bool hasSingleSecurityOrigin() const;
-
+    
 #if __MAC_OS_X_VERSION_MIN_REQUIRED < 1080
     void createImageGenerator();
     void destroyImageGenerator();
@@ -142,6 +149,12 @@ private:
     virtual MediaPlayer::MediaKeyException addKey(const String&, const unsigned char*, unsigned, const unsigned char*, unsigned, const String&);
     virtual MediaPlayer::MediaKeyException generateKeyRequest(const String&, const unsigned char*, unsigned);
     virtual MediaPlayer::MediaKeyException cancelKeyRequest(const String&, const String&);
+#endif
+
+#if HAVE(AVFOUNDATION_TEXT_TRACK_SUPPORT)
+    virtual void setCurrentTrack(InbandTextTrackPrivateAVF*) OVERRIDE;
+    virtual InbandTextTrackPrivateAVF* currentTrack() OVERRIDE;
+    void processTextTracks();
 #endif
 
     RetainPtr<AVURLAsset> m_avAsset;
@@ -164,6 +177,16 @@ private:
     RetainPtr<WebCoreAVFLoaderDelegate> m_loaderDelegate;
     HashMap<String, RetainPtr<AVAssetResourceLoadingRequest> > m_keyURIToRequestMap;
     HashMap<String, RetainPtr<AVAssetResourceLoadingRequest> > m_sessionIDToRequestMap;
+#endif
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    friend class WebCoreAVFResourceLoader;
+    OwnPtr<WebCoreAVFResourceLoader> m_resourceLoader;
+#endif
+
+#if HAVE(AVFOUNDATION_TEXT_TRACK_SUPPORT)
+    RetainPtr<AVPlayerItemLegibleOutput> m_legibleOutput;
+    InbandTextTrackPrivateAVFObjC* m_currentTrack;
 #endif
 };
 

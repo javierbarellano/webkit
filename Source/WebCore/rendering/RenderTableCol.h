@@ -76,6 +76,8 @@ public:
     const BorderValue& borderAdjoiningCellBefore(const RenderTableCell*) const;
     const BorderValue& borderAdjoiningCellAfter(const RenderTableCell*) const;
 
+    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
+
 private:
     virtual RenderObjectChildList* virtualChildren() { return children(); }
     virtual const RenderObjectChildList* virtualChildren() const { return children(); }
@@ -91,7 +93,7 @@ private:
     virtual bool canHaveChildren() const;
     virtual bool requiresLayer() const { return false; }
 
-    virtual LayoutRect clippedOverflowRectForRepaint(RenderLayerModelObject* repaintContainer) const OVERRIDE;
+    virtual LayoutRect clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const OVERRIDE;
     virtual void imageChanged(WrappedImagePtr, const IntRect* = 0);
 
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);

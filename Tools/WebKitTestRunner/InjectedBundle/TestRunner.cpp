@@ -149,9 +149,7 @@ void TestRunner::waitUntilDone()
 void TestRunner::waitToDumpWatchdogTimerFired()
 {
     invalidateWaitToDumpWatchdogTimer();
-    const char* message = "FAIL: Timed out waiting for notifyDone to be called\n";
-    InjectedBundle::shared().stringBuilder()->append(message);
-    InjectedBundle::shared().stringBuilder()->append("\n");
+    InjectedBundle::shared().outputText("FAIL: Timed out waiting for notifyDone to be called\n\n");
     InjectedBundle::shared().done();
 }
 
@@ -755,6 +753,11 @@ void TestRunner::dispatchPendingLoadRequests()
     WKBundleDispatchPendingLoadRequests(InjectedBundle::shared().bundle());
 }
 
+void TestRunner::setCacheModel(int model)
+{
+    WKBundleSetCacheModel(InjectedBundle::shared().bundle(), model);
+}
+
 void TestRunner::grantWebNotificationPermission(JSStringRef origin)
 {
     WKRetainPtr<WKStringRef> originWK = toWK(origin);
@@ -877,6 +880,12 @@ void TestRunner::queueNonLoadingScript(JSStringRef script)
 {
     WKRetainPtr<WKStringRef> scriptWK = toWK(script);
     InjectedBundle::shared().queueNonLoadingScript(scriptWK.get());
+}
+
+void TestRunner::setViewModeMediaFeature(JSStringRef mode)
+{
+    WKRetainPtr<WKStringRef> modeWK = toWK(mode);
+    WKBundlePageSetViewMode(InjectedBundle::shared().page()->page(), modeWK.get());
 }
 
 } // namespace WTR

@@ -40,8 +40,8 @@
 #include "Frame.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
+#include "HTMLCollection.h"
 #include "HTMLDocument.h"
-#include "HTMLFormCollection.h"
 #include "HTMLImageElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
@@ -74,6 +74,9 @@ HTMLFormElement::HTMLFormElement(const QualifiedName& tagName, Document* documen
     , m_shouldSubmit(false)
     , m_isInResetFunction(false)
     , m_wasDemoted(false)
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    , m_requestAutocompleteTimer(this, &HTMLFormElement::requestAutocompleteTimerFired)
+#endif
 {
     ASSERT(hasTagName(formTag));
 }
@@ -256,7 +259,7 @@ bool HTMLFormElement::validateInteractively(Event* event)
                 continue;
             String message("An invalid form control with name='%name' is not focusable.");
             message.replace("%name", unhandledAssociatedElement->name());
-            document()->addConsoleMessage(HTMLMessageSource, LogMessageType, ErrorMessageLevel, message, document()->url().string());
+            document()->addConsoleMessage(HTMLMessageSource, LogMessageType, ErrorMessageLevel, message);
         }
     }
     return false;
@@ -387,29 +390,73 @@ void HTMLFormElement::reset()
     m_isInResetFunction = false;
 }
 
-void HTMLFormElement::parseAttribute(const Attribute& attribute)
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+void HTMLFormElement::requestAutocomplete()
 {
-    if (attribute.name() == actionAttr)
-        m_attributes.parseAction(attribute.value());
-    else if (attribute.name() == targetAttr)
-        m_attributes.setTarget(attribute.value());
-    else if (attribute.name() == methodAttr)
-        m_attributes.updateMethodType(attribute.value());
-    else if (attribute.name() == enctypeAttr)
-        m_attributes.updateEncodingType(attribute.value());
-    else if (attribute.name() == accept_charsetAttr)
-        m_attributes.setAcceptCharset(attribute.value());
-    else if (attribute.name() == autocompleteAttr) {
+    Frame* frame = document()->frame();
+    if (!frame)
+        return;
+
+    if (!shouldAutocomplete() || !ScriptController::processingUserGesture()) {
+        finishRequestAutocomplete(AutocompleteResultError);
+        return;
+    }
+
+    StringPairVector controlNamesAndValues;
+    getTextFieldValues(controlNamesAndValues);
+    RefPtr<FormState> formState = FormState::create(this, controlNamesAndValues, document(), SubmittedByJavaScript);
+    frame->loader()->client()->didRequestAutocomplete(formState.release());
+}
+
+void HTMLFormElement::finishRequestAutocomplete(AutocompleteResult result)
+{
+    RefPtr<Event> event(Event::create(result == AutocompleteResultSuccess ? eventNames().autocompleteEvent : eventNames().autocompleteerrorEvent, false, false));
+    event->setTarget(this);
+    m_pendingAutocompleteEvents.append(event.release());
+
+    // Dispatch events later as this API is meant to work asynchronously in all situations and implementations.
+    if (!m_requestAutocompleteTimer.isActive())
+        m_requestAutocompleteTimer.startOneShot(0);
+}
+
+void HTMLFormElement::requestAutocompleteTimerFired(Timer<HTMLFormElement>*)
+{
+    Vector<RefPtr<Event> > pendingEvents;
+    m_pendingAutocompleteEvents.swap(pendingEvents);
+    for (size_t i = 0; i < pendingEvents.size(); ++i)
+        dispatchEvent(pendingEvents[i].release());
+}
+#endif
+
+void HTMLFormElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
+{
+    if (name == actionAttr)
+        m_attributes.parseAction(value);
+    else if (name == targetAttr)
+        m_attributes.setTarget(value);
+    else if (name == methodAttr)
+        m_attributes.updateMethodType(value);
+    else if (name == enctypeAttr)
+        m_attributes.updateEncodingType(value);
+    else if (name == accept_charsetAttr)
+        m_attributes.setAcceptCharset(value);
+    else if (name == autocompleteAttr) {
         if (!shouldAutocomplete())
             document()->registerForPageCacheSuspensionCallbacks(this);
         else
             document()->unregisterForPageCacheSuspensionCallbacks(this);
-    } else if (attribute.name() == onsubmitAttr)
-        setAttributeEventListener(eventNames().submitEvent, createAttributeEventListener(this, attribute));
-    else if (attribute.name() == onresetAttr)
-        setAttributeEventListener(eventNames().resetEvent, createAttributeEventListener(this, attribute));
+    } else if (name == onsubmitAttr)
+        setAttributeEventListener(eventNames().submitEvent, createAttributeEventListener(this, name, value));
+    else if (name == onresetAttr)
+        setAttributeEventListener(eventNames().resetEvent, createAttributeEventListener(this, name, value));
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    else if (name == onautocompleteAttr)
+        setAttributeEventListener(eventNames().autocompleteEvent, createAttributeEventListener(this, name, value));
+    else if (name == onautocompleteerrorAttr)
+        setAttributeEventListener(eventNames().autocompleteerrorEvent, createAttributeEventListener(this, name, value));
+#endif
     else
-        HTMLElement::parseAttribute(attribute);
+        HTMLElement::parseAttribute(name, value);
 }
 
 template<class T, size_t n> static void removeFromVector(Vector<T*, n> & vec, T* item)

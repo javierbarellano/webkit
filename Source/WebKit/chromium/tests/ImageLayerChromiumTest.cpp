@@ -40,8 +40,6 @@ class MockGraphicsLayerClient : public GraphicsLayerClient {
     virtual void notifyAnimationStarted(const GraphicsLayer*, double time) { }
     virtual void notifyFlushRequired(const GraphicsLayer*) { }
     virtual void paintContents(const GraphicsLayer*, GraphicsContext&, GraphicsLayerPaintingPhase, const IntRect& inClip) { }
-    virtual bool showDebugBorders(const GraphicsLayer*) const { return false; }
-    virtual bool showRepaintCounter(const GraphicsLayer*) const { return false; }
 };
 
 class TestImage : public Image {
@@ -98,7 +96,7 @@ public:
 
     virtual void draw(WebCore::GraphicsContext*, const WebCore::FloatRect&,
                       const WebCore::FloatRect&, WebCore::ColorSpace,
-                      WebCore::CompositeOperator)
+                      WebCore::CompositeOperator, WebCore::BlendMode)
     {
     }
 

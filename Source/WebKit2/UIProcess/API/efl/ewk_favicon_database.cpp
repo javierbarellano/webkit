@@ -27,6 +27,7 @@
 #include "ewk_favicon_database.h"
 
 #include "WKAPICast.h"
+#include "WKIconDatabase.h"
 #include "WKURL.h"
 #include "WebIconDatabase.h"
 #include "WebURL.h"
@@ -38,8 +39,8 @@
 
 using namespace WebKit;
 
-Ewk_Favicon_Database::Ewk_Favicon_Database(WKIconDatabaseRef iconDatabaseRef)
-    :  m_wkIconDatabase(iconDatabaseRef)
+EwkFaviconDatabase::EwkFaviconDatabase(WebIconDatabase* iconDatabase)
+    : m_iconDatabase(iconDatabase)
 {
     WKIconDatabaseClient iconDatabaseClient;
     memset(&iconDatabaseClient, 0, sizeof(WKIconDatabaseClient));
@@ -47,18 +48,23 @@ Ewk_Favicon_Database::Ewk_Favicon_Database(WKIconDatabaseRef iconDatabaseRef)
     iconDatabaseClient.clientInfo = this;
     iconDatabaseClient.didChangeIconForPageURL = didChangeIconForPageURL;
     iconDatabaseClient.iconDataReadyForPageURL = iconDataReadyForPageURL;
-    WKIconDatabaseSetIconDatabaseClient(m_wkIconDatabase.get(), &iconDatabaseClient);
+    WKIconDatabaseSetIconDatabaseClient(toAPI(m_iconDatabase.get()), &iconDatabaseClient);
 }
 
-String Ewk_Favicon_Database::iconURLForPageURL(const String& pageURL) const
+EwkFaviconDatabase::~EwkFaviconDatabase()
+{
+    WKIconDatabaseSetIconDatabaseClient(toAPI(m_iconDatabase.get()), 0);
+}
+
+String EwkFaviconDatabase::iconURLForPageURL(const String& pageURL) const
 {
     String iconURL;
-    toImpl(m_wkIconDatabase.get())->synchronousIconURLForPageURL(pageURL, iconURL);
+    m_iconDatabase->synchronousIconURLForPageURL(pageURL, iconURL);
 
     return iconURL;
 }
 
-void Ewk_Favicon_Database::watchChanges(const IconChangeCallbackData& callbackData)
+void EwkFaviconDatabase::watchChanges(const IconChangeCallbackData& callbackData)
 {
     ASSERT(callbackData.callback);
     if (m_changeListeners.contains(callbackData.callback))
@@ -67,7 +73,7 @@ void Ewk_Favicon_Database::watchChanges(const IconChangeCallbackData& callbackDa
     m_changeListeners.add(callbackData.callback, callbackData);
 }
 
-void Ewk_Favicon_Database::unwatchChanges(Ewk_Favicon_Database_Icon_Change_Cb callback)
+void EwkFaviconDatabase::unwatchChanges(Ewk_Favicon_Database_Icon_Change_Cb callback)
 {
     ASSERT(callback);
     m_changeListeners.remove(callback);
@@ -97,10 +103,8 @@ static Eina_Bool respond_icon_request_idle(void* data)
     return ECORE_CALLBACK_DONE;
 }
 
-void Ewk_Favicon_Database::iconForPageURL(const String& pageURL, const IconRequestCallbackData& callbackData)
+void EwkFaviconDatabase::iconForPageURL(const String& pageURL, const IconRequestCallbackData& callbackData)
 {
-    WebIconDatabase* webIconDatabase = toImpl(m_wkIconDatabase.get());
-
     // We ask for the icon directly. If we don't get the icon data now,
     // we'll be notified later (even if the database is still importing icons).
     RefPtr<cairo_surface_t> surface = getIconSurfaceSynchronously(pageURL);
@@ -110,7 +114,7 @@ void Ewk_Favicon_Database::iconForPageURL(const String& pageURL, const IconReque
     // finished yet, we need to wait for iconDataReadyForPageURL to be
     // called before making and informed decision.
     String iconURL = iconURLForPageURL(pageURL);
-    if (!surface && (!iconURL.isEmpty() || !webIconDatabase->isUrlImportCompleted())) {
+    if (!surface && (!iconURL.isEmpty() || !m_iconDatabase->isUrlImportCompleted())) {
         PendingIconRequestVector requests = m_iconRequests.get(pageURL);
         requests.append(callbackData);
         m_iconRequests.set(pageURL, requests);
@@ -122,9 +126,9 @@ void Ewk_Favicon_Database::iconForPageURL(const String& pageURL, const IconReque
     ecore_idler_add(respond_icon_request_idle, response);
 }
 
-void Ewk_Favicon_Database::didChangeIconForPageURL(WKIconDatabaseRef, WKURLRef pageURLRef, const void* clientInfo)
+void EwkFaviconDatabase::didChangeIconForPageURL(WKIconDatabaseRef, WKURLRef pageURLRef, const void* clientInfo)
 {
-    const Ewk_Favicon_Database* ewkIconDatabase = static_cast<const Ewk_Favicon_Database*>(clientInfo);
+    const EwkFaviconDatabase* ewkIconDatabase = static_cast<const EwkFaviconDatabase*>(clientInfo);
 
     if (ewkIconDatabase->m_changeListeners.isEmpty())
         return;
@@ -137,15 +141,13 @@ void Ewk_Favicon_Database::didChangeIconForPageURL(WKIconDatabaseRef, WKURLRef p
         it->value.callback(pageURL.data(), it->value.userData);
 }
 
-PassRefPtr<cairo_surface_t> Ewk_Favicon_Database::getIconSurfaceSynchronously(const String& pageURL) const
+PassRefPtr<cairo_surface_t> EwkFaviconDatabase::getIconSurfaceSynchronously(const String& pageURL) const
 {
-    WebIconDatabase* webIconDatabase = toImpl(m_wkIconDatabase.get());
+    m_iconDatabase->retainIconForPageURL(pageURL);
 
-    webIconDatabase->retainIconForPageURL(pageURL);
-
-    WebCore::NativeImagePtr icon = webIconDatabase->nativeImageForPageURL(pageURL);
+    WebCore::NativeImagePtr icon = m_iconDatabase->nativeImageForPageURL(pageURL);
     if (!icon) {
-        webIconDatabase->releaseIconForPageURL(pageURL);
+        m_iconDatabase->releaseIconForPageURL(pageURL);
         return 0;
     }
 
@@ -154,9 +156,9 @@ PassRefPtr<cairo_surface_t> Ewk_Favicon_Database::getIconSurfaceSynchronously(co
     return surface.release();
 }
 
-void Ewk_Favicon_Database::iconDataReadyForPageURL(WKIconDatabaseRef, WKURLRef pageURL, const void* clientInfo)
+void EwkFaviconDatabase::iconDataReadyForPageURL(WKIconDatabaseRef, WKURLRef pageURL, const void* clientInfo)
 {
-    Ewk_Favicon_Database* ewkIconDatabase = const_cast<Ewk_Favicon_Database*>(static_cast<const Ewk_Favicon_Database*>(clientInfo));
+    EwkFaviconDatabase* ewkIconDatabase = const_cast<EwkFaviconDatabase*>(static_cast<const EwkFaviconDatabase*>(clientInfo));
 
     String urlString = toImpl(pageURL)->string();
     if (!ewkIconDatabase->m_iconRequests.contains(urlString))

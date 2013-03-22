@@ -32,7 +32,7 @@
 
 vars = {
   'chromium_svn': 'http://src.chromium.org/svn/trunk/src',
-  'chromium_rev': '164895'
+  'chromium_rev': '172011'
 }
 
 deps = {
@@ -117,12 +117,16 @@ deps = {
     From('chromium_deps', 'src/tools/grit'),
   'tools/gritsettings':
     Var('chromium_svn')+'/tools/gritsettings@'+Var('chromium_rev'),
+  'tools/generate_library_loader':
+    Var('chromium_svn')+'/tools/generate_library_loader@'+Var('chromium_rev'),
   'tools/generate_stubs':
     Var('chromium_svn')+'/tools/generate_stubs@'+Var('chromium_rev'),
   'tools/win':
     Var('chromium_svn')+'/tools/win@'+Var('chromium_rev'),
   'ui':
     Var('chromium_svn')+'/ui@'+Var('chromium_rev'),
+  'win8':
+    Var('chromium_svn')+'/win8@'+Var('chromium_rev'),
 
   # other third party
   'third_party/pyftpdlib/src':
@@ -137,6 +141,8 @@ deps = {
     From('chromium_deps', 'src/third_party/libjpeg_turbo'),
   'third_party/leveldatabase/src':
     From('chromium_deps', 'src/third_party/leveldatabase/src'),
+  'third_party/smhasher/src':
+    From('chromium_deps', 'src/third_party/smhasher/src'),
   'third_party/snappy/src':
     From('chromium_deps', 'src/third_party/snappy/src'),
   'third_party/sfntly/cpp/src':

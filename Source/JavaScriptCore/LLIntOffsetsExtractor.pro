@@ -8,12 +8,19 @@
 TEMPLATE = app
 TARGET = LLIntOffsetsExtractor
 
+macx: DESTDIR = $$activeBuildConfig()
+
 debug_and_release {
     CONFIG += force_build_all
     CONFIG += build_all
 }
 
-QT = core # Needed for qglobal.h
+# Don't try to link against any Qt libraries, but at least
+# pull in include paths as we include qglobal.h.
+INCLUDEPATH += $$QT.core.includes
+CONFIG += console
+CONFIG -= qt
+LIBS =
 
 defineTest(addIncludePaths) {
     # Just needed for include paths

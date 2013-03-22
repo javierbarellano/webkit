@@ -27,7 +27,9 @@
 #include "BlockAllocator.h"
 
 #include "CopiedBlock.h"
+#include "CopyWorkList.h"
 #include "MarkedBlock.h"
+#include "WeakBlock.h"
 #include <wtf/CurrentTime.h>
 
 namespace JSC {
@@ -35,6 +37,8 @@ namespace JSC {
 BlockAllocator::BlockAllocator()
     : m_copiedRegionSet(CopiedBlock::blockSize)
     , m_markedRegionSet(MarkedBlock::blockSize)
+    , m_weakAndMarkStackRegionSet(WeakBlock::blockSize)
+    , m_workListRegionSet(CopyWorkListSegment::blockSize)
     , m_numberOfEmptyRegions(0)
     , m_isCurrentlyAllocating(false)
     , m_blockFreeingThreadShouldQuit(false)

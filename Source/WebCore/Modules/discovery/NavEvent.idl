@@ -1,5 +1,4 @@
 
-module event {
     interface [
                Conditional=DISCOVERY
                ] NavEvent {
@@ -13,4 +12,3 @@ module event {
         readonly attribute DOMString serviceType;
 
     };
-}

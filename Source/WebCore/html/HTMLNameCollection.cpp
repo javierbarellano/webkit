@@ -27,12 +27,13 @@
 #include "HTMLDocument.h"
 #include "HTMLNames.h"
 #include "HTMLObjectElement.h"
+#include "NodeRareData.h"
 
 namespace WebCore {
 
 using namespace HTMLNames;
 
-HTMLNameCollection::HTMLNameCollection(Document* document, CollectionType type, const AtomicString& name)
+HTMLNameCollection::HTMLNameCollection(Node* document, CollectionType type, const AtomicString& name)
     : HTMLCollection(document, type, OverridesItemAfter)
     , m_name(name)
 {
@@ -40,27 +41,25 @@ HTMLNameCollection::HTMLNameCollection(Document* document, CollectionType type, 
 
 HTMLNameCollection::~HTMLNameCollection()
 {
-    ASSERT(base());
-    ASSERT(base()->isDocumentNode());
+    ASSERT(ownerNode());
+    ASSERT(ownerNode()->isDocumentNode());
     ASSERT(type() == WindowNamedItems || type() == DocumentNamedItems);
-    if (type() == WindowNamedItems)
-        static_cast<Document*>(base())->removeWindowNamedItemCache(this, m_name);
-    else
-        static_cast<Document*>(base())->removeDocumentNamedItemCache(this, m_name);
+
+    ownerNode()->nodeLists()->removeCacheWithAtomicName(this, type(), m_name);
 }
 
 Element* HTMLNameCollection::virtualItemAfter(unsigned& offsetInArray, Element* previous) const
 {
     ASSERT_UNUSED(offsetInArray, !offsetInArray);
-    ASSERT(previous != base());
+    ASSERT(previous != ownerNode());
 
     Node* current;
     if (!previous)
-        current = base()->firstChild();
+        current = ownerNode()->firstChild();
     else
-        current = previous->traverseNextNode(base());
+        current = previous->traverseNextNode(ownerNode());
 
-    for (; current; current = current->traverseNextNode(base())) {
+    for (; current; current = current->traverseNextNode(ownerNode())) {
         if (!current->isElementNode())
             continue;
         Element* e = static_cast<Element*>(current);

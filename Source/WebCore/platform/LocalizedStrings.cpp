@@ -571,6 +571,11 @@ String AXFooterRoleDescriptionText()
 {
     return WEB_UI_STRING("footer", "accessibility role description for a footer");
 }
+    
+String AXFileUploadButtonText()
+{
+    return WEB_UI_STRING("file upload", "accessibility role description for a file upload button");
+}
 
 #if PLATFORM(MAC)
 String AXARIAContentGroupText(const String& ariaType)
@@ -683,6 +688,11 @@ String insecurePluginVersionText()
     return WEB_UI_STRING_KEY("Blocked Plug-in", "Blocked Plug-In (Insecure plug-in)", "Label text to be used when an insecure plug-in version was blocked from loading");
 }
 
+String inactivePluginText()
+{
+    return WEB_UI_STRING("Inactive Plug-in", "Label text to be used when a plugin has not been loaded for some time");
+}
+
 String multipleFileUploadText(unsigned numberOfFiles)
 {
     return formatLocalizedString(WEB_UI_STRING("%d files", "Label to describe the number of files selected in a file upload control that allows multiple files"), numberOfFiles);
@@ -711,13 +721,19 @@ String allFilesText()
 String builtInPDFPluginName()
 {
     // Also exposed to DOM.
-    return WEB_UI_STRING("WebKit built-in PDF", "Pseudo plug-in name, visible in Installed Plug-ins page in Safari.");
+    return WEB_UI_STRING("WebKit built-in PDF", "Pseudo plug-in name, visible in the Installed Plug-ins page in Safari.");
 }
 
 String pdfDocumentTypeDescription()
 {
     // Also exposed to DOM.
-    return WEB_UI_STRING("Portable Document Format", "Description of the (only) type supported by PDF pseudo plug-in. Visible in Installed Plug-ins page in Safari.");
+    return WEB_UI_STRING("Portable Document Format", "Description of the primary type supported by the PDF pseudo plug-in. Visible in the Installed Plug-ins page in Safari.");
+}
+
+String postScriptDocumentTypeDescription()
+{
+    // Also exposed to DOM.
+    return WEB_UI_STRING("PostScript", "Description of the PostScript type supported by the PDF pseudo plug-in. Visible in the Installed Plug-ins page in Safari.");
 }
 
 String keygenMenuItem512()
@@ -980,6 +996,17 @@ String validationMessageRangeOverflowText(const String&)
 String validationMessageStepMismatchText(const String&, const String&)
 {
     return WEB_UI_STRING("step mismatch", "Validation message for input form controls with value not respecting the step attribute");
+}
+
+String validationMessageBadInputForNumberText()
+{
+    notImplemented();
+    return validationMessageTypeMismatchText();
+}
+
+String clickToExitFullScreenText()
+{
+    return WEB_UI_STRING("Click to exit full screen mode", "Message to display in browser window when in webkit full screen mode.");
 }
 
 } // namespace WebCore

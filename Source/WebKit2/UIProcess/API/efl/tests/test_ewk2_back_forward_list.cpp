@@ -26,11 +26,8 @@
 #include "config.h"
 
 #include "UnitTestUtils/EWK2UnitTestBase.h"
-#include "UnitTestUtils/EWK2UnitTestEnvironment.h"
 #include "UnitTestUtils/EWK2UnitTestServer.h"
 #include "WKEinaSharedString.h"
-#include <EWebKit2.h>
-#include <gtest/gtest.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 
@@ -83,7 +80,7 @@ static inline void freeEinaList(Eina_List* list)
 {
     void* data = 0;
     EINA_LIST_FREE(list, data)
-        ewk_back_forward_list_item_unref(static_cast<Ewk_Back_Forward_List_Item*>(data));
+        ewk_object_unref(static_cast<Ewk_Object*>(data));
 }
 
 TEST_F(EWK2UnitTestBase, ewk_back_forward_list_current_item_get)

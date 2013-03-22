@@ -73,14 +73,12 @@
 
 #if ENABLE(NETWORK_PROCESS)
 #include "NetworkProcessManager.h"
+#include "NetworkProcessMessages.h"
+#include "NetworkProcessProxy.h"
 #endif
 
 #if USE(SOUP)
 #include "WebSoupRequestManagerProxy.h"
-#endif
-
-#if ENABLE(VIBRATION)
-#include "WebVibrationProxy.h"
 #endif
 
 #ifndef NDEBUG
@@ -93,6 +91,8 @@ namespace WebKit {
 
 static const double sharedSecondaryProcessShutdownTimeout = 60;
 
+unsigned WebContext::m_privateBrowsingEnterCount;
+
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, webContextCounter, ("WebContext"));
 
 PassRefPtr<WebContext> WebContext::create(const String& injectedBundlePath)
@@ -100,6 +100,9 @@ PassRefPtr<WebContext> WebContext::create(const String& injectedBundlePath)
     JSC::initializeThreading();
     WTF::initializeMainThread();
     RunLoop::initializeMainRunLoop();
+#if PLATFORM(MAC)
+    WebContext::initializeProcessSuppressionSupport();
+#endif
     return adoptRef(new WebContext(ProcessModelSharedSecondaryProcess, injectedBundlePath));
 }
 
@@ -161,9 +164,6 @@ WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePa
     m_resourceCacheManagerProxy = WebResourceCacheManagerProxy::create(this);
 #if USE(SOUP)
     m_soupRequestManagerProxy = WebSoupRequestManagerProxy::create(this);
-#endif
-#if ENABLE(VIBRATION)
-    m_vibrationProxy = WebVibrationProxy::create(this);
 #endif
     
 #if !LOG_DISABLED
@@ -239,11 +239,6 @@ WebContext::~WebContext()
 #if USE(SOUP)
     m_soupRequestManagerProxy->invalidate();
     m_soupRequestManagerProxy->clearContext();
-#endif
-
-#if ENABLE(VIBRATION)
-    m_vibrationProxy->invalidate();
-    m_vibrationProxy->clearContext();
 #endif
 
     invalidateCallbackMap(m_dictionaryCallbacks);
@@ -331,10 +326,65 @@ void WebContext::setUsesNetworkProcess(bool usesNetworkProcess)
 #endif
 }
 
-void WebContext::ensureSharedWebProcess()
+bool WebContext::usesNetworkProcess() const
 {
+#if ENABLE(NETWORK_PROCESS)
+    return m_usesNetworkProcess;
+#else
+    return false;
+#endif
+}
+
+#if ENABLE(NETWORK_PROCESS)
+static bool anyContextUsesNetworkProcess()
+{
+    const Vector<WebContext*>& contexts = WebContext::allContexts();
+    for (size_t i = 0, count = contexts.size(); i < count; ++i)
+    if (contexts[i]->usesNetworkProcess())
+        return true;
+
+    return false;
+}
+#endif
+
+void WebContext::willStartUsingPrivateBrowsing()
+{
+    if (m_privateBrowsingEnterCount++)
+        return;
+
+#if ENABLE(NETWORK_PROCESS)
+    if (anyContextUsesNetworkProcess())
+        NetworkProcessManager::shared().process()->send(Messages::NetworkProcess::EnsurePrivateBrowsingSession(), 0);
+#endif
+
+    const Vector<WebContext*>& contexts = allContexts();
+    for (size_t i = 0, count = contexts.size(); i < count; ++i)
+        contexts[i]->sendToAllProcesses(Messages::WebProcess::EnsurePrivateBrowsingSession());
+}
+
+void WebContext::willStopUsingPrivateBrowsing()
+{
+    // If the client asks to disable private browsing without enabling it first, it may be resetting a persistent preference,
+    // so it is still necessary to destroy any existing private browsing session.
+    if (m_privateBrowsingEnterCount && --m_privateBrowsingEnterCount)
+        return;
+
+#if ENABLE(NETWORK_PROCESS)
+    if (anyContextUsesNetworkProcess())
+        NetworkProcessManager::shared().process()->send(Messages::NetworkProcess::DestroyPrivateBrowsingSession(), 0);
+#endif
+
+    const Vector<WebContext*>& contexts = allContexts();
+    for (size_t i = 0, count = contexts.size(); i < count; ++i)
+        contexts[i]->sendToAllProcesses(Messages::WebProcess::DestroyPrivateBrowsingSession());
+}
+
+WebProcessProxy* WebContext::ensureSharedWebProcess()
+{
+    ASSERT(m_processModel == ProcessModelSharedSecondaryProcess);
     if (m_processes.isEmpty())
         createNewWebProcess();
+    return m_processes[0].get();
 }
 
 PassRefPtr<WebProcessProxy> WebContext::createNewWebProcess()
@@ -550,9 +600,6 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
 #if USE(SOUP)
     m_soupRequestManagerProxy->invalidate();
 #endif
-#if ENABLE(VIBRATION)
-    m_vibrationProxy->invalidate();
-#endif
 
     // When out of process plug-ins are enabled, we don't want to invalidate the plug-in site data
     // manager just because the web process crashes since it's not involved.
@@ -571,8 +618,7 @@ PassRefPtr<WebPageProxy> WebContext::createWebPage(PageClient* pageClient, WebPa
 {
     RefPtr<WebProcessProxy> process;
     if (m_processModel == ProcessModelSharedSecondaryProcess) {
-        ensureSharedWebProcess();
-        process = m_processes[0];
+        process = ensureSharedWebProcess();
     } else {
         if (m_haveInitialEmptyProcess) {
             process = m_processes.last();
@@ -590,17 +636,6 @@ PassRefPtr<WebPageProxy> WebContext::createWebPage(PageClient* pageClient, WebPa
         pageGroup = m_defaultPageGroup.get();
 
     return process->createWebPage(pageClient, this, pageGroup);
-}
-
-WebProcessProxy* WebContext::relaunchProcessIfNecessary()
-{
-    if (m_processModel == ProcessModelSharedSecondaryProcess) {
-        ensureSharedWebProcess();
-        return m_processes[0].get();
-    }
-
-    ASSERT_NOT_REACHED();
-    return 0;
 }
 
 DownloadProxy* WebContext::download(WebPageProxy* initiatingPage, const ResourceRequest& request)

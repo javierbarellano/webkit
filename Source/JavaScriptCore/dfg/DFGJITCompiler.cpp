@@ -45,12 +45,22 @@ JITCompiler::JITCompiler(Graph& dfg)
     , m_graph(dfg)
     , m_currentCodeOriginIndex(0)
 {
-    if (shouldShowDisassembly())
+    if (shouldShowDisassembly() || m_graph.m_globalData.m_perBytecodeProfiler)
         m_disassembler = adoptPtr(new Disassembler(dfg));
 }
 
 void JITCompiler::linkOSRExits()
 {
+    if (m_graph.m_compilation) {
+        for (unsigned i = 0; i < codeBlock()->numberOfOSRExits(); ++i) {
+            OSRExit& exit = codeBlock()->osrExit(i);
+            if (exit.m_watchpointIndex == std::numeric_limits<unsigned>::max())
+                m_exitSiteLabels.append(exit.m_check.initialJump().label());
+            else
+                m_exitSiteLabels.append(codeBlock()->watchpoint(exit.m_watchpointIndex).sourceLabel());
+        }
+    }
+    
     for (unsigned i = 0; i < codeBlock()->numberOfOSRExits(); ++i) {
         OSRExit& exit = codeBlock()->osrExit(i);
         ASSERT(!exit.m_check.isSet() == (exit.m_watchpointIndex != std::numeric_limits<unsigned>::max()));
@@ -128,7 +138,7 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
 {
     // Link the code, populate data in CodeBlock data structures.
 #if DFG_ENABLE(DEBUG_VERBOSE)
-    dataLog("JIT code for %p start at [%p, %p). Size = %zu.\n", m_codeBlock, linkBuffer.debugAddress(), static_cast<char*>(linkBuffer.debugAddress()) + linkBuffer.debugSize(), linkBuffer.debugSize());
+    dataLogF("JIT code for %p start at [%p, %p). Size = %zu.\n", m_codeBlock, linkBuffer.debugAddress(), static_cast<char*>(linkBuffer.debugAddress()) + linkBuffer.debugSize(), linkBuffer.debugSize());
 #endif
 
     // Link all calls out from the JIT code to their respective functions.
@@ -188,11 +198,12 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
         CallLinkInfo& info = m_codeBlock->callLinkInfo(i);
         info.callType = m_jsCalls[i].m_callType;
         info.isDFG = true;
-        info.bytecodeIndex = m_jsCalls[i].m_codeOrigin.bytecodeIndex;
+        info.codeOrigin = m_jsCalls[i].m_codeOrigin;
         linkBuffer.link(m_jsCalls[i].m_slowCall, FunctionPtr((m_globalData->getCTIStub(info.callType == CallLinkInfo::Construct ? linkConstructThunkGenerator : linkCallThunkGenerator)).code().executableAddress()));
         info.callReturnLocation = linkBuffer.locationOfNearCall(m_jsCalls[i].m_slowCall);
         info.hotPathBegin = linkBuffer.locationOf(m_jsCalls[i].m_targetToCheck);
         info.hotPathOther = linkBuffer.locationOfNearCall(m_jsCalls[i].m_fastCall);
+        info.calleeGPR = static_cast<unsigned>(m_jsCalls[i].m_callee);
     }
     
     MacroAssemblerCodeRef osrExitThunk = globalData()->getCTIStub(osrExitGenerationThunkGenerator);
@@ -204,6 +215,17 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
         if (exit.m_watchpointIndex != std::numeric_limits<unsigned>::max())
             codeBlock()->watchpoint(exit.m_watchpointIndex).correctLabels(linkBuffer);
     }
+    
+    if (m_graph.m_compilation) {
+        ASSERT(m_exitSiteLabels.size() == codeBlock()->numberOfOSRExits());
+        for (unsigned i = 0; i < m_exitSiteLabels.size(); ++i) {
+            m_graph.m_compilation->addOSRExitSite(
+                linkBuffer.locationOf(m_exitSiteLabels[i]).executableAddress());
+        }
+    } else
+        ASSERT(!m_exitSiteLabels.size());
+    
+    codeBlock()->saveCompilation(m_graph.m_compilation);
     
     codeBlock()->minifiedDFG().setOriginalGraphSize(m_graph.size());
     codeBlock()->shrinkToFit(CodeBlock::LateShrink);
@@ -235,8 +257,10 @@ bool JITCompiler::compile(JITCode& entry)
     link(linkBuffer);
     speculative.linkOSREntries(linkBuffer);
 
-    if (m_disassembler)
+    if (shouldShowDisassembly())
         m_disassembler->dump(linkBuffer);
+    if (m_graph.m_compilation)
+        m_disassembler->reportToProfiler(m_graph.m_compilation.get(), linkBuffer);
 
     entry = JITCode(
         linkBuffer.finalizeCodeWithoutDisassembly(),
@@ -326,8 +350,10 @@ bool JITCompiler::compileFunction(JITCode& entry, MacroAssemblerCodePtr& entryWi
     linkBuffer.link(callStackCheck, cti_stack_check);
     linkBuffer.link(callArityCheck, m_codeBlock->m_isConstructor ? cti_op_construct_arityCheck : cti_op_call_arityCheck);
     
-    if (m_disassembler)
+    if (shouldShowDisassembly())
         m_disassembler->dump(linkBuffer);
+    if (m_graph.m_compilation)
+        m_disassembler->reportToProfiler(m_graph.m_compilation.get(), linkBuffer);
 
     entryWithArityCheck = linkBuffer.locationOf(arityCheck);
     entry = JITCode(

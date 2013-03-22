@@ -27,6 +27,7 @@
 #include "HTMLImageLoader.h"
 #include "HTMLNames.h"
 #include "Image.h"
+#include "MouseEvent.h"
 #include "NodeRenderStyle.h"
 #include "Page.h"
 #include "RenderEmbeddedObject.h"
@@ -38,6 +39,9 @@
 
 namespace WebCore {
 
+// This delay should not exceed the snapshot delay in PluginView.cpp
+static const double simulatedMouseClickTimerDelay = .75;
+
 HTMLPlugInImageElement::HTMLPlugInImageElement(const QualifiedName& tagName, Document* document, bool createdByParser, PreferPlugInsForImagesOption preferPlugInsForImagesOption)
     : HTMLPlugInElement(tagName, document)
     // m_needsWidgetUpdate(!createdByParser) allows HTMLObjectElement to delay
@@ -47,6 +51,7 @@ HTMLPlugInImageElement::HTMLPlugInImageElement(const QualifiedName& tagName, Doc
     , m_needsWidgetUpdate(!createdByParser)
     , m_shouldPreferPlugInsForImages(preferPlugInsForImagesOption == ShouldPreferPlugInsForImages)
     , m_needsDocumentActivationCallbacks(false)
+    , m_simulatedMouseClickTimer(this, &HTMLPlugInImageElement::simulatedMouseClickTimerFired, simulatedMouseClickTimerDelay)
 {
     setHasCustomCallbacks();
 
@@ -88,28 +93,13 @@ bool HTMLPlugInImageElement::isImageType()
 // depending on <param> values. 
 bool HTMLPlugInImageElement::allowedToLoadFrameURL(const String& url)
 {
-    ASSERT(document());
-    ASSERT(document()->frame());
-    if (document()->frame()->page()->subframeCount() >= Page::maxNumberOfFrames)
-        return false;
-
     KURL completeURL = document()->completeURL(url);
-    
+
     if (contentFrame() && protocolIsJavaScript(completeURL)
         && !document()->securityOrigin()->canAccess(contentDocument()->securityOrigin()))
         return false;
-    
-    // We allow one level of self-reference because some sites depend on that.
-    // But we don't allow more than one.
-    bool foundSelfReference = false;
-    for (Frame* frame = document()->frame(); frame; frame = frame->tree()->parent()) {
-        if (equalIgnoringFragmentIdentifier(frame->document()->url(), completeURL)) {
-            if (foundSelfReference)
-                return false;
-            foundSelfReference = true;
-        }
-    }
-    return true;
+
+    return document()->frame()->isURLAllowed(completeURL);
 }
 
 // We don't use m_url, or m_serviceType as they may not be the final values
@@ -164,7 +154,7 @@ bool HTMLPlugInImageElement::willRecalcStyle(StyleChange)
 
 void HTMLPlugInImageElement::attach()
 {
-    suspendPostAttachCallbacks();
+    PostAttachCallbackDisabler disabler(this);
 
     bool isImage = isImageType();
     
@@ -178,10 +168,8 @@ void HTMLPlugInImageElement::attach()
             m_imageLoader = adoptPtr(new HTMLImageLoader(this));
         m_imageLoader->updateFromElement();
     }
-
-    resumePostAttachCallbacks();
 }
-    
+
 void HTMLPlugInImageElement::detach()
 {
     // FIXME: Because of the insanity that is HTMLPlugInImageElement::recalcStyle,
@@ -265,11 +253,33 @@ void HTMLPlugInImageElement::updateWidgetCallback(Node* n, unsigned)
 
 void HTMLPlugInImageElement::updateSnapshot(PassRefPtr<Image> image)
 {
-    if (displayState() > WaitingForSnapshot || !renderer()->isSnapshottedPlugIn())
+    if (displayState() > DisplayingSnapshot || !renderer()->isSnapshottedPlugIn())
         return;
 
     toRenderSnapshottedPlugIn(renderer())->updateSnapshot(image);
     setDisplayState(DisplayingSnapshot);
+}
+
+void HTMLPlugInImageElement::setPendingClickEvent(PassRefPtr<MouseEvent> event)
+{
+    m_pendingClickEventFromSnapshot = event;
+}
+
+void HTMLPlugInImageElement::dispatchPendingMouseClick()
+{
+    ASSERT(!m_simulatedMouseClickTimer.isActive());
+    m_simulatedMouseClickTimer.restart();
+}
+
+void HTMLPlugInImageElement::simulatedMouseClickTimerFired(DeferrableOneShotTimer<HTMLPlugInImageElement>*)
+{
+    ASSERT(displayState() == PlayingWithPendingMouseClick);
+    ASSERT(m_pendingClickEventFromSnapshot);
+
+    dispatchSimulatedClick(m_pendingClickEventFromSnapshot.get(), SendMouseOverUpDownEvents, DoNotShowPressedLook);
+
+    setDisplayState(Playing);
+    m_pendingClickEventFromSnapshot = nullptr;
 }
 
 } // namespace WebCore

@@ -34,7 +34,8 @@
 
 #include "ExclusionShape.h"
 #include "FloatRect.h"
-#include "LayoutTypesInlineMethods.h"
+#include "InlineIterator.h"
+#include "LayoutUnit.h"
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/Vector.h>
@@ -42,6 +43,17 @@
 namespace WebCore {
 
 class RenderBlock;
+
+struct LineSegmentRange {
+    InlineIterator start;
+    InlineIterator end;
+    LineSegmentRange(InlineIterator start, InlineIterator end)
+        : start(start)
+        , end(end)
+    {
+    }
+};
+typedef Vector<LineSegmentRange> SegmentRangeList;
 
 class ExclusionShapeInsideInfo {
     WTF_MAKE_FAST_ALLOCATED;
@@ -54,16 +66,10 @@ public:
     static void removeExclusionShapeInsideInfoForRenderBlock(const RenderBlock*);
     static bool isExclusionShapeInsideInfoEnabledForRenderBlock(const RenderBlock*);
 
-    LayoutUnit shapeLogicalTop() const 
-    { 
-        ASSERT(m_shape);
-        return m_shape->shapeLogicalBoundingBox().y();
-    }
-    LayoutUnit shapeLogicalBottom() const
-    {
-        ASSERT(m_shape);
-        return m_shape->shapeLogicalBoundingBox().maxY();
-    }
+    LayoutUnit shapeLogicalTop() const { return shapeLogicalBoundsY(); }
+    LayoutUnit shapeLogicalBottom() const { return shapeLogicalBoundsMaxY(); }
+    bool lineOverlapsShapeBounds() const { return m_lineTop < shapeLogicalBottom() && m_lineTop + m_lineHeight >= shapeLogicalTop(); }
+
     bool hasSegments() const
     {
         return lineOverlapsShapeBounds() && m_segments.size();
@@ -73,13 +79,38 @@ public:
         ASSERT(hasSegments());
         return m_segments;
     }
+    SegmentRangeList& segmentRanges() { return m_segmentRanges; }
+    const SegmentRangeList& segmentRanges() const { return m_segmentRanges; }
+    const LineSegment* currentSegment() const
+    {
+        if (!hasSegments())
+            return 0;
+        ASSERT(m_segmentRanges.size() < m_segments.size());
+        return &m_segments[m_segmentRanges.size()];
+    }
     bool computeSegmentsForLine(LayoutUnit lineTop, LayoutUnit lineHeight);
-    bool lineOverlapsShapeBounds() const;
+    bool adjustLogicalLineTop(float minSegmentWidth);
     void computeShapeSize(LayoutUnit logicalWidth, LayoutUnit logicalHeight);
     void dirtyShapeSize() { m_shapeSizeDirty = true; }
 
+    LayoutUnit logicalLineTop() const { return m_lineTop; }
+
 private:
     ExclusionShapeInsideInfo(RenderBlock*);
+
+    inline LayoutUnit shapeLogicalBoundsY() const
+    {
+        ASSERT(m_shape);
+        // Use fromFloatCeil() to ensure that the returned LayoutUnit value is within the shape's bounds.
+        return LayoutUnit::fromFloatCeil(m_shape->shapeLogicalBoundingBox().y());
+    }
+
+    inline LayoutUnit shapeLogicalBoundsMaxY() const
+    {
+        ASSERT(m_shape);
+        // Use fromFloatFloor() to ensure that the returned LayoutUnit value is within the shape's bounds.
+        return LayoutUnit::fromFloatFloor(m_shape->shapeLogicalBoundingBox().maxY());
+    }
 
     RenderBlock* m_block;
     OwnPtr<ExclusionShape> m_shape;
@@ -90,15 +121,9 @@ private:
     LayoutUnit m_logicalHeight;
 
     SegmentList m_segments;
+    SegmentRangeList m_segmentRanges;
     bool m_shapeSizeDirty;
 };
-
-inline bool ExclusionShapeInsideInfo::lineOverlapsShapeBounds() const
-{
-    ASSERT(m_shape);
-    FloatRect shapeBounds = m_shape->shapeLogicalBoundingBox();
-    return m_lineTop < shapeBounds.maxY() && m_lineTop + m_lineHeight >= shapeBounds.y();
-}
 
 }
 #endif

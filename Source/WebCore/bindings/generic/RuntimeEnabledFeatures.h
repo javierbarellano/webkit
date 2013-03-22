@@ -71,6 +71,14 @@ public:
     static bool cssExclusionsEnabled() { return false; }
 #endif
 
+#if ENABLE(CSS_REGIONS)
+    static void setCSSRegionsEnabled(bool isEnabled) { isCSSRegionsEnabled = isEnabled; }
+    static bool cssRegionsEnabled() { return isCSSRegionsEnabled; }
+#else
+    static void setCSSRegionsEnabled(bool) { }
+    static bool cssRegionsEnabled() { return false; }
+#endif
+
 #if ENABLE(FULLSCREEN_API)
     // Mozilla version
     static bool webkitFullScreenAPIEnabled() { return isFullScreenAPIEnabled; }
@@ -86,11 +94,6 @@ public:
     static bool webkitFullscreenElementEnabled() { return isFullScreenAPIEnabled; }
     static bool webkitExitFullscreenEnabled() { return isFullScreenAPIEnabled; }
     static bool webkitRequestFullscreenEnabled() { return isFullScreenAPIEnabled; }
-#endif
-
-#if ENABLE(POINTER_LOCK)
-    static bool pointerLockEnabled() { return isPointerLockEnabled; }
-    static void setPointerLockEnabled(bool isEnabled) { isPointerLockEnabled = isEnabled; }
 #endif
 
 #if ENABLE(VIDEO)
@@ -176,9 +179,6 @@ public:
 
     static bool peerConnectionEnabled() { return isMediaStreamEnabled && isPeerConnectionEnabled; }
     static void setPeerConnectionEnabled(bool isEnabled) { isPeerConnectionEnabled = isEnabled; }
-    static bool deprecatedPeerConnectionEnabled() { return isMediaStreamEnabled && isDeprecatedPeerConnectionEnabled; }
-    static void setDeprecatedPeerConnectionEnabled(bool isEnabled) { isDeprecatedPeerConnectionEnabled = isEnabled; }
-    static bool webkitPeerConnection00Enabled() { return deprecatedPeerConnectionEnabled(); }
     static bool webkitRTCPeerConnectionEnabled() { return peerConnectionEnabled(); }
 #endif
 
@@ -255,9 +255,26 @@ public:
     static void setDialogElementEnabled(bool isEnabled) { isDialogElementEnabled = isEnabled; }
 #endif
 
+#if ENABLE(CSP_NEXT)
+    static bool experimentalContentSecurityPolicyFeaturesEnabled() { return areExperimentalContentSecurityPolicyFeaturesEnabled; }
+    static void setExperimentalContentSecurityPolicyFeaturesEnabled(bool isEnabled) { areExperimentalContentSecurityPolicyFeaturesEnabled = isEnabled; }
+#endif
+
     static bool langAttributeAwareFormControlUIEnabled() { return isLangAttributeAwareFormControlUIEnabled; }
     // The lang attribute support is incomplete and should only be turned on for tests.
     static void setLangAttributeAwareFormControlUIEnabled(bool isEnabled) { isLangAttributeAwareFormControlUIEnabled = isEnabled; }
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    static bool requestAutocompleteEnabled() { return isRequestAutocompleteEnabled; }
+    static void setRequestAutocompleteEnabled(bool isEnabled) { isRequestAutocompleteEnabled = isEnabled; }
+#endif
+
+#if ENABLE(WEB_INTENTS)
+    static bool webkitStartActivityEnabled() { return isWebIntentsEnabled; }
+    static bool webkitIntentEnabled() { return isWebIntentsEnabled; }
+    static bool webKitIntentEnabled() { return isWebIntentsEnabled; }
+    static void setWebIntentsEnabled(bool isEnabled) { isWebIntentsEnabled = isEnabled; }
+#endif
 
 private:
     // Never instantiate.
@@ -276,6 +293,7 @@ private:
     static bool isDeviceOrientationEnabled;
     static bool isSpeechInputEnabled;
     static bool isCSSExclusionsEnabled;
+    static bool isCSSRegionsEnabled;
     WEBCORE_TESTING static bool isLangAttributeAwareFormControlUIEnabled;
 #if ENABLE(SCRIPTED_SPEECH)
     static bool isScriptedSpeechEnabled;
@@ -291,7 +309,6 @@ private:
 #if ENABLE(MEDIA_STREAM)
     static bool isMediaStreamEnabled;
     static bool isPeerConnectionEnabled;
-    static bool isDeprecatedPeerConnectionEnabled;
 #endif
 
 #if ENABLE(GAMEPAD)
@@ -304,10 +321,6 @@ private:
 
 #if ENABLE(FULLSCREEN_API)
     static bool isFullScreenAPIEnabled;
-#endif
-
-#if ENABLE(POINTER_LOCK)
-    static bool isPointerLockEnabled;
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
@@ -359,6 +372,19 @@ private:
 #if ENABLE(DIALOG_ELEMENT)
     static bool isDialogElementEnabled;
 #endif
+
+#if ENABLE(REQUEST_AUTOCOMPLETE)
+    static bool isRequestAutocompleteEnabled;
+#endif
+
+#if ENABLE(CSP_NEXT)
+    static bool areExperimentalContentSecurityPolicyFeaturesEnabled;
+#endif
+
+#if ENABLE(WEB_INTENTS)
+    static bool isWebIntentsEnabled;
+#endif
+
 };
 
 } // namespace WebCore

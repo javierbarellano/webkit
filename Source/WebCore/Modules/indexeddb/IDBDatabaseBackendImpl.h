@@ -55,22 +55,23 @@ public:
     static const int64_t InvalidId = 0;
     int64_t id() const { return m_metadata.id; }
 
-    void openConnection(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>);
-    void openConnectionWithVersion(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, int64_t version);
+    void openConnection(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, int64_t transactionId);
+    void openConnectionWithVersion(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, int64_t transactionId, int64_t version);
     void deleteDatabase(PassRefPtr<IDBCallbacks>);
 
     // IDBDatabaseBackendInterface
     virtual IDBDatabaseMetadata metadata() const;
     virtual PassRefPtr<IDBObjectStoreBackendInterface> createObjectStore(int64_t id, const String& name, const IDBKeyPath&, bool autoIncrement, IDBTransactionBackendInterface*, ExceptionCode&);
-    virtual void deleteObjectStore(const String& name, IDBTransactionBackendInterface* transactionPtr, ExceptionCode& ec) { return deleteObjectStore(getObjectStoreId(name), transactionPtr, ec); }
     virtual void deleteObjectStore(int64_t, IDBTransactionBackendInterface*, ExceptionCode&);
-    virtual void setVersion(const String& version, PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, ExceptionCode&);
-    virtual PassRefPtr<IDBTransactionBackendInterface> transaction(DOMStringList* objectStoreNames, unsigned short mode, ExceptionCode&);
-    virtual PassRefPtr<IDBTransactionBackendInterface> transaction(const Vector<int64_t>&, unsigned short);
+    // FIXME: Remove this method in https://bugs.webkit.org/show_bug.cgi?id=103923.
+    virtual PassRefPtr<IDBTransactionBackendInterface> createTransaction(int64_t transactionId, const Vector<int64_t>& objectStoreIds, IDBTransaction::Mode);
+    virtual void createTransaction(int64_t transactionId, PassRefPtr<IDBDatabaseCallbacks>, const Vector<int64_t>& objectStoreIds, unsigned short mode);
     virtual void close(PassRefPtr<IDBDatabaseCallbacks>);
 
+    virtual void commit(int64_t transactionId);
+    virtual void abort(int64_t transactionId);
+
     PassRefPtr<IDBObjectStoreBackendImpl> objectStore(int64_t id);
-    int64_t getObjectStoreId(const String& name);
     IDBTransactionCoordinator* transactionCoordinator() const { return m_transactionCoordinator.get(); }
     void transactionStarted(PassRefPtr<IDBTransactionBackendImpl>);
     void transactionFinished(PassRefPtr<IDBTransactionBackendImpl>);
@@ -81,20 +82,19 @@ private:
     IDBDatabaseBackendImpl(const String& name, IDBBackingStore* database, IDBFactoryBackendImpl*, const String& uniqueIdentifier);
 
     bool openInternal();
-    void runIntVersionChangeTransaction(int64_t requestedVersion, PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>);
+    void runIntVersionChangeTransaction(PassRefPtr<IDBCallbacks>, PassRefPtr<IDBDatabaseCallbacks>, int64_t transactionId, int64_t requestedVersion);
     void loadObjectStores();
     size_t connectionCount();
     void processPendingCalls();
 
-    static void createObjectStoreInternal(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>, PassRefPtr<IDBTransactionBackendImpl>);
-    static void deleteObjectStoreInternal(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>, PassRefPtr<IDBTransactionBackendImpl>);
-    static void setVersionInternal(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, const String& version, PassRefPtr<IDBCallbacks>, PassRefPtr<IDBTransactionBackendImpl>);
-    static void setIntVersionInternal(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, int64_t version, PassRefPtr<IDBCallbacks>, PassRefPtr<IDBTransactionBackendImpl>);
+    class CreateObjectStoreOperation;
+    class DeleteObjectStoreOperation;
+    class VersionChangeOperation;
 
-    // These are used as setVersion transaction abort tasks.
-    static void removeObjectStoreFromMap(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>);
-    static void addObjectStoreToMap(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, PassRefPtr<IDBObjectStoreBackendImpl>);
-    static void resetVersion(ScriptExecutionContext*, PassRefPtr<IDBDatabaseBackendImpl>, const String& version, int64_t intVersion);
+    // When a "versionchange" transaction aborts, these restore the back-end object hierarchy.
+    class CreateObjectStoreAbortOperation;
+    class DeleteObjectStoreAbortOperation;
+    class VersionChangeAbortOperation;
 
     RefPtr<IDBBackingStore> m_backingStore;
     IDBDatabaseMetadata m_metadata;
@@ -109,11 +109,8 @@ private:
     OwnPtr<IDBTransactionCoordinator> m_transactionCoordinator;
     RefPtr<IDBTransactionBackendImpl> m_runningVersionChangeTransaction;
 
-    typedef HashSet<IDBTransactionBackendImpl*> TransactionSet;
-    TransactionSet m_transactions;
-
-    class PendingSetVersionCall;
-    Deque<OwnPtr<PendingSetVersionCall> > m_pendingSetVersionCalls;
+    typedef HashMap<int64_t, IDBTransactionBackendImpl*> TransactionMap;
+    TransactionMap m_transactions;
 
     class PendingOpenCall;
     Deque<OwnPtr<PendingOpenCall> > m_pendingOpenCalls;

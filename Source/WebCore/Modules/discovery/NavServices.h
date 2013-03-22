@@ -10,6 +10,8 @@
 
 #include <string>
 
+#include <runtime/JSExportMacros.h>
+
 #include "Event.h"
 #include <wtf/text/WTFString.h>
 #include <wtf/RefCounted.h>
