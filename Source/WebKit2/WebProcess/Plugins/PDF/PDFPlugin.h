@@ -32,6 +32,7 @@
 #include "SimplePDFPlugin.h"
 #include "WebEvent.h"
 #include <WebCore/AffineTransform.h>
+#include <WebCore/FindOptions.h>
 #include <WebCore/ScrollableArea.h>
 #include <wtf/RetainPtr.h>
 
@@ -41,7 +42,12 @@ typedef const struct OpaqueJSValue* JSValueRef;
 
 OBJC_CLASS PDFAnnotation;
 OBJC_CLASS PDFLayerController;
+OBJC_CLASS PDFSelection;
 OBJC_CLASS WKPDFLayerControllerDelegate;
+
+namespace CoreIPC {
+class DataReference;
+}
 
 namespace WebCore {
 class Element;
@@ -67,6 +73,7 @@ public:
 
     void clickedLink(NSURL *);
     void saveToPDF();
+    void openWithNativeApplication();
     void writeItemsToPasteboard(NSArray *items, NSArray *types);
     void showDefinitionForAttributedString(NSAttributedString *, CGPoint);
 
@@ -92,11 +99,16 @@ private:
     virtual bool isEditingCommandEnabled(const String&) OVERRIDE;
     virtual bool handlesPageScaleFactor() OVERRIDE;
 
+    virtual unsigned countFindMatches(const String& target, WebCore::FindOptions, unsigned maxMatchCount) OVERRIDE;
+    virtual bool findString(const String& target, WebCore::FindOptions, unsigned maxMatchCount) OVERRIDE;
+
+    PDFSelection *nextMatchForString(const String& target, BOOL searchForward, BOOL caseSensitive, BOOL wrapSearch, PDFSelection *initialSelection, BOOL startInSelection);
+
     // ScrollableArea functions.
     virtual void setScrollOffset(const WebCore::IntPoint&) OVERRIDE;
     virtual void invalidateScrollbarRect(WebCore::Scrollbar*, const WebCore::IntRect&) OVERRIDE;
     virtual void invalidateScrollCornerRect(const WebCore::IntRect&) OVERRIDE;
-    virtual WebCore::IntPoint currentMousePosition() const { return m_lastMousePositionInPluginCoordinates; }
+    virtual WebCore::IntPoint lastKnownMousePosition() const OVERRIDE { return m_lastMousePositionInPluginCoordinates; }
     
     NSEvent *nsEventForWebMouseEvent(const WebMouseEvent&);
     WebCore::IntPoint convertFromPluginToPDFView(const WebCore::IntPoint&) const;
@@ -122,6 +134,10 @@ private:
     WebCore::AffineTransform m_rootViewToPluginTransform;
     WebMouseEvent m_lastMouseEvent;
     WebCore::IntPoint m_lastMousePositionInPluginCoordinates;
+
+    String m_temporaryPDFUUID;
+
+    String m_lastFoundString;
     
     RetainPtr<WKPDFLayerControllerDelegate> m_pdfLayerControllerDelegate;
 };

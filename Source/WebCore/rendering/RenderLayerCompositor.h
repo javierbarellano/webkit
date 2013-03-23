@@ -28,9 +28,10 @@
 
 #include "ChromeClient.h"
 #include "Frame.h"
+#include "GraphicsLayerClient.h"
 #include "GraphicsLayerUpdater.h"
 #include "RenderLayer.h"
-#include "RenderLayerBacking.h"
+#include <wtf/HashMap.h>
 
 namespace WebCore {
 
@@ -116,7 +117,7 @@ public:
     bool updateLayerCompositingState(RenderLayer*, CompositingChangeRepaint = CompositingChangeRepaintNow);
 
     // Update the geometry for compositing children of compositingAncestor.
-    void updateCompositingDescendantGeometry(RenderLayer* compositingAncestor, RenderLayer* layer, RenderLayerBacking::UpdateDepth);
+    void updateCompositingDescendantGeometry(RenderLayer* compositingAncestor, RenderLayer*, bool compositedChildrenOnly);
     
     // Whether layer's backing needs a graphics layer to do clipping by an ancestor (non-stacking-context parent with overflow).
     bool clippedByAncestor(RenderLayer*) const;
@@ -219,8 +220,6 @@ public:
     GraphicsLayer* layerForOverhangAreas() const { return m_layerForOverhangAreas.get(); }
 #endif
 
-    void documentBackgroundColorDidChange();
-
     void updateViewportConstraintStatus(RenderLayer*);
     void removeViewportConstrainedLayer(RenderLayer*);
 
@@ -228,6 +227,15 @@ public:
     void setTracksRepaints(bool);
 
     void reportMemoryUsage(MemoryObjectInfo*) const;
+    void setShouldReevaluateCompositingAfterLayout() { m_reevaluateCompositingAfterLayout = true; }
+
+    enum FixedPositionLayerNotCompositedReason {
+        NoReason,
+        LayerBoundsOutOfView,
+        DescendantOfTransformedElement,
+    };
+
+    FixedPositionLayerNotCompositedReason fixedPositionLayerNotCompositedReason(const RenderLayer* layer) const { return m_fixedPositionLayerNotCompositedReasonMap.get(layer); }
 
 private:
     class OverlapMap;
@@ -243,9 +251,9 @@ private:
     virtual void flushLayers(GraphicsLayerUpdater*) OVERRIDE;
     
     // Whether the given RL needs a compositing layer.
-    bool needsToBeComposited(const RenderLayer*) const;
+    bool needsToBeComposited(const RenderLayer*, FixedPositionLayerNotCompositedReason* = 0) const;
     // Whether the layer has an intrinsic need for compositing layer.
-    bool requiresCompositingLayer(const RenderLayer*) const;
+    bool requiresCompositingLayer(const RenderLayer*, FixedPositionLayerNotCompositedReason* = 0) const;
     // Whether the layer could ever be composited.
     bool canBeComposited(const RenderLayer*) const;
 
@@ -310,7 +318,7 @@ private:
     bool requiresCompositingForFilters(RenderObject*) const;
     bool requiresCompositingForBlending(RenderObject* renderer) const;
     bool requiresCompositingForScrollableFrame() const;
-    bool requiresCompositingForPosition(RenderObject*, const RenderLayer*) const;
+    bool requiresCompositingForPosition(RenderObject*, const RenderLayer*, FixedPositionLayerNotCompositedReason* = 0) const;
     bool requiresCompositingForOverflowScrolling(const RenderLayer*) const;
     bool requiresCompositingForIndirectReason(RenderObject*, bool hasCompositedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason&) const;
 
@@ -318,8 +326,8 @@ private:
     void registerOrUpdateViewportConstrainedLayer(RenderLayer*);
     void unregisterViewportConstrainedLayer(RenderLayer*);
 
-    const FixedPositionViewportConstraints computeFixedViewportConstraints(RenderLayer*);
-    const StickyPositionViewportConstraints computeStickyViewportConstraints(RenderLayer*);
+    FixedPositionViewportConstraints computeFixedViewportConstraints(RenderLayer*) const;
+    StickyPositionViewportConstraints computeStickyViewportConstraints(RenderLayer*) const;
 
     bool requiresScrollLayer(RootLayerAttachment) const;
     bool requiresHorizontalScrollbarLayer() const;
@@ -391,6 +399,9 @@ private:
     double m_obligatoryBackingStoreBytes;
     double m_secondaryBackingStoreBytes;
 #endif
+
+    typedef HashMap<const RenderLayer*, FixedPositionLayerNotCompositedReason> FixedPositionLayerNotCompositedReasonMap;
+    FixedPositionLayerNotCompositedReasonMap m_fixedPositionLayerNotCompositedReasonMap;
 };
 
 

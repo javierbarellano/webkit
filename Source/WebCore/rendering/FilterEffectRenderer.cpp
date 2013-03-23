@@ -97,7 +97,7 @@ static PassRefPtr<FECustomFilter> createCustomFilterEffect(Filter* filter, Docum
         return 0;
 
     return FECustomFilter::create(filter, globalContext->context(), operation->validatedProgram(), operation->parameters(),
-        operation->meshRows(), operation->meshColumns(), operation->meshBoxType(), operation->meshType());
+        operation->meshRows(), operation->meshColumns(),  operation->meshType());
 }
 #endif
 
@@ -419,11 +419,9 @@ void FilterEffectRenderer::clearIntermediateResults()
 
 void FilterEffectRenderer::apply()
 {
-    lastEffect()->apply();
-
-#if !USE(CG)
-    output()->transformColorSpace(lastEffect()->colorSpace(), ColorSpaceDeviceRGB);
-#endif
+    RefPtr<FilterEffect> effect = lastEffect();
+    effect->apply();
+    effect->transformResultColorSpace(ColorSpaceDeviceRGB);
 }
 
 LayoutRect FilterEffectRenderer::computeSourceImageRectForDirtyRect(const LayoutRect& filterBoxRect, const LayoutRect& dirtyRect)

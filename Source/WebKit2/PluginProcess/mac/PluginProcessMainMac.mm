@@ -32,14 +32,13 @@
 #import "EnvironmentUtilities.h"
 #import "NetscapePluginModule.h"
 #import "PluginProcess.h"
+#import "WebKit2Initialize.h"
 #import <Foundation/NSUserDefaults.h>
 #import <WebCore/RunLoop.h>
 #import <WebKitSystemInterface.h>
 #import <mach/mach_error.h>
-#import <runtime/InitializeThreading.h>
 #import <servers/bootstrap.h>
 #import <stdio.h>
-#import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/text/CString.h>
 #import <wtf/text/WTFString.h>
@@ -62,8 +61,7 @@ int PluginProcessMain(const CommandLine& commandLine)
     // Check if we're being spawned to write a MIME type preferences file.
     String pluginPath = commandLine["createPluginMIMETypesPreferences"];
     if (!pluginPath.isEmpty()) {
-        JSC::initializeThreading();
-        WTF::initializeMainThread();
+        InitializeWebKit2();
 
         if (!NetscapePluginModule::createPluginMIMETypesPreferences(pluginPath))
             return EXIT_FAILURE;
@@ -109,29 +107,35 @@ int PluginProcessMain(const CommandLine& commandLine)
     signal(SIGSEGV, _exit);
 #endif
 
-    // FIXME: It would be better to proxy set cursor calls over to the UI process instead of
-    // allowing plug-ins to change the mouse cursor at any time.
-    WKEnableSettingCursorWhenInBackground();
+    @autoreleasepool {
+        // FIXME: It would be better to proxy set cursor calls over to the UI process instead of
+        // allowing plug-ins to change the mouse cursor at any time.
+        WKEnableSettingCursorWhenInBackground();
 
-    JSC::initializeThreading();
-    WTF::initializeMainThread();
-    RunLoop::initializeMainRunLoop();
+        InitializeWebKit2();
 
-#if defined(__i386__)
-    // Initialize the shim for 32-bit only.
-    PluginProcess::shared().initializeShim();
-#endif
+        ChildProcessInitializationParameters parameters;
+        parameters.uiProcessName = commandLine["ui-process-name"];
+        parameters.clientIdentifier = commandLine["client-identifier"];
+        parameters.connectionIdentifier = CoreIPC::Connection::Identifier(serverPort);
+        PluginProcess::shared().initialize(parameters);
 
-    // Initialize Cocoa overrides. 
-    PluginProcess::shared().initializeCocoaOverrides();
-
-    // Initialize the plug-in process connection.
-    PluginProcess::shared().initialize(CoreIPC::Connection::Identifier(serverPort), RunLoop::main());
-
-    [NSApplication sharedApplication];
+        [NSApplication sharedApplication];
+    }
 
     RunLoop::run();
     
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+    // If we have private temporary and cache directories, clean them up.
+    if (getenv("DIRHELPER_USER_DIR_SUFFIX")) {
+        char darwinDirectory[PATH_MAX];
+        if (confstr(_CS_DARWIN_USER_TEMP_DIR, darwinDirectory, sizeof(darwinDirectory)))
+            [[NSFileManager defaultManager] removeItemAtPath:[[NSFileManager defaultManager] stringWithFileSystemRepresentation:darwinDirectory length:strlen(darwinDirectory)] error:nil];
+        if (confstr(_CS_DARWIN_USER_CACHE_DIR, darwinDirectory, sizeof(darwinDirectory)))
+            [[NSFileManager defaultManager] removeItemAtPath:[[NSFileManager defaultManager] stringWithFileSystemRepresentation:darwinDirectory length:strlen(darwinDirectory)] error:nil];
+    }
+#endif
+
     return 0;
 }
 

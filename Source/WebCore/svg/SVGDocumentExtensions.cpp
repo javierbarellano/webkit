@@ -27,7 +27,6 @@
 #include "Console.h"
 #include "DOMWindow.h"
 #include "Document.h"
-#include "Element.h"
 #include "EventListener.h"
 #include "Frame.h"
 #include "FrameLoader.h"
@@ -136,7 +135,7 @@ void SVGDocumentExtensions::dispatchSVGLoadEventToOutermostSVGElements()
 static void reportMessage(Document* document, MessageLevel level, const String& message)
 {
     if (document->frame())
-        document->addConsoleMessage(JSMessageSource, LogMessageType, level, message);
+        document->addConsoleMessage(JSMessageSource, level, message);
 }
 
 void SVGDocumentExtensions::reportWarning(const String& message)
@@ -347,7 +346,7 @@ void SVGDocumentExtensions::removeAllTargetReferencesForElement(SVGElement* refe
         m_elementDependencies.remove(*it);
 }
 
-void SVGDocumentExtensions::removeAllElementReferencesForTarget(SVGElement* referencedElement)
+void SVGDocumentExtensions::rebuildAllElementReferencesForTarget(SVGElement* referencedElement)
 {
     ASSERT(referencedElement);
     HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::iterator it = m_elementDependencies.find(referencedElement);
@@ -370,8 +369,17 @@ void SVGDocumentExtensions::removeAllElementReferencesForTarget(SVGElement* refe
                 (*vectorIt)->svgAttributeChanged(XLinkNames::hrefAttr);
         }
     }
+}
 
-    m_elementDependencies.remove(referencedElement);
+void SVGDocumentExtensions::removeAllElementReferencesForTarget(SVGElement* referencedElement)
+{
+    ASSERT(referencedElement);
+    HashMap<SVGElement*, OwnPtr<HashSet<SVGElement*> > >::iterator it = m_elementDependencies.find(referencedElement);
+    if (it == m_elementDependencies.end())
+        return;
+    ASSERT(it->key == referencedElement);
+
+    m_elementDependencies.remove(it);
 }
 
 #if ENABLE(SVG_FONTS)

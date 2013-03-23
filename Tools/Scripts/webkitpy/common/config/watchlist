@@ -97,6 +97,18 @@
         "Rendering": {
             "filename": r"Source/WebCore/rendering/",
         },
+        "RenderLayers": {
+            "filename": r"Source/WebCore/rendering/RenderLayer*",
+        },
+        "GraphicsLayer": {
+            "filename": r"Source/WebCore/platform/graphics/GraphicsLayer*",
+        },
+        "CoreAnimation": {
+            "filename": r"Source/WebCore/platform/graphics/ca/",
+        },
+        "Animation": {
+            "filename": r"Source/WebCore/page/animation/",
+        },
         "StyleChecker": {
             "filename": r"Tools/Scripts/webkitpy/style/",
         },
@@ -296,6 +308,20 @@
         "PerformanceTests": {
             "filename": r"PerformanceTests"
                         r"|Tools/Scripts/webkitpy/performance_tests",
+        },
+        "GtkBuildSystem": {
+            "filename": r"configure.ac"
+                        r"|.*GNUmakefile.(am|features.am.in)",
+        },
+        "ConsoleUsage": {
+            "more": r"[Aa]ddConsoleMessage|reportException|logExceptionToConsole|addMessage|printErrorMessage"
+        },
+        "ContentSecurityPolicyUsage": {
+            "more": r"[Cc]ontentSecurityPolicy(?!\.(h|cpp))",
+        },
+        "ContentSecurityPolicyFiles": {
+            "filename": r"Source/WebCore/page/(Content|DOM)SecurityPolicy\."
+                        r"|LayoutTests/http/tests/security/contentSecurityPolicy"
         }
     },
     "CC_RULES": {
@@ -303,12 +329,16 @@
         # Specifically, levin@chromium.org and levin+threading@chromium.org are
         # two different accounts as far as bugzilla is concerned.
         "Accessibility": [ "cfleizach@apple.com", "dmazzoni@google.com", "apinheiro@igalia.com", "jdiggs@igalia.com" ],
+        "Animation" : [ "simon.fraser@apple.com", "dino@apple.com" ],
         "AppleMacPublicApi": [ "timothy@apple.com" ],
         "Battery": [ "gyuyoung.kim@samsung.com" ],
         "BlackBerry": [ "mifenton@rim.com", "rwlbuis@gmail.com", "tonikitoo@webkit.org", "yoli@rim.com" ],
         "Cairo": [ "dominik.rottsches@intel.com" ],
         "CMake": [ "rakuco@webkit.org", "gyuyoung.kim@samsung.com" ],
         "CoordinatedGraphics" : [ "noam@webkit.org", "zeno@webkit.org" ],
+        "ConsoleUsage" : [ "mkwst+watchlist@chromium.org" ],
+        "ContentSecurityPolicyFiles|ContentSecurityPolicyUsage" : [ "mkwst+watchlist@chromium.org" ],
+        "CoreAnimation" : [ "simon.fraser@apple.com" ],
         "CSS": [ "alexis@webkit.org", "macpherson@chromium.org", "cmarcelo@webkit.org", "ojan.autocc@gmail.com"],
         "ChromiumGraphics": [ "jamesr@chromium.org", "cc-bugs@chromium.org" ],
         "ChromiumPublicApi": [ "abarth@webkit.org", "dglazkov@chromium.org", "fishd@chromium.org", "jamesr@chromium.org", "tkent+wkapi@chromium.org" ],
@@ -322,7 +352,9 @@
         "Filters": [ "dino@apple.com" ],
         "Forms": [ "tkent@chromium.org", "mifenton@rim.com" ],
         "FrameLoader": [ "abarth@webkit.org", "japhet@chromium.org" ],
+        "GraphicsLayer": [ "simon.fraser@apple.com" ],
         "GStreamerGraphics": [ "alexis@webkit.org", "pnormand@igalia.com", "gns@gnome.org", "mrobinson@webkit.org" ],
+        "GtkBuildSystem": [ "zandobersek@gmail.com" ],
         "GtkWebKit2PublicAPI": [ "cgarcia@igalia.com", "gns@gnome.org", "mrobinson@webkit.org" ],
         "Harfbuzz": [ "dominik.rottsches@intel.com" ],
         "HTML": [ "ojan.autocc@gmail.com" ],
@@ -338,11 +370,12 @@
         "QtWebKit2PlatformSpecific": [ "alexis@webkit.org", "cmarcelo@webkit.org", "abecsi@webkit.org" ],
         "QtWebKit2PublicAPI": [ "alexis@webkit.org", "cmarcelo@webkit.org", "abecsi@webkit.org" ],
         "Rendering": [ "eric@webkit.org", "ojan.autocc@gmail.com" ],
+        "RenderLayers" : [ "simon.fraser@apple.com" ],
         "SVG": ["schenney@chromium.org", "pdr@google.com", "fmalita@chromium.org", "dominik.rottsches@intel.com" ],
         "SVNScripts": [ "dbates@webkit.org" ],
         "ScrollingCoordinator": [ "andersca@apple.com", "jamesr@chromium.org", "tonikitoo@webkit.org" ],
         "SecurityCritical": [ "abarth@webkit.org" ],
-        "SkiaGraphics": [ "senorblanco@chromium.org" ],
+        "SkiaGraphics": [ "senorblanco@chromium.org", "junov@google.com" ],
         "Selectors": [ "allan.jensen@digia.com" ],
         "SoupNetwork": [ "rakuco@webkit.org", "gns@gnome.org", "mrobinson@webkit.org", "danw@gnome.org" ],
         "StyleChecker": [ "levin@chromium.org", ],
@@ -360,7 +393,7 @@
         "WebSocket": [ "yutak@chromium.org" ],
         "XSS": [ "dbates@webkit.org", "ojan.autocc@gmail.com" ],
         "webkitperl": [ "dbates@webkit.org" ],
-        "webkitpy": [ "abarth@webkit.org", "dpranke@chromium.org" ],
+        "webkitpy": [ "abarth@webkit.org", "dpranke@chromium.org", "eric@webkit.org" ],
     },
     "MESSAGE_RULES": {
         "ChromiumPublicApi": [ "Please wait for approval from abarth@webkit.org, dglazkov@chromium.org, "

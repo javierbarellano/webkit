@@ -47,6 +47,7 @@ HEADERS += \
     Shared/API/c/WKConnectionRef.h \
     Shared/API/c/WKContextMenuItem.h \
     Shared/API/c/WKContextMenuItemTypes.h \
+    Shared/API/c/WKData.h \
     Shared/API/c/WKDictionary.h \
     Shared/API/c/WKError.h \
     Shared/API/c/WKGeometry.h \
@@ -89,6 +90,7 @@ HEADERS += \
     Shared/NativeWebKeyboardEvent.h \
     Shared/NativeWebMouseEvent.h \
     Shared/NativeWebWheelEvent.h \
+    Shared/Network/NetworkProcessSupplement.h \
     Shared/OriginAndDatabases.h \
     Shared/PlatformPopupMenuData.h \
     Shared/PrintInfo.h \
@@ -211,7 +213,7 @@ HEADERS += \
     UIProcess/BackingStore.h \
     UIProcess/Downloads/DownloadProxy.h \
     UIProcess/CoordinatedGraphics/CoordinatedBackingStore.h \
-    UIProcess/CoordinatedGraphics/LayerTreeCoordinatorProxy.h \
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.h \
     UIProcess/CoordinatedGraphics/LayerTreeRenderer.h \
     UIProcess/DefaultUndoController.h \
     UIProcess/DrawingAreaProxy.h \
@@ -229,6 +231,7 @@ HEADERS += \
     UIProcess/PageClient.h \
     UIProcess/PageViewportController.h \
     UIProcess/PageViewportControllerClient.h \
+    UIProcess/Plugins/PlugInAutoStartProvider.h \
     UIProcess/Plugins/PluginInfoStore.h \
     UIProcess/Plugins/PluginProcessProxy.h \
     UIProcess/Plugins/PluginProcessManager.h \
@@ -244,6 +247,7 @@ HEADERS += \
     UIProcess/WebColorPickerResultListenerProxy.h \
     UIProcess/WebConnectionToWebProcess.h \
     UIProcess/WebContext.h \
+    UIProcess/WebContextClient.h \
     UIProcess/WebContextConnectionClient.h \
     UIProcess/WebContextInjectedBundleClient.h \
     UIProcess/WebContextMenuProxy.h \
@@ -361,6 +365,7 @@ HEADERS += \
     WebProcess/WebCoreSupport/WebNetworkInfoClient.h \
     WebProcess/WebCoreSupport/WebNotificationClient.h \
     WebProcess/WebCoreSupport/WebPlatformStrategies.h \
+    WebProcess/WebCoreSupport/WebPlugInClient.h \
     WebProcess/WebCoreSupport/WebPopupMenu.h \
     WebProcess/WebCoreSupport/WebSearchPopupMenu.h \
     WebProcess/WebCoreSupport/WebVibrationClient.h \
@@ -372,8 +377,8 @@ HEADERS += \
     WebProcess/WebPage/CoordinatedGraphics/AreaAllocator.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedGraphicsLayer.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedImageBacking.h \
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedTile.h \
-    WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.h \
     WebProcess/WebPage/CoordinatedGraphics/UpdateAtlas.h \
     WebProcess/WebPage/TapHighlightController.h \
     WebProcess/WebPage/PageOverlay.h \
@@ -385,6 +390,7 @@ HEADERS += \
     WebProcess/WebPage/WebPageGroupProxy.h \
     WebProcess/WebPage/WebUndoStep.h \
     WebProcess/WebConnectionToUIProcess.h \
+    WebProcess/WebProcessSupplement.h \
     WebProcess/WebProcess.h \
     WebProcess/qt/QtBuiltinBundle.h \
     WebProcess/qt/QtBuiltinBundlePage.h \
@@ -418,6 +424,7 @@ SOURCES += \
     Shared/API/c/WKCertificateInfo.cpp \
     Shared/API/c/WKConnectionRef.cpp \
     Shared/API/c/WKContextMenuItem.cpp \
+    Shared/API/c/WKData.cpp \
     Shared/API/c/WKDictionary.cpp \
     Shared/API/c/WKError.cpp \
     Shared/API/c/WKGeometry.cpp \
@@ -442,6 +449,7 @@ SOURCES += \
     Shared/Plugins/Netscape/NetscapePluginModule.cpp \
     Shared/Plugins/Netscape/NetscapePluginModuleNone.cpp \
     Shared/Plugins/Netscape/x11/NetscapePluginModuleX11.cpp \
+    Shared/CacheModel.cpp \
     Shared/ShareableBitmap.cpp \
     Shared/Plugins/NPRemoteObjectMap.cpp \
     Shared/Plugins/NPIdentifierData.cpp \
@@ -486,6 +494,7 @@ SOURCES += \
     Shared/WebGraphicsContext.cpp \
     Shared/WebHitTestResult.cpp \
     Shared/WebKeyboardEvent.cpp \
+    Shared/WebKit2Initialize.cpp \
     Shared/WebImage.cpp \
     Shared/WebIntentServiceInfo.cpp \
     Shared/WebMouseEvent.cpp \
@@ -569,10 +578,11 @@ SOURCES += \
     UIProcess/BackingStore.cpp \
     UIProcess/qt/BackingStoreQt.cpp \
     UIProcess/CoordinatedGraphics/CoordinatedBackingStore.cpp \
-    UIProcess/CoordinatedGraphics/LayerTreeCoordinatorProxy.cpp \
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.cpp \
     UIProcess/CoordinatedGraphics/LayerTreeRenderer.cpp \
     UIProcess/DefaultUndoController.cpp \
     UIProcess/Downloads/DownloadProxy.cpp \
+    UIProcess/Downloads/DownloadProxyMap.cpp \
     UIProcess/DrawingAreaProxy.cpp \
     UIProcess/DrawingAreaProxyImpl.cpp \
     UIProcess/FindIndicator.cpp \
@@ -586,6 +596,7 @@ SOURCES += \
     UIProcess/Notifications/WebNotificationManagerProxy.cpp \
     UIProcess/Notifications/WebNotificationProvider.cpp \
     UIProcess/PageViewportController.cpp \
+    UIProcess/Plugins/PlugInAutoStartProvider.cpp \
     UIProcess/Plugins/PluginInfoStore.cpp \
     UIProcess/Plugins/PluginProcessProxy.cpp \
     UIProcess/Plugins/PluginProcessManager.cpp \
@@ -602,6 +613,7 @@ SOURCES += \
     UIProcess/WebColorPickerResultListenerProxy.cpp \
     UIProcess/WebConnectionToWebProcess.cpp \
     UIProcess/WebContext.cpp \
+    UIProcess/WebContextClient.cpp \
     UIProcess/WebContextConnectionClient.cpp \
     UIProcess/WebContextInjectedBundleClient.cpp \
     UIProcess/WebContextMenuProxy.cpp \
@@ -739,6 +751,7 @@ SOURCES += \
     WebProcess/WebCoreSupport/WebNetworkInfoClient.cpp \
     WebProcess/WebCoreSupport/WebNotificationClient.cpp \
     WebProcess/WebCoreSupport/WebPlatformStrategies.cpp \
+    WebProcess/WebCoreSupport/WebPlugInClient.cpp \
     WebProcess/WebCoreSupport/WebPopupMenu.cpp \
     WebProcess/WebCoreSupport/WebSearchPopupMenu.cpp \
     WebProcess/WebCoreSupport/WebVibrationClient.cpp \
@@ -756,8 +769,8 @@ SOURCES += \
     WebProcess/WebPage/CoordinatedGraphics/AreaAllocator.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedGraphicsLayer.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedImageBacking.cpp \
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedTile.cpp \
-    WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.cpp \
     WebProcess/WebPage/CoordinatedGraphics/UpdateAtlas.cpp \
     WebProcess/WebPage/TapHighlightController.cpp \
     WebProcess/WebPage/LayerTreeHost.cpp \
@@ -814,6 +827,7 @@ have?(QTQUICK) {
         UIProcess/qt/QtDialogRunner.h \
         UIProcess/qt/QtDownloadManager.h \
         UIProcess/qt/QtPageClient.h \
+        UIProcess/qt/QtWebPageFindClient.h \
         UIProcess/qt/QtWebPageLoadClient.h \
         UIProcess/qt/QtWebPagePolicyClient.h \
         UIProcess/qt/QtWebPageSGNode.h \
@@ -842,6 +856,7 @@ have?(QTQUICK) {
         UIProcess/qt/QtDialogRunner.cpp \
         UIProcess/qt/QtDownloadManager.cpp \
         UIProcess/qt/QtPageClient.cpp \
+        UIProcess/qt/QtWebPageFindClient.cpp \
         UIProcess/qt/QtWebPageLoadClient.cpp \
         UIProcess/qt/QtWebPagePolicyClient.cpp \
         UIProcess/qt/QtWebPageSGNode.cpp \

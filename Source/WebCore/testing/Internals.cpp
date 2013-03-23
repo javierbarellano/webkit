@@ -68,11 +68,13 @@
 #include "NodeRenderingContext.h"
 #include "Page.h"
 #include "PrintContext.h"
+#include "PseudoElement.h"
 #include "Range.h"
 #include "RenderObject.h"
 #include "RenderTreeAsText.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SchemeRegistry.h"
+#include "ScrollingCoordinator.h"
 #include "SelectRuleFeatureSet.h"
 #include "SerializedScriptValue.h"
 #include "Settings.h"
@@ -81,6 +83,7 @@
 #include "StyleSheetContents.h"
 #include "TextIterator.h"
 #include "TreeScope.h"
+#include "TypeConversions.h"
 #include "ViewportArguments.h"
 #include <wtf/text/StringBuffer.h>
 
@@ -386,6 +389,48 @@ bool Internals::hasSelectorForPseudoClassInShadow(Element* host, const String& p
     return false;
 }
 
+bool Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName, double pauseTime, Element* element, const String& pseudoId, ExceptionCode& ec)
+{
+    if (!element || pauseTime < 0) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    if (pseudoId != "before" && pseudoId != "after") {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    if (!pseudoElement) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    return frame()->animation()->pauseAnimationAtTime(pseudoElement->renderer(), animationName, pauseTime);
+}
+
+bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, double pauseTime, Element* element, const String& pseudoId, ExceptionCode& ec)
+{
+    if (!element || pauseTime < 0) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    if (pseudoId != "before" && pseudoId != "after") {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    if (!pseudoElement) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    return frame()->animation()->pauseTransitionAtTime(pseudoElement->renderer(), property, pauseTime);
+}
+
 bool Internals::hasShadowInsertionPoint(const Node* root, ExceptionCode& ec) const
 {
     if (root && root->isShadowRoot())
@@ -518,6 +563,15 @@ Internals::ShadowRootIfShadowDOMEnabledOrNode* Internals::ensureShadowRoot(Eleme
     if (ElementShadow* shadow = host->shadow())
         return shadow->youngestShadowRoot();
 
+    return ShadowRoot::create(host, ec).get();
+}
+
+Internals::ShadowRootIfShadowDOMEnabledOrNode* Internals::createShadowRoot(Element* host, ExceptionCode& ec)
+{
+    if (!host) {
+        ec = INVALID_ACCESS_ERR;
+        return 0;
+    }
     return ShadowRoot::create(host, ec).get();
 }
 
@@ -1191,8 +1245,38 @@ unsigned Internals::touchEventHandlerCount(Document* document, ExceptionCode& ec
         return 0;
     }
 
-    return document->touchEventHandlerCount();
+    const TouchEventTargetSet* touchHandlers = document->touchEventTargets();
+    if (!touchHandlers)
+        return 0;
+
+    unsigned count = 0;
+    for (TouchEventTargetSet::const_iterator iter = touchHandlers->begin(); iter != touchHandlers->end(); ++iter)
+        count += iter->value;
+    return count;
 }
+
+#if ENABLE(TOUCH_EVENT_TRACKING)
+PassRefPtr<ClientRectList> Internals::touchEventTargetClientRects(Document* document, ExceptionCode& ec)
+{
+    if (!document || !document->view() || !document->page()) {
+        ec = INVALID_ACCESS_ERR;
+        return 0;
+    }
+    if (!document->page()->scrollingCoordinator())
+        return ClientRectList::create();
+
+    document->updateLayoutIgnorePendingStylesheets();
+
+    Vector<IntRect> absoluteRects;
+    document->page()->scrollingCoordinator()->computeAbsoluteTouchEventTargetRects(document, absoluteRects);
+    Vector<FloatQuad> absoluteQuads(absoluteRects.size());
+
+    for (size_t i = 0; i < absoluteRects.size(); ++i)
+        absoluteQuads[i] = FloatQuad(absoluteRects[i]);
+
+    return ClientRectList::create(absoluteQuads);
+}
+#endif
 
 PassRefPtr<NodeList> Internals::nodesFromRect(Document* document, int x, int y, unsigned topPadding, unsigned rightPadding,
     unsigned bottomPadding, unsigned leftPadding, bool ignoreClipping, bool allowShadowContent, ExceptionCode& ec) const
@@ -1460,6 +1544,20 @@ String Internals::scrollingStateTreeAsText(Document* document, ExceptionCode& ec
     return page->scrollingStateTreeAsText();
 }
 
+String Internals::mainThreadScrollingReasons(Document* document, ExceptionCode& ec) const
+{
+    if (!document || !document->frame()) {
+        ec = INVALID_ACCESS_ERR;
+        return String();
+    }
+
+    Page* page = document->page();
+    if (!page)
+        return String();
+
+    return page->mainThreadScrollingReasonsAsText();
+}
+
 void Internals::garbageCollectDocumentResources(Document* document, ExceptionCode& ec) const
 {
     if (!document) {
@@ -1606,6 +1704,11 @@ PassRefPtr<MallocStatistics> Internals::mallocStatistics() const
     return MallocStatistics::create();
 }
 
+PassRefPtr<TypeConversions> Internals::typeConversions() const
+{
+    return TypeConversions::create();
+}
+
 PassRefPtr<DOMStringList> Internals::getReferencedFilePaths() const
 {
     RefPtr<DOMStringList> stringList = DOMStringList::create();
@@ -1732,14 +1835,25 @@ String Internals::getCurrentCursorInfo(Document* document, ExceptionCode& ec)
 
 PassRefPtr<ArrayBuffer> Internals::serializeObject(PassRefPtr<SerializedScriptValue> value) const
 {
+#if USE(V8)
     String stringValue = value->toWireString();
     return ArrayBuffer::create(static_cast<const void*>(stringValue.impl()->characters()), stringValue.sizeInBytes());
+#else
+    Vector<uint8_t> bytes = value->data();
+    return ArrayBuffer::create(bytes.data(), bytes.size());
+#endif
 }
 
 PassRefPtr<SerializedScriptValue> Internals::deserializeBuffer(PassRefPtr<ArrayBuffer> buffer) const
 {
+#if USE(V8)
     String value(static_cast<const UChar*>(buffer->data()), buffer->byteLength() / sizeof(UChar));
     return SerializedScriptValue::createFromWire(value);
+#else
+    Vector<uint8_t> bytes;
+    bytes.append(static_cast<const uint8_t*>(buffer->data()), buffer->byteLength());
+    return SerializedScriptValue::adopt(bytes);
+#endif
 }
 
 void Internals::setUsesOverlayScrollbars(bool enabled)

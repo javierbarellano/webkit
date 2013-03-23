@@ -51,10 +51,6 @@
 #include "UnicodeBidi.h"
 #include "WritingMode.h"
 
-#if ENABLE(CSS_SHADERS)
-#include "CustomFilterOperation.h"
-#endif
-
 #include <wtf/MathExtras.h>
 
 namespace WebCore {
@@ -2862,6 +2858,33 @@ template<> inline CSSPrimitiveValue::operator TextCombine() const
     return TextCombineNone;
 }
 
+template<> inline CSSPrimitiveValue::CSSPrimitiveValue(RubyPosition position)
+    : CSSValue(PrimitiveClass)
+{
+    m_primitiveUnitType = CSS_IDENT;
+    switch (position) {
+    case RubyPositionBefore:
+        m_value.ident = CSSValueBefore;
+        break;
+    case RubyPositionAfter:
+        m_value.ident = CSSValueAfter;
+        break;
+    }
+}
+
+template<> inline CSSPrimitiveValue::operator RubyPosition() const
+{
+    switch (m_value.ident) {
+    case CSSValueBefore:
+        return RubyPositionBefore;
+    case CSSValueAfter:
+        return RubyPositionAfter;
+    }
+
+    ASSERT_NOT_REACHED();
+    return RubyPositionBefore;
+}
+
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(TextEmphasisPosition position)
     : CSSValue(PrimitiveClass)
 {
@@ -3534,45 +3557,6 @@ template<> inline CSSPrimitiveValue::operator ESpeak() const
     ASSERT_NOT_REACHED();
     return SpeakNormal;
 }
-
-#if ENABLE(CSS_SHADERS)
-template<> inline CSSPrimitiveValue::CSSPrimitiveValue(CustomFilterMeshBoxType meshBoxType)
-    : CSSValue(PrimitiveClass)
-{
-    m_primitiveUnitType = CSS_IDENT;
-    switch (meshBoxType) {
-    case MeshBoxTypeFilter:
-        m_value.ident = CSSValueFilterBox;
-        break;
-    case MeshBoxTypeBorder:
-        m_value.ident = CSSValueBorderBox;
-        break;
-    case MeshBoxTypePadding:
-        m_value.ident = CSSValuePaddingBox;
-        break;
-    case MeshBoxTypeContent:
-        m_value.ident = CSSValueContentBox;
-        break;
-    }
-}
-
-template<> inline CSSPrimitiveValue::operator CustomFilterMeshBoxType() const
-{
-    switch (m_value.ident) {
-    case CSSValueFilterBox:
-        return MeshBoxTypeFilter;
-    case CSSValueBorderBox:
-        return MeshBoxTypeBorder;
-    case CSSValuePaddingBox:
-        return MeshBoxTypePadding;
-    case CSSValueContentBox:
-        return MeshBoxTypeContent;
-    }
-
-    ASSERT_NOT_REACHED();
-    return MeshBoxTypeFilter;
-}
-#endif // ENABLE(CSS_SHADERS)
 
 template<> inline CSSPrimitiveValue::CSSPrimitiveValue(BlendMode blendMode)
     : CSSValue(PrimitiveClass)

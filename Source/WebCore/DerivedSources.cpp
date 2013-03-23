@@ -470,6 +470,7 @@
 #include "JSTextEvent.cpp"
 #include "JSTextMetrics.cpp"
 #if ENABLE(VIDEO_TRACK)
+#include "JSHTMLTrackElement.cpp"
 #include "JSTextTrack.cpp"
 #include "JSTextTrackCue.cpp"
 #include "JSTextTrackCueList.cpp"
@@ -489,9 +490,7 @@
 #include "JSUPnPEvent.cpp"
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
-#include "JSWebKitAnimation.cpp"
 #include "JSWebKitAnimationEvent.cpp"
-#include "JSWebKitAnimationList.cpp"
 #if ENABLE(CSS_FILTERS)
 #include "JSWebKitCSSFilterValue.cpp"
 #endif

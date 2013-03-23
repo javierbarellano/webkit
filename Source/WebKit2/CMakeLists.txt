@@ -8,6 +8,7 @@ set(WebKit2_INCLUDE_DIRECTORIES
     "${WEBKIT2_DIR}/Shared/API/c"
     "${WEBKIT2_DIR}/Shared/CoordinatedGraphics"
     "${WEBKIT2_DIR}/Shared/CoreIPCSupport"
+    "${WEBKIT2_DIR}/Shared/Network"
     "${WEBKIT2_DIR}/Shared/Plugins"
     "${WEBKIT2_DIR}/Shared/Plugins/Netscape"
     "${WEBKIT2_DIR}/Shared/Plugins/Netscape/x11"
@@ -52,6 +53,7 @@ set(WebKit2_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/networkinfo"
     "${WEBCORE_DIR}/Modules/notifications"
     "${WEBCORE_DIR}/Modules/vibration"
+    "${WEBCORE_DIR}/Modules/webdatabase"
     "${WEBCORE_DIR}/accessibility"
     "${WEBCORE_DIR}/bindings/js"
     "${WEBCORE_DIR}/bindings"
@@ -68,6 +70,7 @@ set(WebKit2_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/html/track"
     "${WEBCORE_DIR}/inspector"
     "${WEBCORE_DIR}/loader"
+    "${WEBCORE_DIR}/loader/archive"
     "${WEBCORE_DIR}/loader/icon"
     "${WEBCORE_DIR}/loader/cache"
     "${WEBCORE_DIR}/page"
@@ -138,6 +141,7 @@ set(WebKit2_SOURCES
 
     Shared/APIClientTraits.cpp
     Shared/APIObject.cpp
+    Shared/CacheModel.cpp
     Shared/ChildProcess.cpp
     Shared/ChildProcessProxy.cpp
     Shared/ConnectionStack.cpp
@@ -177,6 +181,7 @@ set(WebKit2_SOURCES
     Shared/WebImage.cpp
     Shared/WebIntentServiceInfo.cpp
     Shared/WebKeyboardEvent.cpp
+    Shared/WebKit2Initialize.cpp
     Shared/WebMemorySampler.cpp
     Shared/WebMouseEvent.cpp
     Shared/WebNetworkInfo.cpp
@@ -252,6 +257,7 @@ set(WebKit2_SOURCES
     UIProcess/WebColorPickerResultListenerProxy.cpp
     UIProcess/WebConnectionToWebProcess.cpp
     UIProcess/WebContext.cpp
+    UIProcess/WebContextClient.cpp
     UIProcess/WebContextConnectionClient.cpp
     UIProcess/WebContextInjectedBundleClient.cpp
     UIProcess/WebContextMenuProxy.cpp
@@ -348,10 +354,11 @@ set(WebKit2_SOURCES
     UIProcess/Authentication/WebProtectionSpace.cpp
 
     UIProcess/CoordinatedGraphics/CoordinatedBackingStore.cpp
-    UIProcess/CoordinatedGraphics/LayerTreeCoordinatorProxy.cpp
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.cpp
     UIProcess/CoordinatedGraphics/LayerTreeRenderer.cpp
 
     UIProcess/Downloads/DownloadProxy.cpp
+    UIProcess/Downloads/DownloadProxyMap.cpp
 
     UIProcess/InspectorServer/WebInspectorServer.cpp
     UIProcess/InspectorServer/WebSocketServer.cpp
@@ -365,6 +372,7 @@ set(WebKit2_SOURCES
     UIProcess/Notifications/WebNotificationManagerProxy.cpp
     UIProcess/Notifications/WebNotificationProvider.cpp
 
+    UIProcess/Plugins/PlugInAutoStartProvider.cpp
     UIProcess/Plugins/PluginInfoStore.cpp
     UIProcess/Plugins/PluginProcessManager.cpp
     UIProcess/Plugins/PluginProcessProxy.cpp
@@ -473,6 +481,7 @@ set(WebKit2_SOURCES
     WebProcess/WebCoreSupport/WebNetworkInfoClient.cpp
     WebProcess/WebCoreSupport/WebNotificationClient.cpp
     WebProcess/WebCoreSupport/WebPlatformStrategies.cpp
+    WebProcess/WebCoreSupport/WebPlugInClient.cpp
     WebProcess/WebCoreSupport/WebPopupMenu.cpp
     WebProcess/WebCoreSupport/WebSearchPopupMenu.cpp
     WebProcess/WebCoreSupport/WebVibrationClient.cpp
@@ -500,7 +509,7 @@ set(WebKit2_SOURCES
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedImageBacking.cpp
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedGraphicsLayer.cpp
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedTile.cpp
-    WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.cpp
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
     WebProcess/WebPage/CoordinatedGraphics/UpdateAtlas.cpp
 )
 
@@ -532,7 +541,7 @@ set(WebKit2_MESSAGES_IN_FILES
     UIProcess/WebVibrationProxy.messages.in
 
 
-    UIProcess/CoordinatedGraphics/LayerTreeCoordinatorProxy.messages.in
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.messages.in
 
     UIProcess/Downloads/DownloadProxy.messages.in
 
@@ -577,7 +586,7 @@ set(WebKit2_MESSAGES_IN_FILES
     WebProcess/WebPage/WebPage.messages.in
     WebProcess/WebPage/WebPageGroupProxy.messages.in
 
-    WebProcess/WebPage/CoordinatedGraphics/LayerTreeCoordinator.messages.in
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.messages.in
 )
 
 set(WebProcess_EXECUTABLE_NAME WebProcess)

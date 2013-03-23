@@ -36,8 +36,6 @@
 #include "NotificationClient.h"
 #endif
 
-typedef struct _Evas_Object Evas_Object;
-
 namespace WebCore {
 
 class ChromeClientEfl : public ChromeClient {
@@ -85,7 +83,7 @@ public:
 
     virtual void setResizable(bool);
 
-    virtual void addMessageToConsole(MessageSource, MessageType, MessageLevel, const String& message,
+    virtual void addMessageToConsole(MessageSource, MessageLevel, const String& message,
                                      unsigned int lineNumber, const String& sourceID);
 
     virtual bool canRunBeforeUnloadConfirmPanel();

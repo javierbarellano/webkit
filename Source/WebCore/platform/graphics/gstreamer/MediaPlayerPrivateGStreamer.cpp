@@ -39,6 +39,7 @@
 #include "ImageOrientation.h"
 #include "IntRect.h"
 #include "KURL.h"
+#include "Logging.h"
 #include "MIMETypeRegistry.h"
 #include "MediaPlayer.h"
 #include "NotImplemented.h"
@@ -79,10 +80,17 @@ typedef enum {
     GST_PLAY_FLAG_BUFFERING     = 0x000000100
 } GstPlayFlags;
 
+// gPercentMax is used when parsing buffering ranges with
+// gst_query_parse_nth_buffering_range as there was a bug in GStreamer
+// 0.10 that was using 100 instead of GST_FORMAT_PERCENT_MAX. This was
+// corrected in 1.0. gst_query_parse_buffering_range worked as
+// expected with GST_FORMAT_PERCENT_MAX in both cases.
 #ifdef GST_API_VERSION_1
 static const char* gPlaybinName = "playbin";
+static const gint64 gPercentMax = GST_FORMAT_PERCENT_MAX;
 #else
 static const char* gPlaybinName = "playbin2";
+static const gint64 gPercentMax = 100;
 #endif
 
 GST_DEBUG_CATEGORY_STATIC(webkit_media_player_debug);
@@ -342,8 +350,6 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_totalBytes(-1)
     , m_originalPreloadWasAutoAndWasOverridden(false)
 {
-    if (initializeGStreamerAndRegisterWebKitElements())
-        createGSTPlayBin();
 }
 
 MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
@@ -353,7 +359,6 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
     if (m_buffer)
         gst_buffer_unref(m_buffer);
-
     m_buffer = 0;
 
     if (m_mediaLocations) {
@@ -409,6 +414,8 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
 {
+    if (!initializeGStreamerAndRegisterWebKitElements())
+        return;
 
     KURL kurl(KURL(), url);
     String cleanUrl(url);
@@ -416,6 +423,13 @@ void MediaPlayerPrivateGStreamer::load(const String& url)
     // Clean out everything after file:// url path.
     if (kurl.isLocalFile())
         cleanUrl = cleanUrl.substring(0, kurl.pathEnd());
+
+    if (!m_playBin) {
+        createGSTPlayBin();
+        setDownloadBuffering();
+    }
+
+    ASSERT(m_playBin);
 
     m_url = KURL(KURL(), cleanUrl);
     g_object_set(m_playBin, "uri", cleanUrl.utf8().data(), NULL);
@@ -819,7 +833,7 @@ void MediaPlayerPrivateGStreamer::videoChanged()
 {
     if (m_videoTimerHandler)
         g_source_remove(m_videoTimerHandler);
-    m_videoTimerHandler = g_idle_add(reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
+    m_videoTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
 }
 
 void MediaPlayerPrivateGStreamer::audioChanged()
@@ -1231,11 +1245,11 @@ PassRefPtr<TimeRanges> MediaPlayerPrivateGStreamer::buffered() const
         return timeRanges.release();
     }
 
-    gint64 rangeStart = 0, rangeStop = 0;
     for (guint index = 0; index < gst_query_get_n_buffering_ranges(query); index++) {
+        gint64 rangeStart = 0, rangeStop = 0;
         if (gst_query_parse_nth_buffering_range(query, index, &rangeStart, &rangeStop))
-            timeRanges->add(static_cast<float>((rangeStart * mediaDuration) / 100),
-                            static_cast<float>((rangeStop * mediaDuration) / 100));
+            timeRanges->add(static_cast<float>((rangeStart * mediaDuration) / gPercentMax),
+                static_cast<float>((rangeStop * mediaDuration) / gPercentMax));
     }
 
     // Fallback to the more general maxTimeLoaded() if no range has
@@ -2224,13 +2238,10 @@ MediaPlayer::MovieLoadType MediaPlayerPrivateGStreamer::movieLoadType() const
     return MediaPlayer::Download;
 }
 
-void MediaPlayerPrivateGStreamer::setPreload(MediaPlayer::Preload preload)
+void MediaPlayerPrivateGStreamer::setDownloadBuffering()
 {
-    m_originalPreloadWasAutoAndWasOverridden = m_preload != preload && m_preload == MediaPlayer::Auto;
-
-    m_preload = preload;
-
-    ASSERT(m_playBin);
+    if (!m_playBin)
+        return;
 
     GstPlayFlags flags;
     g_object_get(m_playBin, "flags", &flags, NULL);
@@ -2241,6 +2252,15 @@ void MediaPlayerPrivateGStreamer::setPreload(MediaPlayer::Preload preload)
         LOG_MEDIA_MESSAGE("Disabling on-disk buffering");
         g_object_set(m_playBin, "flags", flags & ~GST_PLAY_FLAG_DOWNLOAD, NULL);
     }
+}
+
+void MediaPlayerPrivateGStreamer::setPreload(MediaPlayer::Preload preload)
+{
+    m_originalPreloadWasAutoAndWasOverridden = m_preload != preload && m_preload == MediaPlayer::Auto;
+
+    m_preload = preload;
+
+    setDownloadBuffering();
 
     if (m_delayingLoad && m_preload != MediaPlayer::None) {
         m_delayingLoad = false;

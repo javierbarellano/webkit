@@ -38,6 +38,7 @@
 #include "WebApplicationCacheManagerProxy.h"
 #include "WebContextMessageKinds.h"
 #include "WebContextMessages.h"
+#include "WebContextSupplement.h"
 #include "WebContextUserMessageCoders.h"
 #include "WebCookieManagerProxy.h"
 #include "WebCoreArgumentCoders.h"
@@ -54,9 +55,9 @@
 #include "WebProcessMessages.h"
 #include "WebProcessProxy.h"
 #include "WebResourceCacheManagerProxy.h"
+#include <WebCore/InitializeLogging.h>
 #include <WebCore/Language.h>
 #include <WebCore/LinkHash.h>
-#include <WebCore/Logging.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/RunLoop.h>
 #include <runtime/InitializeThreading.h>
@@ -72,9 +73,13 @@
 #endif
 
 #if ENABLE(NETWORK_PROCESS)
-#include "NetworkProcessManager.h"
+#include "NetworkProcessCreationParameters.h"
 #include "NetworkProcessMessages.h"
 #include "NetworkProcessProxy.h"
+#endif
+
+#if ENABLE(CUSTOM_PROTOCOLS)
+#include "CustomProtocolManagerMessages.h"
 #endif
 
 #if USE(SOUP)
@@ -120,10 +125,12 @@ const Vector<WebContext*>& WebContext::allContexts()
 
 WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePath)
     : m_processModel(processModel)
+    , m_webProcessCountLimit(UINT_MAX)
     , m_haveInitialEmptyProcess(false)
     , m_defaultPageGroup(WebPageGroup::create())
     , m_injectedBundlePath(injectedBundlePath)
     , m_visitedLinkProvider(this)
+    , m_plugInAutoStartProvider(this)
     , m_alwaysUsesComplexTextCodePath(false)
     , m_shouldUseFontSmoothing(true)
     , m_cacheModel(CacheModelDocumentViewer)
@@ -133,41 +140,46 @@ WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePa
     , m_shouldPaintNativeControls(true)
     , m_initialHTTPCookieAcceptPolicy(HTTPCookieAcceptPolicyAlways)
 #endif
+#if USE(SOUP)
+    , m_initialHTTPCookieAcceptPolicy(HTTPCookieAcceptPolicyOnlyFromMainDocumentDomain)
+#endif
     , m_processTerminationEnabled(true)
 #if ENABLE(NETWORK_PROCESS)
     , m_usesNetworkProcess(false)
 #endif
+#if USE(SOUP)
+    , m_ignoreTLSErrors(true)
+#endif
 {
+    platformInitialize();
+
     addMessageReceiver(Messages::WebContext::messageReceiverName(), this);
     addMessageReceiver(CoreIPC::MessageKindTraits<WebContextLegacyMessage::Kind>::messageReceiverName(), this);
 
     // NOTE: These sub-objects must be initialized after m_messageReceiverMap..
-    m_applicationCacheManagerProxy = WebApplicationCacheManagerProxy::create(this);
 #if ENABLE(BATTERY_STATUS)
     m_batteryManagerProxy = WebBatteryManagerProxy::create(this);
 #endif
-    m_cookieManagerProxy = WebCookieManagerProxy::create(this);
-#if ENABLE(SQL_DATABASE)
-    m_databaseManagerProxy = WebDatabaseManagerProxy::create(this);
-#endif
-    m_geolocationManagerProxy = WebGeolocationManagerProxy::create(this);
     m_iconDatabase = WebIconDatabase::create(this);
-    m_keyValueStorageManagerProxy = WebKeyValueStorageManagerProxy::create(this);
-    m_mediaCacheManagerProxy = WebMediaCacheManagerProxy::create(this);
 #if ENABLE(NETWORK_INFO)
     m_networkInfoManagerProxy = WebNetworkInfoManagerProxy::create(this);
 #endif
-    m_notificationManagerProxy = WebNotificationManagerProxy::create(this);
 #if ENABLE(NETSCAPE_PLUGIN_API)
     m_pluginSiteDataManager = WebPluginSiteDataManager::create(this);
 #endif // ENABLE(NETSCAPE_PLUGIN_API)
-    m_resourceCacheManagerProxy = WebResourceCacheManagerProxy::create(this);
-#if USE(SOUP)
-    m_soupRequestManagerProxy = WebSoupRequestManagerProxy::create(this);
+
+    addSupplement<WebApplicationCacheManagerProxy>();
+    addSupplement<WebCookieManagerProxy>();
+    addSupplement<WebGeolocationManagerProxy>();
+    addSupplement<WebKeyValueStorageManagerProxy>();
+    addSupplement<WebMediaCacheManagerProxy>();
+    addSupplement<WebNotificationManagerProxy>();
+    addSupplement<WebResourceCacheManagerProxy>();
+#if ENABLE(SQL_DATABASE)
+    addSupplement<WebDatabaseManagerProxy>();
 #endif
-    
-#if !LOG_DISABLED
-    WebKit::initializeLogChannelsIfNecessary();
+#if USE(SOUP)
+    addSupplement<WebSoupRequestManagerProxy>();
 #endif
 
     contexts().append(this);
@@ -176,12 +188,19 @@ WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePa
 
 #if !LOG_DISABLED
     WebCore::initializeLoggingChannelsIfNecessary();
+    WebKit::initializeLogChannelsIfNecessary();
 #endif // !LOG_DISABLED
 
 #ifndef NDEBUG
     webContextCounter.increment();
 #endif
 }
+
+#if !PLATFORM(MAC)
+void WebContext::platformInitialize()
+{
+}
+#endif
 
 WebContext::~WebContext()
 {
@@ -192,53 +211,29 @@ WebContext::~WebContext()
 
     m_messageReceiverMap.invalidate();
 
-    m_applicationCacheManagerProxy->invalidate();
-    m_applicationCacheManagerProxy->clearContext();
+    WebContextSupplementMap::const_iterator it = m_supplements.begin();
+    WebContextSupplementMap::const_iterator end = m_supplements.end();
+    for (; it != end; ++it) {
+        it->value->contextDestroyed();
+        it->value->clearContext();
+    }
 
 #if ENABLE(BATTERY_STATUS)
     m_batteryManagerProxy->invalidate();
     m_batteryManagerProxy->clearContext();
 #endif
 
-    m_cookieManagerProxy->invalidate();
-    m_cookieManagerProxy->clearContext();
-
-#if ENABLE(SQL_DATABASE)
-    m_databaseManagerProxy->invalidate();
-    m_databaseManagerProxy->clearContext();
-#endif
-    
-    m_geolocationManagerProxy->invalidate();
-    m_geolocationManagerProxy->clearContext();
-
     m_iconDatabase->invalidate();
     m_iconDatabase->clearContext();
     
-    m_keyValueStorageManagerProxy->invalidate();
-    m_keyValueStorageManagerProxy->clearContext();
-
-    m_mediaCacheManagerProxy->invalidate();
-    m_mediaCacheManagerProxy->clearContext();
-
 #if ENABLE(NETWORK_INFO)
     m_networkInfoManagerProxy->invalidate();
     m_networkInfoManagerProxy->clearContext();
 #endif
-    
-    m_notificationManagerProxy->invalidate();
-    m_notificationManagerProxy->clearContext();
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
     m_pluginSiteDataManager->invalidate();
     m_pluginSiteDataManager->clearContext();
-#endif
-
-    m_resourceCacheManagerProxy->invalidate();
-    m_resourceCacheManagerProxy->clearContext();
-
-#if USE(SOUP)
-    m_soupRequestManagerProxy->invalidate();
-    m_soupRequestManagerProxy->clearContext();
 #endif
 
     invalidateCallbackMap(m_dictionaryCallbacks);
@@ -248,6 +243,11 @@ WebContext::~WebContext()
 #ifndef NDEBUG
     webContextCounter.decrement();
 #endif
+}
+
+void WebContext::initializeClient(const WKContextClient* client)
+{
+    m_client.initialize(client);
 }
 
 void WebContext::initializeInjectedBundleClient(const WKContextInjectedBundleClient* client)
@@ -289,12 +289,32 @@ void WebContext::setProcessModel(ProcessModel processModel)
     m_processModel = processModel;
 }
 
-WebProcessProxy* WebContext::deprecatedSharedProcess()
+void WebContext::setMaximumNumberOfProcesses(unsigned maximumNumberOfProcesses)
 {
-    ASSERT(m_processModel == ProcessModelSharedSecondaryProcess);
-    if (m_processes.isEmpty())
-        return 0;
-    return m_processes[0].get();
+    // Guard against API misuse.
+    if (!m_processes.isEmpty())
+        CRASH();
+
+    if (maximumNumberOfProcesses == 0)
+        m_webProcessCountLimit = UINT_MAX;
+    else
+        m_webProcessCountLimit = maximumNumberOfProcesses;
+}
+
+CoreIPC::Connection* WebContext::networkingProcessConnection()
+{
+    switch (m_processModel) {
+    case ProcessModelSharedSecondaryProcess:
+        return m_processes[0]->connection();
+    case ProcessModelMultipleSecondaryProcesses:
+#if ENABLE(NETWORK_PROCESS)
+        return m_networkProcess->connection();
+#else
+        break;
+#endif
+    }
+    ASSERT_NOT_REACHED();
+    return 0;
 }
 
 void WebContext::languageChanged(void* context)
@@ -336,30 +356,66 @@ bool WebContext::usesNetworkProcess() const
 }
 
 #if ENABLE(NETWORK_PROCESS)
-static bool anyContextUsesNetworkProcess()
+void WebContext::ensureNetworkProcess()
 {
-    const Vector<WebContext*>& contexts = WebContext::allContexts();
-    for (size_t i = 0, count = contexts.size(); i < count; ++i)
-    if (contexts[i]->usesNetworkProcess())
-        return true;
+    if (m_networkProcess)
+        return;
 
-    return false;
+    m_networkProcess = NetworkProcessProxy::create(this);
+
+    NetworkProcessCreationParameters parameters;
+
+    parameters.diskCacheDirectory = diskCacheDirectory();
+    if (!parameters.diskCacheDirectory.isEmpty())
+        SandboxExtension::createHandleForReadWriteDirectory(parameters.diskCacheDirectory, parameters.diskCacheDirectoryExtensionHandle);
+
+    parameters.cacheModel = m_cacheModel;
+
+    // Add any platform specific parameters
+    platformInitializeNetworkProcess(parameters);
+
+    // Initialize the network process.
+    m_networkProcess->send(Messages::NetworkProcess::InitializeNetworkProcess(parameters), 0);
+}
+
+void WebContext::removeNetworkProcessProxy(NetworkProcessProxy* networkProcessProxy)
+{
+    ASSERT(m_networkProcess);
+    ASSERT(networkProcessProxy == m_networkProcess.get());
+
+    WebContextSupplementMap::const_iterator it = m_supplements.begin();
+    WebContextSupplementMap::const_iterator end = m_supplements.end();
+    for (; it != end; ++it)
+        it->value->processDidClose(networkProcessProxy);
+
+    m_networkProcess = nullptr;
+}
+
+void WebContext::getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply> reply)
+{
+    ASSERT(reply);
+
+    ensureNetworkProcess();
+    ASSERT(m_networkProcess);
+
+    m_networkProcess->getNetworkProcessConnection(reply);
 }
 #endif
+
 
 void WebContext::willStartUsingPrivateBrowsing()
 {
     if (m_privateBrowsingEnterCount++)
         return;
 
-#if ENABLE(NETWORK_PROCESS)
-    if (anyContextUsesNetworkProcess())
-        NetworkProcessManager::shared().process()->send(Messages::NetworkProcess::EnsurePrivateBrowsingSession(), 0);
-#endif
-
     const Vector<WebContext*>& contexts = allContexts();
-    for (size_t i = 0, count = contexts.size(); i < count; ++i)
+    for (size_t i = 0, count = contexts.size(); i < count; ++i) {
+#if ENABLE(NETWORK_PROCESS)
+        if (contexts[i]->usesNetworkProcess() && contexts[i]->networkProcess())
+            contexts[i]->networkProcess()->send(Messages::NetworkProcess::EnsurePrivateBrowsingSession(), 0);
+#endif
         contexts[i]->sendToAllProcesses(Messages::WebProcess::EnsurePrivateBrowsingSession());
+    }
 }
 
 void WebContext::willStopUsingPrivateBrowsing()
@@ -369,14 +425,15 @@ void WebContext::willStopUsingPrivateBrowsing()
     if (m_privateBrowsingEnterCount && --m_privateBrowsingEnterCount)
         return;
 
+    const Vector<WebContext*>& contexts = allContexts();
+    for (size_t i = 0, count = contexts.size(); i < count; ++i) {
 #if ENABLE(NETWORK_PROCESS)
-    if (anyContextUsesNetworkProcess())
-        NetworkProcessManager::shared().process()->send(Messages::NetworkProcess::DestroyPrivateBrowsingSession(), 0);
+        if (contexts[i]->usesNetworkProcess() && contexts[i]->networkProcess())
+            contexts[i]->networkProcess()->send(Messages::NetworkProcess::DestroyPrivateBrowsingSession(), 0);
 #endif
 
-    const Vector<WebContext*>& contexts = allContexts();
-    for (size_t i = 0, count = contexts.size(); i < count; ++i)
         contexts[i]->sendToAllProcesses(Messages::WebProcess::DestroyPrivateBrowsingSession());
+    }
 }
 
 WebProcessProxy* WebContext::ensureSharedWebProcess()
@@ -387,11 +444,11 @@ WebProcessProxy* WebContext::ensureSharedWebProcess()
     return m_processes[0].get();
 }
 
-PassRefPtr<WebProcessProxy> WebContext::createNewWebProcess()
+WebProcessProxy* WebContext::createNewWebProcess()
 {
 #if ENABLE(NETWORK_PROCESS)
     if (m_usesNetworkProcess)
-        NetworkProcessManager::shared().ensureNetworkProcess();
+        ensureNetworkProcess();
 #endif
 
     RefPtr<WebProcessProxy> process = WebProcessProxy::create(this);
@@ -448,12 +505,15 @@ PassRefPtr<WebProcessProxy> WebContext::createNewWebProcess()
     parameters.defaultRequestTimeoutInterval = WebURLRequest::defaultTimeoutInterval();
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
-    m_notificationManagerProxy->populateCopyOfNotificationPermissions(parameters.notificationPermissions);
+    // FIXME: There should be a generic way for supplements to add to the intialization parameters.
+    supplement<WebNotificationManagerProxy>()->populateCopyOfNotificationPermissions(parameters.notificationPermissions);
 #endif
 
 #if ENABLE(NETWORK_PROCESS)
     parameters.usesNetworkProcess = m_usesNetworkProcess;
 #endif
+
+    parameters.plugInAutoStartOrigins = m_plugInAutoStartProvider.autoStartOriginsCopy();
 
     // Add any platform specific parameters
     platformInitializeWebProcess(parameters);
@@ -479,8 +539,7 @@ PassRefPtr<WebProcessProxy> WebContext::createNewWebProcess()
     } else
         ASSERT(m_messagesToInjectedBundlePostedToEmptyContext.isEmpty());
 
-
-    return process.release();
+    return process.get();
 }
 
 void WebContext::warmInitialProcess()  
@@ -489,6 +548,9 @@ void WebContext::warmInitialProcess()
         ASSERT(!m_processes.isEmpty());
         return;
     }
+
+    if (m_processes.size() >= m_webProcessCountLimit)
+        return;
 
     createNewWebProcess();
     m_haveInitialEmptyProcess = true;
@@ -511,27 +573,17 @@ bool WebContext::shouldTerminate(WebProcessProxy* process)
     if (!m_processTerminationEnabled)
         return false;
 
-    if (!m_downloads.isEmpty())
-        return false;
+    WebContextSupplementMap::const_iterator it = m_supplements.begin();
+    WebContextSupplementMap::const_iterator end = m_supplements.end();
+    for (; it != end; ++it) {
+        if (!it->value->shouldTerminate(process))
+            return false;
+    }
 
-    if (!m_applicationCacheManagerProxy->shouldTerminate(process))
-        return false;
-    if (!m_cookieManagerProxy->shouldTerminate(process))
-        return false;
-#if ENABLE(SQL_DATABASE)
-    if (!m_databaseManagerProxy->shouldTerminate(process))
-        return false;
-#endif
-    if (!m_keyValueStorageManagerProxy->shouldTerminate(process))
-        return false;
-    if (!m_mediaCacheManagerProxy->shouldTerminate(process))
-        return false;
 #if ENABLE(NETSCAPE_PLUGIN_API)
     if (!m_pluginSiteDataManager->shouldTerminate(process))
         return false;
 #endif
-    if (!m_resourceCacheManagerProxy->shouldTerminate(process))
-        return false;
 
     return true;
 }
@@ -565,7 +617,7 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
     if (m_haveInitialEmptyProcess && process == m_processes.last())
         m_haveInitialEmptyProcess = false;
 
-    // FIXME (Multi-WebProcess): <rdar://problem/12239765> All the invalidation calls below are still necessary in multi-process mode, but they should only affect data structures pertaining to the process being disconnected.
+    // FIXME (Multi-WebProcess): <rdar://problem/12239765> Some of the invalidation calls below are still necessary in multi-process mode, but they should only affect data structures pertaining to the process being disconnected.
     // Clearing everything causes assertion failures, so it's less trouble to skip that for now.
     if (m_processModel != ProcessModelSharedSecondaryProcess) {
         RefPtr<WebProcessProxy> protect(process);
@@ -573,32 +625,16 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
         return;
     }
 
-    // Invalidate all outstanding downloads.
-    for (HashMap<uint64_t, RefPtr<DownloadProxy> >::iterator::Values it = m_downloads.begin().values(), end = m_downloads.end().values(); it != end; ++it) {
-        (*it)->processDidClose();
-        (*it)->invalidate();
-    }
+    WebContextSupplementMap::const_iterator it = m_supplements.begin();
+    WebContextSupplementMap::const_iterator end = m_supplements.end();
+    for (; it != end; ++it)
+        it->value->processDidClose(process);
 
-    m_downloads.clear();
-
-    m_applicationCacheManagerProxy->invalidate();
 #if ENABLE(BATTERY_STATUS)
     m_batteryManagerProxy->invalidate();
 #endif
-    m_cookieManagerProxy->invalidate();
-#if ENABLE(SQL_DATABASE)
-    m_databaseManagerProxy->invalidate();
-#endif
-    m_geolocationManagerProxy->invalidate();
-    m_keyValueStorageManagerProxy->invalidate();
-    m_mediaCacheManagerProxy->invalidate();
 #if ENABLE(NETWORK_INFO)
     m_networkInfoManagerProxy->invalidate();
-#endif
-    m_notificationManagerProxy->invalidate();
-    m_resourceCacheManagerProxy->invalidate();
-#if USE(SOUP)
-    m_soupRequestManagerProxy->invalidate();
 #endif
 
     // When out of process plug-ins are enabled, we don't want to invalidate the plug-in site data
@@ -614,6 +650,23 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
     m_processes.remove(m_processes.find(process));
 }
 
+WebProcessProxy* WebContext::createNewWebProcessRespectingProcessCountLimit()
+{
+    if (m_processes.size() < m_webProcessCountLimit)
+        return createNewWebProcess();
+
+    // Choose a process with fewest pages, to achieve flat distribution.
+    WebProcessProxy* result = 0;
+    unsigned fewestPagesSeen = UINT_MAX;
+    for (unsigned i = 0; i < m_processes.size(); ++i) {
+        if (fewestPagesSeen > m_processes[i]->pages().size()) {
+            result = m_processes[i].get();
+            fewestPagesSeen = m_processes[i]->pages().size();
+        }
+    }
+    return result;
+}
+
 PassRefPtr<WebPageProxy> WebContext::createWebPage(PageClient* pageClient, WebPageGroup* pageGroup, WebPageProxy* relatedPage)
 {
     RefPtr<WebProcessProxy> process;
@@ -626,10 +679,8 @@ PassRefPtr<WebPageProxy> WebContext::createWebPage(PageClient* pageClient, WebPa
         } else if (relatedPage) {
             // Sharing processes, e.g. when creating the page via window.open().
             process = relatedPage->process();
-        } else {
-            // FIXME (Multi-WebProcess): <rdar://problem/12239661> Consider limiting the number of web processes in per-tab process model.
-            process = createNewWebProcess();
-        }
+        } else
+            process = createNewWebProcessRespectingProcessCountLimit();
     }
 
     if (!pageGroup)
@@ -640,24 +691,24 @@ PassRefPtr<WebPageProxy> WebContext::createWebPage(PageClient* pageClient, WebPa
 
 DownloadProxy* WebContext::download(WebPageProxy* initiatingPage, const ResourceRequest& request)
 {
-    if (m_processModel == ProcessModelSharedSecondaryProcess) {
-        ensureSharedWebProcess();
+    DownloadProxy* downloadProxy = createDownloadProxy();
+    uint64_t initiatingPageID = initiatingPage ? initiatingPage->pageID() : 0;
 
-        DownloadProxy* download = createDownloadProxy();
-        uint64_t initiatingPageID = initiatingPage ? initiatingPage->pageID() : 0;
-
-#if PLATFORM(QT)
-        ASSERT(initiatingPage); // Our design does not suppport downloads without a WebPage.
-        initiatingPage->handleDownloadRequest(download);
+#if ENABLE(NETWORK_PROCESS)
+    if (usesNetworkProcess() && networkProcess()) {
+        // FIXME (NetworkProcess): Replicate whatever FrameLoader::setOriginalURLForDownloadRequest does with the request here.
+        networkProcess()->connection()->send(Messages::NetworkProcess::DownloadRequest(downloadProxy->downloadID(), request), 0);
+        return downloadProxy;
+    }
 #endif
 
-        m_processes[0]->send(Messages::WebProcess::DownloadRequest(download->downloadID(), initiatingPageID, request), 0);
-        return download;
+#if PLATFORM(QT)
+    ASSERT(initiatingPage); // Our design does not suppport downloads without a WebPage.
+    initiatingPage->handleDownloadRequest(downloadProxy);
+#endif
 
-    } else {
-        // FIXME (Multi-WebProcess): <rdar://problem/12239483> Make downloading work.
-        return 0;
-    }
+    m_processes[0]->send(Messages::WebProcess::DownloadRequest(downloadProxy->downloadID(), initiatingPageID, request), 0);
+    return downloadProxy;
 }
 
 void WebContext::postMessageToInjectedBundle(const String& messageName, APIObject* messageBody)
@@ -771,6 +822,8 @@ void WebContext::setCacheModel(CacheModel cacheModel)
 {
     m_cacheModel = cacheModel;
     sendToAllProcesses(Messages::WebProcess::SetCacheModel(static_cast<uint32_t>(m_cacheModel)));
+
+    // FIXME: Inform the Network Process if in use.
 }
 
 void WebContext::setDefaultRequestTimeoutInterval(double timeoutInterval)
@@ -794,19 +847,12 @@ void WebContext::addVisitedLinkHash(LinkHash linkHash)
 
 DownloadProxy* WebContext::createDownloadProxy()
 {
-    RefPtr<DownloadProxy> downloadProxy = DownloadProxy::create(this);
-    m_downloads.set(downloadProxy->downloadID(), downloadProxy);
-    addMessageReceiver(Messages::DownloadProxy::messageReceiverName(), downloadProxy->downloadID(), this);
-    return downloadProxy.get();
-}
+#if ENABLE(NETWORK_PROCESS)
+    if (usesNetworkProcess())
+        return m_networkProcess->createDownloadProxy();
+#endif
 
-void WebContext::downloadFinished(DownloadProxy* downloadProxy)
-{
-    ASSERT(m_downloads.contains(downloadProxy->downloadID()));
-
-    downloadProxy->invalidate();
-    removeMessageReceiver(Messages::DownloadProxy::messageReceiverName(), downloadProxy->downloadID());
-    m_downloads.remove(downloadProxy->downloadID());
+    return ensureSharedWebProcess()->createDownloadProxy();
 }
 
 // FIXME: This is not the ideal place for this function.
@@ -853,13 +899,6 @@ void WebContext::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::Mes
         return;
     }
 
-    if (messageID.is<CoreIPC::MessageClassDownloadProxy>()) {
-        if (DownloadProxy* downloadProxy = m_downloads.get(decoder.destinationID()).get())
-            downloadProxy->didReceiveDownloadProxyMessage(connection, messageID, decoder);
-        
-        return;
-    }
-
     switch (messageID.get<WebContextLegacyMessage::Kind>()) {
         case WebContextLegacyMessage::PostMessage: {
             String messageName;
@@ -884,12 +923,6 @@ void WebContext::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC:
 {
     if (messageID.is<CoreIPC::MessageClassWebContext>()) {
         didReceiveSyncWebContextMessage(connection, messageID, decoder, replyEncoder);
-        return;
-    }
-
-    if (messageID.is<CoreIPC::MessageClassDownloadProxy>()) {
-        if (DownloadProxy* downloadProxy = m_downloads.get(decoder.destinationID()).get())
-            downloadProxy->didReceiveSyncDownloadProxyMessage(connection, messageID, decoder, replyEncoder);
         return;
     }
 
@@ -999,6 +1032,21 @@ String WebContext::cookieStorageDirectory() const
     return platformDefaultCookieStorageDirectory();
 }
 
+void WebContext::allowSpecificHTTPSCertificateForHost(const WebCertificateInfo* certificate, const String& host)
+{
+#if ENABLE(NETWORK_PROCESS)
+    if (m_usesNetworkProcess && m_networkProcess) {
+        m_networkProcess->send(Messages::NetworkProcess::AllowSpecificHTTPSCertificateForHost(certificate->platformCertificateInfo(), host), 0);
+        return;
+    }
+#else
+    UNUSED_PARAM(certificate);
+    UNUSED_PARAM(host);
+#endif
+    // FIXME: It's unclear whether we want this SPI to be exposed and used for clients that don't use the NetworkProcess.
+    ASSERT_NOT_REACHED();
+}
+
 void WebContext::setHTTPPipeliningEnabled(bool enabled)
 {
 #if PLATFORM(MAC)
@@ -1081,5 +1129,37 @@ void WebContext::setJavaScriptGarbageCollectorTimerEnabled(bool flag)
 {
     sendToAllProcesses(Messages::WebProcess::SetJavaScriptGarbageCollectorTimerEnabled(flag));
 }
+
+void WebContext::addPlugInAutoStartOriginHash(const String& pageOrigin, unsigned plugInOriginHash)
+{
+    m_plugInAutoStartProvider.addAutoStartOrigin(pageOrigin, plugInOriginHash);
+}
+
+void WebContext::plugInDidReceiveUserInteraction(unsigned plugInOriginHash)
+{
+    m_plugInAutoStartProvider.didReceiveUserInteraction(plugInOriginHash);
+}
+
+PassRefPtr<ImmutableDictionary> WebContext::plugInAutoStartOriginHashes() const
+{
+    return m_plugInAutoStartProvider.autoStartOriginsTableCopy();
+}
+
+void WebContext::setPlugInAutoStartOriginHashes(ImmutableDictionary& dictionary)
+{
+    return m_plugInAutoStartProvider.setAutoStartOriginsTable(dictionary);
+}
+
+#if ENABLE(CUSTOM_PROTOCOLS)
+void WebContext::registerSchemeForCustomProtocol(const String& scheme)
+{
+    sendToNetworkingProcess(Messages::CustomProtocolManager::RegisterScheme(scheme));
+}
+
+void WebContext::unregisterSchemeForCustomProtocol(const String& scheme)
+{
+    sendToNetworkingProcess(Messages::CustomProtocolManager::UnregisterScheme(scheme));
+}
+#endif
 
 } // namespace WebKit

@@ -149,7 +149,7 @@ public:
 
     virtual void showVirtualKeyboard(bool) = 0;
 
-    virtual void requestSpellingCheckingOptions(imf_sp_text_t&, const BlackBerry::Platform::IntRect& documentCaretRect, const BlackBerry::Platform::IntSize& screenOffset) = 0;
+    virtual void requestSpellingCheckingOptions(imf_sp_text_t&, const BlackBerry::Platform::IntRect& documentCaretRect, const BlackBerry::Platform::IntSize& screenOffset, const bool shouldMoveDialog) = 0;
     virtual int32_t checkSpellingOfStringAsync(wchar_t* text, const unsigned length) = 0;
 
     virtual void notifySelectionDetailsChanged(const Platform::IntRect& documentStartRect, const Platform::IntRect& documentEndRect, const Platform::IntRectRegion& documentRegion, bool overrideTouchHandling = false) = 0;
@@ -178,7 +178,7 @@ public:
     virtual void scheduleCloseWindow() = 0;
 
     // Database interface.
-    virtual unsigned long long databaseQuota(const unsigned short* origin, unsigned originLength, const unsigned short* databaseName, unsigned databaseNameLength, unsigned long long totalUsage, unsigned long long originUsage, unsigned long long estimatedSize) = 0;
+    virtual unsigned long long databaseQuota(const unsigned short* origin, unsigned originLength, const unsigned short* databaseName, unsigned databaseNameLength, unsigned long long originUsage, unsigned long long currentQuota, unsigned long long estimatedSize) = 0;
 
     virtual void setIconForUrl(const BlackBerry::Platform::String& originalPageUrl, const BlackBerry::Platform::String& finalPageUrl, const BlackBerry::Platform::String& iconUrl) = 0;
     virtual void setFavicon(const BlackBerry::Platform::String& dataInBase64, const BlackBerry::Platform::String& url) = 0;

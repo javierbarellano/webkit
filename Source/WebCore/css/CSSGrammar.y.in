@@ -173,6 +173,9 @@ static inline int cssyyerror(void*, const char*)
 %token <string> URI
 %token <string> FUNCTION
 %token <string> ANYFUNCTION
+#if ENABLE_VIDEO_TRACK
+%token <string> CUEFUNCTION
+#endif
 %token <string> NOTFUNCTION
 %token <string> CALCFUNCTION
 %token <string> MINFUNCTION
@@ -202,6 +205,7 @@ static inline int cssyyerror(void*, const char*)
 %type <rule> rule
 %type <rule> valid_rule
 %type <ruleList> block_rule_list 
+%type <ruleList> region_block_rule_list
 %type <rule> block_rule
 %type <rule> block_valid_rule
 %type <rule> region
@@ -442,6 +446,18 @@ block_rule_list:
   }
   ;
 
+region_block_rule_list:
+    /* empty */ { $$ = 0; }
+  | region_block_rule_list block_valid_rule maybe_sgml {
+      $$ = $1;
+      if ($2) {
+          if (!$$)
+              $$ = parser->createRuleList();
+          $$->append($2);
+      }
+  }
+  ;
+
 block_valid_rule:
     ruleset
   | page
@@ -459,6 +475,7 @@ block_rule:
   | namespace
   | import
   | media
+  | region
 #if ENABLE_CSS3_CONDITIONAL_RULES
   | supports
 #endif
@@ -985,7 +1002,7 @@ before_region_rule:
     ;
 
 region:
-    before_region_rule WEBKIT_REGION_RULE_SYM WHITESPACE region_selector at_rule_header_end '{' at_rule_body_start maybe_space block_rule_list save_block {
+    before_region_rule WEBKIT_REGION_RULE_SYM WHITESPACE region_selector at_rule_header_end '{' at_rule_body_start maybe_space region_block_rule_list save_block {
         if ($4)
             $$ = parser->createRegionRule($4, $9);
         else {
@@ -1323,6 +1340,21 @@ pseudo:
         if (type == CSSSelector::PseudoUnknown)
             $$ = 0;
     }
+#if ENABLE_VIDEO_TRACK
+    // used by ::cue(:past/:future)
+    | ':' ':' CUEFUNCTION maybe_space simple_selector_list maybe_space ')' {
+        if ($5) {
+            $$ = parser->createFloatingSelector();
+            $$->setMatch(CSSSelector::PseudoClass);
+            $$->adoptSelectorVector(*parser->sinkFloatingSelectorVector($5));
+            $$->setValue($3);
+            CSSSelector::PseudoType type = $$->pseudoType();
+            if (type != CSSSelector::PseudoCue)
+                $$ = 0;
+        } else
+            $$ = 0;
+    }
+#endif
     // use by :-webkit-any.
     // FIXME: should we support generic selectors here or just simple_selectors?
     // Use simple_selector_list for now to match -moz-any.

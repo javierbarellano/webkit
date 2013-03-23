@@ -621,6 +621,28 @@ String localizedMediaTimeDescription(float time)
 #endif // ENABLE(VIDEO)
 
 
+#if ENABLE(VIDEO_TRACK)
+String textTrackClosedCaptionsText()
+{
+    return WEB_UI_STRING("Closed Captions", "Menu section heading for closed captions");
+}
+
+String textTrackSubtitlesText()
+{
+    return WEB_UI_STRING("Subtitles", "Menu section heading for subtitles");
+}
+
+String textTrackOffText()
+{
+    return WEB_UI_STRING("Off", "Menu item label for the track that represents disabling closed captions");
+}
+
+String textTrackNoLabelText()
+{
+    return WEB_UI_STRING("No label", "Menu item label for a closed captions track that has no other name");
+}
+#endif
+
 String validationMessageValueMissingText()
 {
     notImplemented();

@@ -42,6 +42,7 @@
 #include "HTMLOptionElement.h"
 #include "KeyboardEvent.h"
 #include "LocalizedStrings.h"
+#include "NodeTraversal.h"
 #include "Page.h"
 #include "PickerIndicatorElement.h"
 #include "PlatformLocale.h"
@@ -358,7 +359,7 @@ void BaseMultipleFieldsDateAndTimeInputType::updateInnerTextValue()
         return;
 
     AtomicString direction = element()->locale().isRTL() ? AtomicString("rtl", AtomicString::ConstructFromLiteral) : AtomicString("ltr", AtomicString::ConstructFromLiteral);
-    if (Element* container = firstElementChild(element()->userAgentShadowRoot()))
+    if (Element* container = ElementTraversal::firstWithin(element()->userAgentShadowRoot()))
         container->setAttribute(HTMLNames::dirAttr, direction);
 
     DateTimeEditElement::LayoutParameters layoutParameters(element()->locale(), createStepRange(AnyIsDefaultStep));
@@ -419,14 +420,6 @@ void BaseMultipleFieldsDateAndTimeInputType::showPickerIndicator()
     m_pickerIndicatorIsVisible = true;
     ASSERT(m_pickerIndicatorElement);
     m_pickerIndicatorElement->removeInlineStyleProperty(CSSPropertyDisplay);
-}
-
-int BaseMultipleFieldsDateAndTimeInputType::fullYear(const String& source) const
-{
-    DateComponents date;
-    if (!parseToDateComponents(source, &date))
-        return DateTimeEditElement::LayoutParameters::undefinedYear();
-    return date.fullYear();
 }
 
 bool BaseMultipleFieldsDateAndTimeInputType::shouldHaveSecondField(const DateComponents& date) const

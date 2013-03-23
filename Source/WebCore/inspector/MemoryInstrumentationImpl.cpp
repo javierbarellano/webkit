@@ -34,6 +34,7 @@
 
 #include "MemoryInstrumentationImpl.h"
 
+#include "HeapGraphSerializer.h"
 #include "WebCoreMemoryInstrumentation.h"
 #include <wtf/Assertions.h>
 #include <wtf/MemoryInstrumentationHashMap.h>
@@ -94,6 +95,30 @@ bool MemoryInstrumentationClientImpl::checkCountedObject(const void* object)
     return true;
 }
 
+void MemoryInstrumentationClientImpl::reportNode(const MemoryObjectInfo& node)
+{
+    if (m_graphSerializer)
+        m_graphSerializer->reportNode(node);
+}
+
+void MemoryInstrumentationClientImpl::reportEdge(const void* target, const char* name, MemberType memberType)
+{
+    if (m_graphSerializer)
+        m_graphSerializer->reportEdge(target, name, memberType);
+}
+
+void MemoryInstrumentationClientImpl::reportLeaf(const MemoryObjectInfo& target, const char* edgeName)
+{
+    if (m_graphSerializer)
+        m_graphSerializer->reportLeaf(target, edgeName);
+}
+
+void MemoryInstrumentationClientImpl::reportBaseAddress(const void* base, const void* real)
+{
+    if (m_graphSerializer)
+        m_graphSerializer->reportBaseAddress(base, real);
+}
+
 void MemoryInstrumentationClientImpl::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
     MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::InspectorMemoryAgent);
@@ -103,24 +128,24 @@ void MemoryInstrumentationClientImpl::reportMemoryUsage(MemoryObjectInfo* memory
     info.addMember(m_countedObjects);
 }
 
-void MemoryInstrumentationImpl::processDeferredInstrumentedPointers()
+void MemoryInstrumentationImpl::processDeferredObjects()
 {
-    while (!m_deferredInstrumentedPointers.isEmpty()) {
-        OwnPtr<InstrumentedPointerBase> pointer = m_deferredInstrumentedPointers.last().release();
-        m_deferredInstrumentedPointers.removeLast();
+    while (!m_deferredObjects.isEmpty()) {
+        OwnPtr<WrapperBase> pointer = m_deferredObjects.last().release();
+        m_deferredObjects.removeLast();
         pointer->process(this);
     }
 }
 
-void MemoryInstrumentationImpl::deferInstrumentedPointer(PassOwnPtr<InstrumentedPointerBase> pointer)
+void MemoryInstrumentationImpl::deferObject(PassOwnPtr<WrapperBase> pointer)
 {
-    m_deferredInstrumentedPointers.append(pointer);
+    m_deferredObjects.append(pointer);
 }
 
 void MemoryInstrumentationImpl::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
     MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::InspectorMemoryAgent);
-    info.addMember(m_deferredInstrumentedPointers);
+    info.addMember(m_deferredObjects);
 }
 
 

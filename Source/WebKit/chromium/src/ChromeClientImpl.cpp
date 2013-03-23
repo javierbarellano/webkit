@@ -45,7 +45,6 @@
 #endif
 #include "Console.h"
 #include "Cursor.h"
-#include "DatabaseTracker.h"
 #include "DateTimeChooser.h"
 #include "DateTimeChooserImpl.h"
 #include "Document.h"
@@ -392,7 +391,6 @@ void ChromeClientImpl::setResizable(bool value)
 }
 
 void ChromeClientImpl::addMessageToConsole(MessageSource source,
-                                           MessageType type,
                                            MessageLevel level,
                                            const String& message,
                                            unsigned lineNumber,

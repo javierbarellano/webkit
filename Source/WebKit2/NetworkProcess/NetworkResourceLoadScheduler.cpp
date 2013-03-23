@@ -128,8 +128,12 @@ void NetworkResourceLoadScheduler::receivedRedirect(ResourceLoadIdentifier ident
     LOG(NetworkScheduling, "(NetworkProcess) NetworkResourceLoadScheduler::receivedRedirect resource %llu redirected to '%s'", identifier, redirectURL.string().utf8().data());
 
     HostRecord* oldHost = m_identifiers.get(identifier);
+
+    // The load may have been cancelled while the message was in flight from network thread to main thread.
+    if (!oldHost)
+        return;
+
     HostRecord* newHost = hostForURL(redirectURL, CreateIfNotFound);
-    ASSERT(oldHost);
     
     if (oldHost->name() == newHost->name())
         return;
@@ -203,22 +207,6 @@ void NetworkResourceLoadScheduler::servePendingRequestsForHost(HostRecord* host,
             loader->start();
         }
     }
-}
-
-void NetworkResourceLoadScheduler::suspendPendingRequests()
-{
-    ++m_suspendPendingRequestsCount;
-}
-
-void NetworkResourceLoadScheduler::resumePendingRequests()
-{
-    ASSERT(m_suspendPendingRequestsCount);
-    --m_suspendPendingRequestsCount;
-    if (m_suspendPendingRequestsCount)
-        return;
-
-    if (!m_hosts.isEmpty() || m_nonHTTPProtocolHost->hasRequests())
-        scheduleServePendingRequests();
 }
 
 static bool removeScheduledLoadIdentifiersCalled = false;

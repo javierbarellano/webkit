@@ -51,7 +51,7 @@ public:
             , showPlatformLayerTree(false)
             , showPaintRects(false)
             , renderVSyncEnabled(true)
-            , lowLatencyRenderingEnabled(false)
+            , renderVSyncNotificationEnabled(false)
             , perTilePaintingEnabled(false)
             , partialSwapEnabled(false)
             , acceleratedAnimationEnabled(true)
@@ -68,7 +68,7 @@ public:
         bool showPlatformLayerTree;
         bool showPaintRects;
         bool renderVSyncEnabled;
-        bool lowLatencyRenderingEnabled;
+        bool renderVSyncNotificationEnabled;
         bool perTilePaintingEnabled;
         bool partialSwapEnabled;
         bool acceleratedAnimationEnabled;
@@ -77,11 +77,6 @@ public:
         WebSize defaultTileSize;
         WebSize maxUntiledLayerSize;
     };
-
-#define WEBLAYERTREEVIEW_IS_PURE_VIRTUAL
-    // Attempts to initialize this WebLayerTreeView with the given client, root layer, and settings.
-    // If initialization fails, this will return nil.
-    WEBKIT_EXPORT static WebLayerTreeView* create(WebLayerTreeViewClient*, const WebLayer& root, const Settings&);
 
     virtual ~WebLayerTreeView() { }
 
@@ -158,6 +153,9 @@ public:
     // mode.
     virtual void updateAnimations(double frameBeginTime) = 0;
 
+    // Relays the end of a fling animation.
+    virtual void didStopFlinging() { }
+
     // Composites and attempts to read back the result into the provided
     // buffer. If it wasn't possible, e.g. due to context lost, will return
     // false. Pixel format is 32bit (RGBA), and the provided buffer must be
@@ -185,8 +183,8 @@ public:
     // Toggles the paint rects in the HUD layer
     virtual void setShowPaintRects(bool) { }
 
-    // Simulates a lost context. For testing only.
-    virtual void loseCompositorContext(int numTimes) = 0;
+    // FIXME: Remove this.
+    virtual void loseCompositorContext(int numTimes) { }
 };
 
 } // namespace WebKit

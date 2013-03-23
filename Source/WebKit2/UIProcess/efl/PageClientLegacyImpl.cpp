@@ -27,8 +27,8 @@
 #include "config.h"
 #include "PageClientLegacyImpl.h"
 
+#include "CoordinatedLayerTreeHostProxy.h"
 #include "EwkViewImpl.h"
-#include "LayerTreeCoordinatorProxy.h"
 #include "NotImplemented.h"
 #include "ewk_view.h"
 
@@ -47,12 +47,10 @@ void PageClientLegacyImpl::didCommitLoad()
     m_viewImpl->update();
 }
 
-void PageClientLegacyImpl::updateViewportSize(const WebCore::IntSize& size)
+void PageClientLegacyImpl::updateViewportSize()
 {
 #if USE(TILED_BACKING_STORE)
-    m_viewImpl->page()->drawingArea()->setVisibleContentsRect(IntRect(roundedIntPoint(m_viewImpl->pagePosition()), size), m_viewImpl->scaleFactor(), FloatPoint());
-#else
-    UNUSED_PARAM(size);
+    m_viewImpl->page()->drawingArea()->setVisibleContentsRect(IntRect(roundedIntPoint(m_viewImpl->pagePosition()), m_viewImpl->size()), m_viewImpl->scaleFactor(), FloatPoint());
 #endif
 }
 
@@ -76,7 +74,7 @@ void PageClientLegacyImpl::didChangeViewportProperties(const WebCore::ViewportAt
 void PageClientLegacyImpl::didChangeContentsSize(const WebCore::IntSize& size)
 {
 #if USE(TILED_BACKING_STORE)
-    m_viewImpl->page()->drawingArea()->layerTreeCoordinatorProxy()->setContentsSize(FloatSize(size.width(), size.height()));
+    m_viewImpl->page()->drawingArea()->coordinatedLayerTreeHostProxy()->setContentsSize(FloatSize(size.width(), size.height()));
     m_viewImpl->update();
 #endif
 

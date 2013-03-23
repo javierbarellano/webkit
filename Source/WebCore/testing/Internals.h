@@ -55,6 +55,7 @@ class ShadowRoot;
 class WebKitPoint;
 class MallocStatistics;
 class SerializedScriptValue;
+class TypeConversions;
 
 typedef int ExceptionCode;
 
@@ -80,6 +81,7 @@ public:
     typedef Node ShadowRootIfShadowDOMEnabledOrNode;
 #endif
     ShadowRootIfShadowDOMEnabledOrNode* ensureShadowRoot(Element* host, ExceptionCode&);
+    ShadowRootIfShadowDOMEnabledOrNode* createShadowRoot(Element* host, ExceptionCode&);
     ShadowRootIfShadowDOMEnabledOrNode* shadowRoot(Element* host, ExceptionCode&);
     ShadowRootIfShadowDOMEnabledOrNode* youngestShadowRoot(Element* host, ExceptionCode&);
     ShadowRootIfShadowDOMEnabledOrNode* oldestShadowRoot(Element* host, ExceptionCode&);
@@ -92,6 +94,9 @@ public:
     Element* includerFor(Node*, ExceptionCode&);
     String shadowPseudoId(Element*, ExceptionCode&);
     void setShadowPseudoId(Element*, const String&, ExceptionCode&);
+
+    bool pauseAnimationAtTimeOnPseudoElement(const String& animationName, double pauseTime, Element*, const String& pseudoId, ExceptionCode&);
+    bool pauseTransitionAtTimeOnPseudoElement(const String& property, double pauseTime, Element*, const String& pseudoId, ExceptionCode&);
 
     PassRefPtr<Element> createContentElement(Document*, ExceptionCode&);
     bool isValidContentSelect(Element* insertionPoint, ExceptionCode&);
@@ -170,6 +175,9 @@ public:
 
     unsigned wheelEventHandlerCount(Document*, ExceptionCode&);
     unsigned touchEventHandlerCount(Document*, ExceptionCode&);
+#if ENABLE(TOUCH_EVENT_TRACKING)
+    PassRefPtr<ClientRectList> touchEventTargetClientRects(Document*, ExceptionCode&);
+#endif
 
     PassRefPtr<NodeList> nodesFromRect(Document*, int x, int y, unsigned topPadding, unsigned rightPadding,
         unsigned bottomPadding, unsigned leftPadding, bool ignoreClipping, bool allowShadowContent, ExceptionCode&) const;
@@ -207,6 +215,8 @@ public:
     String layerTreeAsText(Document*, ExceptionCode&) const;
     String repaintRectsAsText(Document*, ExceptionCode&) const;
     String scrollingStateTreeAsText(Document*, ExceptionCode&) const;
+
+    String mainThreadScrollingReasons(Document*, ExceptionCode&) const;
 
     void garbageCollectDocumentResources(Document*, ExceptionCode&) const;
 
@@ -247,6 +257,7 @@ public:
     void removeURLSchemeRegisteredAsBypassingContentSecurityPolicy(const String& scheme);
 
     PassRefPtr<MallocStatistics> mallocStatistics() const;
+    PassRefPtr<TypeConversions> typeConversions() const;
 
     PassRefPtr<DOMStringList> getReferencedFilePaths() const;
 

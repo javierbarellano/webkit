@@ -143,7 +143,9 @@ class Driver(object):
 
         self._measurements = {}
         if self._port.get_option("profile"):
-            self._profiler = ProfilerFactory.create_profiler(self._port.host, self._port._path_to_driver(), self._port.results_directory())
+            profiler_name = self._port.get_option("profiler")
+            self._profiler = ProfilerFactory.create_profiler(self._port.host,
+                self._port._path_to_driver(), self._port.results_directory(), profiler_name)
         else:
             self._profiler = None
 
@@ -276,12 +278,9 @@ class Driver(object):
         # into run_test() directly.
         if not self._server_process:
             self._start(pixel_tests, per_test_args)
+            self._run_post_start_tasks()
 
-    def _start(self, pixel_tests, per_test_args):
-        self.stop()
-        self._driver_tempdir = self._port._filesystem.mkdtemp(prefix='%s-' % self._port.driver_name())
-        server_name = self._port.driver_name()
-        environment = self._port.setup_environ_for_server(server_name)
+    def _setup_environ_for_driver(self, environment):
         environment['DYLD_LIBRARY_PATH'] = self._port._build_path()
         environment['DYLD_FRAMEWORK_PATH'] = self._port._build_path()
         # FIXME: We're assuming that WebKitTestRunner checks this DumpRenderTree-named environment variable.
@@ -291,12 +290,27 @@ class Driver(object):
             environment['WEBKITOUTPUTDIR'] = os.environ['WEBKITOUTPUTDIR']
         if self._profiler:
             environment = self._profiler.adjusted_environment(environment)
+        return environment
+
+    def _start(self, pixel_tests, per_test_args):
+        self.stop()
+        self._driver_tempdir = self._port._filesystem.mkdtemp(prefix='%s-' % self._port.driver_name())
+        server_name = self._port.driver_name()
+        environment = self._port.setup_environ_for_server(server_name)
+        environment = self._setup_environ_for_driver(environment)
         self._crashed_process_name = None
         self._crashed_pid = None
         self._server_process = self._port._server_process_constructor(self._port, server_name, self.cmd_line(pixel_tests, per_test_args), environment)
         self._server_process.start()
+
+    def _run_post_start_tasks(self):
+        # Remote drivers may override this to delay post-start tasks until the server has ack'd.
         if self._profiler:
-            self._profiler.attach_to_pid(self._server_process.pid())
+            self._profiler.attach_to_pid(self._pid_on_target())
+
+    def _pid_on_target(self):
+        # Remote drivers will override this method to return the pid on the device.
+        return self._server_process.pid()
 
     def stop(self):
         if self._server_process:
@@ -526,16 +540,6 @@ class DriverProxy(object):
             self._running_drivers[cmd_line_key] = self._make_driver(pixel_tests_needed)
 
         return self._running_drivers[cmd_line_key].run_test(driver_input, stop_when_done)
-
-    def start(self):
-        # FIXME: Callers shouldn't normally call this, since this routine
-        # may not be specifying the correct combination of pixel test and
-        # per_test args.
-        #
-        # The only reason we have this routine at all is so the perftestrunner
-        # can pause before running a test; it might be better to push that
-        # into run_test() directly.
-        self._driver.start(self._port.get_option('pixel_tests'), [])
 
     def has_crashed(self):
         return any(driver.has_crashed() for driver in self._running_drivers.values())

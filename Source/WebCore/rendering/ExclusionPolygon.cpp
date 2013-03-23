@@ -115,10 +115,10 @@ ExclusionPolygon::ExclusionPolygon(PassOwnPtr<Vector<FloatPoint> > vertices, Win
     do {
         m_boundingBox.extend(vertexAt(vertexIndex1));
         unsigned vertexIndex2 = findNextEdgeVertexIndex(vertexIndex1, clockwise);
-        m_edges[edgeIndex].polygon = this;
-        m_edges[edgeIndex].vertexIndex1 = vertexIndex1;
-        m_edges[edgeIndex].vertexIndex2 = vertexIndex2;
-        m_edges[edgeIndex].edgeIndex = edgeIndex;
+        m_edges[edgeIndex].m_polygon = this;
+        m_edges[edgeIndex].m_vertexIndex1 = vertexIndex1;
+        m_edges[edgeIndex].m_vertexIndex2 = vertexIndex2;
+        m_edges[edgeIndex].m_edgeIndex = edgeIndex;
         edgeIndex++;
         vertexIndex1 = vertexIndex2;
     } while (vertexIndex1);
@@ -127,7 +127,7 @@ ExclusionPolygon::ExclusionPolygon(PassOwnPtr<Vector<FloatPoint> > vertices, Win
         const ExclusionPolygonEdge& firstEdge = m_edges[0];
         const ExclusionPolygonEdge& lastEdge = m_edges[edgeIndex - 1];
         if (areCollinearPoints(lastEdge.vertex1(), lastEdge.vertex2(), firstEdge.vertex2())) {
-            m_edges[0].vertexIndex1 = lastEdge.vertexIndex1;
+            m_edges[0].m_vertexIndex1 = lastEdge.m_vertexIndex1;
             edgeIndex--;
         }
     }
@@ -184,19 +184,19 @@ static inline bool getVertexIntersectionVertices(const EdgeIntersection& interse
     if (intersection.type != VertexMinY && intersection.type != VertexMaxY)
         return false;
 
-    ASSERT(intersection.edge && intersection.edge->polygon);
-    const ExclusionPolygon& polygon = *(intersection.edge->polygon);
+    ASSERT(intersection.edge && intersection.edge->polygon());
+    const ExclusionPolygon& polygon = *(intersection.edge->polygon());
     const ExclusionPolygonEdge& thisEdge = *(intersection.edge);
 
     if ((intersection.type == VertexMinY && (thisEdge.vertex1().y() < thisEdge.vertex2().y()))
         || (intersection.type == VertexMaxY && (thisEdge.vertex1().y() > thisEdge.vertex2().y()))) {
-        prevVertex = polygon.vertexAt(thisEdge.previousEdge().vertexIndex1);
-        thisVertex = polygon.vertexAt(thisEdge.vertexIndex1);
-        nextVertex = polygon.vertexAt(thisEdge.vertexIndex2);
+        prevVertex = polygon.vertexAt(thisEdge.previousEdge().vertexIndex1());
+        thisVertex = polygon.vertexAt(thisEdge.vertexIndex1());
+        nextVertex = polygon.vertexAt(thisEdge.vertexIndex2());
     } else {
-        prevVertex = polygon.vertexAt(thisEdge.vertexIndex1);
-        thisVertex = polygon.vertexAt(thisEdge.vertexIndex2);
-        nextVertex = polygon.vertexAt(thisEdge.nextEdge().vertexIndex2);
+        prevVertex = polygon.vertexAt(thisEdge.vertexIndex1());
+        thisVertex = polygon.vertexAt(thisEdge.vertexIndex2());
+        nextVertex = polygon.vertexAt(thisEdge.nextEdge().vertexIndex2());
     }
 
     return true;
@@ -327,8 +327,8 @@ void ExclusionPolygon::getExcludedIntervals(float logicalTop, float logicalHeigh
     if (isEmpty())
         return;
 
-    float y1 = minYForLogicalLine(logicalTop, logicalHeight);
-    float y2 = maxYForLogicalLine(logicalTop, logicalHeight);
+    float y1 = logicalTop;
+    float y2 = y1 + logicalHeight;
 
     Vector<ExclusionInterval> y1XIntervals, y2XIntervals;
     computeXIntersections(y1, true, y1XIntervals);
@@ -354,8 +354,8 @@ void ExclusionPolygon::getIncludedIntervals(float logicalTop, float logicalHeigh
     if (isEmpty())
         return;
 
-    float y1 = minYForLogicalLine(logicalTop, logicalHeight);
-    float y2 = maxYForLogicalLine(logicalTop, logicalHeight);
+    float y1 = logicalTop;
+    float y2 = y1 + logicalHeight;
 
     Vector<ExclusionInterval> y1XIntervals, y2XIntervals;
     computeXIntersections(y1, true, y1XIntervals);
@@ -383,8 +383,8 @@ bool ExclusionPolygon::firstIncludedIntervalLogicalTop(float minLogicalIntervalT
     if (minLogicalIntervalSize.width() > m_boundingBox.width())
         return false;
 
-    float minY = minYForLogicalLine(minLogicalIntervalTop, minLogicalIntervalSize.height());
-    float maxY = maxYForLogicalLine(minLogicalIntervalTop, minLogicalIntervalSize.height());
+    float minY = std::max(m_boundingBox.y(), minLogicalIntervalTop);
+    float maxY = minY + minLogicalIntervalSize.height();
     if (minY < m_boundingBox.y() || maxY > m_boundingBox.maxY())
         return false;
 

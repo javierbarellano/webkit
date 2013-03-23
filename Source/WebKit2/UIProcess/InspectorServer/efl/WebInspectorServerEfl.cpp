@@ -23,23 +23,17 @@
  */
 
 #include "config.h"
+
+#if ENABLE(INSPECTOR_SERVER)
 #include "WebInspectorServer.h"
 
 #include "WebInspectorProxy.h"
 #include "WebPageProxy.h"
+#include <WebCore/EflInspectorUtilities.h>
 #include <WebCore/MIMETypeRegistry.h>
 #include <sys/stat.h>
 
 namespace WebKit {
-
-static String inspectorResourcePath()
-{
-    String inspectorFilesPath = String::fromUTF8(WEB_INSPECTOR_INSTALL_DIR);
-    if (access(inspectorFilesPath.utf8().data(), R_OK))
-        inspectorFilesPath = String::fromUTF8(WEB_INSPECTOR_DIR);
-
-    return inspectorFilesPath;
-}
 
 bool WebInspectorServer::platformResourceForPath(const String& path, Vector<char>& data, String& contentType)
 {
@@ -50,7 +44,7 @@ bool WebInspectorServer::platformResourceForPath(const String& path, Vector<char
     }
 
     // Point the default path to a formatted page that queries the page list and display them.
-    String localPath = inspectorResourcePath() + ((path == "/") ? ASCIILiteral("/inspectorPageIndex.html") : path);
+    String localPath = WebCore::inspectorResourcePath() + ((path == "/") ? ASCIILiteral("/inspectorPageIndex.html") : path);
 
     FILE* fileHandle = fopen(localPath.utf8().data(), "r");
     if (!fileHandle)
@@ -111,3 +105,4 @@ void WebInspectorServer::buildPageList(Vector<char>& data, String& contentType)
 }
 
 }
+#endif

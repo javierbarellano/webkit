@@ -80,8 +80,7 @@ public:
 
     virtual ~TextTrackCue();
 
-    static const AtomicString& pastNodesShadowPseudoId();
-    static const AtomicString& futureNodesShadowPseudoId();
+    static const AtomicString& allNodesShadowPseudoId();
 
     TextTrack* track() const;
     void setTrack(TextTrack*);
@@ -119,6 +118,7 @@ public:
     const String& text() const { return m_content; }
     void setText(const String&);
 
+    const String& cueSettings() const { return m_settings; }
     void setCueSettings(const String&);
 
     int cueIndex();
@@ -126,8 +126,8 @@ public:
 
     PassRefPtr<DocumentFragment> getCueAsHTML();
 
-    virtual bool dispatchEvent(PassRefPtr<Event>);
-    bool dispatchEvent(PassRefPtr<Event>, ExceptionCode&);
+    using EventTarget::dispatchEvent;
+    virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
 
     bool isActive();
     void setIsActive(bool);
@@ -135,6 +135,7 @@ public:
     PassRefPtr<TextTrackCueBox> getDisplayTree();
     void updateDisplayTree(float);
     void removeDisplayTree();
+    void markFutureAndPastNodes(Element*, double, double);
 
     int calculateComputedLinePosition();
 
@@ -184,6 +185,7 @@ private:
     double m_startTime;
     double m_endTime;
     String m_content;
+    String m_settings;
     int m_linePosition;
     int m_computedLinePosition;
     int m_textPosition;
@@ -206,8 +208,7 @@ private:
     bool m_snapToLines;
 
     bool m_hasInnerTimestamps;
-    RefPtr<HTMLDivElement> m_pastDocumentNodes;
-    RefPtr<HTMLDivElement> m_futureDocumentNodes;
+    RefPtr<HTMLDivElement> m_allDocumentNodes;
 
     bool m_displayTreeShouldChange;
     RefPtr<TextTrackCueBox> m_displayTree;

@@ -27,18 +27,26 @@
 #define ChildProcess_h
 
 #include "Connection.h"
+#include "MessageReceiverMap.h"
+#include "MessageSender.h"
 #include <WebCore/RunLoop.h>
-
-#if PLATFORM(MAC)
-OBJC_CLASS NSString;
-#endif
+#include <wtf/RetainPtr.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebKit {
 
-class ChildProcess : protected CoreIPC::Connection::Client {
+struct ChildProcessInitializationParameters {
+    String uiProcessName;
+    String clientIdentifier;
+    CoreIPC::Connection::Identifier connectionIdentifier;
+};
+
+class ChildProcess : protected CoreIPC::Connection::Client, public CoreIPC::MessageSender<ChildProcess> {
     WTF_MAKE_NONCOPYABLE(ChildProcess);
 
 public:
+    void initialize(const ChildProcessInitializationParameters&);
+
     // disable and enable termination of the process. when disableTermination is called, the
     // process won't terminate unless a corresponding disableTermination call is made.
     void disableTermination();
@@ -61,33 +69,38 @@ public:
         ChildProcess& m_childProcess;
     };
 
+    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, CoreIPC::MessageReceiver*);
+    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID, CoreIPC::MessageReceiver*);
+    void removeMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID);
+
 #if PLATFORM(MAC)
-    bool applicationIsOccluded() const { return m_applicationIsOccluded; }
+    bool applicationIsOccluded() const { return !m_processVisibleAssertion; }
     void setApplicationIsOccluded(bool);
 #endif
 
-    static void didCloseOnConnectionWorkQueue(WorkQueue&, CoreIPC::Connection*);
+    CoreIPC::Connection* parentProcessConnection() const { return m_connection.get(); }
+
+    // Used by CoreIPC::MessageSender
+    CoreIPC::Connection* connection() const { return m_connection.get(); }
+    uint64_t destinationID() const { return 0; }
+
+    CoreIPC::MessageReceiverMap& messageReceiverMap() { return m_messageReceiverMap; }
 
 protected:
     explicit ChildProcess();
-    ~ChildProcess();
+    virtual ~ChildProcess();
 
     void setTerminationTimeout(double seconds) { m_terminationTimeout = seconds; }
 
-private:
-    void terminationTimerFired();
+    virtual void initializeConnection(CoreIPC::Connection*);
+    virtual void initializeSandbox(const String& clientIdentifier);
+    virtual void platformInitialize();
 
     virtual bool shouldTerminate() = 0;
     virtual void terminate();
 
-#if PLATFORM(MAC)
-    void disableProcessSuppression(NSString *reason);
-    void enableProcessSuppression(NSString *reason);
-
-    static NSString * const processSuppressionVisibleApplicationReason;
-#endif
-
-    void platformInitialize();
+private:
+    void terminationTimerFired();
 
     // The timeout, in seconds, before this process will be terminated if termination
     // has been enabled. If the timeout is 0 seconds, the process will be terminated immediately.
@@ -99,8 +112,11 @@ private:
 
     WebCore::RunLoop::Timer<ChildProcess> m_terminationTimer;
 
+    RefPtr<CoreIPC::Connection> m_connection;
+    CoreIPC::MessageReceiverMap m_messageReceiverMap;
+
 #if PLATFORM(MAC)
-    bool m_applicationIsOccluded;
+    RetainPtr<id> m_processVisibleAssertion;
 #endif
 };
 

@@ -27,9 +27,13 @@
 #include "HTMLImageLoader.h"
 #include "HTMLNames.h"
 #include "Image.h"
+#include "Logging.h"
 #include "MouseEvent.h"
 #include "NodeRenderStyle.h"
 #include "Page.h"
+#include "PlugInClient.h"
+#include "PlugInOriginHash.h"
+#include "PluginViewBase.h"
 #include "RenderEmbeddedObject.h"
 #include "RenderImage.h"
 #include "RenderSnapshottedPlugIn.h"
@@ -39,6 +43,8 @@
 
 namespace WebCore {
 
+static const int autoStartPlugInSizeThresholdWidth = 1;
+static const int autoStartPlugInSizeThresholdHeight = 1;
 // This delay should not exceed the snapshot delay in PluginView.cpp
 static const double simulatedMouseClickTimerDelay = .75;
 
@@ -54,11 +60,6 @@ HTMLPlugInImageElement::HTMLPlugInImageElement(const QualifiedName& tagName, Doc
     , m_simulatedMouseClickTimer(this, &HTMLPlugInImageElement::simulatedMouseClickTimerFired, simulatedMouseClickTimerDelay)
 {
     setHasCustomCallbacks();
-
-    if (document->page()
-        && document->page()->settings()->plugInSnapshottingEnabled()
-        && !ScriptController::processingUserGesture())
-        setDisplayState(WaitingForSnapshot);
 }
 
 HTMLPlugInImageElement::~HTMLPlugInImageElement()
@@ -260,9 +261,11 @@ void HTMLPlugInImageElement::updateSnapshot(PassRefPtr<Image> image)
     setDisplayState(DisplayingSnapshot);
 }
 
-void HTMLPlugInImageElement::setPendingClickEvent(PassRefPtr<MouseEvent> event)
+void HTMLPlugInImageElement::userDidClickSnapshot(PassRefPtr<MouseEvent> event)
 {
     m_pendingClickEventFromSnapshot = event;
+    if (document()->page())
+        document()->page()->plugInClient()->addAutoStartOrigin(document()->page()->mainFrame()->document()->baseURL().host(), m_plugInOriginHash);
 }
 
 void HTMLPlugInImageElement::dispatchPendingMouseClick()
@@ -280,6 +283,62 @@ void HTMLPlugInImageElement::simulatedMouseClickTimerFired(DeferrableOneShotTime
 
     setDisplayState(Playing);
     m_pendingClickEventFromSnapshot = nullptr;
+}
+
+void HTMLPlugInImageElement::subframeLoaderWillCreatePlugIn(const KURL& url)
+{
+    if (!document()->page()
+        || !document()->page()->settings()->plugInSnapshottingEnabled())
+        return;
+
+    if (document()->isPluginDocument() && document()->frame() == document()->page()->mainFrame()) {
+        LOG(Plugins, "%p Plug-in document in main frame", this);
+        return;
+    }
+
+    if (!renderer()->isSnapshottedPlugIn()) {
+        LOG(Plugins, "%p Renderer is not snapshotted plugin, set to play", this);
+        return;
+    }
+    if (ScriptController::processingUserGesture()) {
+        LOG(Plugins, "%p Script is processing user gesture, set to play", this);
+        return;
+    }
+
+    LayoutRect rect = toRenderSnapshottedPlugIn(renderer())->contentBoxRect();
+    int width = rect.width();
+    int height = rect.height();
+    if (!width || !height || (width <= autoStartPlugInSizeThresholdWidth && height <= autoStartPlugInSizeThresholdHeight)) {
+        LOG(Plugins, "%p Plugin is %dx%d, set to play", this, width, height);
+        return;
+    }
+
+    if (!document()->page() || !document()->page()->plugInClient()) {
+        setDisplayState(WaitingForSnapshot);
+        return;
+    }
+
+    LOG(Plugins, "%p Plugin URL: %s", this, m_url.utf8().data());
+    LOG(Plugins, "   loaded URL: %s", url.string().utf8().data());
+
+    m_plugInOriginHash = PlugInOriginHash::hash(this, url);
+    if (m_plugInOriginHash && document()->page()->plugInClient()->isAutoStartOrigin(m_plugInOriginHash)) {
+        LOG(Plugins, "%p Plugin hash %x is auto-start, set to play", this, m_plugInOriginHash);
+        return;
+    }
+
+    LOG(Plugins, "%p Plugin hash %x is %dx%d, origin is not auto-start, set to wait for snapshot", this, m_plugInOriginHash, width, height);
+    setDisplayState(WaitingForSnapshot);
+}
+
+void HTMLPlugInImageElement::subframeLoaderDidCreatePlugIn(const Widget* widget)
+{
+    if (!widget->isPluginViewBase()
+        || !static_cast<const PluginViewBase*>(widget)->shouldAlwaysAutoStart())
+        return;
+
+    LOG(Plugins, "%p Plugin should auto-start, set to play", this);
+    setDisplayState(Playing);
 }
 
 } // namespace WebCore

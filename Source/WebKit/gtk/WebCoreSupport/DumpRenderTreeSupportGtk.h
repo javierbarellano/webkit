@@ -135,6 +135,21 @@ public:
     static void clearMemoryCache();
     static void clearApplicationCache();
 
+    enum FrameLoadEvent {
+        WillPerformClientRedirectToURL,
+        DidCancelClientRedirect,
+        DidReceiveServerRedirectForProvisionalLoad,
+        DidDisplayInsecureContent,
+        DidDetectXSS,
+    };
+    typedef void (*FrameLoadEventCallback)(WebKitWebFrame*, FrameLoadEvent, const char* url);
+    static void setFrameLoadEventCallback(FrameLoadEventCallback);
+    static FrameLoadEventCallback s_frameLoadEventCallback;
+
+    typedef bool (*AuthenticationCallback) (CString& username, CString& password);
+    static void setAuthenticationCallback(AuthenticationCallback);
+    static AuthenticationCallback s_authenticationCallback;
+
 private:
     static bool s_drtRun;
     static bool s_linksIncludedInTabChain;

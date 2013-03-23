@@ -26,13 +26,13 @@
 #ifndef ResourceHandle_h
 #define ResourceHandle_h
 
-#include "AuthenticationChallenge.h"
 #include "AuthenticationClient.h"
 #include "HTTPHeaderMap.h"
-#include "NetworkingContext.h"
 #include <wtf/OwnPtr.h>
+#include <wtf/RefCounted.h>
 
 #if USE(SOUP)
+typedef struct _GTlsCertificate GTlsCertificate;
 typedef struct _SoupSession SoupSession;
 typedef struct _SoupRequest SoupRequest;
 #endif
@@ -78,6 +78,7 @@ class AuthenticationChallenge;
 class Credential;
 class Frame;
 class KURL;
+class NetworkingContext;
 class ProtectionSpace;
 class ResourceError;
 class ResourceHandleClient;
@@ -171,7 +172,7 @@ public:
     void sendPendingRequest();
     bool shouldUseCredentialStorage();
     static SoupSession* defaultSession();
-    static uint64_t getSoupRequestInitiaingPageID(SoupRequest*);
+    static uint64_t getSoupRequestInitiatingPageID(SoupRequest*);
     static void setHostAllowsAnyHTTPSCertificate(const String&);
     static void setClientCertificate(const String& host, GTlsCertificate*);
     static void setIgnoreSSLErrors(bool);

@@ -199,6 +199,7 @@ public:
         // FIXME: Multicolumn layouts break carrying over subpixel values to the logical right offset because the lines may be shifted
         // by a subpixel value for all but the first column. This can lead to the actual pixel snapped width of the column being off
         // by one pixel when rendered versus layed out, which can result in the line being clipped. For now, we have to floor.
+        // https://bugs.webkit.org/show_bug.cgi?id=105461
         return floorToInt(logicalRightOffsetForLine(position, firstLine, logicalHeight));
     }
     LayoutUnit startOffsetForLine(LayoutUnit position, bool firstLine, LayoutUnit logicalHeight = 0) const
@@ -424,7 +425,7 @@ public:
 
     LayoutUnit computeStartPositionDeltaForChildAvoidingFloats(const RenderBox* child, LayoutUnit childMarginStart, RenderRegion* = 0, LayoutUnit offsetFromLogicalTopOfFirstPage = 0);
 
-    void placeRunInIfNeeded(RenderObject* newChild, PlaceGeneratedRunInFlag);
+    void placeRunInIfNeeded(RenderObject* newChild);
     bool runInIsPlacedIntoSiblingBlock(RenderObject* runIn);
 
 #ifndef NDEBUG
@@ -434,9 +435,11 @@ public:
 
 #if ENABLE(CSS_EXCLUSIONS)
     ExclusionShapeInsideInfo* exclusionShapeInsideInfo() const;
+    bool allowsExclusionShapeInsideInfoSharing() const { return !isInline() && !isFloating(); }
 #endif
 
     virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
+    static void reportStaticMembersMemoryUsage(MemoryInstrumentation*);
 
 protected:
     virtual void willBeDestroyed();
@@ -527,6 +530,8 @@ protected:
     void updateRegionsAndExclusionsLogicalSize();
     void computeRegionRangeForBlock();
 
+    void updateBlockChildDirtyBitsBeforeLayout(bool relayoutChildren, RenderBox*);
+
     virtual void checkForPaginationLogicalHeightChange(LayoutUnit& pageLogicalHeight, bool& pageLogicalHeightChanged, bool& hasSpecifiedPageLogicalHeight);
 
 private:
@@ -572,8 +577,6 @@ private:
 
     virtual void borderFitAdjust(LayoutRect&) const; // Shrink the box in which the border paints if border-fit is set.
 
-    virtual void updateBeforeAfterContent(PseudoId);
-    
     virtual RootInlineBox* createRootInlineBox(); // Subclassed by SVG and Ruby.
 
     // Called to lay out the legend for a fieldset or the ruby text of a ruby run.

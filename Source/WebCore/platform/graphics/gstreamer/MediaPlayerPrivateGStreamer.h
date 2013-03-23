@@ -182,6 +182,7 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             bool loadNextLocation();
             void mediaLocationChanged(GstMessage*);
 
+            void setDownloadBuffering();
             void processBufferingStats(GstMessage*);
 
             virtual String engineDescription() const { return "GStreamer"; }

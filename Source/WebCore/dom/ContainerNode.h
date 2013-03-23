@@ -134,10 +134,6 @@ public:
 
     virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const { return true; }
 
-    // More efficient versions of these two functions for the case where we are starting with a ContainerNode.
-    Node* traverseNextNode() const;
-    Node* traverseNextNode(const Node* stayWithin) const;
-
     virtual void reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     {
         MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
@@ -269,52 +265,12 @@ inline Node* Node::highestAncestor() const
     return highest;
 }
 
-inline Node* Node::traverseNextSibling() const
+inline bool Node::needsShadowTreeWalker() const
 {
-    if (nextSibling())
-        return nextSibling();
-    return traverseNextAncestorSibling();
-}
-
-inline Node* Node::traverseNextNode() const
-{
-    if (firstChild())
-        return firstChild();
-    return traverseNextSibling();
-}
-
-inline Node* ContainerNode::traverseNextNode() const
-{
-    // More efficient than the Node::traverseNextNode above, because
-    // this does not need to do the isContainerNode check inside firstChild.
-    if (firstChild())
-        return firstChild();
-    return traverseNextSibling();
-}
-
-inline Node* Node::traverseNextSibling(const Node* stayWithin) const
-{
-    if (this == stayWithin)
-        return 0;
-    if (nextSibling())
-        return nextSibling();
-    return traverseNextAncestorSibling(stayWithin);
-}
-
-inline Node* Node::traverseNextNode(const Node* stayWithin) const
-{
-    if (firstChild())
-        return firstChild();
-    return traverseNextSibling(stayWithin);
-}
-
-inline Node* ContainerNode::traverseNextNode(const Node* stayWithin) const
-{
-    // More efficient than the Node::traverseNextNode above, because
-    // this does not need to do the isContainerNode check inside firstChild.
-    if (firstChild())
-        return firstChild();
-    return traverseNextSibling(stayWithin);
+    if (getFlag(NeedsShadowTreeWalkerFlag))
+        return true;
+    ContainerNode* parent = parentOrHostNode();
+    return parent && parent->getFlag(NeedsShadowTreeWalkerFlag);
 }
 
 // This constant controls how much buffer is initially allocated
@@ -348,18 +304,18 @@ public:
     }
 
     // Returns 0 if there is no next Node.
-    Node* nextNode()
+    PassRefPtr<Node> nextNode()
     {
         if (LIKELY(!hasSnapshot())) {
-            Node* node = m_currentNode;
-            if (m_currentNode)
-                m_currentNode = m_currentNode->nextSibling();
-            return node;
+            RefPtr<Node> node = m_currentNode;
+            if (node)
+                m_currentNode = node->nextSibling();
+            return node.release();
         }
-        Vector<RefPtr<Node> >* nodeVector = m_childNodes.get();
-        if (m_currentIndex >= nodeVector->size())
+        Vector<RefPtr<Node> >& nodeVector = *m_childNodes;
+        if (m_currentIndex >= nodeVector.size())
             return 0;
-        return (*nodeVector)[m_currentIndex++].get();
+        return nodeVector[m_currentIndex++];
     }
 
     void takeSnapshot()
@@ -367,7 +323,7 @@ public:
         if (hasSnapshot())
             return;
         m_childNodes = adoptPtr(new Vector<RefPtr<Node> >());
-        Node* node = m_currentNode;
+        Node* node = m_currentNode.get();
         while (node) {
             m_childNodes->append(node);
             node = node->nextSibling();
@@ -389,7 +345,7 @@ public:
 private:
     static ChildNodesLazySnapshot* latestSnapshot;
 
-    Node* m_currentNode;
+    RefPtr<Node> m_currentNode;
     unsigned m_currentIndex;
     OwnPtr<Vector<RefPtr<Node> > > m_childNodes; // Lazily instantiated.
     ChildNodesLazySnapshot* m_nextSnapshot;

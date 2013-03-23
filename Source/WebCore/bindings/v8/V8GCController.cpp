@@ -111,8 +111,35 @@ private:
     Vector<ImplicitConnection> m_connections;
 };
 
+// FIXME: This should use opaque GC roots.
+static void addImplicitReferencesForNodeWithEventListeners(Node* node, v8::Persistent<v8::Object> wrapper)
+{
+    ASSERT(node->hasEventListeners());
+
+    Vector<v8::Persistent<v8::Value> > listeners;
+
+    EventListenerIterator iterator(node);
+    while (EventListener* listener = iterator.nextListener()) {
+        if (listener->type() != EventListener::JSEventListenerType)
+            continue;
+        V8AbstractEventListener* v8listener = static_cast<V8AbstractEventListener*>(listener);
+        if (!v8listener->hasExistingListenerObject())
+            continue;
+        listeners.append(v8listener->existingListenerObjectPersistentHandle());
+    }
+
+    if (listeners.isEmpty())
+        return;
+
+    v8::V8::AddImplicitReferences(wrapper, listeners.data(), listeners.size());
+}
+
 void* V8GCController::opaqueRootForGC(Node* node)
 {
+    // FIXME: Remove the special handling for image elements.
+    // The same special handling is in V8GCController::gcTree().
+    // Maybe should image elements be active DOM nodes?
+    // See https://code.google.com/p/chromium/issues/detail?id=164882
     if (node->inDocument() || (node->hasTagName(HTMLNames::imgTag) && static_cast<HTMLImageElement*>(node)->hasPendingActivity()))
         return node->document();
 
@@ -154,14 +181,12 @@ public:
             MessagePort* port = static_cast<MessagePort*>(object);
             if (port->isEntangled() || port->hasPendingActivity())
                 m_grouper.keepAlive(wrapper);
-#if ENABLE(MUTATION_OBSERVERS)
         } else if (V8MutationObserver::info.equals(type)) {
             // FIXME: Allow opaqueRootForGC to operate on multiple roots and move this logic into V8MutationObserverCustom.
             MutationObserver* observer = static_cast<MutationObserver*>(object);
             HashSet<Node*> observedNodes = observer->getObservedNodes();
             for (HashSet<Node*>::iterator it = observedNodes.begin(); it != observedNodes.end(); ++it)
                 m_grouper.addToGroup(V8GCController::opaqueRootForGC(*it), wrapper);
-#endif // ENABLE(MUTATION_OBSERVERS)
         } else {
             ActiveDOMObject* activeDOMObject = type->toActiveDOMObject(wrapper);
             if (activeDOMObject && activeDOMObject->hasPendingActivity())
@@ -173,21 +198,11 @@ public:
             ASSERT(!wrapper.IsIndependent());
 
             Node* node = static_cast<Node*>(object);
-            void* root = V8GCController::opaqueRootForGC(node);
 
-            if (node->hasEventListeners()) {
-                EventListenerIterator iterator(node);
-                while (EventListener* listener = iterator.nextListener()) {
-                    if (listener->type() != EventListener::JSEventListenerType)
-                        continue;
-                    V8AbstractEventListener* v8listener = static_cast<V8AbstractEventListener*>(listener);
-                    if (!v8listener->hasExistingListenerObject())
-                        continue;
-                    m_grouper.addToGroup(root, v8listener->existingListenerObjectPersistentHandle());
-                }
-            }
+            if (node->hasEventListeners())
+                addImplicitReferencesForNodeWithEventListeners(node, wrapper);
 
-            m_grouper.addToGroup(root, wrapper);
+            m_grouper.addToGroup(V8GCController::opaqueRootForGC(node), wrapper);
         } else if (classId == v8DOMObjectClassId) {
             m_grouper.addToGroup(type->opaqueRootForGC(object, wrapper), wrapper);
         } else {
@@ -223,7 +238,11 @@ static void gcTree(Node* startNode)
     do {
         ASSERT(node);
         if (!node->wrapper().IsEmpty()) {
-            if (!node->isV8CollectableDuringMinorGC()) {
+            // FIXME: Remove the special handling for image elements.
+            // The same special handling is in V8GCController::opaqueRootForGC().
+            // Maybe should image elements be active DOM nodes?
+            // See https://code.google.com/p/chromium/issues/detail?id=164882
+            if (!node->isV8CollectableDuringMinorGC() || (node->hasTagName(HTMLNames::imgTag) && static_cast<HTMLImageElement*>(node)->hasPendingActivity())) {
                 // The fact that we encounter a node that is not in the Eden space
                 // implies that its wrapper might be in the old space of V8.
                 // This indicates that the minor GC cannot anyway judge reachability

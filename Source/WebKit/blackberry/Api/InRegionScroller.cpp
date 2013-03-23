@@ -106,7 +106,11 @@ void InRegionScrollerPrivate::clearDocumentData(const Document* documentGoingAwa
 
 bool InRegionScrollerPrivate::setScrollPositionCompositingThread(unsigned camouflagedLayer, const WebCore::IntPoint& scrollPosition)
 {
-    LayerCompositingThread* scrollLayer = reinterpret_cast<LayerWebKitThread*>(camouflagedLayer)->layerCompositingThread();
+    LayerWebKitThread* layerWebKitThread = reinterpret_cast<LayerWebKitThread*>(camouflagedLayer);
+    if (!isValidScrollableLayerWebKitThread(layerWebKitThread))
+        return false;
+
+    LayerCompositingThread* scrollLayer = layerWebKitThread->layerCompositingThread();
 
     // FIXME: Clamp maximum and minimum scroll positions as a last attempt to fix round errors.
     FloatPoint anchor;
@@ -138,7 +142,9 @@ bool InRegionScrollerPrivate::setScrollPositionWebKitThread(unsigned camouflaged
 
     if (supportsAcceleratedScrolling) {
         LayerWebKitThread* layerWebKitThread = reinterpret_cast<LayerWebKitThread*>(camouflagedLayer);
-        ASSERT(layerWebKitThread);
+        if (!isValidScrollableLayerWebKitThread(layerWebKitThread))
+            return false;
+
         if (layerWebKitThread->owner()) {
             GraphicsLayer* graphicsLayer = layerWebKitThread->owner();
 
@@ -152,8 +158,7 @@ bool InRegionScrollerPrivate::setScrollPositionWebKitThread(unsigned camouflaged
         }
     } else {
         Node* node = reinterpret_cast<Node*>(camouflagedLayer);
-        ASSERT(node);
-        if (!node->renderer())
+        if (!isValidScrollableNode(node) || !node->renderer())
             return false;
 
         layer = node->renderer()->enclosingLayer();
@@ -205,6 +210,8 @@ void InRegionScrollerPrivate::calculateInRegionScrollableAreasForPoint(const Web
         return;
 
     RenderLayer* layer = node->renderer()->enclosingLayer();
+    if (!layer)
+        return;
     do {
         RenderObject* renderer = layer->renderer();
 
@@ -252,8 +259,10 @@ void InRegionScrollerPrivate::calculateInRegionScrollableAreasForPoint(const Web
 
         InRegionScrollableArea* curr = static_cast<InRegionScrollableArea*>(*rit);
         RenderLayer* layer = curr->layer();
+        if (!layer)
+            continue;
 
-        if (layer && layer->renderer()->isRenderView()) { // #document case
+        if (layer->renderer()->isRenderView()) { // #document case
             FrameView* view = toRenderView(layer->renderer())->frameView();
             ASSERT(view);
             ASSERT(canScrollInnerFrame(view->frame()));
@@ -307,7 +316,7 @@ bool InRegionScrollerPrivate::setLayerScrollPosition(RenderLayer* layer, const I
         layer->scrollToOffset(toSize(scrollPosition));
     }
 
-    m_webPage->m_selectionHandler->selectionPositionChanged();
+    layer->renderer()->frame()->selection()->updateAppearance();
     // FIXME: We have code in place to handle scrolling and clipping tap highlight
     // on in-region scrolling. As soon as it is fast enough (i.e. we have it backed by
     // a backing store), we can reliably make use of it in the real world.
@@ -389,8 +398,15 @@ static RenderLayer* parentLayer(RenderLayer* layer)
         return layer->parent();
 
     RenderObject* renderer = layer->renderer();
-    if (renderer->document() && renderer->document()->ownerElement() && renderer->document()->ownerElement()->renderer())
-        return renderer->document()->ownerElement()->renderer()->enclosingLayer();
+    Document* document = renderer->document();
+    if (document) {
+        HTMLFrameOwnerElement* ownerElement = document->ownerElement();
+        if (ownerElement) {
+            RenderObject* subRenderer = ownerElement->renderer();
+            if (subRenderer)
+                return subRenderer->enclosingLayer();
+        }
+    }
 
     return 0;
 }
@@ -410,6 +426,32 @@ void InRegionScrollerPrivate::pushBackInRegionScrollable(InRegionScrollableArea*
 
     scrollableArea->setCanPropagateScrollingToEnclosingScrollable(!isNonRenderViewFixedPositionedContainer(scrollableArea->layer()));
     m_activeInRegionScrollableAreas.push_back(scrollableArea);
+}
+
+bool InRegionScrollerPrivate::isValidScrollableLayerWebKitThread(LayerWebKitThread* layerWebKitThread) const
+{
+    if (!layerWebKitThread)
+        return false;
+
+    for (unsigned i = 0; i < m_activeInRegionScrollableAreas.size(); ++i) {
+        if (static_cast<InRegionScrollableArea*>(m_activeInRegionScrollableAreas[i])->cachedScrollableLayer() == layerWebKitThread)
+            return true;
+    }
+
+    return false;
+}
+
+bool InRegionScrollerPrivate::isValidScrollableNode(Node* node) const
+{
+    if (!node)
+        return false;
+
+    for (unsigned i = 0; i < m_activeInRegionScrollableAreas.size(); ++i) {
+        if (static_cast<InRegionScrollableArea*>(m_activeInRegionScrollableAreas[i])->cachedScrollableNode() == node)
+            return true;
+    }
+
+    return false;
 }
 
 }

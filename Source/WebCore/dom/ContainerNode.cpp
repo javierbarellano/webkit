@@ -39,6 +39,7 @@
 #include "MemoryCache.h"
 #include "MutationEvent.h"
 #include "NodeRenderStyle.h"
+#include "NodeTraversal.h"
 #include "ResourceLoadScheduler.h"
 #include "Page.h"
 #include "PlatformStrategies.h"
@@ -46,6 +47,7 @@
 #include "RenderTheme.h"
 #include "RenderWidget.h"
 #include "RootInlineBox.h"
+#include "TemplateContentDocumentFragment.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/Vector.h>
 
@@ -136,6 +138,24 @@ static inline bool isChildTypeAllowed(ContainerNode* newParent, Node* child)
     return true;
 }
 
+static inline bool isInTemplateContent(const Node* node)
+{
+#if ENABLE(TEMPLATE_ELEMENT)
+    Document* document = node->document();
+    return document && document == document->templateContentsOwnerDocument();
+#else
+    UNUSED_PARAM(node);
+    return false;
+#endif
+}
+
+static inline bool containsConsideringHostElements(const Node* newChild, const Node* newParent)
+{
+    return (newParent->isInShadowTree() || isInTemplateContent(newParent))
+        ? newChild->containsIncludingHostElements(newParent)
+        : newChild->contains(newParent);
+}
+
 static inline ExceptionCode checkAcceptChild(ContainerNode* newParent, Node* newChild, Node* oldChild)
 {
     // Not mentioned in spec: throw NOT_FOUND_ERR if newChild is null
@@ -147,7 +167,7 @@ static inline ExceptionCode checkAcceptChild(ContainerNode* newParent, Node* new
         ASSERT(!newParent->isReadOnlyNode());
         ASSERT(!newParent->isDocumentTypeNode());
         ASSERT(isChildTypeAllowed(newParent, newChild));
-        if (newChild->contains(newParent))
+        if (containsConsideringHostElements(newChild, newParent))
             return HIERARCHY_REQUEST_ERR;
         return 0;
     }
@@ -161,7 +181,7 @@ static inline ExceptionCode checkAcceptChild(ContainerNode* newParent, Node* new
         return NO_MODIFICATION_ALLOWED_ERR;
     if (newChild->inDocument() && newChild->isDocumentTypeNode())
         return HIERARCHY_REQUEST_ERR;
-    if (newChild->contains(newParent))
+    if (containsConsideringHostElements(newChild, newParent))
         return HIERARCHY_REQUEST_ERR;
 
     if (oldChild && newParent->isDocumentNode()) {
@@ -248,10 +268,7 @@ bool ContainerNode::insertBefore(PassRefPtr<Node> newChild, Node* refChild, Exce
 
     InspectorInstrumentation::willInsertDOMNode(document(), this);
 
-#if ENABLE(MUTATION_OBSERVERS)
     ChildListMutationScope mutation(this);
-#endif
-
     for (NodeVector::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         Node* child = it->get();
 
@@ -346,9 +363,7 @@ bool ContainerNode::replaceChild(PassRefPtr<Node> newChild, Node* oldChild, Exce
         return false;
     }
 
-#if ENABLE(MUTATION_OBSERVERS)
     ChildListMutationScope mutation(this);
-#endif
 
     RefPtr<Node> next = oldChild->nextSibling();
 
@@ -409,12 +424,9 @@ bool ContainerNode::replaceChild(PassRefPtr<Node> newChild, Node* oldChild, Exce
 
 static void willRemoveChild(Node* child)
 {
-#if ENABLE(MUTATION_OBSERVERS)
     ASSERT(child->parentNode());
     ChildListMutationScope(child->parentNode()).willRemoveChild(child);
     child->notifyMutationObserversNodeWillDetach();
-#endif
-
     dispatchChildRemovalEvents(child);
     child->document()->nodeWillBeRemoved(child); // e.g. mutation event listener can create a new range.
     ChildFrameDisconnector(child).disconnect();
@@ -427,17 +439,11 @@ static void willRemoveChildren(ContainerNode* container)
 
     container->document()->nodeChildrenWillBeRemoved(container);
 
-#if ENABLE(MUTATION_OBSERVERS)
     ChildListMutationScope mutation(container);
-#endif
-
     for (NodeVector::const_iterator it = children.begin(); it != children.end(); it++) {
         Node* child = it->get();
-
-#if ENABLE(MUTATION_OBSERVERS)
         mutation.willRemoveChild(child);
         child->notifyMutationObserversNodeWillDetach();
-#endif
 
         // fire removed from document mutation events.
         dispatchChildRemovalEvents(child);
@@ -650,11 +656,8 @@ bool ContainerNode::appendChild(PassRefPtr<Node> newChild, ExceptionCode& ec, bo
 
     InspectorInstrumentation::willInsertDOMNode(document(), this);
 
-#if ENABLE(MUTATION_OBSERVERS)
-    ChildListMutationScope mutation(this);
-#endif
-
     // Now actually add the child(ren)
+    ChildListMutationScope mutation(this);
     for (NodeVector::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         Node* child = it->get();
 
@@ -863,7 +866,7 @@ bool ContainerNode::getUpperLeftCorner(FloatPoint& point) const
                 RenderBox* box = toRenderBox(o);
                 point.moveBy(box->location());
             }
-            point = o->container()->localToAbsolute(point, UseTransforms | SnapOffsetForTransforms);
+            point = o->container()->localToAbsolute(point, UseTransforms);
             return true;
         }
     }
@@ -1047,7 +1050,7 @@ static void dispatchChildInsertionEvents(Node* child)
 
     // dispatch the DOMNodeInsertedIntoDocument event to all descendants
     if (c->inDocument() && document->hasListenerType(Document::DOMNODEINSERTEDINTODOCUMENT_LISTENER)) {
-        for (; c; c = c->traverseNextNode(child))
+        for (; c; c = NodeTraversal::next(c.get(), child))
             c->dispatchScopedEvent(MutationEvent::create(eventNames().DOMNodeInsertedIntoDocumentEvent, false));
     }
 }
@@ -1075,7 +1078,7 @@ static void dispatchChildRemovalEvents(Node* child)
 
     // dispatch the DOMNodeRemovedFromDocument event to all descendants
     if (c->inDocument() && document->hasListenerType(Document::DOMNODEREMOVEDFROMDOCUMENT_LISTENER)) {
-        for (; c; c = c->traverseNextNode(child))
+        for (; c; c = NodeTraversal::next(c.get(), child))
             c->dispatchScopedEvent(MutationEvent::create(eventNames().DOMNodeRemovedFromDocumentEvent, false));
     }
 }
@@ -1085,9 +1088,7 @@ static void updateTreeAfterInsertion(ContainerNode* parent, Node* child, bool sh
     ASSERT(parent->refCount());
     ASSERT(child->refCount());
 
-#if ENABLE(MUTATION_OBSERVERS)
     ChildListMutationScope(parent).childAdded(child);
-#endif
 
     parent->childrenChanged(false, child->previousSibling(), child->nextSibling(), 1);
 

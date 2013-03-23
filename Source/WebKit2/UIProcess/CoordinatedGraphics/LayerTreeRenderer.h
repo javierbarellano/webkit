@@ -47,9 +47,8 @@ class TextureMapperLayer;
 namespace WebKit {
 
 class CoordinatedBackingStore;
-class LayerTreeCoordinatorProxy;
+class CoordinatedLayerTreeHostProxy;
 class CoordinatedLayerInfo;
-class CoordinatedLayerUpdateInfo;
 
 class LayerTreeRenderer : public ThreadSafeRefCounted<LayerTreeRenderer>, public WebCore::GraphicsLayerClient {
 public:
@@ -66,7 +65,7 @@ public:
         {
         }
     };
-    explicit LayerTreeRenderer(LayerTreeCoordinatorProxy*);
+    explicit LayerTreeRenderer(CoordinatedLayerTreeHostProxy*);
     virtual ~LayerTreeRenderer();
     void paintToCurrentGLContext(const WebCore::TransformationMatrix&, float, const WebCore::FloatRect&, WebCore::TextureMapper::PaintFlags = 0);
     void paintToGraphicsContext(BackingStore::PlatformGraphicsContext);
@@ -82,11 +81,12 @@ public:
     void detach();
     void appendUpdate(const Function<void()>&);
 
-    // The painting thread must lock the main thread to use below two methods, because two methods access members that the main thread manages. See m_layerTreeCoordinatorProxy.
+    // The painting thread must lock the main thread to use below two methods, because two methods access members that the main thread manages. See m_coordinatedLayerTreeHostProxy.
     // Currently, QQuickWebPage::updatePaintNode() locks the main thread before calling both methods.
     void purgeGLResources();
     void setActive(bool);
 
+    void createLayer(CoordinatedLayerID);
     void deleteLayer(CoordinatedLayerID);
     void setRootLayerID(CoordinatedLayerID);
     void setLayerChildren(CoordinatedLayerID, const Vector<CoordinatedLayerID>&);
@@ -118,9 +118,13 @@ public:
 #endif
 
 private:
-    PassOwnPtr<WebCore::GraphicsLayer> createLayer(CoordinatedLayerID);
-
-    WebCore::GraphicsLayer* layerByID(CoordinatedLayerID id) { return (id == InvalidCoordinatedLayerID) ? 0 : m_layers.get(id); }
+    WebCore::GraphicsLayer* layerByID(CoordinatedLayerID id)
+    {
+        ASSERT(m_layers.contains(id));
+        ASSERT(id != InvalidCoordinatedLayerID);
+        return m_layers.get(id);
+    }
+    WebCore::GraphicsLayer* getLayerByIDIfExists(CoordinatedLayerID);
     WebCore::GraphicsLayer* rootLayer() { return m_rootLayer.get(); }
 
     void syncRemoteContent();
@@ -142,7 +146,6 @@ private:
     void assignImageBackingToLayer(WebCore::GraphicsLayer*, CoordinatedImageBackingID);
     void removeReleasedImageBackingsIfNeeded();
     void ensureRootLayer();
-    WebCore::GraphicsLayer* ensureLayer(CoordinatedLayerID);
     void commitPendingBackingStoreOperations();
 
     CoordinatedBackingStore* getBackingStore(WebCore::GraphicsLayer*);
@@ -175,7 +178,7 @@ private:
 #endif
 
     // Below two members are accessed by only the main thread. The painting thread must lock the main thread to access both members.
-    LayerTreeCoordinatorProxy* m_layerTreeCoordinatorProxy;
+    CoordinatedLayerTreeHostProxy* m_coordinatedLayerTreeHostProxy;
     bool m_isActive;
 
     OwnPtr<WebCore::GraphicsLayer> m_rootLayer;

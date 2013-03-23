@@ -31,12 +31,17 @@ namespace JSC {
 enum ExitKind {
     ExitKindUnset,
     BadType, // We exited because a type prediction was wrong.
+    BadFunction, // We exited because we made an incorrect assumption about what function we would see.
+    BadExecutable, // We exited because we made an incorrect assumption about what executable we would see.
     BadCache, // We exited because an inline cache was wrong.
     BadWeakConstantCache, // We exited because a cache on a weak constant (usually a prototype) was wrong.
     BadIndexingType, // We exited because an indexing type was wrong.
     Overflow, // We exited because of overflow.
     NegativeZero, // We exited because we encountered negative zero.
+    StoreToHole, // We had a store to a hole.
+    LoadFromHole, // We had a load from a hole.
     OutOfBounds, // We had an out-of-bounds access to an array.
+    StoreToHoleOrOutOfBounds, // We're simultaneously speculating that we're in bounds and not accessing a hole, and one of those things didn't pan out.
     InadequateCoverage, // We exited because we ended up in code that didn't have profiling coverage.
     ArgumentsEscaped, // We exited because arguments escaped but we didn't expect them to.
     Uncountable, // We exited for none of the above reasons, and we should not count it. Most uses of this should be viewed as a FIXME.

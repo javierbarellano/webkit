@@ -5,6 +5,8 @@ WEBCORE_CSS_PROPERTY_NAMES := $(WebCore)/css/CSSPropertyNames.in
 WEBCORE_CSS_VALUE_KEYWORDS := $(WebCore)/css/CSSValueKeywords.in
 
 webcore_cppflags += \
+	-DWTF_USE_FREETYPE=1 \
+	-DWTF_USE_HARFBUZZ_NG=1 \
 	-I$(srcdir)/Source/ThirdParty/ANGLE/src \
 	-I$(srcdir)/Source/ThirdParty/ANGLE/include \
 	-I$(srcdir)/Source/ThirdParty/ANGLE/include/GLSLANG \
@@ -59,7 +61,10 @@ webcore_cppflags += \
 	-I$(srcdir)/Source/WebCore/platform/graphics/cpu/arm/filters/ \
 	-I$(srcdir)/Source/WebCore/platform/graphics/filters \
 	-I$(srcdir)/Source/WebCore/platform/graphics/filters/texmap \
+	-I$(srcdir)/Source/WebCore/platform/graphics/freetype \
 	-I$(srcdir)/Source/WebCore/platform/graphics/gpu \
+	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz \
+	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz/ng \
 	-I$(srcdir)/Source/WebCore/platform/graphics/opengl \
 	-I$(srcdir)/Source/WebCore/platform/graphics/opentype \
 	-I$(srcdir)/Source/WebCore/platform/graphics/transforms \
@@ -107,6 +112,8 @@ webcore_cppflags += \
 
 webcoregtk_cppflags += \
 	-DWEBKITGTK_API_VERSION_STRING=\"@WEBKITGTK_API_VERSION@\" \
+	-DWTF_USE_FREETYPE=1 \
+	-DWTF_USE_HARFBUZZ_NG=1 \
 	-DWTF_USE_SOUP=1 \
 	-I$(srcdir)/Source/WebCore/accessibility/atk \
 	-I$(srcdir)/Source/WebCore/loader/gtk \
@@ -115,34 +122,16 @@ webcoregtk_cppflags += \
 	-I$(srcdir)/Source/WebCore/platform/audio/gstreamer \
 	-I$(srcdir)/Source/WebCore/platform/geoclue \
 	-I$(srcdir)/Source/WebCore/platform/graphics/cairo \
+	-I$(srcdir)/Source/WebCore/platform/graphics/freetype \
 	-I$(srcdir)/Source/WebCore/platform/graphics/glx \
+	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz \
+	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz/ng \
 	-I$(srcdir)/Source/WebCore/platform/graphics/egl \
 	-I$(srcdir)/Source/WebCore/platform/graphics/gstreamer \
 	-I$(srcdir)/Source/WebCore/platform/graphics/gtk \
 	-I$(srcdir)/Source/WebCore/platform/gtk \
 	-I$(srcdir)/Source/WebCore/platform/network/soup \
 	-I$(srcdir)/Source/WebCore/platform/text/enchant
-
-# ---
-# FreeType font backend
-# ---
-if USE_FREETYPE
-webcoregtk_cppflags += \
-	-DWTF_USE_FREETYPE=1 \
-	-DWTF_USE_HARFBUZZ_NG=1 \
-	-I$(srcdir)/Source/WebCore/platform/graphics/freetype \
-	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz \
-	-I$(srcdir)/Source/WebCore/platform/graphics/harfbuzz/ng
-endif # END USE_FREETYPE
-
-# ---
-# Pango font backend
-# ---
-if USE_PANGO
-webcoregtk_cppflags += \
-	-DWTF_USE_PANGO=1 \
-	-I$(srcdir)/Source/WebCore/platform/graphics/pango
-endif # END USE_PANGO
 
 # ---
 # Windows plugin support
@@ -160,19 +149,6 @@ feature_defines_overrides += ENABLE_GAMEPAD=1
 else
 feature_defines_overrides += ENABLE_GAMEPAD=0
 endif # END ENABLE_GAMEPAD
-
-# ----
-# Indexed Database API support
-# ----
-if ENABLE_INDEXED_DATABASE
-feature_defines_overrides += ENABLE_INDEXED_DATABASE=1
-else
-feature_defines_overrides += ENABLE_INDEXED_DATABASE=0
-endif # END ENABLE_INDEXED_DATABASE
-
-if USE_LEVELDB
-webcore_cppflags += -DWTF_USE_LEVELDB
-endif # END USE_LEVELDB
 
 # ----
 # Video Support
@@ -213,15 +189,6 @@ $(GENSOURCES_WEBCORE)/XPathGrammar.cpp: $(WebCore)/xml/XPathGrammar.y
 	$(AM_V_at)perl $(WebCore)/css/makegrammar.pl --outputDir $(GENSOURCES_WEBCORE) --bison "$(BISON)" --symbolsPrefix xpathyy $<
 
 # ----
-# XHR timeout Support
-# ----
-if ENABLE_XHR_TIMEOUT
-feature_defines_overrides += ENABLE_XHR_TIMEOUT=1
-else
-feature_defines_overrides += ENABLE_XHR_TIMEOUT=0
-endif # END ENABLE_XHR_TIMEOUT
-
-# ----
 # XSLT Support
 # ----
 if ENABLE_XSLT
@@ -229,24 +196,6 @@ feature_defines_overrides += ENABLE_XSLT=1
 else
 feature_defines_overrides += ENABLE_XSLT=0
 endif # END ENABLE_XSLT
-
-# ----
-# Filters
-# ----
-if ENABLE_FILTERS
-feature_defines_overrides += ENABLE_FILTERS=1
-else
-feature_defines_overrides += ENABLE_FILTERS=0
-endif # END ENABLE_FILTERS
-
-# ----
-# CSS Device Adaptation
-# ----
-if ENABLE_CSS_DEVICE_ADAPTATION
-feature_defines_overrides += ENABLE_CSS_DEVICE_ADAPTATION=1
-else
-feature_defines_overrides += ENABLE_CSS_DEVICE_ADAPTATION=0
-endif # END ENABLE_CSS_DEVICE_ADAPTATION
 
 # ----
 # Shaders
@@ -385,32 +334,6 @@ else
 feature_defines_overrides += ENABLE_SPELLCHECK=0
 endif  # END ENABLE_SPELLCHECK
 
-# ---
-# CSS3 Conditional Rules support
-# ---
-if ENABLE_CSS3_CONDITIONAL_RULES
-feature_defines_overrides += ENABLE_CSS3_CONDITIONAL_RULES=1
-else
-feature_defines_overrides += ENABLE_CSS3_CONDITIONAL_RULES=0
-endif  # END ENABLE_CSS3_CONDITIONAL_RULES
-
-# ---
-# Unstable features
-# If unstable features should not be enabled, their defines should be overriden with a 0 value.
-# ---
-if !ENABLE_UNSTABLE_FEATURES
-feature_defines_unstable += \
-	ENABLE_CSP_NEXT=0 \
-	ENABLE_CSS3_TEXT=0 \
-	ENABLE_CSS_STICKY_POSITION=0 \
-	ENABLE_LINK_PREFETCH=0 \
-	ENABLE_MICRODATA=0 \
-	ENABLE_MUTATION_OBSERVERS=0 \
-	ENABLE_STYLE_SCOPED=0 \
-	ENABLE_VIDEO_TRACK=0 \
-	ENABLE_WEB_TIMING=0
-endif
-
 
 # Fill the feature_defines variable with all the defines, making it possible
 # to override the default define value (as set in feature_defines_defaults)
@@ -422,12 +345,9 @@ feature_defines += $(strip $(foreach bare_define, \
 			$(if $(findstring =$(fvalue),$(define)),$(patsubst %=$(fvalue),%,$(define))) \
 		) \
 	), \
-	$(if $(findstring $(bare_define)=, $(feature_defines_unstable)), \
-		$(filter $(bare_define)=%,$(feature_defines_unstable)), \
-		$(if $(findstring $(bare_define)=, $(feature_defines_overrides)), \
-			$(filter $(bare_define)=%,$(feature_defines_overrides)), \
-			$(filter $(bare_define)=%,$(feature_defines_defaults)) \
-		) \
+	$(if $(findstring $(bare_define)=, $(feature_defines_overrides)), \
+		$(filter $(bare_define)=%,$(feature_defines_overrides)), \
+		$(filter $(bare_define)=%,$(feature_defines_defaults)) \
 	) \
 ))
 
@@ -546,8 +466,11 @@ DerivedSources/WebCore/EventTargetHeaders.h DerivedSources/WebCore/EventTargetIn
 DerivedSources/WebCore/ExceptionCodeDescription.cpp DerivedSources/WebCore/ExceptionCodeDescription.h DerivedSources/WebCore/ExceptionHeaders.h DerivedSources/WebCore/ExceptionInterfaces.h: $(WebCore)/dom/make_dom_exceptions.pl $(WebCore)/dom/DOMExceptions.in
 	$(AM_V_GEN)$(PERL) -I$(WebCore)/bindings/scripts $< --input $(WebCore)/dom/DOMExceptions.in --outputDir "$(GENSOURCES_WEBCORE)"
 
-DerivedSources/WebCore/SettingsMacros.h: $(WebCore)/page/make_settings.pl $(WebCore)/page/Settings.in
+DerivedSources/WebCore/SettingsMacros.h DerivedSources/WebCore/InternalSettingsGenerated.idl DerivedSources/WebCore/InternalSettingsGenerated.cpp DerivedSources/WebCore/InternalSettingsGenerated.h: $(WebCore)/page/make_settings.pl $(WebCore)/page/Settings.in
 	$(AM_V_GEN)$(PERL) -I$(WebCore)/bindings/scripts $< --input $(WebCore)/page/Settings.in --outputDir "$(GENSOURCES_WEBCORE)"
+
+dom_binding_idls += \
+  DerivedSources/WebCore/InternalSettingsGenerated.idl
 
 # All Web Inspector generated files are created with this one call to CodeGeneratorInspector.py
 DerivedSources/WebCore/InspectorProtocolVersion.h : $(WebCore)/inspector/Inspector.json $(WebCore)/inspector/generate-inspector-protocol-version
@@ -633,6 +556,10 @@ DerivedSources/WebCore/JS%.cpp: DerivedSources/WebCore/JS%.h;
 
 .SECONDARY:
 DerivedSources/WebCore/JS%.h: %.idl $(SCRIPTS_FOR_GENERATE_BINDINGS) $(WebCore)/bindings/scripts/CodeGeneratorJS.pm $(supplemental_dependency_file)
+	$(AM_V_GEN)$(PERL) -I$(WebCore)/bindings/scripts $(WebCore)/bindings/scripts/generate-bindings.pl $(IDL_PATH:%=--include "%") --outputDir "$(GENSOURCES_WEBCORE)" --defines "LANGUAGE_JAVASCRIPT=1 $(feature_defines)" --generator JS --supplementalDependencyFile $(supplemental_dependency_file) $<
+
+.SECONDARY:
+DerivedSources/WebCore/JSInternalSettingsGenerated.h: DerivedSources/WebCore/InternalSettingsGenerated.idl $(SCRIPTS_FOR_GENERATE_BINDINGS) $(WebCore)/bindings/scripts/CodeGeneratorJS.pm $(supplemental_dependency_file)
 	$(AM_V_GEN)$(PERL) -I$(WebCore)/bindings/scripts $(WebCore)/bindings/scripts/generate-bindings.pl $(IDL_PATH:%=--include "%") --outputDir "$(GENSOURCES_WEBCORE)" --defines "LANGUAGE_JAVASCRIPT=1 $(feature_defines)" --generator JS --supplementalDependencyFile $(supplemental_dependency_file) $<
 
 # See https://bugs.webkit.org/show_bug.cgi?id=76388

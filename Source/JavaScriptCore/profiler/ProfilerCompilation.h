@@ -34,12 +34,14 @@
 #include "ProfilerOSRExit.h"
 #include "ProfilerOSRExitSite.h"
 #include "ProfilerOriginStack.h"
+#include "ProfilerProfiledBytecodes.h"
 #include <wtf/RefCounted.h>
 #include <wtf/SegmentedVector.h>
 
 namespace JSC { namespace Profiler {
 
 class Bytecodes;
+class Database;
 
 // Represents the act of executing some bytecodes in some engine, and does
 // all of the counting for those executions.
@@ -49,12 +51,16 @@ public:
     Compilation(Bytecodes*, CompilationKind);
     ~Compilation();
     
+    void addProfiledBytecodes(Database&, CodeBlock*);
+    unsigned profiledBytecodesSize() const { return m_profiledBytecodes.size(); }
+    const ProfiledBytecodes& profiledBytecodesAt(unsigned i) const { return m_profiledBytecodes[i]; }
+    
     Bytecodes* bytecodes() const { return m_bytecodes; }
     CompilationKind kind() const { return m_kind; }
     
     void addDescription(const CompiledBytecode&);
     ExecutionCounter* executionCounterFor(const OriginStack&);
-    void addOSRExitSite(const void* codeAddress);
+    void addOSRExitSite(const Vector<const void*>& codeAddresses);
     OSRExit* addOSRExit(unsigned id, const OriginStack&, ExitKind, bool isWatchpoint);
     
     JSValue toJS(ExecState*) const;
@@ -62,6 +68,7 @@ public:
 private:
     Bytecodes* m_bytecodes;
     CompilationKind m_kind;
+    Vector<ProfiledBytecodes> m_profiledBytecodes;
     Vector<CompiledBytecode> m_descriptions;
     HashMap<OriginStack, OwnPtr<ExecutionCounter> > m_counters;
     Vector<OSRExitSite> m_osrExitSites;

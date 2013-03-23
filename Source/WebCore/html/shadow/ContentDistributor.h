@@ -77,12 +77,9 @@ public:
     InsertionPoint* insertionPointAssignedTo() const { return m_insertionPointAssignedTo; }
     void setInsertionPointAssignedTo(InsertionPoint* insertionPoint) { m_insertionPointAssignedTo = insertionPoint; }
 
-    void incrementNumberOfShadowElementChildren() { ++m_numberOfShadowElementChildren; invalidateInsertionPointList(); }
-    void decrementNumberOfShadowElementChildren() { ASSERT(m_numberOfShadowElementChildren > 0); --m_numberOfShadowElementChildren; invalidateInsertionPointList(); }
+    void regiterInsertionPoint(ShadowRoot*, InsertionPoint*);
+    void unregisterInsertionPoint(ShadowRoot*, InsertionPoint*);
     bool hasShadowElementChildren() const { return m_numberOfShadowElementChildren > 0; }
-
-    void incrementNumberOfContentElementChildren() { ++m_numberOfContentElementChildren; invalidateInsertionPointList(); }
-    void decrementNumberOfContentElementChildren() { ASSERT(m_numberOfContentElementChildren > 0); --m_numberOfContentElementChildren; invalidateInsertionPointList(); }
     bool hasContentElementChildren() const { return m_numberOfContentElementChildren > 0; }
 
     void incrementNumberOfElementShadowChildren() { ++m_numberOfElementShadowChildren; }
@@ -91,7 +88,7 @@ public:
     bool hasElementShadowChildren() const { return m_numberOfElementShadowChildren > 0; }
 
     void invalidateInsertionPointList();
-    const Vector<InsertionPoint*>& ensureInsertionPointList(ShadowRoot*);
+    const Vector<RefPtr<InsertionPoint> >& ensureInsertionPointList(ShadowRoot*);
 
 private:
     InsertionPoint* m_insertionPointAssignedTo;
@@ -99,7 +96,7 @@ private:
     unsigned m_numberOfContentElementChildren;
     unsigned m_numberOfElementShadowChildren;
     bool m_insertionPointListIsValid;
-    Vector<InsertionPoint*> m_insertionPointList;
+    Vector<RefPtr<InsertionPoint> > m_insertionPointList;
 };
 
 class ContentDistributor {
@@ -132,7 +129,7 @@ public:
 private:
     void populate(Node*, ContentDistribution&);
 
-    HashMap<const Node*, InsertionPoint*> m_nodeToInsertionPoint;
+    HashMap<const Node*, RefPtr<InsertionPoint> > m_nodeToInsertionPoint;
     unsigned m_validity : 2;
 };
 

@@ -28,23 +28,19 @@
 
 #include "CacheModel.h"
 #include "ChildProcess.h"
-#include "DrawingArea.h"
+#include "DownloadManager.h"
 #include "EventDispatcher.h"
-#include "MessageReceiverMap.h"
-#include "PluginInfoStore.h"
 #include "ResourceCachesToClear.h"
 #include "SandboxExtension.h"
 #include "SharedMemory.h"
 #include "TextCheckerState.h"
 #include "VisitedLinkTable.h"
-#include "WebConnectionToUIProcess.h"
-#include "WebGeolocationManager.h"
-#include "WebIconDatabaseProxy.h"
-#include "WebPageGroupProxy.h"
 #include <WebCore/LinkHash.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
+#include <wtf/text/AtomicString.h>
+#include <wtf/text/AtomicStringHash.h>
 
 #if USE(SOUP)
 #include "WebSoupRequestManager.h"
@@ -68,33 +64,25 @@ QT_END_NAMESPACE
 #include "WebNetworkInfoManager.h"
 #endif
 
-#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
-#include "WebNotificationManager.h"
-#endif
-
-#if ENABLE(NETWORK_PROCESS)
-#include "WebResourceLoadScheduler.h"
-#endif
-
-#if ENABLE(PLUGIN_PROCESS)
-#include "PluginProcessConnectionManager.h"
-#endif
-
 namespace WebCore {
-    class IntSize;
-    class PageGroup;
+    class ResourceRequest;
+    struct PluginInfo;
+
 #if ENABLE(WEB_INTENTS)
     class PlatformMessagePortChannel;
 #endif
-    class ResourceRequest;
-    class ResourceResponse;
 }
 
 namespace WebKit {
 
+class DownloadManager;
 class InjectedBundle;
+class WebConnectionToUIProcess;
 class WebFrame;
+class WebIconDatabaseProxy;
 class WebPage;
+class WebPageGroupProxy;
+class WebProcessSupplement;
 struct WebPageCreationParameters;
 struct WebPageGroupData;
 struct WebPreferencesStore;
@@ -108,18 +96,29 @@ class NetworkProcessConnection;
 class SecItemResponseData;
 #endif
 
-class WebProcess : public ChildProcess, private CoreIPC::Connection::QueueClient {
+#if ENABLE(NETWORK_PROCESS)
+class WebResourceLoadScheduler;
+#endif
+
+#if ENABLE(PLUGIN_PROCESS)
+class PluginProcessConnectionManager;
+#endif
+
+class WebProcess : public ChildProcess, private CoreIPC::Connection::QueueClient, private DownloadManager::Client {
 public:
     static WebProcess& shared();
 
-    void initialize(CoreIPC::Connection::Identifier, WebCore::RunLoop*);
+    template <typename T>
+    T* supplement()
+    {
+        return static_cast<T*>(m_supplements.get(T::supplementName()));
+    }
 
-    CoreIPC::Connection* connection() const { return m_connection.get(); }
-    WebCore::RunLoop* runLoop() const { return m_runLoop; }
-
-    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, CoreIPC::MessageReceiver*);
-    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID, CoreIPC::MessageReceiver*);
-    void removeMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID);
+    template <typename T>
+    void addSupplement()
+    {
+        m_supplements.add(T::supplementName(), new T(this));
+    }
 
     WebConnectionToUIProcess* webConnectionToUIProcess() const { return m_webConnection.get(); }
 
@@ -136,12 +135,7 @@ public:
 
     InjectedBundle* injectedBundle() const { return m_injectedBundle.get(); }
 
-    bool isSeparateProcess() const;
-
 #if PLATFORM(MAC)
-    void initializeShim();
-    void initializeSandbox(const String& clientIdentifier);
-
 #if USE(ACCELERATED_COMPOSITING)
     mach_port_t compositingRenderServerPort() const { return m_compositingRenderServerPort; }
 #endif
@@ -151,6 +145,10 @@ public:
     void addVisitedLink(WebCore::LinkHash);
     bool isLinkVisited(WebCore::LinkHash) const;
 
+    bool isPlugInAutoStartOrigin(unsigned plugInOriginHash);
+    void addPlugInAutoStartOrigin(const String& pageOrigin, unsigned plugInOriginHash);
+    void plugInDidReceiveUserInteraction(unsigned plugInOriginHash);
+
     bool fullKeyboardAccessEnabled() const { return m_fullKeyboardAccessEnabled; }
 
     WebFrame* webFrame(uint64_t) const;
@@ -159,52 +157,41 @@ public:
 
     WebPageGroupProxy* webPageGroup(uint64_t pageGroupID);
     WebPageGroupProxy* webPageGroup(const WebPageGroupData&);
+
 #if PLATFORM(MAC)
     pid_t presenterApplicationPid() const { return m_presenterApplicationPid; }
     bool shouldForceScreenFontSubstitution() const { return m_shouldForceScreenFontSubstitution; }
 #endif
     
+    const TextCheckerState& textCheckerState() const { return m_textCheckerState; }
+    DownloadManager& downloadManager();
+
 #if PLATFORM(QT)
     QNetworkAccessManager* networkAccessManager() { return m_networkAccessManager; }
 #endif
-
-    // Text Checking
-    const TextCheckerState& textCheckerState() const { return m_textCheckerState; }
-
-    // Geolocation
-    WebGeolocationManager& geolocationManager() { return m_geolocationManager; }
-
 #if ENABLE(BATTERY_STATUS)
     WebBatteryManager& batteryManager() { return m_batteryManager; }
 #endif
-
 #if ENABLE(NETWORK_INFO)
     WebNetworkInfoManager& networkInfoManager() { return m_networkInfoManager; }
 #endif
-    
-#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
-    WebNotificationManager& notificationManager() { return m_notificationManager; }
+#if USE(SOUP)
+    WebSoupRequestManager& soupRequestManager() { return m_soupRequestManager; }
 #endif
 
     void clearResourceCaches(ResourceCachesToClear = AllResourceCaches);
     
-    const String& localStorageDirectory() const { return m_localStorageDirectory; }
-
 #if ENABLE(PLUGIN_PROCESS)
-    PluginProcessConnectionManager& pluginProcessConnectionManager() { return m_pluginProcessConnectionManager; }
+    PluginProcessConnectionManager& pluginProcessConnectionManager();
 #endif
 
     EventDispatcher& eventDispatcher() { return m_eventDispatcher; }
-
-#if USE(SOUP)
-    WebSoupRequestManager& soupRequestManager() { return m_soupRequestManager; }
-#endif
 
 #if ENABLE(NETWORK_PROCESS)
     NetworkProcessConnection* networkConnection();
     void networkProcessConnectionClosed(NetworkProcessConnection*);
     bool usesNetworkProcess() const { return m_usesNetworkProcess; }
-    WebResourceLoadScheduler& webResourceLoadScheduler() { return m_webResourceLoadScheduler; }
+    WebResourceLoadScheduler& webResourceLoadScheduler();
 #endif
 
     void setCacheModel(uint32_t);
@@ -214,6 +201,12 @@ public:
 
 private:
     WebProcess();
+
+    // DownloadManager::Client.
+    virtual void didCreateDownload() OVERRIDE;
+    virtual void didDestroyDownload() OVERRIDE;
+    virtual CoreIPC::Connection* downloadProxyConnection() OVERRIDE;
+    virtual AuthenticationManager& downloadsAuthenticationManager() OVERRIDE;
 
     void initializeWebProcess(const WebProcessCreationParameters&, CoreIPC::MessageDecoder&);
     void platformInitializeWebProcess(const WebProcessCreationParameters&, CoreIPC::MessageDecoder&);
@@ -238,10 +231,10 @@ private:
     void visitedLinkStateChanged(const Vector<WebCore::LinkHash>& linkHashes);
     void allVisitedLinkStateChanged();
 
+    void didAddPlugInAutoStartOrigin(unsigned plugInOriginHash, double expirationTime);
+    void resetPlugInAutoStartOrigins(const HashMap<unsigned, double>& hashes);
+
     void platformSetCacheModel(CacheModel);
-    static void calculateCacheSizes(CacheModel cacheModel, uint64_t memorySize, uint64_t diskFreeSize,
-        unsigned& cacheTotalCapacity, unsigned& cacheMinDeadCapacity, unsigned& cacheMaxDeadCapacity, double& deadDecodedDataDeletionInterval,
-        unsigned& pageCacheCapacity, unsigned long& urlCacheMemoryCapacity, unsigned long& urlCacheDiskCapacity);
     void platformClearResourceCaches(ResourceCachesToClear);
     void clearApplicationCache();
 
@@ -252,9 +245,6 @@ private:
     void clearPluginSiteData(const Vector<String>& pluginPaths, const Vector<String>& sites, uint64_t flags, uint64_t maxAgeInSeconds, uint64_t callbackID);
 #endif
 
-#if ENABLE(NETWORK_PROCESS)
-    void networkProcessCrashed(CoreIPC::Connection*);
-#endif
 #if ENABLE(PLUGIN_PROCESS)
     void pluginProcessCrashed(CoreIPC::Connection*, const String& pluginPath, uint32_t processType);
 #endif
@@ -274,6 +264,10 @@ private:
     void garbageCollectJavaScriptObjects();
     void setJavaScriptGarbageCollectorTimerEnabled(bool flag);
 
+#if USE(SOUP)
+    void setIgnoreTLSErrors(bool);
+#endif
+
     void postInjectedBundleMessage(const CoreIPC::DataReference& messageData);
 
 #if USE(SECURITY_FRAMEWORK)
@@ -281,8 +275,11 @@ private:
 #endif
 
     // ChildProcess
-    virtual bool shouldTerminate();
-    virtual void terminate();
+    virtual void initializeConnection(CoreIPC::Connection*) OVERRIDE;
+    virtual void initializeSandbox(const String& clientIdentifier) OVERRIDE;
+    virtual void platformInitialize() OVERRIDE;
+    virtual bool shouldTerminate() OVERRIDE;
+    virtual void terminate() OVERRIDE;
 
     // CoreIPC::Connection::Client
     friend class WebConnectionToUIProcess;
@@ -305,14 +302,6 @@ private:
     void didGetPlugins(CoreIPC::Connection*, uint64_t requestID, const Vector<WebCore::PluginInfo>&);
 #endif
 
-#if ENABLE(CUSTOM_PROTOCOLS)
-    void registerSchemeForCustomProtocol(const WTF::String&);
-    void unregisterSchemeForCustomProtocol(const WTF::String&);
-#endif
-
-    RefPtr<CoreIPC::Connection> m_connection;
-    CoreIPC::MessageReceiverMap m_messageReceiverMap;
-
     RefPtr<WebConnectionToUIProcess> m_webConnection;
 
     HashMap<uint64_t, RefPtr<WebPage> > m_pageMap;
@@ -323,11 +312,11 @@ private:
 
     bool m_inDidClose;
 
-    WebCore::RunLoop* m_runLoop;
-
     // FIXME: The visited link table should not be per process.
     VisitedLinkTable m_visitedLinkTable;
     bool m_shouldTrackVisitedLinks;
+
+    HashMap<unsigned, double> m_plugInAutoStartOrigins;
 
     bool m_hasSetCacheModel;
     CacheModel m_cacheModel;
@@ -353,36 +342,33 @@ private:
     HashMap<uint64_t, RefPtr<WebCore::PlatformMessagePortChannel> > m_messagePortChannels;
 #endif
 
+    typedef HashMap<AtomicString, WebProcessSupplement*> WebProcessSupplementMap;
+    WebProcessSupplementMap m_supplements;
+
     TextCheckerState m_textCheckerState;
-    WebGeolocationManager m_geolocationManager;
+
 #if ENABLE(BATTERY_STATUS)
     WebBatteryManager m_batteryManager;
 #endif
 #if ENABLE(NETWORK_INFO)
     WebNetworkInfoManager m_networkInfoManager;
 #endif
-#if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
-    WebNotificationManager m_notificationManager;
-#endif
-    WebIconDatabaseProxy m_iconDatabaseProxy;
-    
-    String m_localStorageDirectory;
+    WebIconDatabaseProxy* m_iconDatabaseProxy;
 
 #if ENABLE(NETWORK_PROCESS)
     void ensureNetworkProcessConnection();
     RefPtr<NetworkProcessConnection> m_networkProcessConnection;
     bool m_usesNetworkProcess;
-    WebResourceLoadScheduler m_webResourceLoadScheduler;
+    WebResourceLoadScheduler* m_webResourceLoadScheduler;
 #endif
 
 #if ENABLE(PLUGIN_PROCESS)
-    PluginProcessConnectionManager m_pluginProcessConnectionManager;
+    PluginProcessConnectionManager* m_pluginProcessConnectionManager;
 #endif
 
 #if USE(SOUP)
     WebSoupRequestManager m_soupRequestManager;
 #endif
-
 };
 
 } // namespace WebKit

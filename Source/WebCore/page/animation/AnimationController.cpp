@@ -39,7 +39,6 @@
 #include "FrameView.h"
 #include "RenderView.h"
 #include "WebKitAnimationEvent.h"
-#include "WebKitAnimationList.h"
 #include "WebKitTransitionEvent.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/UnusedParam.h>
@@ -482,16 +481,6 @@ void AnimationControllerPrivate::animationWillBeRemoved(AnimationBase* animation
     removeFromAnimationsWaitingForStartTimeResponse(animation);
 }
 
-PassRefPtr<WebKitAnimationList> AnimationControllerPrivate::animationsForRenderer(RenderObject* renderer) const
-{
-    RefPtr<CompositeAnimation> animation = m_compositeAnimations.get(renderer);
-
-    if (!animation)
-        return 0;
-
-    return animation->animations();
-}
-
 AnimationController::AnimationController(Frame* frame)
     : m_data(adoptPtr(new AnimationControllerPrivate(frame)))
     , m_beginAnimationUpdateCount(0)
@@ -521,10 +510,6 @@ PassRefPtr<RenderStyle> AnimationController::updateAnimations(RenderObject* rend
     if (!renderer->document() || renderer->document()->inPageCache())
         return newStyle;
 
-    // FIXME: We do not animate generated content yet.
-    if (renderer->isPseudoElement())
-        return newStyle;
-
     RenderStyle* oldStyle = renderer->style();
 
     if ((!oldStyle || (!oldStyle->animations() && !oldStyle->transitions())) && (!newStyle->animations() && !newStyle->transitions()))
@@ -538,7 +523,9 @@ PassRefPtr<RenderStyle> AnimationController::updateAnimations(RenderObject* rend
     // against the animations in the style and make sure we're in sync.  If destination values
     // have changed, we reset the animation.  We then do a blend to get new values and we return
     // a new style.
-    ASSERT(renderer->node() && !renderer->isPseudoElement()); // FIXME: We do not animate generated content yet.
+
+    // We don't support anonymous pseudo elements like :first-line or :first-letter.
+    ASSERT(renderer->node());
 
     RefPtr<CompositeAnimation> rendererAnimations = m_data->accessCompositeAnimation(renderer);
     RefPtr<RenderStyle> blendedStyle = rendererAnimations->animate(renderer, oldStyle, newStyle);
@@ -646,11 +633,6 @@ bool AnimationController::supportsAcceleratedAnimationOfProperty(CSSPropertyID p
     UNUSED_PARAM(property);
     return false;
 #endif
-}
-
-PassRefPtr<WebKitAnimationList> AnimationController::animationsForRenderer(RenderObject* renderer) const
-{
-    return m_data->animationsForRenderer(renderer);
 }
 
 } // namespace WebCore

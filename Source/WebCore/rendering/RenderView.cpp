@@ -34,6 +34,7 @@
 #include "Page.h"
 #include "RenderGeometryMap.h"
 #include "RenderLayer.h"
+#include "RenderLayerBacking.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderSelectionInfo.h"
 #include "RenderWidget.h"
@@ -80,7 +81,7 @@ RenderView::RenderView(Node* node, FrameView* view)
 
     setPreferredLogicalWidthsDirty(true, MarkOnlyThis);
     
-    setPositioned(true); // to 0,0 :)
+    setPositionState(AbsolutePosition); // to 0,0 :)
 }
 
 RenderView::~RenderView()
@@ -120,12 +121,12 @@ void RenderView::computePreferredLogicalWidths()
     RenderBlock::computePreferredLogicalWidths();
 }
 
-LayoutUnit RenderView::availableLogicalHeight() const
+LayoutUnit RenderView::availableLogicalHeight(AvailableLogicalHeightType heightType) const
 {
     // If we have columns, then the available logical height is reduced to the column height.
     if (hasColumns())
         return columnInfo()->columnHeight();
-    return RenderBlock::availableLogicalHeight();
+    return RenderBlock::availableLogicalHeight(heightType);
 }
 
 bool RenderView::isChildAllowed(RenderObject* child, RenderStyle*) const
@@ -536,7 +537,7 @@ IntRect RenderView::selectionBounds(bool clipToVisibleContent) const
         // RenderSelectionInfo::rect() is in the coordinates of the repaintContainer, so map to page coordinates.
         LayoutRect currRect = info->rect();
         if (RenderLayerModelObject* repaintContainer = info->repaintContainer()) {
-            FloatQuad absQuad = repaintContainer->localToAbsoluteQuad(FloatRect(currRect), SnapOffsetForTransforms);
+            FloatQuad absQuad = repaintContainer->localToAbsoluteQuad(FloatRect(currRect));
             currRect = absQuad.enclosingBoundingBox(); 
         }
         selRect.unite(currRect);

@@ -38,9 +38,8 @@ class PageClientBase : public PageClient {
 public:
     virtual ~PageClientBase();
 
-    // Called from the view
     virtual void didCommitLoad() = 0;
-    virtual void updateViewportSize(const WebCore::IntSize&) = 0;
+    virtual void updateViewportSize() = 0;
     virtual void didChangeContentsSize(const WebCore::IntSize&) = 0;
 
     EwkViewImpl* viewImpl() const;

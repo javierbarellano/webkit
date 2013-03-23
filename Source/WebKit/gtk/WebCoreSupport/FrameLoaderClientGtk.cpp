@@ -53,6 +53,7 @@
 #include "JSDOMWindow.h"
 #include "Language.h"
 #include "MIMETypeRegistry.h"
+#include "MainResourceLoader.h"
 #include "MouseEvent.h"
 #include "NotImplemented.h"
 #include "Page.h"
@@ -193,13 +194,28 @@ bool FrameLoaderClient::shouldUseCredentialStorage(WebCore::DocumentLoader*, uns
 void FrameLoaderClient::dispatchDidReceiveAuthenticationChallenge(WebCore::DocumentLoader*, unsigned long  identifier, const AuthenticationChallenge& challenge)
 {
     if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled()) {
-        challenge.authenticationClient()->receivedRequestToContinueWithoutCredential(challenge);
+        CString username;
+        CString password;
+        if (!DumpRenderTreeSupportGtk::s_authenticationCallback || !DumpRenderTreeSupportGtk::s_authenticationCallback(username, password)) {
+            challenge.authenticationClient()->receivedRequestToContinueWithoutCredential(challenge);
+            return;
+        }
+
+        challenge.authenticationClient()->receivedCredential(challenge, Credential(String::fromUTF8(username.data()), String::fromUTF8(password.data()), CredentialPersistenceForSession));
         return;
     }
 
-    GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(webkit_web_frame_get_web_view(m_frame)));
+    WebKitWebView* view = webkit_web_frame_get_web_view(m_frame);
+    GtkAuthenticationDialog::CredentialStorageMode credentialStorageMode;
+
+    if (core(view)->settings()->privateBrowsingEnabled())
+        credentialStorageMode = GtkAuthenticationDialog::DisallowPersistentStorage;
+    else
+        credentialStorageMode = GtkAuthenticationDialog::AllowPersistentStorage;
+
+    GtkWidget* toplevel = gtk_widget_get_toplevel(GTK_WIDGET(view));
     GtkWindow* toplevelWindow = widgetIsOnscreenToplevelWindow(toplevel) ? GTK_WINDOW(toplevel) : 0;
-    GtkAuthenticationDialog* dialog = new GtkAuthenticationDialog(toplevelWindow, challenge);
+    GtkAuthenticationDialog* dialog = new GtkAuthenticationDialog(toplevelWindow, challenge, credentialStorageMode);
     dialog->show();
 }
 
@@ -652,7 +668,9 @@ bool FrameLoaderClient::shouldStopLoadingForHistoryItem(HistoryItem* item) const
 
 void FrameLoaderClient::didDisplayInsecureContent()
 {
-    notImplemented();
+    if (!DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled() || !DumpRenderTreeSupportGtk::s_frameLoadEventCallback)
+        return;
+    DumpRenderTreeSupportGtk::s_frameLoadEventCallback(m_frame, DumpRenderTreeSupportGtk::DidDisplayInsecureContent, 0);
 }
 
 void FrameLoaderClient::didRunInsecureContent(SecurityOrigin* coreOrigin, const KURL& url)
@@ -662,7 +680,9 @@ void FrameLoaderClient::didRunInsecureContent(SecurityOrigin* coreOrigin, const 
 
 void FrameLoaderClient::didDetectXSS(const KURL&, bool)
 {
-    notImplemented();
+    if (!DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled() || !DumpRenderTreeSupportGtk::s_frameLoadEventCallback)
+        return;
+    DumpRenderTreeSupportGtk::s_frameLoadEventCallback(m_frame, DumpRenderTreeSupportGtk::DidDetectXSS, 0);
 }
 
 void FrameLoaderClient::forceLayout()
@@ -699,17 +719,23 @@ void FrameLoaderClient::dispatchDidHandleOnloadEvents()
 
 void FrameLoaderClient::dispatchDidReceiveServerRedirectForProvisionalLoad()
 {
-    notImplemented();
+    if (!DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled() || !DumpRenderTreeSupportGtk::s_frameLoadEventCallback)
+        return;
+    DumpRenderTreeSupportGtk::s_frameLoadEventCallback(m_frame, DumpRenderTreeSupportGtk::DidReceiveServerRedirectForProvisionalLoad, 0);
 }
 
 void FrameLoaderClient::dispatchDidCancelClientRedirect()
 {
-    notImplemented();
+    if (!DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled() || !DumpRenderTreeSupportGtk::s_frameLoadEventCallback)
+        return;
+    DumpRenderTreeSupportGtk::s_frameLoadEventCallback(m_frame, DumpRenderTreeSupportGtk::DidCancelClientRedirect, 0);
 }
 
-void FrameLoaderClient::dispatchWillPerformClientRedirect(const KURL&, double, double)
+void FrameLoaderClient::dispatchWillPerformClientRedirect(const KURL& url, double, double)
 {
-    notImplemented();
+    if (!DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled() || !DumpRenderTreeSupportGtk::s_frameLoadEventCallback)
+        return;
+    DumpRenderTreeSupportGtk::s_frameLoadEventCallback(m_frame, DumpRenderTreeSupportGtk::WillPerformClientRedirectToURL, url.string().utf8().data());
 }
 
 void FrameLoaderClient::dispatchDidChangeLocationWithinPage()
@@ -1075,12 +1101,12 @@ void FrameLoaderClient::dispatchDidFailLoad(const ResourceError& error)
     g_error_free(webError);
 }
 
-void FrameLoaderClient::download(ResourceHandle* handle, const ResourceRequest& request, const ResourceResponse& response)
+void FrameLoaderClient::convertMainResourceLoadToDownload(MainResourceLoader* mainResourceLoader, const ResourceRequest& request, const ResourceResponse& response)
 {
     GRefPtr<WebKitNetworkRequest> networkRequest(adoptGRef(kitNew(request)));
     WebKitWebView* view = getViewFromFrame(m_frame);
 
-    webkit_web_view_request_download(view, networkRequest.get(), response, handle);
+    webkit_web_view_request_download(view, networkRequest.get(), response, mainResourceLoader->loader()->handle());
 }
 
 ResourceError FrameLoaderClient::cancelledError(const ResourceRequest& request)

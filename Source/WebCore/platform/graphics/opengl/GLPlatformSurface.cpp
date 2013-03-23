@@ -32,16 +32,20 @@
 #include "GLXSurface.h"
 #endif
 
+#if USE(EGL)
+#include "EGLSurface.h"
+#endif
+
 #include "NotImplemented.h"
 
 namespace WebCore {
 
 PassOwnPtr<GLPlatformSurface> GLPlatformSurface::createOffscreenSurface()
 {
-#if HAVE(GLX)
+#if USE(GLX)
     OwnPtr<GLPlatformSurface> surface = adoptPtr(new GLXPBuffer());
 
-    if (surface->handle())
+    if (surface->handle() && surface->drawable())
         return surface.release();
 #endif
 
@@ -50,10 +54,14 @@ PassOwnPtr<GLPlatformSurface> GLPlatformSurface::createOffscreenSurface()
 
 PassOwnPtr<GLPlatformSurface> GLPlatformSurface::createTransportSurface()
 {
-#if HAVE(GLX) && USE(GRAPHICS_SURFACE)
+#if USE(GRAPHICS_SURFACE)
+#if USE(GLX)
     OwnPtr<GLPlatformSurface> surface = adoptPtr(new GLXTransportSurface());
+#elif USE(EGL)
+    OwnPtr<GLPlatformSurface> surface = adoptPtr(new EGLWindowTransportSurface());
+#endif
 
-    if (surface->handle())
+    if (surface && surface->handle() && surface->drawable())
         return surface.release();
 #endif
 
@@ -65,6 +73,7 @@ GLPlatformSurface::GLPlatformSurface()
     , m_fboId(0)
     , m_sharedDisplay(0)
     , m_drawable(0)
+    , m_bufferHandle(0)
 {
 }
 
@@ -72,7 +81,12 @@ GLPlatformSurface::~GLPlatformSurface()
 {
 }
 
-PlatformSurface GLPlatformSurface::handle() const
+PlatformBufferHandle GLPlatformSurface::handle() const
+{
+    return m_bufferHandle;
+}
+
+PlatformDrawable GLPlatformSurface::drawable() const
 {
     return m_drawable;
 }
@@ -97,55 +111,24 @@ void GLPlatformSurface::swapBuffers()
     notImplemented();
 }
 
-void GLPlatformSurface::copyTexture(uint32_t texture, const IntRect& sourceRect)
+void GLPlatformSurface::updateContents(const uint32_t texture, const GLuint bindFboId, const uint32_t bindTexture)
 {
     if (!m_fboId)
         glGenFramebuffers(1, &m_fboId);
 
-    m_restoreNeeded = true;
-    int x = sourceRect.x();
-    int y = sourceRect.y();
-    int width = sourceRect.width();
-    int height = sourceRect.height();
-
-    glPushAttrib(GL_COLOR_BUFFER_BIT);
-
-    GLint previousFBO;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO);
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fboId);
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-    glBlitFramebuffer(x, y, width, height, x, y, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
-    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, previousFBO);
-
-    glPopAttrib();
-}
-
-void GLPlatformSurface::updateContents(const uint32_t texture, const IntRect& sourceRect, const GLuint bindFboId, const uint32_t bindTexture)
-{
     m_restoreNeeded = false;
 
-    if (!m_fboId)
-        glGenFramebuffers(1, &m_fboId);
-
-    int x = sourceRect.x();
-    int y = sourceRect.y();
-    int width = sourceRect.width();
-    int height = sourceRect.height();
+    int x = 0;
+    int y = 0;
+    int width = m_rect.width();
+    int height = m_rect.height();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fboId);
     glBindTexture(GL_TEXTURE_2D, texture);
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(x, y, width, height, x, y, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    // Use NEAREST as no scale is performed during the blit.
+    glBlitFramebuffer(x, y, width, height, x, y, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     swapBuffers();
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
     glBindTexture(GL_TEXTURE_2D, bindTexture);

@@ -37,6 +37,7 @@
 #include "FrameTree.h"
 #include "FrameView.h"
 #include "HTMLNames.h"
+#include "NodeTraversal.h"
 #include "RenderObject.h"
 #include "RenderPart.h"
 #include "RenderSVGResource.h"
@@ -345,19 +346,19 @@ void SVGSVGElement::forceRedraw()
 PassRefPtr<NodeList> SVGSVGElement::collectIntersectionOrEnclosureList(const FloatRect& rect, SVGElement* referenceElement, CollectIntersectionOrEnclosure collect) const
 {
     Vector<RefPtr<Node> > nodes;
-    Node* node = traverseNextNode(referenceElement ? referenceElement : this);
-    while (node) {
-        if (node->isSVGElement()) { 
+    Element* element = ElementTraversal::next(referenceElement ? referenceElement : this);
+    while (element) {
+        if (element->isSVGElement()) { 
             if (collect == CollectIntersectionList) {
-                if (checkIntersection(static_cast<SVGElement*>(node), rect))
-                    nodes.append(node);
+                if (checkIntersection(static_cast<SVGElement*>(element), rect))
+                    nodes.append(element);
             } else {
-                if (checkEnclosure(static_cast<SVGElement*>(node), rect))
-                    nodes.append(node);
+                if (checkEnclosure(static_cast<SVGElement*>(element), rect))
+                    nodes.append(element);
             }
         }
 
-        node = node->traverseNextNode(referenceElement ? referenceElement : this);
+        element = ElementTraversal::next(element, referenceElement ? referenceElement : this);
     }
     return StaticNodeList::adopt(nodes);
 }
@@ -787,7 +788,7 @@ Element* SVGSVGElement::getElementById(const AtomicString& id) const
 
     // Fall back to traversing our subtree. Duplicate ids are allowed, the first found will
     // be returned.
-    for (Node* node = firstChild(); node; node = node->traverseNextNode(this)) {
+    for (Node* node = firstChild(); node; node = NodeTraversal::next(node, this)) {
         if (!node->isElementNode())
             continue;
 

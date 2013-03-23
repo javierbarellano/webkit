@@ -39,6 +39,7 @@
 #include "Document.h"
 #include "EventListenerMap.h"
 #include "Frame.h"
+#include "HeapGraphSerializer.h"
 #include "InspectorClient.h"
 #include "InspectorDOMStorageAgent.h"
 #include "InspectorFrontend.h"
@@ -49,6 +50,7 @@
 #include "MemoryInstrumentationImpl.h"
 #include "MemoryUsageSupport.h"
 #include "Node.h"
+#include "NodeTraversal.h"
 #include "Page.h"
 #include "ScriptGCEvent.h"
 #include "ScriptProfiler.h"
@@ -239,7 +241,7 @@ private:
     {
         Node* currentNode = rootNode;
         collectListenersInfo(rootNode);
-        while ((currentNode = currentNode->traverseNextNode(rootNode))) {
+        while ((currentNode = NodeTraversal::next(currentNode, rootNode))) {
             ++m_totalNodeCount;
             collectNodeStatistics(currentNode);
         }
@@ -534,9 +536,12 @@ static void addPlatformComponentsInfo(PassRefPtr<InspectorMemoryBlocks> children
     }
 }
 
-void InspectorMemoryAgent::getProcessMemoryDistribution(ErrorString*, RefPtr<InspectorMemoryBlock>& processMemory)
+void InspectorMemoryAgent::getProcessMemoryDistribution(ErrorString*, const bool* reportGraph, RefPtr<InspectorMemoryBlock>& processMemory, RefPtr<InspectorObject>& graph)
 {
-    MemoryInstrumentationClientImpl memoryInstrumentationClient;
+    OwnPtr<HeapGraphSerializer> graphSerializer;
+    if (reportGraph && *reportGraph)
+        graphSerializer = adoptPtr(new HeapGraphSerializer());
+    MemoryInstrumentationClientImpl memoryInstrumentationClient(graphSerializer.get());
     m_inspectorClient->getAllocatedObjects(memoryInstrumentationClient.allocatedObjects());
     MemoryInstrumentationImpl memoryInstrumentation(&memoryInstrumentationClient);
 
@@ -544,7 +549,8 @@ void InspectorMemoryAgent::getProcessMemoryDistribution(ErrorString*, RefPtr<Ins
     reportRenderTreeInfo(memoryInstrumentationClient, m_page);
     collectDomTreeInfo(memoryInstrumentation, m_page); // FIXME: collect for all pages?
 
-    PlatformMemoryInstrumentation::reportMemoryUsage(&memoryInstrumentation);
+    PlatformMemoryInstrumentation::reportStaticMembersMemoryUsage(&memoryInstrumentation);
+    WebCoreMemoryInstrumentation::reportStaticMembersMemoryUsage(&memoryInstrumentation);
 
     RefPtr<InspectorMemoryBlocks> children = InspectorMemoryBlocks::create();
     addPlatformComponentsInfo(children);
@@ -552,6 +558,10 @@ void InspectorMemoryAgent::getProcessMemoryDistribution(ErrorString*, RefPtr<Ins
     memoryInstrumentation.addRootObject(this);
     memoryInstrumentation.addRootObject(memoryInstrumentation);
     memoryInstrumentation.addRootObject(memoryInstrumentationClient);
+    if (graphSerializer) {
+        memoryInstrumentation.addRootObject(graphSerializer.get());
+        graph = graphSerializer->serialize();
+    }
 
     m_inspectorClient->dumpUncountedAllocatedObjects(memoryInstrumentationClient.countedObjects());
 
@@ -575,7 +585,7 @@ void InspectorMemoryAgent::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo)
     info.addMember(m_page);
 }
 
-InspectorMemoryAgent::InspectorMemoryAgent(InstrumentingAgents* instrumentingAgents, InspectorClient* client, InspectorState* state, Page* page)
+InspectorMemoryAgent::InspectorMemoryAgent(InstrumentingAgents* instrumentingAgents, InspectorClient* client, InspectorCompositeState* state, Page* page)
     : InspectorBaseAgent<InspectorMemoryAgent>("Memory", instrumentingAgents, state)
     , m_inspectorClient(client)
     , m_page(page)

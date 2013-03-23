@@ -65,9 +65,6 @@ SVGElement::~SVGElement()
         ASSERT(!SVGElementRareData::rareDataMap().contains(this));
     else {
         ASSERT(document());
-        if (hasPendingResources())
-            document()->accessSVGExtensions()->removeElementFromPendingResources(this);
-        ASSERT(!hasPendingResources());
         SVGElementRareData::SVGElementRareDataMap& rareDataMap = SVGElementRareData::rareDataMap();
         SVGElementRareData::SVGElementRareDataMap::iterator it = rareDataMap.find(this);
         ASSERT(it != rareDataMap.end());
@@ -83,6 +80,7 @@ SVGElement::~SVGElement()
         rareDataMap.remove(it);
     }
     ASSERT(document());
+    document()->accessSVGExtensions()->rebuildAllElementReferencesForTarget(this);
     document()->accessSVGExtensions()->removeAllElementReferencesForTarget(this);
 }
 
@@ -182,8 +180,8 @@ void SVGElement::removedFrom(ContainerNode* rootParent)
     StyledElement::removedFrom(rootParent);
 
     if (wasInDocument) {
+        document()->accessSVGExtensions()->rebuildAllElementReferencesForTarget(this);
         document()->accessSVGExtensions()->removeAllElementReferencesForTarget(this);
-        document()->accessSVGExtensions()->removeElementFromPendingResources(this);
     }
 }
 
@@ -536,7 +534,7 @@ void SVGElement::attributeChanged(const QualifiedName& name, const AtomicString&
     StyledElement::attributeChanged(name, newValue);
 
     if (isIdAttributeName(name))
-        document()->accessSVGExtensions()->removeAllElementReferencesForTarget(this);
+        document()->accessSVGExtensions()->rebuildAllElementReferencesForTarget(this);
 
     // Changes to the style attribute are processed lazily (see Element::getAttribute() and related methods),
     // so we don't want changes to the style attribute to result in extra work here.
@@ -628,12 +626,11 @@ RenderStyle* SVGElement::computedStyle(PseudoId pseudoElementSpecifier)
 }
 
 #ifndef NDEBUG
-bool SVGElement::isAnimatableAttribute(const QualifiedName& name)
+bool SVGElement::isAnimatableAttribute(const QualifiedName& name) const
 {
     DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, animatableAttributes, ());
 
     if (animatableAttributes.isEmpty()) {
-        animatableAttributes.add(classAttr);
         animatableAttributes.add(XLinkNames::hrefAttr);
         animatableAttributes.add(SVGNames::amplitudeAttr);
         animatableAttributes.add(SVGNames::azimuthAttr);
@@ -728,6 +725,10 @@ bool SVGElement::isAnimatableAttribute(const QualifiedName& name)
         animatableAttributes.add(SVGNames::yChannelSelectorAttr);
         animatableAttributes.add(SVGNames::zAttr);
     }
+
+    if (name == classAttr)
+        return isStyled();
+
     return animatableAttributes.contains(name);
 }
 #endif

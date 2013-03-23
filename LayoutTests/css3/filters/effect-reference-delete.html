@@ -1,22 +1,13 @@
 <html>
   <head>
-    <style>
-    img {
-        margin: 10px;
-    }
-    </style>
-
     <script type="application/x-javascript">
-      function draw() {
-          if (window.testRunner)
-              testRunner.dumpAsText(true);
-
+      function remove() {
           svg = document.getElementById("svg");
           svg.parentNode.removeChild(svg);
       }
     </script>
   </head>
-  <body onload="draw();">
+  <body onload="remove();">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="0" height="0" version="1.1">
       <defs>
         <filter id="MyFilter">
@@ -24,7 +15,6 @@
         </filter>
       </defs>
     </svg>
-
     <img style="-webkit-filter: url(#MyFilter); filter: url(#MyFilter);" src="resources/reference.png">
   </body>
 </html>

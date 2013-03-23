@@ -255,11 +255,12 @@ video::-webkit-media-text-track-container {
     text-decoration: none;
     pointer-events: none;
     -webkit-user-select: none;
+    word-break: break-word;
 
     -webkit-box-flex: 1;
 }
 
-video::-webkit-media-text-track-past-nodes {
+video::-webkit-media-text-track-all-nodes {
     display: inline;
 
     background-color: rgba(0, 0, 0, 0.8);
@@ -301,4 +302,8 @@ video::-webkit-media-controls-text-track-sel-button {
 	background-color: transparent;
     color: rgba(255,100,50,255);
     padding: 2px 20px 2px 2px;
+}
+
+video::cue(:future) {
+    color: gray;
 }

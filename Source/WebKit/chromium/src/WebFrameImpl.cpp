@@ -118,6 +118,7 @@
 #include "KURL.h"
 #include "MessagePort.h"
 #include "Node.h"
+#include "NodeTraversal.h"
 #include "Page.h"
 #include "PageOverlay.h"
 #include "Performance.h"
@@ -841,7 +842,7 @@ void WebFrameImpl::addMessageToConsole(const WebConsoleMessage& message)
         return;
     }
 
-    frame()->document()->addConsoleMessage(OtherMessageSource, LogMessageType, webCoreMessageLevel, message.text);
+    frame()->document()->addConsoleMessage(OtherMessageSource, webCoreMessageLevel, message.text);
 }
 
 void WebFrameImpl::collectGarbage()
@@ -1385,6 +1386,16 @@ void WebFrameImpl::selectRange(const WebRange& webRange)
 {
     if (RefPtr<Range> range = static_cast<PassRefPtr<Range> >(webRange))
         frame()->selection()->setSelectedRange(range.get(), WebCore::VP_DEFAULT_AFFINITY, false);
+}
+
+void WebFrameImpl::moveCaretSelectionTowardsWindowPoint(const WebPoint& point)
+{
+    Element* editable = frame()->selection()->rootEditableElement();
+    IntPoint contentsPoint = frame()->view()->windowToContents(IntPoint(point));
+    LayoutPoint localPoint(editable->convertFromPage(contentsPoint));
+    VisiblePosition position = editable->renderer()->positionForPoint(localPoint);
+    if (frame()->selection()->shouldChangeSelection(position))
+        frame()->selection()->moveTo(position, UserTriggered);
 }
 
 VisiblePosition WebFrameImpl::visiblePositionForWindowPoint(const WebPoint& point)
@@ -2349,7 +2360,7 @@ void WebFrameImpl::setFindEndstateFocusAndSelection()
                 frame()->document()->setFocusedNode(node);
                 return;
             }
-            node = node->traverseNextNode();
+            node = NodeTraversal::next(node);
         }
 
         // No node related to the active match was focusable, so set the

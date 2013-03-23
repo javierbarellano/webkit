@@ -30,6 +30,7 @@
 #include "Element.h"
 #include "HTMLNames.h"
 #include "InlineTextBox.h"
+#include "NodeTraversal.h"
 #include "Position.h"
 #include "RenderBlock.h"
 #include "RenderObject.h"
@@ -214,8 +215,8 @@ static const InlineTextBox* logicallyPreviousBox(const VisiblePosition& visibleP
         return previousBox;
 
     while (1) {
-        Node* startNode = startBox->renderer() ? startBox->renderer()->node() : 0;
-        if (!startNode || startNode->isPseudoElement())
+        Node* startNode = startBox->renderer() ? startBox->renderer()->nonPseudoNode() : 0;
+        if (!startNode)
             break;
 
         Position position = previousRootInlineBoxCandidatePosition(startNode, visiblePosition, ContentIsEditable);
@@ -255,8 +256,8 @@ static const InlineTextBox* logicallyNextBox(const VisiblePosition& visiblePosit
         return nextBox;
 
     while (1) {
-        Node* startNode = startBox->renderer() ? startBox->renderer()->node() : 0;
-        if (!startNode || startNode->isPseudoElement())
+        Node* startNode = startBox->renderer() ? startBox->renderer()->nonPseudoNode() : 0;
+        if (!startNode)
             break;
 
         Position position = nextRootInlineBoxCandidatePosition(startNode, visiblePosition, ContentIsEditable);
@@ -743,8 +744,8 @@ static VisiblePosition startPositionForLine(const VisiblePosition& c, LineEndpoi
             if (!startRenderer)
                 return VisiblePosition();
 
-            startNode = startRenderer->node();
-            if (startNode && !startNode->isPseudoElement())
+            startNode = startRenderer->nonPseudoNode();
+            if (startNode)
                 break;
 
             startBox = startBox->nextLeafChild();
@@ -815,8 +816,8 @@ static VisiblePosition endPositionForLine(const VisiblePosition& c, LineEndpoint
             if (!endRenderer)
                 return VisiblePosition();
 
-            endNode = endRenderer->node();
-            if (endNode && !endNode->isPseudoElement())
+            endNode = endRenderer->nonPseudoNode();
+            if (endNode)
                 break;
             
             endBox = endBox->prevLeafChild();
@@ -1116,18 +1117,18 @@ VisiblePosition startOfParagraph(const VisiblePosition& c, EditingBoundaryCrossi
             break;
         if (boundaryCrossingRule == CanSkipOverEditingBoundary) {
             while (n && n->rendererIsEditable() != startNode->rendererIsEditable())
-                n = n->traversePreviousNodePostOrder(startBlock);
+                n = NodeTraversal::previousPostOrder(n, startBlock);
             if (!n || !n->isDescendantOf(highestRoot))
                 break;
         }
         RenderObject *r = n->renderer();
         if (!r) {
-            n = n->traversePreviousNodePostOrder(startBlock);
+            n = NodeTraversal::previousPostOrder(n, startBlock);
             continue;
         }
         RenderStyle *style = r->style();
         if (style->visibility() != VISIBLE) {
-            n = n->traversePreviousNodePostOrder(startBlock);
+            n = NodeTraversal::previousPostOrder(n, startBlock);
             continue;
         }
         
@@ -1150,13 +1151,13 @@ VisiblePosition startOfParagraph(const VisiblePosition& c, EditingBoundaryCrossi
             }
             node = n;
             offset = 0;
-            n = n->traversePreviousNodePostOrder(startBlock);
+            n = NodeTraversal::previousPostOrder(n, startBlock);
         } else if (editingIgnoresContent(n) || isTableElement(n)) {
             node = n;
             type = Position::PositionIsBeforeAnchor;
-            n = n->previousSibling() ? n->previousSibling() : n->traversePreviousNodePostOrder(startBlock);
+            n = n->previousSibling() ? n->previousSibling() : NodeTraversal::previousPostOrder(n, startBlock);
         } else
-            n = n->traversePreviousNodePostOrder(startBlock);
+            n = NodeTraversal::previousPostOrder(n, startBlock);
     }
 
     if (type == Position::PositionIsOffsetInAnchor) {
@@ -1196,19 +1197,19 @@ VisiblePosition endOfParagraph(const VisiblePosition &c, EditingBoundaryCrossing
             break;
         if (boundaryCrossingRule == CanSkipOverEditingBoundary) {
             while (n && n->rendererIsEditable() != startNode->rendererIsEditable())
-                n = n->traverseNextNode(stayInsideBlock);
+                n = NodeTraversal::next(n, stayInsideBlock);
             if (!n || !n->isDescendantOf(highestRoot))
                 break;
         }
 
         RenderObject *r = n->renderer();
         if (!r) {
-            n = n->traverseNextNode(stayInsideBlock);
+            n = NodeTraversal::next(n, stayInsideBlock);
             continue;
         }
         RenderStyle *style = r->style();
         if (style->visibility() != VISIBLE) {
-            n = n->traverseNextNode(stayInsideBlock);
+            n = NodeTraversal::next(n, stayInsideBlock);
             continue;
         }
         
@@ -1230,13 +1231,13 @@ VisiblePosition endOfParagraph(const VisiblePosition &c, EditingBoundaryCrossing
             }
             node = n;
             offset = r->caretMaxOffset();
-            n = n->traverseNextNode(stayInsideBlock);
+            n = NodeTraversal::next(n, stayInsideBlock);
         } else if (editingIgnoresContent(n) || isTableElement(n)) {
             node = n;
             type = Position::PositionIsAfterAnchor;
-            n = n->traverseNextSibling(stayInsideBlock);
+            n = NodeTraversal::nextSkippingChildren(n, stayInsideBlock);
         } else
-            n = n->traverseNextNode(stayInsideBlock);
+            n = NodeTraversal::next(n, stayInsideBlock);
     }
 
     if (type == Position::PositionIsOffsetInAnchor)

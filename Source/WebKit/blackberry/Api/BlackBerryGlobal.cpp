@@ -25,10 +25,10 @@
 #include "CrossOriginPreflightResultCache.h"
 #include "FontCache.h"
 #include "ImageSource.h"
+#include "InitializeLogging.h"
 #include "InitializeThreading.h"
 #include "JSDOMWindow.h"
 #include "JSGlobalData.h"
-#include "Logging.h"
 #include "MemoryCache.h"
 #include "NetworkStateNotifier.h"
 #include "PageCache.h"
@@ -85,6 +85,7 @@ void globalInitialize()
     BlackBerry::Platform::Settings* settings = BlackBerry::Platform::Settings::instance();
 
     ImageSource::setMaxPixelsPerDecodedImage(settings->maxPixelsPerDecodedImage());
+    updateOnlineStatus(settings->isNetworkAvailable());
 }
 
 void collectJavascriptGarbageNow()

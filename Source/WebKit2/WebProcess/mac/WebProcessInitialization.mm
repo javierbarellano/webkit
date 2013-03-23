@@ -27,34 +27,26 @@
 #import "WebProcessInitialization.h"
 
 #import "WebProcess.h"
-#import "WebSystemInterface.h"
+#import "WebKit2Initialize.h"
+
 #import <WebCore/LocalizedStrings.h>
-#import <WebCore/RunLoop.h>
 #import <WebKitSystemInterface.h>
-#import <runtime/InitializeThreading.h>
-#import <wtf/MainThread.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-void initializeWebProcess(const WebProcessInitializationParameters& parameters)
+void initializeWebProcess(const ChildProcessInitializationParameters& parameters)
 {
     @autoreleasepool {
-        InitWebCoreSystemInterface();
-        JSC::initializeThreading();
-        WTF::initializeMainThread();
-        RunLoop::initializeMainRunLoop();
+        InitializeWebKit2();
 
         if (!parameters.uiProcessName.isNull()) {
             NSString *applicationName = [NSString stringWithFormat:WEB_UI_STRING("%@ Web Content", "Visible name of the web process. The argument is the application name."), (NSString *)parameters.uiProcessName];
             WKSetVisibleApplicationName((CFStringRef)applicationName);
         }
 
-        WebProcess& webProcess = WebProcess::shared();
-        webProcess.initializeShim();
-        webProcess.initializeSandbox(parameters.clientIdentifier);
-        webProcess.initialize(parameters.connectionIdentifier, RunLoop::main());
+        WebProcess::shared().initialize(parameters);
         
         WKAXRegisterRemoteApp();
     }

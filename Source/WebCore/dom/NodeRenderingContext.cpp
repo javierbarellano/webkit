@@ -26,15 +26,16 @@
 #include "config.h"
 #include "NodeRenderingContext.h"
 
-#include "ComposedShadowTreeWalker.h"
 #include "ContainerNode.h"
 #include "ContentDistributor.h"
 #include "ElementShadow.h"
 #include "FlowThreadController.h"
 #include "HTMLContentElement.h"
+#include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "HTMLShadowElement.h"
 #include "Node.h"
+#include "PseudoElement.h"
 #include "RenderFullScreen.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderObject.h"
@@ -42,6 +43,7 @@
 #include "RenderView.h"
 #include "ShadowRoot.h"
 #include "StyleInheritedData.h"
+#include "StyleResolver.h"
 #include "Text.h"
 
 #if ENABLE(SVG)
@@ -56,11 +58,12 @@ NodeRenderingContext::NodeRenderingContext(Node* node)
     : m_node(node)
     , m_parentFlowRenderer(0)
 {
-    ComposedShadowTreeWalker::findParent(m_node, &m_parentDetails);
+    m_renderingParent = NodeRenderingTraversal::parent(node, &m_parentDetails);
 }
 
 NodeRenderingContext::NodeRenderingContext(Node* node, RenderStyle* style)
     : m_node(node)
+    , m_renderingParent(0)
     , m_style(style)
     , m_parentFlowRenderer(0)
 {
@@ -80,21 +83,11 @@ RenderObject* NodeRenderingContext::nextRenderer() const
 
     // Avoid an O(N^2) problem with this function by not checking for
     // nextRenderer() when the parent element hasn't attached yet.
-    if (m_parentDetails.node() && !m_parentDetails.node()->attached())
+    if (m_renderingParent && !m_renderingParent->attached())
         return 0;
 
-    // FIXME: This is wrong when the next sibling was actually moved around by shadow insertion points.
-    if (m_node->isPseudoElement()) {
-        for (Node* sibling = m_node->pseudoAwareNextSibling(); sibling; sibling = sibling->pseudoAwareNextSibling()) {
-            if (RenderObject* renderer = sibling->renderer())
-                return renderer;
-        }
-        return 0;
-    }
-
-    ComposedShadowTreeWalker walker(m_node);
-    for (walker.nextSibling(); walker.get(); walker.nextSibling()) {
-        if (RenderObject* renderer = walker.get()->renderer()) {
+    for (Node* sibling = NodeRenderingTraversal::nextSibling(m_node); sibling; sibling = NodeRenderingTraversal::nextSibling(sibling)) {
+        if (RenderObject* renderer = sibling->renderer()) {
             // Renderers for elements attached to a flow thread should be skipped because they are parented differently.
             if (renderer->node()->isElementNode() && renderer->style() && !renderer->style()->flowThread().isEmpty())
                 continue;
@@ -110,19 +103,13 @@ RenderObject* NodeRenderingContext::previousRenderer() const
     if (RenderObject* renderer = m_node->renderer())
         return renderer->previousSibling();
 
-    // FIXME: This method doesn't support pseudo elements since nothing needs
-    // previousRenderer() support for them yet.
-    ASSERT(!m_node->isPseudoElement());
-
     if (m_parentFlowRenderer)
         return m_parentFlowRenderer->previousRendererForNode(m_node);
 
     // FIXME: We should have the same O(N^2) avoidance as nextRenderer does
     // however, when I tried adding it, several tests failed.
-
-    ComposedShadowTreeWalker walker(m_node);
-    for (walker.previousSibling(); walker.get(); walker.previousSibling()) {
-        if (RenderObject* renderer = walker.get()->renderer()) {
+    for (Node* sibling = NodeRenderingTraversal::previousSibling(m_node); sibling; sibling = NodeRenderingTraversal::previousSibling(sibling)) {
+        if (RenderObject* renderer = sibling->renderer()) {
             // Renderers for elements attached to a flow thread should be skipped because they are parented differently.
             if (renderer->node()->isElementNode() && renderer->style() && !renderer->style()->flowThread().isEmpty())
                 continue;
@@ -140,21 +127,21 @@ RenderObject* NodeRenderingContext::parentRenderer() const
     if (m_parentFlowRenderer)
         return m_parentFlowRenderer;
 
-    return m_parentDetails.node() ? m_parentDetails.node()->renderer() : 0;
+    return m_renderingParent ? m_renderingParent->renderer() : 0;
 }
 
 bool NodeRenderingContext::shouldCreateRenderer() const
 {
     if (!m_node->document()->shouldCreateRenderers())
         return false;
-    if (!m_parentDetails.node())
+    if (!m_renderingParent)
         return false;
     RenderObject* parentRenderer = this->parentRenderer();
     if (!parentRenderer)
         return false;
     if (!parentRenderer->canHaveChildren())
         return false;
-    if (!m_parentDetails.node()->childShouldCreateRenderer(*this))
+    if (!m_renderingParent->childShouldCreateRenderer(*this))
         return false;
     return true;
 }
@@ -169,9 +156,20 @@ void NodeRenderingContext::moveToFlowThreadIfNeeded()
     if (m_style->flowThread().isEmpty())
         return;
 
+    // As per http://dev.w3.org/csswg/css3-regions/#flow-into, pseudo-elements such as ::first-line, ::first-letter, ::before or ::after
+    // cannot be directly collected into a named flow.
+    if (m_node->isPseudoElement())
+        return;
+
     // FIXME: Do not collect elements if they are in shadow tree.
     if (m_node->isInShadowTree())
         return;
+
+#if ENABLE(FULLSCREEN_API)
+    Document* document = m_node->document();
+    if (document->webkitIsFullScreen() && document->webkitCurrentFullScreenElement() == m_node)
+        return;
+#endif
 
 #if ENABLE(SVG)
     // Allow only svg root elements to be directly collected by a render flow thread.
@@ -235,7 +233,7 @@ void NodeRenderingContext::createRendererForElementIfNeeded()
 
     RenderObject* parentRenderer = this->parentRenderer();
     RenderObject* nextRenderer = this->nextRenderer();
-
+    
 #if ENABLE(DIALOG_ELEMENT)
     if (element->isInTopLayer())
         adjustInsertionPointForTopLayerElement(element, parentRenderer, nextRenderer);
@@ -276,13 +274,18 @@ void NodeRenderingContext::createRendererForTextIfNeeded()
 
     if (!shouldCreateRenderer())
         return;
+
     RenderObject* parentRenderer = this->parentRenderer();
     ASSERT(parentRenderer);
-    m_style = parentRenderer->style();
+    Document* document = textNode->document();
+
+    if (resetStyleInheritance())
+        m_style = document->styleResolver()->defaultStyleForElement();
+    else
+        m_style = parentRenderer->style();
 
     if (!textNode->textRendererIsNeeded(*this))
         return;
-    Document* document = textNode->document();
     RenderText* newRenderer = textNode->createTextRenderer(document->renderArena(), m_style.get());
     if (!newRenderer)
         return;

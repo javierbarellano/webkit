@@ -574,7 +574,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
     std::string sLoc = getTokenValue(headers, "LOCATION");
     if ( sLoc.empty()) {
-        printf("No Location header found!\n");
+        //printf("No Location header found!\n");
         return false;
     }
 

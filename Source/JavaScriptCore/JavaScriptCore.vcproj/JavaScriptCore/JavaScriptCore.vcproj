@@ -1462,6 +1462,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\API\JSScriptRef.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\API\JSScriptRefPrivate.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\API\JSStringRef.cpp"
 				>
 			</File>
@@ -1531,6 +1539,14 @@
 			</File>
 			<File
 				RelativePath="..\..\profiler\ProfilerBytecode.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerBytecodeSequence.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerBytecodeSequence.h"
 				>
 			</File>
 			<File
@@ -1607,6 +1623,14 @@
 			</File>
 			<File
 				RelativePath="..\..\profiler\ProfilerOSRExitSite.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerProfiledBytecodes.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\profiler\ProfilerProfiledBytecodes.h"
 				>
 			</File>
 			<File
@@ -2174,6 +2198,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\jit\JITThunks.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\jit\JITThunks.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\jit\JumpReplacementWatchpoint.cpp"
 				>
 			</File>
@@ -2187,6 +2219,10 @@
 			</File>
 			<File
 				RelativePath="..\..\jit\SpecializedThunkJIT.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\jit\ThunkGenerator.h"
 				>
 			</File>
 			<File

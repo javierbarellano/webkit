@@ -45,9 +45,12 @@ class MemoryInstrumentation;
 
 typedef const char* MemoryObjectType;
 
-enum MemoryOwningType {
-    byPointer,
-    byReference
+enum MemberType {
+    PointerMember,
+    ReferenceMember,
+    OwnPtrMember,
+    RefPtrMember,
+    LastMemberTypeEntry
 };
 
 template<typename T> void reportMemoryUsage(const T*, MemoryObjectInfo*);
@@ -60,8 +63,8 @@ public:
     virtual bool checkCountedObject(const void*) = 0;
 
     virtual void reportNode(const MemoryObjectInfo&) = 0;
-    virtual void reportEdge(const void* source, const void* target, const char* edgeName) = 0;
-    virtual void reportLeaf(const void* source, const MemoryObjectInfo&, const char* edgeName) = 0;
+    virtual void reportEdge(const void* target, const char* edgeName, MemberType) = 0;
+    virtual void reportLeaf(const MemoryObjectInfo&, const char* edgeName) = 0;
     virtual void reportBaseAddress(const void* base, const void* real) = 0;
 };
 
@@ -70,24 +73,30 @@ public:
     WTF_EXPORT_PRIVATE explicit MemoryInstrumentation(MemoryInstrumentationClient*);
     WTF_EXPORT_PRIVATE virtual ~MemoryInstrumentation();
 
-    template <typename T> void addRootObject(const T& t)
+    template <typename T> void addRootObject(const T& t, MemoryObjectType objectType = 0)
     {
-        addObject(t, m_rootObjectInfo.get(), 0);
-        processDeferredInstrumentedPointers();
+        MemberTypeTraits<T>::addRootObject(this, t, objectType);
+        processDeferredObjects();
     }
 
+    template <typename T> void addRootObject(const OwnPtr<T>&, MemoryObjectType = 0); // Link time guard.
+    template <typename T> void addRootObject(const RefPtr<T>&, MemoryObjectType = 0); // Link time guard.
+
 protected:
-    class InstrumentedPointerBase {
+    class WrapperBase {
     public:
-        WTF_EXPORT_PRIVATE explicit InstrumentedPointerBase(MemoryObjectInfo*);
-        virtual ~InstrumentedPointerBase() { }
+        WTF_EXPORT_PRIVATE WrapperBase(MemoryObjectType, const void* pointer);
+        virtual ~WrapperBase() { }
         WTF_EXPORT_PRIVATE void process(MemoryInstrumentation*);
+        WTF_EXPORT_PRIVATE void processPointer(MemoryInstrumentation*, bool isRoot);
+        WTF_EXPORT_PRIVATE void processRootObjectRef(MemoryInstrumentation*);
 
     protected:
-        virtual const void* callReportMemoryUsage(MemoryObjectInfo*) = 0;
+        virtual void callReportMemoryUsage(MemoryObjectInfo*) = 0;
+        const void* m_pointer;
+        const MemoryObjectType m_ownerObjectType;
 
     private:
-        const MemoryObjectType m_ownerObjectType;
 #if DEBUG_POINTER_INSTRUMENTATION
         static const int s_maxCallStackSize = 32;
         void* m_callStack[s_maxCallStackSize];
@@ -100,81 +109,122 @@ private:
     bool visited(const void* pointer) { return m_client->visited(pointer); }
     bool checkCountedObject(const void* pointer) { return m_client->checkCountedObject(pointer); }
 
-    WTF_EXPORT_PRIVATE void reportEdge(MemoryObjectInfo* ownerObjectInfo, const void* target, const char* edgeName);
+    WTF_EXPORT_PRIVATE void reportEdge(const void* target, const char* edgeName, MemberType);
 
-    virtual void deferInstrumentedPointer(PassOwnPtr<InstrumentedPointerBase>) = 0;
-    virtual void processDeferredInstrumentedPointers() = 0;
+    virtual void deferObject(PassOwnPtr<WrapperBase>) = 0;
+    virtual void processDeferredObjects() = 0;
 
     WTF_EXPORT_PRIVATE static MemoryObjectType getObjectType(MemoryObjectInfo*);
 
+    friend class MemoryObjectInfo;
     friend class MemoryClassInfo;
     template<typename T> friend void reportMemoryUsage(const T*, MemoryObjectInfo*);
 
-    template<typename T> static void selectInstrumentationMethod(const T* object, MemoryObjectInfo* memoryObjectInfo)
-    {
-        // If there is reportMemoryUsage method on the object, call it.
-        // Otherwise count only object's self size.
-        reportObjectMemoryUsage<T, void (T::*)(MemoryObjectInfo*) const>(object, memoryObjectInfo, 0);
-    }
+    template <typename Type>
+    class IsInstrumented {
+        class yes {
+            char m;
+        };
 
-    template<typename Type, Type Ptr> struct MemberHelperStruct;
-    template<typename T, typename Type>
-    static void reportObjectMemoryUsage(const T* object, MemoryObjectInfo* memoryObjectInfo,  MemberHelperStruct<Type, &T::reportMemoryUsage>*)
-    {
-        object->reportMemoryUsage(memoryObjectInfo);
-    }
+        class no {
+            yes m[2];
+        };
 
-    template<typename T, typename Type>
-    static void reportObjectMemoryUsage(const T* object, MemoryObjectInfo* memoryObjectInfo, ...)
-    {
-        callReportObjectInfo(memoryObjectInfo, object, 0, sizeof(T));
-    }
-    WTF_EXPORT_PRIVATE static void callReportObjectInfo(MemoryObjectInfo*, const void* pointer, MemoryObjectType, size_t objectSize);
+        struct BaseMixin {
+            void reportMemoryUsage(MemoryObjectInfo*) const { }
+        };
 
-    template<typename T> class InstrumentedPointer : public InstrumentedPointerBase {
+#if COMPILER(MSVC)
+#pragma warning(push)
+#pragma warning(disable: 4624) // Disable warning: destructor could not be generated because a base class destructor is inaccessible.
+#endif
+        struct Base : public Type, public BaseMixin { };
+#if COMPILER(MSVC)
+#pragma warning(pop)
+#endif
+
+        template <typename T, T t> class Helper { };
+
+        template <typename U> static no deduce(U*, Helper<void (BaseMixin::*)(MemoryObjectInfo*) const, &U::reportMemoryUsage>* = 0);
+        static yes deduce(...);
+
     public:
-        InstrumentedPointer(const T* pointer, MemoryObjectInfo* ownerObjectInfo);
+        static const bool result = sizeof(yes) == sizeof(deduce((Base*)(0)));
 
-    protected:
-        virtual const void* callReportMemoryUsage(MemoryObjectInfo*) OVERRIDE;
-
-    private:
-        const T* m_pointer;
     };
 
-    template<typename T> void addObject(const T& t, MemoryObjectInfo* ownerObjectInfo, const char* edgeName) { OwningTraits<T>::addObject(this, t, ownerObjectInfo, edgeName); }
-    void addRawBuffer(const void* owner, const void* buffer, MemoryObjectType ownerObjectType, size_t size, const char* nodeName = 0, const char* edgeName = 0)
+    template <int>
+    struct InstrumentationSelector {
+        template <typename T> static void reportObjectMemoryUsage(const T*, MemoryObjectInfo*);
+    };
+
+    WTF_EXPORT_PRIVATE static void callReportObjectInfo(MemoryObjectInfo*, const void* pointer, MemoryObjectType, size_t objectSize);
+
+    template<typename T> class Wrapper : public WrapperBase {
+    public:
+        Wrapper(const T* pointer, MemoryObjectType);
+
+    protected:
+        virtual void callReportMemoryUsage(MemoryObjectInfo*) OVERRIDE;
+    };
+
+    template<typename T> void addObject(const T& t, MemoryObjectInfo* ownerObjectInfo, const char* edgeName) { MemberTypeTraits<T>::addObject(this, t, ownerObjectInfo, edgeName); }
+    void addRawBuffer(const void* buffer, MemoryObjectType ownerObjectType, size_t size, const char* nodeName = 0, const char* edgeName = 0)
     {
         if (!buffer || visited(buffer))
             return;
         countObjectSize(buffer, ownerObjectType, size);
-        reportLinkToBuffer(owner, buffer, ownerObjectType, size, nodeName, edgeName);
+        reportLinkToBuffer(buffer, ownerObjectType, size, nodeName, edgeName);
     }
-    WTF_EXPORT_PRIVATE void reportLinkToBuffer(const void* owner, const void* buffer, MemoryObjectType ownerObjectType, size_t, const char* nodeName, const char* edgeName);
+    WTF_EXPORT_PRIVATE void reportLinkToBuffer(const void* buffer, MemoryObjectType ownerObjectType, size_t, const char* nodeName, const char* edgeName);
 
     template<typename T>
-    struct OwningTraits { // Default byReference implementation.
+    struct MemberTypeTraits { // Default ReferenceMember implementation.
         static void addObject(MemoryInstrumentation* instrumentation, const T& t, MemoryObjectInfo* ownerObjectInfo, const char* edgeName)
         {
-            instrumentation->addObjectImpl(&t, ownerObjectInfo, byReference, edgeName);
+            instrumentation->addObjectImpl(&t, ownerObjectInfo, ReferenceMember, edgeName);
+        }
+
+        static void addRootObject(MemoryInstrumentation* instrumentation, const T& t, MemoryObjectType objectType)
+        {
+            Wrapper<T>(&t, objectType).processRootObjectRef(instrumentation);
         }
     };
 
     template<typename T>
-    struct OwningTraits<T*> { // Custom byPointer implementation.
+    struct MemberTypeTraits<T*> { // Custom PointerMember implementation.
         static void addObject(MemoryInstrumentation* instrumentation, const T* const& t, MemoryObjectInfo* ownerObjectInfo, const char* edgeName)
         {
-            instrumentation->addObjectImpl(t, ownerObjectInfo, byPointer, edgeName);
+            instrumentation->addObjectImpl(t, ownerObjectInfo, PointerMember, edgeName);
+        }
+
+        static void addRootObject(MemoryInstrumentation* instrumentation, const T* const& t, MemoryObjectType objectType)
+        {
+            if (t && !instrumentation->visited(t))
+                Wrapper<T>(t, objectType).processPointer(instrumentation, true);
         }
     };
 
-    template<typename T> void addObjectImpl(const T*, MemoryObjectInfo*, MemoryOwningType, const char* edgeName);
-    template<typename T> void addObjectImpl(const OwnPtr<T>*, MemoryObjectInfo*, MemoryOwningType, const char* edgeName);
-    template<typename T> void addObjectImpl(const RefPtr<T>*, MemoryObjectInfo*, MemoryOwningType, const char* edgeName);
+    template<typename T> void addObjectImpl(const T*, MemoryObjectInfo*, MemberType, const char* edgeName);
+    template<typename T> void addObjectImpl(const OwnPtr<T>*, MemoryObjectInfo*, MemberType, const char* edgeName);
+    template<typename T> void addObjectImpl(const RefPtr<T>*, MemoryObjectInfo*, MemberType, const char* edgeName);
 
     MemoryInstrumentationClient* m_client;
-    OwnPtr<MemoryObjectInfo> m_rootObjectInfo;
 };
+
+template <>
+template <typename T>
+void MemoryInstrumentation::InstrumentationSelector<true>::reportObjectMemoryUsage(const T* object, MemoryObjectInfo* memoryObjectInfo)
+{
+    object->reportMemoryUsage(memoryObjectInfo);
+}
+
+template <>
+template <typename T>
+void MemoryInstrumentation::InstrumentationSelector<false>::reportObjectMemoryUsage(const T* object, MemoryObjectInfo* memoryObjectInfo)
+{
+    callReportObjectInfo(memoryObjectInfo, object, 0, sizeof(T));
+}
 
 class MemoryClassInfo {
 public:
@@ -183,18 +233,23 @@ public:
         : m_memoryObjectInfo(memoryObjectInfo)
         , m_memoryInstrumentation(0)
         , m_objectType(0)
+        , m_skipMembers(false)
     {
         init(pointer, objectType, actualSize);
     }
 
     template<typename M> void addMember(const M& member, const char* edgeName = 0)
     {
-        m_memoryInstrumentation->addObject(member, m_memoryObjectInfo, edgeName);
+        if (!m_skipMembers)
+            m_memoryInstrumentation->addObject(member, m_memoryObjectInfo, edgeName);
     }
+
     WTF_EXPORT_PRIVATE void addRawBuffer(const void* buffer, size_t, const char* nodeName = 0, const char* edgeName = 0);
     WTF_EXPORT_PRIVATE void addPrivateBuffer(size_t, MemoryObjectType ownerObjectType = 0, const char* nodeName = 0, const char* edgeName = 0);
+    WTF_EXPORT_PRIVATE void setCustomAllocation(bool);
 
     void addWeakPointer(void*) { }
+    template<typename M> void ignoreMember(const M&) { }
 
 private:
     WTF_EXPORT_PRIVATE void init(const void* pointer, MemoryObjectType, size_t actualSize);
@@ -202,55 +257,56 @@ private:
     MemoryObjectInfo* m_memoryObjectInfo;
     MemoryInstrumentation* m_memoryInstrumentation;
     MemoryObjectType m_objectType;
+    bool m_skipMembers;
 };
 
 template<typename T>
 void reportMemoryUsage(const T* object, MemoryObjectInfo* memoryObjectInfo)
 {
-    MemoryInstrumentation::selectInstrumentationMethod<T>(object, memoryObjectInfo);
+    MemoryInstrumentation::InstrumentationSelector<MemoryInstrumentation::IsInstrumented<T>::result>::reportObjectMemoryUsage(object, memoryObjectInfo);
 }
 
 template<typename T>
-void MemoryInstrumentation::addObjectImpl(const T* object, MemoryObjectInfo* ownerObjectInfo, MemoryOwningType owningType, const char* edgeName)
+void MemoryInstrumentation::addObjectImpl(const T* object, MemoryObjectInfo* ownerObjectInfo, MemberType memberType, const char* edgeName)
 {
-    if (owningType == byReference)
+    if (memberType == ReferenceMember)
         reportMemoryUsage(object, ownerObjectInfo);
     else {
-        reportEdge(ownerObjectInfo, object, edgeName);
-        if (!object || visited(object))
+        if (!object)
             return;
-        deferInstrumentedPointer(adoptPtr(new InstrumentedPointer<T>(object, ownerObjectInfo)));
+        reportEdge(object, edgeName, memberType);
+        if (visited(object))
+            return;
+        deferObject(adoptPtr(new Wrapper<T>(object, getObjectType(ownerObjectInfo))));
     }
 }
 
 template<typename T>
-void MemoryInstrumentation::addObjectImpl(const OwnPtr<T>* object, MemoryObjectInfo* ownerObjectInfo, MemoryOwningType owningType, const char* edgeName)
+void MemoryInstrumentation::addObjectImpl(const OwnPtr<T>* object, MemoryObjectInfo* ownerObjectInfo, MemberType memberType, const char* edgeName)
 {
-    if (owningType == byPointer && !visited(object))
+    if (memberType == PointerMember && !visited(object))
         countObjectSize(object, getObjectType(ownerObjectInfo), sizeof(*object));
-    addObjectImpl(object->get(), ownerObjectInfo, byPointer, edgeName);
+    addObjectImpl(object->get(), ownerObjectInfo, OwnPtrMember, edgeName);
 }
 
 template<typename T>
-void MemoryInstrumentation::addObjectImpl(const RefPtr<T>* object, MemoryObjectInfo* ownerObjectInfo, MemoryOwningType owningType, const char* edgeName)
+void MemoryInstrumentation::addObjectImpl(const RefPtr<T>* object, MemoryObjectInfo* ownerObjectInfo, MemberType memberType, const char* edgeName)
 {
-    if (owningType == byPointer && !visited(object))
+    if (memberType == PointerMember && !visited(object))
         countObjectSize(object, getObjectType(ownerObjectInfo), sizeof(*object));
-    addObjectImpl(object->get(), ownerObjectInfo, byPointer, edgeName);
+    addObjectImpl(object->get(), ownerObjectInfo, RefPtrMember, edgeName);
 }
 
 template<typename T>
-MemoryInstrumentation::InstrumentedPointer<T>::InstrumentedPointer(const T* pointer, MemoryObjectInfo* ownerObjectInfo)
-    : InstrumentedPointerBase(ownerObjectInfo)
-    , m_pointer(pointer)
+MemoryInstrumentation::Wrapper<T>::Wrapper(const T* pointer, MemoryObjectType ownerObjectType)
+    : WrapperBase(ownerObjectType, pointer)
 {
 }
 
 template<typename T>
-const void* MemoryInstrumentation::InstrumentedPointer<T>::callReportMemoryUsage(MemoryObjectInfo* memoryObjectInfo)
+void MemoryInstrumentation::Wrapper<T>::callReportMemoryUsage(MemoryObjectInfo* memoryObjectInfo)
 {
-    reportMemoryUsage(m_pointer, memoryObjectInfo);
-    return m_pointer;
+    reportMemoryUsage(static_cast<const T*>(m_pointer), memoryObjectInfo);
 }
 
 // Link time guard for classes with external memory instrumentation.

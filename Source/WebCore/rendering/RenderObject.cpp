@@ -52,6 +52,7 @@
 #include "RenderImageResourceStyleImage.h"
 #include "RenderInline.h"
 #include "RenderLayer.h"
+#include "RenderLayerBacking.h"
 #include "RenderListItem.h"
 #include "RenderMultiColumnBlock.h"
 #include "RenderNamedFlowThread.h"
@@ -82,7 +83,6 @@
 #if ENABLE(SVG)
 #include "RenderSVGResourceContainer.h"
 #include "SVGRenderSupport.h"
-#include "SVGResourcesCache.h"
 #endif
 
 using namespace std;
@@ -769,7 +769,7 @@ RenderBlock* RenderObject::containingBlock() const
 #endif
             o = o->parent();
         }
-        ASSERT(!o->isAnonymousBlock());
+        ASSERT(!o || !o->isAnonymousBlock());
     } else if (!isText() && m_style->position() == AbsolutePosition) {
         while (o) {
             // For relpositioned inlines, we return the nearest non-anonymous enclosing block. We don't try
@@ -1220,7 +1220,7 @@ void RenderObject::absoluteFocusRingQuads(Vector<FloatQuad>& quads)
     for (size_t i = 0; i < count; ++i) {
         IntRect rect = rects[i];
         rect.move(-absolutePoint.x(), -absolutePoint.y());
-        quads.append(localToAbsoluteQuad(FloatQuad(rect), SnapOffsetForTransforms));
+        quads.append(localToAbsoluteQuad(FloatQuad(rect)));
     }
 }
 
@@ -1891,9 +1891,7 @@ void RenderObject::styleWillChange(StyleDifference diff, const RenderStyle* newS
         // reset style flags
         if (diff == StyleDifferenceLayout || diff == StyleDifferenceLayoutPositionedMovementOnly) {
             setFloating(false);
-            setPositioned(false);
-            setRelPositioned(false);
-            setStickyPositioned(false);
+            clearPositionedState();
         }
         setHorizontalWritingMode(true);
         setPaintBackground(false);
@@ -2377,10 +2375,6 @@ void RenderObject::willBeDestroyed()
         document()->axObjectCache()->remove(this);
     }
     animation()->cancelAnimations(this);
-
-#if ENABLE(SVG)
-    SVGResourcesCache::clientDestroyed(this);
-#endif
 
     remove();
 
@@ -2995,8 +2989,7 @@ RenderBoxModelObject* RenderObject::offsetParent() const
 VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affinity)
 {
     // If this is a non-anonymous renderer in an editable area, then it's simple.
-    if (node() && !isPseudoElement()) {
-        Node* node = this->node();
+    if (Node* node = nonPseudoNode()) {
         if (!node->rendererIsEditable()) {
             // If it can be found, we prefer a visually equivalent position that is editable. 
             Position position = createLegacyEditingPosition(node, offset);
@@ -3022,8 +3015,8 @@ VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affini
         // Find non-anonymous content after.
         RenderObject* renderer = child;
         while ((renderer = renderer->nextInPreOrder(parent))) {
-            if (renderer->node() && !renderer->isPseudoElement())
-                return VisiblePosition(firstPositionInOrBeforeNode(renderer->node()), DOWNSTREAM);
+            if (Node* node = renderer->nonPseudoNode())
+                return VisiblePosition(firstPositionInOrBeforeNode(node), DOWNSTREAM);
         }
 
         // Find non-anonymous content before.
@@ -3031,13 +3024,13 @@ VisiblePosition RenderObject::createVisiblePosition(int offset, EAffinity affini
         while ((renderer = renderer->previousInPreOrder())) {
             if (renderer == parent)
                 break;
-            if (renderer->node() && !renderer->isPseudoElement())
-                return VisiblePosition(lastPositionInOrAfterNode(renderer->node()), DOWNSTREAM);
+            if (Node* node = renderer->nonPseudoNode())
+                return VisiblePosition(lastPositionInOrAfterNode(node), DOWNSTREAM);
         }
 
         // Use the parent itself unless it too is anonymous.
-        if (parent->node() && !isPseudoElement())
-            return VisiblePosition(firstPositionInOrBeforeNode(parent->node()), DOWNSTREAM);
+        if (Node* node = parent->nonPseudoNode())
+            return VisiblePosition(firstPositionInOrBeforeNode(node), DOWNSTREAM);
 
         // Repeat at the next level up.
         child = parent;
@@ -3092,6 +3085,8 @@ void RenderObject::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     info.addWeakPointer(m_parent);
     info.addWeakPointer(m_previous);
     info.addWeakPointer(m_next);
+
+    info.setCustomAllocation(true);
 }
 
 #if ENABLE(SVG)

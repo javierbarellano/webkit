@@ -28,38 +28,36 @@
 
 #if ENABLE(SQL_DATABASE)
 
-#include "Connection.h"
-#include "MessageID.h"
 #include "OriginAndDatabases.h"
 #include "WebCoreArgumentCoders.h"
+#include "WebDatabaseManagerMessages.h"
 #include "WebDatabaseManagerProxyMessages.h"
 #include "WebProcess.h"
+#include "WebProcessCreationParameters.h"
 #include <WebCore/DatabaseDetails.h>
-#include <WebCore/DatabaseTracker.h>
+#include <WebCore/DatabaseManager.h>
 #include <WebCore/SecurityOrigin.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-WebDatabaseManager& WebDatabaseManager::shared()
+const AtomicString& WebDatabaseManager::supplementName()
 {
-    static WebDatabaseManager& shared = *new WebDatabaseManager;
-    return shared;
+    DEFINE_STATIC_LOCAL(AtomicString, name, ("WebDatabaseManager", AtomicString::ConstructFromLiteral));
+    return name;
 }
 
-void WebDatabaseManager::initialize(const String& databaseDirectory)
+WebDatabaseManager::WebDatabaseManager(WebProcess* process)
+    : m_process(process)
 {
-    DatabaseTracker::initializeTracker(databaseDirectory);
+    m_process->addMessageReceiver(Messages::WebDatabaseManager::messageReceiverName(), this);
 }
 
-WebDatabaseManager::WebDatabaseManager()
+void WebDatabaseManager::initialize(const WebProcessCreationParameters& parameters)
 {
-    DatabaseTracker::tracker().setClient(this);
-}
-
-WebDatabaseManager::~WebDatabaseManager()
-{
+    DatabaseManager::manager().initialize(parameters.databaseDirectory);
+    DatabaseManager::manager().setClient(this);
 }
 
 void WebDatabaseManager::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::MessageDecoder& decoder)
@@ -69,14 +67,14 @@ void WebDatabaseManager::didReceiveMessage(CoreIPC::Connection* connection, Core
 
 void WebDatabaseManager::getDatabasesByOrigin(uint64_t callbackID) const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
-    // FIXME: This could be made more efficient by adding a function to DatabaseTracker
+    // FIXME: This could be made more efficient by adding a function to DatabaseManager
     // to get both the origins and the Vector of DatabaseDetails for each origin in one
     // shot.  That would avoid taking the numerous locks this requires.
 
     Vector<RefPtr<SecurityOrigin> > origins;
-    DatabaseTracker::tracker().origins(origins);
+    DatabaseManager::manager().origins(origins);
 
     Vector<OriginAndDatabases> originAndDatabasesVector;
     originAndDatabasesVector.reserveInitialCapacity(origins.size());
@@ -85,13 +83,13 @@ void WebDatabaseManager::getDatabasesByOrigin(uint64_t callbackID) const
         OriginAndDatabases originAndDatabases;
 
         Vector<String> nameVector;
-        if (!DatabaseTracker::tracker().databaseNamesForOrigin(origins[i].get(), nameVector))
+        if (!DatabaseManager::manager().databaseNamesForOrigin(origins[i].get(), nameVector))
             continue;
 
         Vector<DatabaseDetails> detailsVector;
         detailsVector.reserveInitialCapacity(nameVector.size());
         for (size_t j = 0; j < nameVector.size(); j++) {
-            DatabaseDetails details = DatabaseTracker::tracker().detailsForNameAndOrigin(nameVector[j], origins[i].get());
+            DatabaseDetails details = DatabaseManager::manager().detailsForNameAndOrigin(nameVector[j], origins[i].get());
             if (details.name().isNull())
                 continue;
 
@@ -102,62 +100,62 @@ void WebDatabaseManager::getDatabasesByOrigin(uint64_t callbackID) const
             continue;
 
         originAndDatabases.originIdentifier = origins[i]->databaseIdentifier();
-        originAndDatabases.originQuota = DatabaseTracker::tracker().quotaForOrigin(origins[i].get());
-        originAndDatabases.originUsage = DatabaseTracker::tracker().usageForOrigin(origins[i].get());
+        originAndDatabases.originQuota = DatabaseManager::manager().quotaForOrigin(origins[i].get());
+        originAndDatabases.originUsage = DatabaseManager::manager().usageForOrigin(origins[i].get());
         originAndDatabases.databases.swap(detailsVector); 
         originAndDatabasesVector.append(originAndDatabases);
     }
 
-    WebProcess::shared().connection()->send(Messages::WebDatabaseManagerProxy::DidGetDatabasesByOrigin(originAndDatabasesVector, callbackID), 0);
+    m_process->send(Messages::WebDatabaseManagerProxy::DidGetDatabasesByOrigin(originAndDatabasesVector, callbackID), 0);
 }
 
 void WebDatabaseManager::getDatabaseOrigins(uint64_t callbackID) const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
     Vector<RefPtr<SecurityOrigin> > origins;
-    DatabaseTracker::tracker().origins(origins);
+    DatabaseManager::manager().origins(origins);
 
     size_t numOrigins = origins.size();
 
     Vector<String> identifiers(numOrigins);
     for (size_t i = 0; i < numOrigins; ++i)
         identifiers[i] = origins[i]->databaseIdentifier();
-    WebProcess::shared().connection()->send(Messages::WebDatabaseManagerProxy::DidGetDatabaseOrigins(identifiers, callbackID), 0);
+    m_process->send(Messages::WebDatabaseManagerProxy::DidGetDatabaseOrigins(identifiers, callbackID), 0);
 }
 
 void WebDatabaseManager::deleteDatabaseWithNameForOrigin(const String& databaseIdentifier, const String& originIdentifier) const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
     RefPtr<SecurityOrigin> origin = SecurityOrigin::createFromDatabaseIdentifier(originIdentifier);
     if (!origin)
         return;
 
-    DatabaseTracker::tracker().deleteDatabase(origin.get(), databaseIdentifier);
+    DatabaseManager::manager().deleteDatabase(origin.get(), databaseIdentifier);
 }
 
 void WebDatabaseManager::deleteDatabasesForOrigin(const String& originIdentifier) const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
     RefPtr<SecurityOrigin> origin = SecurityOrigin::createFromDatabaseIdentifier(originIdentifier);
     if (!origin)
         return;
 
-    DatabaseTracker::tracker().deleteOrigin(origin.get());
+    DatabaseManager::manager().deleteOrigin(origin.get());
 }
 
 void WebDatabaseManager::deleteAllDatabases() const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
-    DatabaseTracker::tracker().deleteAllDatabases();
+    DatabaseManager::manager().deleteAllDatabases();
 }
 
 void WebDatabaseManager::setQuotaForOrigin(const String& originIdentifier, unsigned long long quota) const
 {
-    WebProcess::LocalTerminationDisabler terminationDisabler(WebProcess::shared());
+    ChildProcess::LocalTerminationDisabler terminationDisabler(*m_process);
 
     // If the quota is set to a value lower than the current usage, that quota will
     // "stick" but no data will be purged to meet the new quota. This will simply
@@ -167,19 +165,19 @@ void WebDatabaseManager::setQuotaForOrigin(const String& originIdentifier, unsig
     if (!origin)
         return;
 
-    DatabaseTracker::tracker().setQuota(origin.get(), quota);
+    DatabaseManager::manager().setQuota(origin.get(), quota);
 }
 
 void WebDatabaseManager::dispatchDidModifyOrigin(SecurityOrigin* origin)
 {
     // NOTE: This may be called on a non-main thread.
-    WebProcess::shared().connection()->send(Messages::WebDatabaseManagerProxy::DidModifyOrigin(origin->databaseIdentifier()), 0);
+    m_process->send(Messages::WebDatabaseManagerProxy::DidModifyOrigin(origin->databaseIdentifier()), 0);
 }
 
 void WebDatabaseManager::dispatchDidModifyDatabase(WebCore::SecurityOrigin* origin, const String& databaseIdentifier)
 {
     // NOTE: This may be called on a non-main thread.
-    WebProcess::shared().connection()->send(Messages::WebDatabaseManagerProxy::DidModifyDatabase(origin->databaseIdentifier(), databaseIdentifier), 0);
+    m_process->send(Messages::WebDatabaseManagerProxy::DidModifyDatabase(origin->databaseIdentifier(), databaseIdentifier), 0);
 }
 
 } // namespace WebKit

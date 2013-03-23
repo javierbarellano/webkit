@@ -31,6 +31,7 @@
 #ifndef MemoryObjectInfo_h
 #define MemoryObjectInfo_h
 
+#include <wtf/MemoryInstrumentation.h>
 #include <wtf/text/WTFString.h>
 
 namespace WTF {
@@ -42,11 +43,14 @@ typedef const char* MemoryObjectType;
 
 class MemoryObjectInfo {
 public:
-    MemoryObjectInfo(MemoryInstrumentation* memoryInstrumentation, MemoryObjectType ownerObjectType)
+    MemoryObjectInfo(MemoryInstrumentation* memoryInstrumentation, MemoryObjectType ownerObjectType, const void* pointer)
         : m_memoryInstrumentation(memoryInstrumentation)
         , m_objectType(ownerObjectType)
         , m_objectSize(0)
-        , m_pointer(0)
+        , m_pointer(pointer)
+        , m_firstVisit(true)
+        , m_customAllocation(false)
+        , m_isRoot(false)
     { }
 
     typedef MemoryClassInfo ClassInfo;
@@ -54,9 +58,24 @@ public:
     MemoryObjectType objectType() const { return m_objectType; }
     size_t objectSize() const { return m_objectSize; }
     const void* reportedPointer() const { return m_pointer; }
+    bool firstVisit() const { return m_firstVisit; }
+    bool customAllocation() const { return m_customAllocation; }
+    void setCustomAllocation(bool customAllocation) { m_customAllocation = customAllocation; }
 
-    void setClassName(const String& className) { m_className = className; }
-    void setName(const String& name) { m_name = name; }
+    void setClassName(const String& className)
+    {
+        if (m_className.isEmpty())
+            m_className = className;
+    }
+    const String& className() const { return m_className; }
+    void setName(const String& name)
+    {
+        if (m_name.isEmpty())
+            m_name = name;
+    }
+    const String& name() const { return m_name; }
+    bool isRoot() const { return m_isRoot; }
+    void markAsRoot() { m_isRoot = true; }
 
     MemoryInstrumentation* memoryInstrumentation() { return m_memoryInstrumentation; }
 
@@ -67,6 +86,8 @@ private:
     void reportObjectInfo(const void* pointer, MemoryObjectType objectType, size_t objectSize)
     {
         if (!m_objectSize) {
+            if (m_pointer != pointer && m_pointer && m_memoryInstrumentation->visited(pointer))
+                m_firstVisit = false;
             m_pointer = pointer;
             m_objectSize = objectSize;
             if (objectType)
@@ -78,6 +99,9 @@ private:
     MemoryObjectType m_objectType;
     size_t m_objectSize;
     const void* m_pointer;
+    bool m_firstVisit;
+    bool m_customAllocation;
+    bool m_isRoot;
     String m_className;
     String m_name;
 };

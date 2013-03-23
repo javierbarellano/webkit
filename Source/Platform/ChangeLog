@@ -1,3 +1,332 @@
+2013-01-05  Chris Rogers  <crogers@google.com>
+
+        Implement MediaStreamSource::setAudioFormat()
+        https://bugs.webkit.org/show_bug.cgi?id=106053
+
+        Reviewed by Kenneth Russell.
+
+        * chromium/public/WebAudioDestinationConsumer.h:
+        (WebAudioDestinationConsumer):
+
+2013-01-04  James Robinson  <jamesr@chromium.org>
+
+        [chromium] Remove static create functions from types WebCompositorSupport can construct
+        https://bugs.webkit.org/show_bug.cgi?id=99877
+
+        Reviewed by Adrienne Walker.
+
+        * chromium/public/WebAnimation.h:
+        * chromium/public/WebContentLayer.h:
+        * chromium/public/WebExternalTextureLayer.h:
+        * chromium/public/WebFloatAnimationCurve.h:
+        * chromium/public/WebIOSurfaceLayer.h:
+        * chromium/public/WebImageLayer.h:
+        * chromium/public/WebLayer.h:
+        * chromium/public/WebLayerTreeView.h:
+        * chromium/public/WebScrollbarLayer.h:
+        * chromium/public/WebSolidColorLayer.h:
+        * chromium/public/WebTransformAnimationCurve.h:
+        * chromium/public/WebVideoLayer.h:
+
+2013-01-04  James Robinson  <jamesr@chromium.org>
+
+        [chromium] WebTransformationMatrix shouldn't alias memory for TransformationMatrix
+        https://bugs.webkit.org/show_bug.cgi?id=106025
+
+        Reviewed by Adrienne Walker.
+
+        * chromium/public/WebTransformationMatrix.h:
+        (WebCore):
+        (WebKit::WebTransformationMatrix::~WebTransformationMatrix):
+        (WebTransformationMatrix):
+
+2013-01-04  James Robinson  <jamesr@chromium.org>
+
+        [chromium] Remove unneeded WebDelegatedRendererLayer and WebCompositorTransferableResourceList headers
+        https://bugs.webkit.org/show_bug.cgi?id=105263
+
+        Reviewed by Darin Fisher.
+
+        These aren't needed any more since the delegation will be set up on the chromium side.
+
+        * Platform.gypi:
+        * chromium/public/WebCompositorSupport.h:
+        (WebKit):
+        * chromium/public/WebCompositorTransferableResourceList.h: Removed.
+        * chromium/public/WebDelegatedRendererLayer.h: Removed.
+
+2013-01-04  Dana Jansens  <danakj@chromium.org>
+
+        [chromium] Remove lost-compositor-context layout tests
+        https://bugs.webkit.org/show_bug.cgi?id=106089
+
+        Reviewed by James Robinson.
+
+        Mark the loseCompositorContext() test function for removal.
+
+        * chromium/public/WebLayerTreeView.h:
+        (WebLayerTreeView):
+
+2013-01-03  Sami Kyostila  <skyostil@chromium.org>
+
+        [chromium] Rename low latency rendering mode setting to vsync notification
+        https://bugs.webkit.org/show_bug.cgi?id=106020
+
+        Reviewed by James Robinson.
+
+        Rename low latency rendering mode setting to vsync notification because
+        the old name was ambiguous and bad. This setting is meant to control
+        whether the renderer uses a vsync signal provided by the browser to
+        schedule rendering.
+
+2013-01-03  Tommy Widenflycht  <tommyw@google.com>
+
+        MediaStream API: Add a missing state to RTCPeerConnection
+        https://bugs.webkit.org/show_bug.cgi?id=106017
+
+        Reviewed by Adam Barth.
+
+        Adding the missing ReadyStateHaveRemoteOffer which will show up in the spec soon.
+
+        * chromium/public/WebRTCPeerConnectionHandlerClient.h:
+
+2013-01-02  James Robinson  <jamesr@chromium.org>
+
+        [chromium] Remove unused transitional #defines from Platform API
+        https://bugs.webkit.org/show_bug.cgi?id=105971
+
+        Reviewed by Adrienne Walker.
+
+        These are leftovers from multi-sided patches that landed months ago.
+
+        * chromium/public/WebContentLayerClient.h:
+        (WebContentLayerClient):
+        * chromium/public/WebLayer.h:
+        * chromium/public/WebLayerTreeView.h:
+        * chromium/public/WebThread.h:
+
+2013-01-02  David Tseng  <dtseng@google.com>
+
+        AX: Chromium needs platform localized strings for media controls.
+        https://bugs.webkit.org/show_bug.cgi?id=105940
+
+        Reviewed by Tony Chang.
+
+        * chromium/public/WebLocalizedString.h:
+
+2012-12-24  Alexei Filippov  <alph@chromium.org>
+
+        Web Inspector: add async API for passing renderer process memory stats
+        https://bugs.webkit.org/show_bug.cgi?id=105278
+
+        Reviewed by Yury Semikhatsky.
+
+        On some platforms (e.g. Linux) it may take some time to collect
+        total process memory information as it involves an IPC out of a
+        sandboxed renderer process. So add an async way to collect the statistics.
+
+        * chromium/public/Platform.h:
+        (Platform):
+        (ProcessMemorySizesCallback):
+        (WebKit::Platform::ProcessMemorySizesCallback::~ProcessMemorySizesCallback):
+        (WebKit::Platform::requestProcessMemorySizes):
+
+2012-12-18  Dana Jansens  <danakj@chromium.org>
+
+        [chromium] Make WebLayerTreeView::loseCompositorContext non-pure virtual
+        https://bugs.webkit.org/show_bug.cgi?id=105328
+
+        Reviewed by James Robinson.
+
+        This allows us to decouple the chromium and webkit sides and remove this
+        function entirely on each side.
+
+        * chromium/public/WebLayerTreeView.h:
+        (WebKit::WebLayerTreeView::loseCompositorContext):
+
+2012-12-18  James Robinson  <jamesr@chromium.org>
+
+        [chromium] Fix include style in WebTransformOperations.h
+        https://bugs.webkit.org/show_bug.cgi?id=105259
+
+        Reviewed by Adrienne Walker.
+
+        Changes include of WebTransformationMatrix.h from '#include <public/..h>' to '#include "....h". The latter
+        always works, since #include "foo.h" always finds foo.h in the same directory, and doesn't require all
+        downstream users of this header to have Source/Platform/chromium/ on the include path.
+
+        * chromium/public/WebTransformOperations.h:
+
+2012-12-17  Dana Jansens  <danakj@chromium.org>
+
+        [chromium] Add the GL_CHROMIUM_lose_context to WebGraphicsContext3D
+        https://bugs.webkit.org/show_bug.cgi?id=105238
+
+        Reviewed by James Robinson.
+
+        * chromium/public/WebGraphicsContext3D.h:
+        (WebGraphicsContext3D):
+        (WebKit::WebGraphicsContext3D::loseContext):
+
+2012-12-12  Andrey Kosyakov  <caseq@chromium.org>
+
+        [Chromium] Remove support for TRACE_EVENT_IF_LONGER_THANx macros
+        https://bugs.webkit.org/show_bug.cgi?id=104784
+
+        Reviewed by Pavel Feldman.
+
+        - remove threshold and id of related begin event from arguments of addTraceEvent()
+        - do not return the index of added event from addTraceEvent()
+
+        * chromium/public/Platform.h:
+        (Platform):
+        (WebKit::Platform::addTraceEvent):
+
+2012-12-14  Yusuf Ozuysal  <yusufo@google.com>
+
+        Send a message from WebViewImpl to the compositor to inform about end of flings
+        https://bugs.webkit.org/show_bug.cgi?id=104947
+
+        Reviewed by James Robinson.
+
+        Whenever we have a fling animation finished on cancelled on main thread this sends
+        a message that will be relayed to the compositor input handler. Then the input handler
+        keeps track of main thread fling with a boolean and doesn't send flingCancels
+        unnecessarily
+
+        * chromium/public/WebInputHandler.h:
+        (WebInputHandler):
+        * chromium/public/WebLayerTreeView.h:
+        (WebLayerTreeView):
+        (WebKit::WebLayerTreeView::mainThreadHasStoppedFlinging):
+
+2012-12-14  Sheriff Bot  <webkit.review.bot@gmail.com>
+
+        Unreviewed, rolling out r137765.
+        http://trac.webkit.org/changeset/137765
+        https://bugs.webkit.org/show_bug.cgi?id=105067
+
+        Breaks webkit_unit_tests and transferred flings (Requested by
+        jamesr_ on #webkit).
+
+        * chromium/public/WebInputHandler.h:
+        (WebInputHandler):
+        * chromium/public/WebLayerTreeView.h:
+        (WebLayerTreeView):
+
+2012-12-14  Yusuf Ozuysal  <yusufo@google.com>
+
+        Send a message from WebViewImpl to the compositor to inform about end of flings
+        https://bugs.webkit.org/show_bug.cgi?id=104947
+
+        Reviewed by James Robinson.
+
+        Whenever we have a fling animation finished on cancelled on main thread this sends
+        a message that will be relayed to the compositor input handler. Then the input handler
+        keeps track of main thread fling with a boolean and doesn't send flingCancels
+        unnecessarily
+
+        * chromium/public/WebInputHandler.h:
+        (WebInputHandler):
+        * chromium/public/WebLayerTreeView.h:
+        (WebLayerTreeView):
+        (WebKit::WebLayerTreeView::mainThreadHasStoppedFlinging):
+
+2012-12-12  Gavin Peters  <gavinp@chromium.org>
+
+        [chromium] Add destructor to WebPrerender
+        https://bugs.webkit.org/show_bug.cgi?id=104820
+
+        Reviewed by James Robinson.
+
+        When making WebPrerender default constructible and assignable, the destructor should have been moved out of WEBKIT_IMPLEMENTATION.
+
+        * chromium/public/WebPrerender.h:
+        (WebKit::WebPrerender::~WebPrerender):
+        (WebPrerender):
+
+2012-12-12  Alexei Filippov  <alph@chromium.org>
+
+        Web Inspector: add memory used by memory allocator itself to NMI
+        https://bugs.webkit.org/show_bug.cgi?id=93372
+
+        Make native memory instrumentation report memory retained
+        for the memory allocator internal purposes.
+
+        Reviewed by Yury Semikhatsky.
+
+        * chromium/public/Platform.h:
+        (Platform):
+        (WebKit::Platform::memoryAllocatorWasteInBytes):
+
+2012-12-12  Tommy Widenflycht  <tommyw@google.com>
+
+        MediaStream API: Change the data channel descriptor pattern to a handler pattern
+        https://bugs.webkit.org/show_bug.cgi?id=104543
+
+        Reviewed by Kent Tamura.
+
+        In short the code is refactured to use the Handler/Client pattern (see RTCPeerConnectionHandler)
+        instead of the Descriptor pattern.
+        This will fix lifetime/memory/code structure issues in the chromium port.
+
+        * Platform.gypi:
+        * chromium/public/WebRTCDataChannel.h: Removed.
+        * chromium/public/WebRTCDataChannelHandler.h: Added.
+        (WebKit):
+        (WebRTCDataChannelHandler):
+        (WebKit::WebRTCDataChannelHandler::~WebRTCDataChannelHandler):
+        * chromium/public/WebRTCDataChannelHandlerClient.h: Added.
+        (WebKit):
+        (WebRTCDataChannelHandlerClient):
+        (WebKit::WebRTCDataChannelHandlerClient::~WebRTCDataChannelHandlerClient):
+        * chromium/public/WebRTCPeerConnectionHandler.h:
+        (WebKit):
+        (WebKit::WebRTCPeerConnectionHandler::createDataChannel):
+        * chromium/public/WebRTCPeerConnectionHandlerClient.h:
+        (WebKit):
+        (WebKit::WebRTCPeerConnectionHandlerClient::didAddRemoteDataChannel):
+
+2012-12-11  James Robinson  <jamesr@chromium.org>
+
+        [chromium] Remove deprecated WebGraphicsContext3D entry points
+        https://bugs.webkit.org/show_bug.cgi?id=104603
+
+        Reviewed by Darin Fisher.
+
+        * chromium/public/WebGraphicsContext3D.h:
+        (WebGraphicsContext3D):
+
+2012-12-10  Dana Jansens  <danakj@chromium.org>
+
+        [chromium] Remove WebCompositorFrame(Ack) as these classes are not needed now that they are passed through cc::OutputSurface.
+        https://bugs.webkit.org/show_bug.cgi?id=104635
+
+        Reviewed by James Robinson.
+
+        These have been supplanted by cc::CompositorFrame(Ack) which do not
+        need to inherit from them.
+
+        * chromium/public/WebCompositorFrame.h: Removed.
+        * chromium/public/WebCompositorFrameAck.h: Removed.
+
+2012-12-10  Dana Jansens  <danakj@chromium.org>
+
+        [chromium] Remove WebCompositorOutputSurface implementations from DRT
+        https://bugs.webkit.org/show_bug.cgi?id=104046
+
+        Reviewed by Darin Fisher.
+
+        Remove now-unused definitions for these classes. The cc::OutputSurface
+        and its related classes have replaced these, with the
+        WebCompositorOutputSurface class as an empty base class.
+
+        * Platform.gypi:
+        * chromium/public/WebCompositorOutputSurface.h:
+        (WebKit):
+        * chromium/public/WebCompositorOutputSurfaceClient.h: Removed.
+        * chromium/public/WebCompositorSoftwareOutputDevice.h: Removed.
+
 2012-12-10  Mark Pilgrim  <pilgrim@chromium.org>
 
         [Chromium] Move getPluginsList out of PlatformSupport

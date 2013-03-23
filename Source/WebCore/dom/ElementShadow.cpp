@@ -35,6 +35,7 @@
 #include "HTMLContentElement.h"
 #include "HTMLShadowElement.h"
 #include "InspectorInstrumentation.h"
+#include "NodeTraversal.h"
 #include "ShadowRoot.h"
 #include "StyleResolver.h"
 
@@ -86,6 +87,9 @@ void ElementShadow::addShadowRoot(Element* shadowHost, PassRefPtr<ShadowRoot> sh
     invalidateDistribution(shadowHost);
     ChildNodeInsertionNotifier(shadowHost).notify(shadowRoot.get());
 
+    // Existence of shadow roots requires the host and its children to do traversal using ComposedShadowTreeWalker.
+    shadowHost->setNeedsShadowTreeWalker();
+
     // FIXME(94905): ShadowHost should be reattached during recalcStyle.
     // Set some flag here and recreate shadow hosts' renderer in
     // Element::recalcStyle.
@@ -109,9 +113,9 @@ void ElementShadow::removeAllShadowRoots()
 
         m_shadowRoots.removeHead();
         oldRoot->setHost(0);
+        oldRoot->setParentTreeScope(shadowHost->document());
         oldRoot->setPrev(0);
         oldRoot->setNext(0);
-        shadowHost->document()->adoptIfNeeded(oldRoot.get());
         ChildNodeRemovalNotifier(shadowHost).notify(oldRoot.get());
     }
 
@@ -168,6 +172,16 @@ void ElementShadow::ensureDistribution()
     m_distributor.distribute(host());
 }
 
+void ElementShadow::ensureDistributionFromDocument()
+{
+    Vector<Element*, 8> hosts;
+    for (Element* current = host(); current; current = current->shadowHost())
+        hosts.append(current);
+
+    for (size_t i = hosts.size(); i > 0; --i)
+        hosts[i - 1]->shadow()->ensureDistribution();
+}
+
 void ElementShadow::setValidityUndetermined()
 {
     m_distributor.setValidity(ContentDistributor::Undetermined);
@@ -220,8 +234,8 @@ void ElementShadow::ensureSelectFeatureSetCollected()
 void ElementShadow::collectSelectFeatureSetFrom(ShadowRoot* root)
 {
     if (root->hasElementShadow()) {
-        for (Node* node = root->firstChild(); node; node = node->traverseNextNode()) {
-            if (ElementShadow* elementShadow = node->isElementNode() ? toElement(node)->shadow() : 0) {
+        for (Element* element = ElementTraversal::firstWithin(root); element; element = ElementTraversal::next(element)) {
+            if (ElementShadow* elementShadow = element->shadow()) {
                 elementShadow->ensureSelectFeatureSetCollected();
                 m_selectFeatures.add(elementShadow->m_selectFeatures);
             }
@@ -229,9 +243,9 @@ void ElementShadow::collectSelectFeatureSetFrom(ShadowRoot* root)
     }
 
     if (root->hasContentElement()) {
-        for (Node* node = root->firstChild(); node; node = node->traverseNextNode()) {
-            if (isHTMLContentElement(node)) {
-                const CSSSelectorList& list = toHTMLContentElement(node)->selectorList();
+        for (Element* element = ElementTraversal::firstWithin(root); element; element = ElementTraversal::next(element)) {
+            if (isHTMLContentElement(element)) {
+                const CSSSelectorList& list = toHTMLContentElement(element)->selectorList();
                 for (CSSSelector* selector = list.first(); selector; selector = list.next(selector))
                     m_selectFeatures.collectFeaturesFromSelector(selector);                    
             }

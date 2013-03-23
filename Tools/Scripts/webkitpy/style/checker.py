@@ -175,7 +175,14 @@ _PATH_RULES_SPECIFIER = [
      ["-readability/naming",
       "-readability/parameter_name",
       "-readability/null",
+      "-readability/enum_casing",
       "-whitespace/parens"]),
+
+    ([# The GTK+ API use upper case, underscore separated, words in
+      # certain types of enums (e.g. signals, properties).
+      "Source/WebKit2/UIProcess/API/gtk"],
+     ["-readability/enum_casing"]),
+
     ([# Header files in ForwardingHeaders have no header guards or
       # exceptional header guards (e.g., WebCore_FWD_Debugger_h).
       "/ForwardingHeaders/"],
@@ -222,6 +229,8 @@ _PATH_RULES_SPECIFIER = [
       "-whitespace/declaration"]),
     ([# These files define GObjects, which implies some definitions of
       # variables and functions containing underscores.
+      "Source/WebCore/platform/graphics/clutter/GraphicsLayerActor.cpp",
+      "Source/WebCore/platform/graphics/clutter/GraphicsLayerActor.h",
       "Source/WebCore/platform/graphics/gstreamer/VideoSinkGStreamer1.cpp",
       "Source/WebCore/platform/graphics/gstreamer/VideoSinkGStreamer.cpp",
       "Source/WebCore/platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp",
@@ -328,6 +337,8 @@ _SKIPPED_FILES_WITH_WARNING = [
 # with FileType.NONE are automatically skipped without warning.
 _SKIPPED_FILES_WITHOUT_WARNING = [
     "LayoutTests" + os.path.sep,
+    # Prevents this being recognized as a text file.
+    "Source/WebCore/GNUmakefile.features.am.in",
     ]
 
 # Extensions of files which are allowed to contain carriage returns.

@@ -39,13 +39,13 @@
 #include "platform/WebRect.h"
 #include "platform/WebSize.h"
 
-#define WEBKIT_HAS_NEW_FULLSCREEN_API 1
 #define WEBWIDGET_HAS_SETCOMPOSITORSURFACEREADY 1
 #define WEBWIDGET_HAS_PAINT_OPTIONS 1
 
 namespace WebKit {
 
 class WebInputEvent;
+class WebLayerTreeView;
 class WebMouseEvent;
 class WebString;
 struct WebPoint;

@@ -11,7 +11,9 @@
 CONFIG += config_step
 
 # Enable dynamic instead of static libraries for development
-!production_build:!buildbot:!win*: CONFIG += force_static_libs_as_shared
+# Avoid it with debug_and_release, it can cause the application to load both the debug and release
+# dependent libraries when using frameworks on Mac.
+!production_build:!debug_and_release:!buildbot:!win*: CONFIG += force_static_libs_as_shared
 
 root_project_file: finalizeConfigure()
 
@@ -36,7 +38,6 @@ CONFIG(release, debug|release): DEFINES *= NDEBUG
 
 DEFINES += $$configDefines()
 
-CONFIG += depend_includepath
 DEPENDPATH += $$OUT_PWD
 
 INCLUDEPATH += \
@@ -120,6 +121,9 @@ contains(TEMPLATE, derived) {
 } else {
     # Make sure the generated sources are compiled as well
     for(generator, GENERATORS) {
+        prependEach($${generator}.extra_sources, $${GENERATED_SOURCES_DESTDIR}/)
+        SOURCES += $$eval($${generator}.extra_sources)
+
         isEqual($${generator}.add_output_to_sources, false): next()
 
         output = $$eval($${generator}.output)
@@ -145,30 +149,6 @@ contains(TEMPLATE, derived) {
                 eval($$output_variable += $$output_file)
             }
         }
-
-        prependEach($${generator}.extra_sources, $${GENERATED_SOURCES_DESTDIR}/)
-        SOURCES += $$eval($${generator}.extra_sources)
-    }
-}
-
-contains(TEMPLATE, lib) {
-    # Triggers the right export macros for WebKit internals
-    DEFINES += BUILDING_$${TARGET}
-
-    # Triggers the right export macro for the QtWebKit API (see qwebkitglobal.h)
-    !contains(QT, webkit)|equals(MODULE, webkitwidgets): DEFINES += BUILDING_WEBKIT
-
-    # Prevent name clashes when building both debug and release. Qt5's module
-    # system already takes care of this for the top level QtWebKit library.
-    !qt_install_module:debug_and_release: TARGET = $$qtLibraryTarget($$TARGET)
-
-    isEmpty(DESTDIR): DESTDIR = $$activeBuildConfig()
-
-    DEFINES += QT_ASCII_CAST_WARNINGS
-
-    !plugin {
-        contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
-        unix:contains(QT_CONFIG, reduce_relocations):CONFIG += bsymbolic_functions
     }
 }
 
@@ -222,6 +202,10 @@ creating_module {
     # to end up in as public API dependenices in the QtWebKit prl file.
     LIBS_PRIVATE += $$LIBS
     unset(LIBS)
+    # Copy Qt module dependencies from QT to QT_PRIVATE to ensure the
+    # Qt libraries are linked after the private static libraries that
+    # depend on them
+    QT_PRIVATE += $$QT
 }
 
 equals(_PRO_FILE_, $${ROOT_WEBKIT_DIR}/WebKit.pro):!isEmpty(OVERRIDE_SUBDIRS) {
@@ -270,10 +254,25 @@ incremental.target = incremental
 incremental.commands = $(MAKE) -f $(MAKEFILE) qmake_all && $(MAKE) -f $(MAKEFILE)
 QMAKE_EXTRA_TARGETS += incremental
 
-# Don't set OBJECTS_DIR for subdirs, as that will unconditionally
-# create the directory, even if we're not using it.
-contains(TEMPLATE, subdirs) {
-    unset(OBJECTS_DIR)
+contains(TEMPLATE, lib) {
+    # Triggers the right export macros for WebKit internals
+    DEFINES += BUILDING_$${TARGET}
+
+    # Triggers the right export macro for the QtWebKit API (see qwebkitglobal.h)
+    !contains(QT, webkit)|equals(MODULE, webkitwidgets): DEFINES += BUILDING_WEBKIT
+
+    # Prevent name clashes when building both debug and release. Qt5's module
+    # system already takes care of this for the top level QtWebKit library.
+    !qt_install_module:debug_and_release: TARGET = $$qtLibraryTarget($$TARGET)
+
+    isEmpty(DESTDIR): DESTDIR = $$activeBuildConfig()
+
+    DEFINES += QT_ASCII_CAST_WARNINGS
+
+    !plugin {
+        contains(QT_CONFIG, reduce_exports):CONFIG += hide_symbols
+        unix:contains(QT_CONFIG, reduce_relocations):CONFIG += bsymbolic_functions
+    }
 }
 
 # Remove duplicated sources

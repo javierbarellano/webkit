@@ -31,14 +31,13 @@
 #import "CommandLine.h"
 #import "EnvironmentUtilities.h"
 #import "SharedWorkerProcess.h"
+#import "WebKit2Initialize.h"
 #import <Foundation/NSUserDefaults.h>
 #import <WebCore/RunLoop.h>
 #import <WebKitSystemInterface.h>
 #import <mach/mach_error.h>
-#import <runtime/InitializeThreading.h>
 #import <servers/bootstrap.h>
 #import <stdio.h>
-#import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/text/CString.h>
 #import <wtf/text/WTFString.h>
@@ -92,14 +91,17 @@ int SharedWorkerProcessMain(const CommandLine& commandLine)
     signal(SIGSEGV, _exit);
 #endif
 
-    JSC::initializeThreading();
-    WTF::initializeMainThread();
-    RunLoop::initializeMainRunLoop();
+    @autoreleasepool {
+        InitializeWebKit2();
 
-    // Initialize the shared worker process connection.
-    SharedWorkerProcess::shared().initialize(CoreIPC::Connection::Identifier(serverPort), RunLoop::main());
+        ChildProcessInitializationParameters parameters;
+        parameters.uiProcessName = commandLine["ui-process-name"];
+        parameters.clientIdentifier = commandLine["client-identifier"];
+        parameters.connectionIdentifier = CoreIPC::Connection::Identifier(serverPort);
+        SharedWorkerProcess::shared().initialize(parameters);
 
-    [NSApplication sharedApplication];
+        [NSApplication sharedApplication];
+    }
 
     RunLoop::run();
     

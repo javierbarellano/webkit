@@ -34,6 +34,7 @@
 #include "WebPageProxy.h"
 #include "WebProcessProxy.h"
 #include <WebCore/Page.h>
+#include <wtf/UnusedParam.h>
 
 #ifdef __BLOCKS__
 #include <Block.h>
@@ -187,6 +188,7 @@ WKInspectorRef WKPageGetInspector(WKPageRef pageRef)
 #if defined(ENABLE_INSPECTOR) && ENABLE_INSPECTOR
     return toAPI(toImpl(pageRef)->inspector());
 #else
+    UNUSED_PARAM(pageRef);
     return 0;
 #endif
 }
@@ -619,6 +621,11 @@ void WKPageGetContentsAsString_b(WKPageRef pageRef, WKPageGetSourceForFrameBlock
 }
 #endif
 
+void WKPageGetSelectionAsWebArchiveData(WKPageRef pageRef, void* context, WKPageGetSelectionAsWebArchiveDataFunction callback)
+{
+    toImpl(pageRef)->getSelectionAsWebArchiveData(DataCallback::create(context, callback));
+}
+
 void WKPageGetContentsAsMHTMLData(WKPageRef pageRef, bool useBinaryEncoding, void* context, WKPageGetContentsAsMHTMLDataFunction callback)
 {
 #if ENABLE(MHTML)
@@ -768,4 +775,9 @@ WKArrayRef WKPageCopyRelatedPages(WKPageRef pageRef)
 void WKPageSetMayStartMediaWhenInWindow(WKPageRef pageRef, bool mayStartMedia)
 {
     toImpl(pageRef)->setMayStartMediaWhenInWindow(mayStartMedia);
+}
+
+void WKPageSetInvalidMessageFunction(WKPageInvalidMessageFunction)
+{
+    // FIXME: Remove this function when doing so won't break WebKit nightlies.
 }

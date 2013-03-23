@@ -88,10 +88,6 @@
     void scrollByLines(in [Optional=DefaultIsUndefined] long lines);
     void scrollByPages(in [Optional=DefaultIsUndefined] long pages);
 
-#if defined(ENABLE_ANIMATION_API) && ENABLE_ANIMATION_API
-    WebKitAnimationList webkitGetAnimations();
-#endif
-
     // HTML 5
     NodeList getElementsByClassName(in [Optional=DefaultIsUndefined] DOMString name);
 
@@ -153,8 +149,8 @@
     [Conditional=POINTER_LOCK] void webkitRequestPointerLock();
 
     // CSS Regions API
-    [Conditional=CSS_REGIONS] readonly attribute DOMString webkitRegionOverset;
-    [Conditional=CSS_REGIONS] sequence<Range> webkitGetRegionFlowRanges();
+    [Conditional=CSS_REGIONS, V8EnabledAtRuntime=cssRegions] readonly attribute DOMString webkitRegionOverset;
+    [Conditional=CSS_REGIONS, V8EnabledAtRuntime=cssRegions] sequence<Range> webkitGetRegionFlowRanges();
 
 #if !defined(LANGUAGE_OBJECTIVE_C) || !LANGUAGE_OBJECTIVE_C
     // Event handler DOM attributes
@@ -222,10 +218,10 @@
     [NotEnumerable] attribute EventListener onreset;
     [NotEnumerable] attribute EventListener onsearch;
     [NotEnumerable] attribute EventListener onselectstart;
-    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime] attribute EventListener ontouchstart;
-    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime] attribute EventListener ontouchmove;
-    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime] attribute EventListener ontouchend;
-    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime] attribute EventListener ontouchcancel;
+    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime=touch] attribute EventListener ontouchstart;
+    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime=touch] attribute EventListener ontouchmove;
+    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime=touch] attribute EventListener ontouchend;
+    [NotEnumerable,Conditional=TOUCH_EVENTS,V8EnabledAtRuntime=touch] attribute EventListener ontouchcancel;
     [NotEnumerable, Conditional=FULLSCREEN_API] attribute EventListener onwebkitfullscreenchange;
     [NotEnumerable, Conditional=FULLSCREEN_API] attribute EventListener onwebkitfullscreenerror;
 #endif

@@ -29,6 +29,9 @@
 #include "MutationObserverRegistration.h"
 #include "QualifiedName.h"
 #include "TagNodeList.h"
+#if ENABLE(VIDEO_TRACK)
+#include "TextTrack.h"
+#endif
 #include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
@@ -226,14 +229,12 @@ private:
 class NodeRareData : public NodeRareDataBase {
     WTF_MAKE_NONCOPYABLE(NodeRareData); WTF_MAKE_FAST_ALLOCATED;
 
-#if ENABLE(MUTATION_OBSERVERS)
     struct NodeMutationObserverData {
         Vector<OwnPtr<MutationObserverRegistration> > m_registry;
         HashSet<MutationObserverRegistration*> m_transientRegistry;
 
         static PassOwnPtr<NodeMutationObserverData> create() { return adoptPtr(new NodeMutationObserverData); }
     };
-#endif
 
 #if ENABLE(MICRODATA)
     struct NodeMicroDataTokenLists {
@@ -246,12 +247,10 @@ class NodeRareData : public NodeRareDataBase {
 #endif
 
 public:    
-    NodeRareData(Document* document)
-        : NodeRareDataBase(document)
-        , m_tabIndex(0)
+    NodeRareData()
+        : m_tabIndex(0)
         , m_childIndex(0)
         , m_tabIndexWasSetExplicitly(false)
-        , m_isFocused(false)
         , m_needsFocusAppearanceUpdateSoonAfterAttach(false)
         , m_styleAffectedByEmpty(false)
         , m_isInCanvasSubtree(false)
@@ -261,6 +260,9 @@ public:
 #if ENABLE(DIALOG_ELEMENT)
         , m_isInTopLayer(false)
 #endif
+#if ENABLE(SVG)
+        , m_hasPendingResources(false)
+#endif
         , m_childrenAffectedByHover(false)
         , m_childrenAffectedByActive(false)
         , m_childrenAffectedByDrag(false)
@@ -269,6 +271,9 @@ public:
         , m_childrenAffectedByDirectAdjacentRules(false)
         , m_childrenAffectedByForwardPositionalRules(false)
         , m_childrenAffectedByBackwardPositionalRules(false)
+#if ENABLE(VIDEO_TRACK)
+        , m_WebVTTNodeType(TextTrack::WebVTTNodeTypeNone)
+#endif
     {
     }
 
@@ -290,7 +295,6 @@ public:
     bool tabIndexSetExplicitly() const { return m_tabIndexWasSetExplicitly; }
     void clearTabIndexExplicitly() { m_tabIndex = 0; m_tabIndexWasSetExplicitly = false; }
 
-#if ENABLE(MUTATION_OBSERVERS)
     Vector<OwnPtr<MutationObserverRegistration> >* mutationObserverRegistry() { return m_mutationObserverData ? &m_mutationObserverData->m_registry : 0; }
     Vector<OwnPtr<MutationObserverRegistration> >* ensureMutationObserverRegistry()
     {
@@ -306,7 +310,6 @@ public:
             m_mutationObserverData = NodeMutationObserverData::create();
         return &m_mutationObserverData->m_transientRegistry;
     }
-#endif
 
 #if ENABLE(MICRODATA)
     NodeMicroDataTokenLists* ensureMicroDataTokenLists() const
@@ -365,43 +368,48 @@ public:
     }
 #endif
 
-    bool isFocused() const { return m_isFocused; }
-    void setFocused(bool focused) { m_isFocused = focused; }
-
     virtual void reportMemoryUsage(MemoryObjectInfo*) const;
 
 protected:
+#if ENABLE(VIDEO_TRACK)
+    bool isWebVTTNode() { return static_cast<TextTrack::WebVTTNodeType>(m_WebVTTNodeType) != TextTrack::WebVTTNodeTypeNone; }
+    void setIsWebVTTNode() { m_WebVTTNodeType = TextTrack::WebVTTNodeTypePast; }
+    bool isWebVTTFutureNode() { return static_cast<TextTrack::WebVTTNodeType>(m_WebVTTNodeType) == TextTrack::WebVTTNodeTypeFuture; }
+    void setIsWebVTTFutureNode() { m_WebVTTNodeType = TextTrack::WebVTTNodeTypeFuture; }
+#endif
     short m_tabIndex;
     unsigned short m_childIndex;
-    bool m_tabIndexWasSetExplicitly : 1;
-    bool m_isFocused : 1;
-    bool m_needsFocusAppearanceUpdateSoonAfterAttach : 1;
-    bool m_styleAffectedByEmpty : 1;
-    bool m_isInCanvasSubtree : 1;
+    unsigned m_tabIndexWasSetExplicitly : 1;
+    unsigned m_needsFocusAppearanceUpdateSoonAfterAttach : 1;
+    unsigned m_styleAffectedByEmpty : 1;
+    unsigned m_isInCanvasSubtree : 1;
 #if ENABLE(FULLSCREEN_API)
-    bool m_containsFullScreenElement : 1;
+    unsigned m_containsFullScreenElement : 1;
 #endif
 #if ENABLE(DIALOG_ELEMENT)
-    bool m_isInTopLayer : 1;
+    unsigned m_isInTopLayer : 1;
 #endif
-    bool m_childrenAffectedByHover : 1;
-    bool m_childrenAffectedByActive : 1;
-    bool m_childrenAffectedByDrag : 1;
+#if ENABLE(SVG)
+    unsigned m_hasPendingResources : 1;
+#endif
+    unsigned m_childrenAffectedByHover : 1;
+    unsigned m_childrenAffectedByActive : 1;
+    unsigned m_childrenAffectedByDrag : 1;
     // Bits for dynamic child matching.
     // We optimize for :first-child and :last-child. The other positional child selectors like nth-child or
     // *-child-of-type, we will just give up and re-evaluate whenever children change at all.
-    bool m_childrenAffectedByFirstChildRules : 1;
-    bool m_childrenAffectedByLastChildRules : 1;
-    bool m_childrenAffectedByDirectAdjacentRules : 1;
-    bool m_childrenAffectedByForwardPositionalRules : 1;
-    bool m_childrenAffectedByBackwardPositionalRules : 1;
+    unsigned m_childrenAffectedByFirstChildRules : 1;
+    unsigned m_childrenAffectedByLastChildRules : 1;
+    unsigned m_childrenAffectedByDirectAdjacentRules : 1;
+    unsigned m_childrenAffectedByForwardPositionalRules : 1;
+    unsigned m_childrenAffectedByBackwardPositionalRules : 1;
+#if ENABLE(VIDEO_TRACK)
+    unsigned m_WebVTTNodeType : 2;
+#endif
 
 private:
     OwnPtr<NodeListsNodeData> m_nodeLists;
-
-#if ENABLE(MUTATION_OBSERVERS)
     OwnPtr<NodeMutationObserverData> m_mutationObserverData;
-#endif
 
 #if ENABLE(MICRODATA)
     mutable OwnPtr<NodeMicroDataTokenLists> m_microDataTokenLists;

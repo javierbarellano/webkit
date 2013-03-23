@@ -52,6 +52,7 @@
 #include "ewk_view_private.h"
 #include <Ecore_Evas.h>
 #include <WebKit2/WKPageGroup.h>
+#include <wtf/UnusedParam.h>
 #include <wtf/text/CString.h>
 
 #if ENABLE(INSPECTOR)
@@ -390,7 +391,7 @@ static void _ewk_view_smart_calculate(Evas_Object* ewkView)
         impl->setNeedsSurfaceResize();
 #endif
 #if USE(TILED_BACKING_STORE)
-        impl->pageClient()->updateViewportSize(IntSize(width, height));
+        impl->pageClient()->updateViewportSize();
 #endif
     }
 }
@@ -507,8 +508,10 @@ static inline Evas_Object* createEwkView(Evas* canvas, Evas_Smart* smart, PassRe
     }
 
     ASSERT(!smartData->priv);
-    RefPtr<WebPageGroup> pageGroup = pageGroupRef ? toImpl(pageGroupRef) : WebPageGroup::create();
-    smartData->priv = new EwkViewImpl(ewkView, context, pageGroup, behavior);
+
+    // Default WebPageGroup is created in WebContext constructor if the pageGroupRef is 0,
+    // so we do not need to create it here.
+    smartData->priv = new EwkViewImpl(ewkView, context, toImpl(pageGroupRef), behavior);
     return ewkView;
 }
 
@@ -637,7 +640,7 @@ Eina_Bool ewk_view_device_pixel_ratio_set(Evas_Object* ewkView, float ratio)
 {
     EWK_VIEW_IMPL_GET_OR_RETURN(ewkView, impl, false);
 
-    impl->page()->setCustomDeviceScaleFactor(ratio);
+    impl->setDeviceScaleFactor(ratio);
 
     return true;
 }
@@ -862,6 +865,7 @@ Eina_Bool ewk_view_inspector_show(Evas_Object* ewkView)
 
     return true;
 #else
+    UNUSED_PARAM(ewkView);
     return false;
 #endif
 }
@@ -877,6 +881,7 @@ Eina_Bool ewk_view_inspector_close(Evas_Object* ewkView)
 
     return true;
 #else
+    UNUSED_PARAM(ewkView);
     return false;
 #endif
 }

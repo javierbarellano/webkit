@@ -736,7 +736,6 @@ webkit.org/b/99306 fast/repaint/fixed-child-of-fixed-move-after-scroll.html [ Im
 webkit.org/b/99306 fast/replaced/border-radius-clip.html [ ImageOnlyFailure ]
 webkit.org/b/99306 transitions/opacity-transition-zindex.html [ ImageOnlyFailure ]
 webkit.org/b/99306 fast/backgrounds/background-clip-text-on-body.html [ ImageOnlyFailure ]
-webkit.org/b/99306 fast/regions/region-style-text-shadow.html [ ImageOnlyFailure ]
 webkit.org/b/99306 svg/filters/feImage-reference-svg-primitive.svg [ ImageOnlyFailure ] # Reni said this is actually a know svg issue with feImage.
 webkit.org/b/99306 svg/custom/use-instanceRoot-event-bubbling.xhtml [ ImageOnlyFailure ]
 
@@ -745,8 +744,8 @@ fast/dom/shadow/wheel-event-in-shadow-dom.html
 fast/dom/shadow/wheel-event-on-input-in-shadow-dom.html
 
 # [Qt][WK2] REGRESSION(r132907): It made animations/negative-delay.html flaky
-webkit.org/b/100769 animations/negative-delay.html [ Pass Text ]
-webkit.org/b/100769 transitions/negative-delay.html [ Pass Text ]
+webkit.org/b/100769 animations/negative-delay.html [ Failure Pass ]
+webkit.org/b/100769 transitions/negative-delay.html [ Failure Pass ]
 
 # [Qt] Text on scaled layer is blurry
 webkit.org/b/101491 compositing/text-on-scaled-layer.html [ ImageOnlyFailure ]
@@ -761,3 +760,15 @@ webkit.org/b/103122 fast/events/mouse-cursor.html
 
 # [Qt][WK2] new fast/dom/Geolocation/cached-position-iframe.html fails since it was introduced in r136164
 webkit.org/b/103876 fast/dom/Geolocation/cached-position-iframe.html
+
+# [Qt][WK2] compositing/overflow/automatically-opt-into-composited-scrolling.html makes other tests fail
+webkit.org/b/105173 compositing/overflow/automatically-opt-into-composited-scrolling.html
+
+# [Qt][WK2] The new compositing/repaint/resize-repaint.html fails
+webkit.org/b/105182 compositing/repaint/resize-repaint.html
+
+# [Qt][WK2] svg/text/select-* tests are so flakey
+# https://bugs.webkit.org/show_bug.cgi?id=105417
+svg/text/select-textLength-spacing-stretch-1.svg
+svg/text/select-x-list-with-tspans-1.svg
+svg/text/select-x-list-1.svg

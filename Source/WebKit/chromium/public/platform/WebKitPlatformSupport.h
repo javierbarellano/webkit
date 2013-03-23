@@ -31,23 +31,11 @@
 #ifndef WebKitPlatformSupport_h
 #define WebKitPlatformSupport_h
 
-#include "WebCommon.h"
-#include "WebGraphicsContext3D.h"
-#include "WebSerializedScriptValue.h"
-#include "WebString.h"
-#include "WebURL.h"
-#include "WebVector.h"
-#include <time.h>
 #include "../../../../Platform/chromium/public/Platform.h"
-
-#ifdef WIN32
-typedef void *HANDLE;
-#endif
 
 namespace WebKit {
 
 class WebIDBFactory; // FIXME: Does this belong in platform?
-class WebSharedWorkerRepository; // FIXME: Does this belong in platform?
 
 // FIXME: Eventually all these API will need to move to WebKit::Platform.
 class WebKitPlatformSupport : public Platform {
@@ -55,11 +43,6 @@ public:
     // Indexed Database ----------------------------------------------------
 
     virtual WebIDBFactory* idbFactory() { return 0; }
-
-
-    // Shared Workers ------------------------------------------------------
-
-    virtual WebSharedWorkerRepository* sharedWorkerRepository() { return 0; }
 
 protected:
     ~WebKitPlatformSupport() { }

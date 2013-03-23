@@ -35,14 +35,18 @@
 #include "Element.h"
 #include "FocusController.h"
 #include "Frame.h"
+#include "FrameView.h"
 #include "HTMLAnchorElement.h"
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLLabelElement.h"
 #include "HTMLMapElement.h"
 #include "HTMLNames.h"
+#include "HitTestResult.h"
 #include "IdTargetObserverRegistry.h"
 #include "InsertionPoint.h"
+#include "NodeTraversal.h"
 #include "Page.h"
+#include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
 #include "ShadowRoot.h"
 #include "TreeScopeAdopter.h"
@@ -54,19 +58,38 @@ namespace WebCore {
 
 struct SameSizeAsTreeScope {
     virtual ~SameSizeAsTreeScope();
-    void* pointers[7];
+    void* pointers[8];
 };
 
 COMPILE_ASSERT(sizeof(TreeScope) == sizeof(SameSizeAsTreeScope), treescope_should_stay_small);
 
 using namespace HTMLNames;
 
-TreeScope::TreeScope(ContainerNode* rootNode)
+TreeScope::TreeScope(ContainerNode* rootNode, Document* document)
     : m_rootNode(rootNode)
-    , m_parentTreeScope(0)
+    , m_documentScope(document)
+    , m_parentTreeScope(document)
     , m_idTargetObserverRegistry(IdTargetObserverRegistry::create())
 {
     ASSERT(rootNode);
+    ASSERT(document);
+    ASSERT(rootNode != document);
+}
+
+TreeScope::TreeScope(Document* document)
+    : m_rootNode(document)
+    , m_documentScope(document)
+    , m_parentTreeScope(0)
+    , m_idTargetObserverRegistry(IdTargetObserverRegistry::create())
+{
+    ASSERT(document);
+}
+
+TreeScope::TreeScope()
+    : m_rootNode(0)
+    , m_documentScope(0)
+    , m_parentTreeScope(0)
+{
 }
 
 TreeScope::~TreeScope()
@@ -84,6 +107,12 @@ void TreeScope::destroyTreeScopeData()
     m_labelsByForAttribute.clear();
 }
 
+void TreeScope::clearDocumentScope()
+{
+    ASSERT(rootNode()->isDocumentNode());
+    m_documentScope = 0;
+}
+
 void TreeScope::setParentTreeScope(TreeScope* newParentScope)
 {
     // A document node cannot be re-parented.
@@ -92,6 +121,7 @@ void TreeScope::setParentTreeScope(TreeScope* newParentScope)
     ASSERT(newParentScope);
 
     m_parentTreeScope = newParentScope;
+    setDocumentScope(newParentScope->documentScope());
 }
 
 Element* TreeScope::getElementById(const AtomicString& elementId) const
@@ -166,6 +196,42 @@ HTMLMapElement* TreeScope::getImageMap(const String& url) const
     return static_cast<HTMLMapElement*>(m_imageMapsByName->getElementByMapName(AtomicString(name).impl(), this));
 }
 
+Node* nodeFromPoint(Document* document, int x, int y, LayoutPoint* localPoint)
+{
+    Frame* frame = document->frame();
+
+    if (!frame)
+        return 0;
+    FrameView* frameView = frame->view();
+    if (!frameView)
+        return 0;
+
+    float scaleFactor = frame->pageZoomFactor() * frame->frameScaleFactor();
+    IntPoint point = roundedIntPoint(FloatPoint(x * scaleFactor  + frameView->scrollX(), y * scaleFactor + frameView->scrollY()));
+
+    if (!frameView->visibleContentRect().contains(point))
+        return 0;
+
+    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active);
+    HitTestResult result(point);
+    document->renderView()->hitTest(request, result);
+
+    if (localPoint)
+        *localPoint = result.localPoint();
+
+    return result.innerNode();
+}
+
+Element* TreeScope::elementFromPoint(int x, int y) const
+{
+    Node* node = nodeFromPoint(rootNode()->document(), x, y);
+    while (node && !node->isElementNode())
+        node = node->parentNode();
+    if (node)
+        node = ancestorInThisScope(node);
+    return toElement(node);
+}
+
 void TreeScope::addLabel(const AtomicString& forAttributeValue, HTMLLabelElement* element)
 {
     ASSERT(m_labelsByForAttribute);
@@ -186,9 +252,9 @@ HTMLLabelElement* TreeScope::labelElementForId(const AtomicString& forAttributeV
     if (!m_labelsByForAttribute) {
         // Populate the map on first access.
         m_labelsByForAttribute = adoptPtr(new DocumentOrderedMap);
-        for (Node* node = rootNode(); node; node = node->traverseNextNode()) {
-            if (node->hasTagName(labelTag)) {
-                HTMLLabelElement* label = static_cast<HTMLLabelElement*>(node);
+        for (Element* element = ElementTraversal::firstWithin(rootNode()); element; element = ElementTraversal::next(element)) {
+            if (element->hasTagName(labelTag)) {
+                HTMLLabelElement* label = static_cast<HTMLLabelElement*>(element);
                 const AtomicString& forValue = label->fastGetAttribute(forAttr);
                 if (!forValue.isEmpty())
                     addLabel(forValue, label);
@@ -230,9 +296,9 @@ Element* TreeScope::findAnchor(const String& name)
         return 0;
     if (Element* element = getElementById(name))
         return element;
-    for (Node* node = rootNode(); node; node = node->traverseNextNode()) {
-        if (node->hasTagName(aTag)) {
-            HTMLAnchorElement* anchor = static_cast<HTMLAnchorElement*>(node);
+    for (Element* element = ElementTraversal::firstWithin(rootNode()); element; element = ElementTraversal::next(element)) {
+        if (element->hasTagName(aTag)) {
+            HTMLAnchorElement* anchor = static_cast<HTMLAnchorElement*>(element);
             if (rootNode()->document()->inQuirksMode()) {
                 // Quirks mode, case insensitive comparison of names.
                 if (equalIgnoringCase(anchor->name(), name))

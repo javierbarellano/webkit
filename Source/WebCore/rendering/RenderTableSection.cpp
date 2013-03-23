@@ -130,10 +130,6 @@ void RenderTableSection::willBeRemovedFromTree()
 
 void RenderTableSection::addChild(RenderObject* child, RenderObject* beforeChild)
 {
-    // Make sure we don't append things after :after-generated content if we have it.
-    if (!beforeChild)
-        beforeChild = afterPseudoElementRenderer();
-
     if (!child->isTableRow()) {
         RenderObject* last = beforeChild;
         if (!last)
@@ -190,7 +186,6 @@ void RenderTableSection::addChild(RenderObject* child, RenderObject* beforeChild
 
     ASSERT(!beforeChild || beforeChild->isTableRow());
     RenderBox::addChild(child, beforeChild);
-    toRenderTableRow(child)->updateBeforeAndAfterContent();
 }
 
 void RenderTableSection::ensureRows(unsigned numRows)
@@ -1458,6 +1453,7 @@ void RenderTableSection::RowStruct::reportMemoryUsage(MemoryObjectInfo* memoryOb
     MemoryClassInfo info(memoryObjectInfo, this, PlatformMemoryTypes::Rendering);
     info.addMember(row);
     info.addMember(rowRenderer);
+    info.addMember(logicalHeight);
 }
 
 void RenderTableSection::CellStruct::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const

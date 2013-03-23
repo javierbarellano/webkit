@@ -15,6 +15,7 @@ set(MiniBrowser_INCLUDE_DIRECTORIES
     ${ECORE_FILE_INCLUDE_DIRS}
     ${EDJE_INCLUDE_DIRS}
     ${EET_INCLUDE_DIRS}
+    ${EO_INCLUDE_DIRS}
     ${DBUS_INCLUDE_DIRS}
     ${E_DBUS_INCLUDE_DIRS}
     ${EFREET_INCLUDE_DIRS}
@@ -38,6 +39,7 @@ set(MiniBrowser_LIBRARIES
     ${EDJE_LIBRARIES}
     ${EINA_LIBRARIES}
     ${ELEMENTARY_LIBRARIES}
+    ${EO_LIBRARIES}
     ${EVAS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
     ${GLIB_LIBRARIES}
@@ -51,8 +53,9 @@ set(MiniBrowser_LIBRARIES
 
 add_definitions(-DTHEME_DIR=\"${THEME_BINARY_DIR}\")
 
-include_directories(${MiniBrowser_INCLUDE_DIRECTORIES})
-
-add_executable(MiniBrowser ${MiniBrowser_SOURCES})
-target_link_libraries(MiniBrowser ${MiniBrowser_LIBRARIES})
-set_target_properties(MiniBrowser PROPERTIES FOLDER "Tools")
+if (ELEMENTARY_FOUND)
+    include_directories(${MiniBrowser_INCLUDE_DIRECTORIES})
+    add_executable(MiniBrowser ${MiniBrowser_SOURCES})
+    target_link_libraries(MiniBrowser ${MiniBrowser_LIBRARIES})
+    set_target_properties(MiniBrowser PROPERTIES FOLDER "Tools")
+endif ()

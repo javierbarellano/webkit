@@ -31,6 +31,7 @@
 #include "ElementShadow.h"
 #include "HTMLContentElement.h"
 #include "HTMLShadowElement.h"
+#include "NodeTraversal.h"
 #include "ShadowRoot.h"
 
 
@@ -90,7 +91,7 @@ void ShadowRootContentDistributionData::invalidateInsertionPointList()
     m_insertionPointList.clear();
 }
 
-const Vector<InsertionPoint*>& ShadowRootContentDistributionData::ensureInsertionPointList(ShadowRoot* shadowRoot)
+const Vector<RefPtr<InsertionPoint> >& ShadowRootContentDistributionData::ensureInsertionPointList(ShadowRoot* shadowRoot)
 {
     if (m_insertionPointListIsValid)
         return m_insertionPointList;
@@ -101,13 +102,47 @@ const Vector<InsertionPoint*>& ShadowRootContentDistributionData::ensureInsertio
     if (!shadowRoot->hasInsertionPoint())
         return m_insertionPointList;
 
-    for (Node* node = shadowRoot; node; node = node->traverseNextNode(shadowRoot)) {
-        if (node->isInsertionPoint())
-            m_insertionPointList.append(toInsertionPoint(node));
+    for (Element* element = ElementTraversal::firstWithin(shadowRoot); element; element = ElementTraversal::next(element, shadowRoot)) {
+        if (element->isInsertionPoint())
+            m_insertionPointList.append(toInsertionPoint(element));
     }
 
     return m_insertionPointList;
 }
+
+void ShadowRootContentDistributionData::regiterInsertionPoint(ShadowRoot* scope, InsertionPoint* point)
+{
+    switch (point->insertionPointType()) {
+    case InsertionPoint::ShadowInsertionPoint:
+        ++m_numberOfShadowElementChildren;
+        break;
+    case InsertionPoint::ContentInsertionPoint:
+        ++m_numberOfContentElementChildren;
+        scope->owner()->setShouldCollectSelectFeatureSet();
+        break;
+    }
+
+    invalidateInsertionPointList();
+}
+
+void ShadowRootContentDistributionData::unregisterInsertionPoint(ShadowRoot* scope, InsertionPoint* point)
+{
+    switch (point->insertionPointType()) {
+    case InsertionPoint::ShadowInsertionPoint:
+        ASSERT(m_numberOfShadowElementChildren > 0);
+        --m_numberOfShadowElementChildren;
+        break;
+    case InsertionPoint::ContentInsertionPoint:
+        ASSERT(m_numberOfContentElementChildren > 0);
+        --m_numberOfContentElementChildren;
+        if (scope->owner())
+            scope->owner()->setShouldCollectSelectFeatureSet();
+        break;
+    }
+
+    invalidateInsertionPointList();
+}
+
 
 ContentDistributor::ContentDistributor()
     : m_validity(Undetermined)
@@ -120,7 +155,7 @@ ContentDistributor::~ContentDistributor()
 
 InsertionPoint* ContentDistributor::findInsertionPointFor(const Node* key) const
 {
-    return m_nodeToInsertionPoint.get(key);
+    return m_nodeToInsertionPoint.get(key).get();
 }
 
 void ContentDistributor::populate(Node* node, ContentDistribution& pool)
@@ -158,9 +193,9 @@ void ContentDistributor::distribute(Element* host)
     for (ShadowRoot* root = host->youngestShadowRoot(); root; root = root->olderShadowRoot()) {
         HTMLShadowElement* firstActiveShadowInsertionPoint = 0;
 
-        const Vector<InsertionPoint*>& insertionPoints = root->insertionPointList();
+        const Vector<RefPtr<InsertionPoint> >& insertionPoints = root->insertionPointList();
         for (size_t i = 0; i < insertionPoints.size(); ++i) {
-            InsertionPoint* point = insertionPoints[i];
+            InsertionPoint* point = insertionPoints[i].get();
             if (!point->isActive())
                 continue;
 
@@ -200,7 +235,7 @@ bool ContentDistributor::invalidate(Element* host)
 
     for (ShadowRoot* root = host->youngestShadowRoot(); root; root = root->olderShadowRoot()) {
         root->setAssignedTo(0);
-        const Vector<InsertionPoint*>& insertionPoints = root->insertionPointList();
+        const Vector<RefPtr<InsertionPoint> >& insertionPoints = root->insertionPointList();
         for (size_t i = 0; i < insertionPoints.size(); ++i) {
             needsReattach = needsReattach || true;
             insertionPoints[i]->clearDistribution();

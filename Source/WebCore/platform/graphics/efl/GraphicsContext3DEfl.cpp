@@ -23,18 +23,12 @@
 
 #if USE(3D_GRAPHICS) || USE(ACCELERATED_COMPOSITING)
 
+#include "GLDefs.h"
 #include "GraphicsContext3DPrivate.h"
 #include "Image.h"
 #include "ImageSource.h"
 #include "NotImplemented.h"
-#include "OpenGLShims.h"
 #include "PlatformContextCairo.h"
-
-#if USE(OPENGL_ES_2)
-#include "Extensions3DOpenGLES.h"
-#else
-#include "Extensions3DOpenGL.h"
-#endif
 
 namespace WebCore {
 
@@ -106,7 +100,7 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attrs, HostWi
 #if USE(OPENGL_ES_2)
             if (m_attrs.depth)
                 glGenRenderbuffers(1, &m_depthBuffer);
-            if (m_context->m_attrs.stencil)
+            if (m_attrs.stencil)
                 glGenRenderbuffers(1, &m_stencilBuffer);
 #endif
             if (m_attrs.stencil || m_attrs.depth)
@@ -134,18 +128,14 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attrs, HostWi
     glEnable(GL_POINT_SPRITE);
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 #endif
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    if (renderStyle != RenderToCurrentGLContext)
+        glClearColor(0.0, 0.0, 0.0, 0.0);
 }
 
 GraphicsContext3D::~GraphicsContext3D()
 {
     if (!m_private || !makeContextCurrent())
         return;
-
-    if (!m_fbo) {
-        m_private->releaseResources();
-        return;
-    }
 
     glDeleteTextures(1, &m_texture);
 
@@ -167,7 +157,6 @@ GraphicsContext3D::~GraphicsContext3D()
         glDeleteRenderbuffers(1, &m_depthStencilBuffer);
     }
 
-    glDeleteFramebuffers(1, &m_fbo);
     m_private->releaseResources();
 }
 
@@ -238,7 +227,7 @@ void GraphicsContext3D::paintToCanvas(const unsigned char* imagePixels, int imag
 #if USE(GRAPHICS_SURFACE)
 void GraphicsContext3D::createGraphicsSurfaces(const IntSize& size)
 {
-    m_private->createGraphicsSurfaces(size);
+    m_private->didResizeCanvas(size);
 }
 #endif
 

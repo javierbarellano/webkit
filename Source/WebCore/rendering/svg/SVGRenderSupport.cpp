@@ -84,7 +84,7 @@ void SVGRenderSupport::computeFloatRectForRepaint(const RenderObject* object, co
     object->parent()->computeFloatRectForRepaint(repaintContainer, repaintRect, fixed);
 }
 
-void SVGRenderSupport::mapLocalToContainer(const RenderObject* object, const RenderLayerModelObject* repaintContainer, TransformState& transformState, bool snapOffsetForTransforms, bool* wasFixed)
+void SVGRenderSupport::mapLocalToContainer(const RenderObject* object, const RenderLayerModelObject* repaintContainer, TransformState& transformState, bool* wasFixed)
 {
     transformState.applyTransform(object->localToParentTransform());
 
@@ -97,8 +97,6 @@ void SVGRenderSupport::mapLocalToContainer(const RenderObject* object, const Ren
         transformState.applyTransform(toRenderSVGRoot(parent)->localToBorderBoxTransform());
 
     MapCoordinatesFlags mode = UseTransforms;
-    if (snapOffsetForTransforms)
-        mode |= SnapOffsetForTransforms;
     parent->mapLocalToContainer(repaintContainer, transformState, mode, wasFixed);
 }
 
@@ -231,11 +229,20 @@ void SVGRenderSupport::layoutChildren(RenderObject* start, bool selfNeedsLayout)
 {
     bool layoutSizeChanged = layoutSizeOfNearestViewportChanged(start);
     bool transformChanged = transformToRootChanged(start);
+    bool hasSVGShadow = rendererHasSVGShadow(start);
+    bool needsBoundariesUpdate = start->needsBoundariesUpdate();
     HashSet<RenderObject*> notlayoutedObjects;
 
     for (RenderObject* child = start->firstChild(); child; child = child->nextSibling()) {
         bool needsLayout = selfNeedsLayout;
         bool childEverHadLayout = child->everHadLayout();
+
+        if (needsBoundariesUpdate && hasSVGShadow) {
+            // If we have a shadow, our shadow is baked into our children's cached boundaries,
+            // so they need to update.
+            child->setNeedsBoundariesUpdate();
+            needsLayout = true;
+        }
 
         if (transformChanged) {
             // If the transform changed we need to update the text metrics (note: this also happens for layoutSizeChanged=true).

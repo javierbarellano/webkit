@@ -571,10 +571,10 @@ String AXFooterRoleDescriptionText()
 {
     return WEB_UI_STRING("footer", "accessibility role description for a footer");
 }
-    
+
 String AXFileUploadButtonText()
 {
-    return WEB_UI_STRING("file upload", "accessibility role description for a file upload button");
+    return WEB_UI_STRING("file upload button", "accessibility role description for a file upload button");
 }
 
 #if PLATFORM(MAC)
@@ -1008,5 +1008,27 @@ String clickToExitFullScreenText()
 {
     return WEB_UI_STRING("Click to exit full screen mode", "Message to display in browser window when in webkit full screen mode.");
 }
+
+#if ENABLE(VIDEO_TRACK)
+String textTrackClosedCaptionsText()
+{
+    return WEB_UI_STRING("Closed Captions", "Menu section heading for closed captions");
+}
+
+String textTrackSubtitlesText()
+{
+    return WEB_UI_STRING("Subtitles", "Menu section heading for subtitles");
+}
+
+String textTrackOffText()
+{
+    return WEB_UI_STRING("Off", "Menu item label for the track that represents disabling closed captions");
+}
+
+String textTrackNoLabelText()
+{
+    return WEB_UI_STRING("No label", "Menu item label for a closed captions track that has no other name");
+}
+#endif
 
 } // namespace WebCore

@@ -30,10 +30,15 @@
 
 #include "ArgumentCoders.h"
 #include "Attachment.h"
+#include "AuthenticationManager.h"
+#include "CustomProtocolManager.h"
+#include "Logging.h"
 #include "NetworkConnectionToWebProcess.h"
 #include "NetworkProcessCreationParameters.h"
 #include "NetworkProcessProxyMessages.h"
 #include "RemoteNetworkingContext.h"
+#include "WebCookieManager.h"
+#include <WebCore/InitializeLogging.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/RunLoop.h>
 #include <wtf/text/CString.h>
@@ -49,20 +54,22 @@ NetworkProcess& NetworkProcess::shared()
 }
 
 NetworkProcess::NetworkProcess()
+    : m_hasSetCacheModel(false)
+    , m_cacheModel(CacheModelDocumentViewer)
 {
+    addSupplement<AuthenticationManager>();
+    addSupplement<WebCookieManager>();
+    addSupplement<CustomProtocolManager>();
 }
 
 NetworkProcess::~NetworkProcess()
 {
 }
 
-void NetworkProcess::initialize(CoreIPC::Connection::Identifier serverIdentifier, WebCore::RunLoop* runLoop)
+DownloadManager& NetworkProcess::downloadManager()
 {
-    ASSERT(!m_uiConnection);
-
-    m_uiConnection = CoreIPC::Connection::createClientConnection(serverIdentifier, this, runLoop);
-    m_uiConnection->setDidCloseOnConnectionWorkQueueCallback(didCloseOnConnectionWorkQueue);
-    m_uiConnection->open();
+    DEFINE_STATIC_LOCAL(DownloadManager, downloadManager, (this));
+    return downloadManager;
 }
 
 void NetworkProcess::removeNetworkConnectionToWebProcess(NetworkConnectionToWebProcess* connection)
@@ -75,12 +82,21 @@ void NetworkProcess::removeNetworkConnectionToWebProcess(NetworkConnectionToWebP
 
 bool NetworkProcess::shouldTerminate()
 {
-    return true;
+    // Network process keeps session cookies and credentials, so it should never terminate (as long as UI process connection is alive).
+    return false;
 }
 
 void NetworkProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::MessageDecoder& decoder)
 {
+    if (messageReceiverMap().dispatchMessage(connection, messageID, decoder))
+        return;
+
     didReceiveNetworkProcessMessage(connection, messageID, decoder);
+}
+
+void NetworkProcess::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageID messageID, CoreIPC::MessageDecoder& decoder, OwnPtr<CoreIPC::MessageEncoder>& replyEncoder)
+{
+    messageReceiverMap().dispatchSyncMessage(connection, messageID, decoder, replyEncoder);
 }
 
 void NetworkProcess::didClose(CoreIPC::Connection*)
@@ -94,9 +110,31 @@ void NetworkProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::Str
     RunLoop::current()->stop();
 }
 
+void NetworkProcess::didCreateDownload()
+{
+    disableTermination();
+}
+
+void NetworkProcess::didDestroyDownload()
+{
+    enableTermination();
+}
+
+CoreIPC::Connection* NetworkProcess::downloadProxyConnection()
+{
+    return parentProcessConnection();
+}
+
+AuthenticationManager& NetworkProcess::downloadsAuthenticationManager()
+{
+    return *supplement<AuthenticationManager>();
+}
+
 void NetworkProcess::initializeNetworkProcess(const NetworkProcessCreationParameters& parameters)
 {
-    platformInitialize(parameters);
+    platformInitializeNetworkProcess(parameters);
+
+    setCacheModel(static_cast<uint32_t>(parameters.cacheModel));
 
 #if PLATFORM(MAC) || USE(CFNETWORK)
     RemoteNetworkingContext::setPrivateBrowsingStorageSessionIdentifierBase(parameters.uiProcessBundleIdentifier);
@@ -104,6 +142,11 @@ void NetworkProcess::initializeNetworkProcess(const NetworkProcessCreationParame
 
     if (parameters.privateBrowsingEnabled)
         RemoteNetworkingContext::ensurePrivateBrowsingSession();
+
+    NetworkProcessSupplementMap::const_iterator it = m_supplements.begin();
+    NetworkProcessSupplementMap::const_iterator end = m_supplements.end();
+    for (; it != end; ++it)
+        it->value->initialize(parameters);
 }
 
 void NetworkProcess::createNetworkConnectionToWebProcess()
@@ -118,7 +161,7 @@ void NetworkProcess::createNetworkConnectionToWebProcess()
     m_webProcessConnections.append(connection.release());
 
     CoreIPC::Attachment clientPort(listeningPort, MACH_MSG_TYPE_MAKE_SEND);
-    m_uiConnection->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientPort), 0);
+    parentProcessConnection()->send(Messages::NetworkProcessProxy::DidCreateNetworkConnectionToWebProcess(clientPort), 0);
 #else
     notImplemented();
 #endif
@@ -133,6 +176,33 @@ void NetworkProcess::destroyPrivateBrowsingSession()
 {
     RemoteNetworkingContext::destroyPrivateBrowsingSession();
 }
+
+void NetworkProcess::downloadRequest(uint64_t downloadID, const ResourceRequest& request)
+{
+    downloadManager().startDownload(downloadID, request);
+}
+
+void NetworkProcess::cancelDownload(uint64_t downloadID)
+{
+    downloadManager().cancelDownload(downloadID);
+}
+
+void NetworkProcess::setCacheModel(uint32_t cm)
+{
+    CacheModel cacheModel = static_cast<CacheModel>(cm);
+
+    if (!m_hasSetCacheModel || cacheModel != m_cacheModel) {
+        m_hasSetCacheModel = true;
+        m_cacheModel = cacheModel;
+        platformSetCacheModel(cacheModel);
+    }
+}
+
+#if !PLATFORM(MAC)
+void NetworkProcess::initializeSandbox(const String& clientIdentifier)
+{
+}
+#endif
 
 } // namespace WebKit
 

@@ -21,6 +21,11 @@
       <dep package="libsoup"/>
       <dep package="at-spi2-core"/>
       <dep package="at-spi2-atk"/>
+      <dep package="gstreamer"/>
+      <dep package="gst-plugins-base"/>
+      <dep package="gst-plugins-good"/>
+      <dep package="gst-plugins-bad"/>
+      <dep package="gst-libav"/>
     </dependencies>
   </metamodule>
 
@@ -40,6 +45,8 @@
       href="http://www.freedesktop.org"/>
   <repository type="tarball" name="xmlsoft.org"
       href="ftp://xmlsoft.org"/>
+  <repository type="git" name="gstreamer"
+      href="git://anongit.freedesktop.org/git/gstreamer/"/>
 
   <autotools id="make" autogen-sh="configure">
     <branch repo="ftp.gnu.org"
@@ -143,10 +150,9 @@
     <dependencies>
       <dep package="libffi"/>
     </dependencies>
-    <branch module="/pub/GNOME/sources/glib/2.33/glib-2.33.2.tar.xz" version="2.33.2"
+    <branch module="/pub/GNOME/sources/glib/2.35/glib-2.35.2.tar.xz" version="2.35.2"
             repo="ftp.gnome.org"
-            hash="sha256:b7163e9f159775d13ecfb433d67c3f0883e0e518e85b2e970d4ad9773d7cd0b4"
-            md5sum="06ef0099fed22afcf34ade39ddff9a5b"/>
+            hash="sha256:84fffa2041850352b83a7b27c127f1c4e8b3d169aa3a000b100820ba10f8c19e"/>
   </autotools>
 
   <autotools id="glib-networking">
@@ -164,10 +170,9 @@
     <dependencies>
       <dep package="glib-networking"/>
     </dependencies>
-    <branch module="/pub/gnome/sources/libsoup/2.40/libsoup-2.40.1.tar.xz" version="2.40.1"
-            repo="ftp.gnome.org"
-            hash="sha256:77a55d57e7e8055acd2f44e0cc889b9ba48052e8b7f07e829157d57417ac650a"
-            md5sum="2fa30bab92d770eeb6535e1504ab2ded"/>
+    <branch module="libsoup" version="2.40.2-r1"
+            repo="git.gnome.org"
+            revision="5651d18eb8c9edff5961a32c488641bf6776ca6b"/>
   </autotools>
 
   <autotools id="fontconfig" autogen-sh="configure">
@@ -229,7 +234,41 @@
     <branch module="/libxml2/libxml2-2.9.0.tar.gz" version="2.9.0"
             repo="xmlsoft.org"
             hash="sha256:ad25d91958b7212abdc12b9611cfb4dc4e5cddb6d1e9891532f48aacee422b82"
-            md5sum="5b9bebf4f5d2200ae2c4efe8fa6103f7"/>
+            md5sum="5b9bebf4f5d2200ae2c4efe8fa6103f7">
+      <patch file="libxml2-2.9.0-dtd.patch" strip="1"/>
+    </branch>
+  </autotools>
+
+  <autotools id="gstreamer">
+    <branch repo="gstreamer" module="gstreamer" checkoutdir="gstreamer" tag="1.0.4"/>
+  </autotools>
+
+  <autotools id="gst-plugins-base" autogenargs="--disable-examples">
+    <dependencies>
+      <dep package="gstreamer"/>
+    </dependencies>
+    <branch repo="gstreamer" module="gst-plugins-base" checkoutdir="gst-plugins-base" tag="1.0.4"/>
+  </autotools>
+
+  <autotools id="gst-plugins-good" autogenargs="--disable-examples">
+    <dependencies>
+      <dep package="gst-plugins-base"/>
+    </dependencies>
+    <branch repo="gstreamer" module="gst-plugins-good" checkoutdir="gst-plugins-good" tag="1.0.4"/>
+  </autotools>
+
+  <autotools id="gst-plugins-bad" autogenargs="--disable-examples">
+    <dependencies>
+      <dep package="gst-plugins-base"/>
+    </dependencies>
+    <branch repo="gstreamer" module="gst-plugins-bad" checkoutdir="gst-plugins-bad" tag="1.0.4"/>
+  </autotools>
+
+  <autotools id="gst-libav" autogenargs="--with-libav-extra-configure='--disable-yasm'">
+    <dependencies>
+      <dep package="gst-plugins-base"/>
+    </dependencies>
+    <branch repo="gstreamer" module="gst-libav" checkoutdir="gst-libav" tag="1.0.4"/>
   </autotools>
 
 </moduleset>

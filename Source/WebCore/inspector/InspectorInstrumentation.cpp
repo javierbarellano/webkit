@@ -36,6 +36,8 @@
 
 #include "CSSRule.h"
 #include "CSSStyleRule.h"
+#include "ConsoleAPITypes.h"
+#include "ConsoleTypes.h"
 #include "DOMWindow.h"
 #include "Database.h"
 #include "DeviceOrientationData.h"
@@ -576,8 +578,7 @@ InspectorInstrumentationCookie InspectorInstrumentation::willMatchRuleImpl(Instr
 {
     InspectorCSSAgent* cssAgent = instrumentingAgents->inspectorCSSAgent();
     if (cssAgent) {
-        CSSStyleRule* cssRule = styleResolver->ensureFullCSSOMWrapperForInspector(rule);
-        cssAgent->willMatchRule(cssRule);
+        cssAgent->willMatchRule(rule, styleResolver);
         return InspectorInstrumentationCookie(instrumentingAgents, 1);
     }
 
@@ -595,8 +596,7 @@ InspectorInstrumentationCookie InspectorInstrumentation::willProcessRuleImpl(Ins
 {
     InspectorCSSAgent* cssAgent = instrumentingAgents->inspectorCSSAgent();
     if (cssAgent) {
-        CSSStyleRule* cssRule = styleResolver->ensureFullCSSOMWrapperForInspector(rule);
-        cssAgent->willProcessRule(cssRule);
+        cssAgent->willProcessRule(rule, styleResolver);
         return InspectorInstrumentationCookie(instrumentingAgents, 1);
     }
 
@@ -913,6 +913,8 @@ void InspectorInstrumentation::didCommitLoadImpl(InstrumentingAgents* instrument
         if (InspectorLayerTreeAgent* layerTreeAgent = instrumentingAgents->inspectorLayerTreeAgent())
             layerTreeAgent->reset();
 #endif
+        if (InspectorCanvasAgent* canvasAgent = instrumentingAgents->inspectorCanvasAgent())
+            canvasAgent->reset();
         inspectorAgent->didCommitLoad();
     }
     if (InspectorPageAgent* pageAgent = instrumentingAgents->inspectorPageAgent())

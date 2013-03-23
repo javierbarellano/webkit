@@ -40,11 +40,13 @@
 #include "CSSStyleSheet.h"
 #include "ChildNodeList.h"
 #include "ClassNodeList.h"
+#include "ComposedShadowTreeWalker.h"
 #include "ContainerNodeAlgorithms.h"
 #include "ContextMenuController.h"
 #include "DOMImplementation.h"
 #include "DOMSettableTokenList.h"
 #include "Document.h"
+#include "DocumentFragment.h"
 #include "DocumentType.h"
 #include "Element.h"
 #include "ElementRareData.h"
@@ -75,6 +77,7 @@
 #include "NamedNodeMap.h"
 #include "NodeRareData.h"
 #include "NodeRenderingContext.h"
+#include "NodeTraversal.h"
 #include "Page.h"
 #include "PlatformMouseEvent.h"
 #include "PlatformWheelEvent.h"
@@ -94,11 +97,13 @@
 #include "StorageEvent.h"
 #include "StyleResolver.h"
 #include "TagNodeList.h"
+#include "TemplateContentDocumentFragment.h"
 #include "Text.h"
 #include "TextEvent.h"
 #include "TreeScopeAdopter.h"
 #include "UIEvent.h"
 #include "UIEventWithKeyState.h"
+#include "UserActionElementSet.h"
 #include "WebCoreMemoryInstrumentation.h"
 #include "WheelEvent.h"
 #include "WindowEventContext.h"
@@ -409,13 +414,19 @@ Node::~Node()
     if (hasRareData())
         clearRareData();
 
-    if (hasEventTargetData())
+    Document* doc = documentInternal();
+
+    if (hasEventTargetData()) {
+#if ENABLE(TOUCH_EVENT_TRACKING)
+        if (doc)
+            doc->didRemoveEventTargetNode(this);
+#endif
         clearEventTargetData();
+    }
 
     if (renderer())
         detach();
 
-    Document* doc = m_document;
     if (AXObjectCache::accessibilityEnabled() && doc && doc->axObjectCacheExists() && !isContainerNode())
         doc->axObjectCache()->remove(this);
     
@@ -428,51 +439,6 @@ Node::~Node()
         doc->guardDeref();
 
     InspectorCounters::decrementCounter(InspectorCounters::NodeCounter);
-}
-
-void Node::setDocument(Document* document)
-{
-    ASSERT(!inDocument() || m_document == document);
-    if (inDocument() || m_document == document)
-        return;
-
-    m_document = document;
-}
-
-void Node::setTreeScope(TreeScope* scope)
-{
-    if (!hasRareData() && scope->rootNode()->isDocumentNode())
-        return;
-
-    ensureRareData()->setTreeScope(scope);
-}
-
-Node* Node::pseudoAwarePreviousSibling() const
-{
-    if (isElementNode() && !previousSibling()) {
-        Element* parent = parentOrHostElement();
-        if (!parent)
-            return 0;
-        if (isAfterPseudoElement() && parent->lastChild())
-            return parent->lastChild();
-        if (!isBeforePseudoElement())
-            return parent->beforePseudoElement();
-    }
-    return previousSibling();
-}
-
-Node* Node::pseudoAwareNextSibling() const
-{
-    if (isElementNode() && !nextSibling()) {
-        Element* parent = parentOrHostElement();
-        if (!parent)
-            return 0;
-        if (isBeforePseudoElement() && parent->firstChild())
-            return parent->firstChild();
-        if (!isAfterPseudoElement())
-            return parent->afterPseudoElement();
-    }
-    return nextSibling();
 }
 
 NodeRareData* Node::rareData() const
@@ -496,16 +462,13 @@ NodeRareData* Node::ensureRareData()
 
 PassOwnPtr<NodeRareData> Node::createRareData()
 {
-    return adoptPtr(new NodeRareData(documentInternal()));
+    return adoptPtr(new NodeRareData());
 }
 
 void Node::clearRareData()
 {
     ASSERT(hasRareData());
-
-#if ENABLE(MUTATION_OBSERVERS)
     ASSERT(!transientMutationObserverRegistry() || transientMutationObserverRegistry()->isEmpty());
-#endif
 
     RenderObject* renderer = m_data.m_rareData->renderer();
     delete m_data.m_rareData;
@@ -638,7 +601,7 @@ void Node::normalize()
             break;
 
         if (type != TEXT_NODE) {
-            node = node->traverseNextNodePostOrder();
+            node = NodeTraversal::nextPostOrder(node.get());
             continue;
         }
 
@@ -647,7 +610,7 @@ void Node::normalize()
         // Remove empty text nodes.
         if (!text->length()) {
             // Care must be taken to get the next node before removing the current node.
-            node = node->traverseNextNodePostOrder();
+            node = NodeTraversal::nextPostOrder(node.get());
             ExceptionCode ec;
             text->remove(ec);
             continue;
@@ -674,7 +637,7 @@ void Node::normalize()
             nextText->remove(ec);
         }
 
-        node = node->traverseNextNodePostOrder();
+        node = NodeTraversal::nextPostOrder(node.get());
     }
 }
 
@@ -888,7 +851,7 @@ void Node::setNeedsStyleRecalc(StyleChangeType changeType)
 
 void Node::lazyAttach(ShouldSetAttached shouldSetAttached)
 {
-    for (Node* n = this; n; n = n->traverseNextNode(this)) {
+    for (Node* n = this; n; n = NodeTraversal::next(n, this)) {
         if (n->hasChildNodes())
             n->setChildNeedsStyleRecalc();
         n->setStyleChange(FullStyleChange);
@@ -896,18 +859,6 @@ void Node::lazyAttach(ShouldSetAttached shouldSetAttached)
             n->setAttached();
     }
     markAncestorsWithChildNeedsStyleRecalc();
-}
-
-void Node::setFocus(bool b)
-{ 
-    if (b || hasRareData())
-        ensureRareData()->setFocused(b);
-}
-
-bool Node::rareDataFocused() const
-{
-    ASSERT(hasRareData());
-    return rareData()->isFocused();
 }
 
 bool Node::supportsFocus() const
@@ -945,6 +896,11 @@ bool Node::isFocusable() const
     return true;
 }
 
+bool Node::isTreeScope() const
+{
+    return treeScope()->rootNode() == this;
+}
+
 bool Node::isKeyboardFocusable(KeyboardEvent*) const
 {
     return isFocusable() && tabIndex() >= 0;
@@ -953,12 +909,6 @@ bool Node::isKeyboardFocusable(KeyboardEvent*) const
 bool Node::isMouseFocusable() const
 {
     return isFocusable();
-}
-
-bool Node::documentFragmentIsShadowRoot() const
-{
-    ASSERT_NOT_REACHED();
-    return false;
 }
 
 Node* Node::focusDelegate()
@@ -1039,96 +989,6 @@ NodeListsNodeData* Node::nodeLists()
     return hasRareData() ? rareData()->nodeLists() : 0;
 }
 
-Node* Node::traverseNextAncestorSibling() const
-{
-    ASSERT(!nextSibling());
-    for (const Node* node = parentNode(); node; node = node->parentNode()) {
-        if (node->nextSibling())
-            return node->nextSibling();
-    }
-    return 0;
-}
-
-Node* Node::traverseNextAncestorSibling(const Node* stayWithin) const
-{
-    ASSERT(!nextSibling());
-    ASSERT(this != stayWithin);
-    for (const Node* node = parentNode(); node; node = node->parentNode()) {
-        if (node == stayWithin)
-            return 0;
-        if (node->nextSibling())
-            return node->nextSibling();
-    }
-    return 0;
-}
-
-Node* Node::traverseNextNodePostOrder() const
-{
-    Node* next = nextSibling();
-    if (!next)
-        return parentNode();
-    while (Node* firstChild = next->firstChild())
-        next = firstChild;
-    return next;
-}
-
-Node* Node::traversePreviousNode(const Node* stayWithin) const
-{
-    if (this == stayWithin)
-        return 0;
-    if (previousSibling()) {
-        Node *n = previousSibling();
-        while (n->lastChild())
-            n = n->lastChild();
-        return n;
-    }
-    return parentNode();
-}
-
-Node* Node::traversePreviousSibling(const Node* stayWithin) const
-{
-    if (this == stayWithin)
-        return 0;
-    if (previousSibling())
-        return previousSibling();
-    const Node *n = this;
-    while (n && !n->previousSibling() && (!stayWithin || n->parentNode() != stayWithin))
-        n = n->parentNode();
-    if (n)
-        return n->previousSibling();
-    return 0;
-}
-
-Node* Node::traversePreviousNodePostOrder(const Node* stayWithin) const
-{
-    if (lastChild())
-        return lastChild();
-    if (this == stayWithin)
-        return 0;
-    if (previousSibling())
-        return previousSibling();
-    const Node *n = this;
-    while (n && !n->previousSibling() && (!stayWithin || n->parentNode() != stayWithin))
-        n = n->parentNode();
-    if (n)
-        return n->previousSibling();
-    return 0;
-}
-
-Node* Node::traversePreviousSiblingPostOrder(const Node* stayWithin) const
-{
-    if (this == stayWithin)
-        return 0;
-    if (previousSibling())
-        return previousSibling();
-    const Node *n = this;
-    while (n && !n->previousSibling() && (!stayWithin || n->parentNode() != stayWithin))
-        n = n->parentNode();
-    if (n)
-        return n->previousSibling();
-    return 0;
-}
-
 void Node::checkSetPrefix(const AtomicString& prefix, ExceptionCode& ec)
 {
     // Perform error checking as required by spec for setting Node.prefix. Used by
@@ -1176,15 +1036,30 @@ bool Node::contains(const Node* node) const
     return this == node || node->isDescendantOf(this);
 }
 
-bool Node::containsIncludingShadowDOM(Node* node)
+bool Node::containsIncludingShadowDOM(const Node* node) const
 {
-    if (!node)
-        return false;
-    for (Node* n = node; n; n = n->parentOrHostNode()) {
-        if (n == this)
+    for (; node; node = node->parentOrHostNode()) {
+        if (node == this)
             return true;
     }
     return false;
+}
+
+bool Node::containsIncludingHostElements(const Node* node) const
+{
+#if ENABLE(TEMPLATE_ELEMENT)
+    while (node) {
+        if (node == this)
+            return true;
+        if (node->isDocumentFragment() && static_cast<const DocumentFragment*>(node)->isTemplateContent())
+            node = static_cast<const TemplateContentDocumentFragment*>(node)->host();
+        else
+            node = node->parentOrHostNode();
+    }
+    return false;
+#else
+    return containsIncludingShadowDOM(node);
+#endif
 }
 
 void Node::attach()
@@ -1209,7 +1084,7 @@ void Node::attach()
     setAttached();
     clearNeedsStyleRecalc();
 
-    Document* doc = m_document;
+    Document* doc = documentInternal();
     if (AXObjectCache::accessibilityEnabled() && doc && doc->axObjectCacheExists())
         doc->axObjectCache()->updateCacheAfterNodeIsAttached(this);
 }
@@ -1233,7 +1108,7 @@ void Node::detach()
     if (renderer()) {
         renderer()->destroyAndCleanupAnonymousWrappers();
 #ifndef NDEBUG
-        for (Node* node = this; node; node = node->traverseNextNode(this)) {
+        for (Node* node = this; node; node = NodeTraversal::next(node, this)) {
             RenderObject* renderer = node->renderer();
             // RenderFlowThread and the top layer remove elements from the regular tree
             // hierarchy. They will be cleaned up when we call detach on them.
@@ -1249,14 +1124,14 @@ void Node::detach()
     ASSERT(!renderer());
 
     Document* doc = document();
-    if (hovered())
-        doc->hoveredNodeDetached(this);
-    if (inActiveChain())
-        doc->activeChainNodeDetached(this);
+    if (isUserActionElement()) {
+        if (hovered())
+            doc->hoveredNodeDetached(this);
+        if (inActiveChain())
+            doc->activeChainNodeDetached(this);
+        doc->userActionElements().didDetach(this);
+    }
 
-    clearFlag(IsActiveFlag);
-    clearFlag(IsHoveredFlag);
-    clearFlag(InActiveChainFlag);
     clearFlag(IsAttachedFlag);
 
 #ifndef NDEBUG
@@ -1397,11 +1272,6 @@ ContainerNode* Node::nonShadowBoundaryParentNode() const
     return parent && !parent->isShadowRoot() ? parent : 0;
 }
 
-bool Node::isInShadowTree() const
-{
-    return treeScope() != document();
-}
-
 Element* Node::parentOrHostElement() const
 {
     ContainerNode* parent = parentOrHostNode();
@@ -1417,6 +1287,10 @@ Element* Node::parentOrHostElement() const
     return toElement(parent);
 }
 
+bool Node::needsShadowTreeWalkerSlow() const
+{
+    return (isShadowRoot() || (isElementNode() && (isInsertionPoint() || isPseudoElement() || toElement(this)->hasPseudoElements() || toElement(this)->shadow())));
+}
 
 bool Node::isBlockFlow() const
 {
@@ -1478,7 +1352,7 @@ PassRefPtr<NodeList> Node::getElementsByTagName(const AtomicString& localName)
         return 0;
 
     if (document()->isHTMLDocument())
-        return ensureRareData()->ensureNodeLists()->addCacheWithAtomicName<HTMLTagNodeList>(this, TagNodeListType, localName);
+        return ensureRareData()->ensureNodeLists()->addCacheWithAtomicName<HTMLTagNodeList>(this, HTMLTagNodeListType, localName);
     return ensureRareData()->ensureNodeLists()->addCacheWithAtomicName<TagNodeList>(this, TagNodeListType, localName);
 }
 
@@ -1836,9 +1710,7 @@ void Node::setTextContent(const String& text, ExceptionCode& ec)
         case ENTITY_REFERENCE_NODE:
         case DOCUMENT_FRAGMENT_NODE: {
             RefPtr<ContainerNode> container = toContainerNode(this);
-#if ENABLE(MUTATION_OBSERVERS)
             ChildListMutationScope mutation(this);
-#endif
             container->removeChildren();
             if (!text.isEmpty())
                 container->appendChild(document()->createTextNode(text), ec);
@@ -2086,7 +1958,7 @@ void Node::showNodePathForThis() const
 
 static void traverseTreeAndMark(const String& baseIndent, const Node* rootNode, const Node* markedNode1, const char* markedLabel1, const Node* markedNode2, const char* markedLabel2)
 {
-    for (const Node* node = rootNode; node; node = node->traverseNextNode()) {
+    for (const Node* node = rootNode; node; node = NodeTraversal::next(node)) {
         if (node == markedNode1)
             fprintf(stderr, "%s", markedLabel1);
         if (node == markedNode2)
@@ -2218,21 +2090,6 @@ ScriptExecutionContext* Node::scriptExecutionContext() const
     return document();
 }
 
-Node::InsertionNotificationRequest Node::insertedInto(ContainerNode* insertionPoint)
-{
-    ASSERT(insertionPoint->inDocument() || isContainerNode());
-    if (insertionPoint->inDocument())
-        setFlag(InDocumentFlag);
-    return InsertionDone;
-}
-
-void Node::removedFrom(ContainerNode* insertionPoint)
-{
-    ASSERT(insertionPoint->inDocument() || isContainerNode());
-    if (insertionPoint->inDocument())
-        clearFlag(InDocumentFlag);
-}
-
 void Node::didMoveToNewDocument(Document* oldDocument)
 {
     TreeScopeAdopter::ensureDidMoveToNewDocumentWasCalled(oldDocument);
@@ -2249,12 +2106,11 @@ void Node::didMoveToNewDocument(Document* oldDocument)
     for (size_t i = 0; i < touchEventNames.size(); ++i) {
         const EventListenerVector& listeners = getEventListeners(touchEventNames[i]);
         for (size_t j = 0; j < listeners.size(); ++j) {
-            oldDocument->didRemoveTouchEventHandler();
-            document()->didAddTouchEventHandler();
+            oldDocument->didRemoveTouchEventHandler(this);
+            document()->didAddTouchEventHandler(this);
         }
     }
 
-#if ENABLE(MUTATION_OBSERVERS)
     if (Vector<OwnPtr<MutationObserverRegistration> >* registry = mutationObserverRegistry()) {
         for (size_t i = 0; i < registry->size(); ++i) {
             document()->addMutationObserverTypes(registry->at(i)->mutationTypes());
@@ -2266,7 +2122,6 @@ void Node::didMoveToNewDocument(Document* oldDocument)
             document()->addMutationObserverTypes((*iter)->mutationTypes());
         }
     }
-#endif
 }
 
 static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eventType, PassRefPtr<EventListener> listener, bool useCapture)
@@ -2279,7 +2134,7 @@ static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eve
         if (eventType == eventNames().mousewheelEvent)
             document->didAddWheelEventHandler();
         else if (eventNames().isTouchEventType(eventType))
-            document->didAddTouchEventHandler();
+            document->didAddTouchEventHandler(targetNode);
     }
 
     return true;
@@ -2301,7 +2156,7 @@ static inline bool tryRemoveEventListener(Node* targetNode, const AtomicString& 
         if (eventType == eventNames().mousewheelEvent)
             document->didRemoveWheelEventHandler();
         else if (eventNames().isTouchEventType(eventType))
-            document->didRemoveTouchEventHandler();
+            document->didRemoveTouchEventHandler(targetNode);
     }
 
     return true;
@@ -2340,7 +2195,6 @@ void Node::clearEventTargetData()
     eventTargetDataMap().remove(this);
 }
 
-#if ENABLE(MUTATION_OBSERVERS)
 Vector<OwnPtr<MutationObserverRegistration> >* Node::mutationObserverRegistry()
 {
     return hasRareData() ? rareData()->mutationObserverRegistry() : 0;
@@ -2446,7 +2300,6 @@ void Node::notifyMutationObserversNodeWillDetach()
         }
     }
 }
-#endif // ENABLE(MUTATION_OBSERVERS)
 
 void Node::handleLocalEvents(Event* event)
 {
@@ -2726,7 +2579,7 @@ void Node::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
     MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
     TreeShared<Node, ContainerNode>::reportMemoryUsage(memoryObjectInfo);
     ScriptWrappable::reportMemoryUsage(memoryObjectInfo);
-    info.addMember(m_document);
+    info.addMember(m_treeScope);
     info.addMember(m_next);
     info.addMember(m_previous);
     info.addMember(this->renderer());
@@ -2762,6 +2615,48 @@ size_t Node::numberOfScopedHTMLStyleChildren() const
     }
 
     return count;
+}
+
+void Node::setFocus(bool flag)
+{
+    if (Document* document = this->document())
+        document->userActionElements().setFocused(this, flag);
+}
+
+void Node::setActive(bool flag, bool)
+{
+    if (Document* document = this->document())
+        document->userActionElements().setActive(this, flag);
+}
+
+void Node::setHovered(bool flag)
+{
+    if (Document* document = this->document())
+        document->userActionElements().setHovered(this, flag);
+}
+
+bool Node::isUserActionElementActive() const
+{
+    ASSERT(isUserActionElement());
+    return document()->userActionElements().isActive(this);
+}
+
+bool Node::isUserActionElementInActiveChain() const
+{
+    ASSERT(isUserActionElement());
+    return document()->userActionElements().isInActiveChain(this);
+}
+
+bool Node::isUserActionElementHovered() const
+{
+    ASSERT(isUserActionElement());
+    return document()->userActionElements().isHovered(this);
+}
+
+bool Node::isUserActionElementFocused() const
+{
+    ASSERT(isUserActionElement());
+    return document()->userActionElements().isFocused(this);
 }
 
 } // namespace WebCore

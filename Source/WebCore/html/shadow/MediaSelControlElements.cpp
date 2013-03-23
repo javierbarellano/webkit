@@ -17,6 +17,7 @@
 #include "MediaSelControlElements.h"
 
 #include "NodeRenderingContext.h"
+#include "NodeTraversal.h"
 #include "AXObjectCache.h"
 #include "HTMLDataListElement.h"
 #include "Node.h"
@@ -280,7 +281,7 @@ void MediaSelectElement::fixEventState(Event *event)
 void MediaSelectElement::createShadowSubtree()
 {
     ASSERT(!shadow());
-    ShadowRoot::create(this, ShadowRoot::UserAgentShadowRoot, ASSERT_NO_EXCEPTION);
+    //ShadowRoot::create(this, ShadowRoot::UserAgentShadowRoot, ASSERT_NO_EXCEPTION);
 }
 
 const AtomicString& MediaSelectElement::formControlType() const
@@ -667,7 +668,7 @@ void MediaSelectElement::recalcListItems(bool updateSelectedStates) const
     HTMLOptionElement* firstOption = 0;
     for (Node* currentNode = this->firstChild(); currentNode;) {
         if (!currentNode->isHTMLElement()) {
-            currentNode = currentNode->traverseNextSibling(this);
+            currentNode = ElementTraversal::nextSkippingChildren(currentNode, this); //currentNode->traverseNextSibling(this);
             continue;
         }
 
@@ -711,7 +712,7 @@ void MediaSelectElement::recalcListItems(bool updateSelectedStates) const
         // with the case where odd tags like a <div> have been added but we
         // handle this because such tags have already been removed from the
         // <select>'s subtree at this point.
-        currentNode = currentNode->traverseNextSibling(this);
+        currentNode = ElementTraversal::nextSkippingChildren(currentNode, this); //currentNode->traverseNextSibling(this);
     }
 
     if (!foundSelected && m_size <= 1 && firstOption && !firstOption->selected())

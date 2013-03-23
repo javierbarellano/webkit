@@ -62,6 +62,7 @@
 #include <history/HistoryItem.h>
 #include <workers/WorkerThread.h>
 #include <wtf/HashMap.h>
+#include <wtf/UnusedParam.h>
 
 #if ENABLE(GEOLOCATION)
 #include <GeolocationClientMock.h>
@@ -525,6 +526,10 @@ void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView
 
     if (page->inspectorController())
         page->inspectorController()->evaluateForTestInFrontend(callId, script);
+#else
+    UNUSED_PARAM(ewkView);
+    UNUSED_PARAM(callId);
+    UNUSED_PARAM(script);
 #endif
 }
 
@@ -583,9 +588,7 @@ void DumpRenderTreeSupportEfl::setMockScrollbarsEnabled(bool enable)
 
 void DumpRenderTreeSupportEfl::deliverAllMutationsIfNecessary()
 {
-#if ENABLE(MUTATION_OBSERVERS)
     WebCore::MutationObserver::deliverAllMutations();
-#endif
 }
 
 String DumpRenderTreeSupportEfl::markerTextForListItem(JSContextRef context, JSValueRef nodeObject)

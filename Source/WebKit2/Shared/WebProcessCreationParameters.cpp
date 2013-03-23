@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2010, 2011, 2012 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -78,6 +78,10 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
 #endif
 #if USE(SOUP)
     encoder << urlSchemesRegistered;
+    encoder << cookiePersistentStoragePath;
+    encoder << cookiePersistentStorageType;
+    encoder.encodeEnum(cookieAcceptPolicy);
+    encoder << ignoreTLSErrors;
 #endif
     encoder.encodeEnum(cacheModel);
     encoder << shouldTrackVisitedLinks;
@@ -121,6 +125,8 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
 #if ENABLE(NETWORK_PROCESS)
     encoder << usesNetworkProcess;
 #endif
+
+    encoder << plugInAutoStartOrigins;
 }
 
 bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, WebProcessCreationParameters& parameters)
@@ -169,6 +175,14 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, Web
 #endif
 #if USE(SOUP)
     if (!decoder->decode(parameters.urlSchemesRegistered))
+        return false;
+    if (!decoder->decode(parameters.cookiePersistentStoragePath))
+        return false;
+    if (!decoder->decode(parameters.cookiePersistentStorageType))
+        return false;
+    if (!decoder->decodeEnum(parameters.cookieAcceptPolicy))
+        return false;
+    if (!decoder->decode(parameters.ignoreTLSErrors))
         return false;
 #endif
     if (!decoder->decodeEnum(parameters.cacheModel))
@@ -240,6 +254,9 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder* decoder, Web
     if (!decoder->decode(parameters.usesNetworkProcess))
         return false;
 #endif
+
+    if (!decoder->decode(parameters.plugInAutoStartOrigins))
+        return false;
 
     return true;
 }

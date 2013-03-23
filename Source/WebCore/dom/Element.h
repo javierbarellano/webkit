@@ -46,7 +46,6 @@ class Locale;
 class PseudoElement;
 class RenderRegion;
 class ShadowRoot;
-class WebKitAnimationList;
 
 enum SpellcheckAttributeState {
     SpellcheckAttributeTrue,
@@ -370,8 +369,12 @@ public:
     virtual void finishParsingChildren();
     virtual void beginParsingChildren();
 
-    PseudoElement* beforePseudoElement() const;
-    PseudoElement* afterPseudoElement() const;
+    bool hasPseudoElements() const;
+    PseudoElement* pseudoElement(PseudoId) const;
+    PseudoElement* beforePseudoElement() const { return pseudoElement(BEFORE); }
+    PseudoElement* afterPseudoElement() const { return pseudoElement(AFTER); }
+    bool childNeedsShadowWalker() const;
+    void didShadowTreeAwareChildrenChange();
 
     // ElementTraversal API
     Element* firstElementChild() const;
@@ -380,12 +383,11 @@ public:
     Element* nextElementSibling() const;
     unsigned childElementCount() const;
 
-    virtual bool shouldMatchReadOnlySelector() const;
-    virtual bool shouldMatchReadWriteSelector() const;
+    virtual bool matchesReadOnlyPseudoClass() const;
+    virtual bool matchesReadWritePseudoClass() const;
     bool webkitMatchesSelector(const String& selectors, ExceptionCode&);
 
     DOMTokenList* classList();
-    DOMTokenList* optionalClassList() const;
 
     DOMStringMap* dataset();
 
@@ -435,6 +437,13 @@ public:
     void clearHasPendingResources();
     virtual void buildPendingResource() { };
 #endif
+
+#if ENABLE(VIDEO_TRACK)
+    bool isWebVTTNode() const;
+    void setIsWebVTTNode();
+    bool isWebVTTFutureNode() const;
+    void setIsWebVTTFutureNode();
+#endif
     
 #if ENABLE(FULLSCREEN_API)
     enum {
@@ -461,8 +470,6 @@ public:
 #endif
 
     virtual bool isSpellCheckingEnabled() const;
-
-    PassRefPtr<WebKitAnimationList> webkitGetAnimations() const;
 
     PassRefPtr<RenderStyle> styleForRenderer();
 
@@ -510,6 +517,7 @@ protected:
 private:
     void updatePseudoElement(PseudoId, StyleChange = NoChange);
     PassRefPtr<PseudoElement> createPseudoElementIfNeeded(PseudoId);
+    void setPseudoElement(PseudoId, PassRefPtr<PseudoElement>);
 
     // FIXME: Remove the need for Attr to call willModifyAttribute/didModifyAttribute.
     friend class Attr;
@@ -684,7 +692,7 @@ inline void Element::updateName(const AtomicString& oldName, const AtomicString&
 
 inline void Element::updateId(const AtomicString& oldId, const AtomicString& newId)
 {
-    if (!inDocument())
+    if (!isInTreeScope())
         return;
 
     if (oldId == newId)
@@ -695,7 +703,7 @@ inline void Element::updateId(const AtomicString& oldId, const AtomicString& new
 
 inline void Element::updateId(TreeScope* scope, const AtomicString& oldId, const AtomicString& newId)
 {
-    ASSERT(inDocument());
+    ASSERT(isInTreeScope());
     ASSERT(oldId != newId);
 
     if (!oldId.isEmpty())
@@ -803,15 +811,6 @@ inline void Element::updateInvalidAttributes() const
 #endif
 }
 
-inline Element* firstElementChild(const ContainerNode* container)
-{
-    ASSERT_ARG(container, container);
-    Node* child = container->firstChild();
-    while (child && !child->isElementNode())
-        child = child->nextSibling();
-    return static_cast<Element*>(child);
-}
-
 inline bool Element::hasID() const
 {
     return attributeData() && attributeData()->hasID();
@@ -838,6 +837,25 @@ inline bool Node::hasID() const
 inline bool Node::hasClass() const
 {
     return isElementNode() && toElement(this)->hasClass();
+}
+
+inline Node::InsertionNotificationRequest Node::insertedInto(ContainerNode* insertionPoint)
+{
+    ASSERT(insertionPoint->inDocument() || isContainerNode());
+    if (insertionPoint->inDocument())
+        setFlag(InDocumentFlag);
+    if (parentOrHostNode()->isInShadowTree())
+        setFlag(IsInShadowTreeFlag);
+    return InsertionDone;
+}
+
+inline void Node::removedFrom(ContainerNode* insertionPoint)
+{
+    ASSERT(insertionPoint->inDocument() || isContainerNode());
+    if (insertionPoint->inDocument())
+        clearFlag(InDocumentFlag);
+    if (isInShadowTree() && !treeScope()->rootNode()->isShadowRoot())
+        clearFlag(IsInShadowTreeFlag);
 }
 
 inline bool isShadowHost(const Node* node)

@@ -48,6 +48,23 @@ keyDown('6');
 keyDown('A');
 shouldBeEqualToString('input.value', '07:56');
 
+beginTest('Digit keys starting with zero');
+keyDown('0'); // -> [00]:-- --
+keyDown('2'); // -> 02:[--] --
+keyDown('0'); // -> 02:[00] --
+keyDown('3'); // -> 02:03 [--]
+keyDown('P'); // -> 02:03 [PM]
+shouldBeEqualToString('input.value', '14:03');
+
+beginTest('Digit keys and backspace key','01:01');
+keyDown('0'); // -> [00]:-- --
+keyDown('\b'); // -> [--]:-- --
+keyDown('5'); // -> 05:[--] --
+keyDown('6'); // -> 05:06 [--]
+keyDown('\b'); // -> 05:06 [--]
+keyDown('P'); // -> 05:06 [PM]
+shouldBeEqualToString('input.value', '17:06');
+
 // FIXME: We should test type ahead time out. When event.leapForward() affects
 // keyboard event time stamp, we can uncomment this fragment.
 /*
@@ -164,16 +181,15 @@ keyDown('leftArrow');
 keyDown('2');
 shouldBeEqualToString('input.value', '12:02:56');
 
-// The tests in the following block fail on platforms without the
-// lang-attribute-aware-form-control-UI feature.
 input.setAttribute("lang", "he-il");
-beginTest('RTL Left/Right keys', '04:56');
+beginTest('RTL focus navigation', '04:56');
+debug('The tests in this block fail on platforms without the lang-attribute-aware-form-control-UI feature.');
 keyDown('1'); //          -> [01]:56
 shouldBeEqualToString('input.value', '01:56');
-keyDown('rightArrow'); // -> 01:[56]
+keyDown('\t'); //          -> 01:[56]
 keyDown('2'); //          -> 01:[02]
 shouldBeEqualToString('input.value', '01:02');
-keyDown('leftArrow'); //  -> [01]:02
+keyDown('\t', ['shiftKey']); // -> [01]:02
 keyDown('3'); //          -> [03]:02
 shouldBeEqualToString('input.value', '03:02');
 input.removeAttribute("lang");

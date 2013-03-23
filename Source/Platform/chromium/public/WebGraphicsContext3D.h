@@ -173,10 +173,6 @@ public:
     virtual void discardFramebufferEXT(WGC3Denum target, WGC3Dsizei numAttachments, const WGC3Denum* attachments) { }
 
     // GL_CHROMIUM_discard_backbuffer - controls allocation/deallocation of the back buffer.
-    // FIXME: Parameters to discardFramebufferCHROMIUM aren't used, remove when calling code is gone.
-    // FIXME: Remove xxxFramebufferCHROMIUM versions when callers switch to xxxBackbufferCHROMIUM()
-    virtual void discardFramebufferCHROMIUM(WGC3Denum, WGC3Dsizei, const WGC3Denum*) { }
-    virtual void ensureFramebufferCHROMIUM() { }
     virtual void discardBackbufferCHROMIUM() { }
     virtual void ensureBackbufferCHROMIUM() { }
 
@@ -243,6 +239,9 @@ public:
     virtual WebGLId createStreamTextureCHROMIUM(WebGLId texture) { return 0; }
     // Destroys the stream for the given texture.
     virtual void destroyStreamTextureCHROMIUM(WebGLId texture) { }
+
+    // GL_CHROMIUM_lose_context
+    virtual void loseContextCHROMIUM(WGC3Denum current, WGC3Denum other) { }
 
     // The entry points below map directly to the OpenGL ES 2.0 API.
     // See: http://www.khronos.org/registry/gles/

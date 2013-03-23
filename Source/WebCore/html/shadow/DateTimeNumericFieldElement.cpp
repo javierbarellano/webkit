@@ -59,14 +59,18 @@ bool DateTimeNumericFieldElement::Range::isInRange(int value) const
 
 // ----------------------------
 
-DateTimeNumericFieldElement::DateTimeNumericFieldElement(Document* document, FieldOwner& fieldOwner, int minimum, int maximum, const String& placeholder)
+DateTimeNumericFieldElement::DateTimeNumericFieldElement(Document* document, FieldOwner& fieldOwner, int minimum, int maximum, const String& placeholder, const DateTimeNumericFieldElement::Parameters& parameters)
     : DateTimeFieldElement(document, fieldOwner)
     , m_lastDigitCharTime(0)
     , m_placeholder(placeholder)
     , m_range(minimum, maximum)
     , m_value(0)
     , m_hasValue(false)
+    , m_step(parameters.step)
+    , m_stepBase(parameters.stepBase)
 {
+    ASSERT(m_step);
+
     // We show a direction-neutral string such as "--" as a placeholder. It
     // should follow the direction of numeric values.
     if (localeForOwner().isRTL()) {
@@ -103,7 +107,10 @@ int DateTimeNumericFieldElement::defaultValueForStepUp() const
 
 void DateTimeNumericFieldElement::didBlur()
 {
-    m_lastDigitCharTime = 0;
+    int value = typeAheadValue();
+    m_typeAheadBuffer.clear();
+    if (value >= 0)
+        setValueAsInteger(value, DispatchEvent);
     DateTimeFieldElement::didBlur();
 }
 
@@ -126,33 +133,33 @@ void DateTimeNumericFieldElement::handleKeyboardEvent(KeyboardEvent* keyboardEve
         return;
 
     UChar charCode = static_cast<UChar>(keyboardEvent->charCode());
-    if (charCode < ' ')
-        return;
-
-    DOMTimeStamp delta = keyboardEvent->timeStamp() - m_lastDigitCharTime;
-    m_lastDigitCharTime = 0;
-
     String number = localeForOwner().convertFromLocalizedNumber(String(&charCode, 1));
     const int digit = number[0] - '0';
     if (digit < 0 || digit > 9)
         return;
 
-    keyboardEvent->setDefaultHandled();
-    setValueAsInteger(m_hasValue && delta < typeAheadTimeout ? m_value * 10 + digit : digit, DispatchEvent);
-    if (m_value * 10 > m_range.maximum)
-        focusOnNextField();
+    DOMTimeStamp delta = keyboardEvent->timeStamp() - m_lastDigitCharTime;
+    m_lastDigitCharTime = keyboardEvent->timeStamp();
+
+    if (delta > typeAheadTimeout)
+        m_typeAheadBuffer.clear();
+    m_typeAheadBuffer.append(number);
+
+    int newValue = typeAheadValue();
+    if (m_range.isInRange(newValue))
+        setValueAsInteger(newValue, DispatchEvent);
     else
-        m_lastDigitCharTime = keyboardEvent->timeStamp();
+        updateVisibleValue(DispatchEvent);
+
+    if (m_typeAheadBuffer.length() >= DateTimeNumericFieldElement::formatValue(m_range.maximum).length() || newValue * 10 > m_range.maximum)
+        focusOnNextField();
+
+    keyboardEvent->setDefaultHandled();
 }
 
 bool DateTimeNumericFieldElement::hasValue() const
 {
     return m_hasValue;
-}
-
-Locale& DateTimeNumericFieldElement::localeForOwner() const
-{
-    return document()->getCachedLocale(localeIdentifier());
 }
 
 int DateTimeNumericFieldElement::maximum() const
@@ -167,13 +174,12 @@ int DateTimeNumericFieldElement::minimum() const
 
 void DateTimeNumericFieldElement::setEmptyValue(EventBehavior eventBehavior)
 {
-    m_lastDigitCharTime = 0;
-
     if (isReadOnly())
         return;
 
     m_hasValue = false;
     m_value = 0;
+    m_typeAheadBuffer.clear();
     updateVisibleValue(eventBehavior);
 }
 
@@ -182,23 +188,24 @@ void DateTimeNumericFieldElement::setValueAsInteger(int value, EventBehavior eve
     m_value = clampValueForHardLimits(value);
     m_hasValue = true;
     updateVisibleValue(eventBehavior);
-    m_lastDigitCharTime = 0;
 }
 
 void DateTimeNumericFieldElement::stepDown()
 {
-    if (m_hasValue)
-        setValueAsInteger(m_value == m_range.minimum ? m_range.maximum : clampValue(m_value - 1), DispatchEvent);
-    else
-        setValueAsInteger(defaultValueForStepDown(), DispatchEvent);
+    int newValue = roundDown(m_hasValue ? m_value - 1 : defaultValueForStepDown());
+    if (!m_range.isInRange(newValue))
+        newValue = roundDown(m_range.maximum);
+    m_typeAheadBuffer.clear();
+    setValueAsInteger(newValue, DispatchEvent);
 }
 
 void DateTimeNumericFieldElement::stepUp()
 {
-    if (m_hasValue)
-        setValueAsInteger(m_value == m_range.maximum ? m_range.minimum : clampValue(m_value + 1), DispatchEvent);
-    else
-        setValueAsInteger(defaultValueForStepUp(), DispatchEvent);
+    int newValue = roundUp(m_hasValue ? m_value + 1 : defaultValueForStepUp());
+    if (!m_range.isInRange(newValue))
+        newValue = roundUp(m_range.minimum);
+    m_typeAheadBuffer.clear();
+    setValueAsInteger(newValue, DispatchEvent);
 }
 
 String DateTimeNumericFieldElement::value() const
@@ -211,9 +218,38 @@ int DateTimeNumericFieldElement::valueAsInteger() const
     return m_hasValue ? m_value : -1;
 }
 
+int DateTimeNumericFieldElement::typeAheadValue() const
+{
+    if (m_typeAheadBuffer.length())
+        return m_typeAheadBuffer.toString().toInt();
+    return -1;
+}
+
 String DateTimeNumericFieldElement::visibleValue() const
 {
+    if (m_typeAheadBuffer.length())
+        return formatValue(typeAheadValue());
     return m_hasValue ? value() : m_placeholder;
+}
+
+int DateTimeNumericFieldElement::roundDown(int n) const
+{
+    n -= m_stepBase;
+    if (n >= 0)
+        n = n / m_step * m_step;
+    else
+        n = -((-n + m_step - 1) / m_step * m_step);
+    return n + m_stepBase;
+}
+
+int DateTimeNumericFieldElement::roundUp(int n) const
+{
+    n -= m_stepBase;
+    if (n >= 0)
+        n = (n + m_step - 1) / m_step * m_step;
+    else
+        n = -(-n / m_step * m_step);
+    return n + m_stepBase;
 }
 
 } // namespace WebCore

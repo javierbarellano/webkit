@@ -229,14 +229,14 @@ bool SliderThumbElement::isEnabledFormControl() const
     return hostInput()->isEnabledFormControl();
 }
 
-bool SliderThumbElement::shouldMatchReadOnlySelector() const
+bool SliderThumbElement::matchesReadOnlyPseudoClass() const
 {
-    return hostInput()->shouldMatchReadOnlySelector();
+    return hostInput()->matchesReadOnlyPseudoClass();
 }
 
-bool SliderThumbElement::shouldMatchReadWriteSelector() const
+bool SliderThumbElement::matchesReadWritePseudoClass() const
 {
-    return hostInput()->shouldMatchReadWriteSelector();
+    return hostInput()->matchesReadWritePseudoClass();
 }
 
 Node* SliderThumbElement::focusDelegate()
@@ -259,7 +259,7 @@ void SliderThumbElement::setPositionFromPoint(const LayoutPoint& point)
         return;
 
     input->setTextAsOfLastFormControlChangeEvent(input->value());
-    LayoutPoint offset = roundedLayoutPoint(input->renderer()->absoluteToLocal(point, UseTransforms | SnapOffsetForTransforms));
+    LayoutPoint offset = roundedLayoutPoint(input->renderer()->absoluteToLocal(point, UseTransforms));
     bool isVertical = hasVerticalAppearance(input);
     bool isLeftToRightDirection = renderBox()->style()->isLeftToRightDirection();
     LayoutUnit trackSize;

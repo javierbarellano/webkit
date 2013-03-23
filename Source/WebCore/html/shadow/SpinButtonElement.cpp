@@ -91,7 +91,7 @@ void SpinButtonElement::defaultEventHandler(Event* event)
     }
 
     MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
-    IntPoint local = roundedIntPoint(box->absoluteToLocal(mouseEvent->absoluteLocation(), UseTransforms | SnapOffsetForTransforms));
+    IntPoint local = roundedIntPoint(box->absoluteToLocal(mouseEvent->absoluteLocation(), UseTransforms));
     if (mouseEvent->type() == eventNames().mousedownEvent && mouseEvent->button() == LeftButton) {
         if (box->pixelSnappedBorderBoxRect().contains(local)) {
             // The following functions of HTMLInputElement may run JavaScript
@@ -207,14 +207,14 @@ void SpinButtonElement::releaseCapture()
     }
 }
 
-bool SpinButtonElement::shouldMatchReadOnlySelector() const
+bool SpinButtonElement::matchesReadOnlyPseudoClass() const
 {
-    return shadowHost()->shouldMatchReadOnlySelector();
+    return shadowHost()->matchesReadOnlyPseudoClass();
 }
 
-bool SpinButtonElement::shouldMatchReadWriteSelector() const
+bool SpinButtonElement::matchesReadWritePseudoClass() const
 {
-    return shadowHost()->shouldMatchReadWriteSelector();
+    return shadowHost()->matchesReadWritePseudoClass();
 }
 
 void SpinButtonElement::startRepeatingTimer()

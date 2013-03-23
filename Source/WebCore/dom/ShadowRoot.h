@@ -91,20 +91,18 @@ public:
     InsertionPoint* assignedTo() const;
     void setAssignedTo(InsertionPoint*);
 
-    void registerShadowElement();
-    void unregisterShadowElement();
     bool hasShadowInsertionPoint() const;
-
-    void registerContentElement();
-    void unregisterContentElement();
     bool hasContentElement() const;
 
+    void registerInsertionPoint(InsertionPoint*);
+    void unregisterInsertionPoint(InsertionPoint*);
+    
     void registerElementShadow();
     void unregisterElementShadow();
     bool hasElementShadow() const;
     unsigned countElementShadow() const;
 
-    const Vector<InsertionPoint*>& insertionPointList();
+    const Vector<RefPtr<InsertionPoint> >& insertionPointList();
 
     virtual void registerScopedHTMLStyleChild() OVERRIDE;
     virtual void unregisterScopedHTMLStyleChild() OVERRIDE;
@@ -123,7 +121,6 @@ private:
     virtual PassRefPtr<Node> cloneNode(bool deep);
     virtual bool childTypeAllowed(NodeType) const;
     virtual void childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta) OVERRIDE;
-    virtual bool documentFragmentIsShadowRoot() const OVERRIDE { return true; }
 
     void setType(ShadowRootType type) { m_isAuthorShadowRoot = type == AuthorShadowRoot; }
 
