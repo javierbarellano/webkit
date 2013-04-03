@@ -841,7 +841,7 @@ void MediaSelectElement::dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode)
     // dispatching change events during blur event dispatch.
     if (usesMenuList())
         saveLastSelection();
-    HTMLFormControlElementWithState::dispatchFocusEvent(oldFocusedNode);
+    HTMLFormControlElementWithState::dispatchFocusEvent(oldFocusedNode, FocusDirectionNone);
 }
 
 void MediaSelectElement::dispatchBlurEvent(PassRefPtr<Node> newFocusedNode)

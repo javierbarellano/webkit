@@ -49,7 +49,8 @@ bool JSVideoTrackListOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>
         return false;
 
     // It is reachable if the media element parent is reachable.
-    return visitor.containsOpaqueRoot(root(videoTrackList->owner()));
+    //return visitor.containsOpaqueRoot(root(videoTrackList->owner()));
+    return visitor.containsOpaqueRoot(videoTrackList->owner());
 }
 
 void JSVideoTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
@@ -61,7 +62,8 @@ void JSVideoTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
     Base::visitChildren(jsVideoTrackList, visitor);
     
     VideoTrackList* videoTrackList = static_cast<VideoTrackList*>(jsVideoTrackList->impl());
-    visitor.addOpaqueRoot(root(videoTrackList->owner()));
+    //visitor.addOpaqueRoot(root(videoTrackList->owner()));
+    visitor.addOpaqueRoot(videoTrackList->owner());
     videoTrackList->visitJSEventListeners(visitor);
 }
     

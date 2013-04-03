@@ -45,8 +45,8 @@ inline void* root(AudioTrack* track)
     }*/
 
     // No, return the media element's root if it has one.
-    if (track->mediaElement())
-        return root(track->mediaElement());
+    //if (track->mediaElement())
+    //    return root(track->mediaElement());
 
     // No track element and no media element, return the text track.
     return track;

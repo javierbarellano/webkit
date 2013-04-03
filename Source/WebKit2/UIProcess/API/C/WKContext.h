@@ -41,11 +41,13 @@ typedef uint32_t WKCacheModel;
 
 // Context Client
 typedef void (*WKContextPlugInAutoStartOriginHashesChangedCallback)(WKContextRef context, const void *clientInfo);
+typedef void (*WKContextNetworkProcessDidCrashCallback)(WKContextRef context, const void *clientInfo);
 
 struct WKContextClient {
     int                                                                 version;
     const void *                                                        clientInfo;
     WKContextPlugInAutoStartOriginHashesChangedCallback                 plugInAutoStartOriginHashesChanged;
+    WKContextNetworkProcessDidCrashCallback                             networkProcessDidCrash;
 };
 typedef struct WKContextClient WKContextClient;
 
@@ -141,6 +143,12 @@ enum {
 };
 typedef uint32_t WKProcessModel;
 
+enum {
+    kWKStatisticsOptionsWebContent = 1 << 0,
+    kWKStatisticsOptionsNetworking = 1 << 1
+};
+typedef uint32_t WKStatisticsOptions;
+
 WK_EXPORT WKTypeID WKContextGetTypeID();
 
 WK_EXPORT WKContextRef WKContextCreate();
@@ -186,7 +194,8 @@ WK_EXPORT WKResourceCacheManagerRef WKContextGetResourceCacheManager(WKContextRe
     
 typedef void (*WKContextGetStatisticsFunction)(WKDictionaryRef statistics, WKErrorRef error, void* functionContext);
 WK_EXPORT void WKContextGetStatistics(WKContextRef context, void* functionContext, WKContextGetStatisticsFunction function);
-    
+WK_EXPORT void WKContextGetStatisticsWithOptions(WKContextRef context, WKStatisticsOptions statisticsMask, void* functionContext, WKContextGetStatisticsFunction function);
+
 WK_EXPORT void WKContextGarbageCollectJavaScriptObjects(WKContextRef context);
 WK_EXPORT void WKContextSetJavaScriptGarbageCollectorTimerEnabled(WKContextRef context, bool enable);
 

@@ -94,7 +94,6 @@ list(APPEND WebCore_SOURCES
     bindings/js/JSHTMLMediaElementCustom.cpp
     bindings/js/JSHTMLObjectElementCustom.cpp
     bindings/js/JSHTMLOptionsCollectionCustom.cpp
-    bindings/js/JSHTMLOutputElementCustom.cpp
     bindings/js/JSHTMLSelectElementCustom.cpp
     bindings/js/JSHTMLStyleElementCustom.cpp
     bindings/js/JSHTMLTemplateElementCustom.cpp
@@ -114,7 +113,7 @@ list(APPEND WebCore_SOURCES
     bindings/js/JSMessageEventCustom.cpp
     bindings/js/JSMessagePortCustom.cpp
     bindings/js/JSMicroDataItemValueCustom.cpp
-    bindings/js/JSMutationCallbackCustom.cpp
+    bindings/js/JSMutationCallback.cpp
     bindings/js/JSMutationObserverCustom.cpp
     bindings/js/JSNamedNodeMapCustom.cpp
     bindings/js/JSNavServicesCustom.cpp
@@ -123,7 +122,6 @@ list(APPEND WebCore_SOURCES
     bindings/js/JSNodeFilterCustom.cpp
     bindings/js/JSNodeIteratorCustom.cpp
     bindings/js/JSNodeListCustom.cpp
-    bindings/js/JSNotificationCustom.cpp
     bindings/js/JSPluginElementFunctions.cpp
     bindings/js/JSPopStateEventCustom.cpp
     bindings/js/JSProcessingInstructionCustom.cpp
@@ -205,7 +203,6 @@ if (ENABLE_INDEXED_DATABASE)
         bindings/js/IDBBindingUtilities.cpp
         bindings/js/JSIDBAnyCustom.cpp
         bindings/js/JSIDBDatabaseCustom.cpp
-        bindings/js/JSIDBKeyCustom.cpp
         bindings/js/JSIDBObjectStoreCustom.cpp
     )
 endif ()
@@ -234,13 +231,6 @@ endif ()
 if (ENABLE_SHARED_WORKERS)
     list(APPEND WebCore_SOURCES
         bindings/js/JSSharedWorkerCustom.cpp
-    )
-endif ()
-
-if (ENABLE_NOTIFICATIONS)
-    list(APPEND WebCore_SOURCES
-        bindings/js/JSDesktopNotificationsCustom.cpp
-        bindings/js/JSNotificationCustom.cpp
     )
 endif ()
 
@@ -273,12 +263,6 @@ if (ENABLE_WEB_AUDIO)
         bindings/js/JSOscillatorNodeCustom.cpp
         bindings/js/JSPannerNodeCustom.cpp
         bindings/js/JSScriptProcessorNodeCustom.cpp
-    )
-endif ()
-
-if (ENABLE_WEB_INTENTS)
-    list(APPEND WebCore_SOURCES
-        bindings/js/JSIntentConstructor.cpp
     )
 endif ()
 
@@ -315,8 +299,8 @@ file(WRITE ${IDL_FILES_TMP} ${IDL_FILES_LIST})
 
 add_custom_command(
     OUTPUT ${SUPPLEMENTAL_DEPENDENCY_FILE}
-    DEPENDS ${WEBCORE_DIR}/bindings/scripts/preprocess-idls.pl ${SCRIPTS_PREPROCESS_IDLS} ${WebCore_IDL_FILES} ${WebCoreTestSupport_IDL_FILES} ${IDL_ATTRIBUTES_FILE}
-    COMMAND ${PERL_EXECUTABLE} -I${WEBCORE_DIR}/bindings/scripts ${WEBCORE_DIR}/bindings/scripts/preprocess-idls.pl --defines "${FEATURE_DEFINES_JAVASCRIPT}" --idlFilesList ${IDL_FILES_TMP} --preprocessor "${CODE_GENERATOR_PREPROCESSOR}" --supplementalDependencyFile ${SUPPLEMENTAL_DEPENDENCY_FILE} --idlAttributesFile ${IDL_ATTRIBUTES_FILE}
+    DEPENDS ${WEBCORE_DIR}/bindings/scripts/preprocess-idls.pl ${SCRIPTS_PREPROCESS_IDLS} ${WebCore_IDL_FILES} ${WebCoreTestSupport_IDL_FILES}
+    COMMAND ${PERL_EXECUTABLE} -I${WEBCORE_DIR}/bindings/scripts ${WEBCORE_DIR}/bindings/scripts/preprocess-idls.pl --defines "${FEATURE_DEFINES_JAVASCRIPT}" --idlFilesList ${IDL_FILES_TMP} --supplementalDependencyFile ${SUPPLEMENTAL_DEPENDENCY_FILE}
     VERBATIM)
 
 GENERATE_BINDINGS(WebCore_SOURCES
@@ -325,6 +309,7 @@ GENERATE_BINDINGS(WebCore_SOURCES
     "${IDL_INCLUDES}"
     "${FEATURE_DEFINES_JAVASCRIPT}"
     ${DERIVED_SOURCES_WEBCORE_DIR} JS JS
+    ${IDL_ATTRIBUTES_FILE}
     ${SUPPLEMENTAL_DEPENDENCY_FILE})
 
 GENERATE_BINDINGS(WebCoreTestSupport_SOURCES
@@ -333,4 +318,5 @@ GENERATE_BINDINGS(WebCoreTestSupport_SOURCES
     "${IDL_INCLUDES}"
     "${FEATURE_DEFINES_JAVASCRIPT}"
     ${DERIVED_SOURCES_WEBCORE_DIR} JS JS
+    ${IDL_ATTRIBUTES_FILE}
     ${SUPPLEMENTAL_DEPENDENCY_FILE})

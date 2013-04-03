@@ -35,6 +35,7 @@
 #include "Event.h"
 #include "EventException.h"
 #include "InspectorInstrumentation.h"
+#include "WebKitTransitionEvent.h"
 #include <wtf/MainThread.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/Vector.h>
@@ -160,6 +161,28 @@ void EventTarget::uncaughtExceptionInEventHandler()
 {
 }
 
+static PassRefPtr<Event> createMatchingPrefixedEvent(const Event* event)
+{
+    if (event->type() == eventNames().transitionendEvent) {
+        const WebKitTransitionEvent* transitionEvent = static_cast<const WebKitTransitionEvent*>(event);
+        RefPtr<Event> prefixedEvent = WebKitTransitionEvent::create(eventNames().webkitTransitionEndEvent, transitionEvent->propertyName(), transitionEvent->elapsedTime(), transitionEvent->pseudoElement());
+        prefixedEvent->setTarget(event->target());
+        prefixedEvent->setCurrentTarget(event->currentTarget());
+        prefixedEvent->setEventPhase(event->eventPhase());
+        return prefixedEvent.release();
+    }
+    ASSERT_NOT_REACHED();
+    return 0;
+}
+
+static AtomicString prefixedType(const Event* event)
+{
+    if (event->type() == eventNames().transitionendEvent)
+        return eventNames().webkitTransitionEndEvent;
+
+    return emptyString();
+}
+
 bool EventTarget::fireEventListeners(Event* event)
 {
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
@@ -169,24 +192,34 @@ bool EventTarget::fireEventListeners(Event* event)
     if (!d)
         return true;
 
+    EventListenerVector* listenerPrefixedVector = 0;
+    AtomicString prefixedTypeName = prefixedType(event);
+    if (!prefixedTypeName.isEmpty())
+        listenerPrefixedVector = d->eventListenerMap.find(prefixedTypeName);
 
-    EventListenerVector* listenerVector = d->eventListenerMap.find(event->type());
+    EventListenerVector* listenerUnprefixedVector = d->eventListenerMap.find(event->type());
 
-    Vector<AtomicString> et = d->eventListenerMap.eventTypes();
-    for (int i=0; i<(int)et.size(); i++)
-    {
-    	// == didn't work to find(type) either, so I'm using this
-    	if (et.at(i).contains(event->type().string(), true) &&
-    		event->type().contains(et.at(i).string(), true))
-    	{
-    		listenerVector = d->eventListenerMap.find(et.at(i)); // Very odd bug in WebKit WTF
-    		break;
-    	}
+    if (listenerUnprefixedVector)
+        fireEventListeners(event, d, *listenerUnprefixedVector);
+    else if (listenerPrefixedVector)
+        fireEventListeners(createMatchingPrefixedEvent(event).get(), d, *listenerPrefixedVector);
+
+    if (!prefixedTypeName.isEmpty()) {
+        ScriptExecutionContext* context = scriptExecutionContext();
+        if (context && context->isDocument()) {
+            Document* document = static_cast<Document*>(context);
+            if (document->domWindow()) {
+                if (listenerPrefixedVector)
+                    if (listenerUnprefixedVector)
+                        FeatureObserver::observe(document->domWindow(), FeatureObserver::PrefixedAndUnprefixedTransitionEndEvent);
+                    else
+                        FeatureObserver::observe(document->domWindow(), FeatureObserver::PrefixedTransitionEndEvent);
+                else if (listenerUnprefixedVector)
+                    FeatureObserver::observe(document->domWindow(), FeatureObserver::UnprefixedTransitionEndEvent);
+            }
+        }
     }
 
-    if (listenerVector)
-        fireEventListeners(event, d, *listenerVector);
-    
     return !event->defaultPrevented();
 }
         

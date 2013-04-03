@@ -25,132 +25,113 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER)
 
 #include "GRefPtrGStreamer.h"
-#include "MediaPlayerPrivate.h"
+#include "MediaPlayerPrivateGStreamerBase.h"
 #include "Timer.h"
 
 #include <glib.h>
 #include <gst/gst.h>
 #include <vector>
 #include <wtf/Forward.h>
-#include <wtf/MessageQueue.h>
 
-typedef struct _WebKitVideoSink WebKitVideoSink;
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
 typedef struct _GstElement GstElement;
 
 namespace WebCore {
 
-class GraphicsContext;
-class IntSize;
-class IntRect;
-class GStreamerGWorld;
-class MediaPlayerPrivateGStreamer;
+class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
+public:
+    ~MediaPlayerPrivateGStreamer();
+    static void registerMediaEngine(MediaEngineRegistrar);
+    gboolean handleMessage(GstMessage*);
 
-class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
+    bool hasVideo() const { return m_hasVideo; }
+    bool hasAudio() const { return m_hasAudio; }
 
-        public:
-            ~MediaPlayerPrivateGStreamer();
-            static void registerMediaEngine(MediaEngineRegistrar);
-            gboolean handleMessage(GstMessage*);
+    void load(const String &url);
+    void commitLoad();
+    void cancelLoad();
 
-            IntSize naturalSize() const;
-            bool hasVideo() const { return m_hasVideo; }
-            bool hasText() const { return m_hasText; }
-            bool hasAudio() const { return m_hasAudio; }
+    void prepareToPlay();
+    void play();
+    void pause();
 
-            void load(const String &url);
-            void commitLoad();
-            void cancelLoad();
+    bool paused() const;
+    bool seeking() const;
 
-            void prepareToPlay();
-            void play();
-            void pause();
+    float duration() const;
+    float currentTime() const;
+    void seek(float);
 
-            bool isAudioEnabled(int) const;
-            void setAudioEnabled(int, bool);
+    void setRate(float);
+    void setPreservesPitch(bool);
 
-            bool isTextEnabled(int) const;
-            void setTextEnabled(int, bool);
+    void setPreload(MediaPlayer::Preload);
+    void fillTimerFired(Timer<MediaPlayerPrivateGStreamer>*);
 
-            bool isVideoSelected(int) const;
-            void setVideoSelected(int, bool);
+    PassRefPtr<TimeRanges> buffered() const;
+    float maxTimeSeekable() const;
+    bool didLoadingProgress() const;
+    unsigned totalBytes() const;
+    float maxTimeLoaded() const;
 
-            bool paused() const;
-            bool seeking() const;
+    void loadStateChanged();
+    void timeChanged();
+    void didEnd();
+    void durationChanged();
+    void loadingFailed(MediaPlayer::NetworkState);
 
-            float duration() const;
-            float currentTime() const;
-            void seek(float);
+    void videoChanged();
+    void audioChanged();
+    void videoTagsChanged();
+    void audioTagsChanged();
+    void notifyPlayerOfVideo();
+    void notifyPlayerOfAudio();
+    void notifyPlayerOfVideoTags();
+    void notifyPlayerOfAudioTags();
 
-            void setRate(float);
+    void sourceChanged();
+    GstElement* audioSink() const;
 
-            void setVolume(float);
-            void volumeChanged();
-            void notifyPlayerOfVolumeChange();
+    virtual bool isAudioEnabled(int) const;
+    virtual void setAudioEnabled(int, bool);
 
-            bool supportsMuting() const;
-            void setMuted(bool);
-            void muteChanged();
-            void notifyPlayerOfMute();
+    virtual bool isTextEnabled(int) const;
+    virtual void setTextEnabled(int, bool);
 
-            void setPreload(MediaPlayer::Preload);
-            void fillTimerFired(Timer<MediaPlayerPrivateGStreamer>*);
+    virtual bool isVideoSelected(int) const;
+    virtual void setVideoSelected(int, bool);
 
-            MediaPlayer::NetworkState networkState() const;
-            MediaPlayer::ReadyState readyState() const;
 
-            PassRefPtr<TimeRanges> buffered() const;
-            float maxTimeSeekable() const;
-            bool didLoadingProgress() const;
-            unsigned totalBytes() const;
+private:
+    MediaPlayerPrivateGStreamer(MediaPlayer*);
 
-            void setVisible(bool);
-            void setSize(const IntSize&);
+    static PassOwnPtr<MediaPlayerPrivateInterface> create(MediaPlayer*);
 
-            void loadStateChanged();
-            void sizeChanged();
-            void timeChanged();
-            void didEnd();
-            void durationChanged();
-            void loadingFailed(MediaPlayer::NetworkState);
+    static void getSupportedTypes(HashSet<String>&);
+    static MediaPlayer::SupportsType supportsType(const String& type, const String& codecs, const KURL&);
 
-            void triggerRepaint(GstBuffer*);
-            void repaint();
-            void paint(GraphicsContext*, const IntRect&);
+    static bool isAvailable();
 
-            bool hasSingleSecurityOrigin() const;
+    void updateAudioSink();
+    void createAudioSink();
 
-            bool supportsFullscreen() const;
-            PlatformMedia platformMedia() const;
+    float playbackPosition() const;
 
-            void videoChanged();
-            void videoCapsChanged();
-            void audioChanged();
-            void videoTagsChanged();
-            void audioTagsChanged();
-            void notifyPlayerOfVideo();
-            void notifyPlayerOfVideoCaps();
-            void notifyPlayerOfAudio();
-            void notifyPlayerOfVideoTags();
-            void notifyPlayerOfAudioTags();
-#if ENABLE(VIDEO_TRACK)
-            void textChanged();
-            void notifyPlayerOfText();
-            void textTagsChanged();
-            void notifyPlayerOfTextTags();
-            void textBufferChanged(GstPad*, GstBuffer*);
-            void notifyPlayerOfTextBuffer();
-#endif
+    void cacheDuration();
+    void updateStates();
 
-            void sourceChanged();
+    void createGSTPlayBin();
+    bool changePipelineState(GstState);
 
-            unsigned decodedFrameCount() const;
-            unsigned droppedFrameCount() const;
-            unsigned audioDecodedByteCount() const;
-            unsigned videoDecodedByteCount() const;
+    bool loadNextLocation();
+    void mediaLocationChanged(GstMessage*);
 
-            MediaPlayer::MovieLoadType movieLoadType() const;
+    void setDownloadBuffering();
+    void processBufferingStats(GstMessage*);
+
+    virtual String engineDescription() const { return "GStreamer"; }
+    virtual bool isLiveStream() const { return m_isStreaming; }
 
 #if ENABLE(VIDEO_TRACK)
             unsigned getNumberOfAudioTracks() const;
@@ -158,107 +139,44 @@ class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateInterface {
             unsigned getNumberOfVideoTracks() const;
 #endif
 
-        private:
-            MediaPlayerPrivateGStreamer(MediaPlayer*);
-
-            static PassOwnPtr<MediaPlayerPrivateInterface> create(MediaPlayer*);
-
-            static void getSupportedTypes(HashSet<String>&);
-            static MediaPlayer::SupportsType supportsType(const String& type, const String& codecs, const KURL&);
-
-            static bool isAvailable();
-
-            void updateAudioSink();
-
-            float playbackPosition() const;
-
-            void cacheDuration();
-            void updateStates();
-            float maxTimeLoaded() const;
-
-            void createGSTPlayBin();
-            bool changePipelineState(GstState state);
-
-            bool loadNextLocation();
-            void mediaLocationChanged(GstMessage*);
-
-            void setDownloadBuffering();
-            void processBufferingStats(GstMessage*);
-
-            virtual String engineDescription() const { return "GStreamer"; }
-            bool isLiveStream() const { return m_isStreaming; }
-
-        private:
-            struct TextBufferData {
-            	MediaPlayerPrivateGStreamer* player;
-            	String data;
-            	float start;
-            	float end;
-            	int index;
-            };
-
-            MediaPlayer* m_player;
-            GstElement* m_playBin;
-            GstElement* m_webkitVideoSink;
-            GstElement* m_videoSinkBin;
-            GstElement* m_fpsSink;
-            GRefPtr<GstElement> m_source;
-            float m_seekTime;
-            bool m_changingRate;
-            float m_endTime;
-            bool m_isEndReached;
-            MediaPlayer::NetworkState m_networkState;
-            MediaPlayer::ReadyState m_readyState;
-            mutable bool m_isStreaming;
-            IntSize m_size;
-            GstBuffer* m_buffer;
-            GstStructure* m_mediaLocations;
-            int m_mediaLocationCurrentIndex;
-            bool m_resetPipeline;
-            bool m_paused;
-            bool m_seeking;
-            bool m_buffering;
-            float m_playbackRate;
-            bool m_errorOccured;
-            gfloat m_mediaDuration;
-            bool m_startedBuffering;
-            Timer<MediaPlayerPrivateGStreamer> m_fillTimer;
-            float m_maxTimeLoaded;
-            int m_bufferingPercentage;
-            MediaPlayer::Preload m_preload;
-            bool m_delayingLoad;
-            bool m_mediaDurationKnown;
-            mutable float m_maxTimeLoadedAtLastDidLoadingProgress;
-#ifndef GST_API_VERSION_1
-            RefPtr<GStreamerGWorld> m_gstGWorld;
-#endif
-            guint m_volumeTimerHandler;
-            guint m_muteTimerHandler;
-            bool m_volumeAndMuteInitialized;
-            bool m_hasVideo;
-            bool m_hasText;
-            bool m_hasAudio;
-            guint m_audioTimerHandler;
-            guint m_audioTagsTimerHandler;
-#if ENABLE(VIDEO_TRACK)
-            guint m_textBufferTimerHandler;
-            guint m_textTimerHandler;
-            guint m_textTagsTimerHandler;
-            Vector<bool> m_changedTextTags;
-            std::vector<GstPad*> m_textPads;
-            std::vector<gulong> m_textProbes;
-            MessageQueue<TextBufferData> m_textCueQueue;
-#endif
-            guint m_videoTimerHandler;
-            guint m_videoCapsTimerHandler;
-            guint m_videoTagsTimerHandler;
-            GRefPtr<GstElement> m_webkitAudioSink;
-            mutable long m_totalBytes;
-            GRefPtr<GstPad> m_videoSinkPad;
-            mutable IntSize m_videoSize;
-            KURL m_url;
-            bool m_originalPreloadWasAutoAndWasOverridden;
-    };
+private:
+    GRefPtr<GstElement> m_playBin;
+    GRefPtr<GstElement> m_source;
+    float m_seekTime;
+    bool m_changingRate;
+    float m_endTime;
+    bool m_isEndReached;
+    mutable bool m_isStreaming;
+    GstStructure* m_mediaLocations;
+    int m_mediaLocationCurrentIndex;
+    bool m_resetPipeline;
+    bool m_paused;
+    bool m_seeking;
+    bool m_buffering;
+    float m_playbackRate;
+    bool m_errorOccured;
+    gfloat m_mediaDuration;
+    bool m_startedBuffering;
+    Timer<MediaPlayerPrivateGStreamer> m_fillTimer;
+    float m_maxTimeLoaded;
+    int m_bufferingPercentage;
+    MediaPlayer::Preload m_preload;
+    bool m_delayingLoad;
+    bool m_mediaDurationKnown;
+    mutable float m_maxTimeLoadedAtLastDidLoadingProgress;
+    bool m_volumeAndMuteInitialized;
+    bool m_hasVideo;
+    bool m_hasAudio;
+    guint m_audioTimerHandler;
+    guint m_videoTimerHandler;
+    GRefPtr<GstElement> m_webkitAudioSink;
+    mutable long m_totalBytes;
+    KURL m_url;
+    bool m_originalPreloadWasAutoAndWasOverridden;
+    bool m_preservesPitch;
+    guint m_audioTagsTimerHandler;
+    guint m_videoTagsTimerHandler;
+};
 }
 
 #endif // USE(GSTREAMER)

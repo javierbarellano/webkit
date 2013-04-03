@@ -102,6 +102,8 @@ private:
 
     ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset);
 
+    static const char* supplementName();
+
     Mutex *m_main;
 
     static long m_reqID;

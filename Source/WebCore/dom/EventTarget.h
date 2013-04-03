@@ -53,7 +53,6 @@ namespace WebCore {
     class IDBDatabase;
     class IDBRequest;
     class IDBTransaction;
-    class IDBVersionChangeRequest;
     class ScriptProcessorNode;
     class LocalMediaStream;
     class MediaController;

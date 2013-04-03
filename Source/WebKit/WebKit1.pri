@@ -10,7 +10,10 @@ SOURCE_DIR = $${ROOT_WEBKIT_DIR}/Source/WebKit
 INCLUDEPATH += \
     $$SOURCE_DIR/qt/Api \
     $$SOURCE_DIR/qt/WebCoreSupport \
-    $$ROOT_WEBKIT_DIR/Source/WTF/wtf/qt
+    $$ROOT_WEBKIT_DIR/Source/WTF/wtf/qt \
+    $${ROOT_WEBKIT_DIR}/WebKitBuild/Debug/include \
+    $${ROOT_WEBKIT_DIR}/WebKitBuild/Debug/include/QtWebKitWidgets
+
 
 enable?(DEVICE_ORIENTATION)|enable?(ORIENTATION_EVENTS) {
     QT += sensors

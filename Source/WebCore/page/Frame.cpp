@@ -41,6 +41,7 @@
 #include "CachedResourceLoader.h"
 #include "DocumentType.h"
 #include "EditorClient.h"
+#include "Event.h"
 #include "EventNames.h"
 #include "FloatQuad.h"
 #include "FocusController.h"
@@ -77,6 +78,7 @@
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
 #include "ScriptValue.h"
+#include "ScrollingCoordinator.h"
 #include "Settings.h"
 #include "StylePropertySet.h"
 #include "TextIterator.h"
@@ -90,6 +92,7 @@
 #include "markup.h"
 #include "npruntime_impl.h"
 #include "visible_units.h"
+#include <wtf/PassOwnPtr.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
 
@@ -630,7 +633,7 @@ Frame* Frame::frameForWidget(const Widget* widget)
 
     // Assume all widgets are either a FrameView or owned by a RenderWidget.
     // FIXME: That assumption is not right for scroll bars!
-    ASSERT(widget->isFrameView());
+    ASSERT_WITH_SECURITY_IMPLICATION(widget->isFrameView());
     return static_cast<const FrameView*>(widget)->frame();
 }
 
@@ -668,8 +671,12 @@ void Frame::dispatchVisibilityStateChangeEvent()
 void Frame::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
 {
     MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
-    info.addMember(m_doc.get());
-    info.addMember(m_loader);
+    info.addMember(m_doc, "doc");
+    info.ignoreMember(m_view);
+    info.addMember(m_ownerElement, "ownerElement");
+    info.addMember(m_page, "page");
+    info.addMember(m_loader, "loader");
+    info.ignoreMember(m_destructionObservers);
 }
 
 void Frame::willDetachPage()
@@ -685,6 +692,9 @@ void Frame::willDetachPage()
     // so page() could be NULL.
     if (page() && page()->focusController()->focusedFrame() == this)
         page()->focusController()->setFocusedFrame(0);
+
+    if (page() && page()->scrollingCoordinator() && m_view)
+        page()->scrollingCoordinator()->willDestroyScrollableArea(m_view.get());
 
     script()->clearScriptObjects();
     script()->updatePlatformScriptObjects();
@@ -717,7 +727,7 @@ String Frame::displayStringModifiedByEncoding(const String& str) const
 
 VisiblePosition Frame::visiblePositionForPoint(const IntPoint& framePoint)
 {
-    HitTestResult result = eventHandler()->hitTestResultAtPoint(framePoint, true);
+    HitTestResult result = eventHandler()->hitTestResultAtPoint(framePoint, HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::AllowShadowContent);
     Node* node = result.innerNonSharedNode();
     if (!node)
         return VisiblePosition();
@@ -739,7 +749,7 @@ Document* Frame::documentAtPoint(const IntPoint& point)
     HitTestResult result = HitTestResult(pt);
 
     if (contentRenderer())
-        result = eventHandler()->hitTestResultAtPoint(pt, false);
+        result = eventHandler()->hitTestResultAtPoint(pt);
     return result.innerNode() ? result.innerNode()->document() : 0;
 }
 

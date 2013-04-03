@@ -33,8 +33,8 @@ using namespace std;
 
 namespace WebCore {
 
-RenderMultiColumnBlock::RenderMultiColumnBlock(Node* node)
-    : RenderBlock(node)
+RenderMultiColumnBlock::RenderMultiColumnBlock(Element* element)
+    : RenderBlock(element)
     , m_flowThread(0)
     , m_columnCount(1)
     , m_columnWidth(0)
@@ -103,11 +103,20 @@ bool RenderMultiColumnBlock::relayoutForPagination(bool, LayoutUnit, LayoutState
     return false;
 }
 
+static PassRefPtr<RenderStyle> createMultiColumnFlowThreadStyle(RenderStyle* parentStyle)
+{
+    RefPtr<RenderStyle> newStyle(RenderStyle::create());
+    newStyle->inheritFrom(parentStyle);
+    newStyle->setDisplay(BLOCK);
+    newStyle->font().update(0);
+    return newStyle.release();
+}
+
 void RenderMultiColumnBlock::addChild(RenderObject* newChild, RenderObject* beforeChild)
 {
     if (!m_flowThread) {
         m_flowThread = new (renderArena()) RenderMultiColumnFlowThread(document());
-        m_flowThread->setStyle(RenderStyle::createAnonymousStyleWithDisplay(style(), BLOCK));
+        m_flowThread->setStyle(createMultiColumnFlowThreadStyle(style()));
         RenderBlock::addChild(m_flowThread); // Always put the flow thread at the end.
     }
 
@@ -144,11 +153,20 @@ void RenderMultiColumnBlock::ensureColumnSets()
 
     RenderMultiColumnSet* columnSet = firstChild()->isRenderMultiColumnSet() ? toRenderMultiColumnSet(firstChild()) : 0;
     if (!columnSet) {
-        columnSet = new (renderArena()) RenderMultiColumnSet(document(), flowThread());
+        columnSet = RenderMultiColumnSet::createAnonymous(flowThread());
         columnSet->setStyle(RenderStyle::createAnonymousStyleWithDisplay(style(), BLOCK));
         RenderBlock::addChild(columnSet, firstChild());
     }
     columnSet->setRequiresBalancing(requiresBalancing());
+}
+
+void RenderMultiColumnBlock::layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeight)
+{
+    RenderBlock::layoutBlock(relayoutChildren, pageLogicalHeight);
+    
+    // Shift the flow thread back up to the top of the block.
+    if (flowThread())
+        flowThread()->setLogicalTop(borderBefore() + paddingBefore());
 }
 
 const char* RenderMultiColumnBlock::renderName() const

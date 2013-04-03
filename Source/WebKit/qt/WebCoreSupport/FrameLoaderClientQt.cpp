@@ -1263,7 +1263,7 @@ void FrameLoaderClientQt::dispatchDecidePolicyForNavigationAction(FramePolicyFun
             if (event->isMouseEvent()) {
                 const MouseEvent* mouseEvent =  static_cast<const MouseEvent*>(event);
                 node = m_webFrame->frame->eventHandler()->hitTestResultAtPoint(
-                    mouseEvent->absoluteLocation(), false).innerNonSharedNode();
+                    mouseEvent->absoluteLocation()).innerNonSharedNode();
                 break;
             }
         }
@@ -1435,7 +1435,7 @@ public:
         ScrollView* parentScrollView = parent();
         QRect clipRect;
         if (parentScrollView) {
-            ASSERT(parentScrollView->isFrameView());
+            ASSERT_WITH_SECURITY_IMPLICATION(parentScrollView->isFrameView());
             clipRect = static_cast<FrameView*>(parentScrollView)->windowClipRect();
             clipRect.translate(-windowRect.x(), -windowRect.y());
         }
@@ -1449,6 +1449,7 @@ public:
     }
     virtual void hide()
     {
+        Widget::hide();
         if (platformWidget())
             widgetAdapter()->setVisible(false);
     }

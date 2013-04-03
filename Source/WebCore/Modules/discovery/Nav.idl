@@ -1,9 +1,9 @@
 
 
-    interface [
+    [
                Conditional=DISCOVERY,
                Supplemental=Navigator
-    ] Navigator {
+    ] interface Navigator {
 
         void getNetworkServices(
         		in DOMString type,

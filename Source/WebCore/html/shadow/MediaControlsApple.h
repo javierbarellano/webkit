@@ -87,6 +87,8 @@ public:
 private:
     MediaControlsApple(Document*);
 
+    virtual void defaultEventHandler(Event*) OVERRIDE;
+
     MediaControlRewindButtonElement* m_rewindButton;
     MediaControlFFButtonElement* m_ffButton;
     MediaControlRevButtonElement* m_revButton;

@@ -49,7 +49,8 @@ bool JSAudioTrackListOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>
         return false;
 
     // It is reachable if the media element parent is reachable.
-    return visitor.containsOpaqueRoot(root(audioTrackList->owner()));
+    //return visitor.containsOpaqueRoot(root(audioTrackList->owner()));
+    return visitor.containsOpaqueRoot(audioTrackList->owner());
 }
 
 void JSAudioTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
@@ -61,7 +62,8 @@ void JSAudioTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
     Base::visitChildren(jsAudioTrackList, visitor);
     
     AudioTrackList* audioTrackList = static_cast<AudioTrackList*>(jsAudioTrackList->impl());
-    visitor.addOpaqueRoot(root(audioTrackList->owner()));
+    //visitor.addOpaqueRoot(root(audioTrackList->owner()));
+    visitor.addOpaqueRoot(audioTrackList->owner());
     audioTrackList->visitJSEventListeners(visitor);
 }
     

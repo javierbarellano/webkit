@@ -46,6 +46,20 @@ using namespace WebCore;
 
 namespace WebKit {
 
+namespace {
+
+class ExtraDataContainer : public MediaStreamSource::ExtraData {
+public:
+    ExtraDataContainer(WebMediaStreamSource::ExtraData* extraData) : m_extraData(adoptPtr(extraData)) { }
+
+    WebMediaStreamSource::ExtraData* extraData() { return m_extraData.get(); }
+
+private:
+    OwnPtr<WebMediaStreamSource::ExtraData> m_extraData;
+};
+
+} // namespace
+
 WebMediaStreamSource::WebMediaStreamSource(const PassRefPtr<MediaStreamSource>& mediaStreamSource)
     : m_private(mediaStreamSource)
 {
@@ -112,16 +126,6 @@ WebMediaStreamSource::ReadyState WebMediaStreamSource::readyState() const
     return static_cast<ReadyState>(m_private->readyState());
 }
 
-class ExtraDataContainer : public WebCore::MediaStreamSource::ExtraData {
-public:
-    ExtraDataContainer(WebMediaStreamSource::ExtraData* extraData) : m_extraData(WTF::adoptPtr(extraData)) { }
-
-    WebMediaStreamSource::ExtraData* extraData() { return m_extraData.get(); }
-
-private:
-    OwnPtr<WebMediaStreamSource::ExtraData> m_extraData;
-};
-
 WebMediaStreamSource::ExtraData* WebMediaStreamSource::extraData() const
 {
     ASSERT(!m_private.isNull());
@@ -135,6 +139,18 @@ void WebMediaStreamSource::setExtraData(ExtraData* extraData)
 {
     ASSERT(!m_private.isNull());
     m_private->setExtraData(adoptRef(new ExtraDataContainer(extraData)));
+}
+
+WebString WebMediaStreamSource::deviceId() const
+{
+    ASSERT(!m_private.isNull());
+    return m_private->deviceId();
+}
+
+void WebMediaStreamSource::setDeviceId(const WebString& deviceId)
+{
+    ASSERT(!m_private.isNull());
+    m_private->setDeviceId(deviceId);
 }
 
 bool WebMediaStreamSource::requiresAudioConsumer() const

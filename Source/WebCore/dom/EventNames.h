@@ -190,6 +190,7 @@ namespace WebCore {
     macro(webkitAnimationIteration) \
     \
     macro(webkitTransitionEnd) \
+    macro(transitionend) \
     \
     macro(orientationchange) \
     \
@@ -219,6 +220,9 @@ namespace WebCore {
     macro(nomatch) \
     macro(start) \
     macro(end) \
+    macro(mark) \
+    macro(boundary) \
+    macro(resume) \
     \
     macro(webglcontextlost) \
     macro(webglcontextrestored) \
@@ -238,6 +242,7 @@ namespace WebCore {
     macro(negotiationneeded) \
     macro(datachannel) \
     macro(gatheringchange) \
+    macro(tonechange) \
     \
     macro(show) \
     \

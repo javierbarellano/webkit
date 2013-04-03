@@ -31,12 +31,13 @@
 - (void)writeItemsToPasteboard:(NSArray *)items withTypes:(NSArray *)types;
 - (void)showDefinitionForAttributedString:(NSAttributedString *)string atPoint:(CGPoint)point;
 - (void)performWebSearch:(NSString *)string;
-- (void)openWithPreview;
+- (void)openWithNativeApplication;
 - (void)saveToPDF;
 
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeActiveAnnotation:(PDFAnnotation *)annotation;
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController clickedLinkWithURL:(NSURL *)url;
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeContentScaleFactor:(CGFloat)scaleFactor;
+- (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeDisplayMode:(int)mode;
 
 @end
 
@@ -88,6 +89,7 @@
 - (PDFSelection *)searchSelection;
 - (void)setSearchSelection:(PDFSelection *)selection;
 - (void)gotoSelection:(PDFSelection *)selection;
+- (PDFSelection *)getSelectionForWordAtPoint:(CGPoint)point;
 
 - (void)copySelection;
 - (void)selectAll;
@@ -98,5 +100,8 @@
 - (BOOL)hudEnabled;
 
 - (CGRect)boundsForAnnotation:(PDFAnnotation *)annotation;
+- (void)activateNextAnnotation:(BOOL)previous;
+
+- (void)searchInDictionaryWithSelection:(PDFSelection *)selection;
 
 @end

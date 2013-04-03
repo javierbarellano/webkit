@@ -99,6 +99,9 @@ public:
 
     bool shouldAllowScripting();
 
+    bool getResourceData(const unsigned char*& bytes, unsigned& length) const;
+    bool performDictionaryLookupAtLocation(const WebCore::FloatPoint&);
+
 private:
     PluginView(PassRefPtr<WebCore::HTMLPlugInElement>, PassRefPtr<Plugin>, const Plugin::Parameters& parameters);
     virtual ~PluginView();
@@ -157,6 +160,7 @@ private:
     virtual void show();
     virtual void hide();
     virtual bool transformsAffectFrameRect();
+    virtual void clipRectChanged() OVERRIDE;
 
     // WebCore::MediaCanStartListener
     virtual void mediaCanStart();
@@ -178,10 +182,6 @@ private:
     virtual bool isAcceleratedCompositingEnabled();
     virtual void pluginProcessCrashed();
     virtual void willSendEventToPlugin();
-#if PLATFORM(WIN)
-    virtual HWND nativeParentWindow();
-    virtual void scheduleWindowedPluginGeometryUpdate(const WindowGeometry&);
-#endif
 #if PLATFORM(MAC)
     virtual void pluginFocusOrWindowFocusChanged(bool pluginHasFocusAndWindowHasFocus);
     virtual void setComplexTextInputState(PluginComplexTextInputState);

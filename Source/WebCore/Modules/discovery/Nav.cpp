@@ -41,13 +41,20 @@ Nav::~Nav() {
 }
 
 // Static
+const char* Nav::supplementName()
+{
+    return "Nav";
+}
+
+
+
+// Static
 Nav* Nav::from(Navigator* navigator)
 {
-    DEFINE_STATIC_LOCAL(AtomicString, name, ("Nav"));
-    Nav* supplement = static_cast<Nav*>(Supplement<Navigator>::from(navigator, name));
+    Nav* supplement = static_cast<Nav*>(Supplement<Navigator>::from(navigator, supplementName()));
     if (!supplement) {
         supplement = new Nav(navigator->frame());
-        provideTo(navigator, name, adoptPtr(supplement));
+        provideTo(navigator, supplementName(), adoptPtr(supplement));
     }
     return supplement;
 }
