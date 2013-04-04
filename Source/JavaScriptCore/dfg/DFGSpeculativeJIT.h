@@ -173,6 +173,9 @@ public:
     // Allocate a gpr/fpr.
     GPRReg allocate()
     {
+#if ENABLE(DFG_REGISTER_ALLOCATION_VALIDATION)
+        m_jit.addRegisterAllocationAtOffset(m_jit.debugOffset());
+#endif
         VirtualRegister spillMe;
         GPRReg gpr = m_gprs.allocate(spillMe);
         if (spillMe != InvalidVirtualRegister) {
@@ -188,6 +191,9 @@ public:
     }
     GPRReg allocate(GPRReg specific)
     {
+#if ENABLE(DFG_REGISTER_ALLOCATION_VALIDATION)
+        m_jit.addRegisterAllocationAtOffset(m_jit.debugOffset());
+#endif
         VirtualRegister spillMe = m_gprs.allocateSpecific(specific);
         if (spillMe != InvalidVirtualRegister) {
 #if USE(JSVALUE32_64)
@@ -206,6 +212,9 @@ public:
     }
     FPRReg fprAllocate()
     {
+#if ENABLE(DFG_REGISTER_ALLOCATION_VALIDATION)
+        m_jit.addRegisterAllocationAtOffset(m_jit.debugOffset());
+#endif
         VirtualRegister spillMe;
         FPRReg fpr = m_fprs.allocate(spillMe);
         if (spillMe != InvalidVirtualRegister)
@@ -307,7 +316,6 @@ public:
     
     void compile(Node*);
     void noticeOSRBirth(Node*);
-    void compileMovHint(Node*);
     void compile(BasicBlock&);
 
     void checkArgumentTypes();
@@ -682,6 +690,10 @@ public:
         return lastNode->op() == Branch && lastNode->child1() == m_currentNode ? block->size() - 1 : UINT_MAX;
     }
     
+    void compileMovHint(Node*);
+    void compileMovHintAndCheck(Node*);
+    void compileInlineStart(Node*);
+
     void nonSpeculativeUInt32ToNumber(Node*);
 
 #if USE(JSVALUE64)
@@ -1076,6 +1088,26 @@ public:
         m_jit.setupArgumentsWithExecState(TrustedImmPtr(structure));
         return appendCallWithExceptionCheckSetResult(operation, result);
     }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssSt operation, GPRReg result, GPRReg arg1, Structure* structure)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, TrustedImmPtr(structure));
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssJss operation, GPRReg result, GPRReg arg1, GPRReg arg2)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssJssJss operation, GPRReg result, GPRReg arg1, GPRReg arg2, GPRReg arg3)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJ operation, GPRReg result, GPRReg arg1)
+    {
+        m_jit.setupArgumentsWithExecState(arg1);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
     JITCompiler::Call callOperation(S_DFGOperation_J operation, GPRReg result, GPRReg arg1)
     {
         m_jit.setupArguments(arg1);
@@ -1462,6 +1494,26 @@ public:
     JITCompiler::Call callOperation(C_DFGOperation_ESt operation, GPRReg result, Structure* structure)
     {
         m_jit.setupArgumentsWithExecState(TrustedImmPtr(structure));
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssSt operation, GPRReg result, GPRReg arg1, Structure* structure)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, TrustedImmPtr(structure));
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssJss operation, GPRReg result, GPRReg arg1, GPRReg arg2)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJssJssJss operation, GPRReg result, GPRReg arg1, GPRReg arg2, GPRReg arg3)
+    {
+        m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
+        return appendCallWithExceptionCheckSetResult(operation, result);
+    }
+    JITCompiler::Call callOperation(C_DFGOperation_EJ operation, GPRReg result, GPRReg arg1Tag, GPRReg arg1Payload)
+    {
+        m_jit.setupArgumentsWithExecState(EABI_32BIT_DUMMY_ARG arg1Payload, arg1Tag);
         return appendCallWithExceptionCheckSetResult(operation, result);
     }
     JITCompiler::Call callOperation(S_DFGOperation_J operation, GPRReg result, GPRReg arg1Tag, GPRReg arg1Payload)
@@ -2022,6 +2074,9 @@ public:
     void emitObjectOrOtherBranch(Edge value, BlockIndex taken, BlockIndex notTaken);
     void emitBranch(Node*);
     
+    void compileToStringOnCell(Node*);
+    void compileNewStringObject(Node*);
+    
     void compileIntegerCompare(Node*, MacroAssembler::RelationalCondition);
     void compileDoubleCompare(Node*, MacroAssembler::DoubleCondition);
     
@@ -2060,6 +2115,7 @@ public:
     void compileDoubleAsInt32(Node*);
     void compileInt32ToDouble(Node*);
     void compileAdd(Node*);
+    void compileMakeRope(Node*);
     void compileArithSub(Node*);
     void compileArithNegate(Node*);
     void compileArithMul(Node*);
@@ -2095,11 +2151,11 @@ public:
         
         return slowPath;
     }
-
-    // Allocator for an object of a specific size.
-    template <typename StructureType, typename StorageType> // StructureType and StorageType can be GPR or ImmPtr.
-    void emitAllocateJSObject(GPRReg resultGPR, GPRReg allocatorGPR, StructureType structure,
-        StorageType storage, GPRReg scratchGPR, MacroAssembler::JumpList& slowPath)
+    
+    // Allocator for a cell of a specific size.
+    template <typename StructureType> // StructureType can be GPR or ImmPtr.
+    void emitAllocateJSCell(GPRReg resultGPR, GPRReg allocatorGPR, StructureType structure,
+        GPRReg scratchGPR, MacroAssembler::JumpList& slowPath)
     {
         m_jit.loadPtr(MacroAssembler::Address(allocatorGPR, MarkedAllocator::offsetOfFreeListHead()), resultGPR);
         slowPath.append(m_jit.branchTestPtr(MacroAssembler::Zero, resultGPR));
@@ -2111,6 +2167,14 @@ public:
 
         // Initialize the object's Structure.
         m_jit.storePtr(structure, MacroAssembler::Address(resultGPR, JSCell::structureOffset()));
+    }
+
+    // Allocator for an object of a specific size.
+    template <typename StructureType, typename StorageType> // StructureType and StorageType can be GPR or ImmPtr.
+    void emitAllocateJSObject(GPRReg resultGPR, GPRReg allocatorGPR, StructureType structure,
+        StorageType storage, GPRReg scratchGPR, MacroAssembler::JumpList& slowPath)
+    {
+        emitAllocateJSCell(resultGPR, allocatorGPR, structure, scratchGPR, slowPath);
         
         // Initialize the object's property storage pointer.
         m_jit.storePtr(storage, MacroAssembler::Address(resultGPR, JSObject::butterflyOffset()));
@@ -2195,14 +2259,19 @@ public:
     void speculateObject(Edge);
     void speculateObjectOrOther(Edge);
     void speculateString(Edge);
+    template<typename StructureLocationType>
+    void speculateStringObjectForStructure(Edge, StructureLocationType);
+    void speculateStringObject(Edge, GPRReg);
+    void speculateStringObject(Edge);
+    void speculateStringOrStringObject(Edge);
     void speculateNotCell(Edge);
     void speculateOther(Edge);
     void speculate(Node*, Edge);
     
     const TypedArrayDescriptor* typedArrayDescriptor(ArrayMode);
     
-    JITCompiler::Jump jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode, IndexingType, bool invert);
-    JITCompiler::JumpList jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode, bool invert = false);
+    JITCompiler::Jump jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode, IndexingType);
+    JITCompiler::JumpList jumpSlowForUnwantedArrayMode(GPRReg tempWithIndexingTypeReg, ArrayMode);
     void checkArray(Node*);
     void arrayify(Node*, GPRReg baseReg, GPRReg propertyReg);
     void arrayify(Node*);
@@ -2295,7 +2364,7 @@ public:
     
     bool m_isCheckingArgumentTypes;
     
-    Vector<SlowPathGenerator*, 8> m_slowPathGenerators; // doesn't use OwnPtr<> because I don't want to include DFGSlowPathGenerator.h
+    Vector<OwnPtr<SlowPathGenerator>, 8> m_slowPathGenerators;
     Vector<SilentRegisterSavePlan> m_plans;
     
     ValueRecovery computeValueRecoveryFor(const ValueSource&);
@@ -2829,13 +2898,17 @@ public:
         , m_gprOrInvalid(InvalidGPRReg)
     {
         ASSERT(m_jit);
-        ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || (edge.useKind() == CellUse || edge.useKind() == KnownCellUse || edge.useKind() == ObjectUse || edge.useKind() == StringUse));
+        if (!edge)
+            return;
+        ASSERT_UNUSED(mode, mode == ManualOperandSpeculation || (edge.useKind() == CellUse || edge.useKind() == KnownCellUse || edge.useKind() == ObjectUse || edge.useKind() == StringUse || edge.useKind() == KnownStringUse || edge.useKind() == StringObjectUse || edge.useKind() == StringOrStringObjectUse));
         if (jit->isFilled(node()))
             gpr();
     }
 
     ~SpeculateCellOperand()
     {
+        if (!m_edge)
+            return;
         ASSERT(m_gprOrInvalid != InvalidGPRReg);
         m_jit->unlock(m_gprOrInvalid);
     }
@@ -2852,6 +2925,7 @@ public:
 
     GPRReg gpr()
     {
+        ASSERT(m_edge);
         if (m_gprOrInvalid == InvalidGPRReg)
             m_gprOrInvalid = m_jit->fillSpeculateCell(edge());
         return m_gprOrInvalid;
@@ -2859,6 +2933,7 @@ public:
     
     void use()
     {
+        ASSERT(m_edge);
         m_jit->use(node());
     }
 
@@ -2914,6 +2989,23 @@ private:
     Edge m_edge;
     GPRReg m_gprOrInvalid;
 };
+
+template<typename StructureLocationType>
+void SpeculativeJIT::speculateStringObjectForStructure(Edge edge, StructureLocationType structureLocation)
+{
+    Structure* stringObjectStructure =
+        m_jit.globalObjectFor(m_currentNode->codeOrigin)->stringObjectStructure();
+    Structure* stringPrototypeStructure = stringObjectStructure->storedPrototype().asCell()->structure();
+    ASSERT(stringPrototypeStructure->transitionWatchpointSetIsStillValid());
+    
+    if (!m_state.forNode(edge).m_currentKnownStructure.isSubsetOf(StructureSet(m_jit.globalObjectFor(m_currentNode->codeOrigin)->stringObjectStructure()))) {
+        speculationCheck(
+            NotStringObject, JSValueRegs(), 0,
+            m_jit.branchPtr(
+                JITCompiler::NotEqual, structureLocation, TrustedImmPtr(stringObjectStructure)));
+    }
+    stringPrototypeStructure->addTransitionWatchpoint(speculationWatchpoint(NotStringObject));
+}
 
 #define DFG_TYPE_CHECK(source, edge, typesPassedThrough, jumpToFail) do { \
         if (!needsTypeCheck((edge), (typesPassedThrough)))              \

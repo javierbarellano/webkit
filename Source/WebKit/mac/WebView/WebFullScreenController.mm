@@ -96,7 +96,7 @@ static NSRect convertRectToScreen(NSWindow *window, NSRect rect)
 - (id)init
 {
     // Do not defer window creation, to make sure -windowNumber is created (needed by WebWindowScaleAnimation).
-    NSWindow *window = [[WebCoreFullScreenWindow alloc] initWithContentRect:NSZeroRect styleMask:NSBorderlessWindowMask backing:NSBackingStoreBuffered defer:NO];
+    NSWindow *window = [[WebCoreFullScreenWindow alloc] initWithContentRect:NSZeroRect styleMask:NSClosableWindowMask backing:NSBackingStoreBuffered defer:NO];
     self = [super initWithWindow:window];
     [window release];
     if (!self)
@@ -386,6 +386,12 @@ static NSRect convertRectToScreen(NSWindow *window, NSRect rect)
     NSEnableScreenUpdates();
 }
 
+- (void)performClose:(id)sender
+{
+    if (_isFullScreen)
+        [self cancelOperation:sender];
+}
+
 - (void)close
 {
     // We are being asked to close rapidly, most likely because the page 
@@ -417,8 +423,6 @@ static NSRect convertRectToScreen(NSWindow *window, NSRect rect)
 
 - (void)_updateMenuAndDockForFullScreen
 {
-    // NSApplicationPresentationOptions is available on > 10.6 only:
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     NSApplicationPresentationOptions options = NSApplicationPresentationDefault;
     NSScreen* fullscreenScreen = [[self window] screen];
     
@@ -438,7 +442,6 @@ static NSRect convertRectToScreen(NSWindow *window, NSRect rect)
     if ([NSApp respondsToSelector:@selector(setPresentationOptions:)])
         [NSApp setPresentationOptions:options];
     else
-#endif
         SetSystemUIMode(_isFullScreen ? kUIModeAllHidden : kUIModeNormal, 0);
 }
 

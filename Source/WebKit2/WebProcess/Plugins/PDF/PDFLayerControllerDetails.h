@@ -38,6 +38,7 @@
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController clickedLinkWithURL:(NSURL *)url;
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeContentScaleFactor:(CGFloat)scaleFactor;
 - (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeDisplayMode:(int)mode;
+- (void)pdfLayerController:(PDFLayerController *)pdfLayerController didChangeSelection:(PDFSelection *)selection;
 
 @end
 
@@ -52,7 +53,8 @@
 
 - (void)setFrameSize:(CGSize)size;
 
-- (void)setDisplayMode:(int)mode;
+- (PDFDisplayMode)displayMode;
+- (void)setDisplayMode:(PDFDisplayMode)mode;
 - (void)setDisplaysPageBreaks:(BOOL)pageBreaks;
 
 - (CGFloat)contentScaleFactor;
@@ -90,6 +92,11 @@
 - (void)setSearchSelection:(PDFSelection *)selection;
 - (void)gotoSelection:(PDFSelection *)selection;
 - (PDFSelection *)getSelectionForWordAtPoint:(CGPoint)point;
+
+- (NSUInteger)lastPageIndex;
+- (NSUInteger)currentPageIndex;
+- (void)gotoNextPage;
+- (void)gotoPreviousPage;
 
 - (void)copySelection;
 - (void)selectAll;

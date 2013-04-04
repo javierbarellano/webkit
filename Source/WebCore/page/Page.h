@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2010, 2013 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
  * This library is free software; you can redistribute it and/or
@@ -43,7 +43,7 @@
 #endif
 
 #if PLATFORM(MAC)
-#include "SchedulePair.h"
+#include <wtf/SchedulePair.h>
 #endif
 
 namespace JSC {
@@ -74,6 +74,7 @@ class InspectorClient;
 class InspectorController;
 class MediaCanStartListener;
 class Node;
+class PageConsole;
 class PageGroup;
 class PlugInClient;
 class PluginData;
@@ -207,6 +208,7 @@ public:
 
     FeatureObserver* featureObserver() { return &m_featureObserver; }
 
+#if ENABLE(VIEW_MODE_CSS_MEDIA)
     enum ViewMode {
         ViewModeInvalid,
         ViewModeWindowed,
@@ -219,6 +221,7 @@ public:
 
     ViewMode viewMode() const { return m_viewMode; }
     void setViewMode(ViewMode);
+#endif // ENABLE(VIEW_MODE_CSS_MEDIA)
 
     void setTabKeyCyclesThroughElements(bool b) { m_tabKeyCyclesThroughElements = b; }
     bool tabKeyCyclesThroughElements() const { return m_tabKeyCyclesThroughElements; }
@@ -376,7 +379,20 @@ public:
     void sawMediaEngine(const String& engineName);
     void resetSeenMediaEngines();
 
+    PageConsole* console() { return m_console.get(); }
+
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+    void hiddenPageDOMTimerThrottlingStateChanged();
+#endif
+#if ENABLE(PAGE_VISIBILITY_API)
+    void hiddenPageCSSAnimationSuspensionStateChanged();
+#endif
+
     void reportMemoryUsage(MemoryObjectInfo*) const;
+
+#if ENABLE(VIDEO_TRACK)
+    void captionPreferencesChanged();
+#endif
 
 private:
     void initGroup();
@@ -468,7 +484,9 @@ private:
 
     RefPtr<StorageNamespace> m_sessionStorage;
 
+#if ENABLE(VIEW_MODE_CSS_MEDIA)
     ViewMode m_viewMode;
+#endif // ENABLE(VIEW_MODE_CSS_MEDIA)
 
     double m_minimumTimerInterval;
 
@@ -496,6 +514,7 @@ private:
     AlternativeTextClient* m_alternativeTextClient;
 
     bool m_scriptedAnimationsSuspended;
+    OwnPtr<PageConsole> m_console;
 
     HashSet<String> m_seenPlugins;
     HashSet<String> m_seenMediaEngines;

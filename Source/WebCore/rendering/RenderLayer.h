@@ -231,6 +231,11 @@ enum ClipRectsType {
     TemporaryClipRects
 };
 
+enum ShouldRespectOverflowClip {
+    IgnoreOverflowClip,
+    RespectOverflowClip
+};
+
 struct ClipRectsCache {
     WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -239,18 +244,29 @@ public:
 #ifndef NDEBUG
         for (int i = 0; i < NumCachedClipRectsTypes; ++i) {
             m_clipRectsRoot[i] = 0;
-            m_respectingOverflowClip[i] = false;
             m_scrollbarRelevancy[i] = IgnoreOverlayScrollbarSize;
         }
 #endif
     }
 
-    RefPtr<ClipRects> m_clipRects[NumCachedClipRectsTypes];
+    PassRefPtr<ClipRects> getClipRects(ClipRectsType clipRectsType, ShouldRespectOverflowClip respectOverflow) { return m_clipRects[getIndex(clipRectsType, respectOverflow)]; }
+    void setClipRects(ClipRectsType clipRectsType, ShouldRespectOverflowClip respectOverflow, PassRefPtr<ClipRects> clipRects) { m_clipRects[getIndex(clipRectsType, respectOverflow)] = clipRects; }
+
 #ifndef NDEBUG
     const RenderLayer* m_clipRectsRoot[NumCachedClipRectsTypes];
-    bool m_respectingOverflowClip[NumCachedClipRectsTypes];
     OverlayScrollbarSizeRelevancy m_scrollbarRelevancy[NumCachedClipRectsTypes];
 #endif
+
+private:
+    int getIndex(ClipRectsType clipRectsType, ShouldRespectOverflowClip respectOverflow)
+    {
+        int index = static_cast<int>(clipRectsType);
+        if (respectOverflow == RespectOverflowClip)
+            index += static_cast<int>(NumCachedClipRectsTypes);
+        return index;
+    }
+
+    RefPtr<ClipRects> m_clipRects[NumCachedClipRectsTypes * 2];
 };
 
 struct LayerFragment {
@@ -376,13 +392,7 @@ public:
         ScrollOffsetClamped
     };
 
-    enum ScrollPropagation {
-        ShouldPropagateScroll,
-        DontPropagateScroll
-    };
-
     // Scrolling methods for layers that can scroll their overflow.
-    bool scrollBy(const IntSize&, ScrollOffsetClamping = ScrollOffsetUnclamped, ScrollPropagation = DontPropagateScroll);
     void scrollByRecursively(const IntSize&, ScrollOffsetClamping = ScrollOffsetUnclamped);
     void scrollToOffset(const IntSize&, ScrollOffsetClamping = ScrollOffsetUnclamped);
     void scrollToXOffset(int x, ScrollOffsetClamping clamp = ScrollOffsetUnclamped) { scrollToOffset(IntSize(x, scrollYOffset()), clamp); }
@@ -603,9 +613,10 @@ public:
         PaintLayerPaintingCompositingBackgroundPhase = 1 << 5,
         PaintLayerPaintingCompositingForegroundPhase = 1 << 6,
         PaintLayerPaintingCompositingMaskPhase = 1 << 7,
-        PaintLayerPaintingOverflowContents = 1 << 8,
-        PaintLayerPaintingRootBackgroundOnly = 1 << 9,
-        PaintLayerPaintingSkipRootBackground = 1 << 10,
+        PaintLayerPaintingCompositingScrollingPhase = 1 << 8,
+        PaintLayerPaintingOverflowContents = 1 << 9,
+        PaintLayerPaintingRootBackgroundOnly = 1 << 10,
+        PaintLayerPaintingSkipRootBackground = 1 << 11,
         PaintLayerPaintingCompositingAllPhases = (PaintLayerPaintingCompositingBackgroundPhase | PaintLayerPaintingCompositingForegroundPhase | PaintLayerPaintingCompositingMaskPhase)
     };
     
@@ -620,8 +631,6 @@ public:
     bool hitTest(const HitTestRequest&, HitTestResult&);
     bool hitTest(const HitTestRequest&, const HitTestLocation&, HitTestResult&);
     void paintOverlayScrollbars(GraphicsContext*, const LayoutRect& damageRect, PaintBehavior, RenderObject* paintingRoot = 0);
-
-    enum ShouldRespectOverflowClip { IgnoreOverflowClip, RespectOverflowClip };
 
     struct ClipRectsContext {
         ClipRectsContext(const RenderLayer* inRootLayer, RenderRegion* inRegion, ClipRectsType inClipRectsType, OverlayScrollbarSizeRelevancy inOverlayScrollbarSizeRelevancy = IgnoreOverlayScrollbarSize, ShouldRespectOverflowClip inRespectOverflowClip = RespectOverflowClip)
@@ -651,10 +660,10 @@ public:
     // (rather than computing them all from scratch up the parent chain).
     void calculateClipRects(const ClipRectsContext&, ClipRects&) const;
 
-    ClipRects* clipRects(ClipRectsType type) const
+    ClipRects* clipRects(const ClipRectsContext& context) const
     {
-        ASSERT(type < NumCachedClipRectsTypes);
-        return m_clipRectsCache ? m_clipRectsCache->m_clipRects[type].get() : 0;
+        ASSERT(context.clipRectsType < NumCachedClipRectsTypes);
+        return m_clipRectsCache ? m_clipRectsCache->getClipRects(context.clipRectsType, context.respectOverflowClip).get() : 0;
     }
 
     LayoutRect childrenClipRect() const; // Returns the foreground clip rect of the layer in the document's coordinate space.
@@ -761,7 +770,14 @@ public:
     virtual GraphicsLayer* layerForScrollCorner() const;
     virtual bool usesCompositedScrolling() const OVERRIDE;
     bool needsCompositedScrolling() const;
-#else
+    bool needsCompositingLayersRebuiltForClip(const RenderStyle* oldStyle, const RenderStyle* newStyle) const;
+    bool needsCompositingLayersRebuiltForOverflow(const RenderStyle* oldStyle, const RenderStyle* newStyle) const;
+#if ENABLE(CSS_FILTERS)
+    bool needsCompositingLayersRebuiltForFilters(const RenderStyle* oldStyle, const RenderStyle* newStyle, bool didPaintWithFilters) const;
+#else // !ENABLE(CSS_FILTERS)
+    bool needsCompositingLayersRebuiltForFilters(const RenderStyle*, const RenderStyle*, bool) const { return false; }
+#endif // !ENABLE(CSS_FILTERS)
+#else // !USE(ACCELERATED_COMPOSITING)
     bool isComposited() const { return false; }
     bool hasCompositedMask() const { return false; }
     bool usesCompositedScrolling() const { return false; }
@@ -775,9 +791,9 @@ public:
 
     bool paintsWithTransform(PaintBehavior) const;
 
-    // Returns true if layer contents are painted opaque in the given rect.
+    // Returns true if background phase is painted opaque in the given rect.
     // The query rect is given in local coordinates.
-    bool contentsOpaqueInRect(const LayoutRect&) const;
+    bool backgroundIsKnownToBeOpaqueInRect(const LayoutRect&) const;
 
     bool containsDirtyOverlayScrollbars() const { return m_containsDirtyOverlayScrollbars; }
     void setContainsDirtyOverlayScrollbars(bool dirtyScrollbars) { m_containsDirtyOverlayScrollbars = dirtyScrollbars; }
@@ -806,6 +822,8 @@ public:
     
     bool hasFilterInfo() const { return m_hasFilterInfo; }
     void setHasFilterInfo(bool hasFilterInfo) { m_hasFilterInfo = hasFilterInfo; }
+
+    void updateFilters(const RenderStyle* oldStyle, const RenderStyle* newStyle);
 #endif
 
 #if !ASSERT_DISABLED
@@ -827,6 +845,7 @@ public:
         NoNotCompositedReason,
         NotCompositedForBoundsOutOfView,
         NotCompositedForNonViewContainer,
+        NotCompositedForNoVisibleContent,
     };
 
     void setViewportConstrainedNotCompositedReason(ViewportConstrainedNotCompositedReason reason) { m_viewportConstrainedNotCompositedReason = reason; }
@@ -908,8 +927,6 @@ private:
     void setLastChild(RenderLayer* last) { m_last = last; }
 
     LayoutPoint renderBoxLocation() const { return renderer()->isBox() ? toRenderBox(renderer())->location() : LayoutPoint(); }
-    LayoutUnit renderBoxX() const { return renderBoxLocation().x(); }
-    LayoutUnit renderBoxY() const { return renderBoxLocation().y(); }
 
     void collectLayers(bool includeHiddenLayers, CollectLayersBehavior, OwnPtr<Vector<RenderLayer*> >&, OwnPtr<Vector<RenderLayer*> >&);
 
@@ -988,7 +1005,7 @@ private:
     RenderLayer* hitTestTransformedLayerInFragments(RenderLayer* rootLayer, RenderLayer* containerLayer, const HitTestRequest&, HitTestResult&,
         const LayoutRect& hitTestRect, const HitTestLocation&, const HitTestingTransformState* = 0, double* zOffset = 0);
 
-    bool listContentsOpaqueInRect(const Vector<RenderLayer*>*, const LayoutRect&) const;
+    bool listBackgroundIsKnownToBeOpaqueInRect(const Vector<RenderLayer*>*, const LayoutRect&) const;
 
     void computeScrollDimensions();
     bool hasHorizontalOverflow() const;

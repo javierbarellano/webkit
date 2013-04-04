@@ -437,7 +437,7 @@ namespace JSC {
         JITCode::JITType getJITType() const { return m_jitCode.jitType(); }
         ExecutableMemoryHandle* executableMemory() { return getJITCode().getExecutableMemory(); }
         virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex) = 0;
-        virtual void jettison() = 0;
+        void jettison();
         enum JITCompilationResult { AlreadyCompiled, CouldNotCompile, CompiledSuccessfully };
         JITCompilationResult jitCompile(ExecState* exec)
         {
@@ -532,7 +532,7 @@ namespace JSC {
         {
             return needsFullScopeChain() && codeType() != GlobalCode;
         }
-        
+
         bool isCaptured(int operand, InlineCallFrame* inlineCallFrame = 0) const
         {
             if (operandIsArgument(operand))
@@ -787,6 +787,8 @@ namespace JSC {
             ASSERT(JITCode::isBaselineCode(getJITType()));
             return m_exitProfile.add(site);
         }
+        
+        bool hasExitSite(const DFG::FrequentExitSite& site) const { return m_exitProfile.hasExitSite(site); }
 
         DFG::ExitProfile& exitProfile() { return m_exitProfile; }
         
@@ -1049,9 +1051,16 @@ namespace JSC {
     protected:
 #if ENABLE(JIT)
         virtual bool jitCompileImpl(ExecState*) = 0;
+        virtual void jettisonImpl() = 0;
 #endif
         virtual void visitWeakReferences(SlotVisitor&);
         virtual void finalizeUnconditionally();
+
+#if ENABLE(DFG_JIT)
+        void tallyFrequentExitSites();
+#else
+        void tallyFrequentExitSites() { }
+#endif
 
     private:
         friend class DFGCodeBlocks;
@@ -1062,11 +1071,6 @@ namespace JSC {
         ClosureCallStubRoutine* findClosureCallForReturnPC(ReturnAddressPtr);
 #endif
         
-#if ENABLE(DFG_JIT)
-        void tallyFrequentExitSites();
-#else
-        void tallyFrequentExitSites() { }
-#endif
 #if ENABLE(VALUE_PROFILER)
         void updateAllPredictionsAndCountLiveness(OperationInProgress, unsigned& numberOfLiveNonArgumentValueProfiles, unsigned& numberOfSamplesInProfiles);
 #endif
@@ -1143,6 +1147,7 @@ namespace JSC {
 
 #if ENABLE(JIT)
         void resetStubInternal(RepatchBuffer&, StructureStubInfo&);
+        void resetStubDuringGCInternal(RepatchBuffer&, StructureStubInfo&);
 #endif
         WriteBarrier<UnlinkedCodeBlock> m_unlinkedCode;
         int m_numParameters;
@@ -1155,9 +1160,11 @@ namespace JSC {
         int m_activationRegister;
 
         bool m_isStrictMode;
+        bool m_needsActivation;
 
         RefPtr<SourceProvider> m_source;
         unsigned m_sourceOffset;
+        unsigned m_codeType;
 
 #if ENABLE(LLINT)
         SegmentedVector<LLIntCallLinkInfo, 8> m_llintCallLinkInfos;
@@ -1316,7 +1323,7 @@ namespace JSC {
 #if ENABLE(JIT)
     protected:
         virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
-        virtual void jettison();
+        virtual void jettisonImpl();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
         virtual DFG::CapabilityLevel canCompileWithDFGInternal();
@@ -1341,7 +1348,7 @@ namespace JSC {
 #if ENABLE(JIT)
     protected:
         virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
-        virtual void jettison();
+        virtual void jettisonImpl();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
         virtual DFG::CapabilityLevel canCompileWithDFGInternal();
@@ -1366,7 +1373,7 @@ namespace JSC {
 #if ENABLE(JIT)
     protected:
         virtual JSObject* compileOptimized(ExecState*, JSScope*, unsigned bytecodeIndex);
-        virtual void jettison();
+        virtual void jettisonImpl();
         virtual bool jitCompileImpl(ExecState*);
         virtual CodeBlock* replacement();
         virtual DFG::CapabilityLevel canCompileWithDFGInternal();
@@ -1387,7 +1394,7 @@ namespace JSC {
             return baselineCodeBlockForInlineCallFrame(codeOrigin.inlineCallFrame);
         return baselineCodeBlock;
     }
-    
+
     inline int CodeBlock::argumentIndexAfterCapture(size_t argument)
     {
         if (argument >= static_cast<size_t>(symbolTable()->parameterCount()))

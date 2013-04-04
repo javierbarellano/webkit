@@ -107,7 +107,8 @@ var InspectorFrontendAPI = {
 
     enterInspectElementMode: function()
     {
-        WebInspector.panel("elements").toggleSearchingForNode();
+        if (WebInspector.inspectElementModeController)
+            WebInspector.inspectElementModeController.toggleSearch();
     },
 
     fileSystemsLoaded: function(fileSystems)

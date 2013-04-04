@@ -187,7 +187,11 @@ PlatformGestureEventBuilder::PlatformGestureEventBuilder(Widget* widget, const W
         m_type = PlatformEvent::GestureTapDownCancel;
         break;
     case WebInputEvent::GestureDoubleTap:
-        m_type = PlatformEvent::GestureDoubleTap;
+        // DoubleTap gesture is now handled as PlatformEvent::GestureTap with tap_count = 2. So no
+        // need to convert to a Platfrom DoubleTap gesture. But in WebViewImpl::handleGestureEvent
+        // all WebGestureEvent are converted to PlatformGestureEvent, for completeness and not reach
+        // the ASSERT_NOT_REACHED() at the end, convert the DoubleTap to a NoType.
+        m_type = PlatformEvent::NoType;
         break;
     case WebInputEvent::GestureTwoFingerTap:
         m_type = PlatformEvent::GestureTwoFingerTap;
@@ -433,8 +437,10 @@ static void updateWebMouseEventFromWebCoreMouseEvent(const MouseRelatedEvent& ev
     webEvent.timeStampSeconds = event.timeStamp() / millisPerSecond;
     webEvent.modifiers = getWebInputModifiers(event);
 
-    ScrollView* view = widget.root();
-    IntPoint windowPoint = view->contentsToWindow(IntPoint(event.absoluteLocation().x(), event.absoluteLocation().y()));
+    ScrollView* view = widget.parent();
+    IntPoint windowPoint = IntPoint(event.absoluteLocation().x(), event.absoluteLocation().y());
+    if (view)
+        windowPoint = view->contentsToWindow(windowPoint);
     webEvent.globalX = event.screenX();
     webEvent.globalY = event.screenY();
     webEvent.windowX = windowPoint.x();

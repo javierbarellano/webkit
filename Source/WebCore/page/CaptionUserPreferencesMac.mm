@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 
 #import "config.h"
 
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(IOS)
+#if ENABLE(VIDEO_TRACK)
 
 #import "CaptionUserPreferencesMac.h"
 
@@ -33,6 +33,7 @@
 #import "CoreText/CoreText.h"
 #import "DOMWrapperWorld.h"
 #import "FloatConversion.h"
+#import "HTMLMediaElement.h"
 #import "KURL.h"
 #import "Language.h"
 #import "LocalizedStrings.h"
@@ -41,9 +42,15 @@
 #import "PageGroup.h"
 #import "SoftLinking.h"
 #import "TextTrackCue.h"
+#import "TextTrackList.h"
 #import "UserStyleSheetTypes.h"
+#import <wtf/NonCopyingSort.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/text/StringBuilder.h>
+
+#if PLATFORM(IOS)
+#import "WebCoreThreadRun.h"
+#endif
 
 #if HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
 #import "MediaAccessibility/MediaAccessibility.h"
@@ -67,6 +74,7 @@ SOFT_LINK(MediaAccessibility, MACaptionAppearanceGetRelativeCharacterSize, CGFlo
 SOFT_LINK(MediaAccessibility, MACaptionAppearanceGetTextEdgeStyle, MACaptionAppearanceTextEdgeStyle, (MACaptionAppearanceDomain domain, MACaptionAppearanceBehavior *behavior), (domain, behavior))
 SOFT_LINK(MediaAccessibility, MACaptionAppearanceAddSelectedLanguage, bool, (MACaptionAppearanceDomain domain, CFStringRef language), (domain, language));
 SOFT_LINK(MediaAccessibility, MACaptionAppearanceCopySelectedLanguages, CFArrayRef, (MACaptionAppearanceDomain domain), (domain));
+SOFT_LINK(MediaAccessibility, MACaptionAppearanceCopyPreferredCaptioningMediaCharacteristics,  CFArrayRef, (MACaptionAppearanceDomain domain), (domain));
 
 SOFT_LINK_POINTER(MediaAccessibility, kMAXCaptionAppearanceSettingsChangedNotification, CFStringRef)
 #define kMAXCaptionAppearanceSettingsChangedNotification getkMAXCaptionAppearanceSettingsChangedNotification()
@@ -80,7 +88,13 @@ namespace WebCore {
 #if HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
 static void userCaptionPreferencesChangedNotificationCallback(CFNotificationCenterRef, void* observer, CFStringRef, const void *, CFDictionaryRef)
 {
+#if !PLATFORM(IOS)
     static_cast<CaptionUserPreferencesMac*>(observer)->captionPreferencesChanged();
+#else
+    WebThreadRun(^{
+        static_cast<CaptionUserPreferencesMac*>(observer)->captionPreferencesChanged();
+    });
+#endif
 }
 #endif
 
@@ -101,22 +115,43 @@ CaptionUserPreferencesMac::~CaptionUserPreferencesMac()
 }
 
 #if HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
-bool CaptionUserPreferencesMac::userPrefersCaptions() const
+
+bool CaptionUserPreferencesMac::shouldShowCaptions() const
 {
     if (testingMode() || !MediaAccessibilityLibrary())
-        return CaptionUserPreferences::userPrefersCaptions();
+        return CaptionUserPreferences::shouldShowCaptions();
 
     return MACaptionAppearanceGetShowCaptions(kMACaptionAppearanceDomainUser);
 }
 
-void CaptionUserPreferencesMac::setUserPrefersCaptions(bool preference)
+void CaptionUserPreferencesMac::setShouldShowCaptions(bool preference)
 {
     if (testingMode() || !MediaAccessibilityLibrary()) {
-        CaptionUserPreferences::setUserPrefersCaptions(preference);
+        CaptionUserPreferences::setShouldShowCaptions(preference);
         return;
     }
 
     MACaptionAppearanceSetShowCaptions(kMACaptionAppearanceDomainUser, preference);
+}
+
+bool CaptionUserPreferencesMac::userPrefersCaptions() const
+{
+    bool captionSetting = CaptionUserPreferences::userPrefersCaptions();
+    if (captionSetting || testingMode() || !MediaAccessibilityLibrary())
+        return captionSetting;
+    
+    RetainPtr<CFArrayRef> captioningMediaCharacteristics(AdoptCF, MACaptionAppearanceCopyPreferredCaptioningMediaCharacteristics(kMACaptionAppearanceDomainUser));
+    return captioningMediaCharacteristics && CFArrayGetCount(captioningMediaCharacteristics.get());
+}
+
+bool CaptionUserPreferencesMac::userPrefersSubtitles() const
+{
+    bool subtitlesSetting = CaptionUserPreferences::userPrefersSubtitles();
+    if (subtitlesSetting || testingMode() || !MediaAccessibilityLibrary())
+        return subtitlesSetting;
+    
+    RetainPtr<CFArrayRef> captioningMediaCharacteristics(AdoptCF, MACaptionAppearanceCopyPreferredCaptioningMediaCharacteristics(kMACaptionAppearanceDomainUser));
+    return !(captioningMediaCharacteristics && CFArrayGetCount(captioningMediaCharacteristics.get()));
 }
 
 bool CaptionUserPreferencesMac::userHasCaptionPreferences() const
@@ -127,10 +162,8 @@ bool CaptionUserPreferencesMac::userHasCaptionPreferences() const
     return true;
 }
 
-void CaptionUserPreferencesMac::registerForPreferencesChangedCallbacks(CaptionPreferencesChangedListener* listener)
+void CaptionUserPreferencesMac::setInterestedInCaptionPreferenceChanges()
 {
-    CaptionUserPreferences::registerForPreferencesChangedCallbacks(listener);
-
     if (!MediaAccessibilityLibrary())
         return;
 
@@ -147,7 +180,7 @@ void CaptionUserPreferencesMac::registerForPreferencesChangedCallbacks(CaptionPr
 
 void CaptionUserPreferencesMac::captionPreferencesChanged()
 {
-    if (havePreferenceChangeListeners())
+    if (m_listeningForPreferenceChanges)
         updateCaptionStyleSheetOveride();
 
     CaptionUserPreferences::captionPreferencesChanged();
@@ -369,7 +402,7 @@ String CaptionUserPreferencesMac::captionsStyleSheetOverride() const
     String background = captionsBackgroundCSS();
     if (!background.isEmpty()) {
         captionsOverrideStyleSheet.append(" video::");
-        captionsOverrideStyleSheet.append(TextTrackCue::allNodesShadowPseudoId());
+        captionsOverrideStyleSheet.append(TextTrackCue::cueShadowPseudoId());
         captionsOverrideStyleSheet.append('{');
         captionsOverrideStyleSheet.append(background);
         captionsOverrideStyleSheet.append('}');
@@ -491,40 +524,223 @@ Vector<String> CaptionUserPreferencesMac::preferredLanguages() const
 
     return userPreferredLanguages;
 }
-#endif
+#endif  // HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
+    
+static String trackDisplayName(TextTrack* track)
+{
+    StringBuilder displayName;
+    String label = track->label();
+    String trackLanguageIdentifier = track->language();
+
+    RetainPtr<CFLocaleRef> currentLocale(AdoptCF, CFLocaleCopyCurrent());
+    RetainPtr<CFStringRef> localeIdentifier(AdoptCF, CFLocaleCreateCanonicalLocaleIdentifierFromString(kCFAllocatorDefault, trackLanguageIdentifier.createCFString().get()));
+    RetainPtr<CFStringRef> languageCF(AdoptCF, CFLocaleCopyDisplayNameForPropertyValue(currentLocale.get(), kCFLocaleLanguageCode, localeIdentifier.get()));
+    String language = languageCF.get();
+    if (!label.isEmpty()) {
+        if (language.isEmpty() || label.contains(language))
+            displayName.append(label);
+        else {
+            RetainPtr<CFDictionaryRef> localeDict(AdoptCF, CFLocaleCreateComponentsFromLocaleIdentifier(kCFAllocatorDefault, localeIdentifier.get()));
+            if (localeDict) {
+                CFStringRef countryCode = 0;
+                String countryName;
+                
+                CFDictionaryGetValueIfPresent(localeDict.get(), kCFLocaleCountryCode, (const void **)&countryCode);
+                if (countryCode) {
+                    RetainPtr<CFStringRef> countryNameCF(AdoptCF, CFLocaleCopyDisplayNameForPropertyValue(currentLocale.get(), kCFLocaleCountryCode, countryCode));
+                    countryName = countryNameCF.get();
+                }
+                
+                if (!countryName.isEmpty())
+                    displayName.append(textTrackCountryAndLanguageMenuItemText(label, countryName, language));
+                else
+                    displayName.append(textTrackLanguageMenuItemText(label, language));
+            }
+        }
+    } else {
+        String languageAndLocale = CFLocaleCopyDisplayNameForPropertyValue(currentLocale.get(), kCFLocaleIdentifier, trackLanguageIdentifier.createCFString().get());
+        if (!languageAndLocale.isEmpty())
+            displayName.append(languageAndLocale);
+        else if (!language.isEmpty())
+            displayName.append(language);
+        else
+            displayName.append(localeIdentifier.get());
+    }
+    
+    if (displayName.isEmpty())
+        displayName.append(textTrackNoLabelText());
+    
+    if (track->isEasyToRead())
+        return easyReaderTrackMenuItemText(displayName.toString());
+    
+    if (track->kind() != track->captionsKeyword())
+        return displayName.toString();
+    
+    if (track->isClosedCaptions())
+        return closedCaptionTrackMenuItemText(displayName.toString());
+    
+    return sdhTrackMenuItemText(displayName.toString());
+}
 
 String CaptionUserPreferencesMac::displayNameForTrack(TextTrack* track) const
 {
-    String label = track->label();
-    String language = track->language();
-    String preferredLanguage = defaultLanguage();
-    StringBuilder displayName;
+    return trackDisplayName(track);
+}
 
-    if (label.isEmpty() && language.isEmpty()) {
-        displayName.append(textTrackNoLabelText());
-        return displayName.toString();
-    }
+static String languageIdentifier(const String& languageCode)
+{
+    if (languageCode.isEmpty())
+        return languageCode;
 
-    if (!label.isEmpty())
-        displayName.append(label);
+    String lowercaseLanguageCode = languageCode.lower();
 
-    AtomicString localeDisplayName = displayNameForLanguageLocale(language);
-    if (!label.contains(localeDisplayName)) {
-        if (displayName.length() > 0)
-            displayName.append(" ");
-        displayName.append(localeDisplayName);
-    }
+    // Need 2U here to disambiguate String::operator[] from operator(NSString*, int)[] in a production build.
+    if (lowercaseLanguageCode.length() >= 3 && (lowercaseLanguageCode[2U] == '_' || lowercaseLanguageCode[2U] == '-'))
+        lowercaseLanguageCode.truncate(2);
+    
+    return lowercaseLanguageCode;
+}
 
-    if (track->kind() == track->captionsKeyword()) {
-        if (track->isClosedCaptions())
-            displayName.append(" CC");
+int CaptionUserPreferencesMac::textTrackSelectionScore(TextTrack* track, HTMLMediaElement* mediaElement) const
+{
+    if (!shouldShowCaptions() && !mediaElement->webkitClosedCaptionsVisible())
+        return 0;
+    if (track->kind() != TextTrack::captionsKeyword() && track->kind() != TextTrack::subtitlesKeyword())
+        return 0;
+    if (track->containsOnlyForcedSubtitles())
+        return 0;
+    if (!track->isMainProgramContent())
+        return 0;
+
+    int trackScore = 0;
+
+    if (userPrefersCaptions()) {
+        // When the user prefers accessiblity tracks, rank is SDH, then CC, then subtitles.
+        if (track->kind() == track->subtitlesKeyword())
+            trackScore = 1;
+        else if (track->isClosedCaptions())
+            trackScore = 2;
         else
-            displayName.append(" SDH");
+            trackScore = 3;
+    } else {
+        // When the user prefers translation tracks, rank is subtitles, then SDH, then CC tracks.
+        if (track->kind() == track->subtitlesKeyword())
+            trackScore = 3;
+        else if (!track->isClosedCaptions())
+            trackScore = 2;
+        else
+            trackScore = 1;
     }
 
-    return displayName.toString();
+    return trackScore + textTrackLanguageSelectionScore(track);
 }
 
+static bool textTrackCompare(const RefPtr<TextTrack>& a, const RefPtr<TextTrack>& b)
+{
+    String preferredLanguageDisplayName = displayNameForLanguageLocale(languageIdentifier(defaultLanguage()));
+    String aLanguageDisplayName = displayNameForLanguageLocale(languageIdentifier(a->language()));
+    String bLanguageDisplayName = displayNameForLanguageLocale(languageIdentifier(b->language()));
+
+    // Tracks in the user's preferred language are always at the top of the menu.
+    bool aIsPreferredLanguage = !codePointCompare(aLanguageDisplayName, preferredLanguageDisplayName);
+    bool bIsPreferredLanguage = !codePointCompare(bLanguageDisplayName, preferredLanguageDisplayName);
+    if ((aIsPreferredLanguage || bIsPreferredLanguage) && (aIsPreferredLanguage != bIsPreferredLanguage))
+        return aIsPreferredLanguage;
+
+    // Tracks not in the user's preferred language sort first by language ...
+    if (codePointCompare(aLanguageDisplayName, bLanguageDisplayName))
+        return codePointCompare(aLanguageDisplayName, bLanguageDisplayName) < 0;
+
+    // ... but when tracks have the same language, main program content sorts next highest ...
+    bool aIsMainContent = a->isMainProgramContent();
+    bool bIsMainContent = b->isMainProgramContent();
+    if ((aIsMainContent || bIsMainContent) && (aIsMainContent != bIsMainContent))
+        return aIsMainContent;
+
+    // ... and main program trakcs sort higher than CC tracks ...
+    bool aIsCC = a->isClosedCaptions();
+    bool bIsCC = b->isClosedCaptions();
+    if ((aIsCC || bIsCC) && (aIsCC != bIsCC)) {
+        if (aIsCC)
+            return aIsMainContent;
+        return bIsMainContent;
+    }
+
+    // ... and tracks of the same type and language sort by the menu item text.
+    return codePointCompare(trackDisplayName(a.get()), trackDisplayName(b.get())) < 0;
 }
 
-#endif // ENABLE(VIDEO_TRACK) && !PLATFORM(IOS)
+Vector<RefPtr<TextTrack> > CaptionUserPreferencesMac::sortedTrackListForMenu(TextTrackList* trackList)
+{
+    ASSERT(trackList);
+
+    Vector<RefPtr<TextTrack> > tracksForMenu;
+    HashSet<String> languagesIncluded;
+    bool prefersAccessibilityTracks = userPrefersCaptions();
+
+    for (unsigned i = 0, length = trackList->length(); i < length; ++i) {
+        TextTrack* track = trackList->item(i);
+        String language = displayNameForLanguageLocale(track->language());
+
+        if (track->isEasyToRead()) {
+            if (!language.isEmpty())
+                languagesIncluded.add(language);
+            tracksForMenu.append(track);
+            continue;
+        }
+
+        if (track->containsOnlyForcedSubtitles())
+            continue;
+
+        if (!language.isEmpty() && track->isMainProgramContent()) {
+            bool isAccessibilityTrack = track->kind() == track->captionsKeyword();
+            if (prefersAccessibilityTracks) {
+                // In the first pass, include only caption tracks if the user prefers accessibility tracks.
+                if (!isAccessibilityTrack) {
+                    LOG(Media, "CaptionUserPreferencesMac::sortedTrackListForMenu - skipping %s because it is NOT an accessibility track", language.utf8().data());
+                    continue;
+                }
+            } else {
+                // In the first pass, only include the first non-CC or SDH track with each language if the user prefers translation tracks.
+                if (isAccessibilityTrack) {
+                    LOG(Media, "CaptionUserPreferencesMac::sortedTrackListForMenu - skipping %s because it is an accessibility track", language.utf8().data());
+                    continue;
+                }
+                if (languagesIncluded.contains(language)) {
+                    LOG(Media, "CaptionUserPreferencesMac::sortedTrackListForMenu - skipping %s because it is not the first with this language", language.utf8().data());
+                    continue;
+                }
+            }
+        }
+
+        if (!language.isEmpty())
+            languagesIncluded.add(language);
+        tracksForMenu.append(track);
+    }
+
+    // Now that we have filtered for the user's accessibility/translation preference, add  all tracks with a unique language without regard to track type.
+    for (unsigned i = 0, length = trackList->length(); i < length; ++i) {
+        TextTrack* track = trackList->item(i);
+        String language = displayNameForLanguageLocale(track->language());
+
+        // All candidates with no languge were added the first time through.
+        if (language.isEmpty())
+            continue;
+
+        if (track->containsOnlyForcedSubtitles())
+            continue;
+ 
+        if (!languagesIncluded.contains(language) && track->isMainProgramContent()) {
+            languagesIncluded.add(language);
+            tracksForMenu.append(track);
+        }
+    }
+
+    nonCopyingSort(tracksForMenu.begin(), tracksForMenu.end(), textTrackCompare);
+
+    return tracksForMenu;
+}
+    
+}
+
+#endif // ENABLE(VIDEO_TRACK)

@@ -33,12 +33,10 @@
 
 namespace WebCore {
 
-const int prototypeInternalFieldcount = 1;
-
-void V8DOMConfiguration::batchConfigureAttributes(v8::Handle<v8::ObjectTemplate> instance, v8::Handle<v8::ObjectTemplate> prototype, const BatchedAttribute* attributes, size_t attributeCount, v8::Isolate* isolate)
+void V8DOMConfiguration::batchConfigureAttributes(v8::Handle<v8::ObjectTemplate> instance, v8::Handle<v8::ObjectTemplate> prototype, const BatchedAttribute* attributes, size_t attributeCount, v8::Isolate* isolate, WrapperWorldType currentWorldType)
 {
     for (size_t i = 0; i < attributeCount; ++i)
-        configureAttribute(instance, prototype, attributes[i], isolate);
+        configureAttribute(instance, prototype, attributes[i], isolate, currentWorldType);
 }
 
 void V8DOMConfiguration::batchConfigureConstants(v8::Handle<v8::FunctionTemplate> functionDescriptor, v8::Handle<v8::ObjectTemplate> prototype, const BatchedConstant* constants, size_t constantCount, v8::Isolate* isolate)
@@ -50,14 +48,18 @@ void V8DOMConfiguration::batchConfigureConstants(v8::Handle<v8::FunctionTemplate
     }
 }
 
-void V8DOMConfiguration::batchConfigureCallbacks(v8::Handle<v8::ObjectTemplate> prototype, v8::Handle<v8::Signature> signature, v8::PropertyAttribute attributes, const BatchedMethod* callbacks, size_t callbackCount, v8::Isolate*)
+void V8DOMConfiguration::batchConfigureCallbacks(v8::Handle<v8::ObjectTemplate> prototype, v8::Handle<v8::Signature> signature, v8::PropertyAttribute attributes, const BatchedMethod* callbacks, size_t callbackCount, v8::Isolate*, WrapperWorldType currentWorldType)
 {
-    for (size_t i = 0; i < callbackCount; ++i)
-        prototype->Set(v8::String::NewSymbol(callbacks[i].name), v8::FunctionTemplate::New(callbacks[i].callback, v8Undefined(), signature), attributes);
+    for (size_t i = 0; i < callbackCount; ++i) {
+        v8::InvocationCallback callback = callbacks[i].callback;
+        if (currentWorldType == MainWorld && callbacks[i].callbackForMainWorld)
+            callback = callbacks[i].callbackForMainWorld;
+        prototype->Set(v8::String::NewSymbol(callbacks[i].name), v8::FunctionTemplate::New(callback, v8Undefined(), signature), attributes);
+    }
 }
 
 v8::Local<v8::Signature> V8DOMConfiguration::configureTemplate(v8::Persistent<v8::FunctionTemplate> functionDescriptor, const char* interfaceName, v8::Persistent<v8::FunctionTemplate> parentClass,
-    size_t fieldCount, const BatchedAttribute* attributes, size_t attributeCount, const BatchedMethod* callbacks, size_t callbackCount, v8::Isolate* isolate)
+    size_t fieldCount, const BatchedAttribute* attributes, size_t attributeCount, const BatchedMethod* callbacks, size_t callbackCount, v8::Isolate* isolate, WrapperWorldType currentWorldType)
 {
     functionDescriptor->SetClassName(v8::String::NewSymbol(interfaceName));
     v8::Local<v8::ObjectTemplate> instance = functionDescriptor->InstanceTemplate();
@@ -68,14 +70,14 @@ v8::Local<v8::Signature> V8DOMConfiguration::configureTemplate(v8::Persistent<v8
         // This is needed since bug 110436 asks WebKit to tell native-initiated prototypes from pure-JS ones.
         // This doesn't mark kinds "root" classes like Node, where setting this changes prototype chain structure.
         v8::Local<v8::ObjectTemplate> prototype = functionDescriptor->PrototypeTemplate();
-        prototype->SetInternalFieldCount(prototypeInternalFieldcount);
+        prototype->SetInternalFieldCount(v8PrototypeInternalFieldcount);
     }
 
     if (attributeCount)
-        batchConfigureAttributes(instance, functionDescriptor->PrototypeTemplate(), attributes, attributeCount, isolate);
+        batchConfigureAttributes(instance, functionDescriptor->PrototypeTemplate(), attributes, attributeCount, isolate, currentWorldType);
     v8::Local<v8::Signature> defaultSignature = v8::Signature::New(functionDescriptor);
     if (callbackCount)
-        batchConfigureCallbacks(functionDescriptor->PrototypeTemplate(), defaultSignature, static_cast<v8::PropertyAttribute>(v8::DontDelete), callbacks, callbackCount, isolate);
+        batchConfigureCallbacks(functionDescriptor->PrototypeTemplate(), defaultSignature, static_cast<v8::PropertyAttribute>(v8::DontDelete), callbacks, callbackCount, isolate, currentWorldType);
     return defaultSignature;
 }
 

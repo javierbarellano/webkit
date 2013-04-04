@@ -101,7 +101,7 @@ static PassOwnPtr<InputTypeFactoryMap> createInputTypeFactoryMap()
     if (RuntimeEnabledFeatures::inputTypeDateEnabled())
         map->add(InputTypeNames::date(), DateInputType::create);
 #endif
-#if ENABLE(INPUT_TYPE_DATETIME)
+#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
     if (RuntimeEnabledFeatures::inputTypeDateTimeEnabled())
         map->add(InputTypeNames::datetime(), DateTimeInputType::create);
 #endif
@@ -374,15 +374,15 @@ String InputType::validationMessage() const
     const String value = element()->value();
 
     // The order of the following checks is meaningful. e.g. We'd like to show the
-    // valueMissing message even if the control has other validation errors.
+    // badInput message even if the control has other validation errors.
+    if (hasBadInput())
+        return badInputText();
+
     if (valueMissing(value))
         return valueMissingText();
 
     if (typeMismatch())
         return typeMismatchText();
-
-    if (hasBadInput())
-        return badInputText();
 
     if (patternMismatch(value))
         return validationMessagePatternMismatchText();
@@ -593,10 +593,6 @@ void InputType::altAttributeChanged()
 }
 
 void InputType::srcAttributeChanged()
-{
-}
-
-void InputType::willMoveToNewOwnerDocument()
 {
 }
 
@@ -900,6 +896,10 @@ void InputType::updatePlaceholderText()
 {
 }
 
+void InputType::attributeChanged()
+{
+}
+
 void InputType::multipleAttributeChanged()
 {
 }
@@ -909,6 +909,14 @@ void InputType::disabledAttributeChanged()
 }
 
 void InputType::readonlyAttributeChanged()
+{
+}
+
+void InputType::requiredAttributeChanged()
+{
+}
+
+void InputType::valueAttributeChanged()
 {
 }
 
@@ -940,6 +948,10 @@ Decimal InputType::findClosestTickMarkValue(const Decimal&)
     return Decimal::nan();
 }
 #endif
+
+void InputType::updateClearButtonVisibility()
+{
+}
 
 bool InputType::supportsIndeterminateAppearance() const
 {
@@ -1001,8 +1013,8 @@ void InputType::applyStep(int count, AnyStepHandling anyStepHandling, TextFieldE
 
     setValueAsDecimal(newValue, eventBehavior, ec);
 
-    if (AXObjectCache::accessibilityEnabled())
-         element()->document()->axObjectCache()->postNotification(element(), AXObjectCache::AXValueChanged, true);
+    if (AXObjectCache* cache = element()->document()->existingAXObjectCache())
+        cache->postNotification(element(), AXObjectCache::AXValueChanged, true);
 }
 
 bool InputType::getAllowedValueStep(Decimal* step) const

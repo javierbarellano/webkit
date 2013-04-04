@@ -729,8 +729,8 @@ void MediaPlayerPrivate::notifyChallengeResult(const KURL& url, const Protection
     if (result != AuthenticationChallengeSuccess || !url.isValid())
         return;
 
-    m_platformPlayer->reloadWithCredential(credential.user().utf8(true).data(),
-        credential.password().utf8(true).data(),
+    m_platformPlayer->reloadWithCredential(credential.user().utf8(WTF::String::StrictConversion).data(),
+        credential.password().utf8(WTF::String::StrictConversion).data(),
         static_cast<MMRAuthChallenge::CredentialPersistence>(credential.persistence()));
 }
 
@@ -798,7 +798,7 @@ static WebMediaStreamDescriptor toWebMediaStreamDescriptor(MediaStreamDescriptor
     for (size_t i = 0; i < d->numberOfVideoComponents(); i++)
         videoSources.push_back(toWebMediaStreamSource(d->videoComponent(i)->source()));
 
-    return WebMediaStreamDescriptor(d->label().utf8().data(), audioSources, videoSources);
+    return WebMediaStreamDescriptor(d->id().utf8().data(), audioSources, videoSources);
 }
 
 WebMediaStreamDescriptor MediaPlayerPrivate::lookupMediaStream(const BlackBerry::Platform::String& url)

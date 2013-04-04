@@ -33,20 +33,19 @@
 
 #include "../../../Platform/chromium/public/WebCanvas.h"
 #include "../../../Platform/chromium/public/WebString.h"
-#include "WebMediaSource.h"
 #include "WebTimeRange.h"
-#include "WebVideoFrame.h"
 
 namespace WebKit {
 
 class WebAudioSourceProvider;
 class WebAudioSourceProviderClient;
 class WebMediaPlayerClient;
-class WebStreamTextureClient;
+class WebMediaSource;
 class WebString;
 class WebURL;
 struct WebRect;
 struct WebSize;
+class WebGraphicsContext3D;
 
 class WebMediaPlayer {
 public:
@@ -81,18 +80,6 @@ public:
         PreloadAuto,
     };
 
-    enum AddIdStatus {
-        AddIdStatusOk,
-        AddIdStatusNotSupported,
-        AddIdStatusReachedIdLimit
-    };
-
-    enum EndOfStreamStatus {
-        EndOfStreamStatusNoError,
-        EndOfStreamStatusNetworkError,
-        EndOfStreamStatusDecodeError,
-    };
-
     // Represents synchronous exceptions that can be thrown from the Encrypted
     // Media methods. This is different from the asynchronous MediaKeyError.
     enum MediaKeyException {
@@ -110,9 +97,7 @@ public:
     virtual ~WebMediaPlayer() {}
 
     virtual void load(const WebURL&, CORSMode) = 0;
-    // FIXME: Remove the default implementation once the Chromium code implements this method.
-    // https://bugs.webkit.org/show_bug.cgi?id=110371
-    virtual void load(const WebURL& url, WebMediaSource* mediaSource, CORSMode corsMode) { delete mediaSource; load(url, corsMode); };
+    virtual void load(const WebURL&, WebMediaSource*, CORSMode) = 0;
     virtual void cancelLoad() = 0;
 
     // Playback controls.
@@ -168,31 +153,10 @@ public:
     virtual unsigned audioDecodedByteCount() const = 0;
     virtual unsigned videoDecodedByteCount() const = 0;
 
-    // This function returns a pointer to a WebVideoFrame, which is
-    // a WebKit wrapper for a video frame in chromium. This places a lock
-    // on the frame in chromium, and calls to this method should always be
-    // followed with a call to putCurrentFrame(). The ownership of this object
-    // is not transferred to the caller, and the caller should not free the
-    // returned object.
-    virtual WebVideoFrame* getCurrentFrame() { return 0; }
-    // This function releases the lock on the current video frame in Chromium.
-    // It should always be called after getCurrentFrame(). Frame passed to this
-    // method should no longer be referenced after the call is made.
-    virtual void putCurrentFrame(WebVideoFrame*) { }
-
-    virtual void setStreamTextureClient(WebStreamTextureClient*) { }
+    // Do a GPU-GPU textures copy if possible.
+    virtual bool copyVideoTextureToPlatformTexture(WebGraphicsContext3D*, unsigned texture, unsigned level, unsigned internalFormat, bool premultiplyAlpha, bool flipY) { return false; }
 
     virtual WebAudioSourceProvider* audioSourceProvider() { return 0; }
-
-    virtual AddIdStatus sourceAddId(const WebString& id, const WebString& type,
-                                    const WebVector<WebString>& codecs) { return AddIdStatusNotSupported; }
-    virtual bool sourceRemoveId(const WebString& id) { return false; }
-    virtual WebTimeRanges sourceBuffered(const WebString& id) { return WebTimeRanges(); };
-    virtual bool sourceAppend(const WebString& id, const unsigned char* data, unsigned length) { return false; }
-    virtual bool sourceAbort(const WebString& id) { return false; }
-    virtual void sourceSetDuration(double) { }
-    virtual void sourceEndOfStream(EndOfStreamStatus)  { }
-    virtual bool sourceSetTimestampOffset(const WebString& id, double offset) { return false; }
 
     // Returns whether keySystem is supported. If true, the result will be
     // reported by an event.

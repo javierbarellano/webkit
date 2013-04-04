@@ -27,6 +27,7 @@
 
 #include <BlackBerryPlatformGraphics.h>
 #include <BlackBerryPlatformGraphicsContext.h>
+#include <BlackBerryPlatformPath.h>
 #include <stdio.h>
 #include <wtf/MathExtras.h>
 
@@ -255,7 +256,8 @@ void GraphicsContext::drawLineForText(const FloatPoint& pt, float width, bool pr
     platformContext()->addDrawLineForText(pt, width, printing);
 }
 
-void GraphicsContext::clip(const Path& path)
+// FIXME: don't ignore the winding rule. https://bugs.webkit.org/show_bug.cgi?id=107064
+void GraphicsContext::clip(const Path& path, WindRule)
 {
     BlackBerry::Platform::Graphics::Path* pp = path.platformPath();
     pp->applyAsClip(platformContext());
@@ -269,9 +271,9 @@ void GraphicsContext::clipPath(const Path& path, WindRule clipRule)
         clip(path);
 }
 
-void GraphicsContext::canvasClip(const Path& path)
+void GraphicsContext::canvasClip(const Path& path, WindRule fillRule)
 {
-    clip(path);
+    clip(path, fillRule);
 }
 
 void GraphicsContext::clipOut(const Path& path)

@@ -36,6 +36,7 @@
 namespace WebKit {
 
 class WebFrame;
+class WebLayer;
 class WebMediaSource;
 class WebPlugin;
 class WebRequest;
@@ -72,8 +73,6 @@ public:
     virtual float volume() const = 0;
     virtual void playbackStateChanged() = 0;
     virtual WebMediaPlayer::Preload preload() const = 0;
-    virtual void sourceOpened() = 0;
-    virtual WebKit::WebURL sourceURL() const = 0;
     virtual void keyAdded(const WebString& keySystem, const WebString& sessionId) = 0;
     virtual void keyError(const WebString& keySystem, const WebString& sessionId, MediaKeyErrorCode, unsigned short systemCode) = 0;
     virtual void keyMessage(const WebString& keySystem, const WebString& sessionId, const unsigned char* message, unsigned messageLength, const WebURL& defaultURL) = 0;
@@ -82,7 +81,8 @@ public:
     // Returns 0 if the plugin could not be instantiated.
     virtual WebPlugin* createHelperPlugin(const WebString& pluginType, WebFrame*) = 0;
     virtual void closeHelperPlugin() = 0;
-    virtual void disableAcceleratedCompositing() = 0;
+    virtual bool needsWebLayerForVideo() const = 0;
+    virtual void setWebLayer(WebLayer*) = 0;
 protected:
     ~WebMediaPlayerClient() { }
 };

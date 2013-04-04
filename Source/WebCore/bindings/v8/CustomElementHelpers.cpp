@@ -31,14 +31,50 @@
 #include "config.h"
 #include "CustomElementHelpers.h"
 
+#include "CustomElementRegistry.h"
 #include "DOMWrapperWorld.h"
+#include "SVGNames.h"
+#include "ScriptController.h"
 #include "V8CustomElementConstructor.h"
-#include "V8HTMLParagraphElement.h"
-#include "V8HTMLSpanElement.h"
+#include "V8HTMLElementWrapperFactory.h"
+#include "V8SVGElementWrapperFactory.h"
+
 
 namespace WebCore {
 
 #if ENABLE(CUSTOM_ELEMENTS)
+
+v8::Handle<v8::Object> CustomElementHelpers::createWrapper(PassRefPtr<Element> impl, v8::Handle<v8::Object> creationContext, PassRefPtr<CustomElementConstructor> constructor, v8::Isolate* isolate)
+{
+    ASSERT(impl);
+
+    // The constructor and registered lifecycle callbacks should be visible only from main world.
+    // FIXME: This shouldn't be needed once each custom element has its own FunctionTemplate
+    // https://bugs.webkit.org/show_bug.cgi?id=108138
+    if (!CustomElementHelpers::isFeatureAllowed(creationContext->CreationContext())) {
+        v8::Handle<v8::Object> wrapper = V8DOMWrapper::createWrapper(creationContext, &V8HTMLElement::info, impl.get(), isolate);
+        if (!wrapper.IsEmpty())
+            V8DOMWrapper::associateObjectWithWrapper(impl, &V8HTMLElement::info, wrapper, isolate, WrapperConfiguration::Dependent);
+        return wrapper;
+    }
+
+    v8::Handle<v8::Value> constructorValue = WebCore::toV8(constructor.get(), creationContext, isolate);
+    if (constructorValue.IsEmpty() || !constructorValue->IsObject())
+        return v8::Handle<v8::Object>();
+    v8::Handle<v8::Object> constructorWapper = v8::Handle<v8::Object>::Cast(constructorValue);
+    v8::Handle<v8::Object> prototype = v8::Handle<v8::Object>::Cast(constructorWapper->Get(v8::String::NewSymbol("prototype")));
+    WrapperTypeInfo* typeInfo = CustomElementHelpers::findWrapperType(prototype);
+    if (!typeInfo)
+        return v8::Handle<v8::Object>();
+
+    v8::Handle<v8::Object> wrapper = V8DOMWrapper::createWrapper(creationContext, typeInfo, impl.get(), isolate);
+    if (wrapper.IsEmpty())
+        return v8::Handle<v8::Object>();
+
+    wrapper->SetPrototype(prototype);
+    V8DOMWrapper::associateObjectWithWrapper(impl, typeInfo, wrapper, isolate, WrapperConfiguration::Dependent);
+    return wrapper;
+}
 
 bool CustomElementHelpers::initializeConstructorWrapper(CustomElementConstructor* constructor, const ScriptValue& prototype, ScriptState* state)
 {
@@ -63,49 +99,53 @@ bool CustomElementHelpers::initializeConstructorWrapper(CustomElementConstructor
     return true;
 }
 
-// See FIXME on the caller side comment.
-static bool hasNoBuiltinsInPrototype(v8::Handle<v8::Object> htmlPrototype, v8::Handle<v8::Value> chain)
+static bool hasValidPrototypeChainFor(v8::Handle<v8::Object> prototypeObject, WrapperTypeInfo* typeInfo, v8::Handle<v8::Context> context)
 {
-    while (!chain.IsEmpty()) {
-        if (chain == htmlPrototype)
+    // document.register() sets the constructor property, so the prototype shouldn't have one.
+    if (prototypeObject->HasOwnProperty(v8String("constructor", context->GetIsolate())))
+        return false;
+
+    v8::Handle<v8::Object> elementConstructor = v8::Handle<v8::Object>::Cast(V8PerContextData::from(context)->constructorForType(typeInfo));
+    if (elementConstructor.IsEmpty())
+        return false;
+    v8::Handle<v8::Object> elementPrototype = v8::Handle<v8::Object>::Cast(elementConstructor->Get(v8String("prototype", context->GetIsolate())));
+    if (elementPrototype.IsEmpty())
+        return false;
+
+    v8::Handle<v8::Value> chain = prototypeObject;
+    while (!chain.IsEmpty() && chain->IsObject()) {
+        if (chain == elementPrototype)
             return true;
-        if (!chain->IsObject())
-            return false;
-        // The internal field count indicates the object might be a native backed, built-in object.
-        if (v8::Handle<v8::Object>::Cast(chain)->InternalFieldCount())
-            return false;
         chain = v8::Handle<v8::Object>::Cast(chain)->GetPrototype();
     }
 
     return false;
 }
 
-bool CustomElementHelpers::isValidPrototypeParameter(const ScriptValue& prototype, ScriptState* state)
+bool CustomElementHelpers::isValidPrototypeParameter(const ScriptValue& prototype, ScriptState* state, AtomicString& namespaceURI)
 {
     if (prototype.v8Value().IsEmpty() || !prototype.v8Value()->IsObject())
         return false;
 
-    // document.register() sets the constructor property, so the prototype shouldn't have one.
     v8::Handle<v8::Object> prototypeObject = v8::Handle<v8::Object>::Cast(prototype.v8Value());
-    if (prototypeObject->HasOwnProperty(v8String("constructor", state->context()->GetIsolate())))
-        return false;
-    V8PerContextData* perContextData = V8PerContextData::from(state->context());
-    //
-    // FIXME: https://bugs.webkit.org/show_bug.cgi?id=110436
-    //   document.register() should allow arbitrary HTMLElement subclassses.
-    //   Currently it supports custom elements which are
-    //   - direct subclasses of HTMLElement or
-    //   - subclasses of other custom elements
-    //
-    v8::Handle<v8::Object> htmlConstructor = v8::Handle<v8::Object>::Cast(perContextData->constructorForType(&V8HTMLElement::info));
-    if (htmlConstructor.IsEmpty())
-        return false;
-    v8::Handle<v8::Object> htmlPrototype = v8::Handle<v8::Object>::Cast(htmlConstructor->Get(v8String("prototype", state->context()->GetIsolate())));
-    if (htmlPrototype.IsEmpty())
-        return false;
-    if (!hasNoBuiltinsInPrototype(htmlPrototype, prototypeObject))
-        return false;
-    return true;
+    if (hasValidPrototypeChainFor(prototypeObject, &V8HTMLElement::info, state->context())) {
+        namespaceURI = HTMLNames::xhtmlNamespaceURI;
+        return true;
+    }
+
+#if ENABLE(SVG)
+    if (hasValidPrototypeChainFor(prototypeObject, &V8SVGElement::info, state->context())) {
+        namespaceURI = SVGNames::svgNamespaceURI;
+        return true;
+    }
+#endif
+
+    if (hasValidPrototypeChainFor(prototypeObject, &V8Element::info, state->context())) {
+        namespaceURI = nullAtom;
+        return true;
+    }
+
+    return false;
 }
 
 bool CustomElementHelpers::isFeatureAllowed(ScriptState* state)
@@ -120,6 +160,78 @@ bool CustomElementHelpers::isFeatureAllowed(v8::Handle<v8::Context> context)
     return true;
 }
 
+const QualifiedName* CustomElementHelpers::findLocalName(const ScriptValue& prototype)
+{
+    if (prototype.v8Value().IsEmpty() || !prototype.v8Value()->IsObject())
+        return 0;
+    return findLocalName(v8::Handle<v8::Object>::Cast(prototype.v8Value()));
+}
+
+WrapperTypeInfo* CustomElementHelpers::findWrapperType(v8::Handle<v8::Value> chain)
+{
+    while (!chain.IsEmpty() && chain->IsObject()) {
+        v8::Handle<v8::Object> chainObject = v8::Handle<v8::Object>::Cast(chain);
+        // Only prototype objects of native-backed types have the extra internal field storing WrapperTypeInfo.
+        if (v8PrototypeInternalFieldcount == chainObject->InternalFieldCount())
+            return reinterpret_cast<WrapperTypeInfo*>(chainObject->GetAlignedPointerFromInternalField(v8PrototypeTypeIndex));
+        chain = chainObject->GetPrototype();
+    }
+
+    return 0;
+}
+
+// This can return null. In that case, we should take the element name as its local name.
+const QualifiedName* CustomElementHelpers::findLocalName(v8::Handle<v8::Object> chain)
+{
+    WrapperTypeInfo* type = CustomElementHelpers::findWrapperType(chain);
+    if (!type)
+        return 0;
+    if (const QualifiedName* htmlName = findHTMLTagNameOfV8Type(type))
+        return htmlName;
+#if ENABLE(SVG)
+    if (const QualifiedName* svgName = findSVGTagNameOfV8Type(type))
+        return svgName;
+#endif
+    return 0;
+}
+
+void CustomElementHelpers::invokeReadyCallbackIfNeeded(Element* element, v8::Handle<v8::Context> context)
+{
+    v8::Handle<v8::Value> wrapperValue = toV8(element, context->Global(), context->GetIsolate());
+    if (wrapperValue.IsEmpty() || !wrapperValue->IsObject())
+        return;
+    v8::Handle<v8::Object> wrapper = v8::Handle<v8::Object>::Cast(wrapperValue);
+    v8::Handle<v8::Value> prototypeValue = wrapper->GetPrototype();
+    if (prototypeValue.IsEmpty() || !prototypeValue->IsObject())
+        return;
+    v8::Handle<v8::Object> prototype = v8::Handle<v8::Object>::Cast(prototypeValue);
+    v8::Handle<v8::Value> functionValue = prototype->Get(v8::String::NewSymbol("readyCallback"));
+    if (functionValue.IsEmpty() || !functionValue->IsFunction())
+        return;
+
+    v8::Handle<v8::Function> function = v8::Handle<v8::Function>::Cast(functionValue);
+    v8::TryCatch exceptionCatcher;
+    exceptionCatcher.SetVerbose(true);
+    v8::Handle<v8::Value> args[] = { v8::Handle<v8::Value>() };
+    ScriptController::callFunctionWithInstrumentation(element->document(), function, wrapper, 0, args);
+}
+
+
+void CustomElementHelpers::invokeReadyCallbacksIfNeeded(ScriptExecutionContext* executionContext, const Vector<CustomElementInvocation>& invocations)
+{
+    ASSERT(!invocations.isEmpty());
+
+    v8::HandleScope handleScope;
+    v8::Handle<v8::Context> context = toV8Context(executionContext, mainThreadNormalWorld());
+    if (context.IsEmpty())
+        return;
+    v8::Context::Scope scope(context);
+
+    for (size_t i = 0; i < invocations.size(); ++i) {
+        ASSERT(executionContext == invocations[i].element()->document());
+        invokeReadyCallbackIfNeeded(invocations[i].element(), context);
+    }
+}
 
 #endif // ENABLE(CUSTOM_ELEMENTS)
 

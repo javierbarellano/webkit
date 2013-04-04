@@ -28,6 +28,7 @@
 
 #include "GIFImageReader.h"
 #include "PlatformInstrumentation.h"
+#include <limits>
 #include <wtf/PassOwnPtr.h>
 
 namespace WebCore {
@@ -35,7 +36,6 @@ namespace WebCore {
 GIFImageDecoder::GIFImageDecoder(ImageSource::AlphaOption alphaOption,
                                  ImageSource::GammaAndColorProfileOption gammaAndColorProfileOption)
     : ImageDecoder(alphaOption, gammaAndColorProfileOption)
-    , m_alreadyScannedThisDataForFrameCount(true)
     , m_repetitionCount(cAnimationLoopOnce)
 {
 }
@@ -52,9 +52,6 @@ void GIFImageDecoder::setData(SharedBuffer* data, bool allDataReceived)
     ImageDecoder::setData(data, allDataReceived);
     if (m_reader)
         m_reader->setData(data);
-
-    // We need to rescan the frame count, as the new data may have changed it.
-    m_alreadyScannedThisDataForFrameCount = false;
 }
 
 bool GIFImageDecoder::isSizeAvailable()
@@ -79,21 +76,7 @@ bool GIFImageDecoder::setSize(unsigned width, unsigned height)
 
 size_t GIFImageDecoder::frameCount()
 {
-    if (!m_alreadyScannedThisDataForFrameCount) {
-        // FIXME: Scanning all the data has O(n^2) behavior if the data were to
-        // come in really slowly.  Might be interesting to try to clone our
-        // existing read session to preserve state, but for now we just crawl
-        // all the data.  Note that this is no worse than what ImageIO does on
-        // Mac right now (it also crawls all the data again).
-        GIFImageReader reader(0);
-        reader.setData(m_data);
-        reader.decode(GIFFrameCountQuery, static_cast<unsigned>(-1));
-        m_alreadyScannedThisDataForFrameCount = true;
-        m_frameBufferCache.resize(reader.imagesCount());
-        for (int i = 0; i < reader.imagesCount(); ++i)
-            m_frameBufferCache[i].setPremultiplyAlpha(m_premultiplyAlpha);
-    }
-
+    decode(std::numeric_limits<unsigned>::max(), GIFFrameCountQuery);
     return m_frameBufferCache.size();
 }
 
@@ -107,8 +90,8 @@ int GIFImageDecoder::repetitionCount() const
     // should default to looping once (the initial value for
     // |m_repetitionCount|).
     //
-    // There are two additional wrinkles here.  First, ImageSource::clear() may
-    // destroy the reader, making the result from the reader _less_
+    // There are some additional wrinkles here. First, ImageSource::clear()
+    // may destroy the reader, making the result from the reader _less_
     // authoritative on future calls if the recreated reader hasn't seen the
     // loop count.  We don't need to special-case this because in this case the
     // new reader will once again return cLoopCountNotSeen, and we won't
@@ -118,7 +101,14 @@ int GIFImageDecoder::repetitionCount() const
     // should continue to treat it as a "loop once" animation.  We don't need
     // special code here either, because in this case we'll never change
     // |m_repetitionCount| from its default value.
-    if (m_reader && (m_reader->loopCount() != cLoopCountNotSeen))
+    //
+    // Third, we use the same GIFImageReader for counting frames and we might
+    // see the loop count and then encounter a decoding error which happens
+    // later in the stream. It is also possible that no frames are in the
+    // stream. In these cases we should just loop once.
+    if (failed() || (m_reader && (!m_reader->imagesCount())))
+        m_repetitionCount = cAnimationLoopOnce;
+    else if (m_reader && m_reader->loopCount() != cLoopCountNotSeen)
         m_repetitionCount = m_reader->loopCount();
     return m_repetitionCount;
 }
@@ -193,20 +183,20 @@ void GIFImageDecoder::clearFrameBufferCache(size_t clearBeforeFrame)
     }
 }
 
-bool GIFImageDecoder::haveDecodedRow(unsigned frameIndex, unsigned char* rowBuffer, unsigned char* rowEnd, unsigned rowNumber, unsigned repeatCount, bool writeTransparentPixels)
+bool GIFImageDecoder::haveDecodedRow(unsigned frameIndex, const Vector<unsigned char>& rowBuffer, size_t width, size_t rowNumber, unsigned repeatCount, bool writeTransparentPixels)
 {
     const GIFFrameContext* frameContext = m_reader->frameContext();
     // The pixel data and coordinates supplied to us are relative to the frame's
     // origin within the entire image size, i.e.
     // (frameContext->xOffset, frameContext->yOffset). There is no guarantee
-    // that (rowEnd - rowBuffer) == (size().width() - frameContext->xOffset), so
+    // that width == (size().width() - frameContext->xOffset), so
     // we must ensure we don't run off the end of either the source data or the
     // row's X-coordinates.
     int xBegin = upperBoundScaledX(frameContext->xOffset);
     int yBegin = upperBoundScaledY(frameContext->yOffset + rowNumber);
-    int xEnd = lowerBoundScaledX(std::min(static_cast<int>(frameContext->xOffset + (rowEnd - rowBuffer)), size().width()) - 1, xBegin + 1) + 1;
+    int xEnd = lowerBoundScaledX(std::min(static_cast<int>(frameContext->xOffset + width), size().width()) - 1, xBegin + 1) + 1;
     int yEnd = lowerBoundScaledY(std::min(static_cast<int>(frameContext->yOffset + rowNumber + repeatCount), size().height()) - 1, yBegin + 1) + 1;
-    if (!rowBuffer || (xBegin < 0) || (yBegin < 0) || (xEnd <= xBegin) || (yEnd <= yBegin))
+    if (rowBuffer.isEmpty() || (xBegin < 0) || (yBegin < 0) || (xEnd <= xBegin) || (yEnd <= yBegin))
         return true;
 
     // Get the colormap.
@@ -230,7 +220,7 @@ bool GIFImageDecoder::haveDecodedRow(unsigned frameIndex, unsigned char* rowBuff
     ImageFrame::PixelData* currentAddress = buffer.getAddr(xBegin, yBegin);
     // Write one row's worth of data into the frame.  
     for (int x = xBegin; x < xEnd; ++x) {
-        const unsigned char sourceValue = *(rowBuffer + (m_scaled ? m_scaledColumns[x] : x) - frameContext->xOffset);
+        const unsigned char sourceValue = rowBuffer[(m_scaled ? m_scaledColumns[x] : x) - frameContext->xOffset];
         if ((!frameContext->isTransparent || (sourceValue != frameContext->tpixel)) && (sourceValue < colorMapSize)) {
             const size_t colorIndex = static_cast<size_t>(sourceValue) * 3;
             buffer.setRGBA(currentAddress, colorMap[colorIndex], colorMap[colorIndex + 1], colorMap[colorIndex + 2], 255);
@@ -321,9 +311,33 @@ void GIFImageDecoder::decode(unsigned haltAtFrame, GIFQuery query)
         m_reader->setData(m_data);
     }
 
-    // If we couldn't decode the image but we've received all the data, decoding
-    // has failed.
-    if (!m_reader->decode(query, haltAtFrame) && isAllDataReceived())
+    if (query == GIFSizeQuery) {
+        if (!m_reader->decode(GIFSizeQuery, haltAtFrame))
+            setFailed();
+        return;
+    }
+
+    if (!m_reader->decode(GIFFrameCountQuery, haltAtFrame)) {
+        setFailed();
+        return;
+    }
+
+    const size_t oldSize = m_frameBufferCache.size();
+    m_frameBufferCache.resize(m_reader->imagesCount());
+    for (size_t i = oldSize; i < m_reader->imagesCount(); ++i)
+        m_frameBufferCache[i].setPremultiplyAlpha(m_premultiplyAlpha);
+
+    if (query == GIFFrameCountQuery)
+        return;
+
+    if (!m_reader->decode(GIFFullQuery, haltAtFrame)) {
+        setFailed();
+        return;
+    }
+
+    // It is also a fatal error if all data is received but we failed to decode
+    // all frames completely.
+    if (isAllDataReceived() && haltAtFrame >= m_frameBufferCache.size() && m_reader)
         setFailed();
 }
 

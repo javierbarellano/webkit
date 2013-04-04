@@ -61,11 +61,11 @@
 #include "TextCheckerClient.h"
 #include "TextIterator.h"
 #include "VisiblePosition.h"
+#include "VisibleUnits.h"
 #include "WebPageClient.h"
 #include "WebPage_p.h"
 #include "WebSettings.h"
 #include "htmlediting.h"
-#include "visible_units.h"
 
 #include <BlackBerryPlatformDeviceInfo.h>
 #include <BlackBerryPlatformIMF.h>
@@ -431,7 +431,7 @@ void InputHandler::focusedNodeChanged()
     }
 
     if (node && node->isElementNode()) {
-        Element* element = static_cast<Element*>(node);
+        Element* element = toElement(node);
         if (DOMSupport::isElementTypePlugin(element)) {
             setPluginFocused(element);
             return;
@@ -442,6 +442,9 @@ void InputHandler::focusedNodeChanged()
             setElementFocused(element);
             return;
         }
+    } else if (node && DOMSupport::isTextBasedContentEditableElement(node->parentElement())) {
+        setElementFocused(node->parentElement());
+        return;
     }
 
     if (isActiveTextEdit() && m_currentFocusElement->isContentEditable()) {
@@ -855,7 +858,7 @@ void InputHandler::requestSpellingCheckingOptions(imf_sp_text_t& spellCheckingOp
 
 void InputHandler::setElementUnfocused(bool refocusOccuring)
 {
-    if (isActiveTextEdit()) {
+    if (isActiveTextEdit() && m_currentFocusElement->attached() && m_currentFocusElement->document()->attached()) {
         FocusLog(Platform::LogLevelInfo, "InputHandler::setElementUnfocused");
 
         // Pass any text into the field to IMF to learn.
@@ -880,8 +883,9 @@ void InputHandler::setElementUnfocused(bool refocusOccuring)
             m_currentFocusElement->renderer()->repaint();
 
         // If the frame selection isn't focused, focus it.
-        if (!m_currentFocusElement->document()->frame()->selection()->isFocused())
-            m_currentFocusElement->document()->frame()->selection()->setFocused(true);
+        FrameSelection* frameSelection = m_currentFocusElement->document()->frame()->selection();
+        if (frameSelection && !frameSelection->isFocused())
+            frameSelection->setFocused(true);
     }
 
     m_spellingHandler->setSpellCheckActive(false);
@@ -1412,7 +1416,7 @@ void InputHandler::ensureFocusPluginElementVisible()
 
     RenderWidget* renderWidget = static_cast<RenderWidget*>(m_currentFocusElement->renderer());
     if (renderWidget) {
-        PluginView* pluginView = static_cast<PluginView*>(renderWidget->widget());
+        PluginView* pluginView = toPluginView(renderWidget->widget());
 
         if (pluginView)
             selectionFocusRect = pluginView->ensureVisibleRect();
@@ -1861,7 +1865,7 @@ bool InputHandler::willOpenPopupForNode(Node* node)
     }
 
     if (node->isElementNode()) {
-        Element* element = static_cast<Element*>(node);
+        Element* element = toElement(node);
         if (DOMSupport::isPopupInputField(element))
             return true;
     }
@@ -1897,7 +1901,7 @@ bool InputHandler::didNodeOpenPopup(Node* node)
 
 bool InputHandler::openSelectPopup(HTMLSelectElement* select)
 {
-    if (!select || select->disabled())
+    if (!select || select->isDisabledFormControl())
         return false;
 
     // If there's no view, do nothing and return.
@@ -1932,13 +1936,13 @@ bool InputHandler::openSelectPopup(HTMLSelectElement* select)
             if (listItems[i]->hasTagName(HTMLNames::optionTag)) {
                 HTMLOptionElement* option = static_cast<HTMLOptionElement*>(listItems[i]);
                 labels[i] = option->textIndentedToRespectGroupLabel();
-                enableds[i] = option->disabled() ? 0 : 1;
+                enableds[i] = option->isDisabledFormControl() ? 0 : 1;
                 selecteds[i] = option->selected();
                 itemTypes[i] = option->parentNode() && option->parentNode()->hasTagName(HTMLNames::optgroupTag) ? TypeOptionInGroup : TypeOption;
             } else if (listItems[i]->hasTagName(HTMLNames::optgroupTag)) {
                 HTMLOptGroupElement* optGroup = static_cast<HTMLOptGroupElement*>(listItems[i]);
                 labels[i] = optGroup->groupLabelText();
-                enableds[i] = optGroup->disabled() ? 0 : 1;
+                enableds[i] = optGroup->isDisabledFormControl() ? 0 : 1;
                 selecteds[i] = false;
                 itemTypes[i] = TypeGroup;
             } else if (listItems[i]->hasTagName(HTMLNames::hrTag)) {
@@ -2559,7 +2563,6 @@ int32_t InputHandler::commitText(spannable_string_t* spannableString, int32_t re
 void InputHandler::restoreViewState()
 {
     setInputModeEnabled();
-    focusedNodeChanged();
 }
 
 void InputHandler::showTextInputTypeSuggestionBox(bool allowEmptyPrefix)

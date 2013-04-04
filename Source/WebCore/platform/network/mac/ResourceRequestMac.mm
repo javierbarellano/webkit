@@ -30,6 +30,7 @@
 #import "ResourceRequestCFNet.h"
 #import "RuntimeApplicationChecks.h"
 #import "WebCoreSystemInterface.h"
+#import <wtf/text/CString.h>
 
 #import <Foundation/Foundation.h>
 
@@ -70,6 +71,11 @@ void ResourceRequest::updateNSURLRequest()
 }
 
 #else
+
+CFURLRequestRef ResourceRequest::cfURLRequest(HTTPBodyUpdatePolicy bodyPolicy) const
+{
+    return [nsURLRequest(bodyPolicy) _CFURLRequest];
+}
 
 void ResourceRequest::doUpdateResourceRequest()
 {
@@ -187,7 +193,11 @@ void ResourceRequest::doUpdatePlatformRequest()
     }
 
 #if ENABLE(CACHE_PARTITIONING)
-    [NSURLProtocol setProperty:m_cachePartition forKey:(NSString *)wkCachePartitionKey() inRequest:nsRequest];
+    String partition = cachePartition();
+    if (!partition.isNull() && !partition.isEmpty()) {
+        NSString *partitionValue = [NSString stringWithUTF8String:partition.utf8().data()];
+        [NSURLProtocol setProperty:partitionValue forKey:(NSString *)wkCachePartitionKey() inRequest:nsRequest];
+    }
 #endif
 
     m_nsRequest.adoptNS(nsRequest);

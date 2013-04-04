@@ -44,7 +44,7 @@ namespace WebCore {
         /**
          * Re-create selector text from selector's data
          */
-        String selectorText() const;
+        String selectorText(const String& = "") const;
 
         // checks if the 2 selectors (including sub selectors) agree.
         bool operator==(const CSSSelector&) const;
@@ -127,6 +127,7 @@ namespace WebCore {
             PseudoNot,
             PseudoResizer,
             PseudoRoot,
+            PseudoScope,
             PseudoScrollbar,
             PseudoScrollbarBack,
             PseudoScrollbarButton,
@@ -357,6 +358,7 @@ inline bool CSSSelector::isShadowDistributed() const
 inline void CSSSelector::setValue(const AtomicString& value)
 {
     ASSERT(m_match != Tag);
+    ASSERT(m_pseudoType == PseudoNotParsed);
     // Need to do ref counting manually for the union.
     if (m_hasRareData) {
         if (m_data.m_rareData->m_value)

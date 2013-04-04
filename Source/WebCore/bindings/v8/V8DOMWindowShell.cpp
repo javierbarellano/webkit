@@ -78,12 +78,7 @@ static void checkDocumentWrapper(v8::Handle<v8::Object> wrapper, Document* docum
 
 static void setInjectedScriptContextDebugId(v8::Handle<v8::Context> targetContext, int debugId)
 {
-    char buffer[32];
-    if (debugId == -1)
-        snprintf(buffer, sizeof(buffer), "injected");
-    else
-        snprintf(buffer, sizeof(buffer), "injected,%d", debugId);
-    targetContext->SetEmbedderData(0, v8::String::NewSymbol(buffer));
+    V8PerContextDebugData::setContextDebugData(targetContext, "injected", debugId);
 }
 
 PassOwnPtr<V8DOMWindowShell> V8DOMWindowShell::create(Frame* frame, PassRefPtr<DOMWrapperWorld> world, v8::Isolate* isolate)
@@ -239,7 +234,7 @@ bool V8DOMWindowShell::initializeIfNeeded()
         disposeContext();
         return false;
     }
-
+    m_perContextData->setActivityLogger(DOMWrapperWorld::activityLogger(m_world->worldId()));
     if (!installDOMWindow()) {
         disposeContext();
         return false;
@@ -281,7 +276,7 @@ void V8DOMWindowShell::createContext()
 
     // Create a new environment using an empty template for the shadow
     // object. Reuse the global object if one has been created earlier.
-    v8::Persistent<v8::ObjectTemplate> globalTemplate = V8DOMWindow::GetShadowObjectTemplate(m_isolate);
+    v8::Persistent<v8::ObjectTemplate> globalTemplate = V8DOMWindow::GetShadowObjectTemplate(m_isolate, m_world->isMainWorld() ? MainWorld : IsolatedWorld);
     if (globalTemplate.IsEmpty())
         return;
 
@@ -402,7 +397,11 @@ void V8DOMWindowShell::setSecurityToken()
     // Note: we can't use the HTTPOrigin if it was set from the DOM.
     SecurityOrigin* origin = document->securityOrigin();
     String token;
-    if (!origin->domainWasSetInDOM())
+    // We stick with an empty token if document.domain was modified or if we
+    // are in the initial empty document, so that we can do a full canAccess
+    // check in those cases.
+    if (!origin->domainWasSetInDOM()
+        && !m_frame->loader()->stateMachine()->isDisplayingInitialEmptyDocument())
         token = document->securityOrigin()->toString();
 
     // An empty or "null" token means we always have to call

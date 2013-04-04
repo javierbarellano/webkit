@@ -58,6 +58,8 @@ class WebGLActiveInfo;
 class WebGLBuffer;
 class WebGLContextGroup;
 class WebGLContextObject;
+class WebGLCompressedTextureATC;
+class WebGLCompressedTexturePVRTC;
 class WebGLCompressedTextureS3TC;
 class WebGLContextAttributes;
 class WebGLDebugRendererInfo;
@@ -330,6 +332,8 @@ public:
     friend class WebGLObject;
     friend class OESVertexArrayObject;
     friend class WebGLDebugShaders;
+    friend class WebGLCompressedTextureATC;
+    friend class WebGLCompressedTexturePVRTC;
     friend class WebGLCompressedTextureS3TC;
     friend class WebGLRenderingContextErrorMessageCallback;
     friend class WebGLVertexArrayObjectOES;
@@ -481,6 +485,9 @@ public:
 
     GC3Dint m_maxDrawBuffers;
     GC3Dint m_maxColorAttachments;
+    GC3Denum m_backDrawBuffer;
+    bool m_drawBuffersWebGLRequirementsChecked;
+    bool m_drawBuffersSupported;
 
     GC3Dint m_packAlignment;
     GC3Dint m_unpackAlignment;
@@ -525,6 +532,8 @@ public:
     OwnPtr<WebGLLoseContext> m_webglLoseContext;
     OwnPtr<WebGLDebugRendererInfo> m_webglDebugRendererInfo;
     OwnPtr<WebGLDebugShaders> m_webglDebugShaders;
+    OwnPtr<WebGLCompressedTextureATC> m_webglCompressedTextureATC;
+    OwnPtr<WebGLCompressedTexturePVRTC> m_webglCompressedTexturePVRTC;
     OwnPtr<WebGLCompressedTextureS3TC> m_webglCompressedTextureS3TC;
     OwnPtr<WebGLDepthTexture> m_webglDepthTexture;
 
@@ -597,6 +606,19 @@ public:
         NotTexSubImage2D,
         TexSubImage2D,
     };
+
+    enum TexFuncValidationSourceType {
+        SourceArrayBufferView,
+        SourceImageData,
+        SourceHTMLImageElement,
+        SourceHTMLCanvasElement,
+        SourceHTMLVideoElement,
+    };
+
+    // Helper function for tex{Sub}Image2D to check if the input format/type/level/target/width/height/border/xoffset/yoffset are valid.
+    // Otherwise, it would return quickly without doing other work.
+    bool validateTexFunc(const char* functionName, TexFuncValidationFunctionType, TexFuncValidationSourceType, GC3Denum target, GC3Dint level, GC3Denum internalformat, GC3Dsizei width,
+        GC3Dsizei height, GC3Dint border, GC3Denum format, GC3Denum type, GC3Dint xoffset, GC3Dint yoffset);
 
     // Helper function to check input parameters for functions {copy}Tex{Sub}Image.
     // Generates GL error and returns false if parameters are invalid.
@@ -689,8 +711,16 @@ public:
     // Return the current bound buffer to target, or 0 if parameters are invalid.
     WebGLBuffer* validateBufferDataParameters(const char* functionName, GC3Denum target, GC3Denum usage);
 
-    // Helper function for tex{Sub}Image2D to make sure image is ready.
-    bool validateHTMLImageElement(const char* functionName, HTMLImageElement*);
+    // Helper function for tex{Sub}Image2D to make sure image is ready and wouldn't taint Origin.
+    bool validateHTMLImageElement(const char* functionName, HTMLImageElement*, ExceptionCode&);
+
+    // Helper function for tex{Sub}Image2D to make sure canvas is ready and wouldn't taint Origin.
+    bool validateHTMLCanvasElement(const char* functionName, HTMLCanvasElement*, ExceptionCode&);
+
+#if ENABLE(VIDEO)
+    // Helper function for tex{Sub}Image2D to make sure video is ready wouldn't taint Origin.
+    bool validateHTMLVideoElement(const char* functionName, HTMLVideoElement*, ExceptionCode&);
+#endif
 
     // Helper functions for vertexAttribNf{v}.
     void vertexAttribfImpl(const char* functionName, GC3Duint index, GC3Dsizei expectedSize, GC3Dfloat, GC3Dfloat, GC3Dfloat, GC3Dfloat);
@@ -744,6 +774,14 @@ public:
     // Later, return the cached value.
     GC3Dint getMaxDrawBuffers();
     GC3Dint getMaxColorAttachments();
+
+    void setBackDrawBuffer(GC3Denum);
+
+    void restoreCurrentFramebuffer();
+    void restoreCurrentTexture2D();
+
+    // Check if EXT_draw_buffers extension is supported and if it satisfies the WebGL requirements.
+    bool supportsDrawBuffers();
 
     friend class WebGLStateRestorer;
 };

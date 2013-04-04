@@ -87,6 +87,8 @@ public:
     bool hasAncestorClippingLayer() const { return m_ancestorClippingLayer != 0; }
     GraphicsLayer* ancestorClippingLayer() const { return m_ancestorClippingLayer.get(); }
 
+    GraphicsLayer* contentsContainmentLayer() const { return m_contentsContainmentLayer.get(); }
+
     bool hasContentsLayer() const { return m_foregroundLayer != 0; }
     GraphicsLayer* foregroundLayer() const { return m_foregroundLayer.get(); }
 
@@ -147,14 +149,15 @@ public:
     void positionOverflowControlsLayers(const IntSize& offsetFromRoot);
     bool hasUnpositionedOverflowControlsLayers() const;
 
-    bool usingTileCache() const { return m_usingTiledCacheLayer; }
+    bool usingTiledBacking() const { return m_usingTiledCacheLayer; }
     TiledBacking* tiledBacking() const;
-    void adjustTileCacheCoverage();
+    void adjustTiledBackingCoverage();
     
     void updateDebugIndicators(bool showBorder, bool showRepaintCounter);
 
     // GraphicsLayerClient interface
-    virtual bool shouldUseTileCache(const GraphicsLayer*) const OVERRIDE;
+    virtual bool shouldUseTiledBacking(const GraphicsLayer*) const OVERRIDE;
+    virtual void tiledBackingUsageChanged(const GraphicsLayer*, bool /*usingTiledBacking*/) OVERRIDE;
     virtual void notifyAnimationStarted(const GraphicsLayer*, double startTime) OVERRIDE;
     virtual void notifyFlushRequired(const GraphicsLayer*) OVERRIDE;
     virtual void notifyFlushBeforeDisplayRefresh(const GraphicsLayer*) OVERRIDE;
@@ -183,6 +186,7 @@ public:
     GraphicsLayer* layerForScrollCorner() const { return m_layerForScrollCorner.get(); }
 
 #if ENABLE(CSS_FILTERS)
+    void updateFilters(const RenderStyle*);
     bool canCompositeFilters() const { return m_canCompositeFilters; }
 #endif
 
@@ -197,6 +201,8 @@ public:
 private:
     void createPrimaryGraphicsLayer();
     void destroyGraphicsLayers();
+    
+    void willDestroyLayer(const GraphicsLayer*);
     
     PassOwnPtr<GraphicsLayer> createGraphicsLayer(const String&);
 
@@ -230,9 +236,6 @@ private:
 
     void updateOpacity(const RenderStyle*);
     void updateTransform(const RenderStyle*);
-#if ENABLE(CSS_FILTERS)
-    void updateFilters(const RenderStyle*);
-#endif
 #if ENABLE(CSS_COMPOSITING)
     void updateLayerBlendMode(const RenderStyle*);
 #endif
@@ -260,7 +263,7 @@ private:
 
     bool shouldClipCompositedBounds() const;
 
-    bool hasTileCacheFlatteningLayer() const { return (m_childContainmentLayer && m_usingTiledCacheLayer); }
+    bool hasTiledBackingFlatteningLayer() const { return (m_childContainmentLayer && m_usingTiledCacheLayer); }
     GraphicsLayer* tileCacheFlatteningLayer() const { return m_usingTiledCacheLayer ? m_childContainmentLayer.get() : 0; }
 
     void paintIntoLayer(const GraphicsLayer*, GraphicsContext*, const IntRect& paintDirtyRect, PaintBehavior, GraphicsLayerPaintingPhase);

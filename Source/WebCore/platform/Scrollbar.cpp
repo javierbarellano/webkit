@@ -110,8 +110,8 @@ Scrollbar::Scrollbar(ScrollableArea* scrollableArea, ScrollbarOrientation orient
 
 Scrollbar::~Scrollbar()
 {
-    if (AXObjectCache::accessibilityEnabled() && axObjectCache())
-        axObjectCache()->remove(this);
+    if (AXObjectCache* cache = existingAXObjectCache())
+        cache->remove(this);
     
     stopTimerIfNeeded();
     
@@ -136,7 +136,7 @@ bool Scrollbar::isScrollableAreaActive() const
 
 bool Scrollbar::isScrollViewScrollbar() const
 {
-    return parent() && parent()->isFrameView() && static_cast<FrameView*>(parent())->isScrollViewScrollbar(this);
+    return parent() && parent()->isFrameView() && toFrameView(parent())->isScrollViewScrollbar(this);
 }
 
 void Scrollbar::offsetDidChange()
@@ -465,7 +465,7 @@ bool Scrollbar::mouseUp(const PlatformMouseEvent& mouseEvent)
     }
 
     if (parent() && parent()->isFrameView())
-        static_cast<FrameView*>(parent())->frame()->eventHandler()->setMousePressed(false);
+        toFrameView(parent())->frame()->eventHandler()->setMousePressed(false);
 
     return true;
 }
@@ -566,16 +566,13 @@ bool Scrollbar::isWindowActive() const
 {
     return m_scrollableArea && m_scrollableArea->isActive();
 }
-    
-AXObjectCache* Scrollbar::axObjectCache() const
+
+AXObjectCache* Scrollbar::existingAXObjectCache() const
 {
-    if (!parent() || !parent()->isFrameView())
+    if (!parent())
         return 0;
     
-    // FIXME: Accessing the FrameView and Document here is a layering violation
-    // and should be removed.
-    Document* document = static_cast<FrameView*>(parent())->frame()->document();
-    return document->axObjectCache();
+    return parent()->axObjectCache();
 }
 
 void Scrollbar::invalidateRect(const IntRect& rect)

@@ -59,7 +59,7 @@ static gpointer createWrapper(Node* node)
         if (node->isHTMLElement())
             wrappedNode = createHTMLElementWrapper(toHTMLElement(node));
         else
-            wrappedNode = wrapElement(static_cast<Element*>(node));
+            wrappedNode = wrapElement(toElement(node));
         break;
     default:
         wrappedNode = wrapNode(node);
@@ -98,6 +98,18 @@ WebKitDOMElement* kit(Element* element)
         wrappedElement = wrapElement(element);
 
     return static_cast<WebKitDOMElement*>(wrappedElement);
+}
+
+WebKitDOMHTMLElement* kit(HTMLElement* element)
+{
+    if (!element)
+        return 0;
+
+    gpointer kitElement = DOMObjectCache::get(element);
+    if (kitElement)
+        return static_cast<WebKitDOMHTMLElement*>(kitElement);
+
+    return static_cast<WebKitDOMHTMLElement*>(createHTMLElementWrapper(element));
 }
 
 WebKitDOMEvent* kit(Event* event)

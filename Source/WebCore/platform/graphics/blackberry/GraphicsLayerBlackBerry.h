@@ -83,7 +83,6 @@ public:
 #endif
 
     virtual void setBackgroundColor(const Color&);
-    virtual void clearBackgroundColor();
 
     virtual void setContentsOpaque(bool);
     virtual void setBackfaceVisibility(bool);
@@ -113,10 +112,10 @@ public:
     virtual void setDebugBackgroundColor(const Color&);
     virtual void setDebugBorder(const Color&, float borderWidth);
 
-    void notifySyncRequired()
+    void notifyFlushRequired()
     {
         if (m_client)
-            m_client->notifySyncRequired(this);
+            m_client->notifyFlushRequired(this);
     }
 
     void notifyAnimationStarted(double time)
@@ -180,7 +179,6 @@ private:
     };
 
     ContentsLayerPurpose m_contentsLayerPurpose;
-    bool m_contentsLayerHasBackgroundColor : 1;
 };
 
 } // namespace WebCore

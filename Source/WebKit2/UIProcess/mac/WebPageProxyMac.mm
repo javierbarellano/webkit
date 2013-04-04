@@ -117,6 +117,15 @@ void WebPageProxy::searchWithSpotlight(const String& string)
     [[NSWorkspace sharedWorkspace] showSearchResultsForQueryString:nsStringFromWebCoreString(string)];
 }
     
+void WebPageProxy::searchTheWeb(const String& string)
+{
+    NSPasteboard *pasteboard = [NSPasteboard pasteboardWithUniqueName];
+    [pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+    [pasteboard setString:string forType:NSStringPboardType];
+    
+    NSPerformService(@"Search With %WebSearchProvider@", pasteboard);
+}
+    
 CGContextRef WebPageProxy::containingWindowGraphicsContext()
 {
     return m_pageClient->containingWindowGraphicsContext();
@@ -129,12 +138,16 @@ void WebPageProxy::updateWindowIsVisible(bool windowIsVisible)
     process()->send(Messages::WebPage::SetWindowIsVisible(windowIsVisible), m_pageID);
 }
 
-void WebPageProxy::windowAndViewFramesChanged(const IntRect& windowFrameInScreenCoordinates, const IntRect& viewFrameInWindowCoordinates, const IntPoint& accessibilityViewCoordinates)
+void WebPageProxy::windowAndViewFramesChanged(const FloatRect& windowFrameInScreenCoordinates, const FloatRect& viewFrameInWindowCoordinates, const FloatPoint& accessibilityViewCoordinates)
 {
     if (!isValid())
         return;
 
-    process()->send(Messages::WebPage::WindowAndViewFramesChanged(windowFrameInScreenCoordinates, viewFrameInWindowCoordinates, accessibilityViewCoordinates), m_pageID);
+    // In case the UI client overrides getWindowFrame(), we call it here to make sure we send the appropriate window frame.
+    FloatRect adjustedWindowFrameInScreenCoordinates;
+    getWindowFrame(adjustedWindowFrameInScreenCoordinates);
+
+    process()->send(Messages::WebPage::WindowAndViewFramesChanged(adjustedWindowFrameInScreenCoordinates, viewFrameInWindowCoordinates, accessibilityViewCoordinates), m_pageID);
 }
 
 void WebPageProxy::viewExposedRectChanged(const FloatRect& exposedRect)

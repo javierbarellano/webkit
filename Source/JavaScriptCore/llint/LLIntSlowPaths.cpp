@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1201,18 +1201,6 @@ LLINT_SLOW_PATH_DECL(slow_path_put_getter_setter)
         exec,
         exec->codeBlock()->identifier(pc[2].u.operand),
         accessor, Accessor);
-    LLINT_END();
-}
-
-LLINT_SLOW_PATH_DECL(slow_path_jmp_scopes)
-{
-    LLINT_BEGIN();
-    unsigned count = pc[1].u.operand;
-    JSScope* tmp = exec->scope();
-    while (count--)
-        tmp = tmp->next();
-    exec->setScope(tmp);
-    pc += pc[2].u.operand;
     LLINT_END();
 }
 

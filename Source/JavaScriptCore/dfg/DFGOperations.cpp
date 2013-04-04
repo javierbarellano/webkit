@@ -1253,14 +1253,6 @@ EncodedJSValue DFG_OPERATION operationToPrimitive(ExecState* exec, EncodedJSValu
     return JSValue::encode(JSValue::decode(value).toPrimitive(exec));
 }
 
-EncodedJSValue DFG_OPERATION operationStrCat(ExecState* exec, void* buffer, size_t size)
-{
-    JSGlobalData* globalData = &exec->globalData();
-    NativeCallFrameTracer tracer(globalData, exec);
-
-    return JSValue::encode(jsString(exec, static_cast<Register*>(buffer), size));
-}
-
 char* DFG_OPERATION operationNewArray(ExecState* exec, Structure* arrayStructure, void* buffer, size_t size)
 {
     JSGlobalData* globalData = &exec->globalData();
@@ -1545,6 +1537,46 @@ StringImpl* DFG_OPERATION operationResolveRope(ExecState* exec, JSString* string
     NativeCallFrameTracer tracer(&globalData, exec);
 
     return string->value(exec).impl();
+}
+
+JSCell* DFG_OPERATION operationNewStringObject(ExecState* exec, JSString* string, Structure* structure)
+{
+    JSGlobalData& globalData = exec->globalData();
+    NativeCallFrameTracer tracer(&globalData, exec);
+    
+    return StringObject::create(exec, structure, string);
+}
+
+JSCell* DFG_OPERATION operationToStringOnCell(ExecState* exec, JSCell* cell)
+{
+    JSGlobalData& globalData = exec->globalData();
+    NativeCallFrameTracer tracer(&globalData, exec);
+    
+    return JSValue(cell).toString(exec);
+}
+
+JSCell* DFG_OPERATION operationToString(ExecState* exec, EncodedJSValue value)
+{
+    JSGlobalData& globalData = exec->globalData();
+    NativeCallFrameTracer tracer(&globalData, exec);
+
+    return JSValue::decode(value).toString(exec);
+}
+
+JSCell* DFG_OPERATION operationMakeRope2(ExecState* exec, JSString* left, JSString* right)
+{
+    JSGlobalData& globalData = exec->globalData();
+    NativeCallFrameTracer tracer(&globalData, exec);
+
+    return JSRopeString::create(globalData, left, right);
+}
+
+JSCell* DFG_OPERATION operationMakeRope3(ExecState* exec, JSString* a, JSString* b, JSString* c)
+{
+    JSGlobalData& globalData = exec->globalData();
+    NativeCallFrameTracer tracer(&globalData, exec);
+
+    return JSRopeString::create(globalData, a, b, c);
 }
 
 double DFG_OPERATION operationFModOnInts(int32_t a, int32_t b)

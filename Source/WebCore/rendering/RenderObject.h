@@ -249,6 +249,11 @@ public:
     // children.
     virtual RenderBlock* firstLineBlock() const;
 
+    // Called when an object that was floating or positioned becomes a normal flow object
+    // again.  We have to make sure the render tree updates as needed to accommodate the new
+    // normal flow object.
+    void handleDynamicFloatPositionChange();
+    
     // RenderObject tree manipulation
     //////////////////////////////////////////
     virtual bool canHaveChildren() const { return virtualChildren(); }
@@ -398,7 +403,6 @@ public:
     virtual bool isRenderMultiColumnSet() const { return false; }
 
     virtual bool isRenderScrollbarPart() const { return false; }
-    bool canHaveRegionStyle() const { return isRenderBlock() && !isAnonymous() && !isRenderFlowThread(); }
 
     bool isRoot() const { return document()->documentElement() == m_node; }
     bool isBody() const;
@@ -523,7 +527,7 @@ public:
         // RenderBlock::createAnonymousBlock(). This includes creating an anonymous
         // RenderBlock having a BLOCK or BOX display. Other classes such as RenderTextFragment
         // are not RenderBlocks and will return false. See https://bugs.webkit.org/show_bug.cgi?id=56709. 
-        return isAnonymous() && (style()->display() == BLOCK || style()->display() == BOX) && style()->styleType() == NOPSEUDO && isRenderBlock() && !isListMarker()
+        return isAnonymous() && (style()->display() == BLOCK || style()->display() == BOX) && style()->styleType() == NOPSEUDO && isRenderBlock() && !isListMarker() && !isRenderFlowThread()
 #if ENABLE(FULLSCREEN_API)
             && !isRenderFullScreen()
             && !isRenderFullScreenPlaceholder()
@@ -550,7 +554,7 @@ public:
 #if ENABLE(CSS_EXCLUSIONS)
         // Shape outside on a float can reposition the float in much the
         // same way as relative positioning, so treat it as such.
-        positioned = positioned || (m_bitfields.floating() && m_bitfields.isBox() && style()->shapeOutside());
+        positioned = positioned || isFloatingWithShapeOutside();
 #endif
         return positioned;
     }
@@ -567,8 +571,15 @@ public:
     bool isHorizontalWritingMode() const { return m_bitfields.horizontalWritingMode(); }
 
     bool hasLayer() const { return m_bitfields.hasLayer(); }
-    
-    bool hasBoxDecorations() const { return m_bitfields.paintBackground(); }
+
+    enum BoxDecorationState {
+        NoBoxDecorations,
+        HasBoxDecorationsAndBackgroundObscurationStatusInvalid,
+        HasBoxDecorationsAndBackgroundIsKnownToBeObscured,
+        HasBoxDecorationsAndBackgroundMayBeVisible,
+    };
+    bool hasBoxDecorations() const { return m_bitfields.boxDecorationState() != NoBoxDecorations; }
+    bool backgroundIsKnownToBeObscured();
     bool borderImageIsLoadedAndCanBeRendered() const;
     bool mustRepaintBackgroundOrBorder() const;
     bool hasBackground() const { return style()->hasBackground(); }
@@ -655,8 +666,7 @@ public:
 
     virtual RenderObject* hoverAncestor() const { return parent(); }
 
-    // IE Extension that can be called on any RenderObject.  See the implementation for the details.
-    RenderBoxModelObject* offsetParent() const;
+    Element* offsetParent() const;
 
     void markContainingBlocksForLayout(bool scheduleRelayout = true, RenderObject* newRoot = 0);
     void setNeedsLayout(bool needsLayout, MarkingBehavior = MarkContainingBlockChain);
@@ -681,7 +691,11 @@ public:
 
     void setFloating(bool b = true) { m_bitfields.setFloating(b); }
     void setInline(bool b = true) { m_bitfields.setIsInline(b); }
-    void setHasBoxDecorations(bool b = true) { m_bitfields.setPaintBackground(b); }
+
+    void setHasBoxDecorations(bool = true);
+    void invalidateBackgroundObscurationStatus();
+    virtual bool computeBackgroundIsKnownToBeObscured() { return false; }
+
     void setIsText() { m_bitfields.setIsText(true); }
     void setIsBox() { m_bitfields.setIsBox(true); }
     void setReplaced(bool b = true) { m_bitfields.setIsReplaced(b); }
@@ -828,12 +842,6 @@ public:
     // Repaint only if our old bounds and new bounds are different. The caller may pass in newBounds and newOutlineBox if they are known.
     bool repaintAfterLayoutIfNeeded(const RenderLayerModelObject* repaintContainer, const LayoutRect& oldBounds, const LayoutRect& oldOutlineBox, const LayoutRect* newBoundsPtr = 0, const LayoutRect* newOutlineBoxPtr = 0);
 
-    // Repaint only if the object moved.
-    virtual void repaintDuringLayoutIfMoved(const LayoutRect&);
-
-    // Called to repaint a block's floats.
-    virtual void repaintOverhangingFloats(bool paintAllDescendants = false);
-
     bool checkForRepaintDuringLayout() const;
 
     // Returns the rect that should be repainted whenever this object changes.  The rect is in the view's
@@ -871,6 +879,7 @@ public:
     virtual unsigned int length() const { return 1; }
 
     bool isFloatingOrOutOfFlowPositioned() const { return (isFloating() || isOutOfFlowPositioned()); }
+    bool isFloatingWithShapeOutside() const { return isBox() && isFloating() && style()->shapeOutside(); }
 
     bool isTransparent() const { return style()->opacity() < 1.0f; }
     float opacity() const { return style()->opacity(); }
@@ -1070,7 +1079,6 @@ private:
             , m_needsSimplifiedNormalFlowLayout(false)
             , m_preferredLogicalWidthsDirty(false)
             , m_floating(false)
-            , m_paintBackground(false)
             , m_isAnonymous(!node)
             , m_isText(false)
             , m_isBox(false)
@@ -1089,10 +1097,11 @@ private:
             , m_positionedState(IsStaticallyPositioned)
             , m_selectionState(SelectionNone)
             , m_flowThreadState(NotInsideFlowThread)
+            , m_boxDecorationState(NoBoxDecorations)
         {
         }
         
-        // 30 bits have been used here. There are two bits available.
+        // 31 bits have been used here. There is one bit available.
         ADD_BOOLEAN_BITFIELD(needsLayout, NeedsLayout);
         ADD_BOOLEAN_BITFIELD(needsPositionedMovementLayout, NeedsPositionedMovementLayout);
         ADD_BOOLEAN_BITFIELD(normalChildNeedsLayout, NormalChildNeedsLayout);
@@ -1100,9 +1109,6 @@ private:
         ADD_BOOLEAN_BITFIELD(needsSimplifiedNormalFlowLayout, NeedsSimplifiedNormalFlowLayout);
         ADD_BOOLEAN_BITFIELD(preferredLogicalWidthsDirty, PreferredLogicalWidthsDirty);
         ADD_BOOLEAN_BITFIELD(floating, Floating);
-
-        ADD_BOOLEAN_BITFIELD(paintBackground, PaintBackground); // if the box has something to paint in the
-        // background painting phase (background, border, etc)
 
         ADD_BOOLEAN_BITFIELD(isAnonymous, IsAnonymous);
         ADD_BOOLEAN_BITFIELD(isText, IsText);
@@ -1128,6 +1134,7 @@ private:
         unsigned m_positionedState : 2; // PositionedState
         unsigned m_selectionState : 3; // SelectionState
         unsigned m_flowThreadState : 2; // FlowThreadState
+        unsigned m_boxDecorationState : 2; // BoxDecorationState
 
     public:
         bool isOutOfFlowPositioned() const { return m_positionedState == IsOutOfFlowPositioned; }
@@ -1147,6 +1154,9 @@ private:
         
         ALWAYS_INLINE FlowThreadState flowThreadState() const { return static_cast<FlowThreadState>(m_flowThreadState); }
         ALWAYS_INLINE void setFlowThreadState(FlowThreadState flowThreadState) { m_flowThreadState = flowThreadState; }
+
+        ALWAYS_INLINE BoxDecorationState boxDecorationState() const { return static_cast<BoxDecorationState>(m_boxDecorationState); }
+        ALWAYS_INLINE void setBoxDecorationState(BoxDecorationState boxDecorationState) { m_boxDecorationState = boxDecorationState; }
     };
 
 #undef ADD_BOOLEAN_BITFIELD
@@ -1157,9 +1167,12 @@ private:
     void setNormalChildNeedsLayout(bool b) { m_bitfields.setNormalChildNeedsLayout(b); }
     void setPosChildNeedsLayout(bool b) { m_bitfields.setPosChildNeedsLayout(b); }
     void setNeedsSimplifiedNormalFlowLayout(bool b) { m_bitfields.setNeedsSimplifiedNormalFlowLayout(b); }
-    void setPaintBackground(bool b) { m_bitfields.setPaintBackground(b); }
     void setIsDragging(bool b) { m_bitfields.setIsDragging(b); }
     void setEverHadLayout(bool b) { m_bitfields.setEverHadLayout(b); }
+
+private:
+    // Store state between styleWillChange and styleDidChange
+    static bool s_affectsParentBlock;
 };
 
 inline bool RenderObject::documentBeingDestroyed() const
@@ -1287,6 +1300,33 @@ inline void RenderObject::setSelectionStateIfNeeded(SelectionState state)
         return;
 
     setSelectionState(state);
+}
+
+inline void RenderObject::setHasBoxDecorations(bool b)
+{
+    if (!b) {
+        m_bitfields.setBoxDecorationState(NoBoxDecorations);
+        return;
+    }
+    if (hasBoxDecorations())
+        return;
+    m_bitfields.setBoxDecorationState(HasBoxDecorationsAndBackgroundObscurationStatusInvalid);
+}
+
+inline void RenderObject::invalidateBackgroundObscurationStatus()
+{
+    if (!hasBoxDecorations())
+        return;
+    m_bitfields.setBoxDecorationState(HasBoxDecorationsAndBackgroundObscurationStatusInvalid);
+}
+
+inline bool RenderObject::backgroundIsKnownToBeObscured()
+{
+    if (m_bitfields.boxDecorationState() == HasBoxDecorationsAndBackgroundObscurationStatusInvalid) {
+        BoxDecorationState boxDecorationState = computeBackgroundIsKnownToBeObscured() ? HasBoxDecorationsAndBackgroundIsKnownToBeObscured : HasBoxDecorationsAndBackgroundMayBeVisible;
+        m_bitfields.setBoxDecorationState(boxDecorationState);
+    }
+    return m_bitfields.boxDecorationState() == HasBoxDecorationsAndBackgroundIsKnownToBeObscured;
 }
 
 inline void makeMatrixRenderable(TransformationMatrix& matrix, bool has3DRendering)

@@ -347,7 +347,7 @@ String HTMLOptionElement::textIndentedToRespectGroupLabel() const
     return text();
 }
 
-bool HTMLOptionElement::disabled() const
+bool HTMLOptionElement::isDisabledFormControl() const
 {
     if (ownElementDisabled())
         return true;
@@ -356,7 +356,7 @@ bool HTMLOptionElement::disabled() const
         return false;
 
     HTMLElement* parentElement = static_cast<HTMLElement*>(parentNode());
-    return parentElement->hasTagName(optgroupTag) && parentElement->disabled();
+    return parentElement->hasTagName(optgroupTag) && parentElement->isDisabledFormControl();
 }
 
 Node::InsertionNotificationRequest HTMLOptionElement::insertedInto(ContainerNode* insertionPoint)
@@ -382,7 +382,7 @@ String HTMLOptionElement::collectOptionInnerText() const
         if (node->isTextNode())
             text.append(node->nodeValue());
         // Text nodes inside script elements are not part of the option text.
-        if (node->isElementNode() && toScriptElement(toElement(node)))
+        if (node->isElementNode() && toScriptElementIfPossible(toElement(node)))
             node = NodeTraversal::nextSkippingChildren(node, this);
         else
             node = NodeTraversal::next(node, this);
@@ -394,13 +394,13 @@ String HTMLOptionElement::collectOptionInnerText() const
 
 HTMLOptionElement* toHTMLOptionElement(Node* node)
 {
-    ASSERT(!node || node->hasTagName(optionTag));
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(optionTag));
     return static_cast<HTMLOptionElement*>(node);
 }
 
 const HTMLOptionElement* toHTMLOptionElement(const Node* node)
 {
-    ASSERT(!node || node->hasTagName(optionTag));
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(optionTag));
     return static_cast<const HTMLOptionElement*>(node);
 }
 

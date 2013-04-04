@@ -243,26 +243,61 @@ namespace WebCore {
 
     v8::Handle<v8::Value> v8Array(PassRefPtr<DOMStringList>, v8::Isolate*);
 
-    // Convert a value to a 32-bit integer. The conversion fails if the
-    // value cannot be converted to an integer or converts to nan or to an infinity.
-    int toInt32(v8::Handle<v8::Value>, bool& ok);
+    // Conversion flags, used in toIntXX/toUIntXX.
+    enum IntegerConversionConfiguration {
+        NormalConversion,
+        EnforceRange,
+        // FIXME: Implement Clamp
+    };
+
+    // Convert a value to a 32-bit signed integer. The conversion fails if the
+    // value cannot be converted to a number or the range violated per WebIDL:
+    // http://www.w3.org/TR/WebIDL/#es-long
+    int32_t toInt32(v8::Handle<v8::Value>, IntegerConversionConfiguration, bool& ok);
+    inline int32_t toInt32(v8::Handle<v8::Value> value, bool& ok) { return toInt32(value, NormalConversion, ok); }
 
     // Convert a value to a 32-bit integer assuming the conversion cannot fail.
-    inline int toInt32(v8::Handle<v8::Value> value)
+    inline int32_t toInt32(v8::Handle<v8::Value> value)
     {
         bool ok;
-        return toInt32(value, ok);
+        return toInt32(value, NormalConversion, ok);
     }
 
     // Convert a value to a 32-bit unsigned integer. The conversion fails if the
-    // value cannot be converted to an unsigned integer or converts to nan or to an infinity.
-    uint32_t toUInt32(v8::Handle<v8::Value>, bool& ok);
+    // value cannot be converted to a number or the range violated per WebIDL:
+    // http://www.w3.org/TR/WebIDL/#es-unsigned-long
+    uint32_t toUInt32(v8::Handle<v8::Value>, IntegerConversionConfiguration, bool& ok);
+    inline uint32_t toUInt32(v8::Handle<v8::Value> value, bool& ok) { return toUInt32(value, NormalConversion, ok); }
 
     // Convert a value to a 32-bit unsigned integer assuming the conversion cannot fail.
     inline uint32_t toUInt32(v8::Handle<v8::Value> value)
     {
         bool ok;
-        return toUInt32(value, ok);
+        return toUInt32(value, NormalConversion, ok);
+    }
+
+    // Convert a value to a 64-bit signed integer. The conversion fails if the
+    // value cannot be converted to a number or the range violated per WebIDL:
+    // http://www.w3.org/TR/WebIDL/#es-long-long
+    int64_t toInt64(v8::Handle<v8::Value>, IntegerConversionConfiguration, bool& ok);
+
+    // Convert a value to a 64-bit integer assuming the conversion cannot fail.
+    inline int64_t toInt64(v8::Handle<v8::Value> value)
+    {
+        bool ok;
+        return toInt64(value, NormalConversion, ok);
+    }
+
+    // Convert a value to a 64-bit unsigned integer. The conversion fails if the
+    // value cannot be converted to a number or the range violated per WebIDL:
+    // http://www.w3.org/TR/WebIDL/#es-unsigned-long-long
+    uint64_t toUInt64(v8::Handle<v8::Value>, IntegerConversionConfiguration, bool& ok);
+
+    // Convert a value to a 64-bit unsigned integer assuming the conversion cannot fail.
+    inline uint64_t toUInt64(v8::Handle<v8::Value> value)
+    {
+        bool ok;
+        return toUInt64(value, NormalConversion, ok);
     }
 
     inline float toFloat(v8::Local<v8::Value> value)
@@ -270,10 +305,8 @@ namespace WebCore {
         return static_cast<float>(value->NumberValue());
     }
 
-    inline long long toInt64(v8::Local<v8::Value> value)
-    {
-        return static_cast<long long>(value->IntegerValue());
-    }
+    WrapperWorldType worldType(v8::Isolate*);
+    WrapperWorldType worldTypeInMainThread(v8::Isolate*);
 
     template<class T> struct NativeValueTraits;
 
@@ -322,7 +355,7 @@ namespace WebCore {
         for (size_t i = 0; i < length; ++i) {
             v8::Handle<v8::Value> element = array->Get(i);
 
-            if (V8T::HasInstance(element, isolate)) {
+            if (V8T::HasInstance(element, isolate, worldType(isolate))) {
                 v8::Handle<v8::Object> object = v8::Handle<v8::Object>::Cast(element);
                 result.append(V8T::toNative(object));
             } else {
@@ -466,9 +499,6 @@ namespace WebCore {
     v8::Local<v8::Value> handleMaxRecursionDepthExceeded();
 
     void crashIfV8IsDead();
-
-    WrapperWorldType worldType(v8::Isolate*);
-    WrapperWorldType worldTypeInMainThread(v8::Isolate*);
 
 } // namespace WebCore
 

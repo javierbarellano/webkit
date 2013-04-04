@@ -23,6 +23,7 @@
 #include "TextureMapperGL.h"
 
 #include "Extensions3D.h"
+#include "FilterOperations.h"
 #include "GraphicsContext.h"
 #include "Image.h"
 #include "LengthFunctions.h"
@@ -182,6 +183,18 @@ void TextureMapperGL::ClipStack::reset(const IntRect& rect)
     clipStateDirty = true;
 }
 
+void TextureMapperGL::ClipStack::intersect(const IntRect& rect)
+{
+    clipState.scissorBox.intersect(rect);
+    clipStateDirty = true;
+}
+
+void TextureMapperGL::ClipStack::setStencilIndex(int stencilIndex)
+{
+    clipState.stencilIndex = stencilIndex;
+    clipStateDirty = true;
+}
+
 void TextureMapperGL::ClipStack::push()
 {
     clipStack.append(clipState);
@@ -209,10 +222,6 @@ static void scissorClip(GraphicsContext3D* context, const IntRect& rect)
 
 void TextureMapperGL::ClipStack::apply(GraphicsContext3D* context)
 {
-    if (!clipStateDirty)
-        return;
-    clipStateDirty = false;
-
     scissorClip(context, clipState.scissorBox);
     context->stencilOp(GraphicsContext3D::KEEP, GraphicsContext3D::KEEP, GraphicsContext3D::KEEP);
     context->stencilFunc(GraphicsContext3D::EQUAL, clipState.stencilIndex - 1, clipState.stencilIndex - 1);
@@ -220,6 +229,15 @@ void TextureMapperGL::ClipStack::apply(GraphicsContext3D* context)
         context->disable(GraphicsContext3D::STENCIL_TEST);
     else
         context->enable(GraphicsContext3D::STENCIL_TEST);
+}
+
+void TextureMapperGL::ClipStack::applyIfNeeded(GraphicsContext3D* context)
+{
+    if (!clipStateDirty)
+        return;
+
+    clipStateDirty = false;
+    apply(context);
 }
 
 
@@ -314,7 +332,7 @@ void TextureMapperGL::endPainting()
 
 void TextureMapperGL::drawBorder(const Color& color, float width, const FloatRect& targetRect, const TransformationMatrix& modelViewMatrix)
 {
-    if (clipStack().current().scissorBox.isEmpty())
+    if (clipStack().isCurrentScissorBoxEmpty())
         return;
 
     RefPtr<TextureMapperShaderProgram> program = data().sharedGLData().getShaderProgram(TextureMapperShaderProgram::SolidColor);
@@ -406,7 +424,7 @@ void TextureMapperGL::drawTexture(const BitmapTexture& texture, const FloatRect&
     if (!texture.isValid())
         return;
 
-    if (clipStack().current().scissorBox.isEmpty())
+    if (clipStack().isCurrentScissorBoxEmpty())
         return;
 
     const BitmapTextureGL& textureGL = static_cast<const BitmapTextureGL&>(texture);
@@ -597,14 +615,14 @@ static bool driverSupportsExternalTextureBGRA(GraphicsContext3D* context)
     return true;
 }
 
-static bool driverSupportsSubImage()
+static bool driverSupportsSubImage(GraphicsContext3D* context)
 {
-#if defined(TEXMAP_OPENGL_ES_2)
-    // FIXME: Implement reliable detection.
-    return false;
-#else
+    if (context->isGLES2Compliant()) {
+        static bool supportsSubImage = context->getExtensions()->supports("GL_EXT_unpack_subimage");
+        return supportsSubImage;
+    }
+
     return true;
-#endif
 }
 
 void BitmapTextureGL::didReset()
@@ -639,14 +657,16 @@ void BitmapTextureGL::didReset()
 void BitmapTextureGL::updateContentsNoSwizzle(const void* srcData, const IntRect& targetRect, const IntPoint& sourceOffset, int bytesPerLine, unsigned bytesPerPixel, Platform3DObject glFormat)
 {
     m_context3D->bindTexture(GraphicsContext3D::TEXTURE_2D, m_id);
-    if (driverSupportsSubImage()) { // For ES drivers that don't support sub-images.
+    if (driverSupportsSubImage(m_context3D.get())) { // For ES drivers that don't support sub-images.
         // Use the OpenGL sub-image extension, now that we know it's available.
         m_context3D->pixelStorei(GL_UNPACK_ROW_LENGTH, bytesPerLine / bytesPerPixel);
         m_context3D->pixelStorei(GL_UNPACK_SKIP_ROWS, sourceOffset.y());
         m_context3D->pixelStorei(GL_UNPACK_SKIP_PIXELS, sourceOffset.x());
     }
+
     m_context3D->texSubImage2D(GraphicsContext3D::TEXTURE_2D, 0, targetRect.x(), targetRect.y(), targetRect.width(), targetRect.height(), glFormat, DEFAULT_TEXTURE_PIXEL_TRANSFER_TYPE, srcData);
-    if (driverSupportsSubImage()) { // For ES drivers that don't support sub-images.
+
+    if (driverSupportsSubImage(m_context3D.get())) { // For ES drivers that don't support sub-images.
         m_context3D->pixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         m_context3D->pixelStorei(GL_UNPACK_SKIP_ROWS, 0);
         m_context3D->pixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
@@ -664,7 +684,7 @@ void BitmapTextureGL::updateContents(const void* srcData, const IntRect& targetR
     IntPoint adjustedSourceOffset = sourceOffset;
 
     // Texture upload requires subimage buffer if driver doesn't support subimage and we don't have full image upload.
-    bool requireSubImageBuffer = !driverSupportsSubImage()
+    bool requireSubImageBuffer = !driverSupportsSubImage(m_context3D.get())
         && !(bytesPerLine == static_cast<int>(targetRect.width() * bytesPerPixel) && adjustedSourceOffset == IntPoint::zero());
 
     // prepare temporaryData if necessary
@@ -1030,7 +1050,7 @@ void BitmapTextureGL::clearIfNeeded()
         return;
 
     m_clipStack.reset(IntRect(IntPoint::zero(), m_textureSize));
-    m_clipStack.apply(m_context3D.get());
+    m_clipStack.applyIfNeeded(m_context3D.get());
     m_context3D->clearColor(0, 0, 0, 0);
     m_context3D->clear(GraphicsContext3D::COLOR_BUFFER_BIT);
     m_shouldClear = false;
@@ -1055,7 +1075,7 @@ void BitmapTextureGL::bind(TextureMapperGL* textureMapper)
     m_context3D->viewport(0, 0, m_textureSize.width(), m_textureSize.height());
     clearIfNeeded();
     textureMapper->data().projectionMatrix = createProjectionMatrix(m_textureSize, true /* mirrored */);
-    m_clipStack.apply(m_context3D.get());
+    m_clipStack.applyIfNeeded(m_context3D.get());
 }
 
 BitmapTextureGL::~BitmapTextureGL()
@@ -1123,8 +1143,8 @@ bool TextureMapperGL::beginScissorClip(const TransformationMatrix& modelViewMatr
     if (!quad.isRectilinear() || rect.isEmpty())
         return false;
 
-    clipStack().current().scissorBox.intersect(rect);
-    clipStack().apply(m_context3D.get());
+    clipStack().intersect(rect);
+    clipStack().applyIfNeeded(m_context3D.get());
     return true;
 }
 
@@ -1148,7 +1168,7 @@ void TextureMapperGL::beginClip(const TransformationMatrix& modelViewMatrix, con
 
     static const TransformationMatrix fullProjectionMatrix = TransformationMatrix::rectToRect(FloatRect(0, 0, 1, 1), FloatRect(-1, -1, 2, 2));
 
-    int& stencilIndex = clipStack().current().stencilIndex;
+    int stencilIndex = clipStack().getStencilIndex();
 
     m_context3D->enable(GraphicsContext3D::STENCIL_TEST);
 
@@ -1175,14 +1195,14 @@ void TextureMapperGL::beginClip(const TransformationMatrix& modelViewMatrix, con
     m_context3D->stencilMask(0);
 
     // Increase stencilIndex and apply stencil testing.
-    stencilIndex *= 2;
-    clipStack().apply(m_context3D.get());
+    clipStack().setStencilIndex(stencilIndex * 2);
+    clipStack().applyIfNeeded(m_context3D.get());
 }
 
 void TextureMapperGL::endClip()
 {
     clipStack().pop();
-    clipStack().apply(m_context3D.get());
+    clipStack().applyIfNeeded(m_context3D.get());
 }
 
 PassRefPtr<BitmapTexture> TextureMapperGL::createTexture()

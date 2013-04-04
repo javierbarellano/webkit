@@ -33,6 +33,7 @@
 #include "GetByIdStatus.h"
 #include "Operations.h"
 #include "PutByIdStatus.h"
+#include "StringObject.h"
 
 namespace JSC { namespace DFG {
 
@@ -314,6 +315,18 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
         m_variables.operand(node->local()) = forNode(node->child1());
         break;
     }
+        
+    case MovHintAndCheck: {
+        // Don't need to do anything. A MovHint is effectively a promise that the SetLocal
+        // was dead.
+        break;
+    }
+        
+    case MovHint:
+    case ZombieHint: {
+        RELEASE_ASSERT_NOT_REACHED();
+        break;
+    }
             
     case SetArgument:
         // Assert that the state of arguments has been set.
@@ -459,6 +472,11 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
             forNode(node).set(SpecString | SpecInt32 | SpecNumber);
             break;
         }
+        break;
+    }
+        
+    case MakeRope: {
+        forNode(node).set(m_graph.m_globalData.stringStructure.get());
         break;
     }
             
@@ -757,7 +775,7 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
             RELEASE_ASSERT_NOT_REACHED();
             break;
         }
-        forNode(node).set(SpecString);
+        forNode(node).set(m_graph.m_globalData.stringStructure.get());
         break;
     }
             
@@ -845,7 +863,7 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
         
     case StringCharAt:
         node->setCanExit(true);
-        forNode(node).set(SpecString);
+        forNode(node).set(m_graph.m_globalData.stringStructure.get());
         break;
             
     case GetByVal: {
@@ -864,7 +882,7 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
             forNode(node).makeTop();
             break;
         case Array::String:
-            forNode(node).set(SpecString);
+            forNode(node).set(m_graph.m_globalData.stringStructure.get());
             break;
         case Array::Arguments:
             forNode(node).makeTop();
@@ -1019,11 +1037,8 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
             break;
         }
         
-        if (node->child1().useKind() == Int32Use) {
-            forNode(node).set(SpecInt32);
-            break;
-        }
-
+        ASSERT(node->child1().useKind() == UntypedUse);
+        
         AbstractValue& source = forNode(node->child1());
         AbstractValue& destination = forNode(node);
         
@@ -1048,6 +1063,8 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
         // ToPrimitive will currently forget string constants. But that's not a big
         // deal since we don't do any optimization on those currently.
         
+        clobberWorld(node->codeOrigin, indexInBlock);
+        
         SpeculatedType type = source.m_type;
         if (type & ~(SpecNumber | SpecString | SpecBoolean)) {
             type &= (SpecNumber | SpecString | SpecBoolean);
@@ -1056,10 +1073,35 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
         destination.set(type);
         break;
     }
-            
-    case StrCat:
-        forNode(node).set(SpecString);
+        
+    case ToString: {
+        switch (node->child1().useKind()) {
+        case StringObjectUse:
+            // This also filters that the StringObject has the primordial StringObject
+            // structure.
+            forNode(node->child1()).filter(m_graph.globalObjectFor(node->codeOrigin)->stringObjectStructure());
+            node->setCanExit(true); // We could be more precise but it's likely not worth it.
+            break;
+        case StringOrStringObjectUse:
+            node->setCanExit(true); // We could be more precise but it's likely not worth it.
+            break;
+        case CellUse:
+        case UntypedUse:
+            clobberWorld(node->codeOrigin, indexInBlock);
+            break;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
+        }
+        forNode(node).set(m_graph.m_globalData.stringStructure.get());
         break;
+    }
+        
+    case NewStringObject: {
+        ASSERT(node->structure()->classInfo() == &StringObject::s_info);
+        forNode(node).set(node->structure());
+        break;
+    }
             
     case NewArray:
         node->setCanExit(true);
@@ -1088,31 +1130,8 @@ bool AbstractState::executeEffects(unsigned indexInBlock, Node* node)
         AbstractValue& source = forNode(node->child1());
         AbstractValue& destination = forNode(node);
             
-        if (isObjectSpeculation(source.m_type)) {
-            // This is the simple case. We already know that the source is an
-            // object, so there's nothing to do. I don't think this case will
-            // be hit, but then again, you never know.
-            destination = source;
-            m_foundConstants = true; // Tell the constant folder to turn this into Identity.
-            break;
-        }
-        
-        node->setCanExit(true);
-        switch (node->child1().useKind()) {
-        case OtherUse:
-            destination.set(SpecObjectOther);
-            break;
-        case ObjectUse:
-            destination = source;
-            break;
-        case UntypedUse:
-            destination = source;
-            destination.merge(SpecObjectOther);
-            break;
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-            break;
-        }
+        destination = source;
+        destination.merge(SpecObjectOther);
         break;
     }
 
@@ -1628,18 +1647,6 @@ inline bool AbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
             break;
             
         case GetLocal:
-            // If the GetLocal is dead, then we transfer from head to tail.
-            // FIXME: We can get rid of this case after https://bugs.webkit.org/show_bug.cgi?id=109389
-            if (!node->shouldGenerate()) {
-                // The block transfers the value from head to tail.
-                source = inVariable;
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-                dataLogF("          Transfering ");
-                source.dump(WTF::dataFile());
-                dataLogF(" from head to tail (dead GetLocal case).\n");
-#endif
-                break;
-            }
             // The block refines the value with additional speculations.
             source = forNode(node);
 #if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)

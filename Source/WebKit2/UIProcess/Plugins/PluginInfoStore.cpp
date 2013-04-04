@@ -42,6 +42,7 @@ namespace WebKit {
 
 PluginInfoStore::PluginInfoStore()
     : m_pluginListIsUpToDate(false)
+    , m_client(0)
 {
 }
 
@@ -97,6 +98,9 @@ void PluginInfoStore::loadPluginsIfNecessary()
         loadPlugin(m_plugins, *it);
 
     m_pluginListIsUpToDate = true;
+
+    if (m_client)
+        m_client->pluginInfoStoreDidLoadPlugins(this);
 }
 
 void PluginInfoStore::loadPlugin(Vector<PluginModuleInfo>& plugins, const String& pluginPath)
@@ -186,6 +190,13 @@ String PluginInfoStore::getMIMETypeForExtension(const String& extension)
 {
     return MIMETypeRegistry::getMIMETypeForExtension(extension);
 }
+    
+PluginModuleInfo PluginInfoStore::findPluginWithBundleIdentifier(const String&)
+{
+    ASSERT_NOT_REACHED();
+    return PluginModuleInfo();
+}
+
 #endif
 
 PluginModuleInfo PluginInfoStore::findPlugin(String& mimeType, const KURL& url)

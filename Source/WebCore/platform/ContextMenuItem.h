@@ -181,22 +181,6 @@ namespace WebCore {
 #if ENABLE(CONTEXT_MENUS)
 #if PLATFORM(MAC)
     typedef NSMenuItem* PlatformMenuItemDescription;
-#elif PLATFORM(QT)
-    struct PlatformMenuItemDescription {
-        PlatformMenuItemDescription()
-            : type(ActionType),
-              action(ContextMenuItemTagNoAction),
-              checked(false),
-              enabled(true)
-        {}
-
-        ContextMenuItemType type;
-        ContextMenuAction action;
-        String title;
-        QList<ContextMenuItem> subMenuItems;
-        bool checked;
-        bool enabled;
-    };
 #elif PLATFORM(GTK)
     typedef GtkMenuItem* PlatformMenuItemDescription;
 #elif PLATFORM(WX)
@@ -215,7 +199,7 @@ namespace WebCore {
         bool checked;
         bool enabled;
     };
-#elif PLATFORM(CHROMIUM) || PLATFORM(EFL)
+#elif PLATFORM(CHROMIUM)
     struct PlatformMenuItemDescription {
         PlatformMenuItemDescription()
             : type(ActionType)
@@ -260,17 +244,12 @@ namespace WebCore {
 #endif
 
 #if USE(CROSS_PLATFORM_CONTEXT_MENUS)
-#if PLATFORM(WIN)
-        typedef MENUITEMINFO NativeItem;
-#elif PLATFORM(EFL)
-        typedef void* NativeItem;
-#endif
         ContextMenuItem(ContextMenuAction, const String&, bool enabled, bool checked, const Vector<ContextMenuItem>& subMenuItems);
-        explicit ContextMenuItem(const NativeItem&);
+        explicit ContextMenuItem(const PlatformContextMenuItem&);
 
         // On Windows, the title (dwTypeData of the MENUITEMINFO) is not set in this function. Callers can set the title themselves,
         // and handle the lifetime of the title, if they need it.
-        NativeItem nativeMenuItem() const;
+        PlatformContextMenuItem platformContextMenuItem() const;
 
         void setTitle(const String& title) { m_title = title; }
         const String& title() const { return m_title; }

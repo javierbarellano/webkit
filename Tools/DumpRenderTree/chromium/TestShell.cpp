@@ -115,10 +115,7 @@ TestShell::TestShell()
     , m_forceCompositingMode(false)
     , m_threadedHTMLParser(true)
     , m_accelerated2dCanvasEnabled(false)
-    , m_deferred2dCanvasEnabled(false)
-    , m_acceleratedPaintingEnabled(false)
     , m_perTilePaintingEnabled(false)
-    , m_acceleratedAnimationEnabled(false)
     , m_deferredImageDecodingEnabled(false)
     , m_stressOpt(false)
     , m_stressDeopt(false)
@@ -140,12 +137,17 @@ void TestShell::initialize(MockPlatform* platformSupport)
 #if ENABLE(LINK_PRERENDER)
     m_prerenderingSupport = adoptPtr(new MockWebPrerenderingSupport());
 #endif
+#if !defined(USE_DEFAULT_RENDER_THEME) && (OS(WINDOWS) || OS(MAC_OS_X))
+    // Set theme engine.
+    webkit_support::SetThemeEngine(m_testInterfaces->themeEngine());
+#endif
+
 
     WTF::initializeThreading();
 
     if (m_threadedCompositingEnabled)
         m_webCompositorThread = adoptPtr(WebKit::Platform::current()->createThread("Compositor"));
-    WebKit::Platform::current()->compositorSupport()->initialize(m_webCompositorThread.get());
+    webkit_support::SetThreadedCompositorEnabled(m_threadedCompositingEnabled);
 
     createMainWindow();
 }
@@ -162,13 +164,13 @@ void TestShell::createMainWindow()
 
 TestShell::~TestShell()
 {
+    if (m_webViewHost)
+        m_webViewHost->shutdown();
     m_testInterfaces->setDelegate(0);
     m_testInterfaces->setWebView(0, 0);
     m_devToolsTestInterfaces->setDelegate(0);
     m_devToolsTestInterfaces->setWebView(0, 0);
     m_drtDevToolsAgent->setWebView(0);
-    if (m_webViewHost)
-        m_webViewHost->shutdown();
 }
 
 void TestShell::createDRTDevToolsClient(DRTDevToolsAgent* agent)
@@ -217,10 +219,7 @@ void TestShell::resetWebSettings(WebView& webView)
     m_prefs.acceleratedCompositingForOverflowScrollEnabled = m_acceleratedCompositingForOverflowScrollEnabled;
     m_prefs.forceCompositingMode = m_forceCompositingMode;
     m_prefs.accelerated2dCanvasEnabled = m_accelerated2dCanvasEnabled;
-    m_prefs.deferred2dCanvasEnabled = m_deferred2dCanvasEnabled;
-    m_prefs.acceleratedPaintingEnabled = m_acceleratedPaintingEnabled;
     m_prefs.perTilePaintingEnabled = m_perTilePaintingEnabled;
-    m_prefs.acceleratedAnimationEnabled = m_acceleratedAnimationEnabled;
     m_prefs.deferredImageDecodingEnabled = m_deferredImageDecodingEnabled;
     m_prefs.threadedHTMLParser = m_threadedHTMLParser;
     m_prefs.applyTo(&webView);
@@ -240,7 +239,6 @@ void TestShell::runFileTest(const TestParams& params, bool shouldDumpPixels)
         if (!m_softwareCompositingEnabled)
             m_prefs.accelerated2dCanvasEnabled = true;
         m_prefs.acceleratedCompositingForVideoEnabled = true;
-        m_prefs.deferred2dCanvasEnabled = true;
         m_prefs.mockScrollbarsEnabled = true;
         m_prefs.applyTo(m_webView);
     }
@@ -280,9 +278,6 @@ void TestShell::resetTestController()
     m_testInterfaces->resetAll();
     m_devToolsTestInterfaces->resetAll();
     m_webViewHost->reset();
-#if OS(ANDROID)
-    webkit_support::ReleaseMediaResources();
-#endif
     m_drtDevToolsAgent->reset();
     if (m_drtDevToolsClient)
         m_drtDevToolsClient->reset();

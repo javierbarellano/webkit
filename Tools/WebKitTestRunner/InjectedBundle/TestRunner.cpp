@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2010, 2011, 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -651,6 +651,11 @@ void TestRunner::setCacheModel(int model)
     WKBundleSetCacheModel(InjectedBundle::shared().bundle(), model);
 }
 
+void TestRunner::setAsynchronousSpellCheckingEnabled(bool enabled)
+{
+    WKBundleSetAsynchronousSpellCheckingEnabled(InjectedBundle::shared().bundle(), InjectedBundle::shared().pageGroup(), enabled);
+}
+
 void TestRunner::grantWebNotificationPermission(JSStringRef origin)
 {
     WKRetainPtr<WKStringRef> originWK = toWK(origin);
@@ -773,12 +778,6 @@ void TestRunner::queueNonLoadingScript(JSStringRef script)
 {
     WKRetainPtr<WKStringRef> scriptWK = toWK(script);
     InjectedBundle::shared().queueNonLoadingScript(scriptWK.get());
-}
-
-void TestRunner::setViewModeMediaFeature(JSStringRef mode)
-{
-    WKRetainPtr<WKStringRef> modeWK = toWK(mode);
-    WKBundlePageSetViewMode(InjectedBundle::shared().page()->page(), modeWK.get());
 }
 
 void TestRunner::setHandlesAuthenticationChallenges(bool handlesAuthenticationChallenges)

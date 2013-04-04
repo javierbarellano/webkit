@@ -208,6 +208,9 @@ public:
     virtual bool shouldRubberBandInDirection(WebCore::ScrollDirection) const { return false; }
     
     virtual bool isEmptyChromeClient() const { return true; }
+
+    virtual void didAssociateFormControls(const Vector<RefPtr<Element> >&) { }
+    virtual bool shouldNotifyOnFormChanges() { return false; }
 };
 
 class EmptyFrameLoaderClient : public FrameLoaderClient {
@@ -228,7 +231,7 @@ public:
     virtual void detachedFromParent2() { }
     virtual void detachedFromParent3() { }
 
-    virtual void convertMainResourceLoadToDownload(MainResourceLoader*, const ResourceRequest&, const ResourceResponse&) OVERRIDE { }
+    virtual void convertMainResourceLoadToDownload(DocumentLoader*, const ResourceRequest&, const ResourceResponse&) OVERRIDE { }
 
     virtual void assignIdentifierToInitialRequest(unsigned long, DocumentLoader*, const ResourceRequest&) { }
     virtual bool shouldUseCredentialStorage(DocumentLoader*, unsigned long) { return false; }

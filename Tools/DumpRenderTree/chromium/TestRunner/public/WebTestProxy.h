@@ -38,6 +38,7 @@
 #include "WebKit/chromium/public/WebDOMMessageEvent.h"
 #include "WebKit/chromium/public/WebDragOperation.h"
 #include "WebKit/chromium/public/WebEditingAction.h"
+#include "WebKit/chromium/public/WebIconURL.h"
 #include "WebKit/chromium/public/WebNavigationPolicy.h"
 #include "WebKit/chromium/public/WebNavigationType.h"
 #include "WebKit/chromium/public/WebSecurityOrigin.h"
@@ -149,8 +150,6 @@ protected:
     WebKit::WebPlugin* createPlugin(WebKit::WebFrame*, const WebKit::WebPluginParams&);
     void setStatusText(const WebKit::WebString&);
     void didStopLoading();
-    bool isSmartInsertDeleteEnabled();
-    bool isSelectTrailingWhitespaceEnabled();
     void showContextMenu(WebKit::WebFrame*, const WebKit::WebContextMenuData&);
     WebKit::WebUserMediaClient* userMediaClient();
     void printPage(WebKit::WebFrame*);
@@ -162,6 +161,8 @@ protected:
     bool requestPointerLock();
     void requestPointerUnlock();
     bool isPointerLocked();
+    void didFocus();
+    void didBlur();
 
     void willPerformClientRedirect(WebKit::WebFrame*, const WebKit::WebURL& from, const WebKit::WebURL& to, double interval, double fire_time);
     void didCancelClientRedirect(WebKit::WebFrame*);
@@ -170,6 +171,7 @@ protected:
     void didFailProvisionalLoad(WebKit::WebFrame*, const WebKit::WebURLError&);
     void didCommitProvisionalLoad(WebKit::WebFrame*, bool isNewNavigation);
     void didReceiveTitle(WebKit::WebFrame*, const WebKit::WebString& title, WebKit::WebTextDirection);
+    void didChangeIcon(WebKit::WebFrame*, WebKit::WebIconURL::Type);
     void didFinishDocumentLoad(WebKit::WebFrame*);
     void didHandleOnloadEvents(WebKit::WebFrame*);
     void didFailLoad(WebKit::WebFrame*, const WebKit::WebURLError&);
@@ -366,14 +368,6 @@ public:
         WebTestProxyBase::didStopLoading();
         Base::didStopLoading();
     }
-    virtual bool isSmartInsertDeleteEnabled()
-    {
-        return WebTestProxyBase::isSmartInsertDeleteEnabled();
-    }
-    virtual bool isSelectTrailingWhitespaceEnabled()
-    {
-        return WebTestProxyBase::isSelectTrailingWhitespaceEnabled();
-    }
     virtual void showContextMenu(WebKit::WebFrame* frame, const WebKit::WebContextMenuData& contextMenuData)
     {
         WebTestProxyBase::showContextMenu(frame, contextMenuData);
@@ -419,6 +413,16 @@ public:
     {
         return WebTestProxyBase::isPointerLocked();
     }
+    virtual void didFocus()
+    {
+        WebTestProxyBase::didFocus();
+        Base::didFocus();
+    }
+    virtual void didBlur()
+    {
+        WebTestProxyBase::didBlur();
+        Base::didBlur();
+    }
 
     // WebFrameClient implementation.
     virtual void willPerformClientRedirect(WebKit::WebFrame* frame, const WebKit::WebURL& from, const WebKit::WebURL& to, double interval, double fireTime)
@@ -455,6 +459,11 @@ public:
     {
         WebTestProxyBase::didReceiveTitle(frame, title, direction);
         Base::didReceiveTitle(frame, title, direction);
+    }
+    virtual void didChangeIcon(WebKit::WebFrame* frame, WebKit::WebIconURL::Type iconType)
+    {
+        WebTestProxyBase::didChangeIcon(frame, iconType);
+        Base::didChangeIcon(frame, iconType);
     }
     virtual void didFinishDocumentLoad(WebKit::WebFrame* frame)
     {

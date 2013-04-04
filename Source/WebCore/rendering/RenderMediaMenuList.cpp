@@ -138,7 +138,7 @@ void RenderMediaMenuList::showPopup()
     // This is important because otherwise we might try to create m_innerBlock
     // inside the showPopup call and it would fail.
     createInnerBlock();
-    setPopUp(this);
+    //setPopUp(this);
     m_popupIsVisible = true;
 
     // Compute the top left taking transforms into account, but use
@@ -245,12 +245,12 @@ bool RenderMediaMenuList::itemIsEnabled(unsigned listIndex) const
     bool groupEnabled = true;
     if (Element* parentElement = element->parentElement()) {
         if (parentElement->hasTagName(WebCore::HTMLNames::optgroupTag))
-            groupEnabled = !static_cast<HTMLOptGroupElement*>(parentElement)->disabled();
+            groupEnabled = !static_cast<HTMLOptGroupElement*>(parentElement)->isDisabledFormControl();
     }
     if (!groupEnabled)
         return false;
 
-    return element->isEnabledFormControl();
+    return !element->isDisabledFormControl();
 }
 
 PopupMenuStyle RenderMediaMenuList::itemStyle(unsigned listIndex) const

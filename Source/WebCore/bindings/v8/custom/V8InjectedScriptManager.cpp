@@ -45,10 +45,10 @@
 
 namespace WebCore {
 
-static void WeakReferenceCallback(v8::Isolate* isolate, v8::Persistent<v8::Value> object, void* parameter)
+template<>
+void WeakHandleListener<InjectedScriptManager, InjectedScriptHost>::callback(v8::Isolate* isolate, v8::Persistent<v8::Value> object, InjectedScriptHost* host)
 {
-    InjectedScriptHost* nativeObject = static_cast<InjectedScriptHost*>(parameter);
-    nativeObject->deref();
+    host->deref();
     object.Dispose(isolate);
     object.Clear();
 }
@@ -70,7 +70,7 @@ static v8::Local<v8::Object> createInjectedScriptHostV8Wrapper(InjectedScriptHos
     // InspectorBackend when the wrapper is garbage collected.
     host->ref();
     v8::Persistent<v8::Object> weakHandle = v8::Persistent<v8::Object>::New(isolate, instance);
-    weakHandle.MakeWeak(isolate, host, &WeakReferenceCallback);
+    WeakHandleListener<InjectedScriptManager, InjectedScriptHost>::makeWeak(isolate, weakHandle, host);
     return instance;
 }
 
@@ -119,6 +119,8 @@ bool InjectedScriptManager::canAccessInspectedWindow(ScriptState* scriptState)
     if (global.IsEmpty())
         return false;
     v8::Handle<v8::Object> holder = global->FindInstanceInPrototypeChain(V8DOMWindow::GetTemplate(context->GetIsolate(), MainWorld));
+    if (holder.IsEmpty())
+        holder = global->FindInstanceInPrototypeChain(V8DOMWindow::GetTemplate(context->GetIsolate(), IsolatedWorld));
     if (holder.IsEmpty())
         return false;
     Frame* frame = V8DOMWindow::toNative(holder)->frame();

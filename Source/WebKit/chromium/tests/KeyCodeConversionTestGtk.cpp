@@ -48,7 +48,7 @@ TEST(KeyCodeConversionTest, KeyPadClear)
 TEST(KeyCodeConversionTest, KeyPadInsert)
 {
     EXPECT_EQ(windowsKeyCodeForKeyEvent(GDK_Insert),
-        windowsKeyCodeForKeyEvent(GDK_KP_Begin));
+        windowsKeyCodeForKeyEvent(GDK_KP_Insert));
 }
 
 TEST(KeyCodeConversionTest, KeyPadDelete)

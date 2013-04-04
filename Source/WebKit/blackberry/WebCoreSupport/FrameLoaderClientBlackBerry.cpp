@@ -22,14 +22,12 @@
 #include "AboutData.h"
 #include "AutofillManager.h"
 #include "BackForwardController.h"
-#include "BackForwardListImpl.h"
 #include "BackingStoreClient.h"
 #include "BackingStore_p.h"
 #include "Chrome.h"
 #include "ChromeClientBlackBerry.h"
 #include "ClientExtension.h"
 #include "CookieManager.h"
-#include "CredentialBackingStore.h"
 #include "CredentialManager.h"
 #include "CredentialTransformData.h"
 #include "DumpRenderTreeClient.h"
@@ -50,7 +48,6 @@
 #include "Image.h"
 #include "InputHandler.h"
 #include "MIMETypeRegistry.h"
-#include "MainResourceLoader.h"
 #include "NativeImageSkia.h"
 #include "NetworkManager.h"
 #include "NodeList.h"
@@ -58,7 +55,6 @@
 #include "PluginDatabase.h"
 #include "PluginView.h"
 #include "ProgressTracker.h"
-#include "ProtectionSpace.h"
 #include "ScopePointer.h"
 #if ENABLE(BLACKBERRY_CREDENTIAL_PERSIST)
 #include "Settings.h"
@@ -129,22 +125,6 @@ int FrameLoaderClientBlackBerry::playerId() const
 bool FrameLoaderClientBlackBerry::cookiesEnabled() const
 {
     return m_webPagePrivate->m_webSettings->areCookiesEnabled();
-}
-
-void FrameLoaderClientBlackBerry::dispatchDidAddBackForwardItem(HistoryItem* item) const
-{
-    // Inform the client that the back/forward list has changed.
-    invalidateBackForwardList();
-}
-
-void FrameLoaderClientBlackBerry::dispatchDidRemoveBackForwardItem(HistoryItem* item) const
-{
-    invalidateBackForwardList();
-}
-
-void FrameLoaderClientBlackBerry::dispatchDidChangeBackForwardIndex() const
-{
-    invalidateBackForwardList();
 }
 
 void FrameLoaderClientBlackBerry::dispatchDidChangeLocationWithinPage()
@@ -360,7 +340,7 @@ PassRefPtr<Widget> FrameLoaderClientBlackBerry::createPlugin(const IntSize& plug
 
 void FrameLoaderClientBlackBerry::redirectDataToPlugin(Widget* pluginWidget)
 {
-    m_pluginView = static_cast<PluginView*>(pluginWidget);
+    m_pluginView = toPluginView(pluginWidget);
     if (pluginWidget)
         m_hasSentResponseToPlugin = false;
 }
@@ -668,6 +648,8 @@ void FrameLoaderClientBlackBerry::dispatchDidFinishLoad()
         && !m_webPagePrivate->m_webSettings->isPrivateBrowsingEnabled())
         credentialManager().autofillPasswordForms(m_frame->document()->forms());
 #endif
+
+    m_webPagePrivate->m_inputHandler->focusedNodeChanged();
 }
 
 void FrameLoaderClientBlackBerry::dispatchDidFinishDocumentLoad()
@@ -963,21 +945,6 @@ bool FrameLoaderClientBlackBerry::shouldStopLoadingForHistoryItem(HistoryItem*) 
     return true;
 }
 
-void FrameLoaderClientBlackBerry::invalidateBackForwardList() const
-{
-    notifyBackForwardListChanged();
-}
-
-void FrameLoaderClientBlackBerry::notifyBackForwardListChanged() const
-{
-    BackForwardListImpl* backForwardList = static_cast<BackForwardListImpl*>(m_webPagePrivate->m_page->backForward()->client());
-    ASSERT(backForwardList);
-
-    unsigned listSize = backForwardList->entries().size();
-    unsigned currentIndex = backForwardList->backListCount();
-    m_webPagePrivate->m_client->resetBackForwardList(listSize, currentIndex);
-}
-
 Frame* FrameLoaderClientBlackBerry::dispatchCreatePage(const NavigationAction& navigation)
 {
     WebPage* webPage = m_webPagePrivate->m_client->createWindow(0, 0, -1, -1, WebPageClient::FlagWindowDefault, navigation.url().string(), BlackBerry::Platform::String::emptyString());
@@ -1232,9 +1199,9 @@ void FrameLoaderClientBlackBerry::startDownload(const ResourceRequest& request, 
     m_webPagePrivate->load(request.url().string(), BlackBerry::Platform::String::emptyString(), "GET", NetworkRequest::UseProtocolCachePolicy, 0, 0, 0, 0, false, false, true, "", suggestedName);
 }
 
-void FrameLoaderClientBlackBerry::convertMainResourceLoadToDownload(MainResourceLoader* mainResourceLoader, const ResourceRequest&, const ResourceResponse& r)
+void FrameLoaderClientBlackBerry::convertMainResourceLoadToDownload(DocumentLoader* documentLoader, const ResourceRequest&, const ResourceResponse& r)
 {
-    BlackBerry::Platform::FilterStream* stream = NetworkManager::instance()->streamForHandle(mainResourceLoader->loader()->handle());
+    BlackBerry::Platform::FilterStream* stream = NetworkManager::instance()->streamForHandle(documentLoader->mainResourceLoader()->handle());
     ASSERT(stream);
 
     m_webPagePrivate->m_client->downloadRequested(stream, r.suggestedFilename());

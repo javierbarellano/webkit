@@ -119,11 +119,11 @@ namespace WebCore {
         void setLoadsImagesAutomatically(bool);
         bool loadsImagesAutomatically() const { return m_loadsImagesAutomatically; }
 
-        void setScriptEnabled(bool);
-        // Instead of calling isScriptEnabled directly, please consider calling
-        // ScriptController::canExecuteScripts, which takes things like the
-        // HTML sandbox attribute into account.
+        // Clients that execute script should call ScriptController::canExecuteScripts()
+        // instead of this function. ScriptController::canExecuteScripts() checks the
+        // HTML sandbox, plug-in sandboxing, and other important details.
         bool isScriptEnabled() const { return m_isScriptEnabled; }
+        void setScriptEnabled(bool);
 
         SETTINGS_GETTERS_AND_SETTERS
 
@@ -180,6 +180,11 @@ namespace WebCore {
         void setDOMTimerAlignmentInterval(double);
         double domTimerAlignmentInterval() const;
 
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+        bool hiddenPageDOMTimerThrottlingEnabled() const { return m_hiddenPageDOMTimerThrottlingEnabled; }
+        void setHiddenPageDOMTimerThrottlingEnabled(bool);
+#endif
+
         void setUsesPageCache(bool);
         bool usesPageCache() const { return m_usesPageCache; }
         
@@ -228,11 +233,6 @@ namespace WebCore {
 
         static const unsigned defaultMaximumHTMLParserDOMTreeDepth = 512;
 
-#if ENABLE(SMOOTH_SCROLLING)
-        void setEnableScrollAnimator(bool flag) { m_scrollAnimatorEnabled = flag; }
-        bool scrollAnimatorEnabled() const { return m_scrollAnimatorEnabled; }
-#endif
-
 #if USE(SAFARI_THEME)
         // Windows debugging pref (global) for switching between the Aqua look and a native windows look.
         static void setShouldPaintNativeControls(bool);
@@ -262,6 +262,14 @@ namespace WebCore {
 #if USE(JSC)
         static void setShouldRespectPriorityInCSSAttributeSetters(bool);
         static bool shouldRespectPriorityInCSSAttributeSetters();
+#endif
+
+        void setTimeWithoutMouseMovementBeforeHidingControls(double time) { m_timeWithoutMouseMovementBeforeHidingControls = time; }
+        double timeWithoutMouseMovementBeforeHidingControls() const { return m_timeWithoutMouseMovementBeforeHidingControls; }
+
+#if ENABLE(PAGE_VISIBILITY_API)
+        bool hiddenPageCSSAnimationSuspensionEnabled() const { return m_hiddenPageCSSAnimationSuspensionEnabled; }
+        void setHiddenPageCSSAnimationSuspensionEnabled(bool);
 #endif
 
     private:
@@ -310,9 +318,6 @@ namespace WebCore {
         bool m_showTiledScrollingIndicator : 1;
         bool m_tiledBackingStoreEnabled : 1;
         bool m_dnsPrefetchingEnabled : 1;
-#if ENABLE(SMOOTH_SCROLLING)
-        bool m_scrollAnimatorEnabled : 1;
-#endif
 
 #if ENABLE(TOUCH_EVENTS)
         bool m_touchEventEmulationEnabled : 1;
@@ -320,8 +325,17 @@ namespace WebCore {
         bool m_scrollingPerformanceLoggingEnabled : 1;
         bool m_aggressiveTileRetentionEnabled : 1;
 
+        double m_timeWithoutMouseMovementBeforeHidingControls;
+
         Timer<Settings> m_setImageLoadingSettingsTimer;
         void imageLoadingSettingsTimerFired(Timer<Settings>*);
+
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+        bool m_hiddenPageDOMTimerThrottlingEnabled : 1;
+#endif
+#if ENABLE(PAGE_VISIBILITY_API)
+        bool m_hiddenPageCSSAnimationSuspensionEnabled : 1;
+#endif
 
         static double gDefaultMinDOMTimerInterval;
         static double gDefaultDOMTimerAlignmentInterval;

@@ -31,6 +31,8 @@
 #include "config.h"
 #include "WebKit.h"
 
+#include "CustomElementRegistry.h"
+#include "EventTracer.h"
 #include "ImageDecodingStore.h"
 #include "LayoutTestSupport.h"
 #include "Logging.h"
@@ -79,6 +81,9 @@ public:
     virtual void willProcessTask() { }
     virtual void didProcessTask()
     {
+#if ENABLE(CUSTOM_ELEMENTS)
+        WebCore::CustomElementRegistry::deliverAllLifecycleCallbacks();
+#endif
         WebCore::MutationObserver::deliverAllMutations();
     }
 };
@@ -155,6 +160,8 @@ void initializeWithoutV8(Platform* webKitPlatformSupport)
     // the initialization thread-safe, but given that so many code paths use
     // this, initializing this lazily probably doesn't buy us much.
     WebCore::UTF8Encoding();
+
+    WebCore::EventTracer::initialize();
 
 #if ENABLE(INDEXED_DATABASE)
     WebCore::setIDBFactoryBackendInterfaceCreateFunction(WebKit::IDBFactoryBackendProxy::create);

@@ -22,6 +22,7 @@
 #include "BlackBerryPlatformIntRectRegion.h"
 #include "BlackBerryPlatformPrimitives.h"
 #include "BlackBerryPlatformStopWatch.h"
+#include "Color.h"
 #include "TextGranularity.h"
 
 #include <wtf/Vector.h>
@@ -79,6 +80,8 @@ public:
     void expandSelection(bool isScrollStarted);
     void setOverlayExpansionHeight(int dy) { m_overlayExpansionHeight = dy; }
     void setParagraphExpansionScrollMargin(const WebCore::IntSize&);
+    void setSelectionViewportRect(const WebCore::IntRect& selectionViewportRect) { m_selectionViewportRect = selectionViewportRect; }
+    WebCore::IntRect selectionViewportRect() const;
 
 private:
     void notifyCaretPositionChangedIfNeeded(bool userTouchTriggered = true);
@@ -93,8 +96,9 @@ private:
     WebCore::IntPoint clipPointToVisibleContainer(const WebCore::IntPoint&) const;
 
     void selectNextParagraph();
-    void drawOverlay(BlackBerry::Platform::IntRectRegion, bool);
-    bool findNextOverlayRegion();
+    void drawAnimationOverlay(BlackBerry::Platform::IntRectRegion, bool isExpandingOverlayAtConstantRate, bool isStartOfSelection = false);
+    Platform::IntRectRegion regionForSelectionQuads(WebCore::VisibleSelection);
+    bool findNextAnimationOverlayRegion();
     bool ensureSelectedTextVisible(const WebCore::IntPoint&, bool scrollIfNeeded);
     bool expandSelectionToGranularity(WebCore::Frame*, WebCore::VisibleSelection, WebCore::TextGranularity, bool isInputMode);
 
@@ -110,15 +114,18 @@ private:
     bool m_lastUpdatedEndPointIsValid;
     bool m_didSuppressCaretPositionChangedNotification;
     BlackBerry::Platform::IntRectRegion m_lastSelectionRegion;
-    WebCore::VisiblePosition m_overlayStartPos;
-    WebCore::VisiblePosition m_overlayEndPos;
-    BlackBerry::Platform::IntRectRegion m_currentOverlayRegion;
-    BlackBerry::Platform::IntRectRegion m_nextOverlayRegion;
+    WebCore::VisiblePosition m_animationOverlayStartPos;
+    WebCore::VisiblePosition m_animationOverlayEndPos;
+    BlackBerry::Platform::IntRectRegion m_currentAnimationOverlayRegion;
+    BlackBerry::Platform::IntRectRegion m_nextAnimationOverlayRegion;
     int m_overlayExpansionHeight;
+    WebCore::Color m_animationHighlightColor;
 
     BlackBerry::Platform::StopWatch m_timer;
 
     WebCore::IntSize m_scrollMargin;
+    WebCore::IntRect m_selectionViewportRect;
+    WebCore::VisibleSelection m_lastSelection;
 };
 
 }

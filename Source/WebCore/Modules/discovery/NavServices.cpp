@@ -17,7 +17,7 @@ namespace WebCore {
 // Copy Constructor
 NavServices::NavServices(const NavServices &that) :
 		RefCounted()
-		, ActiveDOMObject(that.scriptExecutionContext(), this)
+		, ActiveDOMObject(that.scriptExecutionContext())
 {
 	clearSrvs();
 	for (int i=0; i < (int)that.m_services.size(); i++)

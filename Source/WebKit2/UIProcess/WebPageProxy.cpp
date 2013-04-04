@@ -132,6 +132,77 @@ WKPageDebugPaintFlags WebPageProxy::s_debugPaintFlags = 0;
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, webPageProxyCounter, ("WebPageProxy"));
 
+class ExceededDatabaseQuotaRecords {
+    WTF_MAKE_NONCOPYABLE(ExceededDatabaseQuotaRecords); WTF_MAKE_FAST_ALLOCATED;
+public:
+    struct Record {
+        uint64_t frameID;
+        String originIdentifier;
+        String databaseName;
+        String displayName;
+        uint64_t currentQuota;
+        uint64_t currentOriginUsage;
+        uint64_t currentDatabaseUsage;
+        uint64_t expectedUsage;
+        RefPtr<Messages::WebPageProxy::ExceededDatabaseQuota::DelayedReply> reply;
+    };
+
+    static ExceededDatabaseQuotaRecords& shared();
+
+    PassOwnPtr<Record> createRecord(uint64_t frameID, String originIdentifier,
+        String databaseName, String displayName, uint64_t currentQuota,
+        uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, 
+        PassRefPtr<Messages::WebPageProxy::ExceededDatabaseQuota::DelayedReply>);
+
+    void add(PassOwnPtr<Record>);
+    bool areBeingProcessed() const { return m_currentRecord; }
+    Record* next();
+
+private:
+    ExceededDatabaseQuotaRecords() { }
+    ~ExceededDatabaseQuotaRecords() { }
+
+    Deque<OwnPtr<Record> > m_records;
+    OwnPtr<Record> m_currentRecord;
+};
+
+ExceededDatabaseQuotaRecords& ExceededDatabaseQuotaRecords::shared()
+{
+    DEFINE_STATIC_LOCAL(ExceededDatabaseQuotaRecords, records, ());
+    return records;
+}
+
+PassOwnPtr<ExceededDatabaseQuotaRecords::Record> ExceededDatabaseQuotaRecords::createRecord(
+    uint64_t frameID, String originIdentifier, String databaseName, String displayName,
+    uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage,
+    uint64_t expectedUsage, PassRefPtr<Messages::WebPageProxy::ExceededDatabaseQuota::DelayedReply> reply)
+{
+    OwnPtr<Record> record = adoptPtr(new Record);
+    record->frameID = frameID;
+    record->originIdentifier = originIdentifier;
+    record->databaseName = databaseName;
+    record->displayName = displayName;
+    record->currentQuota = currentQuota;
+    record->currentOriginUsage = currentOriginUsage;
+    record->currentDatabaseUsage = currentDatabaseUsage;
+    record->expectedUsage = expectedUsage;
+    record->reply = reply;
+    return record.release();
+}
+
+void ExceededDatabaseQuotaRecords::add(PassOwnPtr<ExceededDatabaseQuotaRecords::Record> record)
+{
+    m_records.append(record);
+}
+
+ExceededDatabaseQuotaRecords::Record* ExceededDatabaseQuotaRecords::next()
+{
+    m_currentRecord.clear();
+    if (!m_records.isEmpty())
+        m_currentRecord = m_records.takeFirst();
+    return m_currentRecord.get();
+}
+
 #if !LOG_DISABLED
 static const char* webKeyboardEventTypeString(WebEvent::Type type)
 {
@@ -229,6 +300,7 @@ WebPageProxy::WebPageProxy(PageClient* pageClient, PassRefPtr<WebProcessProxy> p
     , m_rubberBandsAtBottom(false)
     , m_rubberBandsAtTop(false)
     , m_mainFrameInViewSourceMode(false)
+    , m_overridePrivateBrowsingEnabled(false)
     , m_pageCount(0)
     , m_renderTreeSize(0)
     , m_shouldSendEventsSynchronously(false)
@@ -267,7 +339,9 @@ WebPageProxy::WebPageProxy(PageClient* pageClient, PassRefPtr<WebProcessProxy> p
 #endif
 
     m_process->addMessageReceiver(Messages::WebPageProxy::messageReceiverName(), m_pageID, this);
-    m_process->context()->storageManager().createSessionStorageNamespace(m_pageID, m_process->isValid() ? m_process->connection() : 0);
+
+    // FIXME: If we ever expose the session storage size as a preference, we need to pass it here.
+    m_process->context()->storageManager().createSessionStorageNamespace(m_pageID, m_process->isValid() ? m_process->connection() : 0, std::numeric_limits<unsigned>::max());
 }
 
 WebPageProxy::~WebPageProxy()
@@ -3876,6 +3950,7 @@ WebPageCreationParameters WebPageProxy::creationParameters() const
     parameters.deviceScaleFactor = m_intrinsicDeviceScaleFactor;
     parameters.mediaVolume = m_mediaVolume;
     parameters.mayStartMediaWhenInWindow = m_mayStartMediaWhenInWindow;
+    parameters.overridePrivateBrowsingEnabled = m_overridePrivateBrowsingEnabled;
 
 #if PLATFORM(MAC)
     parameters.layerHostingMode = m_layerHostingMode;
@@ -3933,14 +4008,31 @@ void WebPageProxy::didReceiveAuthenticationChallengeProxy(uint64_t frameID, Pass
     m_loaderClient.didReceiveAuthenticationChallengeInFrame(this, frame, authenticationChallenge.get());
 }
 
-void WebPageProxy::exceededDatabaseQuota(uint64_t frameID, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, uint64_t& newQuota)
+void WebPageProxy::exceededDatabaseQuota(uint64_t frameID, const String& originIdentifier, const String& databaseName, const String& displayName, uint64_t currentQuota, uint64_t currentOriginUsage, uint64_t currentDatabaseUsage, uint64_t expectedUsage, PassRefPtr<Messages::WebPageProxy::ExceededDatabaseQuota::DelayedReply> reply)
 {
-    WebFrameProxy* frame = m_process->webFrame(frameID);
-    MESSAGE_CHECK(frame);
+    ExceededDatabaseQuotaRecords& records = ExceededDatabaseQuotaRecords::shared();
+    OwnPtr<ExceededDatabaseQuotaRecords::Record> newRecord =  records.createRecord(frameID,
+        originIdentifier, databaseName, displayName, currentQuota, currentOriginUsage,
+        currentDatabaseUsage, expectedUsage, reply);
+    records.add(newRecord.release());
 
-    RefPtr<WebSecurityOrigin> origin = WebSecurityOrigin::createFromDatabaseIdentifier(originIdentifier);
+    if (records.areBeingProcessed())
+        return;
 
-    newQuota = m_uiClient.exceededDatabaseQuota(this, frame, origin.get(), databaseName, displayName, currentQuota, currentOriginUsage, currentDatabaseUsage, expectedUsage);
+    ExceededDatabaseQuotaRecords::Record* record = records.next();
+    while (record) {
+        WebFrameProxy* frame = m_process->webFrame(record->frameID);
+        MESSAGE_CHECK(frame);
+
+        RefPtr<WebSecurityOrigin> origin = WebSecurityOrigin::createFromDatabaseIdentifier(record->originIdentifier);
+
+        uint64_t newQuota = m_uiClient.exceededDatabaseQuota(this, frame, origin.get(),
+            record->databaseName, record->displayName, record->currentQuota,
+            record->currentOriginUsage, record->currentDatabaseUsage, record->expectedUsage);
+
+        record->reply->send(newQuota);
+        record = records.next();
+    }
 }
 
 void WebPageProxy::requestGeolocationPermissionForFrame(uint64_t geolocationID, uint64_t frameID, String originIdentifier)
@@ -4345,6 +4437,17 @@ void WebPageProxy::setMainFrameInViewSourceMode(bool mainFrameInViewSourceMode)
 
     if (isValid())
         m_process->send(Messages::WebPage::SetMainFrameInViewSourceMode(mainFrameInViewSourceMode), m_pageID);
+}
+
+void WebPageProxy::setOverridePrivateBrowsingEnabled(bool overridePrivateBrowsingEnabled)
+{
+    if (m_overridePrivateBrowsingEnabled == overridePrivateBrowsingEnabled)
+        return;
+    
+    m_overridePrivateBrowsingEnabled = overridePrivateBrowsingEnabled;
+    
+    if (isValid())
+        m_process->send(Messages::WebPage::SetOverridePrivateBrowsingEnabled(overridePrivateBrowsingEnabled), m_pageID);
 }
 
 } // namespace WebKit

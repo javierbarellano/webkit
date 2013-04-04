@@ -102,7 +102,7 @@ protected:
 
 private:
     NavServices(ScriptExecutionContext* context, ReadyState code)
-    	: ActiveDOMObject(context, this)
+    	: ActiveDOMObject(context)
     	, m_code(code)
     	, m_context(context)
 		, m_online(false)

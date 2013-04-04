@@ -37,8 +37,6 @@
 #include "MediaPlayerPrivate.h"
 #include "WebAudioSourceProviderClient.h"
 #include "WebMediaPlayerClient.h"
-#include "WebStreamTextureClient.h"
-#include <public/WebVideoFrameProvider.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 
@@ -49,16 +47,10 @@ namespace WebKit {
 class WebHelperPluginImpl;
 class WebAudioSourceProvider;
 class WebMediaPlayer;
-class WebVideoLayer;
 
 // This class serves as a bridge between WebCore::MediaPlayer and
 // WebKit::WebMediaPlayer.
-class WebMediaPlayerClientImpl : public WebCore::MediaPlayerPrivateInterface
-#if USE(ACCELERATED_COMPOSITING)
-                               , public WebVideoFrameProvider
-#endif
-                               , public WebMediaPlayerClient
-                               , public WebStreamTextureClient {
+class WebMediaPlayerClientImpl : public WebCore::MediaPlayerPrivateInterface, public WebMediaPlayerClient {
 
 public:
     static bool isEnabled();
@@ -84,15 +76,14 @@ public:
     virtual float volume() const;
     virtual void playbackStateChanged();
     virtual WebMediaPlayer::Preload preload() const;
-    virtual void sourceOpened();
-    virtual WebKit::WebURL sourceURL() const;
     virtual void keyAdded(const WebString& keySystem, const WebString& sessionId);
     virtual void keyError(const WebString& keySystem, const WebString& sessionId, MediaKeyErrorCode, unsigned short systemCode);
     virtual void keyMessage(const WebString& keySystem, const WebString& sessionId, const unsigned char* message, unsigned messageLength, const WebURL& defaultURL);
     virtual void keyNeeded(const WebString& keySystem, const WebString& sessionId, const unsigned char* initData, unsigned initDataLength);
     virtual WebPlugin* createHelperPlugin(const WebString& pluginType, WebFrame*);
     virtual void closeHelperPlugin();
-    virtual void disableAcceleratedCompositing();
+    virtual bool needsWebLayerForVideo() const;
+    virtual void setWebLayer(WebLayer*);
 
     // MediaPlayerPrivateInterface methods:
     virtual void load(const WTF::String& url);
@@ -132,6 +123,7 @@ public:
     virtual void setSize(const WebCore::IntSize&);
     virtual void paint(WebCore::GraphicsContext*, const WebCore::IntRect&);
     virtual void paintCurrentFrameInContext(WebCore::GraphicsContext*, const WebCore::IntRect&);
+    virtual bool copyVideoTextureToPlatformTexture(WebCore::GraphicsContext3D*, Platform3DObject texture, GC3Dint level, GC3Denum type, GC3Denum internalFormat, bool premultiplyAlpha, bool flipY);
     virtual void setPreload(WebCore::MediaPlayer::Preload);
     virtual bool hasSingleSecurityOrigin() const;
     virtual bool didPassCORSAccessCheck() const;
@@ -151,24 +143,13 @@ public:
     virtual WebCore::AudioSourceProvider* audioSourceProvider();
 #endif
 
-#if USE(ACCELERATED_COMPOSITING)
     virtual bool supportsAcceleratedRendering() const;
-
-    // WebVideoFrameProvider methods:
-    virtual void setVideoFrameProviderClient(WebVideoFrameProvider::Client*);
-    virtual WebVideoFrame* getCurrentFrame();
-    virtual void putCurrentFrame(WebVideoFrame*);
-#endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
     virtual WebCore::MediaPlayer::MediaKeyException generateKeyRequest(const String& keySystem, const unsigned char* initData, unsigned initDataLength) OVERRIDE;
     virtual WebCore::MediaPlayer::MediaKeyException addKey(const String& keySystem, const unsigned char* key, unsigned keyLength, const unsigned char* initData, unsigned initDataLength, const String& sessionId) OVERRIDE;
     virtual WebCore::MediaPlayer::MediaKeyException cancelKeyRequest(const String& keySystem, const String& sessionId) OVERRIDE;
 #endif
-
-    // WebStreamTextureClient methods:
-    virtual void didReceiveFrame();
-    virtual void didUpdateMatrix(const float*);
 
 protected:
     WebMediaPlayerClientImpl();
@@ -190,20 +171,15 @@ private:
     bool acceleratedRenderingInUse();
 #endif
 
-    Mutex m_webMediaPlayerMutex; // Guards the m_webMediaPlayer
     WebCore::MediaPlayer* m_mediaPlayer;
     OwnPtr<WebMediaPlayer> m_webMediaPlayer;
-    WebVideoFrame* m_currentVideoFrame;
     WebCore::KURL m_url;
     bool m_delayingLoad;
     WebCore::MediaPlayer::Preload m_preload;
     RefPtr<WebHelperPluginImpl> m_helperPlugin;
-#if USE(ACCELERATED_COMPOSITING)
-    OwnPtr<WebVideoLayer> m_videoLayer;
-    bool m_supportsAcceleratedCompositing;
+    WebLayer* m_videoLayer;
     bool m_opaque;
-    WebVideoFrameProvider::Client* m_videoFrameProviderClient;
-#endif
+    bool m_needsWebLayerForVideo;
     static bool m_isEnabled;
 
 #if ENABLE(WEB_AUDIO)

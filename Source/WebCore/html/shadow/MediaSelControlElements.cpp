@@ -460,7 +460,7 @@ int MediaSelectElement::nextValidIndex(int listIndex, SkipDirection direction, i
     int size = listItems.size();
     for (listIndex += direction; listIndex >= 0 && listIndex < size; listIndex += direction) {
         --skip;
-        if (!listItems[listIndex]->disabled() && listItems[listIndex]->hasTagName(optionTag)) {
+        if (!listItems[listIndex]->isDisabledFormControl() && listItems[listIndex]->hasTagName(optionTag)) {
             lastGoodIndex = listIndex;
             if (skip <= 0)
                 break;
@@ -558,7 +558,7 @@ void MediaSelectElement::updateListBoxSelection(bool deselectOtherOptions)
     const Vector<HTMLElement*>& items = listItems();
     for (unsigned i = 0; i < items.size(); ++i) {
         HTMLElement* element = items[i];
-        if (!element->hasTagName(optionTag) || toHTMLOptionElement(element)->disabled())
+        if (!element->hasTagName(optionTag) || toHTMLOptionElement(element)->isDisabledFormControl())
             continue;
 
         if (i >= start && i <= end)
@@ -696,7 +696,7 @@ void MediaSelectElement::recalcListItems(bool updateSelectedStates) const
                     if (foundSelected)
                         foundSelected->setSelectedState(false);
                     foundSelected = option;
-                } else if (m_size <= 1 && !foundSelected && !option->disabled()) {
+                } else if (m_size <= 1 && !foundSelected && !option->isDisabledFormControl()) {
                     foundSelected = option;
                     foundSelected->setSelectedState(true);
                 }
@@ -1096,7 +1096,7 @@ void MediaSelectElement::updateSelectedState(int listIndex, bool multi, bool shi
         setActiveSelectionAnchorIndex(selectedIndex());
 
     // Set the selection state of the clicked option.
-    if (clickedElement->hasTagName(optionTag) && !toHTMLOptionElement(clickedElement)->disabled())
+    if (clickedElement->hasTagName(optionTag) && !toHTMLOptionElement(clickedElement)->isDisabledFormControl())
         toHTMLOptionElement(clickedElement)->setSelectedState(true);
 
     // If there was no selectedIndex() for the previous initialization, or If
@@ -1126,7 +1126,7 @@ void MediaSelectElement::listBoxDefaultEventHandler(Event* event)
         IntPoint localOffset = roundedIntPoint(renderer()->absoluteToLocal(mouseEvent->absoluteLocation(), 0));
         int listIndex = toRenderListBox(renderer())->listIndexAtOffset(toSize(localOffset));
         if (listIndex >= 0) {
-            if (!disabled()) {
+            if (!isDisabledFormControl()) {
 #if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
                 updateSelectedState(listIndex, mouseEvent->metaKey(), mouseEvent->shiftKey());
 #else
@@ -1146,7 +1146,7 @@ void MediaSelectElement::listBoxDefaultEventHandler(Event* event)
         IntPoint localOffset = roundedIntPoint(renderer()->absoluteToLocal(mouseEvent->absoluteLocation(), 0));
         int listIndex = toRenderListBox(renderer())->listIndexAtOffset(toSize(localOffset));
         if (listIndex >= 0) {
-            if (!disabled()) {
+            if (!isDisabledFormControl()) {
                 if (m_multiple) {
                     setActiveSelectionEndIndex(listIndex);
                     updateListBoxSelection(false);
@@ -1358,7 +1358,7 @@ void MediaSelectElement::typeAheadFind(KeyboardEvent* event)
     String prefixWithCaseFolded(prefix.foldCase());
     for (int i = 0; i < itemCount; ++i, index = (index + 1) % itemCount) {
         HTMLElement* element = items[index];
-        if (!element->hasTagName(optionTag) || toHTMLOptionElement(element)->disabled())
+        if (!element->hasTagName(optionTag) || toHTMLOptionElement(element)->isDisabledFormControl())
             continue;
 
         // Fold the option string and check if its prefix is equal to the folded prefix.

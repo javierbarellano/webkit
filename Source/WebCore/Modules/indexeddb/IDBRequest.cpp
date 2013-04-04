@@ -37,6 +37,7 @@
 #include "EventQueue.h"
 #include "ExceptionCodePlaceholder.h"
 #include "IDBBindingUtilities.h"
+#include "IDBCursorBackendInterface.h"
 #include "IDBCursorWithValue.h"
 #include "IDBDatabase.h"
 #include "IDBEventDispatcher.h"
@@ -67,7 +68,7 @@ PassRefPtr<IDBRequest> IDBRequest::create(ScriptExecutionContext* context, PassR
 }
 
 IDBRequest::IDBRequest(ScriptExecutionContext* context, PassRefPtr<IDBAny> source, IDBDatabaseBackendInterface::TaskType taskType, IDBTransaction* transaction)
-    : ActiveDOMObject(context, this)
+    : ActiveDOMObject(context)
     , m_result(0)
     , m_errorCode(0)
     , m_contextStopped(false)
@@ -77,8 +78,8 @@ IDBRequest::IDBRequest(ScriptExecutionContext* context, PassRefPtr<IDBAny> sourc
     , m_source(source)
     , m_taskType(taskType)
     , m_hasPendingActivity(true)
-    , m_cursorType(IDBCursorBackendInterface::KeyAndValue)
-    , m_cursorDirection(IDBCursor::NEXT)
+    , m_cursorType(IndexedDB::CursorKeyAndValue)
+    , m_cursorDirection(IndexedDB::CursorNext)
     , m_cursorFinished(false)
     , m_pendingCursor(0)
     , m_didFireUpgradeNeededEvent(false)
@@ -185,7 +186,7 @@ void IDBRequest::abort()
     m_requestAborted = true;
 }
 
-void IDBRequest::setCursorDetails(IDBCursorBackendInterface::CursorType cursorType, IDBCursor::Direction direction)
+void IDBRequest::setCursorDetails(IndexedDB::CursorType cursorType, IndexedDB::CursorDirection direction)
 {
     ASSERT(m_readyState == PENDING);
     ASSERT(!m_pendingCursor);
@@ -228,7 +229,7 @@ void IDBRequest::setResultCursor(PassRefPtr<IDBCursor> cursor, PassRefPtr<IDBKey
     m_cursorPrimaryKey = primaryKey;
     m_cursorValue = value;
 
-    if (m_cursorType == IDBCursorBackendInterface::KeyOnly) {
+    if (m_cursorType == IndexedDB::CursorKeyOnly) {
         m_result = IDBAny::create(cursor);
         return;
     }
@@ -294,10 +295,10 @@ void IDBRequest::onSuccess(PassRefPtr<IDBCursorBackendInterface> backend, PassRe
     ASSERT(!m_pendingCursor);
     RefPtr<IDBCursor> cursor;
     switch (m_cursorType) {
-    case IDBCursorBackendInterface::KeyOnly:
+    case IndexedDB::CursorKeyOnly:
         cursor = IDBCursor::create(backend, m_cursorDirection, this, m_source.get(), m_transaction.get());
         break;
-    case IDBCursorBackendInterface::KeyAndValue:
+    case IndexedDB::CursorKeyAndValue:
         cursor = IDBCursorWithValue::create(backend, m_cursorDirection, this, m_source.get(), m_transaction.get());
         break;
     default:
@@ -370,16 +371,23 @@ void IDBRequest::onSuccess(PassRefPtr<SharedBuffer> valueBuffer, PassRefPtr<IDBK
 
 void IDBRequest::onSuccess(int64_t value)
 {
+    IDB_TRACE("IDBRequest::onSuccess(int64_t)");
+    if (!shouldEnqueueEvent())
+        return;
     return onSuccessInternal(SerializedScriptValue::numberValue(value));
 }
 
 void IDBRequest::onSuccess()
 {
+    IDB_TRACE("IDBRequest::onSuccess()");
+    if (!shouldEnqueueEvent())
+        return;
     return onSuccessInternal(SerializedScriptValue::undefinedValue());
 }
 
 void IDBRequest::onSuccessInternal(PassRefPtr<SerializedScriptValue> value)
 {
+    ASSERT(!m_contextStopped);
     DOMRequestState::Scope scope(m_requestState);
     return onSuccessInternal(deserializeIDBValue(requestState(), value));
 }
@@ -412,12 +420,11 @@ bool IDBRequest::hasPendingActivity() const
     // FIXME: In an ideal world, we should return true as long as anyone has a or can
     //        get a handle to us and we have event listeners. This is order to handle
     //        user generated events properly.
-    return m_hasPendingActivity;
+    return m_hasPendingActivity && !m_contextStopped;
 }
 
 void IDBRequest::stop()
 {
-    ActiveDOMObject::stop();
     if (m_contextStopped)
         return;
 

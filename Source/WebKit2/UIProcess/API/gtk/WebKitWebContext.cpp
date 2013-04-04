@@ -175,7 +175,8 @@ static CString injectedBundleDirectory()
     if (const char* bundleDirectory = g_getenv("WEBKIT_INJECTED_BUNDLE_PATH"))
         return bundleDirectory;
 
-    static const char* injectedBundlePath = LIBDIR""G_DIR_SEPARATOR_S"webkit2gtk-"WEBKITGTK_API_VERSION_STRING""G_DIR_SEPARATOR_S"injected-bundle"G_DIR_SEPARATOR_S;
+    static const char* injectedBundlePath = LIBDIR G_DIR_SEPARATOR_S "webkit2gtk-" WEBKITGTK_API_VERSION_STRING
+        G_DIR_SEPARATOR_S "injected-bundle" G_DIR_SEPARATOR_S;
     return injectedBundlePath;
 }
 
@@ -802,8 +803,9 @@ WebKitDownload* webkitWebContextGetOrCreateDownload(DownloadProxy* downloadProxy
 
 WebKitDownload* webkitWebContextStartDownload(WebKitWebContext* context, const char* uri, WebPageProxy* initiatingPage)
 {
-    DownloadProxy* downloadProxy = context->priv->context->download(initiatingPage, WebCore::ResourceRequest(String::fromUTF8(uri)));
-    WebKitDownload* download = webkitDownloadCreate(downloadProxy);
+    WebCore::ResourceRequest request(String::fromUTF8(uri));
+    DownloadProxy* downloadProxy = context->priv->context->download(initiatingPage, request);
+    WebKitDownload* download = webkitDownloadCreateForRequest(downloadProxy, request);
     downloadsMap().set(downloadProxy, download);
     return download;
 }

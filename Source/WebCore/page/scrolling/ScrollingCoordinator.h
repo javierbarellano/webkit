@@ -153,7 +153,7 @@ public:
     virtual void scrollableAreaScrollLayerDidChange(ScrollableArea*) { }
     virtual void scrollableAreaScrollbarLayerDidChange(ScrollableArea*, ScrollbarOrientation) { }
     virtual void setLayerIsContainerForFixedPositionLayers(GraphicsLayer*, bool) { }
-    virtual void setLayerIsFixedToContainerLayer(GraphicsLayer*, bool) { }
+    virtual void updateLayerPositionConstraint(RenderLayer*) { }
     virtual void touchEventTargetRectsDidChange(const Document*) { }
 
 #if ENABLE(TOUCH_EVENT_TRACKING)
@@ -168,9 +168,11 @@ public:
 protected:
     explicit ScrollingCoordinator(Page*);
 
+#if USE(ACCELERATED_COMPOSITING)
     static GraphicsLayer* scrollLayerForScrollableArea(ScrollableArea*);
     static GraphicsLayer* horizontalScrollbarLayerForScrollableArea(ScrollableArea*);
     static GraphicsLayer* verticalScrollbarLayerForScrollableArea(ScrollableArea*);
+#endif
 
     unsigned computeCurrentWheelEventHandlerCount();
     GraphicsLayer* scrollLayerForFrameView(FrameView*);

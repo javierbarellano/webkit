@@ -93,7 +93,7 @@ public:
     virtual void setAccessibleName(const AtomicString&);
     
     // Provides common logic used by all elements when determining isIgnored.
-    AccessibilityObjectInclusion accessibilityIsIgnoredBase() const;
+    virtual AccessibilityObjectInclusion defaultObjectInclusion() const;
     
     virtual int layoutCount() const;
     virtual double estimatedLoadingProgress() const;
@@ -228,7 +228,6 @@ protected:
 private:
     void ariaListboxSelectedChildren(AccessibilityChildrenVector&);
     void ariaListboxVisibleChildren(AccessibilityChildrenVector&);
-    bool ariaIsHidden() const;
     bool isAllowedChildOfTree() const;
     bool hasTextAlternative() const;
     String positionalDescriptionForMSAA() const;
@@ -321,6 +320,7 @@ private:
     // Fenced components.
     virtual String mathFencedOpenString() const;
     virtual String mathFencedCloseString() const;
+    virtual int mathLineThickness() const;
 
     bool isIgnoredElementWithinMathTree() const;
 #endif
@@ -328,13 +328,13 @@ private:
 
 inline AccessibilityRenderObject* toAccessibilityRenderObject(AccessibilityObject* object)
 {
-    ASSERT(!object || object->isAccessibilityRenderObject());
+    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isAccessibilityRenderObject());
     return static_cast<AccessibilityRenderObject*>(object);
 }
 
 inline const AccessibilityRenderObject* toAccessibilityRenderObject(const AccessibilityObject* object)
 {
-    ASSERT(!object || object->isAccessibilityRenderObject());
+    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isAccessibilityRenderObject());
     return static_cast<const AccessibilityRenderObject*>(object);
 }
 

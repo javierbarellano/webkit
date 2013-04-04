@@ -69,14 +69,15 @@ static v8::Handle<v8::Value> npObjectInvokeImpl(const v8::Arguments& args, Invok
 {
     NPObject* npObject;
 
+    WrapperWorldType currentWorldType = worldType(args.GetIsolate());
     // These three types are subtypes of HTMLPlugInElement.
-    if (V8HTMLAppletElement::HasInstance(args.Holder(), args.GetIsolate()) || V8HTMLEmbedElement::HasInstance(args.Holder(), args.GetIsolate())
-        || V8HTMLObjectElement::HasInstance(args.Holder(), args.GetIsolate())) {
+    if (V8HTMLAppletElement::HasInstance(args.Holder(), args.GetIsolate(), currentWorldType) || V8HTMLEmbedElement::HasInstance(args.Holder(), args.GetIsolate(), currentWorldType)
+        || V8HTMLObjectElement::HasInstance(args.Holder(), args.GetIsolate(), currentWorldType)) {
         // The holder object is a subtype of HTMLPlugInElement.
         HTMLPlugInElement* element;
-        if (V8HTMLAppletElement::HasInstance(args.Holder(), args.GetIsolate()))
+        if (V8HTMLAppletElement::HasInstance(args.Holder(), args.GetIsolate(), currentWorldType))
             element = V8HTMLAppletElement::toNative(args.Holder());
-        else if (V8HTMLEmbedElement::HasInstance(args.Holder(), args.GetIsolate()))
+        else if (V8HTMLEmbedElement::HasInstance(args.Holder(), args.GetIsolate(), currentWorldType))
             element = V8HTMLEmbedElement::toNative(args.Holder());
         else
             element = V8HTMLObjectElement::toNative(args.Holder());
@@ -159,9 +160,8 @@ v8::Handle<v8::Value> npObjectInvokeDefaultHandler(const v8::Arguments& args)
     return npObjectInvokeImpl(args, InvokeDefault);
 }
 
-
-class V8NPTemplateMap
-{
+class V8NPTemplateMap {
+    friend class WeakHandleListener<V8NPTemplateMap, PrivateIdentifier>;
 public:
     // NPIdentifier is PrivateIdentifier*.
     typedef HashMap<PrivateIdentifier*, v8::Persistent<v8::FunctionTemplate> > MapType;
@@ -175,7 +175,7 @@ public:
     {
         ASSERT(!m_map.contains(key));
         m_map.set(key, wrapper);
-        wrapper.MakeWeak(m_isolate, key, weakCallback);
+        WeakHandleListener<V8NPTemplateMap, PrivateIdentifier>::makeWeak(m_isolate, wrapper, key);
     }
 
     static V8NPTemplateMap& sharedInstance(v8::Isolate* isolate)
@@ -191,11 +191,6 @@ private:
     {
     }
 
-    static void weakCallback(v8::Isolate* isolate, v8::Persistent<v8::Value> object, void* context)
-    {
-        sharedInstance(isolate).dispose(static_cast<PrivateIdentifier*>(context));
-    }
-
     void dispose(PrivateIdentifier* key)
     {
         MapType::iterator it = m_map.find(key);
@@ -208,6 +203,12 @@ private:
     MapType m_map;
     v8::Isolate* m_isolate;
 };
+
+template<>
+void WeakHandleListener<V8NPTemplateMap, PrivateIdentifier>::callback(v8::Isolate* isolate, v8::Persistent<v8::Value>, PrivateIdentifier* key)
+{
+    V8NPTemplateMap::sharedInstance(isolate).dispose(key);
+}
 
 static v8::Handle<v8::Value> npObjectGetProperty(v8::Local<v8::Object> self, NPIdentifier identifier, v8::Local<v8::Value> key, v8::Isolate* isolate)
 {
@@ -383,15 +384,14 @@ v8::Handle<v8::Array> npObjectIndexedPropertyEnumerator(const v8::AccessorInfo& 
     return npObjectPropertyEnumerator(info, false);
 }
 
-static void weakNPObjectCallback(v8::Isolate*, v8::Persistent<v8::Value>, void*);
-
 static DOMWrapperMap<NPObject>& staticNPObjectMap()
 {
-    DEFINE_STATIC_LOCAL(DOMWrapperMap<NPObject>, npObjectMap, (v8::Isolate::GetCurrent(), &weakNPObjectCallback));
+    DEFINE_STATIC_LOCAL(DOMWrapperMap<NPObject>, npObjectMap, (v8::Isolate::GetCurrent()));
     return npObjectMap;
 }
 
-static void weakNPObjectCallback(v8::Isolate* isolate, v8::Persistent<v8::Value> value, void*)
+template<>
+inline void WeakHandleListener<DOMWrapperMap<NPObject> >::callback(v8::Isolate* isolate, v8::Persistent<v8::Value> value, DOMWrapperMap<NPObject>*)
 {
     ASSERT(value->IsObject());
     v8::Persistent<v8::Object> wrapper = v8::Persistent<v8::Object>::Cast(value);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2010, 2011, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -95,9 +95,12 @@
 #include "DictionaryPopupInfo.h"
 #include "LayerHostingContext.h"
 #include <wtf/RetainPtr.h>
+OBJC_CLASS CALayer;
 OBJC_CLASS NSDictionary;
 OBJC_CLASS NSObject;
 OBJC_CLASS WKAccessibilityWebPageObject;
+
+#define ENABLE_PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC 1
 #endif
 
 namespace CoreIPC {
@@ -161,10 +164,10 @@ class WebGestureEvent;
 class WebTouchEvent;
 #endif
 
-class WebPage : public APIObject, public CoreIPC::MessageReceiver, public CoreIPC::MessageSender<WebPage> {
-public:
-    static const Type APIType = TypeBundlePage;
+typedef Vector<RefPtr<PageOverlay> > PageOverlayList;
 
+class WebPage : public TypedAPIObject<APIObject::TypeBundlePage>, public CoreIPC::MessageReceiver, public CoreIPC::MessageSender<WebPage> {
+public:
     static PassRefPtr<WebPage> create(uint64_t pageID, const WebPageCreationParameters&);
     virtual ~WebPage();
 
@@ -205,7 +208,7 @@ public:
     // -- Called by the DrawingArea.
     // FIXME: We could genericize these into a DrawingArea client interface. Would that be beneficial?
     void drawRect(WebCore::GraphicsContext&, const WebCore::IntRect&);
-    void drawPageOverlay(WebCore::GraphicsContext&, const WebCore::IntRect&);
+    void drawPageOverlay(PageOverlay*, WebCore::GraphicsContext&, const WebCore::IntRect&);
     void layoutIfNeeded();
 
     // -- Called from WebCore clients.
@@ -217,6 +220,8 @@ public:
 
     void didStartPageTransition();
     void didCompletePageTransition();
+    void didCommitLoad(WebFrame*);
+    void didFinishLoad(WebFrame*);
     void show();
     String userAgent() const { return m_userAgent; }
     WebCore::IntRect windowResizerRect() const;
@@ -280,6 +285,8 @@ public:
     WebCore::Frame* mainFrame() const; // May return 0.
     WebCore::FrameView* mainFrameView() const; // May return 0.
 
+    PassRefPtr<WebCore::Range> currentSelectionAsRange();
+
 #if ENABLE(NETSCAPE_PLUGIN_API)
     PassRefPtr<Plugin> createPlugin(WebFrame*, WebCore::HTMLPlugInElement*, const Plugin::Parameters&);
 #endif
@@ -299,13 +306,14 @@ public:
     void clearMainFrameName();
     void sendClose();
 
+    void sendSetWindowFrame(const WebCore::FloatRect&);
+
     double textZoomFactor() const;
     void setTextZoomFactor(double);
     double pageZoomFactor() const;
     void setPageZoomFactor(double);
     void setPageAndTextZoomFactors(double pageZoomFactor, double textZoomFactor);
     void windowScreenDidChange(uint64_t);
-    void setViewMode(WebCore::Page::ViewMode);
 
     void scalePage(double scale, const WebCore::IntPoint& origin);
     double pageScaleFactor() const;
@@ -352,15 +360,27 @@ public:
 
     bool windowIsVisible() const { return m_windowIsVisible; }
     void updatePluginsActiveAndFocusedState();
-    const WebCore::IntRect& windowFrameInScreenCoordinates() const { return m_windowFrameInScreenCoordinates; }
-    const WebCore::IntRect& viewFrameInWindowCoordinates() const { return m_viewFrameInWindowCoordinates; }
+    const WebCore::FloatRect& windowFrameInScreenCoordinates() const { return m_windowFrameInScreenCoordinates; }
+    const WebCore::FloatRect& viewFrameInWindowCoordinates() const { return m_viewFrameInWindowCoordinates; }
+
+    bool hasCachedWindowFrame() const { return m_hasCachedWindowFrame; }
+
+    void setTopOverhangImage(PassRefPtr<WebImage>);
+    void setBottomOverhangImage(PassRefPtr<WebImage>);
+
+    CALayer *getHeaderLayer() const;
+    void setHeaderLayerWithHeight(CALayer *, int);
+    CALayer *getFooterLayer() const;
+    void setFooterLayerWithHeight(CALayer *, int);
 #endif
 
     bool windowIsFocused() const;
     bool windowAndWebPageAreFocused() const;
     void installPageOverlay(PassRefPtr<PageOverlay>, bool shouldFadeIn = false);
     void uninstallPageOverlay(PageOverlay*, bool shouldFadeOut = false);
-    bool hasPageOverlay() const { return m_pageOverlay; }
+    bool hasPageOverlay() const { return m_pageOverlays.size(); }
+    PageOverlayList& pageOverlays() { return m_pageOverlays; }
+    
     WebCore::IntPoint screenToWindow(const WebCore::IntPoint&);
     WebCore::IntRect windowToScreen(const WebCore::IntRect&);
 
@@ -433,10 +453,12 @@ public:
     void cancelComposition();
 #endif
 
+    void didChangeSelection();
+
 #if PLATFORM(MAC)
     void registerUIProcessAccessibilityTokens(const CoreIPC::DataReference& elemenToken, const CoreIPC::DataReference& windowToken);
     WKAccessibilityWebPageObject* accessibilityRemoteObject();
-    WebCore::IntPoint accessibilityPosition() const { return m_accessibilityPosition; }    
+    const WebCore::FloatPoint& accessibilityPosition() const { return m_accessibilityPosition; }
     
     void sendComplexTextInputToPlugin(uint64_t pluginComplexTextInputIdentifier, const String& textInput);
 
@@ -595,6 +617,7 @@ public:
     void setScrollingPerformanceLoggingEnabled(bool);
 
 #if PLATFORM(MAC)
+    bool shouldUsePDFPlugin() const;
     bool pdfPluginEnabled() const { return m_pdfPluginEnabled; }
     void setPDFPluginEnabled(bool enabled) { m_pdfPluginEnabled = enabled; }
 #endif
@@ -619,10 +642,14 @@ public:
     void didFinishCheckingText(uint64_t requestID, const Vector<WebCore::TextCheckingResult>&);
     void didCancelCheckingText(uint64_t requestID);
 
+#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
+    void determinePrimarySnapshottedPlugIn();
+    void resetPrimarySnapshottedPlugIn();
+    bool matchesPrimaryPlugIn(const String& pageOrigin, const String& pluginOrigin, const String& mimeType) const;
+#endif
+
 private:
     WebPage(uint64_t pageID, const WebPageCreationParameters&);
-
-    virtual Type type() const { return APIType; }
 
     void platformInitialize();
 
@@ -727,7 +754,7 @@ private:
     void performDictionaryLookupForRange(DictionaryPopupInfo::Type, WebCore::Frame*, WebCore::Range*, NSDictionary *options);
 
     void setWindowIsVisible(bool windowIsVisible);
-    void windowAndViewFramesChanged(const WebCore::IntRect& windowFrameInScreenCoordinates, const WebCore::IntRect& viewFrameInWindowCoordinates, const WebCore::IntPoint& accessibilityViewCoordinates);
+    void windowAndViewFramesChanged(const WebCore::FloatRect& windowFrameInScreenCoordinates, const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
 
     RetainPtr<PDFDocument> pdfDocumentForPrintingFrame(WebCore::Frame*);
     void computePagesForPrintingPDFDocument(uint64_t frameID, const PrintInfo&, Vector<WebCore::IntRect>& resultPageRects);
@@ -792,8 +819,14 @@ private:
     bool canHandleUserEvents() const;
 
     void setMainFrameInViewSourceMode(bool);
+    void setOverridePrivateBrowsingEnabled(bool);
 
     static bool platformCanHandleRequest(const WebCore::ResourceRequest&);
+
+    static PluginView* focusedPluginViewForFrame(WebCore::Frame*);
+    static PluginView* pluginViewForFrame(WebCore::Frame*);
+
+    void reportUsedFeatures();
 
     OwnPtr<WebCore::Page> m_page;
     RefPtr<WebFrame> m_mainFrame;
@@ -830,25 +863,38 @@ private:
 
     bool m_mainFrameIsScrollable;
 
+#if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
+    bool m_readyToFindPrimarySnapshottedPlugin;
+    bool m_didFindPrimarySnapshottedPlugin;
+    String m_primaryPlugInPageOrigin;
+    String m_primaryPlugInOrigin;
+    String m_primaryPlugInMimeType;
+#endif
+
 #if PLATFORM(MAC)
     bool m_pdfPluginEnabled;
+
+    bool m_hasCachedWindowFrame;
 
     // Whether the containing window is visible or not.
     bool m_windowIsVisible;
 
     // The frame of the containing window in screen coordinates.
-    WebCore::IntRect m_windowFrameInScreenCoordinates;
+    WebCore::FloatRect m_windowFrameInScreenCoordinates;
 
     // The frame of the view in window coordinates.
-    WebCore::IntRect m_viewFrameInWindowCoordinates;
+    WebCore::FloatRect m_viewFrameInWindowCoordinates;
 
     // The accessibility position of the view.
-    WebCore::IntPoint m_accessibilityPosition;
+    WebCore::FloatPoint m_accessibilityPosition;
     
     // The layer hosting mode.
     LayerHostingMode m_layerHostingMode;
 
     RetainPtr<WKAccessibilityWebPageObject> m_mockAccessibilityElement;
+
+    RetainPtr<CALayer> m_headerLayer;
+    RetainPtr<CALayer> m_footerLayer;
 
     WebCore::KeyboardEvent* m_keyboardEventBeingInterpreted;
 
@@ -886,7 +932,7 @@ private:
 #if ENABLE(TOUCH_EVENTS) && PLATFORM(QT)
     TapHighlightController m_tapHighlightController;
 #endif
-    RefPtr<PageOverlay> m_pageOverlay;
+    PageOverlayList m_pageOverlays;
 
     RefPtr<WebPage> m_underlayPage;
 
@@ -942,7 +988,8 @@ private:
 #endif
     
     bool m_willGoToBackForwardItemCallbackEnabled;
-
+    bool m_overridePrivateBrowsingEnabled;
+    
 #if PLATFORM(QT)
     HashMap<String, QtNetworkReply*> m_applicationSchemeReplies;
 #endif

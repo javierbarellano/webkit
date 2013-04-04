@@ -12,6 +12,7 @@
 #include "AudioSourceProviderClient.h"
 #include "Frame.h"
 #include "GraphicsContext.h"
+#include "GraphicsContext3DPrivate.h"
 #include "GraphicsLayerChromium.h"
 #include "HTMLMediaElement.h"
 #include "IntSize.h"
@@ -21,15 +22,13 @@
 #include "PlatformContextSkia.h"
 #include "RenderView.h"
 #include "TimeRanges.h"
-#include "UUID.h"
 #include "WebAudioSourceProvider.h"
+#include "WebDocument.h"
 #include "WebFrameClient.h"
 #include "WebFrameImpl.h"
 #include "WebHelperPluginImpl.h"
 #include "WebMediaPlayer.h"
-#include "WebMediaSourceClient.h"
 #include "WebMediaSourceImpl.h"
-#include "WebSourceBuffer.h"
 #include "WebViewImpl.h"
 #include <public/Platform.h>
 #include <public/WebCString.h>
@@ -40,7 +39,6 @@
 #include <public/WebSize.h>
 #include <public/WebString.h>
 #include <public/WebURL.h>
-#include <public/WebVideoLayer.h>
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "RenderLayerCompositor.h"
@@ -52,113 +50,6 @@
 using namespace WebCore;
 
 namespace WebKit {
-
-// FIXME: Remove this class once the Chromium code implements its own
-// version of WebMediaPlayer::load(WebURL, WebMediaSource, CORSMode).
-// https://bugs.webkit.org/show_bug.cgi?id=110371
-class WebMediaSourceClientImpl : public WebMediaSourceClient {
-public:
-    explicit WebMediaSourceClientImpl(WebMediaPlayer*);
-    virtual ~WebMediaSourceClientImpl();
-
-    // WebMediaSourceClient methods.
-    virtual AddStatus addSourceBuffer(const WebString& type, const WebVector<WebString>& codecs, WebSourceBuffer**);
-    virtual double duration();
-    virtual void setDuration(double);
-    virtual void endOfStream(EndOfStreamStatus);
-
-private:
-    WebMediaPlayer* m_webMediaPlayer;
-};
-
-// FIXME: Remove this class once the Chromium code implements its own
-// version of WebMediaPlayer::load(WebURL, WebMediaSource, CORSMode).
-// https://bugs.webkit.org/show_bug.cgi?id=110371
-class WebSourceBufferImpl : public WebSourceBuffer {
-public:
-    WebSourceBufferImpl(WebMediaPlayer*, const WebString& id);
-
-    // WebSourceBuffer methods.
-    virtual WebTimeRanges buffered();
-    virtual void append(const unsigned char* data, unsigned length);
-    virtual bool abort();
-    virtual bool setTimestampOffset(double);
-    virtual void removedFromMediaSource();
-
-private:
-    WebMediaPlayer* m_webMediaPlayer;
-    WebString m_id;
-};
-
-WebMediaSourceClientImpl::WebMediaSourceClientImpl(WebMediaPlayer* webMediaPlayer)
-    : m_webMediaPlayer(webMediaPlayer)
-{
-}
-
-WebMediaSourceClientImpl::~WebMediaSourceClientImpl()
-{
-}
-
-WebMediaSourceClient::AddStatus WebMediaSourceClientImpl::addSourceBuffer(const WebString& type, const WebVector<WebString>& codecs,
-    WebSourceBuffer** sourceBuffer)
-{
-    WebString id = WebCore::createCanonicalUUIDString();
-    WebMediaSourceClient::AddStatus result = static_cast<WebMediaSourceClient::AddStatus>(m_webMediaPlayer->sourceAddId(id, type, codecs));
-    if (result == WebMediaSourceClient::AddStatusOk)
-        *sourceBuffer = new WebSourceBufferImpl(m_webMediaPlayer, id);
-
-    return result;
-}
-
-double WebMediaSourceClientImpl::duration()
-{
-    return m_webMediaPlayer->duration();
-}
-
-void WebMediaSourceClientImpl::setDuration(double duration)
-{
-    return m_webMediaPlayer->sourceSetDuration(duration);
-}
-
-void WebMediaSourceClientImpl::endOfStream(EndOfStreamStatus status)
-{
-    m_webMediaPlayer->sourceEndOfStream(static_cast<WebMediaPlayer::EndOfStreamStatus>(status));
-}
-
-WebSourceBufferImpl::WebSourceBufferImpl(WebMediaPlayer* webMediaPlayer, const WebString& id)
-    : m_webMediaPlayer(webMediaPlayer)
-    , m_id(id)
-{
-}
-
-WebTimeRanges WebSourceBufferImpl::buffered()
-{
-    return m_webMediaPlayer->sourceBuffered(m_id);
-}
-
-void WebSourceBufferImpl::append(const unsigned char* data, unsigned length)
-{
-    m_webMediaPlayer->sourceAppend(m_id, data, length);
-}
-
-bool WebSourceBufferImpl::abort()
-{
-    return m_webMediaPlayer->sourceAbort(m_id);
-}
-
-bool WebSourceBufferImpl::setTimestampOffset(double offset)
-{
-    return m_webMediaPlayer->sourceSetTimestampOffset(m_id, offset);
-}
-
-void WebSourceBufferImpl::removedFromMediaSource()
-{
-    if (!m_webMediaPlayer)
-        return;
-
-    m_webMediaPlayer->sourceRemoveId(m_id);
-    m_webMediaPlayer = 0;
-}
 
 static PassOwnPtr<WebMediaPlayer> createWebMediaPlayer(WebMediaPlayerClient* client, const WebURL& url, Frame* frame)
 {
@@ -202,21 +93,6 @@ WebMediaPlayer* WebMediaPlayerClientImpl::mediaPlayer() const
 
 WebMediaPlayerClientImpl::~WebMediaPlayerClientImpl()
 {
-#if USE(ACCELERATED_COMPOSITING)
-    if (m_videoFrameProviderClient)
-        m_videoFrameProviderClient->stopUsingProvider();
-    // No need for a lock here, as getCurrentFrame/putCurrentFrame can't be
-    // called now that the client is no longer using this provider. Also, load()
-    // and this destructor are called from the same thread.
-    if (m_webMediaPlayer)
-        m_webMediaPlayer->setStreamTextureClient(0);
-#endif
-
-#if USE(ACCELERATED_COMPOSITING)
-    if (m_videoLayer)
-        GraphicsLayerChromium::unregisterContentsLayer(m_videoLayer->layer());
-#endif
-
     // Explicitly destroy the WebMediaPlayer to allow verification of tear down.
     m_webMediaPlayer.clear();
 
@@ -238,14 +114,6 @@ void WebMediaPlayerClientImpl::readyStateChanged()
 {
     ASSERT(m_mediaPlayer);
     m_mediaPlayer->readyStateChanged();
-#if USE(ACCELERATED_COMPOSITING)
-    if (hasVideo() && supportsAcceleratedRendering() && !m_videoLayer) {
-        m_videoLayer = adoptPtr(Platform::current()->compositorSupport()->createVideoLayer(this));
-
-        m_videoLayer->layer()->setOpaque(m_opaque);
-        GraphicsLayerChromium::registerContentsLayer(m_videoLayer->layer());
-    }
-#endif
 }
 
 void WebMediaPlayerClientImpl::volumeChanged(float newVolume)
@@ -269,10 +137,8 @@ void WebMediaPlayerClientImpl::timeChanged()
 void WebMediaPlayerClientImpl::repaint()
 {
     ASSERT(m_mediaPlayer);
-#if USE(ACCELERATED_COMPOSITING)
-    if (m_videoLayer && supportsAcceleratedRendering())
-        m_videoLayer->layer()->invalidate();
-#endif
+    if (m_videoLayer)
+        m_videoLayer->invalidate();
     m_mediaPlayer->repaint();
 }
 
@@ -299,7 +165,7 @@ void WebMediaPlayerClientImpl::setOpaque(bool opaque)
 #if USE(ACCELERATED_COMPOSITING)
     m_opaque = opaque;
     if (m_videoLayer)
-        m_videoLayer->layer()->setOpaque(m_opaque);
+        m_videoLayer->setOpaque(m_opaque);
 #endif
 }
 
@@ -327,29 +193,6 @@ WebMediaPlayer::Preload WebMediaPlayerClientImpl::preload() const
     if (m_mediaPlayer)
         return static_cast<WebMediaPlayer::Preload>(m_mediaPlayer->preload());
     return static_cast<WebMediaPlayer::Preload>(m_preload);
-}
-
-// FIXME: Remove this and sourceURL() once the Chromium code implements
-// its own version of WebMediaPlayer::load(WebURL, WebMediaSource, CORSMode).
-// https://bugs.webkit.org/show_bug.cgi?id=110371
-void WebMediaPlayerClientImpl::sourceOpened()
-{
-#if ENABLE(MEDIA_SOURCE)
-    ASSERT(m_webMediaPlayer);
-    if (m_mediaSource) {
-        OwnPtr<WebMediaSource> mediaSource = adoptPtr(new WebMediaSourceImpl(m_mediaSource));
-        mediaSource->open(new WebMediaSourceClientImpl(m_webMediaPlayer.get()));
-    }
-#endif
-}
-
-WebKit::WebURL WebMediaPlayerClientImpl::sourceURL() const
-{
-#if ENABLE(MEDIA_SOURCE)
-    if (m_mediaSource)
-        return m_url;
-#endif
-    return KURL();
 }
 
 void WebMediaPlayerClientImpl::keyAdded(const WebString& keySystem, const WebString& sessionId)
@@ -406,8 +249,9 @@ void WebMediaPlayerClientImpl::keyNeeded(const WebString& keySystem, const WebSt
 WebPlugin* WebMediaPlayerClientImpl::createHelperPlugin(const WebString& pluginType, WebFrame* frame)
 {
     ASSERT(!m_helperPlugin);
+
     WebViewImpl* webView = static_cast<WebViewImpl*>(frame->view());
-    m_helperPlugin = webView->createHelperPlugin(pluginType);
+    m_helperPlugin = webView->createHelperPlugin(pluginType, frame->document());
     if (!m_helperPlugin)
         return 0;
 
@@ -429,9 +273,25 @@ void WebMediaPlayerClientImpl::closeHelperPlugin()
     m_helperPlugin = 0;
 }
 
-void WebMediaPlayerClientImpl::disableAcceleratedCompositing()
+void WebMediaPlayerClientImpl::setWebLayer(WebLayer* layer)
 {
-    m_supportsAcceleratedCompositing = false;
+    if (layer == m_videoLayer)
+        return;
+
+    // If either of the layers is null we need to enable or disable compositing. This is done by triggering a style recalc.
+    if (!m_videoLayer || !layer) {
+        HTMLMediaElement* element = static_cast<HTMLMediaElement*>(m_mediaPlayer->mediaPlayerClient());
+        if (element)
+            element->setNeedsStyleRecalc(WebCore::SyntheticStyleChange);
+    }
+
+    if (m_videoLayer)
+        GraphicsLayerChromium::unregisterContentsLayer(m_videoLayer);
+    m_videoLayer = layer;
+    if (m_videoLayer) {
+        m_videoLayer->setOpaque(m_opaque);
+        GraphicsLayerChromium::registerContentsLayer(m_videoLayer);
+    }
 }
 
 // MediaPlayerPrivateInterface -------------------------------------------------
@@ -456,7 +316,6 @@ void WebMediaPlayerClientImpl::load(const String& url, PassRefPtr<WebCore::Media
 
 void WebMediaPlayerClientImpl::loadRequested()
 {
-    MutexLocker locker(m_webMediaPlayerMutex);
     if (m_preload == MediaPlayer::None) {
 #if ENABLE(WEB_AUDIO)
         m_audioSourceProvider.wrap(0); // Clear weak reference to m_webMediaPlayer's WebAudioSourceProvider.
@@ -474,6 +333,13 @@ void WebMediaPlayerClientImpl::loadInternal()
 #endif
 
     Frame* frame = static_cast<HTMLMediaElement*>(m_mediaPlayer->mediaPlayerClient())->document()->frame();
+
+    // This does not actually check whether the hardware can support accelerated
+    // compositing, but only if the flag is set. However, this is checked lazily
+    // in WebViewImpl::setIsAcceleratedCompositingActive() and will fail there
+    // if necessary.
+    m_needsWebLayerForVideo = frame->contentRenderer()->compositor()->hasAcceleratedCompositing();
+
     m_webMediaPlayer = createWebMediaPlayer(this, m_url, frame);
     if (m_webMediaPlayer) {
 #if ENABLE(WEB_AUDIO)
@@ -498,13 +364,10 @@ void WebMediaPlayerClientImpl::cancelLoad()
         m_webMediaPlayer->cancelLoad();
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 WebLayer* WebMediaPlayerClientImpl::platformLayer() const
 {
-    ASSERT(m_supportsAcceleratedCompositing);
-    return m_videoLayer ? m_videoLayer->layer() : 0;
+    return m_videoLayer;
 }
-#endif
 
 PlatformMedia WebMediaPlayerClientImpl::platformMedia() const
 {
@@ -742,12 +605,10 @@ void WebMediaPlayerClientImpl::setSize(const IntSize& size)
 
 void WebMediaPlayerClientImpl::paint(GraphicsContext* context, const IntRect& rect)
 {
-#if USE(ACCELERATED_COMPOSITING)
     // If we are using GPU to render video, ignore requests to paint frames into
-    // canvas because it will be taken care of by WebVideoLayer.
+    // canvas because it will be taken care of by the VideoLayer.
     if (acceleratedRenderingInUse())
         return;
-#endif
     paintCurrentFrameInContext(context, rect);
 }
 
@@ -761,6 +622,17 @@ void WebMediaPlayerClientImpl::paintCurrentFrameInContext(GraphicsContext* conte
         WebCanvas* canvas = platformContext->canvas();
         m_webMediaPlayer->paint(canvas, rect, platformContext->getNormalizedAlpha());
     }
+}
+
+bool WebMediaPlayerClientImpl::copyVideoTextureToPlatformTexture(WebCore::GraphicsContext3D* context, Platform3DObject texture, GC3Dint level, GC3Denum type, GC3Denum internalFormat, bool premultiplyAlpha, bool flipY)
+{
+    if (!context || !m_webMediaPlayer)
+        return false;
+    Extensions3D* extensions = context->getExtensions();
+    if (!extensions || !extensions->supports("GL_CHROMIUM_copy_texture") || !extensions->supports("GL_CHROMIUM_flipy") || !context->makeContextCurrent())
+        return false;
+    WebGraphicsContext3D* webGraphicsContext3D = GraphicsContext3DPrivate::extractWebGraphicsContext3D(context);
+    return m_webMediaPlayer->copyVideoTextureToPlatformTexture(webGraphicsContext3D, texture, level, internalFormat, premultiplyAlpha, flipY);
 }
 
 void WebMediaPlayerClientImpl::setPreload(MediaPlayer::Preload preload)
@@ -838,69 +710,25 @@ AudioSourceProvider* WebMediaPlayerClientImpl::audioSourceProvider()
 }
 #endif
 
-#if USE(ACCELERATED_COMPOSITING)
+bool WebMediaPlayerClientImpl::needsWebLayerForVideo() const
+{
+    return m_needsWebLayerForVideo;
+}
+
 bool WebMediaPlayerClientImpl::supportsAcceleratedRendering() const
 {
-    return m_supportsAcceleratedCompositing;
+    return !!m_videoLayer;
 }
 
 bool WebMediaPlayerClientImpl::acceleratedRenderingInUse()
 {
-    return m_videoLayer && m_videoLayer->active();
+    return m_videoLayer && !m_videoLayer->isOrphan();
 }
-
-void WebMediaPlayerClientImpl::setVideoFrameProviderClient(WebVideoFrameProvider::Client* client)
-{
-    MutexLocker locker(m_webMediaPlayerMutex);
-    if (m_videoFrameProviderClient)
-        m_videoFrameProviderClient->stopUsingProvider();
-    m_videoFrameProviderClient = client;
-    if (m_webMediaPlayer)
-        m_webMediaPlayer->setStreamTextureClient(client ? this : 0);
-}
-
-WebVideoFrame* WebMediaPlayerClientImpl::getCurrentFrame()
-{
-    // This function is called only by the client.
-    MutexLocker locker(m_webMediaPlayerMutex);
-    ASSERT(!m_currentVideoFrame);
-    ASSERT(m_videoFrameProviderClient);
-    if (m_webMediaPlayer)
-        m_currentVideoFrame = m_webMediaPlayer->getCurrentFrame();
-    return m_currentVideoFrame;
-}
-
-void WebMediaPlayerClientImpl::putCurrentFrame(WebVideoFrame* videoFrame)
-{
-    // This function is called only by the client.
-    MutexLocker locker(m_webMediaPlayerMutex);
-    ASSERT(videoFrame == m_currentVideoFrame);
-    ASSERT(m_videoFrameProviderClient);
-    if (!videoFrame)
-        return;
-    if (m_webMediaPlayer)
-        m_webMediaPlayer->putCurrentFrame(videoFrame);
-    m_currentVideoFrame = 0;
-}
-#endif
 
 PassOwnPtr<MediaPlayerPrivateInterface> WebMediaPlayerClientImpl::create(MediaPlayer* player)
 {
     OwnPtr<WebMediaPlayerClientImpl> client = adoptPtr(new WebMediaPlayerClientImpl());
     client->m_mediaPlayer = player;
-
-#if USE(ACCELERATED_COMPOSITING)
-    Frame* frame = static_cast<HTMLMediaElement*>(
-        client->m_mediaPlayer->mediaPlayerClient())->document()->frame();
-
-    // This does not actually check whether the hardware can support accelerated
-    // compositing, but only if the flag is set. However, this is checked lazily
-    // in WebViewImpl::setIsAcceleratedCompositingActive() and will fail there
-    // if necessary.
-    client->m_supportsAcceleratedCompositing =
-        frame->contentRenderer()->compositor()->hasAcceleratedCompositing();
-#endif
-
     return client.release();
 }
 
@@ -948,28 +776,13 @@ void WebMediaPlayerClientImpl::startDelayedLoad()
     loadInternal();
 }
 
-void WebMediaPlayerClientImpl::didReceiveFrame()
-{
-    // No lock since this gets called on the client's thread.
-    m_videoFrameProviderClient->didReceiveFrame();
-}
-
-void WebMediaPlayerClientImpl::didUpdateMatrix(const float* matrix)
-{
-    // No lock since this gets called on the client's thread.
-    m_videoFrameProviderClient->didUpdateMatrix(matrix);
-}
-
 WebMediaPlayerClientImpl::WebMediaPlayerClientImpl()
     : m_mediaPlayer(0)
-    , m_currentVideoFrame(0)
     , m_delayingLoad(false)
     , m_preload(MediaPlayer::MetaData)
-#if USE(ACCELERATED_COMPOSITING)
-    , m_supportsAcceleratedCompositing(false)
+    , m_videoLayer(0)
     , m_opaque(false)
-    , m_videoFrameProviderClient(0)
-#endif
+    , m_needsWebLayerForVideo(false)
 {
 }
 

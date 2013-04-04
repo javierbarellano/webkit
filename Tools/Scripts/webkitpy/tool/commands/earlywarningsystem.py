@@ -174,11 +174,6 @@ class QtWK2EWS(AbstractEarlyWarningSystem):
 class WinEWS(AbstractEarlyWarningSystem):
     name = "win-ews"
     port_name = "win"
-    # Use debug, the Apple Win port fails to link Release on 32-bit Windows.
-    # https://bugs.webkit.org/show_bug.cgi?id=39197
-    _build_style = "debug"
-    _default_run_tests = True
-
 
 class AbstractChromiumEWS(AbstractEarlyWarningSystem):
     port_name = "chromium"
@@ -216,7 +211,6 @@ class ChromiumAndroidEWS(AbstractChromiumEWS):
 class MacEWS(AbstractEarlyWarningSystem):
     name = "mac-ews"
     port_name = "mac"
-    _default_run_tests = True
     watchers = AbstractEarlyWarningSystem.watchers + [
         "rniwa@webkit.org",
     ]
@@ -225,7 +219,6 @@ class MacEWS(AbstractEarlyWarningSystem):
 class MacWK2EWS(AbstractEarlyWarningSystem):
     name = "mac-wk2-ews"
     port_name = "mac-wk2"
-    _default_run_tests = True
     watchers = AbstractEarlyWarningSystem.watchers + [
         "rniwa@webkit.org",
     ]

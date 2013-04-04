@@ -27,6 +27,7 @@ CONFIG += staticlib
 }
 
 SOURCES += \
+    Modules/geolocation/Coordinates.cpp \
     Modules/geolocation/Geolocation.cpp \
     Modules/geolocation/GeolocationController.cpp \
     Modules/geolocation/NavigatorGeolocation.cpp \
@@ -96,7 +97,6 @@ SOURCES += \
      bindings/js/JSCanvasRenderingContextCustom.cpp \
      bindings/js/JSClipboardCustom.cpp \
      bindings/js/JSConsoleCustom.cpp \
-     bindings/js/JSCoordinatesCustom.cpp \
      bindings/js/JSCryptoCustom.cpp \
      bindings/js/JSCustomXPathNSResolver.cpp \
      bindings/js/JSDictionary.cpp \
@@ -271,6 +271,7 @@ SOURCES += \
     css/CSSCursorImageValue.cpp \
     css/CSSFontFace.cpp \
     css/CSSDefaultStyleSheets.cpp \
+    css/CSSFontFaceLoadEvent.cpp \
     css/CSSFontFaceRule.cpp \
     css/CSSFontFaceSrcValue.cpp \
     css/CSSFontSelector.cpp \
@@ -311,7 +312,9 @@ SOURCES += \
     css/CSSValuePool.cpp \
     css/DOMWindowCSS.cpp \
     css/DocumentRuleSets.cpp \
+    css/ElementRuleCollector.cpp \
     css/FontFeatureValue.cpp \
+    css/FontLoader.cpp \
     css/FontValue.cpp \
     css/InspectorCSSOMWrappers.cpp \
     css/LengthFunctions.cpp \
@@ -323,6 +326,7 @@ SOURCES += \
     css/MediaQueryList.cpp \
     css/MediaQueryListListener.cpp \
     css/MediaQueryMatcher.cpp \
+    css/PageRuleCollector.cpp \
     css/PropertySetCSSStyleDeclaration.cpp \
     css/RGBColor.cpp \
     css/RuleFeature.cpp \
@@ -564,7 +568,7 @@ SOURCES += \
     editing/UnlinkCommand.cpp \
     editing/VisiblePosition.cpp \
     editing/VisibleSelection.cpp \
-    editing/visible_units.cpp \
+    editing/VisibleUnits.cpp \
     editing/WrapContentsInDummySpanCommand.cpp \
     fileapi/AsyncFileStream.cpp \
     fileapi/AsyncFileStream.cpp \
@@ -745,6 +749,7 @@ SOURCES += \
     html/parser/HTMLEntityParser.cpp \
     html/parser/HTMLEntitySearch.cpp \
     html/parser/HTMLFormattingElementList.cpp \
+    html/parser/HTMLIdentifier.cpp \
     html/parser/HTMLMetaCharsetParser.cpp \
     html/parser/HTMLParserIdioms.cpp \
     html/parser/HTMLParserOptions.cpp \
@@ -756,11 +761,13 @@ SOURCES += \
     html/parser/HTMLSourceTracker.cpp \
     html/parser/HTMLTokenizer.cpp \
     html/parser/HTMLTreeBuilder.cpp \
+    html/parser/HTMLTreeBuilderSimulator.cpp \
     html/parser/HTMLViewSourceParser.cpp \
     html/parser/TextDocumentParser.cpp \
     html/parser/TextViewSourceParser.cpp \
     html/parser/XSSAuditor.cpp \
     html/parser/XSSAuditorDelegate.cpp \
+    html/shadow/ClearButtonElement.cpp \
     html/shadow/ContentDistributor.cpp \
     html/shadow/ContentSelectorQuery.cpp \
     html/shadow/DateTimeEditElement.cpp \
@@ -878,8 +885,8 @@ SOURCES += \
     loader/cache/CachedScript.cpp \
     loader/cache/CachedShader.cpp \
     loader/cache/CachedSVGDocument.cpp \
-    loader/cache/CachedSVGDocument.h \
     loader/cache/CachedTextTrack.cpp \
+    loader/cache/CachedSVGDocument.h \
     loader/cache/CachedXSLStyleSheet.cpp \
     loader/CookieJar.cpp \
     loader/CrossOriginAccessControl.cpp \
@@ -905,7 +912,6 @@ SOURCES += \
     loader/ImageLoader.cpp \
     loader/LinkLoader.cpp \
     loader/LoaderStrategy.cpp \
-    loader/MainResourceLoader.cpp \
     loader/MixedContentChecker.cpp \
     loader/NavigationAction.cpp \
     loader/NetscapePlugInStreamLoader.cpp \
@@ -969,6 +975,7 @@ SOURCES += \
     page/NavigatorBase.cpp \
     page/OriginAccessEntry.cpp \
     page/Page.cpp \
+    page/PageConsole.cpp \
     page/PageGroup.cpp \
     page/PageGroupLoadDeferrer.cpp \
     page/PageVisibilityState.cpp \
@@ -997,7 +1004,6 @@ SOURCES += \
     plugins/PluginMainThreadScheduler.cpp \
     plugins/DOMMimeType.cpp \
     plugins/DOMMimeTypeArray.cpp \
-    plugins/PlugInOriginHash.cpp \
     platform/animation/Animation.cpp \
     platform/animation/AnimationList.cpp \
     platform/Arena.cpp \
@@ -1033,6 +1039,7 @@ SOURCES += \
     platform/graphics/CrossfadeGeneratedImage.cpp \
     platform/graphics/FloatPoint3D.cpp \
     platform/graphics/FloatPoint.cpp \
+    platform/graphics/FloatPolygon.cpp \
     platform/graphics/FloatQuad.cpp \
     platform/graphics/FloatRect.cpp \
     platform/graphics/FloatSize.cpp \
@@ -1123,7 +1130,6 @@ SOURCES += \
     platform/network/HTTPHeaderMap.cpp \
     platform/network/HTTPParsers.cpp \
     platform/network/HTTPRequest.cpp \
-    platform/network/HTTPValidation.cpp \
     platform/network/MIMEHeader.cpp \
     platform/network/NetworkStateNotifier.cpp \
     platform/network/NetworkStorageSessionStub.cpp \
@@ -1132,6 +1138,7 @@ SOURCES += \
     platform/network/ProxyServer.cpp \
     platform/network/ResourceErrorBase.cpp \
     platform/network/ResourceHandle.cpp \
+    platform/network/ResourceHandleClient.cpp \
     platform/network/ResourceLoadTiming.cpp \
     platform/network/ResourceRequestBase.cpp \
     platform/network/ResourceResponseBase.cpp \
@@ -1202,6 +1209,7 @@ SOURCES += \
     rendering/FixedTableLayout.cpp \
     rendering/FlowThreadController.cpp \
     rendering/HitTestingTransformState.cpp \
+    rendering/HitTestLocation.cpp \
     rendering/HitTestResult.cpp \
     rendering/InlineBox.cpp \
     rendering/InlineFlowBox.cpp \
@@ -1306,6 +1314,8 @@ SOURCES += \
     rendering/style/StyleCachedImage.cpp \
     rendering/style/StyleCachedImageSet.cpp \
     rendering/style/StyleCachedShader.cpp \
+    rendering/style/StyleCustomFilterProgram.cpp \
+    rendering/style/StyleCustomFilterProgramCache.cpp \
     rendering/style/StyleDeprecatedFlexibleBoxData.cpp \
     rendering/style/StyleFilterData.cpp \
     rendering/style/StyleFlexibleBoxData.cpp \
@@ -1483,6 +1493,7 @@ HEADERS += \
     Modules/discovery/NavServiceErrorCB.h \
     Modules/discovery/NavServiceOkCB.h \
     \
+    Modules/geolocation/Coordinates.h \
     Modules/geolocation/Geolocation.h \
     Modules/geolocation/GeolocationController.h \
     Modules/geolocation/GeolocationError.h \
@@ -1526,6 +1537,7 @@ HEADERS += \
     Modules/webdatabase/DatabaseTask.h \
     Modules/webdatabase/DatabaseThread.h \
     Modules/webdatabase/DatabaseTracker.h \
+    Modules/webdatabase/OriginLock.h \
     Modules/webdatabase/SQLCallbackWrapper.h \
     Modules/webdatabase/SQLResultSet.h \
     Modules/webdatabase/SQLResultSetRowList.h \
@@ -1555,6 +1567,7 @@ HEADERS += \
     css/CSSCrossfadeValue.h \
     css/CSSCursorImageValue.h \
     css/CSSFontFace.h \
+    css/CSSFontFaceLoadEvent.h \
     css/CSSFontFaceRule.h \
     css/CSSFontFaceSource.h \
     css/CSSFontFaceSrcValue.h \
@@ -1596,6 +1609,7 @@ HEADERS += \
     css/CSSVariableValue.h \
     css/DOMWindowCSS.h \
     css/FontFeatureValue.h \
+    css/FontLoader.h \
     css/FontValue.h \
     css/LengthFunctions.h \
     css/MediaFeatureNames.h \
@@ -1831,7 +1845,7 @@ HEADERS += \
     editing/UnlinkCommand.h \
     editing/VisiblePosition.h \
     editing/VisibleSelection.h \
-    editing/visible_units.h \
+    editing/VisibleUnits.h \
     editing/WrapContentsInDummySpanCommand.h \
     fileapi/Blob.h \
     fileapi/BlobURL.h \
@@ -2126,7 +2140,6 @@ HEADERS += \
     loader/LinkLoader.h \
     loader/LinkLoaderClient.h \
     loader/LoaderStrategy.h \
-    loader/MainResourceLoader.h \
     loader/MixedContentChecker.h \
     loader/NavigationAction.h \
     loader/NetscapePlugInStreamLoader.h \
@@ -2136,6 +2149,7 @@ HEADERS += \
     loader/ProgressTracker.h \
     loader/ResourceBuffer.h \
     loader/ResourceLoader.h \
+    loader/ResourceLoaderTypes.h \
     loader/SubresourceLoader.h \
     loader/SubstituteData.h \
     loader/TextResourceDecoder.h \
@@ -2160,7 +2174,6 @@ HEADERS += \
     page/ConsoleTypes.h \
     page/ContextMenuController.h \
     page/ContextMenuProvider.h \
-    page/Coordinates.h \
     page/DeviceClient.h \
     page/DeviceController.h \
     page/DiagnosticLoggingKeys.h \
@@ -2188,6 +2201,7 @@ HEADERS += \
     page/PageGroup.h \
     page/PageGroupLoadDeferrer.h \
     page/Page.h \
+    page/PageConsole.h \
     page/PageVisibilityState.h \
     page/PlugInClient.h \
     page/PopupOpeningObserver.h \
@@ -2216,6 +2230,7 @@ HEADERS += \
     platform/ClockGeneric.h \
     platform/ContentType.h \
     platform/ContextMenu.h \
+    platform/ContextMenuItem.h \
     platform/CrossThreadCopier.h \
     platform/DateComponents.h \
     platform/Decimal.h \
@@ -2285,6 +2300,7 @@ HEADERS += \
     platform/graphics/filters/SourceGraphic.h \
     platform/graphics/FloatPoint3D.h \
     platform/graphics/FloatPoint.h \
+    platform/graphics/FloatPolygon.h \
     platform/graphics/FloatQuad.h \
     platform/graphics/FloatRect.h \
     platform/graphics/FloatSize.h \
@@ -2386,6 +2402,7 @@ HEADERS += \
     platform/Language.h \
     platform/MemoryPressureHandler.h \
     platform/MemoryUsageSupport.h \
+    platform/MainThreadTask.h \
     platform/MIMETypeRegistry.h \
     platform/network/AuthenticationChallengeBase.h \
     platform/network/AuthenticationClient.h \
@@ -2403,7 +2420,6 @@ HEADERS += \
     platform/network/HTTPHeaderMap.h \
     platform/network/HTTPParsers.h \
     platform/network/HTTPRequest.h \
-    platform/network/HTTPValidation.h \
     platform/network/HTTPStatusCodes.h \
     platform/network/MIMESniffing.h \
     platform/network/NetworkStorageSession.h \
@@ -2488,7 +2504,6 @@ HEADERS += \
     plugins/PluginDebug.h \
     plugins/DOMPlugin.h \
     plugins/IFrameShimSupport.h \
-    plugins/PlugInOriginHash.h \
     plugins/PluginMainThreadScheduler.h \
     plugins/PluginPackage.h \
     plugins/PluginStream.h \
@@ -2508,6 +2523,7 @@ HEADERS += \
     rendering/FilterEffectRenderer.h \
     rendering/FixedTableLayout.h \
     rendering/HitTestingTransformState.h \
+    rendering/HitTestLocation.h \
     rendering/HitTestResult.h \
     rendering/InlineBox.h \
     rendering/InlineFlowBox.h \
@@ -2624,6 +2640,7 @@ HEADERS += \
     rendering/style/StyleCachedImage.h \
     rendering/style/StyleCachedShader.h \
     rendering/style/StyleCustomFilterProgram.h \
+    rendering/style/StyleCustomFilterProgramCache.h \
     rendering/style/StyleDeprecatedFlexibleBoxData.h \
     rendering/style/StyleFilterData.h \
     rendering/style/StyleFlexibleBoxData.h \
@@ -2995,6 +3012,8 @@ SOURCES += \
     platform/network/qt/QNetworkReplyHandler.cpp \
     editing/qt/EditorQt.cpp \
     platform/Cursor.cpp \
+    platform/ContextMenu.cpp \
+    platform/ContextMenuItem.cpp \
     platform/qt/ClipboardQt.cpp \
     platform/qt/ContextMenuItemQt.cpp \
     platform/qt/ContextMenuQt.cpp \
@@ -3126,6 +3145,7 @@ enable?(SQL_DATABASE) {
         Modules/webdatabase/DatabaseTask.cpp \
         Modules/webdatabase/DatabaseThread.cpp \
         Modules/webdatabase/DatabaseTracker.cpp \
+        Modules/webdatabase/OriginLock.cpp \
         Modules/webdatabase/SQLException.cpp \
         Modules/webdatabase/SQLResultSet.cpp \
         Modules/webdatabase/SQLResultSetRowList.cpp \
@@ -3164,8 +3184,8 @@ enable?(INDEXED_DATABASE) {
         Modules/indexeddb/IDBDatabaseException.h \
         Modules/indexeddb/IDBEventDispatcher.h \
         Modules/indexeddb/IDBFactory.h \
-        Modules/indexeddb/IDBFactoryBackendInterface.h \
         Modules/indexeddb/IDBFactoryBackendImpl.h \
+        Modules/indexeddb/IDBFactoryBackendInterface.h \
         Modules/indexeddb/IDBHistograms.h \
         Modules/indexeddb/IDBIndex.h \
         Modules/indexeddb/IDBKey.h \
@@ -3173,7 +3193,8 @@ enable?(INDEXED_DATABASE) {
         Modules/indexeddb/IDBObjectStore.h \
         Modules/indexeddb/IDBObjectStoreBackendImpl.h \
         Modules/indexeddb/IDBRequest.h \
-        Modules/indexeddb/IDBTransaction.h
+        Modules/indexeddb/IDBTransaction.h \
+        Modules/indexeddb/IndexedDB.h
 
     SOURCES += \
         bindings/js/IDBBindingUtilities.cpp \
@@ -3330,6 +3351,7 @@ enable?(SHARED_WORKERS) {
         workers/DefaultSharedWorkerRepository.cpp \
         workers/SharedWorker.cpp \
         workers/SharedWorkerContext.cpp \
+        workers/SharedWorkerRepository.cpp \
         workers/SharedWorkerThread.cpp
 }
 
@@ -3349,14 +3371,26 @@ enable?(SCRIPTED_SPEECH) {
 enable?(QUOTA) {
     HEADERS += \
         Modules/quota/DOMWindowQuota.idl \
+        Modules/quota/NavigatorStorageQuota.idl \
+        Modules/quota/StorageErrorCallback.h \
         Modules/quota/StorageInfo.h \
-        Modules/quota/StorageInfoErrorCallback.h \
-        Modules/quota/StorageInfoQuotaCallback.h \
-        Modules/quota/StorageInfoUsageCallback.h
+        Modules/quota/StorageQuota.h \
+        Modules/quota/StorageQuotaCallback.h \
+        Modules/quota/StorageUsageCallback.h
 
     SOURCES += \
-        Modules/quota/DOMWindowQuota.cpp
-        Modules/quota/StorageInfo.cpp
+        Modules/quota/DOMWindowQuota.cpp \
+        Modules/quota/NavigatorStorageQuota.cpp \
+        Modules/quota/StorageErrorCallback.cpp \
+        Modules/quota/StorageInfo.cpp \
+        Modules/quota/StorageQuota.cpp
+    enable?(WORKERS) {
+        HEADERS += \
+            Modules/quota/NavigatorStorageQuota.idl \
+            Modules/quota/WorkerNavigatorStorageQuota.h
+        SOURCES += \
+            Modules/quota/WorkerNavigatorStorageQuota.h
+    }
 }
 
 enable?(GAMEPAD) {
@@ -3393,7 +3427,6 @@ enable?(VIDEO) {
         html/HTMLMediaElement.cpp \
         html/HTMLSourceElement.cpp \
         html/HTMLVideoElement.cpp \
-        html/HTMLTrackElement.cpp \
         html/MediaController.cpp \
         html/MediaFragmentURIParser.cpp \
         html/shadow/MediaControlElementTypes.cpp \
@@ -3488,7 +3521,6 @@ enable?(WEB_AUDIO) {
         Modules/webaudio/ChannelSplitterNode.h \
         Modules/webaudio/AudioContext.h \
         Modules/webaudio/AudioDestinationNode.h \
-        Modules/webaudio/AudioGain.h \
         Modules/webaudio/GainNode.h \
         Modules/webaudio/AudioListener.h \
         Modules/webaudio/AudioNode.h \
@@ -3572,7 +3604,6 @@ enable?(WEB_AUDIO) {
         bindings/js/JSDOMWindowWebAudioCustom.cpp \
         bindings/js/JSOscillatorNodeCustom.cpp \
         bindings/js/JSPannerNodeCustom.cpp \
-        bindings/js/JSScriptProcessorNodeCustom.cpp \
         Modules/webaudio/AsyncAudioDecoder.cpp \
         Modules/webaudio/AudioBasicInspectorNode.cpp \
         Modules/webaudio/AudioBasicProcessorNode.cpp \
@@ -3739,7 +3770,6 @@ enable?(FILTERS) {
         platform/graphics/filters/FilterOperations.cpp \
         platform/graphics/filters/FilterOperation.cpp \
         platform/graphics/filters/FilterEffect.cpp \
-        platform/graphics/filters/LightSource.cpp \
         platform/graphics/filters/PointLightSource.cpp \
         platform/graphics/filters/SpotLightSource.cpp \
         platform/graphics/filters/SourceAlpha.cpp \
@@ -3771,7 +3801,7 @@ enable?(TEXT_AUTOSIZING) {
     SOURCES += # FIXME!
 }
 
-enable?(DEVICE_ORIENTATION) {
+have?(qtsensors):enable?(DEVICE_ORIENTATION) {
     HEADERS += \
         platform/qt/DeviceMotionClientQt.h \
         platform/qt/DeviceMotionProviderQt.h \
@@ -4099,6 +4129,8 @@ enable?(WEBGL) {
         html/canvas/WebGLObject.h \
         html/canvas/WebGLActiveInfo.h \
         html/canvas/WebGLBuffer.h \
+        html/canvas/WebGLCompressedTextureATC.h \
+        html/canvas/WebGLCompressedTexturePVRTC.h \
         html/canvas/WebGLCompressedTextureS3TC.h \
         html/canvas/WebGLContextAttributes.h \
         html/canvas/WebGLContextEvent.h \
@@ -4135,6 +4167,8 @@ enable?(WEBGL) {
         html/canvas/CanvasContextAttributes.cpp \
         html/canvas/WebGLObject.cpp \
         html/canvas/WebGLBuffer.cpp \
+        html/canvas/WebGLCompressedTextureATC.cpp \
+        html/canvas/WebGLCompressedTexturePVRTC.cpp \
         html/canvas/WebGLCompressedTextureS3TC.cpp \
         html/canvas/WebGLContextAttributes.cpp \
         html/canvas/WebGLContextEvent.cpp \
@@ -4192,8 +4226,8 @@ use?(3D_GRAPHICS) {
         platform/graphics/texmap/coordinated/CoordinatedCustomFilterProgram.h \
         platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.h \
         platform/graphics/texmap/coordinated/CoordinatedGraphicsScene.h \
+        platform/graphics/texmap/coordinated/CoordinatedGraphicsState.h \
         platform/graphics/texmap/coordinated/CoordinatedImageBacking.h \
-        platform/graphics/texmap/coordinated/CoordinatedLayerInfo.h \
         platform/graphics/texmap/coordinated/CoordinatedSurface.h \
         platform/graphics/texmap/coordinated/CoordinatedTile.h \
         platform/graphics/texmap/coordinated/SurfaceUpdateInfo.h \
@@ -4279,6 +4313,11 @@ use?(WEBP) {
     SOURCES += platform/image-decoders/webp/WEBPImageDecoder.cpp
 }
 
+use?(ZLIB) {
+    HEADERS += platform/graphics/WOFFFileFormat.h
+    SOURCES += platform/graphics/WOFFFileFormat.cpp
+}
+
 !have?(sqlite3):exists($${SQLITE3SRCDIR}/sqlite3.c) {
     # Build sqlite3 into WebCore from source
     # somewhat copied from $$QT_SOURCE_TREE/src/plugins/sqldrivers/sqlite/sqlite.pro
@@ -4309,7 +4348,7 @@ contains(CONFIG, opengl-shims) {
     DEFINES += QT_OPENGL_SHIMS=1
 }
 
-contains(DEFINES, ENABLE_OPENCL=1) {
+enable?(opencl) {
     HEADERS += \
         platform/graphics/gpu/opencl/OpenCLHandle.h \
         platform/graphics/gpu/opencl/FilterContextOpenCL.h

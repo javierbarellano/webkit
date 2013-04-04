@@ -374,12 +374,12 @@ bool FatFingers::checkForClickableElement(Element* curElement,
         if (curElementRenderLayer != lowestPositionedEnclosingLayerSoFar) {
 
             // elementRegion will always be in contents coordinates of its container frame. It needs to be
-            // mapped to main frame contents coordinates in order to subtract the fingerRegion, then.
+            // mapped to main frame contents coordinates in order to intersect the fingerRegion, then.
             WebCore::IntPoint framePos(m_webPage->frameOffset(curElement->document()->frame()));
             IntRectRegion layerRegion(Platform::IntRect(lowestPositionedEnclosingLayerSoFar->renderer()->absoluteBoundingBoxRect(true/*use transforms*/)));
             layerRegion.move(framePos.x(), framePos.y());
 
-            remainingFingerRegion = subtractRegions(remainingFingerRegion, layerRegion);
+            remainingFingerRegion = intersectRegions(remainingFingerRegion, layerRegion);
 
             lowestPositionedEnclosingLayerSoFar = curElementRenderLayer;
         }
@@ -465,8 +465,8 @@ void FatFingers::getNodesFromRect(Document* document, const IntPoint& contentPos
     // The user functions checkForText() and findIntersectingRegions() uses the Node.wholeText() to checkFingerIntersection()
     // not the text in its shadow tree.
     HitTestRequest::HitTestRequestType requestType = HitTestRequest::ReadOnly | HitTestRequest::Active;
-    if (m_targetType == Text)
-        requestType |= HitTestRequest::AllowShadowContent;
+    if (m_targetType != Text)
+        requestType |= HitTestRequest::DisallowShadowContent;
     HitTestResult result(contentPos, topPadding, rightPadding, bottomPadding, leftPadding);
 
     document->renderView()->layer()->hitTest(requestType, result);
@@ -484,7 +484,7 @@ void FatFingers::getRelevantInfoFromCachedHitTest(Element*& elementUnderPoint, E
     while (node && !node->isElementNode())
         node = node->parentNode();
 
-    elementUnderPoint = static_cast<Element*>(node);
+    elementUnderPoint = toElement(node);
     clickableElementUnderPoint = result.URLElement();
 }
 
@@ -498,7 +498,7 @@ void FatFingers::setSuccessfulFatFingersResult(FatFingersResult& result, Node* b
     bool isTextInputElement = false;
     if (m_targetType == ClickableElement) {
         ASSERT_WITH_SECURITY_IMPLICATION(bestNode->isElementNode());
-        Element* bestElement = static_cast<Element*>(bestNode);
+        Element* bestElement = toElement(bestNode);
         isTextInputElement = DOMSupport::isTextInputElement(bestElement);
     }
     result.m_isTextInput = isTextInputElement;
@@ -506,4 +506,3 @@ void FatFingers::setSuccessfulFatFingersResult(FatFingersResult& result, Node* b
 
 }
 }
-

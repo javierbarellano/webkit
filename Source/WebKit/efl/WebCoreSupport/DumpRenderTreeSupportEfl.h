@@ -57,7 +57,6 @@ public:
     static void clearFrameName(Evas_Object* ewkFrame);
     static void clearOpener(Evas_Object* ewkFrame);
     static String counterValueByElementId(const Evas_Object* ewkFrame, const char* elementId);
-    static bool elementDoesAutoCompleteForElementWithId(const Evas_Object* ewkFrame, const String& elementId);
     static Eina_List* frameChildren(const Evas_Object* ewkFrame);
     static WebCore::Frame* frameParent(const Evas_Object* ewkFrame);
     static void layoutFrame(Evas_Object* ewkFrame);
@@ -81,8 +80,6 @@ public:
     static bool isCommandEnabled(const Evas_Object* ewkView, const char* name);
     static void setCSSGridLayoutEnabled(const Evas_Object* ewkView, bool enabled);
     static void setCSSRegionsEnabled(const Evas_Object* ewkView, bool enabled);
-    static void setSmartInsertDeleteEnabled(Evas_Object* ewkView, bool enabled);
-    static void setSelectTrailingWhitespaceEnabled(Evas_Object* ewkView, bool enabled);
     static void setSeamlessIFramesEnabled(bool);
 
     static void forceLayout(Evas_Object* ewkFrame);
@@ -130,6 +127,7 @@ public:
     static int numberOfPendingGeolocationPermissionRequests(const Evas_Object*);
 
 #if HAVE(ACCESSIBILITY)
+    static String accessibilityHelpText(const AtkObject* axObject);
     static AtkObject* focusedAccessibleElement(const Evas_Object*);
     static AtkObject* rootAccessibleElement(const Evas_Object*);
 #endif

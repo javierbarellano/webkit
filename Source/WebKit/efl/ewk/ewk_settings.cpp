@@ -28,6 +28,7 @@
 #include "DatabaseManager.h"
 #include "FontCache.h"
 #include "FrameView.h"
+#include "GCController.h"
 #include "IconDatabase.h"
 #include "Image.h"
 #include "IntSize.h"
@@ -37,14 +38,17 @@
 #include "PageCache.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
+#include "StorageThread.h"
 #include "StorageTracker.h"
 #include "WebKitVersion.h"
+#include "WorkerThread.h"
 #include "ewk_private.h"
 #include <Eina.h>
 #include <eina_safety_checks.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <wtf/FastMalloc.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringConcatenate.h>
 
@@ -79,7 +83,7 @@ static WTF::String _ewk_settings_webkit_os_version_get()
 {
     WTF::String uaOsVersion;
 #if OS(DARWIN)
-#if CPU(X86)
+#if CPU(X86) || CPU(X86_64)
     uaOsVersion = "Intel Mac OS X";
 #else
     uaOsVersion = "PPC Mac OS X";
@@ -292,7 +296,6 @@ void ewk_settings_memory_cache_clear()
     int pageCapacity = WebCore::pageCache()->capacity();
     // Setting size to 0, makes all pages be released.
     WebCore::pageCache()->setCapacity(0);
-    WebCore::pageCache()->releaseAutoreleasedPagesNow();
     WebCore::pageCache()->setCapacity(pageCapacity);
 
     // Invalidating the font cache and freeing all inactive font data.
@@ -300,6 +303,18 @@ void ewk_settings_memory_cache_clear()
 
     // Empty the Cross-Origin Preflight cache
     WebCore::CrossOriginPreflightResultCache::shared().empty();
+
+    // Drop JIT compiled code from ExecutableAllocator.
+    WebCore::gcController().discardAllCompiledCode();
+    // Garbage Collect to release the references of CachedResource from dead objects.
+    WebCore::gcController().garbageCollectNow();
+
+    // FastMalloc has lock-free thread specific caches that can only be cleared from the thread itself.
+    WebCore::StorageThread::releaseFastMallocFreeMemoryInAllThreads();
+#if ENABLE(WORKERS)
+    WebCore::WorkerThread::releaseFastMallocFreeMemoryInAllThreads();
+#endif
+    WTF::releaseFastMallocFreeMemory();
 }
 
 void ewk_settings_repaint_throttling_set(double deferredRepaintDelay, double initialDeferredRepaintDelayDuringLoading, double maxDeferredRepaintDelayDuringLoading, double deferredRepaintDelayIncrementDuringLoading)

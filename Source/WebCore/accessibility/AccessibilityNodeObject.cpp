@@ -70,9 +70,9 @@
 #include "TextControlInnerElements.h"
 #include "TextIterator.h"
 #include "UserGestureIndicator.h"
+#include "VisibleUnits.h"
 #include "Widget.h"
 #include "htmlediting.h"
-#include "visible_units.h"
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/unicode/CharacterNames.h>
@@ -598,7 +598,7 @@ bool AccessibilityNodeObject::isEnabled() const
     if (!node || !node->isElementNode())
         return true;
 
-    return toElement(node)->isEnabledFormControl();
+    return !toElement(node)->isDisabledFormControl();
 }
 
 bool AccessibilityNodeObject::isIndeterminate() const
@@ -611,7 +611,7 @@ bool AccessibilityNodeObject::isIndeterminate() const
     if (!inputElement)
         return false;
 
-    return inputElement->isIndeterminate();
+    return inputElement->shouldAppearIndeterminate();
 }
 
 bool AccessibilityNodeObject::isPressed() const
@@ -683,12 +683,12 @@ bool AccessibilityNodeObject::isReadOnly() const
         return true;
 
     if (node->hasTagName(textareaTag))
-        return static_cast<HTMLTextAreaElement*>(node)->readOnly();
+        return static_cast<HTMLTextAreaElement*>(node)->isReadOnly();
 
     if (node->hasTagName(inputTag)) {
         HTMLInputElement* input = static_cast<HTMLInputElement*>(node);
         if (input->isTextField())
-            return input->readOnly();
+            return input->isReadOnly();
     }
 
     return !node->rendererIsEditable();
@@ -909,7 +909,7 @@ Element* AccessibilityNodeObject::actionElement() const
 
     if (node->hasTagName(inputTag)) {
         HTMLInputElement* input = static_cast<HTMLInputElement*>(node);
-        if (!input->disabled() && (isCheckboxOrRadio() || input->isTextButton()))
+        if (!input->isDisabledFormControl() && (isCheckboxOrRadio() || input->isTextButton()))
             return input;
     } else if (node->hasTagName(buttonTag))
         return toElement(node);
@@ -989,13 +989,13 @@ void AccessibilityNodeObject::alterSliderValue(bool increase)
     
 void AccessibilityNodeObject::increment()
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     alterSliderValue(true);
 }
 
 void AccessibilityNodeObject::decrement()
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     alterSliderValue(false);
 }
 
@@ -1091,7 +1091,11 @@ String AccessibilityNodeObject::ariaAccessibilityDescription() const
 
 static Element* siblingWithAriaRole(String role, Node* node)
 {
-    for (Node* sibling = node->parentNode()->firstChild(); sibling; sibling = sibling->nextSibling()) {
+    Node* parent = node->parentNode();
+    if (!parent)
+        return 0;
+    
+    for (Node* sibling = parent->firstChild(); sibling; sibling = sibling->nextSibling()) {
         if (sibling->isElementNode()) {
             const AtomicString& siblingAriaRole = toElement(sibling)->getAttribute(roleAttr);
             if (equalIgnoringCase(siblingAriaRole, role))
@@ -1130,7 +1134,7 @@ AccessibilityObject* AccessibilityNodeObject::menuButtonForMenu() const
     if (menuItem) {
         // ARIA just has generic menu items. AppKit needs to know if this is a top level items like MenuBarButton or MenuBarItem
         AccessibilityObject* menuItemAX = axObjectCache()->getOrCreate(menuItem);
-        if (menuItemAX->isMenuButton())
+        if (menuItemAX && menuItemAX->isMenuButton())
             return menuItemAX;
     }
     return 0;
@@ -1756,7 +1760,7 @@ bool AccessibilityNodeObject::canSetFocusAttribute() const
     if (!node)
         return false;
 
-    if (node->isElementNode() && !toElement(node)->isEnabledFormControl())
+    if (isDisabledFormControl(node))
         return false;
 
     return node->supportsFocus();

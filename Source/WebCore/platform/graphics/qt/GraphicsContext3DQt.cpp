@@ -111,7 +111,8 @@ GraphicsContext3DPrivate::GraphicsContext3DPrivate(GraphicsContext3D* context, H
 {
     if (renderStyle == GraphicsContext3D::RenderToCurrentGLContext) {
         m_platformContext = QOpenGLContext::currentContext();
-        m_surface = m_platformContext->surface();
+        if (m_platformContext)
+            m_surface = m_platformContext->surface();
         return;
     }
 
@@ -193,6 +194,10 @@ void GraphicsContext3DPrivate::initializeANGLE()
     Extensions3D* extensions = m_context->getExtensions();
     if (extensions->supports("GL_ARB_texture_rectangle"))
         ANGLEResources.ARB_texture_rectangle = 1;
+
+    GC3Dint range[2], precision;
+    m_context->getShaderPrecisionFormat(GraphicsContext3D::FRAGMENT_SHADER, GraphicsContext3D::HIGH_FLOAT, range, &precision);
+    ANGLEResources.FragmentPrecisionHigh = (range[0] || range[1] || precision);
 
     m_context->m_compiler.setResources(ANGLEResources);
 }
@@ -391,8 +396,8 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attrs, HostWi
 {
     validateAttributes();
 
-    if (!m_private->m_surface) {
-        LOG_ERROR("GraphicsContext3D: QGLWidget initialization failed.");
+    if (!m_private->m_surface || !m_private->m_platformContext) {
+        LOG_ERROR("GraphicsContext3D: GL context creation failed.");
         m_private = nullptr;
         return;
     }

@@ -68,6 +68,9 @@ using namespace HTMLNames;
 // Initialize default font size.
 float RenderThemeEfl::defaultFontSize = 16.0f;
 
+static const float minCancelButtonSize = 5;
+static const float maxCancelButtonSize = 21;
+
 // Constants for progress tag animation.
 // These values have been copied from RenderThemeGtk.cpp
 static const int progressAnimationFrames = 10;
@@ -756,7 +759,9 @@ bool RenderThemeEfl::supportsDataListUI(const AtomicString& type) const
 {
 #if ENABLE(DATALIST_ELEMENT)
     // FIXME: We need to support other types.
-    return type == InputTypeNames::range();
+    return type == InputTypeNames::range()
+        || type == InputTypeNames::email()
+        || type == InputTypeNames::url();
 #else
     UNUSED_PARAM(type);
     return false;
@@ -945,6 +950,14 @@ void RenderThemeEfl::adjustSearchFieldCancelButtonStyle(StyleResolver* styleReso
     adjustSizeConstraints(style, SearchFieldCancelButton);
     style->resetBorder();
     style->setWhiteSpace(PRE);
+
+    // Logic taken from RenderThemeChromium.cpp.
+    // Scale the button size based on the font size.
+    float fontScale = style->fontSize() / defaultFontSize;
+    int cancelButtonSize = lroundf(std::min(std::max(minCancelButtonSize, defaultFontSize * fontScale), maxCancelButtonSize));
+
+    style->setWidth(Length(cancelButtonSize, Fixed));
+    style->setHeight(Length(cancelButtonSize, Fixed));
 }
 
 bool RenderThemeEfl::paintSearchFieldCancelButton(RenderObject* object, const PaintInfo& info, const IntRect& rect)
@@ -1091,7 +1104,7 @@ bool RenderThemeEfl::paintMediaFullscreenButton(RenderObject* object, const Pain
     Node* mediaNode = object->node() ? object->node()->shadowHost() : 0;
     if (!mediaNode)
         mediaNode = object->node();
-    if (!mediaNode || !mediaNode->isElementNode() || !static_cast<Element*>(mediaNode)->isMediaElement())
+    if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
         return false;
 
     HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);
@@ -1106,7 +1119,7 @@ bool RenderThemeEfl::paintMediaMuteButton(RenderObject* object, const PaintInfo&
     Node* mediaNode = object->node() ? object->node()->shadowHost() : 0;
     if (!mediaNode)
         mediaNode = object->node();
-    if (!mediaNode || !mediaNode->isElementNode() || !static_cast<Element*>(mediaNode)->isMediaElement())
+    if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
         return false;
 
     HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);

@@ -138,6 +138,13 @@ private:
             m_popup->m_webView->client()->didChangeCursor(WebCursorInfo(cursor));
     }
 
+#if ENABLE(TOUCH_EVENTS)
+    virtual void needTouchEvents(bool needsTouchEvents) OVERRIDE
+    {
+        m_popup->widgetClient()->hasTouchEventHandlers(needsTouchEvents);
+    }
+#endif // ENABLE(TOUCH_EVENTS)
+
     // PageClientChromium methods:
     virtual WebKit::WebScreenInfo screenInfo() OVERRIDE
     {
@@ -225,7 +232,7 @@ bool WebPagePopupImpl::initializePage()
     return true;
 }
 
-void WebPagePopupImpl::destoryPage()
+void WebPagePopupImpl::destroyPage()
 {
     if (!m_page)
         return;
@@ -246,14 +253,6 @@ void WebPagePopupImpl::animate(double)
     PageWidgetDelegate::animate(m_page.get(), monotonicallyIncreasingTime());
 }
 
-void WebPagePopupImpl::setCompositorSurfaceReady()
-{
-}
-
-void WebPagePopupImpl::composite(bool)
-{
-}
-
 void WebPagePopupImpl::layout()
 {
     PageWidgetDelegate::layout(m_page.get());
@@ -262,7 +261,7 @@ void WebPagePopupImpl::layout()
 void WebPagePopupImpl::paint(WebCanvas* canvas, const WebRect& rect, PaintOptions)
 {
     if (!m_closing)
-        PageWidgetDelegate::paint(m_page.get(), 0, canvas, rect, PageWidgetDelegate::Opaque, m_webView->settingsImpl()->applyDeviceScaleFactorInCompositor());
+        PageWidgetDelegate::paint(m_page.get(), 0, canvas, rect, PageWidgetDelegate::Opaque);
 }
 
 void WebPagePopupImpl::resize(const WebSize& newSize)
@@ -325,7 +324,7 @@ void WebPagePopupImpl::setFocus(bool enable)
 void WebPagePopupImpl::close()
 {
     m_closing = true;
-    destoryPage(); // In case closePopup() was not called.
+    destroyPage(); // In case closePopup() was not called.
     m_widgetClient = 0;
     deref();
 }
@@ -340,7 +339,7 @@ void WebPagePopupImpl::closePopup()
     }
     m_closing = true;
 
-    destoryPage();
+    destroyPage();
 
     // m_widgetClient might be 0 because this widget might be already closed.
     if (m_widgetClient) {

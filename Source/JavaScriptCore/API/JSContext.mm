@@ -26,6 +26,7 @@
 #include "config.h"
 
 #import "APICast.h"
+#import "APIShims.h"
 #import "JSContextInternal.h"
 #import "JSGlobalObject.h"
 #import "JSValueInternal.h"
@@ -72,7 +73,18 @@
         context.exception = exceptionValue;
     };
 
+    [m_virtualMachine addContext:self forGlobalContextRef:m_context];
+
     return self;
+}
+
+- (void)dealloc
+{
+    [m_wrapperMap release];
+    JSGlobalContextRelease(m_context);
+    [m_virtualMachine release];
+    [self.exceptionHandler release];
+    [super dealloc];
 }
 
 - (JSValue *)evaluateScript:(NSString *)script
@@ -187,21 +199,9 @@
         context.exception = exceptionValue;
     };
 
+    [m_virtualMachine addContext:self forGlobalContextRef:m_context];
+
     return self;
-}
-
-JSGlobalContextRef contextInternalContext(JSContext *context)
-{
-    return context->m_context;
-}
-
-- (void)dealloc
-{
-    [m_wrapperMap release];
-    JSGlobalContextRelease(m_context);
-    [m_virtualMachine release];
-    [self.exceptionHandler release];
-    [super dealloc];
 }
 
 - (void)notifyException:(JSValueRef)exceptionValue
@@ -259,10 +259,8 @@ JSGlobalContextRef contextInternalContext(JSContext *context)
 {
     JSVirtualMachine *virtualMachine = [JSVirtualMachine virtualMachineWithContextGroupRef:toRef(&toJS(globalContext)->globalData())];
     JSContext *context = [virtualMachine contextForGlobalContextRef:globalContext];
-    if (!context) {
+    if (!context)
         context = [[[JSContext alloc] initWithGlobalContextRef:globalContext] autorelease];
-        [virtualMachine addContext:context forGlobalContextRef:globalContext];
-    }
     return context;
 }
 

@@ -31,6 +31,7 @@
 #include <glib.h>
 #include <gst/gst.h>
 #include <vector>
+#include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
 
 typedef struct _GstBuffer GstBuffer;
@@ -44,11 +45,15 @@ public:
     ~MediaPlayerPrivateGStreamer();
     static void registerMediaEngine(MediaEngineRegistrar);
     gboolean handleMessage(GstMessage*);
+    void handlePluginInstallerResult(GstInstallPluginsReturn);
 
     bool hasVideo() const { return m_hasVideo; }
     bool hasAudio() const { return m_hasAudio; }
 
     void load(const String &url);
+#if ENABLE(MEDIA_SOURCE)
+    void load(const String& url, PassRefPtr<MediaSource>);
+#endif
     void commitLoad();
     void cancelLoad();
 
@@ -93,6 +98,10 @@ public:
     void sourceChanged();
     GstElement* audioSink() const;
 
+    void setAudioStreamProperties(GObject*);
+
+    void simulateAudioInterruption();
+
     virtual bool isAudioEnabled(int) const;
     virtual void setAudioEnabled(int, bool);
 
@@ -101,7 +110,6 @@ public:
 
     virtual bool isVideoSelected(int) const;
     virtual void setVideoSelected(int, bool);
-
 
 private:
     MediaPlayerPrivateGStreamer(MediaPlayer*);
@@ -174,6 +182,9 @@ private:
     KURL m_url;
     bool m_originalPreloadWasAutoAndWasOverridden;
     bool m_preservesPitch;
+    GstState m_requestedState;
+    GRefPtr<GstElement> m_autoAudioSink;
+    bool m_missingPlugins;
     guint m_audioTagsTimerHandler;
     guint m_videoTagsTimerHandler;
 };

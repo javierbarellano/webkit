@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2013 Apple Inc. All rights reserved.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  * Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
  * Copyright (C) 2013 Samsung Electronics. All rights reserved.
@@ -106,6 +106,10 @@
 #define ENABLE_WEB_ARCHIVE 1
 #endif
 
+#if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
+#define ENABLE_VIEW_MODE_CSS_MEDIA 0
+#endif
+
 #if !defined(ENABLE_WEBGL)
 #define ENABLE_WEBGL 1
 #endif
@@ -178,12 +182,20 @@
 #endif
 #endif
 
+#if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
+#define ENABLE_VIEW_MODE_CSS_MEDIA 0
+#endif
+
 #if !defined(ENABLE_WEB_ARCHIVE)
 #define ENABLE_WEB_ARCHIVE 1
 #endif
 
 #if !defined(ENABLE_WEB_AUDIO)
 #define ENABLE_WEB_AUDIO 1
+#endif
+
+#if !defined(ENABLE_CURSOR_VISIBILITY)
+#define ENABLE_CURSOR_VISIBILITY 1
 #endif
 
 #endif /* PLATFORM(MAC) && !PLATFORM(IOS) */
@@ -535,8 +547,8 @@
 #define ENABLE_INPUT_TYPE_DATE 0
 #endif
 
-#if !defined(ENABLE_INPUT_TYPE_DATETIME)
-#define ENABLE_INPUT_TYPE_DATETIME 0
+#if !defined(ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE)
+#define ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE 0
 #endif
 
 #if !defined(ENABLE_INPUT_TYPE_DATETIMELOCAL)
@@ -555,7 +567,7 @@
 #define ENABLE_INPUT_TYPE_WEEK 0
 #endif
 
-#if ENABLE(INPUT_TYPE_DATE) || ENABLE(INPUT_TYPE_DATETIME) || ENABLE(INPUT_TYPE_DATETIMELOCAL) || ENABLE(INPUT_TYPE_MONTH) || ENABLE(INPUT_TYPE_TIME) || ENABLE(INPUT_TYPE_WEEK)
+#if ENABLE(INPUT_TYPE_DATE) || ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE) || ENABLE(INPUT_TYPE_DATETIMELOCAL) || ENABLE(INPUT_TYPE_MONTH) || ENABLE(INPUT_TYPE_TIME) || ENABLE(INPUT_TYPE_WEEK)
 #if !defined(ENABLE_DATE_AND_TIME_INPUT_TYPES)
 #define ENABLE_DATE_AND_TIME_INPUT_TYPES 1
 #endif
@@ -571,10 +583,6 @@
 
 #if !defined(ENABLE_JAVASCRIPT_I18N_API)
 #define ENABLE_JAVASCRIPT_I18N_API 0
-#endif
-
-#if !defined(JSC_OBJC_API_ENABLED)
-#define JSC_OBJC_API_ENABLED (defined(__clang__) && defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090 && !defined(__i386__))
 #endif
 
 #if !defined(ENABLE_LEGACY_CSS_VENDOR_PREFIXES)
@@ -833,6 +841,14 @@
 
 #if !defined(ENABLE_VIEWPORT)
 #define ENABLE_VIEWPORT 0
+#endif
+
+#if !defined(ENABLE_VIEWSOURCE_ATTRIBUTE)
+#define ENABLE_VIEWSOURCE_ATTRIBUTE 1
+#endif
+
+#if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
+#define ENABLE_VIEW_MODE_CSS_MEDIA 1
 #endif
 
 #if !defined(ENABLE_WEBGL)

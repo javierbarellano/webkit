@@ -99,6 +99,14 @@ public:
         HTMLMarqueeElement,
         CSSOverflowMarquee,
         Reflection,
+        CursorVisibility,
+        StorageInfo,
+        XFrameOptions,
+        XFrameOptionsSameOrigin,
+        XFrameOptionsSameOriginWithBadAncestorChain,
+        DeprecatedFlexboxWebContent,
+        DeprecatedFlexboxChrome,
+        DeprecatedFlexboxChromeExtension,
         // Add new features above this line. Don't change assigned numbers of each items.
         NumberOfFeatures, // This enum value must be last.
     };
@@ -106,6 +114,8 @@ public:
     static void observe(Document*, Feature);
     static void observe(DOMWindow*, Feature);
     void didCommitLoad();
+
+    const BitVector* accumulatedFeatureBits() const { return m_featureBits.get(); }
 
 private:
     void didObserve(Feature feature)

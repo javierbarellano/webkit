@@ -37,6 +37,7 @@
 #include "FloatRect.h"
 #include "FocusController.h"
 #include "FontCache.h"
+#include "FontLoader.h"
 #include "Frame.h"
 #include "FrameActionScheduler.h"
 #include "FrameLoader.h"
@@ -194,6 +195,8 @@ FrameView::FrameView(Frame* frame)
     , m_shouldAutoSize(false)
     , m_inAutoSize(false)
     , m_didRunAutosize(false)
+    , m_headerHeight(0)
+    , m_footerHeight(0)
 #if ENABLE(CSS_FILTERS)
     , m_hasSoftwareFilters(false)
 #endif
@@ -301,13 +304,8 @@ void FrameView::reset()
 
 void FrameView::removeFromAXObjectCache()
 {
-    if (AXObjectCache::accessibilityEnabled() && axObjectCache())
-        axObjectCache()->remove(this);
-}
-
-bool FrameView::isFrameView() const
-{ 
-    return true; 
+    if (AXObjectCache* cache = axObjectCache())
+        cache->remove(this);
 }
 
 void FrameView::clearFrame()
@@ -862,7 +860,78 @@ GraphicsLayer* FrameView::layerForOverhangAreas() const
         return 0;
     return renderView->compositor()->layerForOverhangAreas();
 }
+
+GraphicsLayer* FrameView::setWantsLayerForTopOverHangArea(bool wantsLayer) const
+{
+    RenderView* renderView = this->renderView();
+    if (!renderView)
+        return 0;
+
+#if USE(ACCELERATED_COMPOSITING)
+    return renderView->compositor()->updateLayerForTopOverhangArea(wantsLayer);
+#else
+    return 0;
 #endif
+}
+
+GraphicsLayer* FrameView::setWantsLayerForBottomOverHangArea(bool wantsLayer) const
+{
+    RenderView* renderView = this->renderView();
+    if (!renderView)
+        return 0;
+
+#if USE(ACCELERATED_COMPOSITING)
+    return renderView->compositor()->updateLayerForBottomOverhangArea(wantsLayer);
+#else
+    return 0;
+#endif
+}
+
+GraphicsLayer* FrameView::setWantsLayerForHeader(bool wantsLayer) const
+{
+    RenderView* renderView = this->renderView();
+    if (!renderView)
+        return 0;
+
+    ASSERT(m_frame == m_frame->page()->mainFrame());
+
+#if USE(ACCELERATED_COMPOSITING)
+    return renderView->compositor()->updateLayerForHeader(wantsLayer);
+#else
+    return 0;
+#endif
+}
+
+GraphicsLayer* FrameView::setWantsLayerForFooter(bool wantsLayer) const
+{
+    RenderView* renderView = this->renderView();
+    if (!renderView)
+        return 0;
+
+    ASSERT(m_frame == m_frame->page()->mainFrame());
+
+#if USE(ACCELERATED_COMPOSITING)
+    return renderView->compositor()->updateLayerForFooter(wantsLayer);
+#else
+    return 0;
+#endif
+}
+
+#endif
+
+void FrameView::setHeaderHeight(int headerHeight)
+{
+    if (m_frame && m_frame->page())
+        ASSERT(m_frame == m_frame->page()->mainFrame());
+    m_headerHeight = headerHeight;
+}
+
+void FrameView::setFooterHeight(int footerHeight)
+{
+    if (m_frame && m_frame->page())
+        ASSERT(m_frame == m_frame->page()->mainFrame());
+    m_footerHeight = footerHeight;
+}
 
 bool FrameView::flushCompositingStateForThisFrame(Frame* rootFrameForFlush)
 {
@@ -1015,7 +1084,7 @@ static inline void collectFrameViewChildren(FrameView* frameView, Vector<RefPtr<
     for (HashSet<RefPtr<Widget> >::iterator current = viewChildren->begin(); current != end; ++current) {
         Widget* widget = (*current).get();
         if (widget->isFrameView())
-            frameViews.append(static_cast<FrameView*>(widget));
+            frameViews.append(toFrameView(widget));
     }
 }
 
@@ -1283,8 +1352,8 @@ void FrameView::layout(bool allowSubtree)
     m_layoutCount++;
 
 #if PLATFORM(MAC) || PLATFORM(CHROMIUM)
-    if (AXObjectCache::accessibilityEnabled())
-        root->document()->axObjectCache()->postNotification(root, AXObjectCache::AXLayoutComplete, true);
+    if (AXObjectCache* cache = root->document()->existingAXObjectCache())
+        cache->postNotification(root, AXObjectCache::AXLayoutComplete, true);
 #endif
 #if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
     updateAnnotatedRegions();
@@ -1366,7 +1435,7 @@ void FrameView::addWidgetToUpdate(RenderObject* object)
     // Tell the DOM element that it needs a widget update.
     Node* node = object->node();
     if (node->hasTagName(objectTag) || node->hasTagName(embedTag)) {
-        HTMLPlugInImageElement* pluginElement = static_cast<HTMLPlugInImageElement*>(node);
+        HTMLPlugInImageElement* pluginElement = toHTMLPlugInImageElement(node);
         pluginElement->setNeedsWidgetUpdate(true);
     }
 
@@ -1535,14 +1604,14 @@ LayoutRect FrameView::viewportConstrainedVisibleContentRect() const
     return viewportRect;
 }
 
-IntSize FrameView::scrollOffsetForFixedPosition(const IntRect& visibleContentRect, const IntSize& contentsSize, const IntPoint& scrollPosition, const IntPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame)
+IntSize FrameView::scrollOffsetForFixedPosition(const IntRect& visibleContentRect, const IntSize& totalContentsSize, const IntPoint& scrollPosition, const IntPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, int headerHeight, int footerHeight)
 {
-    IntPoint constrainedPosition = ScrollableArea::constrainScrollPositionForOverhang(visibleContentRect, contentsSize, scrollPosition, scrollOrigin);
+    IntPoint constrainedPosition = ScrollableArea::constrainScrollPositionForOverhang(visibleContentRect, totalContentsSize, scrollPosition, scrollOrigin, headerHeight, footerHeight);
 
-    IntSize maxSize = contentsSize - visibleContentRect.size();
+    IntSize maxSize = totalContentsSize - visibleContentRect.size();
 
-    float dragFactorX = (fixedElementsLayoutRelativeToFrame || !maxSize.width()) ? 1 : (contentsSize.width() - visibleContentRect.width() * frameScaleFactor) / maxSize.width();
-    float dragFactorY = (fixedElementsLayoutRelativeToFrame || !maxSize.height()) ? 1 : (contentsSize.height() - visibleContentRect.height() * frameScaleFactor) / maxSize.height();
+    float dragFactorX = (fixedElementsLayoutRelativeToFrame || !maxSize.width()) ? 1 : (totalContentsSize.width() - visibleContentRect.width() * frameScaleFactor) / maxSize.width();
+    float dragFactorY = (fixedElementsLayoutRelativeToFrame || !maxSize.height()) ? 1 : (totalContentsSize.height() - visibleContentRect.height() * frameScaleFactor) / maxSize.height();
 
     return IntSize(constrainedPosition.x() * dragFactorX / frameScaleFactor, constrainedPosition.y() * dragFactorY / frameScaleFactor);
 }
@@ -1550,11 +1619,11 @@ IntSize FrameView::scrollOffsetForFixedPosition(const IntRect& visibleContentRec
 IntSize FrameView::scrollOffsetForFixedPosition() const
 {
     IntRect visibleContentRect = this->visibleContentRect();
-    IntSize contentsSize = this->contentsSize();
+    IntSize totalContentsSize = this->totalContentsSize();
     IntPoint scrollPosition = this->scrollPosition();
     IntPoint scrollOrigin = this->scrollOrigin();
     float frameScaleFactor = m_frame ? m_frame->frameScaleFactor() : 1;
-    return scrollOffsetForFixedPosition(visibleContentRect, contentsSize, scrollPosition, scrollOrigin, frameScaleFactor, fixedElementsLayoutRelativeToFrame());
+    return scrollOffsetForFixedPosition(visibleContentRect, totalContentsSize, scrollPosition, scrollOrigin, frameScaleFactor, fixedElementsLayoutRelativeToFrame(), headerHeight(), footerHeight());
 }
 
 bool FrameView::fixedElementsLayoutRelativeToFrame() const
@@ -1595,7 +1664,15 @@ bool FrameView::scrollContentsFastPath(const IntSize& scrollDelta, const IntRect
         // Fixed items should always have layers.
         ASSERT(renderer->hasLayer());
         RenderLayer* layer = toRenderBoxModelObject(renderer)->layer();
-        
+
+#if USE(ACCELERATED_COMPOSITING)
+        if (layer->viewportConstrainedNotCompositedReason() == RenderLayer::NotCompositedForBoundsOutOfView
+            || layer->viewportConstrainedNotCompositedReason() == RenderLayer::NotCompositedForNoVisibleContent) {
+            // Don't invalidate for invisible fixed layers.
+            continue;
+        }
+#endif
+
 #if ENABLE(CSS_FILTERS)
         if (layer->hasAncestorWithFilterOutsets()) {
             // If the fixed layer has a blur/drop-shadow filter applied on at least one of its parents, we cannot 
@@ -1766,7 +1843,7 @@ bool FrameView::scrollToAnchor(const String& name)
 
 #if ENABLE(SVG)
     if (m_frame->document()->isSVGDocument()) {
-        if (SVGSVGElement* svg = static_cast<SVGDocument*>(m_frame->document())->rootElement()) {
+        if (SVGSVGElement* svg = toSVGDocument(m_frame->document())->rootElement()) {
             svg->setupInitialView(name, anchorNode);
             if (!anchorNode)
                 return true;
@@ -2487,8 +2564,8 @@ void FrameView::scrollToAnchor()
     // Align to the top and to the closest side (this matches other browsers).
     anchorNode->renderer()->scrollRectToVisible(rect, ScrollAlignment::alignToEdgeIfNeeded, ScrollAlignment::alignTopAlways);
 
-    if (AXObjectCache::accessibilityEnabled())
-        m_frame->document()->axObjectCache()->handleScrolledToAnchor(anchorNode.get());
+    if (AXObjectCache* cache = m_frame->document()->existingAXObjectCache())
+        cache->handleScrolledToAnchor(anchorNode.get());
 
     // scrollRectToVisible can call into setScrollPosition(), which resets m_maintainScrollPositionAnchor.
     m_maintainScrollPositionAnchor = anchorNode;
@@ -2497,7 +2574,7 @@ void FrameView::scrollToAnchor()
 void FrameView::updateWidget(RenderObject* object)
 {
     ASSERT(!object->node() || object->node()->isElementNode());
-    Element* ownerElement = static_cast<Element*>(object->node());
+    Element* ownerElement = toElement(object->node());
     // The object may have already been destroyed (thus node cleared),
     // but FrameView holds a manual ref, so it won't have been deleted.
     ASSERT(m_widgetUpdateSet->contains(object));
@@ -2510,10 +2587,18 @@ void FrameView::updateWidget(RenderObject* object)
         if (embeddedObject->showsUnavailablePluginIndicator())
             return;
 
+        if (object->isSnapshottedPlugIn()) {
+            if (ownerElement->hasTagName(objectTag) || ownerElement->hasTagName(embedTag)) {
+                HTMLPlugInImageElement* pluginElement = toHTMLPlugInImageElement(ownerElement);
+                pluginElement->updateSnapshotInfo();
+            }
+            return;
+        }
+
         // FIXME: This could turn into a real virtual dispatch if we defined
         // updateWidget(PluginCreationOption) on HTMLElement.
         if (ownerElement->hasTagName(objectTag) || ownerElement->hasTagName(embedTag) || ownerElement->hasTagName(appletTag)) {
-            HTMLPlugInImageElement* pluginElement = static_cast<HTMLPlugInImageElement*>(ownerElement);
+            HTMLPlugInImageElement* pluginElement = toHTMLPlugInImageElement(ownerElement);
             if (pluginElement->needsWidgetUpdate())
                 pluginElement->updateWidget(CreateAnyWidgetType);
         }
@@ -2528,11 +2613,6 @@ void FrameView::updateWidget(RenderObject* object)
         // Caution: it's possible the object was destroyed again, since loading a
         // plugin may run any arbitrary JavaScript.
         embeddedObject->updateWidgetPosition();
-    } else if (object->isSnapshottedPlugIn()) {
-        if (ownerElement->hasTagName(objectTag) || ownerElement->hasTagName(embedTag)) {
-            HTMLPlugInImageElement* pluginElement = static_cast<HTMLPlugInImageElement*>(ownerElement);
-            pluginElement->updateSnapshotInfo();
-        }
     }
 }
 
@@ -2620,6 +2700,10 @@ void FrameView::performPostLayoutTasks()
     }
 
     m_frame->loader()->didLayout(milestonesAchieved);
+#if ENABLE(FONT_LOAD_EVENTS)
+    if (RuntimeEnabledFeatures::fontLoadEventsEnabled())
+        m_frame->document()->fontloader()->didLayout();
+#endif
     
     // FIXME: We should consider adding DidLayout as a LayoutMilestone. That would let us merge this
     // with didLayout(LayoutMilestones).
@@ -2699,14 +2783,8 @@ void FrameView::autoSizeIfEnabled()
     if (!documentView || !documentElement)
         return;
 
-    RenderBox* documentRenderBox = documentElement->renderBox();
-    if (!documentRenderBox)
-        return;
-
-    // If this is the first time we run autosize, start from small height and
-    // allow it to grow.
-    if (!m_didRunAutosize)
-        resize(frameRect().width(), m_minAutoSize.height());
+    // Start from the minimum height and allow it to grow.
+    resize(frameRect().width(), m_minAutoSize.height());
 
     IntSize size = frameRect().size();
 
@@ -2716,7 +2794,7 @@ void FrameView::autoSizeIfEnabled()
         // Update various sizes including contentsSize, scrollHeight, etc.
         document->updateLayoutIgnorePendingStylesheets();
         int width = documentView->minPreferredLogicalWidth();
-        int height = documentRenderBox->scrollHeight();
+        int height = documentView->documentRect().height();
         IntSize newSize(width, height);
 
         // Check to see if a scrollbar is needed for a given dimension and
@@ -2832,7 +2910,7 @@ IntRect FrameView::windowClipRect(bool clipToContents) const
     ASSERT(m_frame->view() == this);
 
     if (paintsEntireContents())
-        return IntRect(IntPoint(), contentsSize());
+        return IntRect(IntPoint(), totalContentsSize());
 
     // Set our clip rect to be our contents.
     IntRect clipRect = contentsToWindow(visibleContentRect(clipToContents ? ExcludeScrollbars : IncludeScrollbars));
@@ -2969,9 +3047,9 @@ bool FrameView::isScrollable()
     // 4) scrolling: no;
 
     // Covers #1
-    IntSize contentSize = contentsSize();
+    IntSize totalContentsSize = this->totalContentsSize();
     IntSize visibleContentSize = visibleContentRect().size();
-    if ((contentSize.height() <= visibleContentSize.height() && contentSize.width() <= visibleContentSize.width()))
+    if ((totalContentsSize.height() <= visibleContentSize.height() && totalContentsSize.width() <= visibleContentSize.width()))
         return false;
 
     // Covers #2.
@@ -3212,7 +3290,7 @@ bool FrameView::hasCustomScrollbars() const
     for (HashSet<RefPtr<Widget> >::const_iterator current = viewChildren->begin(); current != end; ++current) {
         Widget* widget = current->get();
         if (widget->isFrameView()) {
-            if (static_cast<FrameView*>(widget)->hasCustomScrollbars())
+            if (toFrameView(widget)->hasCustomScrollbars())
                 return true;
         } else if (widget->isScrollbar()) {
             Scrollbar* scrollbar = static_cast<Scrollbar*>(widget);
@@ -3331,8 +3409,6 @@ void FrameView::paintContents(GraphicsContext* p, const IntRect& rect)
     if (!frame())
         return;
 
-    InspectorInstrumentationCookie cookie = InspectorInstrumentation::willPaint(m_frame.get());
-
     Document* document = m_frame->document();
 
 #ifndef NDEBUG
@@ -3363,6 +3439,8 @@ void FrameView::paintContents(GraphicsContext* p, const IntRect& rect)
     ASSERT(!needsLayout());
     if (needsLayout())
         return;
+
+    InspectorInstrumentation::willPaint(renderView);
 
     bool isTopLevelPainter = !sCurrentPaintTimeStamp;
     if (isTopLevelPainter)
@@ -3426,7 +3504,7 @@ void FrameView::paintContents(GraphicsContext* p, const IntRect& rect)
     if (isTopLevelPainter)
         sCurrentPaintTimeStamp = 0;
 
-    InspectorInstrumentation::didPaint(cookie, p, rect);
+    InspectorInstrumentation::didPaint(renderView, p, rect);
 }
 
 void FrameView::setPaintBehavior(PaintBehavior behavior)
@@ -3694,7 +3772,7 @@ IntRect FrameView::convertToContainingView(const IntRect& localRect) const
 {
     if (const ScrollView* parentScrollView = parent()) {
         if (parentScrollView->isFrameView()) {
-            const FrameView* parentView = static_cast<const FrameView*>(parentScrollView);
+            const FrameView* parentView = toFrameView(parentScrollView);
             // Get our renderer in the parent view
             RenderPart* renderer = m_frame->ownerRenderer();
             if (!renderer)
@@ -3717,7 +3795,7 @@ IntRect FrameView::convertFromContainingView(const IntRect& parentRect) const
 {
     if (const ScrollView* parentScrollView = parent()) {
         if (parentScrollView->isFrameView()) {
-            const FrameView* parentView = static_cast<const FrameView*>(parentScrollView);
+            const FrameView* parentView = toFrameView(parentScrollView);
 
             // Get our renderer in the parent view
             RenderPart* renderer = m_frame->ownerRenderer();
@@ -3741,7 +3819,7 @@ IntPoint FrameView::convertToContainingView(const IntPoint& localPoint) const
 {
     if (const ScrollView* parentScrollView = parent()) {
         if (parentScrollView->isFrameView()) {
-            const FrameView* parentView = static_cast<const FrameView*>(parentScrollView);
+            const FrameView* parentView = toFrameView(parentScrollView);
 
             // Get our renderer in the parent view
             RenderPart* renderer = m_frame->ownerRenderer();
@@ -3766,7 +3844,7 @@ IntPoint FrameView::convertFromContainingView(const IntPoint& parentPoint) const
 {
     if (const ScrollView* parentScrollView = parent()) {
         if (parentScrollView->isFrameView()) {
-            const FrameView* parentView = static_cast<const FrameView*>(parentScrollView);
+            const FrameView* parentView = toFrameView(parentScrollView);
 
             // Get our renderer in the parent view
             RenderPart* renderer = m_frame->ownerRenderer();
@@ -3877,7 +3955,7 @@ bool FrameView::containsScrollableArea(ScrollableArea* scrollableArea) const
 void FrameView::removeChild(Widget* widget)
 {
     if (widget->isFrameView())
-        removeScrollableArea(static_cast<FrameView*>(widget));
+        removeScrollableArea(toFrameView(widget));
 
     ScrollView::removeChild(widget);
 }
@@ -3952,8 +4030,8 @@ void FrameView::notifyWidgetsInAllFrames(WidgetNotification notification)
     
 AXObjectCache* FrameView::axObjectCache() const
 {
-    if (frame() && frame()->document() && frame()->document()->axObjectCacheExists())
-        return frame()->document()->axObjectCache();
+    if (frame() && frame()->document())
+        return frame()->document()->existingAXObjectCache();
     return 0;
 }
     

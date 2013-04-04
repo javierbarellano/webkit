@@ -52,6 +52,7 @@
 #include "ViewportArguments.h"
 #include <wtf/Deque.h>
 #include <wtf/FixedArray.h>
+#include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
@@ -190,6 +191,10 @@ class TextAutosizer;
 class DOMSecurityPolicy;
 #endif
 
+#if ENABLE(FONT_LOAD_EVENTS)
+class FontLoader;
+#endif
+
 typedef int ExceptionCode;
 
 enum PageshowEventPersistence {
@@ -230,29 +235,6 @@ public:
 
     using ContainerNode::ref;
     using ContainerNode::deref;
-
-    // Nodes belonging to this document hold guard references -
-    // these are enough to keep the document from being destroyed, but
-    // not enough to keep it from removing its children. This allows a
-    // node that outlives its document to still have a valid document
-    // pointer without introducing reference cycles.
-    void guardRef()
-    {
-        ASSERT(!m_deletionHasBegun);
-        ++m_guardRefCount;
-    }
-
-    void guardDeref()
-    {
-        ASSERT(!m_deletionHasBegun);
-        --m_guardRefCount;
-        if (!m_guardRefCount && !refCount()) {
-#ifndef NDEBUG
-            m_deletionHasBegun = true;
-#endif
-            delete this;
-        }
-    }
 
     Element* getElementById(const AtomicString& id) const;
 
@@ -326,6 +308,9 @@ public:
 #if ENABLE(PAGE_VISIBILITY_API)
     DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitvisibilitychange);
 #endif
+#if ENABLE(CSP_NEXT)
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(securitypolicyviolation);
+#endif
 
     void setViewportArguments(const ViewportArguments& viewportArguments) { m_viewportArguments = viewportArguments; }
     ViewportArguments viewportArguments() const { return m_viewportArguments; }
@@ -363,6 +348,7 @@ public:
 
     bool cssStickyPositionEnabled() const;
     bool cssRegionsEnabled() const;
+    bool cssCompositingEnabled() const;
 #if ENABLE(CSS_REGIONS)
     PassRefPtr<DOMNamedFlowCollection> webkitGetNamedFlows();
 #endif
@@ -385,8 +371,8 @@ public:
      * @param leftPadding How much to expand the left of the rectangle
      */
     PassRefPtr<NodeList> nodesFromRect(int centerX, int centerY,
-                                       unsigned topPadding, unsigned rightPadding, unsigned bottomPadding, unsigned leftPadding,
-                                       HitTestRequest::HitTestRequestType hitType = HitTestRequest::ReadOnly | HitTestRequest::Active) const;
+        unsigned topPadding, unsigned rightPadding, unsigned bottomPadding, unsigned leftPadding,
+        HitTestRequest::HitTestRequestType hitType = HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::DisallowShadowContent) const;
     Element* elementFromPoint(int x, int y) const;
     PassRefPtr<Range> caretRangeFromPoint(int x, int y);
 
@@ -573,10 +559,10 @@ public:
         Node::setRenderer(renderer);
     }
 
-    void clearAXObjectCache();
+    AXObjectCache* existingAXObjectCache() const;
     AXObjectCache* axObjectCache() const;
-    bool axObjectCacheExists() const;
-    
+    void clearAXObjectCache();
+
     // to get visually ordered hebrew and arabic pages right
     void setVisuallyOrdered();
     bool visuallyOrdered() const { return m_visuallyOrdered; }
@@ -712,7 +698,7 @@ public:
     void hoveredNodeDetached(Node*);
     void activeChainNodeDetached(Node*);
 
-    void updateHoverActiveState(const HitTestRequest&, HitTestResult&);
+    void updateHoverActiveState(const HitTestRequest&, Element*);
 
     // Updates for :target (CSS3 selector).
     void setCSSTarget(Element*);
@@ -943,7 +929,8 @@ public:
     bool hasNodesWithPlaceholderStyle() const { return m_hasNodesWithPlaceholderStyle; }
     void setHasNodesWithPlaceholderStyle() { m_hasNodesWithPlaceholderStyle = true; }
 
-    const Vector<IconURL>& iconURLs();
+    const Vector<IconURL>& shortcutIconURLs();
+    const Vector<IconURL>& iconURLs(int iconTypesMask);
     void addIconURL(const String& url, const String& mimeType, const String& size, IconType);
 
     void setUseSecureKeyboardEntryWhenActive(bool);
@@ -988,6 +975,12 @@ public:
     void unregisterForPrivateBrowsingStateChangedCallbacks(Element*);
     void storageBlockingStateDidChange();
     void privateBrowsingStateDidChange();
+
+#if ENABLE(VIDEO_TRACK)
+    void registerForCaptionPreferencesChangedCallbacks(Element*);
+    void unregisterForCaptionPreferencesChangedCallbacks(Element*);
+    void captionPreferencesChanged();
+#endif
 
     void setShouldCreateRenderers(bool);
     bool shouldCreateRenderers();
@@ -1123,6 +1116,9 @@ public:
     void didAddWheelEventHandler();
     void didRemoveWheelEventHandler();
 
+    double lastHandledUserGestureTimestamp() const { return m_lastHandledUserGestureTimestamp; }
+    void resetLastHandledUserGestureTimestamp();
+
 #if ENABLE(TOUCH_EVENTS)
     bool hasTouchEventHandlers() const { return (m_touchEventTargets.get()) ? m_touchEventTargets->size() : false; }
 #else
@@ -1168,9 +1164,12 @@ public:
 #endif
 
 #if ENABLE(CUSTOM_ELEMENTS)
+    PassRefPtr<Element> createElement(const AtomicString& localName, const AtomicString& typeExtension, ExceptionCode&);
+    PassRefPtr<Element> createElementNS(const AtomicString& namespaceURI, const String& qualifiedName, const AtomicString& typeExtension, ExceptionCode&);
     PassRefPtr<CustomElementConstructor> registerElement(WebCore::ScriptState*, const AtomicString& name, ExceptionCode&);
     PassRefPtr<CustomElementConstructor> registerElement(WebCore::ScriptState*, const AtomicString& name, const Dictionary& options, ExceptionCode&);
-    PassRefPtr<CustomElementRegistry> registry() const;
+    CustomElementRegistry* registry() const { return m_registry.get(); }
+    void didCreateCustomElement(Element*, CustomElementConstructor*);
 #endif
 
     void adjustFloatQuadsForScrollAndAbsoluteZoomAndFrameScale(Vector<FloatQuad>&, RenderObject*);
@@ -1201,6 +1200,7 @@ public:
     void addToTopLayer(Element*);
     void removeFromTopLayer(Element*);
     const Vector<RefPtr<Element> >& topLayerElements() const { return m_topLayerElements; }
+    Element* activeModalDialog() const { return !m_topLayerElements.isEmpty() ? m_topLayerElements.last().get() : 0; }
 #endif
 
 #if ENABLE(TEMPLATE_ELEMENT)
@@ -1210,9 +1210,15 @@ public:
     Document* templateDocumentHost() { return m_templateDocumentHost; }
 #endif
 
+    void didAssociateFormControl(Element*);
+
     virtual void addConsoleMessage(MessageSource, MessageLevel, const String& message, unsigned long requestIdentifier = 0);
 
     virtual const SecurityOrigin* topOrigin() const OVERRIDE;
+
+#if ENABLE(FONT_LOAD_EVENTS)
+    PassRefPtr<FontLoader> fontloader();
+#endif
 
 protected:
     Document(Frame*, const KURL&, bool isXHTML, bool isHTML);
@@ -1225,14 +1231,14 @@ private:
     friend class Node;
     friend class IgnoreDestructiveWriteCountIncrementer;
 
-    void removedLastRef();
-    
+    virtual void dispose() OVERRIDE;
+
     void detachParser();
 
     typedef void (*ArgumentsCallback)(const String& keyString, const String& valueString, Document*, void* data);
     void processArguments(const String& features, void* data, ArgumentsCallback);
 
-    virtual bool isDocument() const { return true; }
+    virtual bool isDocument() const OVERRIDE { return true; }
 
     virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
 
@@ -1294,7 +1300,7 @@ private:
     void addListenerType(ListenerType listenerType) { m_listenerTypes |= listenerType; }
     void addMutationEventListenerTypeIfEnabled(ListenerType);
 
-    int m_guardRefCount;
+    void didAssociateFormControlsTimerFired(Timer<Document>*);
 
     void styleResolverThrowawayTimerFired(Timer<Document>*);
     Timer<Document> m_styleResolverThrowawayTimer;
@@ -1475,8 +1481,11 @@ private:
     HashSet<Element*> m_documentSuspensionCallbackElements;
     HashSet<Element*> m_mediaVolumeCallbackElements;
     HashSet<Element*> m_privateBrowsingStateChangedElements;
+#if ENABLE(VIDEO_TRACK)
+    HashSet<Element*> m_captionPreferencesChangedElements;
+#endif
 
-    HashMap<StringImpl*, Element*, CaseFoldingHash> m_elementsByAccessKey;    
+    HashMap<StringImpl*, Element*, CaseFoldingHash> m_elementsByAccessKey;
     bool m_accessKeyMapValid;
 
     OwnPtr<SelectorQueryCache> m_selectorQueryCache;
@@ -1536,6 +1545,8 @@ private:
     OwnPtr<TouchEventTargetSet> m_touchEventTargets;
 #endif
 
+    double m_lastHandledUserGestureTimestamp;
+
 #if ENABLE(REQUEST_ANIMATION_FRAME)
     RefPtr<ScriptedAnimationController> m_scriptedAnimationController;
 #endif
@@ -1582,6 +1593,14 @@ private:
     RefPtr<Document> m_templateDocument;
     Document* m_templateDocumentHost; // Manually managed weakref (backpointer from m_templateDocument).
 #endif
+
+#if ENABLE(FONT_LOAD_EVENTS)
+    RefPtr<FontLoader> m_fontloader;
+#endif
+
+    Timer<Document> m_didAssociateFormControlsTimer;
+    HashSet<RefPtr<Element> > m_associatedFormControls;
+
 };
 
 inline void Document::notifyRemovePendingSheetIfNeeded()
@@ -1601,6 +1620,33 @@ inline const Document* Document::templateDocument() const
 }
 #endif
 
+inline Document* toDocument(ScriptExecutionContext* scriptExecutionContext)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!scriptExecutionContext || scriptExecutionContext->isDocument());
+    return static_cast<Document*>(scriptExecutionContext);
+}
+
+inline const Document* toDocument(const ScriptExecutionContext* scriptExecutionContext)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!scriptExecutionContext || scriptExecutionContext->isDocument());
+    return static_cast<const Document*>(scriptExecutionContext);
+}
+
+inline Document* toDocument(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isDocumentNode());
+    return static_cast<Document*>(node);
+}
+
+inline const Document* toDocument(const Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isDocumentNode());
+    return static_cast<const Document*>(node);
+}
+
+// This will catch anyone doing an unnecessary cast.
+void toDocument(const Document*);
+
 // Put these methods here, because they require the Document definition, but we really want to inline them.
 
 inline bool Node::isDocumentNode() const
@@ -1615,10 +1661,9 @@ inline Node::Node(Document* document, ConstructionType type)
     , m_previous(0)
     , m_next(0)
 {
-    if (document)
-        document->guardRef();
-    else
+    if (!m_treeScope)
         m_treeScope = TreeScope::noDocumentInstance();
+    m_treeScope->guardRef();
 
 #if !defined(NDEBUG) || (defined(DUMP_NODE_STATISTICS) && DUMP_NODE_STATISTICS)
     trackForDebugging();

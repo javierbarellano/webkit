@@ -130,7 +130,6 @@ list(APPEND WebCore_SOURCES
     platform/graphics/gstreamer/VideoSinkGStreamer.cpp
     platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp
 
-    platform/graphics/harfbuzz/HarfBuzzShaperBase.cpp
     platform/graphics/harfbuzz/HarfBuzzFaceCairo.cpp
     platform/graphics/harfbuzz/HarfBuzzFace.cpp
     platform/graphics/harfbuzz/HarfBuzzShaper.cpp
@@ -297,6 +296,7 @@ if (WTF_USE_3D_GRAPHICS)
     list(APPEND WebCore_INCLUDE_DIRECTORIES
         "${WEBCORE_DIR}/platform/graphics/opengl"
         "${WEBCORE_DIR}/platform/graphics/surfaces"
+        "${WEBCORE_DIR}/platform/graphics/surfaces/efl"
         "${WEBCORE_DIR}/platform/graphics/surfaces/glx"
         "${WEBCORE_DIR}/platform/graphics/texmap"
     )
@@ -316,8 +316,9 @@ if (WTF_USE_3D_GRAPHICS)
         platform/graphics/opengl/GLPlatformContext.cpp
         platform/graphics/opengl/GLPlatformSurface.cpp
         platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
-        platform/graphics/surfaces/GLTransportSurface.cpp
         platform/graphics/surfaces/GraphicsSurface.cpp
+        platform/graphics/surfaces/efl/GLTransportSurface.cpp
+        platform/graphics/surfaces/efl/GraphicsSurfaceCommon.cpp
         platform/graphics/surfaces/glx/X11Helper.cpp
         platform/graphics/texmap/TextureMapperGL.cpp
         platform/graphics/texmap/TextureMapperShaderProgram.cpp
@@ -327,13 +328,14 @@ if (WTF_USE_3D_GRAPHICS)
         list(APPEND WebCore_SOURCES
             platform/graphics/surfaces/egl/EGLConfigSelector.cpp
             platform/graphics/surfaces/egl/EGLContext.cpp
+            platform/graphics/surfaces/egl/EGLHelper.cpp
             platform/graphics/surfaces/egl/EGLSurface.cpp
+            platform/graphics/surfaces/egl/EGLXSurface.cpp
         )
     else ()
         list(APPEND WebCore_SOURCES
             platform/graphics/surfaces/glx/GLXContext.cpp
             platform/graphics/surfaces/glx/GLXSurface.cpp
-            platform/graphics/surfaces/glx/GraphicsSurfaceGLX.cpp
         )
     endif ()
 

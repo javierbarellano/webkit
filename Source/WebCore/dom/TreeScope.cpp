@@ -59,6 +59,7 @@ namespace WebCore {
 struct SameSizeAsTreeScope {
     virtual ~SameSizeAsTreeScope();
     void* pointers[8];
+    int ints[1];
 };
 
 COMPILE_ASSERT(sizeof(TreeScope) == sizeof(SameSizeAsTreeScope), treescope_should_stay_small);
@@ -69,35 +70,47 @@ TreeScope::TreeScope(ContainerNode* rootNode, Document* document)
     : m_rootNode(rootNode)
     , m_documentScope(document)
     , m_parentTreeScope(document)
+    , m_guardRefCount(0)
     , m_idTargetObserverRegistry(IdTargetObserverRegistry::create())
 {
     ASSERT(rootNode);
     ASSERT(document);
     ASSERT(rootNode != document);
+    m_parentTreeScope->guardRef();
+    m_rootNode->setTreeScope(this);
 }
 
 TreeScope::TreeScope(Document* document)
     : m_rootNode(document)
     , m_documentScope(document)
     , m_parentTreeScope(0)
+    , m_guardRefCount(0)
     , m_idTargetObserverRegistry(IdTargetObserverRegistry::create())
 {
     ASSERT(document);
+    m_rootNode->setTreeScope(this);
 }
 
 TreeScope::TreeScope()
     : m_rootNode(0)
     , m_documentScope(0)
     , m_parentTreeScope(0)
+    , m_guardRefCount(0)
 {
 }
 
 TreeScope::~TreeScope()
 {
+    ASSERT(!m_guardRefCount);
+    m_rootNode->setTreeScope(noDocumentInstance());
+
     if (m_selection) {
         m_selection->clearTreeScope();
         m_selection = 0;
     }
+
+    if (m_parentTreeScope)
+        m_parentTreeScope->guardDeref();
 }
 
 void TreeScope::destroyTreeScopeData()
@@ -120,6 +133,9 @@ void TreeScope::setParentTreeScope(TreeScope* newParentScope)
     // Every scope other than document needs a parent scope.
     ASSERT(newParentScope);
 
+    newParentScope->guardRef();
+    if (m_parentTreeScope)
+        m_parentTreeScope->guardDeref();
     m_parentTreeScope = newParentScope;
     setDocumentScope(newParentScope->documentScope());
 }
@@ -212,7 +228,7 @@ Node* nodeFromPoint(Document* document, int x, int y, LayoutPoint* localPoint)
     if (!frameView->visibleContentRect().contains(point))
         return 0;
 
-    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active);
+    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::DisallowShadowContent);
     HitTestResult result(point);
     document->renderView()->hitTest(request, result);
 
@@ -413,6 +429,26 @@ TreeScope* commonTreeScope(Node* nodeA, Node* nodeB)
     for (; indexA > 0 && indexB > 0 && treeScopesA[indexA - 1] == treeScopesB[indexB - 1]; --indexA, --indexB) { }
 
     return treeScopesA[indexA] == treeScopesB[indexB] ? treeScopesA[indexA] : 0;
+}
+
+#ifndef NDEBUG
+bool TreeScope::deletionHasBegun()
+{
+    return rootNode() && rootNode()->m_deletionHasBegun;
+}
+
+void TreeScope::beginDeletion()
+{
+    ASSERT(this != noDocumentInstance());
+    rootNode()->m_deletionHasBegun = true;
+}
+#endif
+
+int TreeScope::refCount() const
+{
+    if (Node* root = rootNode())
+        return root->refCount();
+    return 0;
 }
 
 } // namespace WebCore

@@ -25,6 +25,7 @@ EXPORTS
     ??0RefCountedLeakCounter@WTF@@QAE@PBD@Z
     ??0RegExpObject@JSC@@IAE@PAVJSGlobalObject@1@PAVStructure@1@PAVRegExp@1@@Z
     ??0SHA1@WTF@@QAE@XZ
+    ??0SuperRegion@JSC@@QAE@XZ
     ??0SourceProvider@JSC@@QAE@ABVString@WTF@@ABVTextPosition@3@@Z
     ??0StringObject@JSC@@IAE@AAVJSGlobalData@1@PAVStructure@1@@Z
     ??0StringPrintStream@WTF@@QAE@XZ
@@ -46,6 +47,7 @@ EXPORTS
     ??1MediaTime@WTF@@QAE@XZ 
     ??1MemoryInstrumentation@WTF@@UAE@XZ
     ??1Mutex@WTF@@QAE@XZ
+    ??1OpaqueJSClass@@QAE@XZ
     ??1RefCountedLeakCounter@WTF@@QAE@XZ
     ??1SourceProvider@JSC@@UAE@XZ
     ??1SourceProviderCache@JSC@@QAE@XZ
@@ -361,7 +363,6 @@ EXPORTS
     ?setGetter@PropertyDescriptor@JSC@@QAEXVJSValue@2@@Z
     ?setGlobalThis@JSGlobalObject@JSC@@IAEXAAVJSGlobalData@2@PAVJSObject@2@@Z
     ?setIndexQuicklyToUndecided@JSObject@JSC@@AAEXAAVJSGlobalData@2@IVJSValue@2@@Z
-    ?setLoc@StatementNode@JSC@@QAEXHH@Z
     ?setMainThreadCallbacksPaused@WTF@@YAX_N@Z
     ?setOption@Options@JSC@@SA_NPBD@Z
     ?setOrderLowerFirst@Collator@WTF@@QAEX_N@Z

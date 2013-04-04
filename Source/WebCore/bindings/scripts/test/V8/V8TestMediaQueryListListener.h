@@ -34,9 +34,9 @@ namespace WebCore {
 class V8TestMediaQueryListListener {
 public:
     static const bool hasDependentLifetime = false;
-    static bool HasInstance(v8::Handle<v8::Value>, v8::Isolate*);
-    static v8::Persistent<v8::FunctionTemplate> GetRawTemplate(v8::Isolate*);
-    static v8::Persistent<v8::FunctionTemplate> GetTemplate(v8::Isolate*);
+    static bool HasInstance(v8::Handle<v8::Value>, v8::Isolate*, WrapperWorldType);
+    static bool HasInstanceInAnyWorld(v8::Handle<v8::Value>, v8::Isolate*);
+    static v8::Persistent<v8::FunctionTemplate> GetTemplate(v8::Isolate*, WrapperWorldType);
     static TestMediaQueryListListener* toNative(v8::Handle<v8::Object> object)
     {
         return reinterpret_cast<TestMediaQueryListListener*>(object->GetAlignedPointerFromInternalField(v8DOMWrapperObjectIndex));
@@ -49,6 +49,12 @@ public:
 private:
     friend v8::Handle<v8::Object> wrap(TestMediaQueryListListener*, v8::Handle<v8::Object> creationContext, v8::Isolate*);
     static v8::Handle<v8::Object> createWrapper(PassRefPtr<TestMediaQueryListListener>, v8::Handle<v8::Object> creationContext, v8::Isolate*);
+};
+
+template<>
+class WrapperTypeTraits<TestMediaQueryListListener > {
+public:
+    static WrapperTypeInfo* info() { return &V8TestMediaQueryListListener::info; }
 };
 
 
@@ -69,6 +75,17 @@ inline v8::Handle<v8::Value> toV8(TestMediaQueryListListener* impl, v8::Handle<v
     return wrap(impl, creationContext, isolate);
 }
 
+inline v8::Handle<v8::Value> toV8ForMainWorld(TestMediaQueryListListener* impl, v8::Handle<v8::Object> creationContext, v8::Isolate* isolate)
+{
+    ASSERT(worldType(isolate) == MainWorld);
+    if (UNLIKELY(!impl))
+        return v8NullWithCheck(isolate);
+    v8::Handle<v8::Value> wrapper = DOMDataStore::getWrapperForMainWorld(impl);
+    if (!wrapper.IsEmpty())
+        return wrapper;
+    return wrap(impl, creationContext, isolate);
+}
+
 template<class HolderContainer, class Wrappable>
 inline v8::Handle<v8::Value> toV8Fast(TestMediaQueryListListener* impl, const HolderContainer& container, Wrappable* wrappable)
 {
@@ -79,6 +96,25 @@ inline v8::Handle<v8::Value> toV8Fast(TestMediaQueryListListener* impl, const Ho
         return wrapper;
     return wrap(impl, container.Holder(), container.GetIsolate());
 }
+
+template<class HolderContainer, class Wrappable>
+inline v8::Handle<v8::Value> toV8FastForMainWorld(TestMediaQueryListListener* impl, const HolderContainer& container, Wrappable* wrappable)
+{
+    ASSERT(worldType(container.GetIsolate()) == MainWorld);
+    if (UNLIKELY(!impl))
+        return v8Null(container.GetIsolate());
+    v8::Handle<v8::Object> wrapper = DOMDataStore::getWrapperForMainWorld(impl);
+    if (!wrapper.IsEmpty())
+        return wrapper;
+    return wrap(impl, container.Holder(), container.GetIsolate());
+}
+
+template<class HolderContainer, class Wrappable>
+inline v8::Handle<v8::Value> toV8FastForMainWorld(PassRefPtr< TestMediaQueryListListener > impl, const HolderContainer& container, Wrappable* wrappable)
+{
+    return toV8FastForMainWorld(impl.get(), container, wrappable);
+}
+
 
 template<class HolderContainer, class Wrappable>
 inline v8::Handle<v8::Value> toV8Fast(PassRefPtr< TestMediaQueryListListener > impl, const HolderContainer& container, Wrappable* wrappable)

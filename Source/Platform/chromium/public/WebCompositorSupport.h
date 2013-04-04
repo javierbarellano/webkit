@@ -41,7 +41,6 @@ class WebExternalTextureLayer;
 class WebExternalTextureLayerClient;
 class WebFloatAnimationCurve;
 class WebGraphicsContext3D;
-class WebIOSurfaceLayer;
 class WebImageLayer;
 class WebLayer;
 class WebScrollbar;
@@ -51,8 +50,6 @@ class WebSolidColorLayer;
 class WebThread;
 class WebTransformAnimationCurve;
 class WebTransformOperations;
-class WebVideoFrameProvider;
-class WebVideoLayer;
 
 class WebCompositorSupport {
 public:
@@ -60,9 +57,6 @@ public:
     // a non-null WebThread. No compositor classes or methods should be used
     // prior to calling initialize.
     virtual void initialize(WebThread*) { }
-
-    // Returns whether the compositor was initialized with threading enabled.
-    virtual bool isThreadingEnabled() { return false; }
 
     // Shuts down the compositor. This must be called when all compositor data
     // types have been deleted. No compositor classes or methods should be used
@@ -83,13 +77,9 @@ public:
 
     virtual WebExternalTextureLayer* createExternalTextureLayer(WebExternalTextureLayerClient* = 0) { return 0; }
 
-    virtual WebIOSurfaceLayer* createIOSurfaceLayer() { return 0; }
-
     virtual WebImageLayer* createImageLayer() { return 0; }
 
     virtual WebSolidColorLayer* createSolidColorLayer() { return 0; }
-
-    virtual WebVideoLayer* createVideoLayer(WebVideoFrameProvider*) { return 0; }
 
     virtual WebScrollbarLayer* createScrollbarLayer(WebScrollbar*, WebScrollbarThemePainter, WebScrollbarThemeGeometry*) { return 0; }
 

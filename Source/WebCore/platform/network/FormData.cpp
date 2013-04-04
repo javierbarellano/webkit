@@ -136,23 +136,23 @@ PassRefPtr<FormData> FormData::deepCopy() const
         const FormDataElement& e = m_elements[i];
         switch (e.m_type) {
         case FormDataElement::data:
-            formData->m_elements.append(FormDataElement(e.m_data));
+            formData->m_elements.uncheckedAppend(FormDataElement(e.m_data));
             break;
         case FormDataElement::encodedFile:
 #if ENABLE(BLOB)
-            formData->m_elements.append(FormDataElement(e.m_filename, e.m_fileStart, e.m_fileLength, e.m_expectedFileModificationTime, e.m_shouldGenerateFile));
+            formData->m_elements.uncheckedAppend(FormDataElement(e.m_filename, e.m_fileStart, e.m_fileLength, e.m_expectedFileModificationTime, e.m_shouldGenerateFile));
 #else
-            formData->m_elements.append(FormDataElement(e.m_filename, e.m_shouldGenerateFile));
+            formData->m_elements.uncheckedAppend(FormDataElement(e.m_filename, e.m_shouldGenerateFile));
 #endif
             break;
 #if ENABLE(BLOB)
         case FormDataElement::encodedBlob:
-            formData->m_elements.append(FormDataElement(e.m_url));
+            formData->m_elements.uncheckedAppend(FormDataElement(e.m_url));
             break;
 #endif
 #if ENABLE(FILE_SYSTEM)
         case FormDataElement::encodedURL:
-            formData->m_elements.append(FormDataElement(e.m_url, e.m_fileStart, e.m_fileLength, e.m_expectedFileModificationTime));
+            formData->m_elements.uncheckedAppend(FormDataElement(e.m_url, e.m_fileStart, e.m_fileLength, e.m_expectedFileModificationTime));
             break;
 #endif
         }
@@ -242,9 +242,13 @@ void FormData::appendKeyValuePairItems(const FormDataList& list, const TextEncod
                                 name = generatedFileName;
                         }
                     }
+
+                    // If a filename is passed in FormData.append(), use it instead of the file blob's name.
+                    if (!value.filename().isNull())
+                        name = value.filename();
                 } else {
                     // For non-file blob, use the filename if it is passed in FormData.append().
-                    if (!value.filename().isEmpty())
+                    if (!value.filename().isNull())
                         name = value.filename();
                     else
                         name = "blob";
@@ -326,7 +330,7 @@ static void appendBlobResolved(FormData* formData, const KURL& url)
         LOG_ERROR("Tried to resolve a blob without a usable registry");
         return;
     }
-    RefPtr<BlobStorageData> blobData = static_cast<BlobRegistryImpl&>(blobRegistry()).getBlobDataFromURL(KURL(ParsedURLString, url));
+    BlobStorageData* blobData = static_cast<BlobRegistryImpl&>(blobRegistry()).getBlobDataFromURL(KURL(ParsedURLString, url));
     if (!blobData) {
         LOG_ERROR("Could not get blob data from a registry");
         return;

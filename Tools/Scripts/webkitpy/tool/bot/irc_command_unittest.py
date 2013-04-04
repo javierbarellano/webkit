@@ -34,6 +34,7 @@ from webkitpy.tool.bot.irc_command import *
 from webkitpy.tool.mocktool import MockTool
 from webkitpy.common.net.web_mock import MockWeb
 from webkitpy.common.system.executive_mock import MockExecutive
+from webkitpy.common.system.filesystem_mock import MockFileSystem
 
 
 class IRCCommandTest(unittest.TestCase):
@@ -41,7 +42,7 @@ class IRCCommandTest(unittest.TestCase):
         whois = Whois()
         self.assertEqual("tom: Usage: whois SEARCH_STRING",
                           whois.execute("tom", [], None, None))
-        self.assertEqual("tom: Usage: whois SEARCH_STRING",
+        self.assertEqual("tom: Adam Barth is abarth (abarth@webkit.org). Why do you ask?",
                           whois.execute("tom", ["Adam", "Barth"], None, None))
         self.assertEqual("tom: Sorry, I don't know any contributors matching 'unknown@example.com'.",
                           whois.execute("tom", ["unknown@example.com"], None, None))
@@ -105,7 +106,10 @@ class IRCCommandTest(unittest.TestCase):
     def test_roll_chromium_deps(self):
         roll = RollChromiumDEPS()
         self.assertIsNone(roll._parse_args([]))
+        self.assertIsNone(roll._parse_args(["invalid"]))
         self.assertEqual("1234", roll._parse_args(["1234"]))
+        self.assertEqual("1234", roll._parse_args(["r1234"]))
+        self.assertEqual("LKGR", roll._parse_args(["LKGR"]))
         self.assertEqual('"Alan Cutter" <alancutter@chromium.org>', roll._expand_irc_nickname("alancutter"))
         self.assertEqual("unknown_irc_nickname", roll._expand_irc_nickname("unknown_irc_nickname"))
 
@@ -140,5 +144,31 @@ class IRCCommandTest(unittest.TestCase):
         # Invalid arguments result in the USAGE message.
         self.assertEqual("tom: Usage: rollout SVN_REVISION [SVN_REVISIONS] REASON",
                           rollout.execute("tom", [], None, None))
+
+        tool = MockTool()
+        tool.filesystem.files["/mock-checkout/test/file/one"] = ""
+        tool.filesystem.files["/mock-checkout/test/file/two"] = ""
+        self.assertEqual("Failed to apply reverse diff for file(s): test/file/one, test/file/two",
+                          rollout._check_diff_failure("""
+Preparing rollout for bug 123456.
+Updating working directory
+Failed to apply reverse diff for revision 123456 because of the following conflicts:
+test/file/one
+test/file/two
+Failed to apply reverse diff for revision 123456 because of the following conflicts:
+test/file/one
+test/file/two
+Updating OpenSource
+Current branch master is up to date.
+        """, tool))
+        self.assertEqual(None, rollout._check_diff_failure("""
+Preparing rollout for bug 123456.
+Updating working directory
+Some other error report involving file paths:
+test/file/one
+test/file/two
+Updating OpenSource
+Current branch master is up to date.
+        """, tool))
 
         # FIXME: We need a better way to test IRCCommands which call tool.irc().post()

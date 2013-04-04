@@ -44,27 +44,32 @@
 namespace WebCore {
 
 class Document;
-class HTMLElement;
+class Element;
 class ScriptState;
 class ScriptValue;
 
+PassRefPtr<Element> setTypeExtension(PassRefPtr<Element>, const AtomicString& typeExtension);
+
 class CustomElementConstructor : public RefCounted<CustomElementConstructor> , public ContextDestructionObserver {
 public:
-    static PassRefPtr<CustomElementConstructor> create(ScriptState*, Document*, const QualifiedName&, const String&, const ScriptValue&);
+    static PassRefPtr<CustomElementConstructor> create(ScriptState*, Document*, const QualifiedName& typeName, const QualifiedName& localName, const ScriptValue&);
 
     virtual ~CustomElementConstructor();
 
     Document* document() const { return static_cast<Document*>(m_scriptExecutionContext); }
-    const QualifiedName& tagName() const { return m_tagName; }
-    const AtomicString& name() const { return m_name; }
+    const QualifiedName& typeName() const { return m_typeName; }
+    const QualifiedName& localName() const { return m_localName; }
+    bool isExtended() const { return m_typeName != m_localName; }
 
-    PassRefPtr<HTMLElement> createElement() const;
-    
+    PassRefPtr<Element> createElement();
+
 private:
-    CustomElementConstructor(Document*, const QualifiedName&, const String&);
+    CustomElementConstructor(Document*, const QualifiedName& typeName, const QualifiedName& localName);
 
-    QualifiedName m_tagName;
-    AtomicString m_name;
+    PassRefPtr<Element> createElementInternal();
+
+    QualifiedName m_typeName;
+    QualifiedName m_localName;
 };
 
 }

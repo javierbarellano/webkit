@@ -65,7 +65,7 @@ public:
         // is an object that can exist in the main world. The second fastest
         // way is to check whether the wrappable's wrapper is the same as
         // the holder.
-        if ((!DOMWrapperWorld::isolatedWorldsExist() && isMainWorldObject(object)) || holderContainsWrapper(container, holder)) {
+        if ((!DOMWrapperWorld::isolatedWorldsExist() && !canExistInWorker(object)) || holderContainsWrapper(container, holder)) {
             if (mainWorldWrapperIsStoredInObject(object))
                 return getWrapperFromObject(object);
             return mainWorldStore()->m_wrapperMap.get(object);
@@ -76,7 +76,7 @@ public:
     template<typename T>
     static v8::Handle<v8::Object> getWrapper(T* object, v8::Isolate* isolate)
     {
-        if (mainWorldWrapperIsStoredInObject(object) && isMainWorldObject(object)) {
+        if (mainWorldWrapperIsStoredInObject(object) && !canExistInWorker(object)) {
             if (LIKELY(!DOMWrapperWorld::isolatedWorldsExist()))
                 return getWrapperFromObject(object);
         }
@@ -84,9 +84,17 @@ public:
     }
 
     template<typename T>
+    static v8::Handle<v8::Object> getWrapperForMainWorld(T* object)
+    {
+        if (mainWorldWrapperIsStoredInObject(object))
+            return getWrapperFromObject(object);
+        return mainWorldStore()->get(object);
+    }
+
+    template<typename T>
     static void setWrapper(T* object, v8::Handle<v8::Object> wrapper, v8::Isolate* isolate, const WrapperConfiguration& configuration)
     {
-        if (mainWorldWrapperIsStoredInObject(object) && isMainWorldObject(object)) {
+        if (mainWorldWrapperIsStoredInObject(object) && !canExistInWorker(object)) {
             if (LIKELY(!DOMWrapperWorld::isolatedWorldsExist())) {
                 setWrapperInObject(object, wrapper, isolate, configuration);
                 return;
@@ -123,8 +131,8 @@ private:
     static bool mainWorldWrapperIsStoredInObject(void*) { return false; }
     static bool mainWorldWrapperIsStoredInObject(ScriptWrappable*) { return true; }
 
-    static bool isMainWorldObject(void*) { return false; }
-    static bool isMainWorldObject(Node*) { return true; }
+    static bool canExistInWorker(void*) { return true; }
+    static bool canExistInWorker(Node*) { return false; }
 
     template<typename HolderContainer>
     static bool holderContainsWrapper(const HolderContainer&, void*)
@@ -161,6 +169,18 @@ private:
     WrapperWorldType m_type;
     DOMWrapperMap<void> m_wrapperMap;
 };
+
+template<>
+inline void WeakHandleListener<DOMWrapperMap<void> >::callback(v8::Isolate* isolate, v8::Persistent<v8::Value> value, DOMWrapperMap<void>* map)
+{
+    ASSERT(value->IsObject());
+    v8::Persistent<v8::Object> wrapper = v8::Persistent<v8::Object>::Cast(value);
+    WrapperTypeInfo* type = toWrapperTypeInfo(wrapper);
+    ASSERT(type->derefObjectFunction);
+    void* key = static_cast<void*>(toNative(wrapper));
+    map->removeAndDispose(key, wrapper, isolate);
+    type->derefObject(key);
+}
 
 } // namespace WebCore
 

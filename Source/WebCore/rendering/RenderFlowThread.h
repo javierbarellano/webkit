@@ -55,7 +55,7 @@ typedef ListHashSet<RenderRegion*> RenderRegionList;
 
 class RenderFlowThread: public RenderBlock {
 public:
-    RenderFlowThread(Document*);
+    RenderFlowThread();
     virtual ~RenderFlowThread() { };
     
     virtual bool isRenderFlowThread() const { return true; }
@@ -86,6 +86,7 @@ public:
     bool hasRegionsWithStyling() const { return m_hasRegionsWithStyling; }
     void checkRegionsWithStyling();
 
+    void validateRegions();
     void invalidateRegions();
     bool hasValidRegionInfo() const { return !m_regionsInvalidated && !m_regionList.isEmpty(); }
 
@@ -95,11 +96,16 @@ public:
 
     void repaintRectangleInRegions(const LayoutRect&, bool immediate) const;
 
-    LayoutUnit pageLogicalTopForOffset(LayoutUnit) const;
-    LayoutUnit pageLogicalWidthForOffset(LayoutUnit) const;
-    LayoutUnit pageLogicalHeightForOffset(LayoutUnit) const;
-    LayoutUnit pageRemainingLogicalHeightForOffset(LayoutUnit, PageBoundaryRule = IncludePageBoundary) const;
-    RenderRegion* regionAtBlockOffset(LayoutUnit, bool extendLastRegion = false) const;
+    LayoutUnit pageLogicalTopForOffset(LayoutUnit);
+    LayoutUnit pageLogicalWidthForOffset(LayoutUnit);
+    LayoutUnit pageLogicalHeightForOffset(LayoutUnit);
+    LayoutUnit pageRemainingLogicalHeightForOffset(LayoutUnit, PageBoundaryRule = IncludePageBoundary);
+    
+    enum RegionAutoGenerationPolicy {
+        AllowRegionAutoGeneration,
+        DisallowRegionAutoGeneration,
+    };
+    RenderRegion* regionAtBlockOffset(LayoutUnit, bool extendLastRegion = false, RegionAutoGenerationPolicy = AllowRegionAutoGeneration);
 
     bool regionsHaveUniformLogicalWidth() const { return m_regionsHaveUniformLogicalWidth; }
     bool regionsHaveUniformLogicalHeight() const { return m_regionsHaveUniformLogicalHeight; }
@@ -130,10 +136,10 @@ public:
     // Check if the object is in region and the region is part of this flow thread.
     bool objectInFlowRegion(const RenderObject*, const RenderRegion*) const;
 
-    void resetRegionsOverrideLogicalContentHeight();
     void markAutoLogicalHeightRegionsForLayout();
 
     bool addForcedRegionBreak(LayoutUnit, RenderObject* breakChild, bool isBefore, LayoutUnit* offsetBreakAdjustment = 0);
+    void applyBreakAfterContent(LayoutUnit);
 
     bool pageLogicalSizeChanged() const { return m_pageLogicalSizeChanged; }
 
@@ -148,10 +154,20 @@ public:
     void collectLayerFragments(LayerFragments&, const LayoutRect& layerBoundingBox, const LayoutRect& dirtyRect);
     LayoutRect fragmentsBoundingBox(const LayoutRect& layerBoundingBox);
 
+    void setInConstrainedLayoutPhase(bool value) { m_inConstrainedLayoutPhase = value; }
+    bool inConstrainedLayoutPhase() const { return m_inConstrainedLayoutPhase; }
+
+    bool needsTwoPhasesLayout() const { return m_needsTwoPhasesLayout; }
+    void clearNeedsTwoPhasesLayout() { m_needsTwoPhasesLayout = false; }
+
 protected:
     virtual const char* renderName() const = 0;
 
-    void updateRegionsFlowThreadPortionRect();
+    // Overridden by columns/pages to set up an initial logical width of the page width even when
+    // no regions have been generated yet.
+    virtual LayoutUnit initialLogicalWidth() const { return 0; };
+
+    void updateRegionsFlowThreadPortionRect(const RenderRegion* = 0);
     bool shouldRepaint(const LayoutRect&) const;
     bool regionInRange(const RenderRegion* targetRegion, const RenderRegion* startRegion, const RenderRegion* endRegion) const;
 
@@ -164,6 +180,8 @@ protected:
     virtual void dispatchRegionLayoutUpdateEvent() { m_dispatchRegionLayoutUpdateEvent = false; }
 
     void initializeRegionsOverrideLogicalContentHeight(RenderRegion* = 0);
+
+    virtual void autoGenerateRegionsToBlockOffset(LayoutUnit) { };
 
     RenderRegionList m_regionList;
 
@@ -210,6 +228,8 @@ protected:
     bool m_hasRegionsWithStyling : 1;
     bool m_dispatchRegionLayoutUpdateEvent : 1;
     bool m_pageLogicalSizeChanged : 1;
+    bool m_inConstrainedLayoutPhase : 1;
+    bool m_needsTwoPhasesLayout : 1;
 };
 
 inline RenderFlowThread* toRenderFlowThread(RenderObject* object)
@@ -234,6 +254,7 @@ public:
     ~CurrentRenderFlowThreadMaintainer();
 private:
     RenderFlowThread* m_renderFlowThread;
+    RenderFlowThread* m_previousRenderFlowThread;
 };
 
 } // namespace WebCore

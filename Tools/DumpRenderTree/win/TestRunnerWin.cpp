@@ -723,32 +723,6 @@ void TestRunner::setWindowIsKey(bool flag)
     ::SendMessage(webViewWindow, flag ? WM_SETFOCUS : WM_KILLFOCUS, (WPARAM)::GetDesktopWindow(), 0);
 }
 
-void TestRunner::setSmartInsertDeleteEnabled(bool flag)
-{
-    COMPtr<IWebView> webView;
-    if (FAILED(frame->webView(&webView)))
-        return;
-
-    COMPtr<IWebViewEditing> viewEditing;
-    if (FAILED(webView->QueryInterface(&viewEditing)))
-        return;
-
-    viewEditing->setSmartInsertDeleteEnabled(flag ? TRUE : FALSE);
-}
-
-void TestRunner::setSelectTrailingWhitespaceEnabled(bool flag)
-{
-    COMPtr<IWebView> webView;
-    if (FAILED(frame->webView(&webView)))
-        return;
-
-    COMPtr<IWebViewEditing> viewEditing;
-    if (FAILED(webView->QueryInterface(&viewEditing)))
-        return;
-
-    viewEditing->setSelectTrailingWhitespaceEnabled(flag ? TRUE : FALSE);
-}
-
 static const CFTimeInterval waitToDumpWatchdogInterval = 30.0;
 
 static void CALLBACK waitUntilDoneWatchdogFired(HWND, UINT, UINT_PTR, DWORD)
@@ -766,32 +740,6 @@ void TestRunner::setWaitToDump(bool waitUntilDone)
 int TestRunner::windowCount()
 {
     return openWindows().size();
-}
-
-bool TestRunner::elementDoesAutoCompleteForElementWithId(JSStringRef id)
-{
-    COMPtr<IDOMDocument> document;
-    if (FAILED(frame->DOMDocument(&document)))
-        return false;
-
-    wstring idWstring = jsStringRefToWString(id);
-    BSTR idBSTR = SysAllocStringLen((OLECHAR*)idWstring.c_str(), idWstring.length());
-    COMPtr<IDOMElement> element;
-    HRESULT result = document->getElementById(idBSTR, &element);
-    SysFreeString(idBSTR);
-
-    if (FAILED(result))
-        return false;
-
-    COMPtr<IWebFramePrivate> framePrivate(Query, frame);
-    if (!framePrivate)
-        return false;
-
-    BOOL autoCompletes;
-    if (FAILED(framePrivate->elementDoesAutoComplete(element.get(), &autoCompletes)))
-        return false;
-
-    return autoCompletes;
 }
 
 void TestRunner::execCommand(JSStringRef name, JSStringRef value)
@@ -1002,11 +950,6 @@ void TestRunner::setDeveloperExtrasEnabled(bool enabled)
         return;
 
     prefsPrivate->setDeveloperExtrasEnabled(enabled);
-}
-
-void TestRunner::setAsynchronousSpellCheckingEnabled(bool)
-{
-    // FIXME: Implement this.
 }
 
 void TestRunner::showWebInspector()

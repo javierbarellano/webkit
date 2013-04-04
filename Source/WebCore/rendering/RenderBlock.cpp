@@ -35,6 +35,7 @@
 #include "GraphicsContext.h"
 #include "HTMLFormElement.h"
 #include "HTMLNames.h"
+#include "HitTestLocation.h"
 #include "HitTestResult.h"
 #include "InlineIterator.h"
 #include "InlineTextBox.h"
@@ -295,10 +296,6 @@ void RenderBlock::willBeDestroyed()
 
     if (lineGridBox())
         lineGridBox()->destroy(renderArena());
-
-#if ENABLE(CSS_EXCLUSIONS)
-    ExclusionShapeInsideInfo::removeInfo(this);
-#endif
 
     if (UNLIKELY(gDelayedUpdateScrollInfoSet != 0))
         gDelayedUpdateScrollInfoSet->remove(this);
@@ -1004,11 +1001,12 @@ void RenderBlock::deleteLineBoxTree()
         }
     }
     m_lineBoxes.deleteLineBoxTree(renderArena());
-    if (UNLIKELY(AXObjectCache::accessibilityEnabled()))
-        document()->axObjectCache()->recomputeIsIgnored(this);
+
+    if (AXObjectCache* cache = document()->existingAXObjectCache())
+        cache->recomputeIsIgnored(this);
 }
 
-RootInlineBox* RenderBlock::createRootInlineBox() 
+RootInlineBox* RenderBlock::createRootInlineBox()
 {
     return new (renderArena()) RootInlineBox(this);
 }
@@ -1018,8 +1016,10 @@ RootInlineBox* RenderBlock::createAndAppendRootInlineBox()
     RootInlineBox* rootBox = createRootInlineBox();
     m_lineBoxes.appendLineBox(rootBox);
 
-    if (UNLIKELY(AXObjectCache::accessibilityEnabled()) && m_lineBoxes.firstLineBox() == rootBox)
-        document()->axObjectCache()->recomputeIsIgnored(this);
+    if (UNLIKELY(AXObjectCache::accessibilityEnabled()) && m_lineBoxes.firstLineBox() == rootBox) {
+        if (AXObjectCache* cache = document()->existingAXObjectCache())
+            cache->recomputeIsIgnored(this);
+    }
 
     return rootBox;
 }
@@ -1391,14 +1391,11 @@ void RenderBlock::layout()
     // If we have a lightweight clip, there can never be any overflow from children.
     if (hasControlClip() && m_overflow)
         clearLayoutOverflow();
+
+    invalidateBackgroundObscurationStatus();
 }
 
 #if ENABLE(CSS_EXCLUSIONS)
-ExclusionShapeInsideInfo* RenderBlock::exclusionShapeInsideInfo() const
-{
-    return style()->resolvedShapeInside() && ExclusionShapeInsideInfo::isEnabledFor(this) ? ExclusionShapeInsideInfo::info(this) : 0;
-}
-
 void RenderBlock::updateExclusionShapeInsideInfoAfterStyleChange(const ExclusionShapeValue* shapeInside, const ExclusionShapeValue* oldShapeInside)
 {
     // FIXME: A future optimization would do a deep comparison for equality.
@@ -1406,10 +1403,10 @@ void RenderBlock::updateExclusionShapeInsideInfoAfterStyleChange(const Exclusion
         return;
 
     if (shapeInside) {
-        ExclusionShapeInsideInfo* exclusionShapeInsideInfo = ExclusionShapeInsideInfo::ensureInfo(this);
+        ExclusionShapeInsideInfo* exclusionShapeInsideInfo = ensureExclusionShapeInsideInfo();
         exclusionShapeInsideInfo->dirtyShapeSize();
     } else
-        ExclusionShapeInsideInfo::removeInfo(this);
+        setExclusionShapeInsideInfo(nullptr);
 }
 #endif
 
@@ -1592,10 +1589,16 @@ void RenderBlock::layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeigh
     
     if (relayoutForPagination(hasSpecifiedPageLogicalHeight, pageLogicalHeight, statePusher))
         return;
- 
+
     // Calculate our new height.
     LayoutUnit oldHeight = logicalHeight();
     LayoutUnit oldClientAfterEdge = clientLogicalBottom();
+
+    // Before updating the final size of the flow thread make sure a forced break is applied after the content.
+    // This ensures the size information is correctly computed for the last auto-height region receiving content.
+    if (isRenderFlowThread())
+        toRenderFlowThread(this)->applyBreakAfterContent(oldClientAfterEdge);
+
     updateLogicalHeight();
     LayoutUnit newHeight = logicalHeight();
     if (oldHeight != newHeight) {
@@ -1622,6 +1625,8 @@ void RenderBlock::layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeigh
     computeOverflow(oldClientAfterEdge);
     
     statePusher.pop();
+
+    fitBorderToLinesIfNeeded();
 
     if (renderView->layoutState()->m_pageLogicalHeight)
         setPageLogicalOffset(renderView->layoutState()->pageLogicalOffset(this, logicalTop()));
@@ -1674,7 +1679,7 @@ void RenderBlock::layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeigh
                 repaintRectangle(reflectedRect(repaintRect));
         }
     }
-    
+
     setNeedsLayout(false);
 }
 
@@ -1797,7 +1802,7 @@ void RenderBlock::addVisualOverflowFromTheme()
 
 bool RenderBlock::expandsToEncloseOverhangingFloats() const
 {
-    return isInlineBlockOrInlineTable() || isFloatingOrOutOfFlowPositioned() || hasOverflowClip() || (parent() && parent()->isDeprecatedFlexibleBox())
+    return isInlineBlockOrInlineTable() || isFloatingOrOutOfFlowPositioned() || hasOverflowClip() || (parent() && parent()->isFlexibleBoxIncludingDeprecated())
            || hasColumns() || isTableCell() || isTableCaption() || isFieldset() || isWritingModeRoot() || isRoot();
 }
 
@@ -2325,7 +2330,7 @@ LayoutUnit RenderBlock::computeStartPositionDeltaForChildAvoidingFloats(const Re
     return newPosition - oldPosition;
 }
 
-void RenderBlock::determineLogicalLeftPositionForChild(RenderBox* child)
+void RenderBlock::determineLogicalLeftPositionForChild(RenderBox* child, ApplyLayoutDeltaMode applyDelta)
 {
     LayoutUnit startPosition = borderStart() + paddingStart();
     if (style()->shouldPlaceBlockDirectionScrollbarOnLogicalLeft())
@@ -2341,7 +2346,7 @@ void RenderBlock::determineLogicalLeftPositionForChild(RenderBox* child)
     if (child->avoidsFloats() && containsFloats() && !flowThreadContainingBlock())
         newPosition += computeStartPositionDeltaForChildAvoidingFloats(child, marginStartForChild(child));
 
-    setLogicalLeftForChild(child, style()->isLeftToRightDirection() ? newPosition : totalAvailableLogicalWidth - newPosition - logicalWidthForChild(child), ApplyLayoutDelta);
+    setLogicalLeftForChild(child, style()->isLeftToRightDirection() ? newPosition : totalAvailableLogicalWidth - newPosition - logicalWidthForChild(child), applyDelta);
 }
 
 void RenderBlock::setCollapsedBottomMargin(const MarginInfo& marginInfo)
@@ -2598,7 +2603,7 @@ void RenderBlock::layoutBlockChild(RenderBox* child, MarginInfo& marginInfo, Lay
         marginInfo.setAtBeforeSideOfBlock(false);
 
     // Now place the child in the correct left position
-    determineLogicalLeftPositionForChild(child);
+    determineLogicalLeftPositionForChild(child, ApplyLayoutDelta);
 
     // Update our height now that the child has been placed in the correct position.
     setLogicalHeight(logicalHeight() + logicalHeightForChild(child));
@@ -2849,7 +2854,7 @@ void RenderBlock::repaintOverhangingFloats(bool paintAllDescendants)
         // condition is replaced with being a descendant of us.
         if (logicalBottomForFloat(r) > logicalHeight() && ((paintAllDescendants && r->m_renderer->isDescendantOf(this)) || r->shouldPaint()) && !r->m_renderer->hasSelfPaintingLayer()) {
             r->m_renderer->repaint();
-            r->m_renderer->repaintOverhangingFloats();
+            r->m_renderer->repaintOverhangingFloats(false);
         }
     }
 }
@@ -3963,7 +3968,7 @@ void RenderBlock::removeFloatingObject(RenderBox* o)
 
 void RenderBlock::removeFloatingObjectsBelow(FloatingObject* lastFloat, int logicalOffset)
 {
-    if (!m_floatingObjects)
+    if (!containsFloats())
         return;
     
     const FloatingObjectSet& floatingObjectSet = m_floatingObjects->set();
@@ -4278,6 +4283,10 @@ inline void RenderBlock::FloatIntervalSearchAdapter<FloatTypeValue>::collectIfNe
         if (m_heightRemaining)
             *m_heightRemaining = m_renderer->logicalBottomForFloat(r) - m_lowValue;
     }
+
+#if ENABLE(CSS_EXCLUSIONS)
+    m_last = r;
+#endif
 }
 
 LayoutUnit RenderBlock::textIndentOffset() const
@@ -4319,6 +4328,15 @@ LayoutUnit RenderBlock::logicalLeftOffsetForLine(LayoutUnit logicalTop, LayoutUn
 
         FloatIntervalSearchAdapter<FloatingObject::FloatLeft> adapter(this, roundToInt(logicalTop), roundToInt(logicalTop + logicalHeight), left, heightRemaining);
         m_floatingObjects->placedFloatsTree().allOverlapsWithAdapter(adapter);
+
+#if ENABLE(CSS_EXCLUSIONS)
+        if (const FloatingObject* lastFloat = adapter.lastFloat()) {
+            if (ExclusionShapeOutsideInfo* shapeOutside = lastFloat->renderer()->exclusionShapeOutsideInfo()) {
+                shapeOutside->computeSegmentsForLine(logicalTop - logicalTopForFloat(lastFloat) + shapeOutside->shapeLogicalTop(), logicalHeight);
+                left += shapeOutside->rightSegmentShapeBoundingBoxDelta();
+            }
+        }
+#endif
     }
 
     if (applyTextIndent && style()->isLeftToRightDirection())
@@ -4367,6 +4385,16 @@ LayoutUnit RenderBlock::logicalRightOffsetForLine(LayoutUnit logicalTop, LayoutU
         LayoutUnit rightFloatOffset = fixedOffset;
         FloatIntervalSearchAdapter<FloatingObject::FloatRight> adapter(this, roundToInt(logicalTop), roundToInt(logicalTop + logicalHeight), rightFloatOffset, heightRemaining);
         m_floatingObjects->placedFloatsTree().allOverlapsWithAdapter(adapter);
+
+#if ENABLE(CSS_EXCLUSIONS)
+        if (const FloatingObject* lastFloat = adapter.lastFloat()) {
+            if (ExclusionShapeOutsideInfo* shapeOutside = lastFloat->renderer()->exclusionShapeOutsideInfo()) {
+                shapeOutside->computeSegmentsForLine(logicalTop - logicalTopForFloat(lastFloat) + shapeOutside->shapeLogicalTop(), logicalHeight);
+                rightFloatOffset += shapeOutside->leftSegmentShapeBoundingBoxDelta();
+            }
+        }
+#endif
+
         right = min(right, rightFloatOffset);
     }
     
@@ -4877,6 +4905,13 @@ bool RenderBlock::nodeAtPoint(const HitTestRequest& request, HitTestResult& resu
         LayoutRect overflowBox = visualOverflowRect();
         flipForWritingMode(overflowBox);
         overflowBox.moveBy(adjustedLocation);
+        if (style()->hasBorderRadius()) {
+            LayoutRect borderRect = borderBoxRect();
+            borderRect.moveBy(adjustedLocation);
+            RoundedRect border = style()->getRoundedBorderFor(borderRect, view());
+            if (!locationInContainer.intersects(border))
+                return false;
+        }
         if (!locationInContainer.intersects(overflowBox))
             return false;
     }
@@ -5721,48 +5756,49 @@ void RenderBlock::adjustForColumns(LayoutSize& offset, const LayoutPoint& point)
     }
 }
 
+void RenderBlock::computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const
+{
+    if (childrenInline()) {
+        // FIXME: Remove this const_cast.
+        const_cast<RenderBlock*>(this)->computeInlinePreferredLogicalWidths(minLogicalWidth, maxLogicalWidth);
+    } else
+        computeBlockPreferredLogicalWidths(minLogicalWidth, maxLogicalWidth);
+
+    maxLogicalWidth = max(minLogicalWidth, maxLogicalWidth);
+
+    if (!style()->autoWrap() && childrenInline()) {
+        minLogicalWidth = maxLogicalWidth;
+        // A horizontal marquee with inline children has no minimum width.
+        if (layer() && layer()->marquee() && layer()->marquee()->isHorizontal())
+            minLogicalWidth = 0;
+    }
+
+    if (isTableCell()) {
+        Length tableCellWidth = toRenderTableCell(this)->styleOrColLogicalWidth();
+        if (tableCellWidth.isFixed() && tableCellWidth.value() > 0)
+            maxLogicalWidth = max(minLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(tableCellWidth.value()));
+    }
+
+    int scrollbarWidth = instrinsicScrollbarLogicalWidth();
+    maxLogicalWidth += scrollbarWidth;
+    minLogicalWidth += scrollbarWidth;
+}
+
 void RenderBlock::computePreferredLogicalWidths()
 {
     ASSERT(preferredLogicalWidthsDirty());
 
     updateFirstLetter();
 
+    m_minPreferredLogicalWidth = 0;
+    m_maxPreferredLogicalWidth = 0;
+
     RenderStyle* styleToUse = style();
     if (!isTableCell() && styleToUse->logicalWidth().isFixed() && styleToUse->logicalWidth().value() >= 0 
         && !(isDeprecatedFlexItem() && !styleToUse->logicalWidth().intValue()))
         m_minPreferredLogicalWidth = m_maxPreferredLogicalWidth = adjustContentBoxLogicalWidthForBoxSizing(styleToUse->logicalWidth().value());
-    else {
-        m_minPreferredLogicalWidth = 0;
-        m_maxPreferredLogicalWidth = 0;
-
-        if (childrenInline())
-            computeInlinePreferredLogicalWidths();
-        else
-            computeBlockPreferredLogicalWidths();
-
-        m_maxPreferredLogicalWidth = max(m_minPreferredLogicalWidth, m_maxPreferredLogicalWidth);
-
-        if (!styleToUse->autoWrap() && childrenInline()) {
-            m_minPreferredLogicalWidth = m_maxPreferredLogicalWidth;
-            
-            // A horizontal marquee with inline children has no minimum width.
-            if (layer() && layer()->marquee() && layer()->marquee()->isHorizontal())
-                m_minPreferredLogicalWidth = 0;
-        }
-
-        int scrollbarWidth = instrinsicScrollbarLogicalWidth();
-        m_maxPreferredLogicalWidth += scrollbarWidth;
-
-        if (isTableCell()) {
-            Length w = toRenderTableCell(this)->styleOrColLogicalWidth();
-            if (w.isFixed() && w.value() > 0) {
-                m_maxPreferredLogicalWidth = max(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(w.value()));
-                scrollbarWidth = 0;
-            }
-        }
-        
-        m_minPreferredLogicalWidth += scrollbarWidth;
-    }
+    else
+        computeIntrinsicLogicalWidths(m_minPreferredLogicalWidth, m_maxPreferredLogicalWidth);
     
     if (styleToUse->logicalMinWidth().isFixed() && styleToUse->logicalMinWidth().value() > 0) {
         m_maxPreferredLogicalWidth = max(m_maxPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(styleToUse->logicalMinWidth().value()));
@@ -5910,7 +5946,7 @@ static inline LayoutUnit adjustFloatForSubPixelLayout(float value)
 }
 
 
-void RenderBlock::computeInlinePreferredLogicalWidths()
+void RenderBlock::computeInlinePreferredLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth)
 {
     float inlineMax = 0;
     float inlineMin = 0;
@@ -6032,13 +6068,13 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
 
                 bool canBreakReplacedElement = !child->isImage() || allowImagesToBreak;
                 if ((canBreakReplacedElement && (autoWrap || oldAutoWrap) && (!isPrevChildInlineFlow || shouldBreakLineAfterText)) || clearPreviousFloat) {
-                    updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                    updatePreferredWidth(minLogicalWidth, inlineMin);
                     inlineMin = 0;
                 }
 
                 // If we're supposed to clear the previous float, then terminate maxwidth as well.
                 if (clearPreviousFloat) {
-                    updatePreferredWidth(m_maxPreferredLogicalWidth, inlineMax);
+                    updatePreferredWidth(maxLogicalWidth, inlineMax);
                     inlineMax = 0;
                 }
 
@@ -6060,19 +6096,19 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
 
                 if (!autoWrap || !canBreakReplacedElement || (isPrevChildInlineFlow && !shouldBreakLineAfterText)) {
                     if (child->isFloating())
-                        updatePreferredWidth(m_minPreferredLogicalWidth, childMin);
+                        updatePreferredWidth(minLogicalWidth, childMin);
                     else
                         inlineMin += childMin;
                 } else {
                     // Now check our line.
-                    updatePreferredWidth(m_minPreferredLogicalWidth, childMin);
+                    updatePreferredWidth(minLogicalWidth, childMin);
 
                     // Now start a new line.
                     inlineMin = 0;
                 }
 
                 if (autoWrap && canBreakReplacedElement && isPrevChildInlineFlow) {
-                    updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                    updatePreferredWidth(minLogicalWidth, inlineMin);
                     inlineMin = 0;
                 }
 
@@ -6087,7 +6123,7 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
                 RenderText* t = toRenderText(child);
 
                 if (t->isWordBreak()) {
-                    updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                    updatePreferredWidth(minLogicalWidth, inlineMin);
                     inlineMin = 0;
                     continue;
                 }
@@ -6111,7 +6147,7 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
                 // This text object will not be rendered, but it may still provide a breaking opportunity.
                 if (!hasBreak && childMax == 0) {
                     if (autoWrap && (beginWS || endWS)) {
-                        updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                        updatePreferredWidth(minLogicalWidth, inlineMin);
                         inlineMin = 0;
                     }
                     continue;
@@ -6154,10 +6190,10 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
                     // we start and end with whitespace.
                     if (beginWS)
                         // Go ahead and end the current line.
-                        updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                        updatePreferredWidth(minLogicalWidth, inlineMin);
                     else {
                         inlineMin += beginMin;
-                        updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                        updatePreferredWidth(minLogicalWidth, inlineMin);
                         childMin -= ti;
                     }
 
@@ -6166,11 +6202,11 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
                     if (endWS) {
                         // We end in whitespace, which means we can go ahead
                         // and end our current line.
-                        updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                        updatePreferredWidth(minLogicalWidth, inlineMin);
                         inlineMin = 0;
                         shouldBreakLineAfterText = false;
                     } else {
-                        updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
+                        updatePreferredWidth(minLogicalWidth, inlineMin);
                         inlineMin = endMin;
                         shouldBreakLineAfterText = true;
                     }
@@ -6178,8 +6214,8 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
 
                 if (hasBreak) {
                     inlineMax += beginMax;
-                    updatePreferredWidth(m_maxPreferredLogicalWidth, inlineMax);
-                    updatePreferredWidth(m_maxPreferredLogicalWidth, childMax);
+                    updatePreferredWidth(maxLogicalWidth, inlineMax);
+                    updatePreferredWidth(maxLogicalWidth, childMax);
                     inlineMax = endMax;
                     addedTextIndent = true;
                 } else
@@ -6190,8 +6226,8 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
             if (child->isListMarker())
                 stripFrontSpaces = true;
         } else {
-            updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
-            updatePreferredWidth(m_maxPreferredLogicalWidth, inlineMax);
+            updatePreferredWidth(minLogicalWidth, inlineMin);
+            updatePreferredWidth(maxLogicalWidth, inlineMax);
             inlineMin = inlineMax = 0;
             stripFrontSpaces = true;
             trailingSpaceChild = 0;
@@ -6209,11 +6245,11 @@ void RenderBlock::computeInlinePreferredLogicalWidths()
     if (styleToUse->collapseWhiteSpace())
         stripTrailingSpace(inlineMax, inlineMin, trailingSpaceChild);
 
-    updatePreferredWidth(m_minPreferredLogicalWidth, inlineMin);
-    updatePreferredWidth(m_maxPreferredLogicalWidth, inlineMax);
+    updatePreferredWidth(minLogicalWidth, inlineMin);
+    updatePreferredWidth(maxLogicalWidth, inlineMax);
 }
 
-void RenderBlock::computeBlockPreferredLogicalWidths()
+void RenderBlock::computeBlockPreferredLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const
 {
     RenderStyle* styleToUse = style();
     bool nowrap = styleToUse->whiteSpace() == NOWRAP;
@@ -6232,11 +6268,11 @@ void RenderBlock::computeBlockPreferredLogicalWidths()
         if (child->isFloating() || (child->isBox() && toRenderBox(child)->avoidsFloats())) {
             LayoutUnit floatTotalWidth = floatLeftWidth + floatRightWidth;
             if (childStyle->clear() & CLEFT) {
-                m_maxPreferredLogicalWidth = max(floatTotalWidth, m_maxPreferredLogicalWidth);
+                maxLogicalWidth = max(floatTotalWidth, maxLogicalWidth);
                 floatLeftWidth = 0;
             }
             if (childStyle->clear() & CRIGHT) {
-                m_maxPreferredLogicalWidth = max(floatTotalWidth, m_maxPreferredLogicalWidth);
+                maxLogicalWidth = max(floatTotalWidth, maxLogicalWidth);
                 floatRightWidth = 0;
             }
         }
@@ -6267,11 +6303,11 @@ void RenderBlock::computeBlockPreferredLogicalWidths()
         }
 
         LayoutUnit w = childMinPreferredLogicalWidth + margin;
-        m_minPreferredLogicalWidth = max(w, m_minPreferredLogicalWidth);
+        minLogicalWidth = max(w, minLogicalWidth);
         
         // IE ignores tables for calculation of nowrap. Makes some sense.
         if (nowrap && !child->isTable())
-            m_maxPreferredLogicalWidth = max(w, m_maxPreferredLogicalWidth);
+            maxLogicalWidth = max(w, maxLogicalWidth);
 
         w = childMaxPreferredLogicalWidth + margin;
 
@@ -6289,7 +6325,7 @@ void RenderBlock::computeBlockPreferredLogicalWidths()
                 w = max(w, floatLeftWidth + floatRightWidth);
             }
             else
-                m_maxPreferredLogicalWidth = max(floatLeftWidth + floatRightWidth, m_maxPreferredLogicalWidth);
+                maxLogicalWidth = max(floatLeftWidth + floatRightWidth, maxLogicalWidth);
             floatLeftWidth = floatRightWidth = 0;
         }
         
@@ -6299,16 +6335,16 @@ void RenderBlock::computeBlockPreferredLogicalWidths()
             else
                 floatRightWidth += w;
         } else
-            m_maxPreferredLogicalWidth = max(w, m_maxPreferredLogicalWidth);
+            maxLogicalWidth = max(w, maxLogicalWidth);
         
         child = child->nextSibling();
     }
 
     // Always make sure these values are non-negative.
-    m_minPreferredLogicalWidth = max<LayoutUnit>(0, m_minPreferredLogicalWidth);
-    m_maxPreferredLogicalWidth = max<LayoutUnit>(0, m_maxPreferredLogicalWidth);
+    minLogicalWidth = max<LayoutUnit>(0, minLogicalWidth);
+    maxLogicalWidth = max<LayoutUnit>(0, maxLogicalWidth);
 
-    m_maxPreferredLogicalWidth = max(floatLeftWidth + floatRightWidth, m_maxPreferredLogicalWidth);
+    maxLogicalWidth = max(floatLeftWidth + floatRightWidth, maxLogicalWidth);
 }
 
 bool RenderBlock::hasLineIfEmpty() const
@@ -6467,8 +6503,15 @@ RenderBlock* RenderBlock::firstLineBlock() const
         if (hasPseudo)
             break;
         RenderObject* parentBlock = firstLineBlock->parent();
-        if (firstLineBlock->isReplaced() || firstLineBlock->isFloating() || 
-            !parentBlock || parentBlock->firstChild() != firstLineBlock || !parentBlock->isBlockFlow() || parentBlock->isFlexibleBox())
+        // We include isRenderButton in this check because buttons are
+        // implemented using flex box but should still support first-line. The
+        // flex box spec requires that flex box does not support first-line,
+        // though.
+        // FIXME: Remove when buttons are implemented with align-items instead
+        // of flexbox.
+        if (firstLineBlock->isReplaced() || firstLineBlock->isFloating()
+            || !parentBlock || parentBlock->firstChild() != firstLineBlock || !parentBlock->isBlockFlow()
+            || (parentBlock->isFlexibleBox() && !parentBlock->isRenderButton()))
             break;
         ASSERT_WITH_SECURITY_IMPLICATION(parentBlock->isRenderBlock());
         firstLineBlock = toRenderBlock(parentBlock);
@@ -6512,14 +6555,21 @@ static inline RenderObject* findFirstLetterBlock(RenderBlock* start)
 {
     RenderObject* firstLetterBlock = start;
     while (true) {
+        // We include isRenderButton in these two checks because buttons are
+        // implemented using flex box but should still support first-letter.
+        // The flex box spec requires that flex box does not support
+        // first-letter, though.
+        // FIXME: Remove when buttons are implemented with align-items instead
+        // of flexbox.
         bool canHaveFirstLetterRenderer = firstLetterBlock->style()->hasPseudoStyle(FIRST_LETTER)
-            && firstLetterBlock->canHaveGeneratedChildren() && !firstLetterBlock->isFlexibleBox();
+            && firstLetterBlock->canHaveGeneratedChildren()
+            && (!firstLetterBlock->isFlexibleBox() || firstLetterBlock->isRenderButton());
         if (canHaveFirstLetterRenderer)
             return firstLetterBlock;
 
         RenderObject* parentBlock = firstLetterBlock->parent();
         if (firstLetterBlock->isReplaced() || !parentBlock || parentBlock->firstChild() != firstLetterBlock || 
-            !parentBlock->isBlockFlow() || parentBlock->isFlexibleBox())
+            !parentBlock->isBlockFlow() || (parentBlock->isFlexibleBox() && !parentBlock->isRenderButton()))
             return 0;
         firstLetterBlock = parentBlock;
     } 
@@ -6838,32 +6888,30 @@ void RenderBlock::adjustForBorderFit(LayoutUnit x, LayoutUnit& left, LayoutUnit&
     }
 }
 
-void RenderBlock::borderFitAdjust(LayoutRect& rect) const
+void RenderBlock::fitBorderToLinesIfNeeded()
 {
-    if (style()->borderFit() == BorderFitBorder)
+    if (style()->borderFit() == BorderFitBorder || hasOverrideWidth())
         return;
 
     // Walk any normal flow lines to snugly fit.
     LayoutUnit left = LayoutUnit::max();
     LayoutUnit right = LayoutUnit::min();
-    LayoutUnit oldWidth = rect.width();
+    LayoutUnit oldWidth = contentWidth();
     adjustForBorderFit(0, left, right);
-    if (left != LayoutUnit::max()) {
-        left = min(left, oldWidth - (borderRight() + paddingRight()));
-
-        left -= (borderLeft() + paddingLeft());
-        if (left > 0) {
-            rect.move(left, 0);
-            rect.expand(-left, 0);
-        }
-    }
-    if (right != LayoutUnit::min()) {
-        right = max(right, borderLeft() + paddingLeft());
-
-        right += (borderRight() + paddingRight());
-        if (right < oldWidth)
-            rect.expand(-(oldWidth - right), 0);
-    }
+    
+    // Clamp to our existing edges. We can never grow. We only shrink.
+    LayoutUnit leftEdge = borderLeft() + paddingLeft();
+    LayoutUnit rightEdge = leftEdge + oldWidth;
+    left = min(rightEdge, max(leftEdge, left));
+    right = max(leftEdge, min(rightEdge, right));
+    
+    LayoutUnit newContentWidth = right - left;
+    if (newContentWidth == oldWidth)
+        return;
+    
+    setOverrideLogicalContentWidth(newContentWidth);
+    layoutBlock(false);
+    clearOverrideLogicalContentWidth();
 }
 
 void RenderBlock::clearTruncation()
@@ -7091,6 +7139,14 @@ RenderStyle* RenderBlock::outlineStyleForRepaint() const
     return isAnonymousBlockContinuation() ? continuation()->style() : style();
 }
 
+void RenderBlock::childBecameNonInline(RenderObject*)
+{
+    makeChildrenNonInline();
+    if (isAnonymousBlock() && parent() && parent()->isRenderBlock())
+        toRenderBlock(parent())->removeLeftoverAnonymousBlock(this);
+    // |this| may be dead here
+}
+
 void RenderBlock::updateHitTestResult(HitTestResult& result, const LayoutPoint& point)
 {
     if (result.innerNode())
@@ -7283,7 +7339,7 @@ LayoutUnit RenderBlock::applyAfterBreak(RenderBox* child, LayoutUnit logicalOffs
         if (checkRegionBreaks) {
             LayoutUnit offsetBreakAdjustment = 0;
             if (flowThread->addForcedRegionBreak(offsetFromLogicalTopOfFirstPage() + logicalOffset + marginOffset, child, false, &offsetBreakAdjustment))
-                return logicalOffset + offsetBreakAdjustment;
+                return logicalOffset + marginOffset + offsetBreakAdjustment;
         }
         return nextPageLogicalTop(logicalOffset, IncludePageBoundary);
     }

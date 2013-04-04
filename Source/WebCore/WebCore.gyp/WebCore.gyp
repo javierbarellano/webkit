@@ -280,6 +280,11 @@
           '<(SHARED_INTERMEDIATE_DIR)/webkit/bindings/V8DerivedSources19.cpp',
         ],
       }],
+     ['OS=="android" and use_openmax_dl_fft!=0', {
+       'webcore_include_dirs': [
+         '<(DEPTH)/third_party/openmax_dl'
+       ]
+     }],
     ],
   },  # variables
 
@@ -746,6 +751,8 @@
         {
           'action_name': 'HTMLNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../html/HTMLTagNames.in',
             '../html/HTMLAttributeNames.in',
@@ -773,6 +780,8 @@
         {
           'action_name': 'WebKitFontFamilyNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../css/WebKitFontFamilyNames.in',
           ],
@@ -794,6 +803,8 @@
         {
           'action_name': 'SVGNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../svg/svgtags.in',
             '../svg/svgattrs.in',
@@ -882,6 +893,8 @@
         {
           'action_name': 'MathMLNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../mathml/mathtags.in',
             '../mathml/mathattrs.in',
@@ -1016,6 +1029,8 @@
         {
           'action_name': 'XLinkNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../svg/xlinkattrs.in',
           ],
@@ -1037,6 +1052,8 @@
         {
           'action_name': 'XMLNSNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../xml/xmlnsattrs.in',
           ],
@@ -1058,6 +1075,8 @@
         {
           'action_name': 'XMLNames',
           'inputs': [
+            '../bindings/scripts/Hasher.pm',
+            '../bindings/scripts/StaticString.pm',
             '../dom/make_names.pl',
             '../xml/xmlattrs.in',
           ],
@@ -1244,7 +1263,7 @@
         'injected_canvas_script_source',
         'injected_script_source',
         'debugger_script_source',
-        '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
+        '../../JavaScriptCore/yarr/yarr.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
@@ -1372,7 +1391,7 @@
         'inspector_protocol_sources',
         'webcore_bindings_sources',
         '../../ThirdParty/glu/glu.gyp:libtess',
-        '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
+        '../../JavaScriptCore/yarr/yarr.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
@@ -1391,7 +1410,7 @@
         '<(libjpeg_gyp_path):libjpeg',
       ],
       'export_dependent_settings': [
-        '../../JavaScriptCore/JavaScriptCore.gyp/JavaScriptCore.gyp:yarr',
+        '../../JavaScriptCore/yarr/yarr.gyp:yarr',
         '../../WTF/WTF.gyp/WTF.gyp:wtf',
         '<(chromium_src_dir)/build/temp_gyp/googleurl.gyp:googleurl',
         '<(chromium_src_dir)/skia/skia.gyp:skia',
@@ -1535,7 +1554,7 @@
                   'class_whitelist_regex':
                       'ChromiumWebCoreObjC|TCMVisibleView|RTCMFlippedView',
                   'category_whitelist_regex':
-                      'TCMInterposing|ScrollAnimatorChromiumMacExt',
+                      'TCMInterposing|ScrollAnimatorChromiumMacExt|WebCoreTheme',
                 },
                 'action': [
                   'mac/check_objc_rename.sh',
@@ -1576,6 +1595,16 @@
             '<(chromium_src_dir)/third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
         }],
+       ['"WTF_USE_WEBAUDIO_OPENMAX_DL_FFT=1" in feature_defines', {
+         'direct_dependent_settings': {
+           'include_dirs': [
+             '<(chromium_src_dir)/third_party/openmax_dl',
+           ],
+         },
+         'dependencies': [
+           '<(chromium_src_dir)/third_party/openmax_dl/dl/dl.gyp:openmax_dl',
+         ],
+       }],
         # Windows shared builder needs extra help for linkage
         ['OS=="win" and "WTF_USE_WEBAUDIO_FFMPEG=1" in feature_defines', {
           'export_dependent_settings': [
@@ -2103,6 +2132,7 @@
         ['exclude', 'Modules/indexeddb/IDBFactoryBackendInterface\\.cpp$'],
         ['exclude', 'Modules/webdatabase/DatabaseManagerClient\\.h$'],
         ['exclude', 'Modules/webdatabase/DatabaseTracker\\.cpp$'],
+        ['exclude', 'Modules/webdatabase/OriginLock\\.cpp$'],
         ['exclude', 'Modules/webdatabase/SQLTransactionClient\\.cpp$'],
         ['exclude', 'inspector/InspectorFrontendClientLocal\\.cpp$'],
         ['exclude', 'inspector/JavaScript[^/]*\\.cpp$'],
@@ -2130,6 +2160,7 @@
         ['exclude', 'storage/StorageThread\\.(cpp|h)$'],
         ['exclude', 'storage/StorageTracker\\.(cpp|h)$'],
         ['exclude', 'storage/StorageTrackerClient\\.h$'],
+        ['exclude', 'workers/SharedWorkerRepository\\.cpp$'],
         ['exclude', 'workers/DefaultSharedWorkerRepository\\.(cpp|h)$'],
 
         ['include', 'loader/appcache/ApplicationCacheHost\.h$'],

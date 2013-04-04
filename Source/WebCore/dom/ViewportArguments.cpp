@@ -382,6 +382,25 @@ static float findUserScalableValue(const String& keyString, const String& valueS
     return 1;
 }
 
+static float findTargetDensityDPIValue(const String& keyString, const String& valueString, Document* document)
+{
+    if (equalIgnoringCase(valueString, "device-dpi"))
+        return ViewportArguments::ValueDeviceDPI;
+    if (equalIgnoringCase(valueString, "low-dpi"))
+        return ViewportArguments::ValueLowDPI;
+    if (equalIgnoringCase(valueString, "medium-dpi"))
+        return ViewportArguments::ValueMediumDPI;
+    if (equalIgnoringCase(valueString, "high-dpi"))
+        return ViewportArguments::ValueHighDPI;
+
+    bool ok;
+    float value = numericPrefix(keyString, valueString, document, &ok);
+    if (!ok || value < 70 || value > 400)
+        return ViewportArguments::ValueAuto;
+
+    return value;
+}
+
 void setViewportFeature(const String& keyString, const String& valueString, Document* document, void* data)
 {
     ViewportArguments* arguments = static_cast<ViewportArguments*>(data);
@@ -398,9 +417,10 @@ void setViewportFeature(const String& keyString, const String& valueString, Docu
         arguments->maxZoom = findScaleValue(keyString, valueString, document);
     else if (keyString == "user-scalable")
         arguments->userZoom = findUserScalableValue(keyString, valueString, document);
-    else if (keyString == "target-densitydpi")
+    else if (keyString == "target-densitydpi") {
+        arguments->deprecatedTargetDensityDPI = findTargetDensityDPIValue(keyString, valueString, document);
         reportViewportWarning(document, TargetDensityDpiUnsupported, String(), String());
-    else
+    } else
         reportViewportWarning(document, UnrecognizedViewportArgumentKeyError, keyString, String());
 }
 
@@ -449,7 +469,7 @@ void reportViewportWarning(Document* document, ViewportErrorCode errorCode, cons
         message.append(" Note that ';' is not a separator in viewport values. The list should be comma-separated.");
 
     // FIXME: This message should be moved off the console once a solution to https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-    document->addConsoleMessage(HTMLMessageSource, viewportErrorMessageLevel(errorCode), message);
+    document->addConsoleMessage(RenderingMessageSource, viewportErrorMessageLevel(errorCode), message);
 }
 
 } // namespace WebCore

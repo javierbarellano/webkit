@@ -50,18 +50,13 @@ StorageNamespaceProxy::~StorageNamespaceProxy()
 {
 }
 
-StorageType StorageNamespaceProxy::storageType() const
-{
-    // A zero storage namespace ID is used for local storage.
-    if (!m_storageNamespaceID)
-        return LocalStorage;
-
-    return SessionStorage;
-}
-
 PassRefPtr<StorageArea> StorageNamespaceProxy::storageArea(PassRefPtr<SecurityOrigin> securityOrigin)
 {
-    return StorageAreaProxy::create(this, securityOrigin);
+    HashMap<RefPtr<WebCore::SecurityOrigin>, RefPtr<StorageAreaProxy> >::AddResult result = m_storageAreaMap.add(securityOrigin.get(), 0);
+    if (result.isNewEntry)
+        result.iterator->value = StorageAreaProxy::create(this, securityOrigin);
+
+    return result.iterator->value;
 }
 
 PassRefPtr<StorageNamespace> StorageNamespaceProxy::copy()

@@ -183,7 +183,7 @@ EXPORTS
         ?documentState@HistoryItem@WebCore@@QBEABV?$Vector@VString@WTF@@$0A@@WTF@@XZ
         ?equal@WTF@@YA_NPBVStringImpl@1@PBE@Z
         ?equal@WTF@@YA_NPBVStringImpl@1@0@Z
-        ?equalIgnoringCase@WTF@@YA_NPAVStringImpl@1@PBE@Z
+        ?equalIgnoringCase@WTF@@YA_NPBVStringImpl@1@PBE@Z
         ?externalRepresentation@WebCore@@YA?AVString@WTF@@PAVElement@1@I@Z
         ?find@StringImpl@WTF@@QAEIPAV12@I@Z
         ?find@StringImpl@WTF@@QAEIPAV12@@Z
@@ -196,6 +196,7 @@ EXPORTS
         ?getLocationAndLengthFromRange@TextIterator@WebCore@@SA_NPAVNode@2@PBVRange@2@AAI2@Z
         ?getReferencedFilePaths@FormController@WebCore@@SA?AV?$Vector@VString@WTF@@$0A@@WTF@@ABV34@@Z
         ?inputTag@HTMLNames@WebCore@@3VQualifiedName@2@B
+        ?selectTag@HTMLNames@WebCore@@3VQualifiedName@2@B
 #if ENABLE(INSPECTOR)
         ?getHighlight@InspectorController@WebCore@@QBEXPAUHighlight@2@@Z
         ?instrumentingAgentsForPage@InspectorInstrumentation@WebCore@@CAPAVInstrumentingAgents@2@PAVPage@2@@Z
@@ -204,6 +205,7 @@ EXPORTS
         ??0InspectorFrontendClientLocal@WebCore@@QAE@PAVInspectorController@1@PAVPage@1@V?$PassOwnPtr@VSettings@InspectorFrontendClientLocal@WebCore@@@WTF@@@Z
         ??1InspectorFrontendClientLocal@WebCore@@UAE@XZ
         ?changeAttachedWindowHeight@InspectorFrontendClientLocal@WebCore@@UAEXI@Z
+        ?changeAttachedWindowWidth@InspectorFrontendClientLocal@WebCore@@UAEXI@Z
         ?connectFrontend@InspectorController@WebCore@@QAEXPAVInspectorFrontendChannel@2@@Z
         ?doDispatchMessageOnFrontendPage@InspectorClient@WebCore@@SA_NPAVPage@2@ABVString@WTF@@@Z
         ?frontendLoaded@InspectorFrontendClientLocal@WebCore@@UAEXXZ
@@ -246,6 +248,7 @@ EXPORTS
         ?paintControlTints@FrameView@WebCore@@AAEXXZ
         ?placeholderShouldBeVisible@HTMLTextFormControlElement@WebCore@@QBE_NXZ
         ?rangeFromLocationAndLength@TextIterator@WebCore@@SA?AV?$PassRefPtr@VRange@WebCore@@@WTF@@PAVContainerNode@2@HH_N@Z
+        ?reload@FrameLoader@WebCore@@QAEX_N@Z
         ?remove@String@WTF@@QAEXIH@Z
         ?removedLastRef@Node@WebCore@@AAEXXZ
         ?reverseFind@StringImpl@WTF@@QAEI_WI@Z
@@ -261,6 +264,8 @@ EXPORTS
         ?setDOMException@WebCore@@YAXPAVExecState@JSC@@H@Z
         ?setFantasyFontFamily@Settings@WebCore@@QAEXABVAtomicString@WTF@@W4UScriptCode@@@Z
         ?setFixedFontFamily@Settings@WebCore@@QAEXABVAtomicString@WTF@@W4UScriptCode@@@Z
+        ?setFooterHeight@FrameView@WebCore@@QAEXH@Z
+        ?setHeaderHeight@FrameView@WebCore@@QAEXH@Z
         ?setImagesEnabled@Settings@WebCore@@QAEX_N@Z
         ?setMockScrollbarsEnabled@Settings@WebCore@@SAX_N@Z
         ?mockScrollbarsEnabled@Settings@WebCore@@SA_NXZ
@@ -311,6 +316,8 @@ EXPORTS
         ??0ContextDestructionObserver@WebCore@@QAE@PAVScriptExecutionContext@1@@Z
         ?nodesFromRect@Document@WebCore@@QBE?AV?$PassRefPtr@VNodeList@WebCore@@@WTF@@HHIIIII@Z
         ?selectionStartHasMarkerFor@Editor@WebCore@@QBE_NW4MarkerType@DocumentMarker@2@HH@Z
+        ?isContinuousSpellCheckingEnabled@Editor@WebCore@@QBE_NXZ
+        ?toggleContinuousSpellChecking@Editor@WebCore@@QAEXXZ
 #if ENABLE(FULLSCREEN_API)
         ?webkitWillEnterFullScreenForElement@Document@WebCore@@QAEXPAVElement@2@@Z
         ?webkitDidEnterFullScreenForElement@Document@WebCore@@QAEXPAVElement@2@@Z
@@ -328,7 +335,8 @@ EXPORTS
         ?setAllowsRoundingHacks@TextRun@WebCore@@SAX_N@Z
         ?registerURLSchemeAsBypassingContentSecurityPolicy@SchemeRegistry@WebCore@@SAXABVString@WTF@@@Z
         ?removeURLSchemeRegisteredAsBypassingContentSecurityPolicy@SchemeRegistry@WebCore@@SAXABVString@WTF@@@Z
-        ?iconURLs@Document@WebCore@@QAEABV?$Vector@UIconURL@WebCore@@$0A@@WTF@@XZ
+        ?shortcutIconURLs@Document@WebCore@@QAEABV?$Vector@UIconURL@WebCore@@$0A@@WTF@@XZ
+        ?iconURLs@Document@WebCore@@QAEABV?$Vector@UIconURL@WebCore@@$0A@@WTF@@H@Z
         ?numberOfPages@PrintContext@WebCore@@SAHPAVFrame@2@ABVFloatSize@2@@Z
         ?pageProperty@PrintContext@WebCore@@SA?AVString@WTF@@PAVFrame@2@PBDH@Z
         ?pageSizeAndMarginsInPixels@PrintContext@WebCore@@SA?AVString@WTF@@PAVFrame@2@HHHHHHH@Z
@@ -412,6 +420,14 @@ EXPORTS
         ?setAuthorAndUserStylesEnabled@Settings@WebCore@@QAEX_N@Z
         ?setAcceleratedCompositingEnabled@Settings@WebCore@@QAEX_N@Z
         ?setAutofilled@HTMLInputElement@WebCore@@QAEX_N@Z
+#if ENABLE(VIDEO_TRACK)
+        ?captionPreferences@PageGroup@WebCore@@QAEPAVCaptionUserPreferences@2@XZ
+#endif
+        ?initGroup@Page@WebCore@@AAEXXZ
+        ?toInt32EnforceRange@WebCore@@YAHPAVExecState@JSC@@VJSValue@3@@Z
+        ?toInt64@WebCore@@YA_JPAVExecState@JSC@@VJSValue@3@W4IntegerConversionConfiguration@1@@Z
+        ?toUInt32EnforceRange@WebCore@@YAIPAVExecState@JSC@@VJSValue@3@@Z
+        ?toUInt64@WebCore@@YA_KPAVExecState@JSC@@VJSValue@3@W4IntegerConversionConfiguration@1@@Z
 
 #if ENABLE(WORKERS)
         ?workerThreadCount@WorkerThread@WebCore@@SAIXZ

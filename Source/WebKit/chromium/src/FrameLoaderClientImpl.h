@@ -139,6 +139,7 @@ public:
     virtual void updateGlobalHistoryRedirectLinks();
     virtual bool shouldGoToHistoryItem(WebCore::HistoryItem*) const;
     virtual bool shouldStopLoadingForHistoryItem(WebCore::HistoryItem*) const;
+    virtual void didAccessInitialDocument();
     virtual void didDisownOpener();
     virtual void didDisplayInsecureContent();
     virtual void didRunInsecureContent(WebCore::SecurityOrigin*, const WebCore::KURL& insecureURL);
@@ -174,7 +175,7 @@ public:
     virtual void dispatchDidBecomeFrameset(bool);
     virtual bool canCachePage() const;
     virtual void convertMainResourceLoadToDownload(
-        WebCore::MainResourceLoader*, const WebCore::ResourceRequest&,
+        WebCore::DocumentLoader*, const WebCore::ResourceRequest&,
         const WebCore::ResourceResponse&);
     virtual PassRefPtr<WebCore::Frame> createFrame(
         const WebCore::KURL& url, const WTF::String& name,

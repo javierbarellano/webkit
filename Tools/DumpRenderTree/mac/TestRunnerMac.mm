@@ -634,16 +634,6 @@ void TestRunner::setWindowIsKey(bool windowIsKey)
     [[mainFrame webView] _updateActiveState];
 }
 
-void TestRunner::setSmartInsertDeleteEnabled(bool flag)
-{
-    [[mainFrame webView] setSmartInsertDeleteEnabled:flag];
-}
-
-void TestRunner::setSelectTrailingWhitespaceEnabled(bool flag)
-{
-    [[mainFrame webView] setSelectTrailingWhitespaceEnabled:flag];
-}
-
 static const CFTimeInterval waitToDumpWatchdogInterval = 30.0;
 
 static void waitUntilDoneWatchdogFired(CFRunLoopTimerRef timer, void* info)
@@ -661,20 +651,6 @@ void TestRunner::setWaitToDump(bool waitUntilDone)
 int TestRunner::windowCount()
 {
     return CFArrayGetCount(openWindowsRef);
-}
-
-bool TestRunner::elementDoesAutoCompleteForElementWithId(JSStringRef jsString)
-{
-    RetainPtr<CFStringRef> idCF(AdoptCF, JSStringCopyCFString(kCFAllocatorDefault, jsString));
-    NSString *idNS = (NSString *)idCF.get();
-    
-    DOMElement *element = [[mainFrame DOMDocument] getElementById:idNS];
-    id rep = [[mainFrame dataSource] representation];
-    
-    if ([rep class] == [WebHTMLRepresentation class])
-        return [(WebHTMLRepresentation *)rep elementDoesAutoComplete:element];
-
-    return false;
 }
 
 void TestRunner::execCommand(JSStringRef name, JSStringRef value)
@@ -804,11 +780,6 @@ void TestRunner::addUserStyleSheet(JSStringRef source, bool allFrames)
 void TestRunner::setDeveloperExtrasEnabled(bool enabled)
 {
     [[[mainFrame webView] preferences] setDeveloperExtrasEnabled:enabled];
-}
-
-void TestRunner::setAsynchronousSpellCheckingEnabled(bool enabled)
-{
-    [[[mainFrame webView] preferences] setAsynchronousSpellCheckingEnabled:enabled];
 }
 
 void TestRunner::showWebInspector()

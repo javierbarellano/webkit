@@ -34,6 +34,7 @@
 #include "Document.h"
 #include "Frame.h"
 #include "InspectorFrontendHost.h"
+#include "NotImplemented.h"
 #include "Page.h"
 #include "ScriptController.h"
 #include "V8InspectorFrontendHost.h"
@@ -88,11 +89,6 @@ String InspectorFrontendClientImpl::localizedStringsURL()
     return "";
 }
 
-String InspectorFrontendClientImpl::hiddenPanels()
-{
-    return "";
-}
-
 void InspectorFrontendClientImpl::bringToFront()
 {
     m_client->activateWindow();
@@ -119,6 +115,11 @@ void InspectorFrontendClientImpl::changeAttachedWindowHeight(unsigned height)
     m_client->changeAttachedWindowHeight(height);
 }
 
+void InspectorFrontendClientImpl::changeAttachedWindowWidth(unsigned)
+{
+    notImplemented();
+}
+
 void InspectorFrontendClientImpl::openInNewTab(const String& url)
 {
     m_client->openInNewTab(url);
@@ -137,11 +138,6 @@ void InspectorFrontendClientImpl::save(const String& url, const String& content,
 void InspectorFrontendClientImpl::append(const String& url, const String& content)
 {
     m_client->append(url, content);
-}
-
-bool InspectorFrontendClientImpl::canInspectWorkers()
-{
-    return true;
 }
 
 void InspectorFrontendClientImpl::inspectedURLChanged(const String& url)

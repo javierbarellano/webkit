@@ -33,7 +33,6 @@
 #include "PopupMenu.h"
 #include "PopupMenuClient.h"
 #include "RenderEmbeddedObject.h"
-#include "RenderSnapshottedPlugIn.h"
 #include "ScrollTypes.h"
 #include "SearchPopupMenu.h"
 #include "WebCoreKeyboardUIMode.h"
@@ -154,9 +153,10 @@ public:
     virtual IntRect windowResizerRect() const = 0;
 
     // Methods used by HostWindow.
-    virtual void invalidateRootView(const IntRect&, bool) = 0;
-    virtual void invalidateContentsAndRootView(const IntRect&, bool) = 0;
-    virtual void invalidateContentsForSlowScroll(const IntRect&, bool) = 0;
+    virtual bool supportsImmediateInvalidation() { return false; }
+    virtual void invalidateRootView(const IntRect&, bool immediate) = 0;
+    virtual void invalidateContentsAndRootView(const IntRect&, bool immediate) = 0;
+    virtual void invalidateContentsForSlowScroll(const IntRect&, bool immediate) = 0;
     virtual void scroll(const IntSize&, const IntRect&, const IntRect&) = 0;
 #if USE(TILED_BACKING_STORE)
     virtual void delegatedScrollRequested(const IntPoint&) = 0;
@@ -175,6 +175,7 @@ public:
     virtual void dispatchViewportPropertiesDidChange(const ViewportArguments&) const { }
 
     virtual void contentsSizeChanged(Frame*, const IntSize&) const = 0;
+    virtual void deviceOrPageScaleFactorChanged() const { }
     virtual void layoutUpdated(Frame*) const { }
     virtual void scrollRectIntoView(const IntRect&) const { }; // Currently only Mac has a non empty implementation.
 
@@ -381,6 +382,9 @@ public:
 
     // FIXME: Port should return true using heuristic based on scrollable(RenderBox).
     virtual bool shouldAutoscrollForDragAndDrop(RenderBox*) const { return false; }
+
+    virtual void didAssociateFormControls(const Vector<RefPtr<Element> >&) { };
+    virtual bool shouldNotifyOnFormChanges() { return false; };
 
 protected:
     virtual ~ChromeClient() { }

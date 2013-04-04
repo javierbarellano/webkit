@@ -63,8 +63,8 @@
 #include "StylePropertySet.h"
 #include "TextIterator.h"
 #include "TypingCommand.h"
+#include "VisibleUnits.h"
 #include "htmlediting.h"
-#include "visible_units.h"
 #include <limits.h>
 #include <stdio.h>
 #include <wtf/text/CString.h>
@@ -354,7 +354,7 @@ static bool removingNodeRemovesPosition(Node* node, const Position& position)
     if (!node->isElementNode())
         return false;
 
-    Element* element = static_cast<Element*>(node);
+    Element* element = toElement(node);
     return element->containsIncludingShadowDOM(position.anchorNode());
 }
 
@@ -1542,8 +1542,7 @@ bool FrameSelection::contains(const LayoutPoint& point)
     if (!document->renderer()) 
         return false;
     
-    HitTestRequest request(HitTestRequest::ReadOnly |
-                           HitTestRequest::Active);
+    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::DisallowShadowContent);
     HitTestResult result(point);
     document->renderView()->hitTest(request, result);
     Node* innerNode = result.innerNode();
@@ -1888,7 +1887,7 @@ void FrameSelection::setFocusedNodeIfNeeded()
             // We don't want to set focus on a subframe when selecting in a parent frame,
             // so add the !isFrameElement check here. There's probably a better way to make this
             // work in the long term, but this is the safest fix at this time.
-            if (target && target->isMouseFocusable() && !isFrameElement(target)) {
+            if (target->isMouseFocusable() && !isFrameElement(target)) {
                 m_frame->page()->focusController()->setFocusedNode(target, m_frame);
                 return;
             }

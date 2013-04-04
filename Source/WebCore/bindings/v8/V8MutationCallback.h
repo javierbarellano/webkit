@@ -30,6 +30,7 @@
 #include "DOMWrapperWorld.h"
 #include "MutationCallback.h"
 #include "ScopedPersistent.h"
+#include "V8Utilities.h"
 #include <v8.h>
 #include <wtf/RefPtr.h>
 
@@ -38,27 +39,21 @@ namespace WebCore {
 class ScriptExecutionContext;
 
 class V8MutationCallback : public MutationCallback, public ActiveDOMCallback {
+    friend class WeakHandleListener<V8MutationCallback>;
 public:
-    static PassRefPtr<V8MutationCallback> create(v8::Handle<v8::Value> value, ScriptExecutionContext* context, v8::Handle<v8::Object> owner, v8::Isolate* isolate)
+    static PassRefPtr<V8MutationCallback> create(v8::Handle<v8::Function> callback, ScriptExecutionContext* context, v8::Handle<v8::Object> owner, v8::Isolate* isolate)
     {
-        ASSERT(value->IsObject());
         ASSERT(context);
-        return adoptRef(new V8MutationCallback(v8::Handle<v8::Object>::Cast(value), context, owner, isolate));
+        return adoptRef(new V8MutationCallback(callback, context, owner, isolate));
     }
 
-    virtual bool handleEvent(MutationRecordArray*, MutationObserver*) OVERRIDE;
+    virtual void call(const Vector<RefPtr<MutationRecord> >&, MutationObserver*) OVERRIDE;
     virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE { return ContextDestructionObserver::scriptExecutionContext(); }
 
 private:
-    V8MutationCallback(v8::Handle<v8::Object>, ScriptExecutionContext*, v8::Handle<v8::Object>, v8::Isolate*);
+    V8MutationCallback(v8::Handle<v8::Function>, ScriptExecutionContext*, v8::Handle<v8::Object>, v8::Isolate*);
 
-    static void weakCallback(v8::Isolate* isolate, v8::Persistent<v8::Value> wrapper, void* parameter)
-    {
-        V8MutationCallback* object = static_cast<V8MutationCallback*>(parameter);
-        object->m_callback.clear();
-    }
-
-    ScopedPersistent<v8::Object> m_callback;
+    ScopedPersistent<v8::Function> m_callback;
     RefPtr<DOMWrapperWorld> m_world;
 };
 

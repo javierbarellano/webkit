@@ -51,15 +51,14 @@ public:
     enum DisplayState {
         WaitingForSnapshot,
         DisplayingSnapshot,
-        PlayingWithPendingMouseClick,
+        Restarting,
+        RestartingWithPendingMouseClick,
         Playing
     };
     DisplayState displayState() const { return m_displayState; }
     virtual void setDisplayState(DisplayState state) { m_displayState = state; }
     virtual void updateSnapshot(PassRefPtr<Image>) { }
     virtual void dispatchPendingMouseClick() { }
-
-    unsigned plugInOriginHash() const { return m_plugInOriginHash; }
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
     NPObject* getNPObject();
@@ -88,8 +87,6 @@ protected:
 
     bool m_inBeforeLoadEventHandler;
 
-    unsigned m_plugInOriginHash;
-
 private:
     bool dispatchBeforeLoadEvent(const String& sourceURL); // Not implemented, generates a compile error if subclasses call this by mistake.
 
@@ -110,6 +107,21 @@ private:
 
     DisplayState m_displayState;
 };
+
+inline HTMLPlugInElement* toHTMLPlugInElement(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isPluginElement());
+    return static_cast<HTMLPlugInElement*>(node);
+}
+
+inline const HTMLPlugInElement* toHTMLPlugInElement(const Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isPluginElement());
+    return static_cast<const HTMLPlugInElement*>(node);
+}
+
+// This will catch anyone doing an unnecessary cast.
+void toHTMLPlugInElement(const HTMLPlugInElement*);
 
 } // namespace WebCore
 

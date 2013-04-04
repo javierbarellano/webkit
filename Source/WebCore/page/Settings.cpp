@@ -137,9 +137,24 @@ static EditingBehaviorType editingBehaviorTypeForPlatform()
 
 static const double defaultIncrementalRenderingSuppressionTimeoutInSeconds = 5;
 #if USE(UNIFIED_TEXT_CHECKING)
-static const double defaultUnifiedTextCheckerEnabled = true;
+static const bool defaultUnifiedTextCheckerEnabled = true;
 #else
-static const double defaultUnifiedTextCheckerEnabled = false;
+static const bool defaultUnifiedTextCheckerEnabled = false;
+#endif
+#if PLATFORM(CHROMIUM)
+#if OS(MAC_OS_X)
+static const bool defaultSmartInsertDeleteEnabled = true;
+#else
+static const bool defaultSmartInsertDeleteEnabled = false;
+#endif
+#if OS(WINDOWS)
+static const bool defaultSelectTrailingWhitespaceEnabled = true;
+#else
+static const bool defaultSelectTrailingWhitespaceEnabled = false;
+#endif
+#else
+static const bool defaultSmartInsertDeleteEnabled = true;
+static const bool defaultSelectTrailingWhitespaceEnabled = false;
 #endif
 
 Settings::Settings(Page* page)
@@ -176,15 +191,19 @@ Settings::Settings(Page* page)
     , m_showTiledScrollingIndicator(false)
     , m_tiledBackingStoreEnabled(false)
     , m_dnsPrefetchingEnabled(false)
-#if ENABLE(SMOOTH_SCROLLING)
-    , m_scrollAnimatorEnabled(true)
-#endif
 #if ENABLE(TOUCH_EVENTS)
     , m_touchEventEmulationEnabled(false)
 #endif
     , m_scrollingPerformanceLoggingEnabled(false)
     , m_aggressiveTileRetentionEnabled(false)
+    , m_timeWithoutMouseMovementBeforeHidingControls(3)
     , m_setImageLoadingSettingsTimer(this, &Settings::imageLoadingSettingsTimerFired)
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+    , m_hiddenPageDOMTimerThrottlingEnabled(false)
+#endif
+#if ENABLE(PAGE_VISIBILITY_API)
+    , m_hiddenPageCSSAnimationSuspensionEnabled(false)
+#endif
 {
     // A Frame may not have been created yet, so we initialize the AtomicString
     // hash before trying to use it.
@@ -469,7 +488,6 @@ void Settings::setUsesPageCache(bool usesPageCache)
         int last = m_page->backForward()->forwardCount();
         for (int i = first; i <= last; i++)
             pageCache()->remove(m_page->backForward()->itemAtIndex(i));
-        pageCache()->releaseAutoreleasedPagesNow();
     }
 }
 
@@ -599,6 +617,26 @@ void Settings::setShouldRespectPriorityInCSSAttributeSetters(bool flag)
 bool Settings::shouldRespectPriorityInCSSAttributeSetters()
 {
     return gShouldRespectPriorityInCSSAttributeSetters;
+}
+#endif
+
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+void Settings::setHiddenPageDOMTimerThrottlingEnabled(bool flag)
+{
+    if (m_hiddenPageDOMTimerThrottlingEnabled == flag)
+        return;
+    m_hiddenPageDOMTimerThrottlingEnabled = flag;
+    m_page->hiddenPageDOMTimerThrottlingStateChanged();
+}
+#endif
+
+#if ENABLE(PAGE_VISIBILITY_API)
+void Settings::setHiddenPageCSSAnimationSuspensionEnabled(bool flag)
+{
+    if (m_hiddenPageCSSAnimationSuspensionEnabled == flag)
+        return;
+    m_hiddenPageCSSAnimationSuspensionEnabled = flag;
+    m_page->hiddenPageCSSAnimationSuspensionStateChanged();
 }
 #endif
 

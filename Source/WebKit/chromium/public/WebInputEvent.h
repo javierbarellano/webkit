@@ -235,10 +235,7 @@ public:
             || type == GestureDoubleTap
             || type == GestureTwoFingerTap
             || type == GestureLongPress
-            || type == GestureLongTap
-            || type == GesturePinchBegin
-            || type == GesturePinchEnd
-            || type == GesturePinchUpdate;
+            || type == GestureLongTap;
     }
 };
 
@@ -441,8 +438,6 @@ public:
         struct {
             float velocityX;
             float velocityY;
-            // FIXME: Remove this when Chromium uses the top-level field.
-            SourceDevice sourceDevice;
         } flingStart;
 
         struct {

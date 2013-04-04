@@ -31,6 +31,8 @@
 #include "IDBDatabaseCallbacks.h"
 #include "IDBFactoryBackendImpl.h"
 #include "IDBFakeBackingStore.h"
+#include "IDBKey.h"
+#include "IndexedDB.h"
 #include "SecurityOrigin.h"
 #include <gtest/gtest.h>
 #include <wtf/Vector.h>
@@ -107,7 +109,6 @@ class FakeIDBDatabaseCallbacks : public IDBDatabaseCallbacks {
 public:
     static PassRefPtr<FakeIDBDatabaseCallbacks> create() { return adoptRef(new FakeIDBDatabaseCallbacks()); }
     virtual ~FakeIDBDatabaseCallbacks() { }
-    virtual void onVersionChange(const String& version) OVERRIDE { }
     virtual void onVersionChange(int64_t oldVersion, int64_t newVersion) OVERRIDE { }
     virtual void onForcedClose() OVERRIDE { }
     virtual void onAbort(int64_t transactionId, PassRefPtr<IDBDatabaseError> error) OVERRIDE { }

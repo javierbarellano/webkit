@@ -28,15 +28,12 @@
 #define ResourceRequest_h
 
 #include "ResourceRequestBase.h"
-
 #include <wtf/RetainPtr.h>
-#if USE(CFNETWORK)
-typedef const struct _CFURLRequest* CFURLRequestRef;
-#endif
 
 OBJC_CLASS NSURLRequest;
 
 #if PLATFORM(MAC) || USE(CFNETWORK)
+typedef const struct _CFURLRequest* CFURLRequestRef;
 typedef const struct __CFURLStorageSession* CFURLStorageSessionRef;
 #endif
 
@@ -79,8 +76,6 @@ namespace WebCore {
             updateNSURLRequest();
 #endif
         }
-
-        CFURLRequestRef cfURLRequest(HTTPBodyUpdatePolicy) const;
 #else
         ResourceRequest(NSURLRequest *nsRequest)
             : ResourceRequestBase()
@@ -97,11 +92,13 @@ namespace WebCore {
 #endif
 
 #if ENABLE(CACHE_PARTITIONING)
-        const String& cachePartition() const { return m_cachePartition; }
-        void setCachePartition(const String& cachePartition) { m_cachePartition = cachePartition; }
+        static String partitionName(const String& domain);
+        const String& cachePartition() const { return m_cachePartition.isNull() ? emptyString() : m_cachePartition; }
+        void setCachePartition(const String& cachePartition) { m_cachePartition = partitionName(cachePartition); }
 #endif
 
 #if PLATFORM(MAC) || USE(CFNETWORK)
+        CFURLRequestRef cfURLRequest(HTTPBodyUpdatePolicy) const;
         void setStorageSession(CFURLStorageSessionRef);
 #endif
 

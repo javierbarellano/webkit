@@ -483,7 +483,7 @@ v8::Handle<v8::Value> V8DOMWindow::namedPropertyGetter(v8::Local<v8::String> nam
     Document* doc = frame->document();
 
     if (doc && doc->isHTMLDocument()) {
-        if (static_cast<HTMLDocument*>(doc)->hasNamedItem(propName.impl()) || doc->hasElementWithId(propName.impl())) {
+        if (toHTMLDocument(doc)->hasNamedItem(propName.impl()) || doc->hasElementWithId(propName.impl())) {
             RefPtr<HTMLCollection> items = doc->windowNamedItems(propName);
             if (!items->isEmpty()) {
                 if (items->hasExactlyOneItem())
@@ -523,6 +523,10 @@ bool V8DOMWindow::namedSecurityCheckCustom(v8::Local<v8::Object> host, v8::Local
     if (!target)
         return false;
 
+    // Notify the loader's client if the initial document has been accessed.
+    if (target->loader()->stateMachine()->isDisplayingInitialEmptyDocument())
+        target->loader()->didAccessInitialDocument();
+
     if (key->IsString()) {
         DEFINE_STATIC_LOCAL(AtomicString, nameOfProtoProperty, ("__proto__", AtomicString::ConstructFromLiteral));
 
@@ -557,6 +561,10 @@ bool V8DOMWindow::indexedSecurityCheckCustom(v8::Local<v8::Object> host, uint32_
     if (!target)
         return false;
     Frame* childFrame =  target->tree()->scopedChild(index);
+
+    // Notify the loader's client if the initial document has been accessed.
+    if (target->loader()->stateMachine()->isDisplayingInitialEmptyDocument())
+        target->loader()->didAccessInitialDocument();
 
     // Notice that we can't call HasRealNamedProperty for ACCESS_HAS
     // because that would generate infinite recursion.
@@ -601,6 +609,11 @@ v8::Handle<v8::Value> toV8(DOMWindow* window, v8::Handle<v8::Object> creationCon
     v8::Handle<v8::Object> global = context->Global();
     ASSERT(!global.IsEmpty());
     return global;
+}
+
+v8::Handle<v8::Value> toV8ForMainWorld(DOMWindow* window, v8::Handle<v8::Object> creationContext, v8::Isolate* isolate)
+{
+    return toV8(window, creationContext, isolate);
 }
 
 } // namespace WebCore

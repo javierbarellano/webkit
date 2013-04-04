@@ -91,8 +91,8 @@
 
 /* API internals. */
 #import "WKBrowsingContextControllerInternal.h"
-#import "WKBrowsingContextGroupInternal.h"
-#import "WKProcessGroupInternal.h"
+#import "WKBrowsingContextGroupPrivate.h"
+#import "WKProcessGroupPrivate.h"
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 static BOOL windowOcclusionNotificationsAreRegistered = NO;
@@ -281,6 +281,9 @@ struct WKViewInterpretKeyEventsParameters {
     Vector<WKView *>& allViews = [WKView _allViews];
     allViews.remove(allViews.find(self));
 
+    NSNotificationCenter* workspaceNotificationCenter = [[NSWorkspace sharedWorkspace] notificationCenter];
+    [workspaceNotificationCenter removeObserver:self name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+
     WebContext::statistics().wkViewCount--;
 
     [super dealloc];
@@ -400,7 +403,7 @@ struct WKViewInterpretKeyEventsParameters {
     NSRect viewFrameInWindowCoordinates = [self convertRect:[self frame] toView:nil];
     NSPoint accessibilityPosition = [[self accessibilityAttributeValue:NSAccessibilityPositionAttribute] pointValue];
     
-    _data->_page->windowAndViewFramesChanged(enclosingIntRect(windowFrameInScreenCoordinates), enclosingIntRect(viewFrameInWindowCoordinates), IntPoint(accessibilityPosition));
+    _data->_page->windowAndViewFramesChanged(windowFrameInScreenCoordinates, viewFrameInWindowCoordinates, accessibilityPosition);
     if (_data->_expandsToFitContentViaAutoLayout)
         _data->_page->viewExposedRectChanged([self visibleRect]);
 }
@@ -600,13 +603,22 @@ WEBCORE_COMMAND(yankAndSelect)
 
 - (id)validRequestorForSendType:(NSString *)sendType returnType:(NSString *)returnType
 {
-    BOOL isValidSendType = !sendType || ([PasteboardTypes::forSelection() containsObject:sendType] && !_data->_page->editorState().selectionIsNone);
+    EditorState editorState = _data->_page->editorState();
+    BOOL isValidSendType = NO;
+
+    if (sendType && !editorState.selectionIsNone) {
+        if (editorState.isInPlugin)
+            isValidSendType = [sendType isEqualToString:NSStringPboardType];
+        else
+            isValidSendType = [PasteboardTypes::forSelection() containsObject:sendType];
+    }
+
     BOOL isValidReturnType = NO;
     if (!returnType)
         isValidReturnType = YES;
-    else if ([PasteboardTypes::forEditing() containsObject:returnType] && _data->_page->editorState().isContentEditable) {
+    else if ([PasteboardTypes::forEditing() containsObject:returnType] && editorState.isContentEditable) {
         // We can insert strings in any editable context.  We can insert other types, like images, only in rich edit contexts.
-        isValidReturnType = _data->_page->editorState().isContentRichlyEditable || [returnType isEqualToString:NSStringPboardType];
+        isValidReturnType = editorState.isContentRichlyEditable || [returnType isEqualToString:NSStringPboardType];
     }
     if (isValidSendType && isValidReturnType)
         return self;
@@ -2125,6 +2137,11 @@ static void drawPageBackground(CGContextRef context, WebPageProxy* page, const I
         drawingArea->colorSpaceDidChange();
 }
 
+- (void)_activeSpaceDidChange:(NSNotification *)notification
+{
+    _data->_page->viewStateDidChange(WebPageProxy::ViewIsVisible);
+}
+
 - (void)_accessibilityRegisterUIProcessTokens
 {
     // Initialize remote accessibility when the window connection has been established.
@@ -3152,6 +3169,9 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
 
     WebContext::statistics().wkViewCount++;
 
+    NSNotificationCenter* workspaceNotificationCenter = [[NSWorkspace sharedWorkspace] notificationCenter];
+    [workspaceNotificationCenter addObserver:self selector:@selector(_activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+
     return self;
 }
 
@@ -3198,7 +3218,7 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
         // printing), this function should return nil.
         RetainPtr<WKPrintingView> printingView(AdoptNS, [[WKPrintingView alloc] initWithFrameProxy:toImpl(frameRef) view:self]);
         // NSPrintOperation takes ownership of the view.
-        NSPrintOperation *printOperation = [NSPrintOperation printOperationWithView:printingView.get()];
+        NSPrintOperation *printOperation = [NSPrintOperation printOperationWithView:printingView.get() printInfo:printInfo];
         [printOperation setCanSpawnSeparateThread:YES];
         [printOperation setJobTitle:toImpl(frameRef)->title()];
         printingView->_printOperation = printOperation;

@@ -35,6 +35,7 @@ class CustomFilterProgram;
 class CustomFilterCompiledProgram;
 class TextureMapperGLData;
 class TextureMapperShaderProgram;
+class FilterOperation;
 
 // An OpenGL-ES2 implementation of TextureMapper.
 class TextureMapperGL : public TextureMapper {
@@ -96,8 +97,19 @@ private:
         void push();
         void pop();
         void apply(GraphicsContext3D*);
+        void applyIfNeeded(GraphicsContext3D*);
         inline ClipState& current() { return clipState; }
         void reset(const IntRect&);
+        void intersect(const IntRect&);
+        void setStencilIndex(int);
+        inline int getStencilIndex() const
+        {
+            return clipState.stencilIndex;
+        }
+        inline bool isCurrentScissorBoxEmpty() const
+        {
+            return clipState.scissorBox.isEmpty();
+        }
 
     private:
         ClipState clipState;

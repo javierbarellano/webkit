@@ -25,13 +25,14 @@
 #ifndef WebGestureCurveTarget_h
 #define WebGestureCurveTarget_h
 
-namespace WebKit {
+#include "WebFloatSize.h"
+#include "WebPoint.h"
 
-struct WebPoint;
+namespace WebKit {
 
 class WebGestureCurveTarget {
 public:
-    virtual void scrollBy(const WebPoint&) = 0;
+    virtual void scrollBy(const WebFloatSize& delta) = 0;
 
 protected:
     virtual ~WebGestureCurveTarget() { }

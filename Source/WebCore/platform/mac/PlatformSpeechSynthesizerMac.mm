@@ -29,6 +29,7 @@
 #include "PlatformSpeechSynthesisUtterance.h"
 #include "PlatformSpeechSynthesisVoice.h"
 #include <AppKit/NSSpeechSynthesizer.h>
+#include <wtf/PassRefPtr.h>
 #include <wtf/RetainPtr.h>
 
 #if ENABLE(SPEECH_SYNTHESIS)
@@ -37,14 +38,14 @@
 {
     WebCore::PlatformSpeechSynthesizer* m_synthesizerObject;
     // Hold a Ref to the utterance so that it won't disappear until the synth is done with it.
-    const WebCore::PlatformSpeechSynthesisUtterance* m_utterance;
+    WebCore::PlatformSpeechSynthesisUtterance* m_utterance;
     
     RetainPtr<NSSpeechSynthesizer> m_synthesizer;
     float m_basePitch;
 }
 
 - (WebSpeechSynthesisWrapper *)initWithSpeechSynthesizer:(WebCore::PlatformSpeechSynthesizer *)synthesizer;
-- (void)speakUtterance:(const WebCore::PlatformSpeechSynthesisUtterance *)utterance;
+- (void)speakUtterance:(WebCore::PlatformSpeechSynthesisUtterance *)utterance;
 
 @end
 
@@ -81,7 +82,7 @@
     m_basePitch = [[m_synthesizer objectForProperty:NSSpeechPitchBaseProperty error:nil] floatValue];
 }
 
-- (void)speakUtterance:(const WebCore::PlatformSpeechSynthesisUtterance *)utterance
+- (void)speakUtterance:(WebCore::PlatformSpeechSynthesisUtterance *)utterance
 {
     // When speak is called we should not have an existing speech utterance outstanding.
     ASSERT(!m_utterance);
@@ -98,26 +99,20 @@
     Vector<RefPtr<WebCore::PlatformSpeechSynthesisVoice> > voiceList = m_synthesizerObject->voiceList();
     size_t voiceListSize = voiceList.size();
     
-    WebCore::PlatformSpeechSynthesisVoice *utteranceVoiceByURI = 0;
-    WebCore::PlatformSpeechSynthesisVoice *utteranceVoiceByLanguage = 0;
-    for (size_t k = 0; k < voiceListSize; k++) {
-        if (utterance->voiceURI() == voiceList[k]->voiceURI()) {
-            utteranceVoiceByURI = voiceList[k].get();
-            break;
-        } else if (!utteranceVoiceByLanguage && equalIgnoringCase(utterance->lang(), voiceList[k]->lang())) {
-            utteranceVoiceByLanguage = voiceList[k].get();
-            
-            // If there was no voiceURI specified, then once we find a language we're good to go.
-            if (utterance->voiceURI().isEmpty())
+    WebCore::PlatformSpeechSynthesisVoice* utteranceVoice = utterance->voice();
+    // If no voice was specified, try to match by language.
+    if (!utteranceVoice && !utterance->lang().isEmpty()) {
+        for (size_t k = 0; k < voiceListSize; k++) {
+            if (equalIgnoringCase(utterance->lang(), voiceList[k]->lang())) {
+                utteranceVoice = voiceList[k].get();
                 break;
+            }
         }
     }
     
     NSString *voiceURI = nil;
-    if (utteranceVoiceByURI)
-        voiceURI = utteranceVoiceByURI->voiceURI();
-    else if (utteranceVoiceByLanguage)
-        voiceURI = utteranceVoiceByLanguage->voiceURI();
+    if (utteranceVoice)
+        voiceURI = utteranceVoice->voiceURI();
     else
         voiceURI = [NSSpeechSynthesizer defaultVoice];
 
@@ -162,16 +157,23 @@
 
 - (void)cancel
 {
+    if (!m_utterance)
+        return;
+    
     [m_synthesizer stopSpeakingAtBoundary:NSSpeechImmediateBoundary];
+    m_synthesizerObject->client()->speakingErrorOccurred(m_utterance);
+    m_utterance = 0;
 }
 
 - (void)speechSynthesizer:(NSSpeechSynthesizer *)sender didFinishSpeaking:(BOOL)finishedSpeaking
 {
-    ASSERT(m_utterance);
+    if (!m_utterance)
+        return;
+    
     UNUSED_PARAM(sender);
     
     // Clear the m_utterance variable in case finish speaking kicks off a new speaking job immediately.
-    const WebCore::PlatformSpeechSynthesisUtterance* utterance = m_utterance;
+    WebCore::PlatformSpeechSynthesisUtterance* utterance = m_utterance;
     m_utterance = 0;
     
     if (finishedSpeaking)
@@ -182,9 +184,11 @@
 
 - (void)speechSynthesizer:(NSSpeechSynthesizer *)sender willSpeakWord:(NSRange)characterRange ofString:(NSString *)string
 {
-    ASSERT(m_utterance);
     UNUSED_PARAM(sender);
     UNUSED_PARAM(string);
+
+    if (!m_utterance)
+        return;
 
     // Mac platform only supports word boundaries.
     m_synthesizerObject->client()->boundaryEventOccurred(m_utterance, WebCore::SpeechWordBoundary, characterRange.location);
@@ -193,6 +197,15 @@
 @end
 
 namespace WebCore {
+
+PlatformSpeechSynthesizer::PlatformSpeechSynthesizer(PlatformSpeechSynthesizerClient* client)
+    : m_speechSynthesizerClient(client)
+{
+}
+
+PlatformSpeechSynthesizer::~PlatformSpeechSynthesizer()
+{
+}
 
 void PlatformSpeechSynthesizer::initializeVoiceList()
 {
@@ -226,12 +239,12 @@ void PlatformSpeechSynthesizer::resume()
     [m_platformSpeechWrapper.get() resume];
 }
     
-void PlatformSpeechSynthesizer::speak(const PlatformSpeechSynthesisUtterance& utterance)
+void PlatformSpeechSynthesizer::speak(PassRefPtr<PlatformSpeechSynthesisUtterance> utterance)
 {
     if (!m_platformSpeechWrapper)
         m_platformSpeechWrapper.adoptNS([[WebSpeechSynthesisWrapper alloc] initWithSpeechSynthesizer:this]);
     
-    [m_platformSpeechWrapper.get() speakUtterance:&utterance];
+    [m_platformSpeechWrapper.get() speakUtterance:utterance.get()];
 }
 
 void PlatformSpeechSynthesizer::cancel()

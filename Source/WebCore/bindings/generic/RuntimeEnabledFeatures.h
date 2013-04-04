@@ -87,6 +87,22 @@ public:
     static bool cssRegionsEnabled() { return false; }
 #endif
 
+#if ENABLE(CSS_COMPOSITING)
+    static void setCSSCompositingEnabled(bool isEnabled) { isCSSCompositingEnabled = isEnabled; }
+    static bool cssCompositingEnabled() { return isCSSCompositingEnabled; }
+#else
+    static void setCSSCompositingEnabled(bool) { }
+    static bool cssCompositingEnabled() { return false; }
+#endif
+
+#if ENABLE(FONT_LOAD_EVENTS)
+    static void setFontLoadEventsEnabled(bool isEnabled) { isFontLoadEventsEnabled = isEnabled; }
+    static bool fontLoadEventsEnabled() { return isFontLoadEventsEnabled; }
+#else
+    static void setFontLoadEventsEnabled(bool) { }
+    static bool fontLoadEventsEnabled() { return false; }
+#endif
+
 #if ENABLE(FULLSCREEN_API)
     // Mozilla version
     static bool webkitFullScreenAPIEnabled() { return isFullScreenAPIEnabled; }
@@ -185,6 +201,11 @@ public:
     static bool webkitRTCPeerConnectionEnabled() { return peerConnectionEnabled(); }
 #endif
 
+#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
+    static void setLegacyCSSVendorPrefixesEnabled(bool isEnabled) { isLegacyCSSVendorPrefixesEnabled = isEnabled; }
+    static bool legacyCSSVendorPrefixesEnabled() { return isLegacyCSSVendorPrefixesEnabled; }
+#endif
+
 #if ENABLE(GAMEPAD)
     static void setWebkitGetGamepadsEnabled(bool isEnabled) { isGamepadEnabled = isEnabled; }
     static bool webkitGetGamepadsEnabled() { return isGamepadEnabled; }
@@ -233,7 +254,7 @@ public:
     static void setInputTypeDateEnabled(bool isEnabled) { isInputTypeDateEnabled = isEnabled; }
 #endif
 
-#if ENABLE(INPUT_TYPE_DATETIME)
+#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
     static bool inputTypeDateTimeEnabled() { return isInputTypeDateTimeEnabled; }
     static void setInputTypeDateTimeEnabled(bool isEnabled) { isInputTypeDateTimeEnabled = isEnabled; }
 #endif
@@ -301,6 +322,7 @@ private:
     static bool isCanvasPathEnabled;
     static bool isCSSExclusionsEnabled;
     static bool isCSSRegionsEnabled;
+    static bool isCSSCompositingEnabled;
     WEBCORE_TESTING static bool isLangAttributeAwareFormControlUIEnabled;
 #if ENABLE(SCRIPTED_SPEECH)
     static bool isScriptedSpeechEnabled;
@@ -320,6 +342,10 @@ private:
 
 #if ENABLE(GAMEPAD)
     static bool isGamepadEnabled;
+#endif
+
+#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
+    static bool isLegacyCSSVendorPrefixesEnabled;
 #endif
 
 #if ENABLE(QUOTA)
@@ -360,7 +386,7 @@ private:
     static bool isInputTypeDateEnabled;
 #endif
 
-#if ENABLE(INPUT_TYPE_DATETIME)
+#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
     static bool isInputTypeDateTimeEnabled;
 #endif
 
@@ -394,6 +420,10 @@ private:
 
 #if ENABLE(IFRAME_SEAMLESS)
     static bool areSeamlessIFramesEnabled;
+#endif
+
+#if ENABLE(FONT_LOAD_EVENTS)
+    static bool isFontLoadEventsEnabled;
 #endif
 
 };

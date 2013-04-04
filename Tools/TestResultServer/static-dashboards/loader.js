@@ -37,7 +37,7 @@ var CHROMIUM_EXPECTATIONS_URL = 'http://svn.webkit.org/repository/webkit/trunk/L
 function pathToBuilderResultsFile(builderName) {
     return TEST_RESULTS_SERVER + 'testfile?builder=' + builderName +
            '&master=' + builderMaster(builderName).name +
-           '&testtype=' + g_crossDashboardState.testType + '&name=';
+           '&testtype=' + g_history.crossDashboardState.testType + '&name=';
 }
 
 loader.request = function(url, success, error, opt_isBinaryData)
@@ -67,7 +67,29 @@ loader.Loader = function()
 
     this._buildersThatFailedToLoad = [];
     this._staleBuilders = [];
-    this._loadingComplete = false;
+    this._errors = new ui.Errors();
+    // TODO(jparent): Pass in the appropriate history obj per db.
+    this._history = g_history;
+}
+
+// TODO(aboxhall): figure out whether this is a performance bottleneck and
+// change calling code to understand the trie structure instead if necessary.
+loader.Loader._flattenTrie = function(trie, prefix)
+{
+    var result = {};
+    for (var name in trie) {
+        var fullName = prefix ? prefix + "/" + name : name;
+        var data = trie[name];
+        if ("results" in data)
+            result[fullName] = data;
+        else {
+            var partialResult = loader.Loader._flattenTrie(data, fullName);
+            for (var key in partialResult) {
+                result[key] = partialResult[key];
+            }
+        }
+    }
+    return result;
 }
 
 loader.Loader.prototype = {
@@ -75,41 +97,36 @@ loader.Loader.prototype = {
     {
         this._loadNext();
     },
-    isLoadingComplete: function()
+    showErrors: function() 
     {
-        return this._loadingComplete;
+        this._errors.show();
     },
     _loadNext: function()
     {
         var loadingStep = this._loadingSteps.shift();
         if (!loadingStep) {
-            this._loadingComplete = true;
-            // FIXME(jparent): Loader should not know about global
-            // functions, should use a callback or dispatch load
-            // event instead.
-            resourceLoadingComplete(this._getLoadingErrorMessages());
+            this._addErrors();
+            this._history.initialize();
             return;
         }
         loadingStep.apply(this);
     },
     _loadBuildersList: function()
     {
-        loadBuildersList(currentBuilderGroupName(), g_crossDashboardState.testType);
+        loadBuildersList(currentBuilderGroupName(), this._history.crossDashboardState.testType);
         this._loadNext();
     },
     _loadResultsFiles: function()
     {
-        parseParameters();
-
         for (var builderName in currentBuilders())
             this._loadResultsFileForBuilder(builderName);
     },
     _loadResultsFileForBuilder: function(builderName)
     {
         var resultsFilename;
-        if (isTreeMap())
+        if (history.isTreeMap())
             resultsFilename = 'times_ms.json';
-        else if (g_crossDashboardState.showAllRuns)
+        else if (this._history.crossDashboardState.showAllRuns)
             resultsFilename = 'results.json';
         else
             resultsFilename = 'results-small.json';
@@ -125,7 +142,7 @@ loader.Loader.prototype = {
     },
     _handleResultsFileLoaded: function(builderName, fileData)
     {
-        if (isTreeMap())
+        if (history.isTreeMap())
             this._processTimesJSONData(builderName, fileData);
         else
             this._processResultsJSONData(builderName, fileData);
@@ -165,7 +182,7 @@ loader.Loader.prototype = {
                 this._staleBuilders.push(builderName);
 
             if (json_version >= 4)
-                builds[builderName][TESTS_KEY] = flattenTrie(builds[builderName][TESTS_KEY]);
+                builds[builderName][TESTS_KEY] = loader.Loader._flattenTrie(builds[builderName][TESTS_KEY]);
             g_resultsByBuilder[builderName] = builds[builderName];
         }
     },
@@ -198,7 +215,7 @@ loader.Loader.prototype = {
     },
     _loadExpectationsFiles: function()
     {
-        if (!isFlakinessDashboard() && !g_crossDashboardState.useTestData) {
+        if (!isFlakinessDashboard() && !this._history.crossDashboardState.useTestData) {
             this._loadNext();
             return;
         }
@@ -229,16 +246,13 @@ loader.Loader.prototype = {
                         console.error('Could not load expectations file for ' + platformName);
                     }, platformWithExpectations));
     },
-    _getLoadingErrorMessages: function()
+    _addErrors: function()
     {
-        var errorMsgs = '';
         if (this._buildersThatFailedToLoad.length)
-            errorMsgs += 'ERROR: Failed to get data from ' + this._buildersThatFailedToLoad.toString() + '.<br>';
+            this._errors.addError('ERROR: Failed to get data from ' + this._buildersThatFailedToLoad.toString() +'.');
 
         if (this._staleBuilders.length)
-            errorMsgs +='ERROR: Data from ' + this._staleBuilders.toString() + ' is more than 1 day stale.<br>';
-
-        return errorMsgs;
+            this._errors.addError('ERROR: Data from ' + this._staleBuilders.toString() + ' is more than 1 day stale.');
     }
 }
 

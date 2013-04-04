@@ -181,6 +181,7 @@
 #include <algorithm>
 #include <public/Platform.h>
 #include <public/WebFileSystem.h>
+#include <public/WebFileSystemType.h>
 #include <public/WebFloatPoint.h>
 #include <public/WebFloatRect.h>
 #include <public/WebPoint.h>
@@ -542,12 +543,10 @@ WebFrame* WebFrame::frameForCurrentContext()
     return frameForContext(context);
 }
 
-#if WEBKIT_USING_V8
 WebFrame* WebFrame::frameForContext(v8::Handle<v8::Context> context)
 { 
    return WebFrameImpl::fromFrame(toFrameIfNotDetached(context));
 }
-#endif
 
 WebFrame* WebFrame::fromFrameOwnerElement(const WebElement& element)
 {
@@ -574,12 +573,12 @@ long long WebFrameImpl::identifier() const
     return m_identifier;
 }
 
-WebVector<WebIconURL> WebFrameImpl::iconURLs(int iconTypes) const
+WebVector<WebIconURL> WebFrameImpl::iconURLs(int iconTypesMask) const
 {
     // The URL to the icon may be in the header. As such, only
     // ask the loader for the icon if it's finished loading.
     if (frame()->loader()->state() == FrameStateComplete)
-        return frame()->loader()->icon()->urlsForTypes(iconTypes);
+        return frame()->loader()->icon()->urlsForTypes(iconTypesMask);
     return WebVector<WebIconURL>();
 }
 
@@ -749,7 +748,7 @@ WebFrame* WebFrameImpl::findChildByExpression(const WebString& xpath) const
     Node* node = xpathResult->iterateNext(ec);
     if (!node || !node->isFrameOwnerElement())
         return 0;
-    HTMLFrameOwnerElement* frameElement = static_cast<HTMLFrameOwnerElement*>(node);
+    HTMLFrameOwnerElement* frameElement = toFrameOwnerElement(node);
     return fromFrame(frameElement->contentFrame());
 }
 
@@ -862,7 +861,7 @@ v8::Handle<v8::Value> WebFrameImpl::executeScriptAndReturnValue(const WebScriptS
     // tests pass. If this isn't needed in non-test situations, we should
     // consider removing this code and changing the tests.
     // http://code.google.com/p/chromium/issues/detail?id=86397
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
 
     TextPosition position(OrdinalNumber::fromOneBasedInt(source.startLine), OrdinalNumber::first());
     return frame()->script()->executeScript(ScriptSourceCode(source.code, source.url, position)).v8Value();
@@ -903,13 +902,13 @@ v8::Local<v8::Context> WebFrameImpl::mainWorldScriptContext() const
     return ScriptController::mainWorldContext(frame());
 }
 
-v8::Handle<v8::Value> WebFrameImpl::createFileSystem(WebFileSystem::Type type, const WebString& name, const WebString& path)
+v8::Handle<v8::Value> WebFrameImpl::createFileSystem(WebFileSystemType type, const WebString& name, const WebString& path)
 {
     ASSERT(frame());
     return toV8(DOMFileSystem::create(frame()->document(), name, static_cast<WebCore::FileSystemType>(type), KURL(ParsedURLString, path.utf8().data()), AsyncFileSystemChromium::create()), v8::Handle<v8::Object>(), frame()->script()->currentWorldContext()->GetIsolate());
 }
 
-v8::Handle<v8::Value> WebFrameImpl::createSerializableFileSystem(WebFileSystem::Type type, const WebString& name, const WebString& path)
+v8::Handle<v8::Value> WebFrameImpl::createSerializableFileSystem(WebFileSystemType type, const WebString& name, const WebString& path)
 {
     ASSERT(frame());
     RefPtr<DOMFileSystem> fileSystem = DOMFileSystem::create(frame()->document(), name, static_cast<WebCore::FileSystemType>(type), KURL(ParsedURLString, path.utf8().data()), AsyncFileSystemChromium::create());
@@ -917,7 +916,7 @@ v8::Handle<v8::Value> WebFrameImpl::createSerializableFileSystem(WebFileSystem::
     return toV8(fileSystem.release(), v8::Handle<v8::Object>(), frame()->script()->currentWorldContext()->GetIsolate());
 }
 
-v8::Handle<v8::Value> WebFrameImpl::createFileEntry(WebFileSystem::Type type, const WebString& fileSystemName, const WebString& fileSystemPath, const WebString& filePath, bool isDirectory)
+v8::Handle<v8::Value> WebFrameImpl::createFileEntry(WebFileSystemType type, const WebString& fileSystemName, const WebString& fileSystemPath, const WebString& filePath, bool isDirectory)
 {
     ASSERT(frame());
 
@@ -1105,16 +1104,6 @@ void WebFrameImpl::commitDocumentData(const char* data, size_t length)
 unsigned WebFrameImpl::unloadListenerCount() const
 {
     return frame()->document()->domWindow()->pendingUnloadEventListeners();
-}
-
-bool WebFrameImpl::isProcessingUserGesture() const
-{
-    return ScriptController::processingUserGesture();
-}
-
-bool WebFrameImpl::consumeUserGesture() const
-{
-    return UserGestureIndicator::consumeUserGesture();
 }
 
 bool WebFrameImpl::willSuppressOpenerInNewFrame() const
@@ -1373,10 +1362,8 @@ void WebFrameImpl::selectRange(const WebPoint& base, const WebPoint& extent)
 {
     IntPoint unscaledBase = base;
     IntPoint unscaledExtent = extent;
-    if (frame()->page()->settings()->applyPageScaleFactorInCompositor()) {
-        unscaledExtent.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
-        unscaledBase.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
-    }
+    unscaledExtent.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
+    unscaledBase.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
     VisiblePosition basePosition = visiblePositionForWindowPoint(unscaledBase);
     VisiblePosition extentPosition = visiblePositionForWindowPoint(unscaledExtent);
     VisibleSelection newSelection = VisibleSelection(basePosition, extentPosition);
@@ -1393,8 +1380,7 @@ void WebFrameImpl::selectRange(const WebRange& webRange)
 void WebFrameImpl::moveCaretSelectionTowardsWindowPoint(const WebPoint& point)
 {
     IntPoint unscaledPoint(point);
-    if (frame()->page()->settings()->applyPageScaleFactorInCompositor())
-        unscaledPoint.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
+    unscaledPoint.scale(1 / view()->pageScaleFactor(), 1 / view()->pageScaleFactor());
 
     Element* editable = frame()->selection()->rootEditableElement();
     if (!editable)
@@ -1409,7 +1395,7 @@ void WebFrameImpl::moveCaretSelectionTowardsWindowPoint(const WebPoint& point)
 
 VisiblePosition WebFrameImpl::visiblePositionForWindowPoint(const WebPoint& point)
 {
-    HitTestRequest request = HitTestRequest::Move | HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping;
+    HitTestRequest request = HitTestRequest::Move | HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping | HitTestRequest::DisallowShadowContent;
     HitTestResult result(frame()->view()->windowToContents(IntPoint(point)));
 
     frame()->document()->renderView()->layer()->hitTest(request, result);
@@ -1860,26 +1846,6 @@ void WebFrameImpl::sendOrientationChangeEvent(int orientation)
 #endif
 }
 
-void WebFrameImpl::addEventListener(const WebString& eventType, WebDOMEventListener* listener, bool useCapture)
-{
-    DOMWindow* window = frame()->document()->domWindow();
-    EventListenerWrapper* listenerWrapper = listener->createEventListenerWrapper(eventType, useCapture, window);
-    window->addEventListener(eventType, adoptRef(listenerWrapper), useCapture);
-}
-
-void WebFrameImpl::removeEventListener(const WebString& eventType, WebDOMEventListener* listener, bool useCapture)
-{
-    DOMWindow* window = frame()->document()->domWindow();
-    EventListenerWrapper* listenerWrapper = listener->getEventListenerWrapper(eventType, useCapture, window);
-    window->removeEventListener(eventType, listenerWrapper, useCapture);
-}
-
-bool WebFrameImpl::dispatchEvent(const WebDOMEvent& event)
-{
-    ASSERT(!event.isNull());
-    return frame()->document()->domWindow()->dispatchEvent(event);
-}
-
 void WebFrameImpl::dispatchMessageEventWithOriginCheck(const WebSecurityOrigin& intendedTargetOrigin, const WebDOMEvent& event)
 {
     ASSERT(!event.isNull());
@@ -2282,7 +2248,7 @@ WebFrameImpl* WebFrameImpl::fromFrameOwnerElement(Element* element)
     // FIXME: Why do we check specifically for <iframe> and <frame> here? Why can't we get the WebFrameImpl from an <object> element, for example.
     if (!element || !element->isFrameOwnerElement() || (!element->hasTagName(HTMLNames::iframeTag) && !element->hasTagName(HTMLNames::frameTag)))
         return 0;
-    HTMLFrameOwnerElement* frameElement = static_cast<HTMLFrameOwnerElement*>(element);
+    HTMLFrameOwnerElement* frameElement = toFrameOwnerElement(element);
     return fromFrame(frameElement->contentFrame());
 }
 

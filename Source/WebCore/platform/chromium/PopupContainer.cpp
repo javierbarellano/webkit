@@ -271,14 +271,14 @@ int PopupContainer::layoutAndGetRTLOffset()
 
 bool PopupContainer::handleMouseDownEvent(const PlatformMouseEvent& event)
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     return m_listBox->handleMouseDownEvent(
         constructRelativeMouseEvent(event, this, m_listBox.get()));
 }
 
 bool PopupContainer::handleMouseMoveEvent(const PlatformMouseEvent& event)
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     return m_listBox->handleMouseMoveEvent(
         constructRelativeMouseEvent(event, this, m_listBox.get()));
 }
@@ -286,14 +286,14 @@ bool PopupContainer::handleMouseMoveEvent(const PlatformMouseEvent& event)
 bool PopupContainer::handleMouseReleaseEvent(const PlatformMouseEvent& event)
 {
     RefPtr<PopupContainer> protect(this);
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     return m_listBox->handleMouseReleaseEvent(
         constructRelativeMouseEvent(event, this, m_listBox.get()));
 }
 
 bool PopupContainer::handleWheelEvent(const PlatformWheelEvent& event)
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     return m_listBox->handleWheelEvent(
         constructRelativeWheelEvent(event, this, m_listBox.get()));
 }
@@ -319,8 +319,6 @@ bool PopupContainer::handleGestureEvent(const PlatformGestureEvent& gestureEvent
         handleMouseReleaseEvent(fakeMouseUp);
         return true;
     }
-    case PlatformEvent::GestureDoubleTap:
-        break;
     case PlatformEvent::GestureScrollUpdate:
     case PlatformEvent::GestureScrollUpdateWithoutPropagation: {
         PlatformWheelEvent syntheticWheelEvent(gestureEvent.position(), gestureEvent.globalPosition(), gestureEvent.deltaX(), gestureEvent.deltaY(), gestureEvent.deltaX() / 120.0f, gestureEvent.deltaY() / 120.0f, ScrollByPixelWheelEvent, gestureEvent.shiftKey(), gestureEvent.ctrlKey(), gestureEvent.altKey(), gestureEvent.metaKey());
@@ -340,7 +338,7 @@ bool PopupContainer::handleGestureEvent(const PlatformGestureEvent& gestureEvent
 
 bool PopupContainer::handleKeyEvent(const PlatformKeyboardEvent& event)
 {
-    UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator gestureIndicator(DefinitelyProcessingNewUserGesture);
     return m_listBox->handleKeyEvent(event);
 }
 

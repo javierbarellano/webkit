@@ -39,6 +39,7 @@
 #include "WebTestDelegate.h"
 #include "WebTestProxy.h"
 #include "WebViewClient.h"
+#include <public/WebFileSystemType.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/Vector.h>
@@ -106,7 +107,7 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual void clearAllDatabases() OVERRIDE;
     virtual void setDatabaseQuota(int) OVERRIDE;
     virtual void setDeviceScaleFactor(float) OVERRIDE;
-    virtual void setFocus(bool) OVERRIDE;
+    virtual void setFocus(WebTestRunner::WebTestProxyBase*, bool) OVERRIDE;
     virtual void setAcceptAllCookies(bool) OVERRIDE;
     virtual std::string pathToLocalResource(const std::string& url) OVERRIDE;
     virtual void setLocale(const std::string&) OVERRIDE;
@@ -143,8 +144,6 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual bool shouldChangeSelectedRange(const WebKit::WebRange& from, const WebKit::WebRange& to, WebKit::WebTextAffinity, bool stillSelecting);
     virtual bool shouldDeleteRange(const WebKit::WebRange&);
     virtual bool shouldApplyStyle(const WebKit::WebString& style, const WebKit::WebRange&);
-    virtual bool isSmartInsertDeleteEnabled();
-    virtual bool isSelectTrailingWhitespaceEnabled();
     virtual bool handleCurrentKeyboardEvent();
     virtual void runModalAlertDialog(WebKit::WebFrame*, const WebKit::WebString&);
     virtual bool runModalConfirmDialog(WebKit::WebFrame*, const WebKit::WebString&);
@@ -157,7 +156,7 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
 
     // WebKit::WebWidgetClient
     virtual void didAutoResize(const WebKit::WebSize& newSize);
-    virtual void initializeLayerTreeView(WebKit::WebLayerTreeViewClient*, const WebKit::WebLayer& rootLayer, const WebKit::WebLayerTreeView::Settings&);
+    virtual void initializeLayerTreeView();
     virtual WebKit::WebLayerTreeView* layerTreeView();
     virtual void scheduleAnimation();
     virtual void didFocus();
@@ -191,16 +190,20 @@ class WebViewHost : public WebKit::WebViewClient, public WebKit::WebFrameClient,
     virtual void didCommitProvisionalLoad(WebKit::WebFrame*, bool isNewNavigation);
     virtual void didClearWindowObject(WebKit::WebFrame*);
     virtual void didReceiveTitle(WebKit::WebFrame*, const WebKit::WebString&, WebKit::WebTextDirection);
+    virtual void didChangeIcon(WebKit::WebFrame* , WebKit::WebIconURL::Type);
     virtual void didNavigateWithinPage(WebKit::WebFrame*, bool isNewNavigation);
     virtual void willSendRequest(WebKit::WebFrame*, unsigned identifier, WebKit::WebURLRequest&, const WebKit::WebURLResponse&);
-    virtual void openFileSystem(WebKit::WebFrame*, WebKit::WebFileSystem::Type, long long size, bool create, WebKit::WebFileSystemCallbacks*);
-    virtual void deleteFileSystem(WebKit::WebFrame*, WebKit::WebFileSystem::Type, WebKit::WebFileSystemCallbacks*);
+    virtual void openFileSystem(WebKit::WebFrame*, WebKit::WebFileSystemType, long long size, bool create, WebKit::WebFileSystemCallbacks*);
+    virtual void deleteFileSystem(WebKit::WebFrame*, WebKit::WebFileSystemType, WebKit::WebFileSystemCallbacks*);
     virtual bool willCheckAndDispatchMessageEvent(
         WebKit::WebFrame* sourceFrame, WebKit::WebFrame* targetFrame, 
         WebKit::WebSecurityOrigin target, WebKit::WebDOMMessageEvent);
 
     // Pending task list, Note taht the method is referred from WebMethodTask class.
     WebTestRunner::WebTaskList* taskList() { return &m_taskList; }
+
+    // Exposed for WebTestProxy.
+    void scheduleComposite() { }
 
 private:
 

@@ -56,6 +56,10 @@
 #include "ScrollingCoordinatorCoordinatedGraphics.h"
 #endif
 
+#if PLATFORM(BLACKBERRY)
+#include "ScrollingCoordinatorBlackBerry.h"
+#endif
+
 namespace WebCore {
 
 PassRefPtr<ScrollingCoordinator> ScrollingCoordinator::create(Page* page)
@@ -70,6 +74,10 @@ PassRefPtr<ScrollingCoordinator> ScrollingCoordinator::create(Page* page)
 
 #if USE(COORDINATED_GRAPHICS)
     return adoptRef(new ScrollingCoordinatorCoordinatedGraphics(page));
+#endif
+
+#if PLATFORM(BLACKBERRY)
+    return adoptRef(new ScrollingCoordinatorBlackBerry(page));
 #endif
 
     return adoptRef(new ScrollingCoordinator(page));
@@ -144,7 +152,7 @@ Region ScrollingCoordinator::computeNonFastScrollableRegion(const Frame* frame, 
             if (!(*it)->isPluginViewBase())
                 continue;
 
-            PluginViewBase* pluginViewBase = static_cast<PluginViewBase*>((*it).get());
+            PluginViewBase* pluginViewBase = toPluginViewBase((*it).get());
             if (pluginViewBase->wantsWheelEvents())
                 nonFastScrollableRegion.unite(pluginViewBase->frameRect());
         }
@@ -210,7 +218,7 @@ static void accumulateDocumentEventTargetRects(Vector<IntRect>& rects, const Doc
         }
 
         if (touchTarget->isDocumentNode() && touchTarget != document) {
-            accumulateDocumentEventTargetRects(rects, static_cast<const Document*>(touchTarget));
+            accumulateDocumentEventTargetRects(rects, toDocument(touchTarget));
             continue;
         }
 
@@ -272,6 +280,7 @@ void ScrollingCoordinator::frameViewFixedObjectsDidChange(FrameView* frameView)
     updateShouldUpdateScrollLayerPositionOnMainThread();
 }
 
+#if USE(ACCELERATED_COMPOSITING)
 GraphicsLayer* ScrollingCoordinator::scrollLayerForScrollableArea(ScrollableArea* scrollableArea)
 {
     return scrollableArea->layerForScrolling();
@@ -286,6 +295,7 @@ GraphicsLayer* ScrollingCoordinator::verticalScrollbarLayerForScrollableArea(Scr
 {
     return scrollableArea->layerForVerticalScrollbar();
 }
+#endif
 
 GraphicsLayer* ScrollingCoordinator::scrollLayerForFrameView(FrameView* frameView)
 {

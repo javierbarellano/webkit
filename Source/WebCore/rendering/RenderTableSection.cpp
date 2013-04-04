@@ -319,8 +319,7 @@ int RenderTableSection::calcRowLogicalHeight()
                 m_rowPos[r + 1] = max(m_rowPos[r + 1], m_rowPos[cellStartRow] + cellLogicalHeight);
 
                 // Find out the baseline. The baseline is set on the first row in a rowspan.
-                EVerticalAlign va = cell->style()->verticalAlign();
-                if (va == BASELINE || va == TEXT_BOTTOM || va == TEXT_TOP || va == SUPER || va == SUB || va == LENGTH) {
+                if (cell->isBaselineAligned()) {
                     LayoutUnit baselinePosition = cell->cellBaselinePosition();
                     if (baselinePosition > cell->borderBefore() + cell->paddingBefore()) {
                         m_grid[cellStartRow].baseline = max(m_grid[cellStartRow].baseline, baselinePosition);
@@ -583,8 +582,7 @@ void RenderTableSection::layoutRows()
                 cell->layoutIfNeeded();
 
                 // If the baseline moved, we may have to update the data for our row. Find out the new baseline.
-                EVerticalAlign va = cell->style()->verticalAlign();
-                if (va == BASELINE || va == TEXT_BOTTOM || va == TEXT_TOP || va == SUPER || va == SUB || va == LENGTH) {
+                if (cell->isBaselineAligned()) {
                     LayoutUnit baseline = cell->cellBaselinePosition();
                     if (baseline > cell->borderBefore() + cell->paddingBefore())
                         m_grid[r].baseline = max(m_grid[r].baseline, baseline);
@@ -638,6 +636,20 @@ void RenderTableSection::layoutRows()
 
     setLogicalHeight(m_rowPos[totalRows]);
 
+    computeOverflowFromCells(totalRows, nEffCols);
+
+    statePusher.pop();
+}
+
+void RenderTableSection::computeOverflowFromCells()
+{
+    unsigned totalRows = m_grid.size();
+    unsigned nEffCols = table()->numEffCols();
+    computeOverflowFromCells(totalRows, nEffCols);
+}
+
+void RenderTableSection::computeOverflowFromCells(unsigned totalRows, unsigned nEffCols)
+{
     unsigned totalCellsCount = nEffCols * totalRows;
     int maxAllowedOverflowingCellsCount = totalCellsCount < gMinTableSizeToUseFastPaintPathWithOverflowingCell ? 0 : gMaxAllowedOverflowingCellRatioForFastPaintPath * totalCellsCount;
 
@@ -670,8 +682,6 @@ void RenderTableSection::layoutRows()
     }
 
     ASSERT(hasOverflowingCell == this->hasOverflowingCell());
-
-    statePusher.pop();
 }
 
 int RenderTableSection::calcOuterBorderBefore() const

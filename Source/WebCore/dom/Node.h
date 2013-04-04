@@ -92,6 +92,10 @@ class TagNodeList;
 class PlatformGestureEvent;
 #endif
 
+#if ENABLE(TOUCH_EVENTS)
+class TouchEvent;
+#endif
+
 #if ENABLE(MICRODATA)
 class HTMLPropertiesCollection;
 class PropertyNodeList;
@@ -123,6 +127,11 @@ protected:
 
 private:
     RenderObject* m_renderer;
+};
+
+enum AttachBehavior {
+    AttachNow,
+    AttachLazily,
 };
 
 class Node : public EventTarget, public ScriptWrappable, public TreeShared<Node> {
@@ -167,6 +176,7 @@ public:
     static StyleChange diff(const RenderStyle*, const RenderStyle*, Document*);
 
     virtual ~Node();
+    void willBeDeletedFrom(Document*);
 
     // DOM methods & attributes for Node
 
@@ -193,10 +203,10 @@ public:
     // These should all actually return a node, but this is only important for language bindings,
     // which will already know and hold a ref on the right node to return. Returning bool allows
     // these methods to be more efficient since they don't need to return a ref
-    bool insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode&, bool shouldLazyAttach = false);
-    bool replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode&, bool shouldLazyAttach = false);
+    bool insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode&, AttachBehavior = AttachNow);
+    bool replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode&, AttachBehavior = AttachNow);
     bool removeChild(Node* child, ExceptionCode&);
-    bool appendChild(PassRefPtr<Node> newChild, ExceptionCode&, bool shouldLazyAttach = false);
+    bool appendChild(PassRefPtr<Node> newChild, ExceptionCode&, AttachBehavior = AttachNow);
 
     void remove(ExceptionCode&);
     bool hasChildNodes() const { return firstChild(); }
@@ -220,8 +230,6 @@ public:
     Node* lastDescendant() const;
     Node* firstDescendant() const;
 
-    virtual bool isActiveNode() const { return false; }
-    
     // Other methods (not part of DOM)
 
     bool isElementNode() const { return getFlag(IsElementFlag); }
@@ -248,10 +256,12 @@ public:
     virtual bool isInsertionPointNode() const { return false; }
 
     bool isDocumentNode() const;
-    bool isTreeScope() const;
+    bool isTreeScope() const { return treeScope()->rootNode() == this; }
     bool isDocumentFragment() const { return getFlag(IsDocumentFragmentFlag); }
     bool isShadowRoot() const { return isDocumentFragment() && isTreeScope(); }
     bool isInsertionPoint() const { return getFlag(NeedsShadowTreeWalkerFlag) && isInsertionPointNode(); }
+    // Returns Node rather than InsertionPoint. Should be used only for language bindings.
+    Node* insertionParentForBinding() const;
 
     bool needsShadowTreeWalker() const;
     bool needsShadowTreeWalkerSlow() const;
@@ -292,7 +302,7 @@ public:
     // Returns the enclosing event parent node (or self) that, when clicked, would trigger a navigation.
     Node* enclosingLinkEventParentOrSelf();
 
-    bool isBlockFlow() const;
+    bool isBlockFlowElement() const;
 
     // These low-level calls give the caller responsibility for maintaining the integrity of the tree.
     void setPreviousSibling(Node* previous) { m_previous = previous; }
@@ -637,6 +647,10 @@ public:
 #if ENABLE(GESTURE_EVENTS)
     bool dispatchGestureEvent(const PlatformGestureEvent&);
 #endif
+#if ENABLE(TOUCH_EVENTS)
+    bool dispatchTouchEvent(PassRefPtr<TouchEvent>);
+#endif
+
     void dispatchSimulatedClick(Event* underlyingEvent, SimulatedClickMouseEventOptions = SendNoEvents, SimulatedClickVisualOptions = ShowPressedLook);
     bool dispatchBeforeLoadEvent(const String& sourceURL);
 
@@ -647,10 +661,6 @@ public:
 
     // Perform the default action for an event.
     virtual void defaultEventHandler(Event*);
-
-    // Used for disabled form elements; if true, prevents mouse events from being dispatched
-    // to event listeners, and prevents DOMActivate events from being sent at all.
-    virtual bool disabled() const;
 
     using TreeShared<Node>::ref;
     using TreeShared<Node>::deref;

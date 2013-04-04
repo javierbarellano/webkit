@@ -71,6 +71,7 @@ interface TestRunner {
     void setSerializeHTTPLoads();
     void dispatchPendingLoadRequests();
     void setCacheModel(in int model);
+    void setAsynchronousSpellCheckingEnabled(in boolean value);
 
     // Special DOM functions.
     void clearBackForwardList();
@@ -154,7 +155,6 @@ interface TestRunner {
 
     // Control full screen behavior.
     void setHasCustomFullScreenBehavior(in boolean value);
-    void setViewModeMediaFeature(in DOMString mode);
 
     // Web notifications support
     void grantWebNotificationPermission(in DOMString origin);

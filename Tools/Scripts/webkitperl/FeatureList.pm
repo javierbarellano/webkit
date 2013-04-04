@@ -138,6 +138,7 @@ my (
     $templateElementSupport,
     $textAutosizingSupport,
     $tiledBackingStoreSupport,
+    $threadedHTMLParserSupport,
     $touchEventsSupport,
     $touchSliderSupport,
     $touchIconLoadingSupport,
@@ -299,8 +300,8 @@ my @features = (
     { option => "input-type-date", desc => "Toggle Input Type Date support",
       define => "ENABLE_INPUT_TYPE_DATE", default => 0, value => \$inputTypeDateSupport },
 
-    { option => "input-type-datetime", desc => "Toggle Input Type Datetime support",
-      define => "ENABLE_INPUT_TYPE_DATETIME", default => 0, value => \$inputTypeDatetimeSupport },
+    { option => "input-type-datetime", desc => "Toggle broken Input Type Datetime support",
+      define => "ENABLE_INPUT_TYPE_DATETIME_INCOMPLETE", default => 0, value => \$inputTypeDatetimeSupport },
 
     { option => "input-type-datetimelocal", desc => "Toggle Input Type Datetimelocal support",
       define => "ENABLE_INPUT_TYPE_DATETIMELOCAL", default => 0, value => \$inputTypeDatetimelocalSupport },
@@ -336,7 +337,7 @@ my @features = (
       define => "ENABLE_LINK_PRERENDER", default => 0, value => \$linkPrerenderSupport },
 
     { option => "mathml", desc => "Toggle MathML support",
-      define => "ENABLE_MATHML", default => 1, value => \$mathmlSupport },
+      define => "ENABLE_MATHML", default => !isBlackBerry(), value => \$mathmlSupport },
 
     { option => "media-capture", desc => "Toggle Media Capture support",
       define => "ENABLE_MEDIA_CAPTURE", default => isEfl(), value => \$mediaCaptureSupport },
@@ -432,7 +433,7 @@ my @features = (
       define => "ENABLE_SVG_FONTS", default => 1, value => \$svgFontsSupport },
 
     { option => "system-malloc", desc => "Toggle system allocator instead of TCmalloc",
-      define => "USE_SYSTEM_MALLOC", default => isWinCE(), value => \$systemMallocSupport },
+      define => "USE_SYSTEM_MALLOC", default => (isBlackBerry() || isWinCE()), value => \$systemMallocSupport },
 
     { option => "template-element", desc => "Toggle HTMLTemplateElement support",
       define => "ENABLE_TEMPLATE_ELEMENT", default => (isEfl() || isGtk()), value => \$templateElementSupport },
@@ -442,6 +443,9 @@ my @features = (
 
     { option => "tiled-backing-store", desc => "Toggle Tiled Backing Store support",
       define => "WTF_USE_TILED_BACKING_STORE", default => (isQt() || isEfl()), value => \$tiledBackingStoreSupport },
+
+    { option => "threaded-html-parser", desc => "Toggle threaded HTML parser support",
+      define => "ENABLE_THREADED_HTML_PARSER", default => isChromium(), value => \$threadedHTMLParserSupport },
 
     { option => "touch-events", desc => "Toggle Touch Events support",
       define => "ENABLE_TOUCH_EVENTS", default => (isQt() || isBlackBerry() || isEfl()), value => \$touchEventsSupport },
@@ -468,7 +472,7 @@ my @features = (
       define => "ENABLE_WEBGL", default => (isAppleMacWebKit() || isGtk() || isEfl()), value => \$webglSupport },
 
     { option => "web-audio", desc => "Toggle Web Audio support",
-      define => "ENABLE_WEB_AUDIO", default => (isEfl()), value => \$webAudioSupport },
+      define => "ENABLE_WEB_AUDIO", default => (isEfl() || isGtk()), value => \$webAudioSupport },
 
     { option => "web-sockets", desc => "Toggle Web Sockets support",
       define => "ENABLE_WEB_SOCKETS", default => 1, value => \$webSocketsSupport },

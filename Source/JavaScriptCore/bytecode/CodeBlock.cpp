@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2010, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2010, 2012, 2013 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Cameron Zwarich <cwzwarich@uwaterloo.ca>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -539,8 +539,11 @@ void CodeBlock::dumpBytecode(PrintStream& out)
         static_cast<unsigned long>(instructions().size()),
         static_cast<unsigned long>(instructions().size() * sizeof(Instruction)),
         m_numParameters, m_numCalleeRegisters, m_numVars);
-    if (symbolTable() && symbolTable()->captureCount())
-        out.printf("; %d captured var(s)", symbolTable()->captureCount());
+    if (symbolTable() && symbolTable()->captureCount()) {
+        out.printf(
+            "; %d captured var(s) (from r%d to r%d, inclusive)",
+            symbolTable()->captureCount(), symbolTable()->captureStart(), symbolTable()->captureEnd() - 1);
+    }
     if (usesArguments()) {
         out.printf(
             "; uses arguments, in r%d, r%d",
@@ -980,6 +983,21 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             dumpValueProfiling(out, it, hasPrintedProfiling);
             break;
         }
+        case op_get_scoped_var: {
+            int r0 = (++it)->u.operand;
+            int index = (++it)->u.operand;
+            int skipLevels = (++it)->u.operand;
+            out.printf("[%4d] get_scoped_var\t %s, %d, %d", location, registerName(exec, r0).data(), index, skipLevels);
+            dumpValueProfiling(out, it, hasPrintedProfiling);
+            break;
+        }
+        case op_put_scoped_var: {
+            int index = (++it)->u.operand;
+            int skipLevels = (++it)->u.operand;
+            int r0 = (++it)->u.operand;
+            out.printf("[%4d] put_scoped_var\t %d, %d, %s", location, index, skipLevels, registerName(exec, r0).data());
+            break;
+        }
         case op_init_global_const_nop: {
             out.printf("[%4d] init_global_const_nop\t", location);
             it++;
@@ -1173,21 +1191,8 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             out.printf("[%4d] jmp\t\t %d(->%d)", location, offset, location + offset);
             break;
         }
-        case op_loop: {
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] loop\t\t %d(->%d)", location, offset, location + offset);
-            break;
-        }
         case op_jtrue: {
             printConditionalJump(out, exec, begin, it, location, "jtrue");
-            break;
-        }
-        case op_loop_if_true: {
-            printConditionalJump(out, exec, begin, it, location, "loop_if_true");
-            break;
-        }
-        case op_loop_if_false: {
-            printConditionalJump(out, exec, begin, it, location, "loop_if_false");
             break;
         }
         case op_jfalse: {
@@ -1263,34 +1268,6 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             int r1 = (++it)->u.operand;
             int offset = (++it)->u.operand;
             out.printf("[%4d] jngreatereq\t\t %s, %s, %d(->%d)", location, registerName(exec, r0).data(), registerName(exec, r1).data(), offset, location + offset);
-            break;
-        }
-        case op_loop_if_less: {
-            int r0 = (++it)->u.operand;
-            int r1 = (++it)->u.operand;
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] loop_if_less\t %s, %s, %d(->%d)", location, registerName(exec, r0).data(), registerName(exec, r1).data(), offset, location + offset);
-            break;
-        }
-        case op_loop_if_lesseq: {
-            int r0 = (++it)->u.operand;
-            int r1 = (++it)->u.operand;
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] loop_if_lesseq\t %s, %s, %d(->%d)", location, registerName(exec, r0).data(), registerName(exec, r1).data(), offset, location + offset);
-            break;
-        }
-        case op_loop_if_greater: {
-            int r0 = (++it)->u.operand;
-            int r1 = (++it)->u.operand;
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] loop_if_greater\t %s, %s, %d(->%d)", location, registerName(exec, r0).data(), registerName(exec, r1).data(), offset, location + offset);
-            break;
-        }
-        case op_loop_if_greatereq: {
-            int r0 = (++it)->u.operand;
-            int r1 = (++it)->u.operand;
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] loop_if_greatereq\t %s, %s, %d(->%d)", location, registerName(exec, r0).data(), registerName(exec, r1).data(), offset, location + offset);
             break;
         }
         case op_loop_hint: {
@@ -1427,12 +1404,6 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             int r1 = (++it)->u.operand;
             unsigned attributes = (++it)->u.operand;
             out.printf("[%4d] push_name_scope \t%s, %s, %u", location, idName(id0, m_identifiers[id0]).data(), registerName(exec, r1).data(), attributes);
-            break;
-        }
-        case op_jmp_scopes: {
-            int scopeDelta = (++it)->u.operand;
-            int offset = (++it)->u.operand;
-            out.printf("[%4d] jmp_scopes\t^%d, %d(->%d)", location, scopeDelta, offset, location + offset);
             break;
         }
         case op_catch: {
@@ -1644,8 +1615,10 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
     , m_argumentsRegister(other.m_argumentsRegister)
     , m_activationRegister(other.m_activationRegister)
     , m_isStrictMode(other.m_isStrictMode)
+    , m_needsActivation(other.m_needsActivation)
     , m_source(other.m_source)
     , m_sourceOffset(other.m_sourceOffset)
+    , m_codeType(other.m_codeType)
     , m_identifiers(other.m_identifiers)
     , m_constantRegisters(other.m_constantRegisters)
     , m_functionDecls(other.m_functionDecls)
@@ -1687,8 +1660,10 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     , m_argumentsRegister(unlinkedCodeBlock->argumentsRegister())
     , m_activationRegister(unlinkedCodeBlock->activationRegister())
     , m_isStrictMode(unlinkedCodeBlock->isStrictMode())
+    , m_needsActivation(unlinkedCodeBlock->needsFullScopeChain())
     , m_source(sourceProvider)
     , m_sourceOffset(sourceOffset)
+    , m_codeType(unlinkedCodeBlock->codeType())
     , m_alternative(alternative)
     , m_osrExitCounter(0)
     , m_optimizationDelayCounter(0)
@@ -1704,7 +1679,8 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
 #endif
     setIdentifiers(unlinkedCodeBlock->identifiers());
     setConstantRegisters(unlinkedCodeBlock->constantRegisters());
-
+    if (unlinkedCodeBlock->usesGlobalObject())
+        m_constantRegisters[unlinkedCodeBlock->globalObjectRegister()].set(*m_globalData, ownerExecutable, globalObject);
     m_functionDecls.grow(unlinkedCodeBlock->numberOfFunctionDecls());
     for (size_t count = unlinkedCodeBlock->numberOfFunctionDecls(), i = 0; i < count; ++i) {
         UnlinkedFunctionExecutable* unlinkedExecutable = unlinkedCodeBlock->functionDecl(i);
@@ -1920,6 +1896,16 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             break;
         }
 
+        case op_get_scoped_var: {
+#if ENABLE(DFG_JIT)
+            ValueProfile* profile = &m_valueProfiles[pc[i + opLength - 1].u.operand];
+            ASSERT(profile->m_bytecodeOffset == -1);
+            profile->m_bytecodeOffset = i;
+            instructions[i + opLength - 1] = profile;
+#endif
+            break;
+        }
+
         case op_call:
         case op_call_eval: {
 #if ENABLE(DFG_JIT)
@@ -1970,6 +1956,15 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             instructions[i + 1] = &globalObject->registerAt(entry.getIndex());
             break;
         }
+
+        case op_debug: {
+            size_t charPosition = pc[i + 4].u.operand;
+            size_t actualCharPosition = charPosition + m_sourceOffset;
+            size_t column = m_source->charPositionToColumnNumber(actualCharPosition);
+            instructions[i + 4] = column;
+            break;
+        }
+
         default:
             break;
         }
@@ -2296,12 +2291,8 @@ void CodeBlock::finalizeUnconditionally()
         if (verboseUnlinking)
             dataLog(*this, " has dead weak references, jettisoning during GC.\n");
 
-        // Make sure that the baseline JIT knows that it should re-warm-up before
-        // optimizing.
-        alternative()->optimizeAfterWarmUp();
-        
         if (DFG::shouldShowDisassembly()) {
-            dataLog(*this, "will be jettisoned because of the following dead references:\n");
+            dataLog(*this, " will be jettisoned because of the following dead references:\n");
             for (unsigned i = 0; i < m_dfgData->transitions.size(); ++i) {
                 WeakReferenceTransition& transition = m_dfgData->transitions[i];
                 JSCell* origin = transition.m_codeOrigin.get();
@@ -2385,7 +2376,7 @@ void CodeBlock::finalizeUnconditionally()
             if (stubInfo.visitWeakReferences())
                 continue;
             
-            resetStubInternal(repatchBuffer, stubInfo);
+            resetStubDuringGCInternal(repatchBuffer, stubInfo);
         }
     }
 #endif
@@ -2422,6 +2413,12 @@ void CodeBlock::resetStubInternal(RepatchBuffer& repatchBuffer, StructureStubInf
     }
     
     stubInfo.reset();
+}
+
+void CodeBlock::resetStubDuringGCInternal(RepatchBuffer& repatchBuffer, StructureStubInfo& stubInfo)
+{
+    resetStubInternal(repatchBuffer, stubInfo);
+    stubInfo.resetByGC = true;
 }
 #endif
 
@@ -2465,7 +2462,7 @@ void CodeBlock::stronglyVisitWeakReferences(SlotVisitor& visitor)
 
 HandlerInfo* CodeBlock::handlerForBytecodeOffset(unsigned bytecodeOffset)
 {
-    RELEASE_ASSERT(bytecodeOffset < instructions().size());
+    ASSERT(bytecodeOffset < instructions().size());
 
     if (!m_rareData)
         return 0;
@@ -2800,12 +2797,10 @@ void CodeBlock::reoptimize()
 {
     ASSERT(replacement() != this);
     ASSERT(replacement()->alternative() == this);
-    replacement()->tallyFrequentExitSites();
     if (DFG::shouldShowDisassembly())
         dataLog(*replacement(), " will be jettisoned due to reoptimization of ", *this, ".\n");
     replacement()->jettison();
     countReoptimization();
-    optimizeAfterWarmUp();
 }
 
 CodeBlock* ProgramCodeBlock::replacement()
@@ -2864,30 +2859,29 @@ DFG::CapabilityLevel FunctionCodeBlock::canCompileWithDFGInternal()
     return DFG::canCompileFunctionForCall(this);
 }
 
-void ProgramCodeBlock::jettison()
+void CodeBlock::jettison()
 {
     ASSERT(JITCode::isOptimizingJIT(getJITType()));
     ASSERT(this == replacement());
+    alternative()->optimizeAfterWarmUp();
+    tallyFrequentExitSites();
     if (DFG::shouldShowDisassembly())
         dataLog("Jettisoning ", *this, ".\n");
+    jettisonImpl();
+}
+
+void ProgramCodeBlock::jettisonImpl()
+{
     static_cast<ProgramExecutable*>(ownerExecutable())->jettisonOptimizedCode(*globalData());
 }
 
-void EvalCodeBlock::jettison()
+void EvalCodeBlock::jettisonImpl()
 {
-    ASSERT(JITCode::isOptimizingJIT(getJITType()));
-    ASSERT(this == replacement());
-    if (DFG::shouldShowDisassembly())
-        dataLog("Jettisoning ", *this, ".\n");
     static_cast<EvalExecutable*>(ownerExecutable())->jettisonOptimizedCode(*globalData());
 }
 
-void FunctionCodeBlock::jettison()
+void FunctionCodeBlock::jettisonImpl()
 {
-    ASSERT(JITCode::isOptimizingJIT(getJITType()));
-    ASSERT(this == replacement());
-    if (DFG::shouldShowDisassembly())
-        dataLog("Jettisoning ", *this, ".\n");
     static_cast<FunctionExecutable*>(ownerExecutable())->jettisonOptimizedCodeFor(*globalData(), m_isConstructor ? CodeForConstruct : CodeForCall);
 }
 
@@ -3230,7 +3224,7 @@ void CodeBlock::tallyFrequentExitSites()
     for (unsigned i = 0; i < m_dfgData->osrExit.size(); ++i) {
         DFG::OSRExit& exit = m_dfgData->osrExit[i];
         
-        if (!exit.considerAddingAsFrequentExitSite(this, profiledBlock))
+        if (!exit.considerAddingAsFrequentExitSite(profiledBlock))
             continue;
         
 #if DFG_ENABLE(DEBUG_VERBOSE)

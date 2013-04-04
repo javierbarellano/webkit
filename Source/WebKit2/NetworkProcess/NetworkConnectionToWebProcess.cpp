@@ -28,13 +28,15 @@
 
 #include "BlobRegistrationData.h"
 #include "ConnectionStack.h"
+#include "NetworkBlobRegistry.h"
 #include "NetworkConnectionToWebProcessMessages.h"
 #include "NetworkProcess.h"
+#include "NetworkResourceLoadParameters.h"
 #include "NetworkResourceLoader.h"
+#include "NetworkResourceLoaderMessages.h"
 #include "RemoteNetworkingContext.h"
 #include "SyncNetworkResourceLoader.h"
 #include <WebCore/BlobData.h>
-#include <WebCore/BlobRegistry.h>
 #include <WebCore/PlatformCookieJar.h>
 #include <WebCore/ResourceLoaderOptions.h>
 #include <WebCore/ResourceRequest.h>
@@ -69,6 +71,13 @@ void NetworkConnectionToWebProcess::didReceiveMessage(CoreIPC::Connection* conne
         didReceiveNetworkConnectionToWebProcessMessage(connection, decoder);
         return;
     }
+
+    if (decoder.messageReceiverName() == Messages::NetworkResourceLoader::messageReceiverName()) {
+        HashMap<ResourceLoadIdentifier, RefPtr<NetworkResourceLoader> >::iterator loaderIterator = m_networkResourceLoaders.find(decoder.destinationID());
+        if (loaderIterator != m_networkResourceLoaders.end())
+            loaderIterator->value->didReceiveNetworkResourceLoaderMessage(connection, decoder);
+        return;
+    }
     
     ASSERT_NOT_REACHED();
 }
@@ -95,7 +104,11 @@ void NetworkConnectionToWebProcess::didClose(CoreIPC::Connection*)
     for (HashMap<ResourceLoadIdentifier, RefPtr<SyncNetworkResourceLoader> >::iterator i = m_syncNetworkResourceLoaders.begin(); i != syncEnd; ++i)
         i->value->connectionToWebProcessDidClose();
 
+    NetworkBlobRegistry::shared().connectionToWebProcessDidClose(this);
+
     m_networkResourceLoaders.clear();
+    
+    NetworkProcess::shared().removeNetworkConnectionToWebProcess(this);
 }
 
 void NetworkConnectionToWebProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
@@ -182,19 +195,25 @@ void NetworkConnectionToWebProcess::deleteCookie(bool privateBrowsingEnabled, co
 
 void NetworkConnectionToWebProcess::registerBlobURL(const KURL& url, const BlobRegistrationData& data)
 {
-    // FIXME: Track sandbox extensions.
     // FIXME: unregister all URLs when process connection closes.
-    blobRegistry().registerBlobURL(url, data.releaseData());
+
+    Vector<RefPtr<SandboxExtension> > extensions;
+    for (size_t i = 0, count = data.sandboxExtensions().size(); i < count; ++i) {
+        if (RefPtr<SandboxExtension> extension = SandboxExtension::create(data.sandboxExtensions()[i]))
+            extensions.append(extension);
+    }
+
+    NetworkBlobRegistry::shared().registerBlobURL(this, url, data.releaseData(), extensions);
 }
 
 void NetworkConnectionToWebProcess::registerBlobURLFromURL(const KURL& url, const KURL& srcURL)
 {
-    blobRegistry().registerBlobURL(url, srcURL);
+    NetworkBlobRegistry::shared().registerBlobURL(this, url, srcURL);
 }
 
 void NetworkConnectionToWebProcess::unregisterBlobURL(const KURL& url)
 {
-    blobRegistry().unregisterBlobURL(url);
+    NetworkBlobRegistry::shared().unregisterBlobURL(this, url);
 }
 
 } // namespace WebKit

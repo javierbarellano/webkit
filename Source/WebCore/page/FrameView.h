@@ -225,7 +225,7 @@ public:
     // and adjusting for page scale.
     IntSize scrollOffsetForFixedPosition() const;
     // Static function can be called from another thread.
-    static IntSize scrollOffsetForFixedPosition(const IntRect& visibleContentRect, const IntSize& contentsSize, const IntPoint& scrollPosition, const IntPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame);
+    static IntSize scrollOffsetForFixedPosition(const IntRect& visibleContentRect, const IntSize& totalContentsSize, const IntPoint& scrollPosition, const IntPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, int headerHeight, int footerHeight);
 
     bool fixedElementsLayoutRelativeToFrame() const;
 
@@ -397,6 +397,20 @@ public:
     void setInitialViewportSize(const IntSize& size) { m_initialViewportSize = size; }
 #endif
 
+    virtual bool isActive() const OVERRIDE;
+
+#if ENABLE(RUBBER_BANDING)
+    GraphicsLayer* setWantsLayerForTopOverHangArea(bool) const;
+    GraphicsLayer* setWantsLayerForBottomOverHangArea(bool) const;
+    GraphicsLayer* setWantsLayerForHeader(bool) const;
+    GraphicsLayer* setWantsLayerForFooter(bool) const;
+#endif
+
+    virtual int headerHeight() const OVERRIDE { return m_headerHeight; }
+    void setHeaderHeight(int);
+    virtual int footerHeight() const OVERRIDE { return m_footerHeight; }
+    void setFooterHeight(int);
+
 protected:
     virtual bool scrollContentsFastPath(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect);
     virtual void scrollContentsSlowPath(const IntRect& updateRect);
@@ -410,7 +424,7 @@ private:
     void reset();
     void init();
 
-    virtual bool isFrameView() const;
+    virtual bool isFrameView() const OVERRIDE { return true; }
 
     friend class RenderWidget;
     bool useSlowRepaints(bool considerOverlap = true) const;
@@ -446,7 +460,6 @@ private:
 
     // ScrollableArea interface
     virtual void invalidateScrollbarRect(Scrollbar*, const IntRect&) OVERRIDE;
-    virtual bool isActive() const OVERRIDE;
     virtual void getTickmarks(Vector<IntRect>&) const OVERRIDE;
     virtual void scrollTo(const IntSize&) OVERRIDE;
     virtual void setVisibleScrollerThumbRect(const IntRect&) OVERRIDE;
@@ -589,6 +602,9 @@ private:
     OwnPtr<ScrollableAreaSet> m_scrollableAreas;
     OwnPtr<ViewportConstrainedObjectSet> m_viewportConstrainedObjects;
 
+    int m_headerHeight;
+    int m_footerHeight;
+
     static double s_normalDeferredRepaintDelay;
     static double s_initialDeferredRepaintDelayDuringLoading;
     static double s_maxDeferredRepaintDelayDuringLoading;
@@ -636,6 +652,21 @@ inline LayoutUnit FrameView::mapFromCSSToLayoutUnits(int value)
 {
     return value * m_frame->pageZoomFactor() * m_frame->frameScaleFactor();
 }
+
+inline FrameView* toFrameView(Widget* widget)
+{
+    ASSERT(!widget || widget->isFrameView());
+    return static_cast<FrameView*>(widget);
+}
+
+inline const FrameView* toFrameView(const Widget* widget)
+{
+    ASSERT(!widget || widget->isFrameView());
+    return static_cast<const FrameView*>(widget);
+}
+
+// This will catch anyone doing an unnecessary cast.
+void toFrameView(const FrameView*);
 
 } // namespace WebCore
 

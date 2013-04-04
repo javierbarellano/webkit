@@ -39,7 +39,7 @@ public:
     }
 
     NavService(ScriptExecutionContext* context)
-	: ActiveDOMObject(context, this)
+	: ActiveDOMObject(context)
     , m_id("")
     , m_code(CONNECTED)
     , m_name("")

@@ -36,6 +36,7 @@
 #include "Frame.h"
 #include "FrameDestructionObserver.h"
 #include "FrameLoaderClientImpl.h"
+#include <public/WebFileSystemType.h>
 #include <wtf/Compiler.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/RefCounted.h>
@@ -78,7 +79,7 @@ public:
     virtual WebString assignedName() const;
     virtual void setName(const WebString&);
     virtual long long identifier() const;
-    virtual WebVector<WebIconURL> iconURLs(int iconTypes) const;
+    virtual WebVector<WebIconURL> iconURLs(int iconTypesMask) const;
     virtual WebSize scrollOffset() const;
     virtual void setScrollOffset(const WebSize&);
     virtual WebSize minimumScrollOffset() const;
@@ -116,7 +117,6 @@ public:
     virtual void addMessageToConsole(const WebConsoleMessage&);
     virtual void collectGarbage();
     virtual bool checkIfRunInsecureContent(const WebURL&) const;
-#if WEBKIT_USING_V8
     virtual v8::Handle<v8::Value> executeScriptAndReturnValue(
         const WebScriptSource&);
     virtual void executeScriptInIsolatedWorld(
@@ -128,18 +128,17 @@ public:
         int argc,
         v8::Handle<v8::Value> argv[]);
     virtual v8::Local<v8::Context> mainWorldScriptContext() const;
-    virtual v8::Handle<v8::Value> createFileSystem(WebFileSystem::Type,
-                                                   const WebString& name,
-                                                   const WebString& path);
-    virtual v8::Handle<v8::Value> createSerializableFileSystem(WebFileSystem::Type,
-                                                               const WebString& name,
-                                                               const WebString& path);
-    virtual v8::Handle<v8::Value> createFileEntry(WebFileSystem::Type,
-                                                  const WebString& fileSystemName,
-                                                  const WebString& fileSystemPath,
-                                                  const WebString& filePath,
-                                                  bool isDirectory);
-#endif
+    virtual v8::Handle<v8::Value> createFileSystem(WebFileSystemType,
+        const WebString& name,
+        const WebString& path);
+    virtual v8::Handle<v8::Value> createSerializableFileSystem(WebFileSystemType,
+        const WebString& name,
+        const WebString& path);
+    virtual v8::Handle<v8::Value> createFileEntry(WebFileSystemType,
+        const WebString& fileSystemName,
+        const WebString& fileSystemPath,
+        const WebString& filePath,
+        bool isDirectory);
     virtual void reload(bool ignoreCache);
     virtual void reloadWithOverrideURL(const WebURL& overrideUrl, bool ignoreCache);
     virtual void loadRequest(const WebURLRequest&);
@@ -163,8 +162,6 @@ public:
     virtual WebURLLoader* createAssociatedURLLoader(const WebURLLoaderOptions&);
     virtual void commitDocumentData(const char* data, size_t length);
     virtual unsigned unloadListenerCount() const;
-    virtual bool isProcessingUserGesture() const;
-    virtual bool consumeUserGesture() const;
     virtual bool willSuppressOpenerInNewFrame() const;
     virtual void replaceSelection(const WebString&);
     virtual void insertText(const WebString&);
@@ -223,11 +220,6 @@ public:
 
     virtual void sendOrientationChangeEvent(int orientation);
 
-    virtual void addEventListener(const WebString& eventType,
-                                  WebDOMEventListener*, bool useCapture);
-    virtual void removeEventListener(const WebString& eventType,
-                                     WebDOMEventListener*, bool useCapture);
-    virtual bool dispatchEvent(const WebDOMEvent&);
     virtual void dispatchMessageEventWithOriginCheck(
         const WebSecurityOrigin& intendedTargetOrigin,
         const WebDOMEvent&);

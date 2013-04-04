@@ -42,6 +42,7 @@ SOURCES += \
     API/JSObjectRef.cpp \
     API/JSScriptRef.cpp \
     API/JSStringRef.cpp \
+    API/JSStringRefQt.cpp \
     API/JSValueRef.cpp \
     API/JSWeakObjectMapRefPrivate.cpp \
     API/OpaqueJSString.cpp \
@@ -104,6 +105,7 @@ SOURCES += \
     heap/MarkedBlock.cpp \
     heap/MarkedSpace.cpp \
     heap/SlotVisitor.cpp \
+    heap/SuperRegion.cpp \
     heap/VTableSpectrum.cpp \
     heap/WriteBarrierSupport.cpp \
     debugger/DebuggerActivation.cpp \
@@ -113,6 +115,7 @@ SOURCES += \
     dfg/DFGArgumentsSimplificationPhase.cpp \
     dfg/DFGArrayMode.cpp \
     dfg/DFGAssemblyHelpers.cpp \
+    dfg/DFGBackwardsPropagationPhase.cpp \
     dfg/DFGByteCodeParser.cpp \
     dfg/DFGCapabilities.cpp \
     dfg/DFGCommon.cpp \
@@ -121,6 +124,7 @@ SOURCES += \
     dfg/DFGCPSRethreadingPhase.cpp \
     dfg/DFGConstantFoldingPhase.cpp \
     dfg/DFGCSEPhase.cpp \
+    dfg/DFGDCEPhase.cpp \
     dfg/DFGDisassembler.cpp \
     dfg/DFGDominators.cpp \
     dfg/DFGDriver.cpp \
@@ -298,6 +302,7 @@ SOURCES += \
     runtime/PropertyDescriptor.cpp \
     runtime/PropertyNameArray.cpp \
     runtime/PropertySlot.cpp \
+    runtime/PropertyTable.cpp \
     runtime/PrototypeMap.cpp \
     runtime/RegExpConstructor.cpp \
     runtime/RegExpCachedResult.cpp \

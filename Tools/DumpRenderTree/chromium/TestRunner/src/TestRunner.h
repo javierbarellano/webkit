@@ -98,6 +98,7 @@ public:
     bool shouldDumpUserGestureInFrameLoadCallbacks() const;
     bool stopProvisionalFrameLoads() const;
     bool shouldDumpTitleChanges() const;
+    bool shouldDumpIconChanges() const;
     bool shouldDumpCreateView() const;
     bool canOpenWindows() const;
     bool shouldDumpResourceLoadCallbacks() const;
@@ -118,8 +119,6 @@ public:
     bool policyDelegateIsPermissive() const;
     bool policyDelegateShouldNotifyDone() const;
     bool shouldInterceptPostMessage() const;
-    bool isSmartInsertDeleteEnabled() const;
-    bool isSelectTrailingWhitespaceEnabled() const;
     bool shouldDumpResourcePriorities() const;
 #if ENABLE_NOTIFICATIONS
     WebKit::WebNotificationPresenter* notificationPresenter() const;
@@ -214,7 +213,6 @@ private:
     // Checks if an internal command is currently available.
     void isCommandEnabled(const CppArgumentList&, CppVariant*);
 
-    void elementDoesAutoCompleteForElementWithId(const CppArgumentList&, CppVariant*);
     void callShouldCloseOnWebView(const CppArgumentList&, CppVariant*);
     void setDomainRelaxationForbiddenForURLScheme(const CppArgumentList&, CppVariant*);
     void evaluateScriptInIsolatedWorldAndReturnValue(const CppArgumentList&, CppVariant*);
@@ -270,11 +268,6 @@ private:
     // length to retrieve.
     void textSurroundingNode(const CppArgumentList&, CppVariant*);
 
-    // Enable or disable smart insert/delete. This is enabled by default.
-    void setSmartInsertDeleteEnabled(const CppArgumentList&, CppVariant*);
-
-    // Enable or disable trailing whitespace selection on double click.
-    void setSelectTrailingWhitespaceEnabled(const CppArgumentList&, CppVariant*);
     void enableAutoResizeMode(const CppArgumentList&, CppVariant*);
     void disableAutoResizeMode(const CppArgumentList&, CppVariant*);
 
@@ -310,11 +303,6 @@ private:
     // Enable or disable plugins.
     void setPluginsEnabled(const CppArgumentList&, CppVariant*);
 
-    // Changes asynchronous spellchecking flag on the settings.
-    void setAsynchronousSpellCheckingEnabled(const CppArgumentList&, CppVariant*);
-
-    void setTouchDragDropEnabled(const CppArgumentList&, CppVariant*);
-
     ///////////////////////////////////////////////////////////////////////////
     // Methods that modify the state of TestRunner
 
@@ -336,6 +324,10 @@ private:
     // dump all frames as plain text if the dumpAsText flag is set.
     // It takes no arguments, and ignores any that may be present.
     void dumpChildFramesAsText(const CppArgumentList&, CppVariant*);
+
+    // This function sets a flag that tells the test_shell to print out the
+    // information about icon changes notifications from WebKit.
+    void dumpIconChanges(const CppArgumentList&, CppVariant*);
 
     // Deals with Web Audio WAV file data.
     void setAudioData(const CppArgumentList&, CppVariant*);
@@ -524,7 +516,6 @@ private:
     void didNotAcquirePointerLockInternal();
     void didLosePointerLockInternal();
 
-    bool elementDoesAutoCompleteForElementWithId(const WebKit::WebString&);
     bool cppVariantToBool(const CppVariant&);
     int32_t cppVariantToInt32(const CppVariant&);
     WebKit::WebString cppVariantToWebString(const CppVariant&);
@@ -595,6 +586,9 @@ private:
     // If true, the test_shell will print out the child frame scroll offsets as
     // well.
     bool m_dumpChildFrameScrollPositions;
+
+    // If true, the test_shell will print out the icon change notifications.
+    bool m_dumpIconChanges;
 
     // If true, the test_shell will output a base64 encoded WAVE file.
     bool m_dumpAsAudio;
@@ -669,10 +663,6 @@ private:
     bool m_shouldBlockRedirects;
 
     bool m_willSendRequestShouldReturnNull;
-
-    bool m_smartInsertDeleteEnabled;
-
-    bool m_selectTrailingWhitespaceEnabled;
 
     bool m_shouldDumpResourcePriorities;
 

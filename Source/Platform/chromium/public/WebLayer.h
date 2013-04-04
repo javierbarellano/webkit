@@ -29,6 +29,10 @@
 #include "WebAnimation.h"
 #include "WebColor.h"
 #include "WebCommon.h"
+
+// Remove after making setPositionConstraint() pure virtual.
+#include "WebLayerPositionConstraint.h"
+
 #include "WebPoint.h"
 #include "WebPrivatePtr.h"
 #include "WebRect.h"
@@ -42,9 +46,9 @@ namespace WebKit {
 class WebAnimationDelegate;
 class WebFilterOperations;
 class WebLayerScrollClient;
-class WebTransformationMatrix;
 struct WebFloatPoint;
 struct WebFloatRect;
+struct WebLayerPositionConstraint;
 struct WebSize;
 
 class WebLayerImpl;
@@ -94,11 +98,9 @@ public:
     virtual WebFloatPoint position() const = 0;
 
     virtual void setSublayerTransform(const SkMatrix44&) = 0;
-    virtual void setSublayerTransform(const WebTransformationMatrix&) = 0;
     virtual SkMatrix44 sublayerTransform() const = 0;
 
     virtual void setTransform(const SkMatrix44&) = 0;
-    virtual void setTransform(const WebTransformationMatrix&) = 0;
     virtual SkMatrix44 transform() const = 0;
 
     // Sets whether the layer draws its content when compositing.
@@ -192,8 +194,11 @@ public:
     virtual void setIsContainerForFixedPositionLayers(bool) = 0;
     virtual bool isContainerForFixedPositionLayers() const = 0;
 
-    virtual void setFixedToContainerLayer(bool) = 0;
-    virtual bool fixedToContainerLayer() const = 0;
+    // This function sets layer position constraint. The constraint will be used
+    // to adjust layer position during threaded scrolling.
+    // FIXME: Make pure virtual after implementation lands.
+    virtual void setPositionConstraint(const WebLayerPositionConstraint& constraint) { setFixedToContainerLayer(constraint.isFixedPosition); }
+    virtual WebLayerPositionConstraint positionConstraint() const { return WebLayerPositionConstraint(); }
 
     // The scroll client is notified when the scroll position of the WebLayer
     // changes. Only a single scroll client can be set for a WebLayer at a time.
@@ -205,6 +210,13 @@ public:
     // Forces this layer to use a render surface. There is no benefit in doing
     // so, but this is to facilitate benchmarks and tests.
     virtual void setForceRenderSurface(bool) = 0;
+
+    // True if the layer is not part of a tree attached to a WebLayerTreeView.
+    virtual bool isOrphan() const = 0;
+
+    // DEPRECATED
+    virtual void setFixedToContainerLayer(bool) { }
+    virtual bool fixedToContainerLayer() const { return positionConstraint().isFixedPosition; }
 };
 
 } // namespace WebKit

@@ -69,6 +69,16 @@ bool WKPreferencesGetJavaScriptEnabled(WKPreferencesRef preferencesRef)
     return toImpl(preferencesRef)->javaScriptEnabled();
 }
 
+void WKPreferencesSetJavaScriptMarkupEnabled(WKPreferencesRef preferencesRef, bool javaScriptMarkupEnabled)
+{
+    toImpl(preferencesRef)->setJavaScriptMarkupEnabled(javaScriptMarkupEnabled);
+}
+
+bool WKPreferencesGetJavaScriptMarkupEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->javaScriptMarkupEnabled();
+}
+
 void WKPreferencesSetLoadsImagesAutomatically(WKPreferencesRef preferencesRef, bool loadsImagesAutomatically)
 {
     toImpl(preferencesRef)->setLoadsImagesAutomatically(loadsImagesAutomatically);
@@ -418,6 +428,16 @@ bool WKPreferencesGetAcceleratedCompositingEnabled(WKPreferencesRef preferencesR
     return toImpl(preferencesRef)->acceleratedCompositingEnabled();
 }
 
+void WKPreferencesSetAcceleratedCompositingForOverflowScrollEnabled(WKPreferencesRef preferencesRef, bool flag)
+{
+    toImpl(preferencesRef)->setAcceleratedCompositingForOverflowScrollEnabled(flag);
+}
+
+bool WKPreferencesGetAcceleratedCompositingForOverflowScrollEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->acceleratedCompositingForOverflowScrollEnabled();
+}
+
 void WKPreferencesSetCompositingBordersVisible(WKPreferencesRef preferencesRef, bool flag)
 {
     toImpl(preferencesRef)->setCompositingBordersVisible(flag);
@@ -656,6 +676,16 @@ void WKPreferencesSetFullScreenEnabled(WKPreferencesRef preferencesRef, bool ena
 bool WKPreferencesGetFullScreenEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->fullScreenEnabled();
+}
+
+void WKPreferencesSetAsynchronousSpellCheckingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setAsynchronousSpellCheckingEnabled(enabled);
+}
+
+bool WKPreferencesGetAsynchronousSpellCheckingEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->asynchronousSpellCheckingEnabled();
 }
 
 void WKPreferencesSetAVFoundationEnabled(WKPreferencesRef preferencesRef, bool enabled)
@@ -1052,4 +1082,24 @@ void WKPreferencesSetShowsURLsInToolTipsEnabled(WKPreferencesRef preferencesRef,
 bool WKPreferencesGetShowsURLsInToolTipsEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->showsURLsInToolTipsEnabled();
+}
+
+void WKPreferencesSetHiddenPageDOMTimerThrottlingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setHiddenPageDOMTimerThrottlingEnabled(enabled);
+}
+
+bool WKPreferencesGetHiddenPageDOMTimerThrottlingEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->hiddenPageDOMTimerThrottlingEnabled();
+}
+
+void WKPreferencesSetHiddenPageCSSAnimationSuspensionEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setHiddenPageCSSAnimationSuspensionEnabled(enabled);
+}
+
+bool WKPreferencesGetHiddenPageCSSAnimationSuspensionEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->hiddenPageCSSAnimationSuspensionEnabled();
 }

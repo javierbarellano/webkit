@@ -93,7 +93,7 @@ public:
 
     WebPageClient* client() const;
 
-    void load(const BlackBerry::Platform::String& url, const BlackBerry::Platform::String& networkToken, bool isInitial = false);
+    void load(const BlackBerry::Platform::String& url, const BlackBerry::Platform::String& networkToken, bool isInitial = false, bool needReferer = false, bool forceDownload = false);
 
     void loadExtended(const char* url, const char* networkToken, const char* method, Platform::NetworkRequest::CachePolicy = Platform::NetworkRequest::UseProtocolCachePolicy, const char* data = 0, size_t dataLength = 0, const char* const* headers = 0, size_t headersLength = 0, bool mustHandleInternally = false);
 
@@ -142,13 +142,20 @@ public:
     void applyPendingOrientationIfNeeded();
 
     Platform::ViewportAccessor* webkitThreadViewportAccessor() const;
+
+    // Returns the size of the visual viewport.
     Platform::IntSize viewportSize() const;
-    void setViewportSize(const Platform::IntSize&, bool ensureFocusElementVisible = true);
+
+    // Sets the sizes of the visual viewport and the layout viewport.
+    void setViewportSize(const Platform::IntSize& viewportSize, const Platform::IntSize& defaultLayoutSize, bool ensureFocusElementVisible = true);
 
     void resetVirtualViewportOnCommitted(bool reset);
     void setVirtualViewportSize(const Platform::IntSize&);
 
-    // Used for default layout size unless overridden by web content or by other APIs.
+    // Returns the size of the layout viewport.
+    Platform::IntSize defaultLayoutSize() const;
+
+    // Set the size of the layout viewport, in document coordinates, independently of the visual viewport.
     void setDefaultLayoutSize(const Platform::IntSize&);
 
     bool mouseEvent(const Platform::MouseEvent&, bool* wheelDeltaAccepted = 0);
@@ -192,7 +199,7 @@ public:
     InRegionScroller* inRegionScroller() const;
 
     bool blockZoom(const Platform::IntPoint& documentTargetPoint);
-    void blockZoomAnimationFinished();
+    void zoomAnimationFinished(double finalScale, const Platform::FloatPoint& finalDocumentScrollPosition, bool shouldConstrainScrollingToContentEdge);
     void resetBlockZoom();
     bool isAtInitialZoom() const;
     bool isMaxZoomed() const;
@@ -329,6 +336,8 @@ public:
     void dispatchInspectorMessage(const BlackBerry::Platform::String& message);
     void inspectCurrentContextElement();
 
+    Platform::IntPoint adjustDocumentScrollPosition(const Platform::IntPoint& documentScrollPosition, const Platform::IntRect& documentPaddingRect);
+
     // FIXME: Needs API review on this header. See PR #120402.
     void notifyPagePause();
     void notifyPageResume();
@@ -354,6 +363,7 @@ public:
     void resetUserViewportArguments();
 
     WebTapHighlight* tapHighlight() const;
+    WebTapHighlight* selectionHighlight() const;
 
     // Adds an overlay that can be modified on the WebKit thread, and
     // whose attributes can be overridden on the compositing thread.

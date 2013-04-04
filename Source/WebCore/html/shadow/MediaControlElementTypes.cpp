@@ -60,7 +60,7 @@ HTMLMediaElement* toParentMediaElement(Node* node)
     Node* mediaNode = node->shadowHost();
     if (!mediaNode)
         mediaNode = node;
-    if (!mediaNode || !mediaNode->isElementNode() || !static_cast<Element*>(mediaNode)->isMediaElement())
+    if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
         return 0;
 
     return static_cast<HTMLMediaElement*>(mediaNode);
@@ -157,11 +157,6 @@ MediaControlTimeDisplayElement::MediaControlTimeDisplayElement(Document* documen
 void MediaControlTimeDisplayElement::setCurrentValue(float time)
 {
     m_currentValue = time;
-}
-
-RenderObject* MediaControlTimeDisplayElement::createRenderer(RenderArena* arena, RenderStyle*)
-{
-    return new (arena) RenderMediaControlTimeDisplay(this);
 }
 
 // ----------------------------

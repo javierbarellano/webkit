@@ -143,11 +143,8 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_init_global_const:
     case op_init_global_const_check:
     case op_jmp:
-    case op_loop:
     case op_jtrue:
     case op_jfalse:
-    case op_loop_if_true:
-    case op_loop_if_false:
     case op_jeq_null:
     case op_jneq_null:
     case op_jless:
@@ -159,10 +156,6 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_jngreater:
     case op_jngreatereq:
     case op_loop_hint:
-    case op_loop_if_less:
-    case op_loop_if_lesseq:
-    case op_loop_if_greater:
-    case op_loop_if_greatereq:
     case op_ret:
     case op_end:
     case op_call_put_result:
@@ -203,6 +196,10 @@ inline CapabilityLevel canCompileOpcode(OpcodeID opcodeID, CodeBlock*, Instructi
     case op_resolve_scoped_var_with_top_scope_check:
         return CanCompile;
 
+    case op_get_scoped_var:
+    case op_put_scoped_var:
+        return CanCompile;
+
     case op_resolve_base_to_global:
     case op_resolve_base_to_global_dynamic:
     case op_resolve_base_to_scope:
@@ -236,7 +233,11 @@ inline bool canInlineOpcode(OpcodeID opcodeID, CodeBlock* codeBlock, Instruction
     case op_resolve_with_base:
     case op_resolve_with_this:
         return canInlineResolveOperations(pc[4].u.resolveOperations);
-        
+
+    case op_get_scoped_var:
+    case op_put_scoped_var:
+        return !codeBlock->needsFullScopeChain();
+
     // Inlining doesn't correctly remap regular expression operands.
     case op_new_regexp:
         

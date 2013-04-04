@@ -41,6 +41,7 @@ const size_t APIClientTraits<WKBundlePageLoaderClient>::interfaceSizesByVersion[
     offsetof(WKBundlePageLoaderClient, didFinishProgress),
     offsetof(WKBundlePageLoaderClient, didReceiveIntentForFrame_unavailable),
     offsetof(WKBundlePageLoaderClient, registerIntentServiceForFrame_unavailable),
+    offsetof(WKBundlePageLoaderClient, didLayout),
     sizeof(WKBundlePageLoaderClient)
 };
 
@@ -74,6 +75,7 @@ const size_t APIClientTraits<WKPageUIClient>::interfaceSizesByVersion[] = {
     
 const size_t APIClientTraits<WKBundlePageFormClient>::interfaceSizesByVersion[] = {
     offsetof(WKBundlePageFormClient, willSendSubmitEvent),
+    offsetof(WKBundlePageFormClient, didFocusTextField),
     sizeof(WKBundlePageFormClient)
 };
 
@@ -85,6 +87,11 @@ const size_t APIClientTraits<WKBundlePageEditorClient>::interfaceSizesByVersion[
 const size_t APIClientTraits<WKBundlePageUIClient>::interfaceSizesByVersion[] = {
     offsetof(WKBundlePageUIClient, didReachApplicationCacheOriginQuota),
     sizeof(WKBundlePageUIClient)
+};
+
+const size_t APIClientTraits<WKContextClient>::interfaceSizesByVersion[] = {
+    offsetof(WKContextClient, plugInInformationBecameAvailable),
+    sizeof(WKContextClient)
 };
 
 const size_t APIClientTraits<WKContextInjectedBundleClient>::interfaceSizesByVersion[] = {

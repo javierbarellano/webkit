@@ -26,7 +26,7 @@
 #ifndef RenderSnapshottedPlugIn_h
 #define RenderSnapshottedPlugIn_h
 
-#include "RenderBlock.h"
+#include "RenderEmbeddedObject.h"
 #include "RenderImageResource.h"
 #include "Timer.h"
 
@@ -34,7 +34,7 @@ namespace WebCore {
 
 class HTMLPlugInImageElement;
 
-class RenderSnapshottedPlugIn : public RenderBlock {
+class RenderSnapshottedPlugIn : public RenderEmbeddedObject {
 public:
     explicit RenderSnapshottedPlugIn(HTMLPlugInImageElement*);
     virtual ~RenderSnapshottedPlugIn();
@@ -42,9 +42,6 @@ public:
     void updateSnapshot(PassRefPtr<Image>);
 
     void handleEvent(Event*);
-    void showLabelDelayTimerFired(Timer<RenderSnapshottedPlugIn>*);
-
-    void setShouldShowLabelAutomatically(bool = true);
 
 private:
     HTMLPlugInImageElement* plugInImageElement() const;
@@ -53,28 +50,15 @@ private:
     virtual CursorDirective getCursor(const LayoutPoint&, Cursor&) const OVERRIDE;
     virtual bool isSnapshottedPlugIn() const OVERRIDE { return true; }
     virtual void paint(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    
+    virtual bool canHaveWidget() const OVERRIDE { return false; }
 
     void paintSnapshot(PaintInfo&, const LayoutPoint&);
-    void paintSnapshotWithLabel(PaintInfo&, const LayoutPoint&);
-    void paintSnapshotImage(Image*, PaintInfo&, const LayoutPoint&);
-    void repaintLabel();
 
     virtual void layout() OVERRIDE;
 
-    enum ShowReason {
-        UserMousedOver,
-        ShouldShowAutomatically
-    };
-
-    void resetDelayTimer(ShowReason);
-
     OwnPtr<RenderImageResource> m_snapshotResource;
-    bool m_shouldShowLabel;
-    bool m_shouldShowLabelAutomatically;
-    bool m_showedLabelOnce;
-    ShowReason m_showReason;
-    Timer<RenderSnapshottedPlugIn> m_showLabelDelayTimer;
-    OwnPtr<RenderImageResource> m_snapshotResourceForLabel;
+    bool m_isPotentialMouseActivation;
 };
 
 inline RenderSnapshottedPlugIn* toRenderSnapshottedPlugIn(RenderObject* object)

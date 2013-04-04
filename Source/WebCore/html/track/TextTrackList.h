@@ -53,6 +53,7 @@ public:
     unsigned length() const;
     int getTrackIndex(TextTrack*);
     int getTrackIndexRelativeToRenderedTracks(TextTrack*);
+    bool contains(TextTrack*) const;
     long selectedIndex() const;
     void setSelectedIndex(long);
 

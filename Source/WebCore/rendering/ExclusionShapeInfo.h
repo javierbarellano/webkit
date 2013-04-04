@@ -64,11 +64,11 @@ private:
     }
 };
 
-template <class RenderType, ExclusionShapeValue* (RenderStyle::*shapeGetter)() const>
+template<class RenderType, ExclusionShapeValue* (RenderStyle::*shapeGetter)() const, void (ExclusionShape::*intervalGetter)(float, float, SegmentList&) const>
 class ExclusionShapeInfo {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    ~ExclusionShapeInfo() { }
+    virtual ~ExclusionShapeInfo() { }
 
     void setShapeSize(LayoutUnit logicalWidth, LayoutUnit logicalHeight)
     {
@@ -84,12 +84,19 @@ public:
         m_shapeLogicalHeight = logicalHeight;
     }
 
-    LayoutUnit shapeLogicalTop() const { return floatLogicalTopToLayoutUnit(computedShape()->shapeLogicalBoundingBox().y()) + logicalTopOffset(); }
-    LayoutUnit shapeLogicalBottom() const { return floatLogicalBottomToLayoutUnit(computedShape()->shapeLogicalBoundingBox().maxY()) + logicalTopOffset(); }
-    LayoutUnit shapeLogicalLeft() const { return computedShape()->shapeLogicalBoundingBox().x() + logicalLeftOffset(); }
-    LayoutUnit shapeLogicalRight() const { return computedShape()->shapeLogicalBoundingBox().y() + logicalLeftOffset(); }
-    LayoutUnit shapeLogicalWidth() const { return computedShape()->shapeLogicalBoundingBox().width(); }
-    LayoutUnit shapeLogicalHeight() const { return computedShape()->shapeLogicalBoundingBox().height(); }
+    virtual bool computeSegmentsForLine(LayoutUnit lineTop, LayoutUnit lineHeight);
+
+    LayoutUnit shapeLogicalTop() const { return floatLogicalTopToLayoutUnit(computedShapeLogicalBoundingBox().y()) + logicalTopOffset(); }
+    LayoutUnit shapeLogicalBottom() const { return floatLogicalBottomToLayoutUnit(computedShapeLogicalBoundingBox().maxY()) + logicalTopOffset(); }
+    LayoutUnit shapeLogicalLeft() const { return computedShapeLogicalBoundingBox().x() + logicalLeftOffset(); }
+    LayoutUnit shapeLogicalRight() const { return computedShapeLogicalBoundingBox().maxX() + logicalLeftOffset(); }
+    LayoutUnit shapeLogicalWidth() const { return computedShapeLogicalBoundingBox().width(); }
+    LayoutUnit shapeLogicalHeight() const { return computedShapeLogicalBoundingBox().height(); }
+
+    LayoutUnit logicalLineTop() const { return m_shapeLineTop + logicalTopOffset(); }
+    LayoutUnit logicalLineBottom() const { return m_shapeLineTop + m_lineHeight + logicalTopOffset(); }
+
+    bool lineOverlapsShapeBounds() const { return logicalLineTop() < shapeLogicalBottom() && logicalLineBottom() >= shapeLogicalTop(); }
 
     void dirtyShapeSize() { m_shape.clear(); }
     bool shapeSizeDirty() { return !m_shape.get(); }
@@ -99,6 +106,7 @@ protected:
     ExclusionShapeInfo(const RenderType* renderer): m_renderer(renderer) { }
 
     const ExclusionShape* computedShape() const;
+    virtual FloatRect computedShapeLogicalBoundingBox() const = 0;
 
     // Use ceil and floor to ensure that the returned LayoutUnit value is within the shape's bounds.
     LayoutUnit floatLogicalTopToLayoutUnit(float logicalTop) const { return LayoutUnit::fromFloatCeil(logicalTop); }
@@ -106,6 +114,10 @@ protected:
 
     LayoutUnit logicalTopOffset() const;
     LayoutUnit logicalLeftOffset() const { return m_renderer->style()->boxSizing() == CONTENT_BOX ? m_renderer->borderStart() + m_renderer->paddingStart() : LayoutUnit(); }
+
+    LayoutUnit m_shapeLineTop;
+    LayoutUnit m_lineHeight;
+    SegmentList m_segments;
 
 private:
     mutable OwnPtr<ExclusionShape> m_shape;

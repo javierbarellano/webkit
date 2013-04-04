@@ -81,7 +81,6 @@ using namespace WebKit;
 
 bool DumpRenderTreeSupportGtk::s_drtRun = false;
 bool DumpRenderTreeSupportGtk::s_linksIncludedInTabChain = true;
-bool DumpRenderTreeSupportGtk::s_selectTrailingWhitespaceEnabled = false;
 DumpRenderTreeSupportGtk::FrameLoadEventCallback DumpRenderTreeSupportGtk::s_frameLoadEventCallback = 0;
 DumpRenderTreeSupportGtk::AuthenticationCallback DumpRenderTreeSupportGtk::s_authenticationCallback = 0;
 
@@ -110,16 +109,6 @@ void DumpRenderTreeSupportGtk::setLinksIncludedInFocusChain(bool enabled)
 bool DumpRenderTreeSupportGtk::linksIncludedInFocusChain()
 {
     return s_linksIncludedInTabChain;
-}
-
-void DumpRenderTreeSupportGtk::setSelectTrailingWhitespaceEnabled(bool enabled)
-{
-    s_selectTrailingWhitespaceEnabled = enabled;
-}
-
-bool DumpRenderTreeSupportGtk::selectTrailingWhitespaceEnabled()
-{
-    return s_selectTrailingWhitespaceEnabled;
 }
 
 /**
@@ -453,15 +442,6 @@ void DumpRenderTreeSupportGtk::setDefersLoading(WebKitWebView* webView, bool def
     core(webView)->setDefersLoading(defers);
 }
 
-void DumpRenderTreeSupportGtk::setSmartInsertDeleteEnabled(WebKitWebView* webView, bool enabled)
-{
-    g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
-    g_return_if_fail(webView);
-
-    WebKit::EditorClient* client = static_cast<WebKit::EditorClient*>(core(webView)->editorClient());
-    client->setSmartInsertDeleteEnabled(enabled);
-}
-
 void DumpRenderTreeSupportGtk::forceWebViewPaint(WebKitWebView* webView)
 {
     g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
@@ -671,26 +651,6 @@ void DumpRenderTreeSupportGtk::setStyleScopedEnabled(bool enabled)
 #if ENABLE(STYLE_SCOPED)
     RuntimeEnabledFeatures::setStyleScopedEnabled(enabled);
 #endif
-}
-
-bool DumpRenderTreeSupportGtk::elementDoesAutoCompleteForElementWithId(WebKitWebFrame* frame, JSStringRef id)
-{
-    Frame* coreFrame = core(frame);
-    if (!coreFrame)
-        return false;
-
-    Document* document = coreFrame->document();
-    ASSERT(document);
-
-    size_t bufferSize = JSStringGetMaximumUTF8CStringSize(id);
-    GOwnPtr<gchar> idBuffer(static_cast<gchar*>(g_malloc(bufferSize)));
-    JSStringGetUTF8CString(id, idBuffer.get(), bufferSize);
-    Node* coreNode = document->getElementById(String::fromUTF8(idBuffer.get()));
-    if (!coreNode || !coreNode->renderer())
-        return false;
-
-    HTMLInputElement* inputElement = static_cast<HTMLInputElement*>(coreNode);
-    return inputElement->isTextField() && !inputElement->isPasswordField() && inputElement->shouldAutocomplete();
 }
 
 void DumpRenderTreeSupportGtk::deliverAllMutationsIfNecessary()

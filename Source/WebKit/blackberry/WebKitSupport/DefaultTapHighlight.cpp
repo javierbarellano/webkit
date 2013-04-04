@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Research In Motion Limited. All rights reserved.
+ * Copyright (C) 2012, 2013 Research In Motion Limited. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,11 +24,12 @@
 
 #include "GraphicsContext.h"
 #include "Path.h"
-#include "PlatformContextSkia.h"
 #include "WebAnimation.h"
 #include "WebPage_p.h"
 
+#include <BlackBerryPlatformGraphicsContext.h>
 #include <BlackBerryPlatformMessageClient.h>
+#include <BlackBerryPlatformPath.h>
 
 using namespace WebCore;
 
@@ -36,8 +37,11 @@ namespace BlackBerry {
 namespace WebKit {
 
 const double ActiveTextFadeAnimationDuration = 0.3;
+const double OverlayShrinkAnimationDuration = 0.5;
+const double OverlayInitialScale = 2.0;
 
 static const char* fadeAnimationName() { return "fade"; }
+static const char* shrinkAnimationName() { return "shrink"; }
 
 DefaultTapHighlight::DefaultTapHighlight(WebPagePrivate* page)
     : m_page(page)
@@ -50,7 +54,7 @@ DefaultTapHighlight::~DefaultTapHighlight()
 {
 }
 
-void DefaultTapHighlight::draw(const Platform::IntRectRegion& region, int red, int green, int blue, int alpha, bool hideAfterScroll)
+void DefaultTapHighlight::draw(const Platform::IntRectRegion& region, int red, int green, int blue, int alpha, bool hideAfterScroll, bool isStartOfSelection)
 {
     ASSERT(BlackBerry::Platform::webKitThreadMessageClient()->isCurrentThread());
 
@@ -77,6 +81,7 @@ void DefaultTapHighlight::draw(const Platform::IntRectRegion& region, int red, i
         m_page->m_webPage->addOverlay(m_overlay.get());
     }
 
+    m_overlay->removeAnimation(shrinkAnimationName());
     m_overlay->resetOverrides();
     m_overlay->setPosition(rect.location());
     m_overlay->setSize(rect.size());
@@ -84,6 +89,12 @@ void DefaultTapHighlight::draw(const Platform::IntRectRegion& region, int red, i
     m_overlay->removeAnimation(fadeAnimationName());
     m_overlay->setOpacity(1.0);
     m_overlay->invalidate();
+
+    // Animate overlay scale to indicate selection is started.
+    if (isStartOfSelection) {
+        WebAnimation shrinkAnimation = WebAnimation::shrinkAnimation(shrinkAnimationName(), OverlayInitialScale, 1, OverlayShrinkAnimationDuration);
+        m_overlay->addAnimation(shrinkAnimation);
+    }
 }
 
 void DefaultTapHighlight::hide()
@@ -117,25 +128,13 @@ void DefaultTapHighlight::notifyFlushRequired(const GraphicsLayer* layer)
 
 void DefaultTapHighlight::paintContents(const GraphicsLayer*, GraphicsContext& c, GraphicsLayerPaintingPhase, const IntRect& /*inClip*/)
 {
-    std::vector<Platform::IntRect> rects = m_region.rects();
-    Platform::IntRect rect = m_region.extents();
-    SkRegion overlayRegion;
-
-    unsigned rectCount = m_region.numRects();
-    if (!rectCount)
+    if (!m_region.numRects())
         return;
 
-    for (unsigned i = 0; i < rectCount; ++i) {
-        Platform::IntRect rectToPaint = rects[i];
-        SkIRect r = SkIRect::MakeXYWH(rectToPaint.x(), rectToPaint.y(), rectToPaint.width(), rectToPaint.height());
-        overlayRegion.op(r, SkRegion::kUnion_Op);
-    }
+    Path path(m_region.boundaryPath());
 
-    SkPath pathToPaint;
-    overlayRegion.getBoundaryPath(&pathToPaint);
-
-    Path path(pathToPaint);
     c.save();
+    const Platform::IntRect& rect = m_region.extents();
     c.translate(-rect.x(), -rect.y());
 
     // Draw tap highlight
@@ -148,11 +147,14 @@ void DefaultTapHighlight::paintContents(const GraphicsLayer*, GraphicsContext& c
     c.restore();
 }
 
-bool DefaultTapHighlight::contentsVisible(const GraphicsLayer*, const IntRect& contentRect) const
+bool DefaultTapHighlight::showDebugBorders(const GraphicsLayer* layer) const
 {
-    // This layer is typically small enough that we can afford to cache all tiles and never
-    // risk checkerboarding.
-    return true;
+    return m_page->showDebugBorders(layer);
+}
+
+bool DefaultTapHighlight::showRepaintCounter(const GraphicsLayer* layer) const
+{
+    return m_page->showRepaintCounter(layer);
 }
 
 } // namespace WebKit

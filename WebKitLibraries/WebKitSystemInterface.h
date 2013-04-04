@@ -357,7 +357,7 @@ void WKCAContextSetLayer(WKCAContextRef, CALayer *);
 CALayer *WKCAContextGetLayer(WKCAContextRef);
 void WKCAContextSetColorSpace(WKCAContextRef, CGColorSpaceRef);
 CGColorSpaceRef WKCAContextGetColorSpace(WKCAContextRef);
-void WKCABackingStoreCollectBlocking(void);
+void WKDestroyRenderingResources(void);
 
 void WKCALayerEnumerateRectsBeingDrawnWithBlock(CALayer *layer, CGContextRef context, void (^block)(CGRect rect));
 
@@ -497,12 +497,7 @@ bool WKRegisterOcclusionNotificationHandler(WKOcclusionNotificationType, WKOcclu
 bool WKUnregisterOcclusionNotificationHandler(WKOcclusionNotificationType, WKOcclusionNotificationHandler);
 bool WKEnableWindowOcclusionNotifications(NSInteger windowID, bool *outCurrentOcclusionState);
 
-enum {
-    WKProcessAssertionTypeVisible = (1UL << 10)
-};
-
-typedef NSUInteger WKProcessAssertionTypes;
-id WKNSProcessInfoProcessAssertionWithTypes(WKProcessAssertionTypes);
+extern const NSSystemBehaviors WKProcessSuppressionSystemBehaviors;
 #endif
 
 bool WKIsJavaPlugInActive(void);
@@ -512,9 +507,11 @@ void WKCFNetworkSetOverrideSystemProxySettings(CFDictionaryRef);
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 bool WKIsPublicSuffix(NSString *domain);
-#endif
 
+CFArrayRef WKCFURLCacheCopyAllHostNamesInPersistentStoreForPartition(CFStringRef partition);
+void WKCFURLCacheDeleteHostNamesInPersistentStoreForPartition(CFArrayRef hostArray, CFStringRef partition);
 CFStringRef WKCachePartitionKey(void);
+#endif
 
 #ifdef __cplusplus
 }

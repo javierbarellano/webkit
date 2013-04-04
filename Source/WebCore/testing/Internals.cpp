@@ -47,10 +47,15 @@
 #include "ExceptionCode.h"
 #include "FormController.h"
 #include "Frame.h"
+#include "FrameLoader.h"
 #include "FrameView.h"
 #include "HTMLContentElement.h"
 #include "HTMLInputElement.h"
+#if ENABLE(VIDEO)
+#include "HTMLMediaElement.h"
+#endif
 #include "HTMLNames.h"
+#include "HTMLSelectElement.h"
 #include "HTMLTextAreaElement.h"
 #include "HistoryItem.h"
 #include "InspectorClient.h"
@@ -73,6 +78,7 @@
 #include "PrintContext.h"
 #include "PseudoElement.h"
 #include "Range.h"
+#include "RenderMenuList.h"
 #include "RenderObject.h"
 #include "RenderTreeAsText.h"
 #include "RuntimeEnabledFeatures.h"
@@ -157,11 +163,10 @@ class InspectorFrontendClientDummy : public InspectorFrontendClientLocal {
 public:
     InspectorFrontendClientDummy(InspectorController*, Page*);
     virtual ~InspectorFrontendClientDummy() { }
-    virtual void attachWindow() OVERRIDE { }
+    virtual void attachWindow(DockSide) OVERRIDE { }
     virtual void detachWindow() OVERRIDE { }
 
     virtual String localizedStringsURL() OVERRIDE { return String(); }
-    virtual String hiddenPanels() OVERRIDE { return String(); }
 
     virtual void bringToFront() OVERRIDE { }
     virtual void closeWindow() OVERRIDE { }
@@ -170,6 +175,7 @@ public:
 
 protected:
     virtual void setAttachedWindowHeight(unsigned) OVERRIDE { }
+    virtual void setAttachedWindowWidth(unsigned) OVERRIDE { }
 };
 
 InspectorFrontendClientDummy::InspectorFrontendClientDummy(InspectorController* controller, Page* page)
@@ -253,6 +259,10 @@ void Internals::resetToConsistentState(Page* page)
 
     page->setPageScaleFactor(1, IntPoint(0, 0));
     page->setPagination(Pagination());
+    if (FrameView* mainFrameView = page->mainFrame()->view()) {
+        mainFrameView->setHeaderHeight(0);
+        mainFrameView->setFooterHeight(0);
+    }
     TextRun::setAllowsRoundingHacks(false);
     WebCore::overrideUserPreferredLanguages(Vector<String>());
     WebCore::Settings::setUsesOverlayScrollbars(false);
@@ -269,6 +279,10 @@ void Internals::resetToConsistentState(Page* page)
 #if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
     page->group().captionPreferences()->setTestingMode(false);
 #endif
+    if (!page->mainFrame()->editor()->isContinuousSpellCheckingEnabled())
+        page->mainFrame()->editor()->toggleContinuousSpellChecking();
+    if (page->mainFrame()->editor()->isOverwriteModeEnabled())
+        page->mainFrame()->editor()->toggleOverwriteModeEnabled();
 }
 
 Internals::Internals(Document* document)
@@ -282,7 +296,7 @@ Internals::Internals(Document* document)
 
 Document* Internals::contextDocument() const
 {
-    return static_cast<Document*>(scriptExecutionContext());
+    return toDocument(scriptExecutionContext());
 }
 
 Frame* Internals::frame() const
@@ -929,42 +943,6 @@ PassRefPtr<ClientRectList> Internals::inspectorHighlightRects(Document* document
 #endif
 }
 
-#if PLATFORM(CHROMIUM)
-void Internals::setBackgroundBlurOnNode(Node* node, int blurLength, ExceptionCode& ec)
-{
-    if (!node) {
-        ec = INVALID_ACCESS_ERR;
-        return;
-    }
-
-    RenderObject* renderObject = node->renderer();
-    if (!renderObject) {
-        ec = INVALID_NODE_TYPE_ERR;
-        return;
-    }
-
-    RenderLayer* renderLayer = renderObject->enclosingLayer();
-    if (!renderLayer || !renderLayer->isComposited()) {
-        ec = INVALID_STATE_ERR;
-        return;
-    }
-
-    GraphicsLayer* graphicsLayer = renderLayer->backing()->graphicsLayer();
-    if (!graphicsLayer) {
-        ec = INVALID_NODE_TYPE_ERR;
-        return;
-    }
-
-    FilterOperations filters;
-    filters.operations().append(BlurFilterOperation::create(Length(blurLength, Fixed), FilterOperation::BLUR));
-    static_cast<GraphicsLayerChromium*>(graphicsLayer)->setBackgroundFilters(filters);
-}
-#else
-void Internals::setBackgroundBlurOnNode(Node*, int, ExceptionCode&)
-{
-}
-#endif
-
 unsigned Internals::markerCountForNode(Node* node, const String& markerType, ExceptionCode& ec)
 {
     if (!node) {
@@ -1100,6 +1078,20 @@ bool Internals::wasLastChangeUserEdit(Element* textField, ExceptionCode& ec)
     // FIXME: We should be using hasTagName instead but Windows port doesn't link QualifiedNames properly.
     if (textField->tagName() == "TEXTAREA")
         return static_cast<HTMLTextAreaElement*>(textField)->lastChangeWasUserEdit();
+
+    ec = INVALID_NODE_TYPE_ERR;
+    return false;
+}
+
+bool Internals::elementShouldAutoComplete(Element* element, ExceptionCode& ec)
+{
+    if (!element) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    if (HTMLInputElement* inputElement = element->toInputElement())
+        return inputElement->shouldAutocomplete();
 
     ec = INVALID_NODE_TYPE_ERR;
     return false;
@@ -1430,8 +1422,8 @@ PassRefPtr<NodeList> Internals::nodesFromRect(Document* document, int x, int y, 
     HitTestRequest::HitTestRequestType hitType = HitTestRequest::ReadOnly | HitTestRequest::Active;
     if (ignoreClipping)
         hitType |= HitTestRequest::IgnoreClipping;
-    if (allowShadowContent)
-        hitType |= HitTestRequest::AllowShadowContent;
+    if (!allowShadowContent)
+        hitType |= HitTestRequest::DisallowShadowContent;
     if (allowChildFrameContent)
         hitType |= HitTestRequest::AllowChildFrameContent;
 
@@ -1519,6 +1511,31 @@ bool Internals::hasAutocorrectedMarker(Document* document, int from, int length,
         return 0;
     
     return document->frame()->editor()->selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
+}
+
+void Internals::setContinuousSpellCheckingEnabled(bool enabled, ExceptionCode&)
+{
+    if (!contextDocument() || !contextDocument()->frame() || !contextDocument()->frame()->editor())
+        return;
+
+    if (enabled != contextDocument()->frame()->editor()->isContinuousSpellCheckingEnabled())
+        contextDocument()->frame()->editor()->toggleContinuousSpellChecking();
+}
+
+bool Internals::isOverwriteModeEnabled(Document* document, ExceptionCode&)
+{
+    if (!document || !document->frame())
+        return 0;
+
+    return document->frame()->editor()->isOverwriteModeEnabled();
+}
+
+void Internals::toggleOverwriteModeEnabled(Document* document, ExceptionCode&)
+{
+    if (!document || !document->frame())
+        return;
+
+    document->frame()->editor()->toggleOverwriteModeEnabled();
 }
 
 #if ENABLE(INSPECTOR)
@@ -1660,6 +1677,8 @@ String Internals::layerTreeAsText(Document* document, unsigned flags, ExceptionC
         layerTreeFlags |= LayerTreeFlagsIncludeTileCaches;
     if (flags & LAYER_TREE_INCLUDES_REPAINT_RECTS)
         layerTreeFlags |= LayerTreeFlagsIncludeRepaintRects;
+    if (flags & LAYER_TREE_INCLUDES_PAINTING_PHASES)
+        layerTreeFlags |= LayerTreeFlagsIncludePaintingPhases;
 
     return document->frame()->layerTreeAsText(layerTreeFlags);
 }
@@ -1766,9 +1785,9 @@ int Internals::pageNumber(Element* element, float pageWidth, float pageHeight)
     return PrintContext::pageNumberForElement(element, FloatSize(pageWidth, pageHeight));
 }
 
-Vector<String> Internals::iconURLs(Document* document) const
+Vector<String> Internals::iconURLs(Document* document, int iconTypesMask) const
 {
-    Vector<IconURL> iconURLs = document->iconURLs();
+    Vector<IconURL> iconURLs = document->iconURLs(iconTypesMask);
     Vector<String> array;
 
     Vector<IconURL>::const_iterator iter(iconURLs.begin());
@@ -1776,6 +1795,16 @@ Vector<String> Internals::iconURLs(Document* document) const
         array.append(iter->m_iconURL.string());
 
     return array;
+}
+
+Vector<String> Internals::shortcutIconURLs(Document* document) const
+{
+    return iconURLs(document, Favicon);
+}
+
+Vector<String> Internals::allIconURLs(Document* document) const
+{
+    return iconURLs(document, Favicon | TouchIcon | TouchPrecomposedIcon);
 }
 
 int Internals::numberOfPages(float pageWidth, float pageHeight)
@@ -1815,6 +1844,24 @@ void Internals::setPageScaleFactor(float scaleFactor, int x, int y, ExceptionCod
     }
     Page* page = document->page();
     page->setPageScaleFactor(scaleFactor, IntPoint(x, y));
+}
+
+void Internals::setHeaderHeight(Document* document, float height)
+{
+    if (!document || !document->view())
+        return;
+
+    FrameView* frameView = document->view();
+    frameView->setHeaderHeight(height);
+}
+
+void Internals::setFooterHeight(Document* document, float height)
+{
+    if (!document || !document->view())
+        return;
+
+    FrameView* frameView = document->view();
+    frameView->setFooterHeight(height);
 }
 
 #if ENABLE(FULLSCREEN_API)
@@ -2015,6 +2062,11 @@ void Internals::setUsesOverlayScrollbars(bool enabled)
     WebCore::Settings::setUsesOverlayScrollbars(enabled);
 }
 
+void Internals::forceReload(bool endToEnd)
+{
+    frame()->loader()->reload(endToEnd);
+}
+
 #if ENABLE(ENCRYPTED_MEDIA_V2)
 void Internals::initializeMockCDM()
 {
@@ -2029,6 +2081,42 @@ String Internals::markerTextForListItem(Element* element, ExceptionCode& ec)
         return String();
     }
     return WebCore::markerTextForListItem(element);
+}
+
+String Internals::getImageSourceURL(Element* element, ExceptionCode& ec)
+{
+    if (!element) {
+        ec = INVALID_ACCESS_ERR;
+        return String();
+    }
+    return element->imageSourceURL();
+}
+
+#if ENABLE(VIDEO)
+void Internals::simulateAudioInterruption(Node* node)
+{
+#if USE(GSTREAMER)
+    HTMLMediaElement* element = toMediaElement(node);
+    element->player()->simulateAudioInterruption();
+#else
+    UNUSED_PARAM(node);
+#endif
+}
+#endif
+
+bool Internals::isSelectPopupVisible(Node* node)
+{
+    if (!isHTMLSelectElement(node))
+        return false;
+
+    HTMLSelectElement* select = toHTMLSelectElement(node);
+
+    RenderObject* renderer = select->renderer();
+    if (!renderer->isMenuList())
+        return false;
+
+    RenderMenuList* menuList = toRenderMenuList(renderer);
+    return menuList->popupIsVisible();
 }
 
 }

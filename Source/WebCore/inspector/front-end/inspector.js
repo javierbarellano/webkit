@@ -71,11 +71,8 @@ var WebInspector = {
             panelDescriptors.push(console);
             return panelDescriptors;
         }
-        var hiddenPanels = InspectorFrontendHost.hiddenPanels();
-        for (var i = 0; i < allDescriptors.length; ++i) {
-            if (hiddenPanels.indexOf(allDescriptors[i].name()) === -1)
-                panelDescriptors.push(allDescriptors[i]);
-        }
+        for (var i = 0; i < allDescriptors.length; ++i)
+            panelDescriptors.push(allDescriptors[i]);
         return panelDescriptors;
     },
 
@@ -96,11 +93,8 @@ var WebInspector = {
         this._toggleConsoleButton.addEventListener("click", this._toggleConsoleButtonClicked.bind(this), false);
         mainStatusBar.insertBefore(this._toggleConsoleButton.element, bottomStatusBarContainer);
 
-        if (!WebInspector.WorkerManager.isWorkerFrontend()) {
-            this._nodeSearchButton = new WebInspector.StatusBarButton(WebInspector.UIString("Select an element in the page to inspect it."), "node-search-status-bar-item");
-            this._nodeSearchButton.addEventListener("click", this.toggleSearchingForNode, this);
-            mainStatusBar.insertBefore(this._nodeSearchButton.element, bottomStatusBarContainer);
-        }
+        if (this.inspectElementModeController)
+            mainStatusBar.insertBefore(this.inspectElementModeController.toggleSearchButton.element, bottomStatusBarContainer);
 
         mainStatusBar.appendChild(this.settingsController.statusBarItem);
     },
@@ -276,20 +270,6 @@ var WebInspector = {
         InspectorFrontendHost.setZoomFactor(WebInspector.Zoom.Table[index]);
     },
 
-    toggleSearchingForNode: function()
-    {
-        var enabled = !this._nodeSearchButton.toggled;
-        /**
-         * @param {?Protocol.Error} error
-         */
-        function callback(error)
-        {
-            if (!error)
-                this._nodeSearchButton.toggled = enabled;
-        }
-        WebInspector.domAgent.setInspectModeEnabled(enabled, callback.bind(this));
-    },
-
     _debuggerPaused: function()
     {
         // Create scripts panel upon demand.
@@ -314,6 +294,30 @@ WebInspector.Events = {
         WebInspector.queryParamsObject[pair[0]] = pair[1];
     }
 })();}
+
+WebInspector.suggestReload = function()
+{
+    if (window.confirm(WebInspector.UIString("It is recommended to restart inspector after making these changes. Would you like to restart it?")))
+        this.reload();
+}
+
+WebInspector.reload = function()
+{
+    var queryParams = window.location.search;
+    var url = window.location.href;
+    url = url.substring(0, url.length - queryParams.length);
+    var queryParamsObject = {};
+    for (var name in WebInspector.queryParamsObject)
+        queryParamsObject[name] = WebInspector.queryParamsObject[name];
+    if (this.dockController)
+        queryParamsObject["dockSide"] = this.dockController.dockSide();
+    var names = Object.keys(queryParamsObject);
+    for (var i = 0; i < names.length; ++i)
+        url += (i ? "&" : "?") + names[i] + "=" + queryParamsObject[names[i]];
+
+    InspectorBackend.disconnect();
+    document.location = url;
+}
 
 WebInspector.loaded = function()
 {
@@ -384,6 +388,7 @@ WebInspector.doLoadedDone = function()
     PageAgent.canContinuouslyPaint(WebInspector._initializeCapability.bind(WebInspector, "canContinuouslyPaint", null));
     PageAgent.canOverrideDeviceMetrics(WebInspector._initializeCapability.bind(WebInspector, "canOverrideDeviceMetrics", null));
     PageAgent.canOverrideGeolocation(WebInspector._initializeCapability.bind(WebInspector, "canOverrideGeolocation", null));
+    WorkerAgent.canInspectWorkers(WebInspector._initializeCapability.bind(WebInspector, "canInspectWorkers", null));
     PageAgent.canOverrideDeviceOrientation(WebInspector._initializeCapability.bind(WebInspector, "canOverrideDeviceOrientation", WebInspector._doLoadedDoneWithCapabilities.bind(WebInspector)));
 }
 
@@ -434,6 +439,9 @@ WebInspector._doLoadedDoneWithCapabilities = function()
 
     this.searchController = new WebInspector.SearchController();
     this.advancedSearchController = new WebInspector.AdvancedSearchController();
+    if (!WebInspector.WorkerManager.isWorkerFrontend())
+        this.inspectElementModeController = new WebInspector.InspectElementModeController();
+
     this.settingsController = new WebInspector.SettingsController();
 
     this.domBreakpointsSidebarPane = new WebInspector.DOMBreakpointsSidebarPane();
@@ -653,7 +661,7 @@ WebInspector._registerShortcuts = function()
     ];
     section.addRelatedKeys(keys, WebInspector.UIString("Go to the panel to the left/right"));
 
-    var keys = [
+    keys = [
         shortcut.makeDescriptor("[", shortcut.Modifiers.CtrlOrMeta | shortcut.Modifiers.Alt),
         shortcut.makeDescriptor("]", shortcut.Modifiers.CtrlOrMeta | shortcut.Modifiers.Alt)
     ];
@@ -664,6 +672,9 @@ WebInspector._registerShortcuts = function()
 
     var advancedSearchShortcut = WebInspector.AdvancedSearchController.createShortcut();
     section.addKey(advancedSearchShortcut, WebInspector.UIString("Search across all sources"));
+
+    var inspectElementModeShortcut = WebInspector.InspectElementModeController.createShortcut();
+    section.addKey(inspectElementModeShortcut, WebInspector.UIString("Select node to inspect"));
 
     var openResourceShortcut = WebInspector.KeyboardShortcut.makeDescriptor("o", WebInspector.KeyboardShortcut.Modifiers.CtrlOrMeta);
     section.addKey(openResourceShortcut, WebInspector.UIString("Go to source"));
@@ -678,6 +689,12 @@ WebInspector._registerShortcuts = function()
 
     var goToShortcut = WebInspector.GoToLineDialog.createShortcut();
     section.addKey(goToShortcut, WebInspector.UIString("Go to line"));
+
+    keys = [
+        shortcut.Keys.F1,
+        shortcut.makeDescriptor("?")
+    ];
+    section.addAlternateKeys(keys, WebInspector.UIString("Show keyboard shortcuts"));
 }
 
 /**
@@ -714,6 +731,8 @@ WebInspector.documentKeyDown = function(event)
         return;
     if (WebInspector.advancedSearchController.handleShortcut(event))
         return;
+    if (WebInspector.inspectElementModeController && WebInspector.inspectElementModeController.handleShortcut(event))
+        return;
 
     switch (event.keyIdentifier) {
         case "U+004F": // O key
@@ -726,6 +745,10 @@ WebInspector.documentKeyDown = function(event)
             if (WebInspector.KeyboardShortcut.eventHasCtrlOrMeta(event)) {
                 PageAgent.reload(event.shiftKey);
                 event.consume(true);
+            }
+            if (window.DEBUG && event.altKey) {
+                WebInspector.reload();
+                return;
             }
             break;
         case "F5":
@@ -761,22 +784,6 @@ WebInspector.documentKeyDown = function(event)
                 event.consume(true);
             }
             break;
-    }
-
-    // Cmd/Control + Shift + C should be a shortcut to clicking the Node Search Button.
-    // This shortcut matches Firebug.
-    if (event.keyIdentifier === "U+0043") { // C key
-        if (WebInspector.isMac())
-            var isNodeSearchKey = event.metaKey && !event.ctrlKey && !event.altKey && event.shiftKey;
-        else
-            var isNodeSearchKey = event.ctrlKey && !event.metaKey && !event.altKey && event.shiftKey;
-
-        if (isNodeSearchKey) {
-            this.toggleSearchingForNode();
-            event.consume(true);
-            return;
-        }
-        return;
     }
 }
 
@@ -950,11 +957,18 @@ WebInspector.detached = function(reason)
     (new WebInspector.RemoteDebuggingTerminatedScreen(reason)).showModal();
 }
 
+WebInspector.targetCrashed = function()
+{
+    (new WebInspector.HelpScreenUntilReload(
+        WebInspector.UIString("Inspected target crashed"),
+        WebInspector.UIString("Inspected target has crashed. Once it reloads we will attach to it automatically."))).showModal();
+}
+
 WebInspector._updateFocusedNode = function(nodeId)
 {
-    if (WebInspector._nodeSearchButton.toggled) {
+    if (WebInspector.inspectElementModeController && WebInspector.inspectElementModeController.enabled()) {
         InspectorFrontendHost.bringToFront();
-        WebInspector._nodeSearchButton.toggled = false;
+        WebInspector.inspectElementModeController.disable();
     }
     WebInspector.showPanel("elements").revealAndSelectNode(nodeId);
 }
@@ -1002,7 +1016,7 @@ WebInspector.addMainEventListeners = function(doc)
     doc.addEventListener("keydown", this.documentKeyDown.bind(this), true);
     doc.addEventListener("keydown", this.postDocumentKeyDown.bind(this), false);
     doc.addEventListener("beforecopy", this.documentCanCopy.bind(this), true);
-    doc.addEventListener("copy", this.documentCopy.bind(this), true);
+    doc.addEventListener("copy", this.documentCopy.bind(this), false);
     doc.addEventListener("contextmenu", this.contextMenuEventFired.bind(this), true);
     doc.addEventListener("click", this.documentClick.bind(this), true);
 }

@@ -42,11 +42,7 @@ namespace WebCore {
 
 static v8::Local<v8::String> makeExternalString(const String& string)
 {
-#ifdef V8_ONE_BYTE_STRINGS_ENABLED
     if (string.is8Bit()) {
-#else
-    if (string.is8Bit() && string.containsOnlyASCII()) {
-#endif
         WebCoreStringResource8* stringResource = new WebCoreStringResource8(string);
         v8::Local<v8::String> newString = v8::String::NewExternal(stringResource);
         if (newString.IsEmpty())
@@ -58,13 +54,12 @@ static v8::Local<v8::String> makeExternalString(const String& string)
     v8::Local<v8::String> newString = v8::String::NewExternal(stringResource);
     if (newString.IsEmpty())
         delete stringResource;
-
     return newString;
 }
 
-static void cachedStringCallback(v8::Isolate* isolate, v8::Persistent<v8::Value> wrapper, void* parameter)
+template<>
+void WeakHandleListener<StringCache, StringImpl>::callback(v8::Isolate* isolate, v8::Persistent<v8::Value> wrapper, StringImpl* stringImpl)
 {
-    StringImpl* stringImpl = static_cast<StringImpl*>(parameter);
     V8PerIsolateData::current()->stringCache()->remove(stringImpl);
     wrapper.Dispose(isolate);
     wrapper.Clear();
@@ -104,7 +99,7 @@ v8::Handle<v8::String> StringCache::v8ExternalStringSlow(StringImpl* stringImpl,
 
     stringImpl->ref();
     wrapper.MarkIndependent(isolate);
-    wrapper.MakeWeak(isolate, stringImpl, cachedStringCallback);
+    WeakHandleListener<StringCache, StringImpl>::makeWeak(isolate, wrapper, stringImpl);
     m_stringCache.set(stringImpl, wrapper);
 
     m_lastStringImpl = stringImpl;

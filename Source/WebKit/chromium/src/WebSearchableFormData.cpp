@@ -106,7 +106,7 @@ bool IsSelectInDefaultState(HTMLSelectElement* select)
         for (Vector<HTMLElement*>::const_iterator i(listItems.begin()); i != listItems.end(); ++i) {
             if (!(*i)->hasLocalName(HTMLNames::optionTag))
                 continue;
-            HTMLOptionElement* optionElement = static_cast<HTMLOptionElement*>(*i);
+            HTMLOptionElement* optionElement = toHTMLOptionElement(*i);
             if (optionElement->selected() != optionElement->hasAttribute(selectedAttr))
                 return false;
         }
@@ -119,7 +119,7 @@ bool IsSelectInDefaultState(HTMLSelectElement* select)
     for (Vector<HTMLElement*>::const_iterator i(listItems.begin()); i != listItems.end(); ++i) {
         if (!(*i)->hasLocalName(HTMLNames::optionTag))
             continue;
-        HTMLOptionElement* optionElement = static_cast<HTMLOptionElement*>(*i);
+        HTMLOptionElement* optionElement = toHTMLOptionElement(*i);
         if (optionElement->hasAttribute(selectedAttr)) {
             // The page specified the option to select.
             initialSelected = optionElement;
@@ -162,7 +162,7 @@ HTMLInputElement* findSuitableSearchInputElement(const HTMLFormElement* form)
 
         HTMLFormControlElement* formElement = static_cast<HTMLFormControlElement*>(*i);
 
-        if (formElement->disabled() || formElement->name().isNull())
+        if (formElement->isDisabledFormControl() || formElement->name().isNull())
             continue;
 
         if (!IsInDefaultState(formElement) || formElement->hasTagName(HTMLNames::textareaTag))
@@ -205,7 +205,7 @@ bool buildSearchString(const HTMLFormElement* form, Vector<char>* encodedString,
 
         HTMLFormControlElement* formElement = static_cast<HTMLFormControlElement*>(*i);
 
-        if (formElement->disabled() || formElement->name().isNull())
+        if (formElement->isDisabledFormControl() || formElement->name().isNull())
             continue;
 
         FormDataList dataList(*encoding);

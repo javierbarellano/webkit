@@ -93,9 +93,9 @@
 #import <WebCore/StylePropertySet.h>
 #import <WebCore/TextIterator.h>
 #import <WebCore/ThreadCheck.h>
+#import <WebCore/VisibleUnits.h>
 #import <WebCore/htmlediting.h>
 #import <WebCore/markup.h>
-#import <WebCore/visible_units.h>
 #import <WebKitSystemInterface.h>
 #import <runtime/JSLock.h>
 #import <runtime/JSObject.h>
@@ -1227,7 +1227,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     Frame* coreFrame = _private->coreFrame;
     if (!coreFrame)
         return nil;
-    return [[[WebElementDictionary alloc] initWithHitTestResult:coreFrame->eventHandler()->hitTestResultAtPoint(IntPoint(point), HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping)] autorelease];
+    return [[[WebElementDictionary alloc] initWithHitTestResult:coreFrame->eventHandler()->hitTestResultAtPoint(IntPoint(point), HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping | HitTestRequest::DisallowShadowContent)] autorelease];
 }
 
 @end

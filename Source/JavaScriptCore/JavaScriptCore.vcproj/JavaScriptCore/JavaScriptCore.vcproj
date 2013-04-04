@@ -1174,6 +1174,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\runtime\PropertyTable.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\runtime\PrototypeMap.cpp"
 				>
 			</File>
@@ -1414,6 +1418,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\API\JSAPIWrapperObject.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\API\JSBase.cpp"
 				>
 			</File>
@@ -1535,6 +1543,10 @@
 			</File>
 			<File
 				RelativePath="..\..\API\JSWeakObjectMapRefPrivate.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\API\ObjCCallbackFunction.h"
 				>
 			</File>
 			<File
@@ -2642,6 +2654,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\heap\HandleBlock.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\heap\HandleBlockInlines.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\heap\HandleSet.cpp"
 				>
 			</File>
@@ -2758,6 +2778,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\heap\Region.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\heap\SlotVisitor.cpp"
 				>
 			</File>
@@ -2767,6 +2791,14 @@
 			</File>
 			<File
 				RelativePath="..\..\heap\StrongInlines.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\heap\SuperRegion.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\heap\SuperRegion.h"
 				>
 			</File>
 			<File

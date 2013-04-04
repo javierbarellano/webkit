@@ -464,7 +464,7 @@ void InspectorPageAgent::reload(ErrorString*, const bool* const optionalIgnoreCa
 
 void InspectorPageAgent::navigate(ErrorString*, const String& url)
 {
-    UserGestureIndicator indicator(DefinitelyProcessingUserGesture);
+    UserGestureIndicator indicator(DefinitelyProcessingNewUserGesture);
     Frame* frame = m_page->mainFrame();
     frame->loader()->changeLocation(frame->document()->securityOrigin(), frame->document()->completeURL(url), "", false, false);
 }
@@ -852,11 +852,11 @@ void InspectorPageAgent::didClearWindowObjectInWorld(Frame* frame, DOMWrapperWor
         for (InspectorObject::const_iterator it = scripts->begin(); it != end; ++it) {
             String scriptText;
             if (it->value->asString(&scriptText))
-                m_injectedScriptManager->injectScript(scriptText, mainWorldScriptState(frame));
+                frame->script()->executeScript(scriptText);
         }
     }
     if (!m_scriptToEvaluateOnLoadOnce.isEmpty())
-        m_injectedScriptManager->injectScript(m_scriptToEvaluateOnLoadOnce, mainWorldScriptState(frame));
+        frame->script()->executeScript(m_scriptToEvaluateOnLoadOnce);
 }
 
 void InspectorPageAgent::domContentEventFired()
@@ -1302,9 +1302,9 @@ void InspectorPageAgent::captureScreenshot(ErrorString* errorString, String* dat
         *errorString = "Could not capture screenshot";
 }
 
-void InspectorPageAgent::handleJavaScriptDialog(ErrorString* errorString, bool accept)
+void InspectorPageAgent::handleJavaScriptDialog(ErrorString* errorString, bool accept, const String* promptText)
 {
-    if (!m_client->handleJavaScriptDialog(accept))
+    if (!m_client->handleJavaScriptDialog(accept, promptText))
         *errorString = "Could not handle JavaScript dialog";
 }
 

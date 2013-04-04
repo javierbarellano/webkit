@@ -53,7 +53,7 @@
 #include "WebRange.h"
 #include "WebScreenInfo.h"
 #include "WebSerializedScriptValue.h"
-#include "WebStorageNamespace.h"
+#include "WebUserGestureIndicator.h"
 #include "WebView.h"
 #include "WebWindowFeatures.h"
 #include "webkit/support/test_media_stream_client.h"
@@ -66,6 +66,7 @@
 #include <public/WebDragData.h>
 #include <public/WebRect.h>
 #include <public/WebSize.h>
+#include <public/WebStorageNamespace.h>
 #include <public/WebThread.h>
 #include <public/WebURLRequest.h>
 #include <public/WebURLResponse.h>
@@ -90,7 +91,7 @@ static int nextPageID = 1;
 
 WebView* WebViewHost::createView(WebFrame* creator, const WebURLRequest&, const WebWindowFeatures&, const WebString&, WebNavigationPolicy)
 {
-    creator->consumeUserGesture();
+    WebUserGestureIndicator::consumeUserGesture();
     return m_shell->createNewWindow(WebURL())->webView();
 }
 
@@ -167,20 +168,6 @@ bool WebViewHost::shouldDeleteRange(const WebRange& range)
 bool WebViewHost::shouldApplyStyle(const WebString& style, const WebRange& range)
 {
     return true;
-}
-
-bool WebViewHost::isSmartInsertDeleteEnabled()
-{
-    return true;
-}
-
-bool WebViewHost::isSelectTrailingWhitespaceEnabled()
-{
-#if OS(WINDOWS)
-    return true;
-#else
-    return false;
-#endif
 }
 
 bool WebViewHost::handleCurrentKeyboardEvent()
@@ -275,17 +262,23 @@ private:
     WebViewHost* m_host;
 };
 
-void WebViewHost::initializeLayerTreeView(WebLayerTreeViewClient* client, const WebLayer& rootLayer, const WebLayerTreeView::Settings& settings)
+void WebViewHost::initializeLayerTreeView()
 {
     m_layerTreeViewClient = adoptPtr(new WebViewHostDRTLayerTreeViewClient(this));
-    if (m_shell->softwareCompositingEnabled())
-        m_layerTreeView = adoptPtr(webkit_support::CreateLayerTreeViewSoftware(m_layerTreeViewClient.get()));
-    else
-        m_layerTreeView = adoptPtr(webkit_support::CreateLayerTreeView3d(m_layerTreeViewClient.get()));
+    if (m_shell->softwareCompositingEnabled()) {
+        m_layerTreeView = adoptPtr(webkit_support::CreateLayerTreeView(
+            webkit_support::SOFTWARE_CONTEXT,
+            m_layerTreeViewClient.get(),
+            m_shell->webCompositorThread()));
+    } else {
+        m_layerTreeView = adoptPtr(webkit_support::CreateLayerTreeView(
+            webkit_support::MESA_CONTEXT,
+            m_layerTreeViewClient.get(),
+            m_shell->webCompositorThread()));
+    }
 
     ASSERT(m_layerTreeView);
     updateViewportSize();
-    m_layerTreeView->setRootLayer(rootLayer);
     m_layerTreeView->setSurfaceReady();
 }
 
@@ -302,12 +295,10 @@ void WebViewHost::scheduleAnimation()
 
 void WebViewHost::didFocus()
 {
-    m_shell->setFocus(webWidget(), true);
 }
 
 void WebViewHost::didBlur()
 {
-    m_shell->setFocus(webWidget(), false);
 }
 
 WebScreenInfo WebViewHost::screenInfo()
@@ -487,6 +478,10 @@ void WebViewHost::didReceiveTitle(WebFrame* frame, const WebString& title, WebTe
     setPageTitle(title);
 }
 
+void WebViewHost::didChangeIcon(WebFrame* , WebIconURL::Type)
+{
+}
+
 void WebViewHost::didNavigateWithinPage(WebFrame* frame, bool isNewNavigation)
 {
     frame->dataSource()->setExtraData(m_pendingExtraData.leakPtr());
@@ -502,12 +497,12 @@ void WebViewHost::willSendRequest(WebFrame* frame, unsigned, WebURLRequest& requ
     request.setExtraData(webkit_support::CreateWebURLRequestExtraData(frame->document().referrerPolicy()));
 }
 
-void WebViewHost::openFileSystem(WebFrame* frame, WebFileSystem::Type type, long long size, bool create, WebFileSystemCallbacks* callbacks)
+void WebViewHost::openFileSystem(WebFrame* frame, WebFileSystemType type, long long size, bool create, WebFileSystemCallbacks* callbacks)
 {
     webkit_support::OpenFileSystem(frame, type, size, create, callbacks);
 }
 
-void WebViewHost::deleteFileSystem(WebKit::WebFrame* frame, WebKit::WebFileSystem::Type type, WebKit::WebFileSystemCallbacks* callbacks)
+void WebViewHost::deleteFileSystem(WebKit::WebFrame* frame, WebKit::WebFileSystemType type, WebKit::WebFileSystemCallbacks* callbacks)
 {
     webkit_support::DeleteFileSystem(frame, type, callbacks);
 }
@@ -622,9 +617,12 @@ void WebViewHost::setDeviceScaleFactor(float deviceScaleFactor)
     updateViewportSize();
 }
 
-void WebViewHost::setFocus(bool focused)
+void WebViewHost::setFocus(WebTestProxyBase* proxy, bool focused)
 {
-    m_shell->setFocus(m_shell->webView(), focused);
+    for (size_t i = 0; i < m_shell->windowList().size(); ++i) {
+        if (m_shell->windowList()[i]->proxy() == proxy)
+            m_shell->setFocus(m_shell->windowList()[i]->webWidget(), focused);
+    }
 }
 
 void WebViewHost::setAcceptAllCookies(bool acceptCookies)

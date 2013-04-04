@@ -27,6 +27,7 @@
 #include "config.h"
 #include "InternalSettings.h"
 
+#include "CaptionUserPreferences.h"
 #include "Document.h"
 #include "ExceptionCode.h"
 #include "Frame.h"
@@ -34,6 +35,7 @@
 #include "Language.h"
 #include "LocaleToScriptMapping.h"
 #include "Page.h"
+#include "PageGroup.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
 #include "Supplementable.h"
@@ -94,6 +96,9 @@ InternalSettings::Backup::Backup(Settings* settings)
     , m_shouldDisplayCaptions(settings->shouldDisplayCaptions())
     , m_shouldDisplayTextDescriptions(settings->shouldDisplayTextDescriptions())
 #endif
+    , m_defaultVideoPosterURL(settings->defaultVideoPosterURL())
+    , m_originalTimeWithoutMouseMovementBeforeHidingControls(settings->timeWithoutMouseMovementBeforeHidingControls())
+    , m_useLegacyBackgroundSizeShorthandBehavior(settings->useLegacyBackgroundSizeShorthandBehavior())
 {
 }
 
@@ -129,6 +134,9 @@ void InternalSettings::Backup::restoreTo(Settings* settings)
     settings->setShouldDisplayCaptions(m_shouldDisplayCaptions);
     settings->setShouldDisplayTextDescriptions(m_shouldDisplayTextDescriptions);
 #endif
+    settings->setDefaultVideoPosterURL(m_defaultVideoPosterURL);
+    settings->setTimeWithoutMouseMovementBeforeHidingControls(m_originalTimeWithoutMouseMovementBeforeHidingControls);
+    settings->setUseLegacyBackgroundSizeShorthandBehavior(m_useLegacyBackgroundSizeShorthandBehavior);
 }
 
 // We can't use RefCountedSupplement because that would try to make InternalSettings RefCounted
@@ -346,28 +354,6 @@ void InternalSettings::setTextAutosizingFontScaleFactor(float fontScaleFactor, E
 #endif
 }
 
-void InternalSettings::setEnableScrollAnimator(bool enabled, ExceptionCode& ec)
-{
-#if ENABLE(SMOOTH_SCROLLING)
-    InternalSettingsGuardForSettings();
-    settings()->setEnableScrollAnimator(enabled);
-#else
-    UNUSED_PARAM(enabled);
-    UNUSED_PARAM(ec);
-#endif
-}
-
-bool InternalSettings::scrollAnimatorEnabled(ExceptionCode& ec)
-{
-#if ENABLE(SMOOTH_SCROLLING)
-    InternalSettingsGuardForSettingsReturn(false);
-    return settings()->scrollAnimatorEnabled();
-#else
-    UNUSED_PARAM(ec);
-    return false;
-#endif
-}
-
 void InternalSettings::setCSSExclusionsEnabled(bool enabled, ExceptionCode& ec)
 {
     UNUSED_PARAM(ec);
@@ -422,12 +408,16 @@ void InternalSettings::setShouldDisplayTrackKind(const String& kind, bool enable
     InternalSettingsGuardForSettings();
 
 #if ENABLE(VIDEO_TRACK)
+    if (!page())
+        return;
+    CaptionUserPreferences* captionPreferences = page()->group().captionPreferences();
+
     if (equalIgnoringCase(kind, "Subtitles"))
-        settings()->setShouldDisplaySubtitles(enabled);
+        captionPreferences->setUserPrefersSubtitles(enabled);
     else if (equalIgnoringCase(kind, "Captions"))
-        settings()->setShouldDisplayCaptions(enabled);
+        captionPreferences->setUserPrefersCaptions(enabled);
     else if (equalIgnoringCase(kind, "TextDescriptions"))
-        settings()->setShouldDisplayTextDescriptions(enabled);
+        captionPreferences->setUserPrefersTextDescriptions(enabled);
     else
         ec = SYNTAX_ERR;
 #else
@@ -441,12 +431,16 @@ bool InternalSettings::shouldDisplayTrackKind(const String& kind, ExceptionCode&
     InternalSettingsGuardForSettingsReturn(false);
 
 #if ENABLE(VIDEO_TRACK)
+    if (!page())
+        return false;
+    CaptionUserPreferences* captionPreferences = page()->group().captionPreferences();
+
     if (equalIgnoringCase(kind, "Subtitles"))
-        return settings()->shouldDisplaySubtitles();
+        return captionPreferences->userPrefersSubtitles();
     if (equalIgnoringCase(kind, "Captions"))
-        return settings()->shouldDisplayCaptions();
+        return captionPreferences->userPrefersCaptions();
     if (equalIgnoringCase(kind, "TextDescriptions"))
-        return settings()->shouldDisplayTextDescriptions();
+        return captionPreferences->userPrefersTextDescriptions();
 
     ec = SYNTAX_ERR;
     return false;
@@ -485,6 +479,24 @@ void InternalSettings::setMinimumTimerInterval(double intervalInSeconds, Excepti
 {
     InternalSettingsGuardForSettings();
     settings()->setMinDOMTimerInterval(intervalInSeconds);
+}
+
+void InternalSettings::setDefaultVideoPosterURL(const String& url, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setDefaultVideoPosterURL(url);
+}
+
+void InternalSettings::setTimeWithoutMouseMovementBeforeHidingControls(double time, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setTimeWithoutMouseMovementBeforeHidingControls(time);
+}
+
+void InternalSettings::setUseLegacyBackgroundSizeShorthandBehavior(bool enabled, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setUseLegacyBackgroundSizeShorthandBehavior(enabled);
 }
 
 }

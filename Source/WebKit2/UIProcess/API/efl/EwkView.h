@@ -87,6 +87,7 @@ class EwkContext;
 class EwkBackForwardList;
 class EwkColorPicker;
 class EwkContextMenu;
+class EwkPageGroup;
 class EwkPopupMenu;
 class EwkSettings;
 class EwkWindowFeatures;
@@ -97,29 +98,22 @@ typedef struct _Evas_GL_Surface Evas_GL_Surface;
 typedef struct Ewk_View_Smart_Data Ewk_View_Smart_Data;
 typedef struct Ewk_View_Smart_Class Ewk_View_Smart_Class;
 
-// EwkView object is owned by the evas object, obtained from EwkView::createEvasObject().
 class EwkView {
 public:
-
-    enum ViewBehavior {
-        LegacyBehavior,
-        DefaultBehavior
-    };
-
-    static Evas_Object* createEvasObject(Evas* canvas, Evas_Smart* smart, PassRefPtr<EwkContext> context,  WKPageGroupRef pageGroupRef = 0, ViewBehavior behavior = EwkView::DefaultBehavior);
-    static Evas_Object* createEvasObject(Evas* canvas, PassRefPtr<EwkContext> context, WKPageGroupRef pageGroupRef = 0, ViewBehavior behavior = EwkView::DefaultBehavior);
+    static EwkView* create(WKViewRef, Evas* canvas, Evas_Smart* smart = 0);
 
     static bool initSmartClassInterface(Ewk_View_Smart_Class&);
 
-    static const Evas_Object* toEvasObject(WKPageRef);
+    static Evas_Object* toEvasObject(WKPageRef);
 
     Evas_Object* evasObject() { return m_evasObject; }
 
-    WKViewRef wkView() const { return toAPI(m_webView.get()); }
+    WKViewRef wkView() const { return m_webView.get(); }
     WKPageRef wkPage() const;
 
-    WebKit::WebPageProxy* page() { return m_webView->page(); }
+    WebKit::WebPageProxy* page() { return webView()->page(); }
     EwkContext* ewkContext() { return m_context.get(); }
+    EwkPageGroup* ewkPageGroup() { return m_pageGroup.get(); }
     EwkSettings* settings() { return m_settings.get(); }
     EwkBackForwardList* backForwardList() { return m_backForwardList.get(); }
     EwkWindowFeatures* windowFeatures();
@@ -131,8 +125,8 @@ public:
     void setDeviceScaleFactor(float scale);
     float deviceScaleFactor() const;
 
-    void setSize(const WebCore::IntSize&);
-    WebCore::IntSize size() const { return m_size; }
+    WebCore::IntSize size() const;
+    WebCore::IntSize deviceSize() const;
 
     WebCore::AffineTransform transformToScreen() const;
 
@@ -155,7 +149,6 @@ public:
 #endif
 
     void setCursor(const WebCore::Cursor& cursor);
-    void setImageData(void* imageData, const WebCore::IntSize& size);
 
     void scheduleUpdateDisplay();
 
@@ -199,7 +192,7 @@ public:
     unsigned long long informDatabaseQuotaReached(const String& databaseName, const String& displayName, unsigned long long currentQuota, unsigned long long currentOriginUsage, unsigned long long currentDatabaseUsage, unsigned long long expectedUsage);
 
     // FIXME: Remove when possible.
-    WebKit::WebView* webView() { return m_webView.get(); }
+    WebKit::WebView* webView();
 
     void setPageScaleFactor(float scaleFactor) { m_pageScaleFactor = scaleFactor; }
     float pageScaleFactor() const { return m_pageScaleFactor; }
@@ -213,9 +206,10 @@ public:
     PassRefPtr<cairo_surface_t> takeSnapshot();
 
 private:
-    EwkView(Evas_Object* evasObject, PassRefPtr<EwkContext> context, WKPageGroupRef pageGroup, ViewBehavior);
+    EwkView(WKViewRef, Evas_Object*);
     ~EwkView();
 
+    void setDeviceSize(const WebCore::IntSize&);
     Ewk_View_Smart_Data* smartData() const;
 
     void displayTimerFired(WebCore::Timer<EwkView>*);
@@ -250,15 +244,16 @@ private:
 
 private:
     // Note, initialization order matters.
+    WKRetainPtr<WKViewRef> m_webView;
     Evas_Object* m_evasObject;
     RefPtr<EwkContext> m_context;
+    RefPtr<EwkPageGroup> m_pageGroup;
     OwnPtr<Evas_GL> m_evasGL;
     OwnPtr<WebKit::EvasGLContext> m_evasGLContext;
     OwnPtr<WebKit::EvasGLSurface> m_evasGLSurface;
-    WebCore::IntSize m_size;
+    WebCore::IntSize m_deviceSize;
     WebCore::TransformationMatrix m_userViewportTransform;
     bool m_pendingSurfaceResize;
-    RefPtr<WebKit::WebView> m_webView;
     OwnPtr<WebKit::PageLoadClientEfl> m_pageLoadClient;
     OwnPtr<WebKit::PagePolicyClientEfl> m_pagePolicyClient;
     OwnPtr<WebKit::PageUIClientEfl> m_pageUIClient;

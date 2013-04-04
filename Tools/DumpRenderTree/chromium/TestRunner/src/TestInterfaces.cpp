@@ -69,6 +69,7 @@ TestInterfaces::TestInterfaces()
     WebRuntimeFeatures::enableInputTypeTime(true);
     WebRuntimeFeatures::enableInputTypeWeek(true);
     WebRuntimeFeatures::enableFileSystem(true);
+    WebRuntimeFeatures::enableFontLoadEvents(true);
     WebRuntimeFeatures::enableJavaScriptI18NAPI(true);
     WebRuntimeFeatures::enableMediaSource(true);
     WebRuntimeFeatures::enableEncryptedMedia(true);
@@ -212,6 +213,21 @@ WebTestProxyBase* TestInterfaces::proxy()
 const vector<WebTestProxyBase*>& TestInterfaces::windowList()
 {
     return m_windowList;
+}
+
+WebThemeEngine* TestInterfaces::themeEngine()
+{
+#if defined(USE_DEFAULT_RENDER_THEME) || !(defined(WIN32) || defined(__APPLE__))
+    return 0;
+#elif defined(WIN32)
+    if (!m_themeEngine.get())
+        m_themeEngine.reset(new WebTestThemeEngineWin());
+    return m_themeEngine.get();
+#elif defined(__APPLE__)
+    if (!m_themeEngine.get())
+        m_themeEngine.reset(new WebTestThemeEngineMac());
+    return m_themeEngine.get();
+#endif
 }
 
 }

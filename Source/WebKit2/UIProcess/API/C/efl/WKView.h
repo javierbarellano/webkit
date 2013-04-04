@@ -24,22 +24,16 @@
 #include <WebKit2/WKBase.h>
 #include <WebKit2/WKGeometry.h>
 
-#if USE(EO)
-typedef struct _Eo Evas;
-typedef struct _Eo Evas_Object;
-#else
-typedef struct _Evas Evas;
-typedef struct _Evas_Object Evas_Object;
-#endif
-
 typedef struct _cairo_surface cairo_surface_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef void (*WKViewCallback)(WKViewRef view, const void* clientInfo);
 typedef void (*WKViewViewNeedsDisplayCallback)(WKViewRef view, WKRect area, const void* clientInfo);
 typedef void (*WKViewPageDidChangeContentsSizeCallback)(WKViewRef view, WKSize size, const void* clientInfo);
+typedef void (*WKViewWebProcessCrashedCallback)(WKViewRef view, WKURLRef url, const void* clientInfo);
 
 struct WKViewClient {
     int                                              version;
@@ -48,14 +42,14 @@ struct WKViewClient {
     // Version 0
     WKViewViewNeedsDisplayCallback                   viewNeedsDisplay;
     WKViewPageDidChangeContentsSizeCallback          didChangeContentsSize;
+    WKViewWebProcessCrashedCallback                  webProcessCrashed;
+    WKViewCallback                                   webProcessDidRelaunch;
 };
 typedef struct WKViewClient WKViewClient;
 
 enum { kWKViewClientCurrentVersion = 0 };
 
-WK_EXPORT WKViewRef WKViewCreate(Evas* canvas, WKContextRef context, WKPageGroupRef pageGroup);
-
-WK_EXPORT WKViewRef WKViewCreateWithFixedLayout(Evas* canvas, WKContextRef context, WKPageGroupRef pageGroup);
+WK_EXPORT WKViewRef WKViewCreate(WKContextRef context, WKPageGroupRef pageGroup);
 
 WK_EXPORT void WKViewInitialize(WKViewRef);
 WK_EXPORT void WKViewSetViewClient(WKViewRef, const WKViewClient*);
@@ -83,9 +77,6 @@ WK_EXPORT void WKViewSetShowsAsSource(WKViewRef, bool);
 WK_EXPORT bool WKViewGetShowsAsSource(WKViewRef);
 
 WK_EXPORT void WKViewExitFullScreen(WKViewRef);
-
-// FIXME: The long term plan is to get rid of this, so keep usage to a bare minimum.
-WK_EXPORT Evas_Object* WKViewGetEvasObject(WKViewRef);
 
 WK_EXPORT WKImageRef WKViewCreateSnapshot(WKViewRef);
 

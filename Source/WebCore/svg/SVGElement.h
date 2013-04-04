@@ -57,10 +57,10 @@ public:
 
     SVGDocumentExtensions* accessDocumentSVGExtensions();
 
-    virtual bool isStyled() const { return false; }
+    virtual bool isSVGStyledElement() const { return false; }
     virtual bool isStyledTransformable() const { return false; }
     virtual bool isStyledLocatable() const { return false; }
-    virtual bool isSVG() const { return false; }
+    virtual bool isSVGSVGElement() const { return false; }
     virtual bool isFilterEffect() const { return false; }
     virtual bool isGradientStop() const { return false; }
     virtual bool isTextContent() const { return false; }
@@ -97,9 +97,9 @@ public:
  
     virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
 
-    static void synchronizeRequiredFeatures(void* contextElement);
-    static void synchronizeRequiredExtensions(void* contextElement);
-    static void synchronizeSystemLanguage(void* contextElement);
+    static void synchronizeRequiredFeatures(SVGElement* contextElement);
+    static void synchronizeRequiredExtensions(SVGElement* contextElement);
+    static void synchronizeSystemLanguage(SVGElement* contextElement);
 
     virtual void synchronizeRequiredFeatures() { }
     virtual void synchronizeRequiredExtensions() { }
@@ -126,7 +126,7 @@ protected:
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
     virtual void finishParsingChildren();
-    virtual void attributeChanged(const QualifiedName&, const AtomicString&) OVERRIDE;
+    virtual void attributeChanged(const QualifiedName&, const AtomicString&, AttributeModificationReason = ModifiedDirectly) OVERRIDE;
     virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const OVERRIDE;
     
     virtual void removedFrom(ContainerNode*) OVERRIDE;
@@ -168,10 +168,16 @@ struct SVGAttributeHashTranslator {
     static bool equal(const QualifiedName& a, const QualifiedName& b) { return a.matches(b); }
 };
 
-inline SVGElement* toSVGElement(Element* element)
+inline SVGElement* toSVGElement(Node* node)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!element || element->isSVGElement());
-    return static_cast<SVGElement*>(element);
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
+    return static_cast<SVGElement*>(node);
+}
+
+inline const SVGElement* toSVGElement(const Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
+    return static_cast<const SVGElement*>(node);
 }
 
 }

@@ -51,7 +51,7 @@ using namespace std;
 HTMLFormControlElement::HTMLFormControlElement(const QualifiedName& tagName, Document* document, HTMLFormElement* form)
     : LabelableElement(tagName, document)
     , m_disabled(false)
-    , m_readOnly(false)
+    , m_isReadOnly(false)
     , m_isRequired(false)
     , m_valueMatchesRenderer(false)
     , m_ancestorDisabledState(AncestorDisabledStateUnknown)
@@ -113,7 +113,7 @@ void HTMLFormControlElement::updateAncestorDisabledState() const
             break;
         }
     }
-    m_ancestorDisabledState = (fieldSetAncestor && fieldSetAncestor->disabled() && !(legendAncestor && legendAncestor == fieldSetAncestor->legend())) ? AncestorDisabledStateDisabled : AncestorDisabledStateEnabled;
+    m_ancestorDisabledState = (fieldSetAncestor && fieldSetAncestor->isDisabledFormControl() && !(legendAncestor && legendAncestor == fieldSetAncestor->legend())) ? AncestorDisabledStateDisabled : AncestorDisabledStateEnabled;
 }
 
 void HTMLFormControlElement::ancestorDisabledStateWasChanged()
@@ -133,9 +133,9 @@ void HTMLFormControlElement::parseAttribute(const QualifiedName& name, const Ato
         if (oldDisabled != m_disabled)
             disabledAttributeChanged();
     } else if (name == readonlyAttr) {
-        bool oldReadOnly = m_readOnly;
-        m_readOnly = !value.isNull();
-        if (oldReadOnly != m_readOnly) {
+        bool wasReadOnly = m_isReadOnly;
+        m_isReadOnly = !value.isNull();
+        if (wasReadOnly != m_isReadOnly) {
             setNeedsWillValidateCheck();
             setNeedsStyleRecalc();
             if (renderer() && renderer()->style()->hasAppearance())
@@ -180,7 +180,7 @@ static bool shouldAutofocus(HTMLFormControlElement* element)
         return false;
     if (element->document()->isSandboxed(SandboxAutomaticFeatures)) {
         // FIXME: This message should be moved off the console once a solution to https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-        element->document()->addConsoleMessage(HTMLMessageSource, ErrorMessageLevel, "Blocked autofocusing on a form control because the form's frame is sandboxed and the 'allow-scripts' permission is not set.");
+        element->document()->addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, "Blocked autofocusing on a form control because the form's frame is sandboxed and the 'allow-scripts' permission is not set.");
         return false;
     }
     if (element->hasAutofocused())
@@ -204,7 +204,7 @@ static bool shouldAutofocus(HTMLFormControlElement* element)
 
 static void focusPostAttach(Node* element, unsigned)
 { 
-    static_cast<Element*>(element)->focus(); 
+    toElement(element)->focus(); 
     element->deref(); 
 }
 
@@ -274,14 +274,16 @@ void HTMLFormControlElement::dispatchFormControlInputEvent()
     HTMLElement::dispatchInputEvent();
 }
 
-bool HTMLFormControlElement::disabled() const
+bool HTMLFormControlElement::isDisabledFormControl() const
 {
     if (m_disabled)
         return true;
 
     if (m_ancestorDisabledState == AncestorDisabledStateUnknown)
         updateAncestorDisabledState();
-    return m_ancestorDisabledState == AncestorDisabledStateDisabled;
+    if (m_ancestorDisabledState == AncestorDisabledStateDisabled)
+        return true;
+    return HTMLElement::isDisabledFormControl();
 }
 
 bool HTMLFormControlElement::isRequired() const
@@ -292,7 +294,7 @@ bool HTMLFormControlElement::isRequired() const
 static void updateFromElementCallback(Node* node, unsigned)
 {
     ASSERT_ARG(node, node->isElementNode());
-    ASSERT_ARG(node, static_cast<Element*>(node)->isFormControlElement());
+    ASSERT_ARG(node, toElement(node)->isFormControlElement());
     if (RenderObject* renderer = node->renderer())
         renderer->updateFromElement();
 }
@@ -307,7 +309,7 @@ void HTMLFormControlElement::didRecalcStyle(StyleChange)
 
 bool HTMLFormControlElement::supportsFocus() const
 {
-    return !disabled();
+    return !isDisabledFormControl();
 }
 
 bool HTMLFormControlElement::isFocusable() const

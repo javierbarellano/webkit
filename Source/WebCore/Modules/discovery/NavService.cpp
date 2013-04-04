@@ -15,7 +15,7 @@ namespace WebCore {
 // Copy Constructor
 NavService::NavService(const NavService &that)
 	: RefCounted()
-	, ActiveDOMObject(that.scriptExecutionContext(), this)
+	, ActiveDOMObject(that.scriptExecutionContext())
 {
 	setName  (that.name());
 	setUrl   (that.url());

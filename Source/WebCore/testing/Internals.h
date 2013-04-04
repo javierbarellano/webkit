@@ -145,8 +145,6 @@ public:
 
     PassRefPtr<ClientRectList> inspectorHighlightRects(Document*, ExceptionCode&);
 
-    void setBackgroundBlurOnNode(Node*, int blurLength, ExceptionCode&);
-
     unsigned markerCountForNode(Node*, const String&, ExceptionCode&);
     PassRefPtr<Range> markerRangeForNode(Node*, const String& markerType, unsigned index, ExceptionCode&);
     String markerDescriptionForNode(Node*, const String& markerType, unsigned index, ExceptionCode&);
@@ -158,6 +156,7 @@ public:
     String configurationForViewport(Document*, float devicePixelRatio, int deviceWidth, int deviceHeight, int availableWidth, int availableHeight, ExceptionCode&);
 
     bool wasLastChangeUserEdit(Element* textField, ExceptionCode&);
+    bool elementShouldAutoComplete(Element* inputElement, ExceptionCode&);
     String suggestedValue(Element* inputElement, ExceptionCode&);
     void setSuggestedValue(Element* inputElement, const String&, ExceptionCode&);
     void setEditingValue(Element* inputElement, const String&, ExceptionCode&);
@@ -201,6 +200,10 @@ public:
     bool hasSpellingMarker(Document*, int from, int length, ExceptionCode&);
     bool hasGrammarMarker(Document*, int from, int length, ExceptionCode&);
     bool hasAutocorrectedMarker(Document*, int from, int length, ExceptionCode&);
+    void setContinuousSpellCheckingEnabled(bool enabled, ExceptionCode&);
+
+    bool isOverwriteModeEnabled(Document*, ExceptionCode&);
+    void toggleOverwriteModeEnabled(Document*, ExceptionCode&);
 
     unsigned numberOfScrollableAreas(Document*, ExceptionCode&);
 
@@ -221,8 +224,8 @@ public:
         // Values need to be kept in sync with Internals.idl.
         LAYER_TREE_INCLUDES_VISIBLE_RECTS = 1,
         LAYER_TREE_INCLUDES_TILE_CACHES = 2,
-        LAYER_TREE_INCLUDES_REPAINT_RECTS = 4
-        
+        LAYER_TREE_INCLUDES_REPAINT_RECTS = 4,
+        LAYER_TREE_INCLUDES_PAINTING_PHASES = 8
     };
     String layerTreeAsText(Document*, unsigned flags, ExceptionCode&) const;
     String layerTreeAsText(Document*, ExceptionCode&) const;
@@ -251,13 +254,17 @@ public:
     String counterValue(Element*);
 
     int pageNumber(Element*, float pageWidth = 800, float pageHeight = 600);
-    Vector<String> iconURLs(Document*) const;
+    Vector<String> shortcutIconURLs(Document*) const;
+    Vector<String> allIconURLs(Document*) const;
 
     int numberOfPages(float pageWidthInPixels = 800, float pageHeightInPixels = 600);
     String pageProperty(String, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
     String pageSizeAndMarginsInPixels(int, int, int, int, int, int, int, ExceptionCode& = ASSERT_NO_EXCEPTION) const;
 
     void setPageScaleFactor(float scaleFactor, int x, int y, ExceptionCode&);
+
+    void setHeaderHeight(Document*, float);
+    void setFooterHeight(Document*, float);
 
 #if ENABLE(FULLSCREEN_API)
     void webkitWillEnterFullScreenForElement(Document*, Element*);
@@ -286,6 +293,8 @@ public:
 
     String markerTextForListItem(Element*, ExceptionCode&);
 
+    void forceReload(bool endToEnd);
+
 #if ENABLE(ENCRYPTED_MEDIA_V2)
     void initializeMockCDM();
 #endif
@@ -293,11 +302,20 @@ public:
 #if ENABLE(SPEECH_SYNTHESIS)
     void enableMockSpeechSynthesizer();
 #endif
-                    
+
+    String getImageSourceURL(Element*, ExceptionCode&);
+
+#if ENABLE(VIDEO)
+    void simulateAudioInterruption(Node*);
+#endif
+
+    bool isSelectPopupVisible(Node*);
+
 private:
     explicit Internals(Document*);
     Document* contextDocument() const;
     Frame* frame() const;
+    Vector<String> iconURLs(Document*, int iconTypesMask) const;
 
     DocumentMarker* markerAt(Node*, const String& markerType, unsigned index, ExceptionCode&);
 #if ENABLE(INSPECTOR)

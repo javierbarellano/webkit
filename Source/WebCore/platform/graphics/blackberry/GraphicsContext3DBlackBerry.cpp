@@ -113,6 +113,11 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attrs, HostWi
     ANGLEResources.OES_standard_derivatives = m_extensions->supports("GL_OES_standard_derivatives");
     ANGLEResources.OES_EGL_image_external = m_extensions->supports("GL_EGL_image_external");
     ANGLEResources.ARB_texture_rectangle = m_extensions->supports("GL_ARB_texture_rectangle");
+
+    GC3Dint range[2], precision;
+    getShaderPrecisionFormat(GraphicsContext3D::FRAGMENT_SHADER, GraphicsContext3D::HIGH_FLOAT, range, &precision);
+    ANGLEResources.FragmentPrecisionHigh = (range[0] || range[1] || precision);
+
     m_compiler.setResources(ANGLEResources);
 
     ::glClearColor(0, 0, 0, 0);
@@ -383,30 +388,39 @@ void GraphicsContext3D::setErrorMessageCallback(PassOwnPtr<ErrorMessageCallback>
 {
 }
 
-bool GraphicsContext3D::getImageData(Image* image, GC3Denum format, GC3Denum type, bool premultiplyAlpha, bool ignoreGammaAndColorProfile, Vector<uint8_t>& outputVector)
+GraphicsContext3D::ImageExtractor::~ImageExtractor()
 {
-    if (!image)
+}
+
+bool GraphicsContext3D::ImageExtractor::extractImage(bool premultiplyAlpha, bool ignoreGammaAndColorProfile)
+{
+    if (!m_image)
         return false;
 
-    NativeImagePtr nativeImage = image->nativeImageForCurrentFrame();
+    NativeImagePtr nativeImage = m_image->nativeImageForCurrentFrame();
     if (!nativeImage)
         return false;
 
-    unsigned imageSize = nativeImage->size().width() * nativeImage->size().height();
-    Vector<unsigned> imageData(imageSize);
-    if (!nativeImage->readPixels(imageData.data(), imageSize))
+    m_imageWidth = nativeImage->width();
+    m_imageHeight = nativeImage->height();
+    if (!m_imageWidth || !m_imageHeight)
+        return false;
+
+    unsigned imageSize = m_imageWidth * m_imageHeight;
+    m_imageData.resize(imageSize);
+    if (!nativeImage->readPixels(m_imageData.data(), imageSize))
         return false;
 
     // Raw image data is premultiplied
-    AlphaOp neededAlphaOp = AlphaDoNothing;
+    m_alphaOp = AlphaDoNothing;
     if (!premultiplyAlpha)
-        neededAlphaOp = AlphaDoUnmultiply;
+        m_alphaOp = AlphaDoUnmultiply;
 
-    outputVector.resize(imageSize * 4);
-    return packPixels(reinterpret_cast<const uint8_t*>(imageData.data()),
-        SourceFormatBGRA8,
-        nativeImage->size().width(), nativeImage->size().height(), 0,
-        format, type, neededAlphaOp, outputVector.data());
+    m_imagePixelData = m_imageData.data();
+    m_imageSourceFormat = DataFormatBGRA8;
+    m_imageSourceUnpackAlignment = 0;
+
+    return true;
 }
 
 } // namespace WebCore

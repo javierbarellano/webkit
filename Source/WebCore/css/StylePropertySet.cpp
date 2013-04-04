@@ -162,10 +162,16 @@ String StylePropertySet::getPropertyValue(CSSPropertyID propertyID) const
         return get4Values(borderStyleShorthand());
     case CSSPropertyWebkitColumnRule:
         return getShorthandValue(webkitColumnRuleShorthand());
+    case CSSPropertyWebkitColumns:
+        return getShorthandValue(webkitColumnsShorthand());
     case CSSPropertyWebkitFlex:
         return getShorthandValue(webkitFlexShorthand());
     case CSSPropertyWebkitFlexFlow:
         return getShorthandValue(webkitFlexFlowShorthand());
+    case CSSPropertyWebkitGridColumn:
+        return getShorthandValue(webkitGridColumnShorthand());
+    case CSSPropertyWebkitGridRow:
+        return getShorthandValue(webkitGridRowShorthand());
     case CSSPropertyFont:
         return fontValue();
     case CSSPropertyMargin:
@@ -190,6 +196,8 @@ String StylePropertySet::getPropertyValue(CSSPropertyID propertyID) const
         return getLayeredShorthandValue(webkitMaskShorthand());
     case CSSPropertyWebkitTextEmphasis:
         return getShorthandValue(webkitTextEmphasisShorthand());
+    case CSSPropertyWebkitTextStroke:
+        return getShorthandValue(webkitTextStrokeShorthand());
     case CSSPropertyWebkitTransformOrigin:
         return getShorthandValue(webkitTransformOriginShorthand());
     case CSSPropertyWebkitTransition:

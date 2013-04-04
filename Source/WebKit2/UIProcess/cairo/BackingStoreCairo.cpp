@@ -54,7 +54,11 @@ void BackingStore::paint(cairo_t* context, const IntRect& rect)
 void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& updateInfo)
 {
     if (!m_backingStore)
+#if PLATFORM(EFL)
+        m_backingStore = WidgetBackingStore::create(EwkView::toEvasObject(toAPI(m_webPageProxy)), size());
+#else
         m_backingStore = WidgetBackingStore::create(m_webPageProxy->viewWidget(), size());
+#endif
 
     scroll(updateInfo.scrollRect, updateInfo.scrollOffset);
 
@@ -68,12 +72,6 @@ void BackingStore::incorporateUpdate(ShareableBitmap* bitmap, const UpdateInfo& 
         srcRect.move(-updateRectLocation.x(), -updateRectLocation.y());
         bitmap->paint(graphicsContext, updateRect.location(), srcRect);
     }
-
-#if PLATFORM(EFL)
-    // Update ewk_view with new backingStore image.
-    EwkView* view = toEwkView(m_webPageProxy->viewWidget());
-    view->setImageData(cairo_image_surface_get_data(m_backingStore->cairoSurface()), m_size);
-#endif
 }
 
 void BackingStore::scroll(const IntRect& scrollRect, const IntSize& scrollOffset)

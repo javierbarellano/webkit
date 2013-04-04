@@ -97,6 +97,7 @@ list(APPEND WebKit_SOURCES
     blackberry/Api/WebViewportArguments.cpp
     blackberry/Api/JavaScriptVariant.cpp
     blackberry/WebCoreSupport/AutofillManager.cpp
+    blackberry/WebCoreSupport/BackForwardListBlackBerry.cpp
     blackberry/WebCoreSupport/CacheClientBlackBerry.cpp
     blackberry/WebCoreSupport/ChromeClientBlackBerry.cpp
     blackberry/WebCoreSupport/ClientExtension.cpp
@@ -135,6 +136,7 @@ list(APPEND WebKit_SOURCES
     blackberry/WebKitSupport/InRegionScrollableArea.cpp
     blackberry/WebKitSupport/InspectorOverlayBlackBerry.cpp
     blackberry/WebKitSupport/NotificationManager.cpp
+    blackberry/WebKitSupport/ProximityDetector.cpp
     blackberry/WebKitSupport/RenderQueue.cpp
     blackberry/WebKitSupport/SelectionHandler.cpp
     blackberry/WebKitSupport/SelectionOverlay.cpp
