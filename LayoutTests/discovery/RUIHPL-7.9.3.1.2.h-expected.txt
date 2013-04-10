@@ -3,7 +3,7 @@ Tests DLNA Player for AV Media Format. RUIHPL-7.9.3.1.2: AVC_MP4_MP_SD_AAC_MPS M
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS Video Track is playable: /home/gar/MediaContent/O-AVCMP4_BC15A-05.MP4
+PASS Video Track is playable: media/O-AVCMP4_BC15A-05.MP4
 PASS Video Track is playing.
 PASS Video Track is paused.
 PASS successfullyParsed is true
