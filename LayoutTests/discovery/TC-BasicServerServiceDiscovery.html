@@ -1,0 +1,51 @@
+<html>
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+<body>
+
+<script>
+description('Tests Acceptable UA behavior when Basic Server Service is dicovered.');
+
+function getNetworkServices(type, okCallback, errCallback) {
+
+	navigator.getNetworkServices(type, okCallback, errCallback);
+}
+
+var srvs;
+
+function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
+	srvs.ondevadded = addDevCB;
+}
+
+function errShouldNotbeCalled(err) {
+	testFailed('GetNetworkServices() should have called ok Callback.');
+}
+
+function addDevCB() {
+	testPassed("Add dev callback.");
+	if (srvs.ondevadded == null) {
+		testFailed('AddDev should NOT have called addDevCB().');
+	}
+	srvs.ondevadded = null;
+
+	navigator.getNetworkServices("upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okDevs, errShouldNotbeCalled);
+}
+
+function okDevs(services) {
+	testPassed("navigator.getNetworkServices() Second call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable>=1", "true");
+	finishJSTest();
+}
+
+getNetworkServices("upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okAddDev, errShouldNotbeCalled);
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+</html>
