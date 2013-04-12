@@ -1,0 +1,12 @@
+Tests Acceptable UA behavior when Basic Server Service is dicovered.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS navigator.getNetworkServices() first call to ok callback.
+PASS srvs.servicesAvailable==0 is true
+PASS No Devs found. (this is good)
+PASS successfullyParsed is true
+
+TEST COMPLETE
+
