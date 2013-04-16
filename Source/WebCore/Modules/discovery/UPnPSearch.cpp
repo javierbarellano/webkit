@@ -42,7 +42,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define MAX_CONTACT_ATTEMPTS 3
+#define MAX_CONTACT_ATTEMPTS 2
 /* Note: The reason we try to contact the device multiple times is that there appears to be a bug in WebKit
  * that causes UPnPSearch to timeout on a legitimate HTTPGet, if WebKit is elsewhere trying to load a non-existant page at the same time.
  * Steps to duplicate:
@@ -71,7 +71,7 @@ void droppedDevsThread(void *context)
 
         long elapsedSeconds = now.tv_sec - lastSendSeconds;
 
-        if (elapsedSeconds >= 10)
+        if (elapsedSeconds >= 5)
 		{
             lastSendSeconds = now.tv_sec;
 			upnp->checkForDroppedDevs();
@@ -406,7 +406,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 
 void UPnPSearch::checkForDroppedDevs()
 {
-	//printf("checkForDroppedDevs() start\n");
+	//printf("checkForDroppedDevs() start devs: %d\n", devs_.size());
 	devLock_->lock();
 	for (std::map<std::string, UPnPDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
@@ -431,10 +431,10 @@ void UPnPSearch::checkForDroppedDevs()
 
 				// Unresponsive. See note at top of file for reason for retries
 				devs_[type].devMap[dv.uuid].contactAttempts++;
-				//fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				//printf("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
 				if ( devs_[type].devMap[dv.uuid].contactAttempts > MAX_CONTACT_ATTEMPTS) {
-					//fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					//printf("Device Off line... Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
 					if (devs_[type].devMap[dv.uuid].online) {
 						devs_[type].devMap[dv.uuid].online = false;
 						if (navDsc_)
@@ -444,6 +444,7 @@ void UPnPSearch::checkForDroppedDevs()
 			} else {
 				devs_[type].devMap[dv.uuid].contactAttempts = 0;
 				if (!devs_[type].devMap[dv.uuid].online) {
+					//printf("Device On line... Url: %s\n", dv.descURL.c_str());
 					devs_[type].devMap[dv.uuid].online = true;
 					if (navDsc_)
 						navDsc_->serviceOnline(type, devs_[type].devMap[dv.uuid]);
@@ -741,7 +742,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 				dm.devMap[sUuid] = d;
                 devs_[foundType] = dm;
-                //fprintf(stderr,"%s device: %s : %s, %s.\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+                //printf("device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
                 if (navDsc_) {
                     navDsc_->foundUPnPDev(foundType);
                 }

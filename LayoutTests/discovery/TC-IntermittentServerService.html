@@ -5,10 +5,13 @@
 <body>
 
 <script>
-description('Tests Acceptable UA behavior when No Server Service is dicovered.');
+
+var devdropped;
+
+description('Tests Acceptable UA behavior when Intermittent Server Service is dicovered.');
 
 function getNetworkServices(type, okCallback, errCallback) {
-
+	devdropped = false;
 	navigator.getNetworkServices(type, okCallback, errCallback);
 }
 
@@ -24,11 +27,17 @@ function okAddDev(services) {
 	srvs = services;
 	shouldBe("srvs.servicesAvailable==0", "true");
 	srvs.ondevadded = addDevCB;
+	srvs.ondevdropped = dropDevCB
 	setTimeout("noDevs();", 5000);
 }
 
 function errShouldNotbeCalled(err) {
 	testFailed('GetNetworkServices() should have called ok Callback.');
+}
+
+function dropDevCB() {
+	testPassed("Service dropped out.");
+	devdropped = true;
 }
 
 function addDevCB() {

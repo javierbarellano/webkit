@@ -23,7 +23,7 @@ function okSecondCallCB(services) {
 	srvs = services;
 	shouldBe("srvs.servicesAvailable>=1", "true");
 	if (srvs.servicesAvailable) {
-		var srv = srvs.item(0);
+		var srv = srvs[0];
 //		if (srv && srv.url)
 //			window.console.log("okSecondCallCB():  srv.url: " + srv.url);
 

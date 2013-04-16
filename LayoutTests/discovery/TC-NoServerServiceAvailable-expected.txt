@@ -1,4 +1,4 @@
-Tests Acceptable UA behavior when Basic Server Service is dicovered.
+Tests Acceptable UA behavior when No Server Service is dicovered.
 
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 

@@ -1,12 +1,13 @@
 	interface [
-               Conditional=DISCOVERY,
-	           OmitConstructor,
-	           ActiveDOMObject,
-	           EventTarget
+				Conditional=DISCOVERY,
+				IndexedGetter,
+				OmitConstructor,
+				ActiveDOMObject,
+				EventTarget
 	           ] NavServices {
 
 		// NavigatorNetworkService item(index)
-		[Custom] void item(in unsigned long index);
+		NavService item(in unsigned long index);
 
 		readonly attribute unsigned long length;
 

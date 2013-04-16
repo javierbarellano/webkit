@@ -26,6 +26,11 @@
 
 #include <wtf/RefCounted.h>
 
+//#ifdef LOG
+//#undef LOG
+//#define LOG(net,fmt,...) printf(fmt, ##__VA_ARGS__)
+//#endif
+
 namespace WebCore {
 
 class TCPSocketHandleClient;
@@ -50,6 +55,11 @@ public:
 			::close(m_socket);
 
 		m_socket = -1;
+	}
+
+	virtual int getError()
+	{
+		return m_inError;
 	}
 
 	virtual int send(const char* data, int length)

@@ -190,6 +190,11 @@ void DiscoveryBase::socketSend(const char *host, int port, const char *toSend, s
 {
 	RefPtr<TCPSocketHandle> socket = TCPSocketHandle::create(host, port);
 
+	if (socket->getError() != 0) {
+		*len = 0;
+		return;
+	}
+
 	socket->send(toSend, sLen);
 	socket->receive(bf, len);
 }

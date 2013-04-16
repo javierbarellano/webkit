@@ -27,7 +27,7 @@ function okSecondCallCB(services) {
 
 	shouldBe("srvs.servicesAvailable>=1", "true");
 
-	srv = srvs.item(0);
+	srv = srvs[0];
 	srv.onupnp = eventCB;
 }
 

@@ -166,7 +166,6 @@ SOURCES += \
      bindings/js/JSMutationCallback.cpp \
      bindings/js/JSMutationObserverCustom.cpp \
      bindings/js/JSNamedNodeMapCustom.cpp \
-     bindings/js/JSNavServicesCustom.cpp \
      bindings/js/JSNodeCustom.cpp \
      bindings/js/JSNodeFilterCondition.cpp \
      bindings/js/JSNodeFilterCustom.cpp \
@@ -3248,9 +3247,6 @@ enable?(DISCOVERY) {
         Modules/discovery/NavServiceErrorCB.h \
         Modules/discovery/NavServiceOkCB.h \
         Modules/discovery/NavServices.h
-
-    SOURCES += \
-        bindings/js/JSNavServicesCustom.cpp
 }
 
 enable?(FILE_SYSTEM) {
