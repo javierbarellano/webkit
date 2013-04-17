@@ -4069,7 +4069,8 @@ enable?(VIDEO_TRACK) {
         bindings/js/JSTextTrackListCustom.cpp \
         bindings/js/JSVideoTrackCustom.cpp \
         bindings/js/JSVideoTrackCustom.h \
-        bindings/js/JSVideoTrackListCustom.cpp
+        bindings/js/JSVideoTrackListCustom.cpp \
+        html/HTMLTrackElement.cpp
 }
 
 enable?(WEB_SOCKETS) {
