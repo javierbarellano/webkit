@@ -15,11 +15,8 @@
 
 	    readonly attribute boolean  online;
 	    
-        attribute EventListener ondevadded;
-        attribute EventListener ondevdropped;
-        
-        attribute EventListener onservicesonline;
-        attribute EventListener onservicesoffline;
+        attribute EventListener onserviceavailable;
+        attribute EventListener onserviceunavailable;
 
         // EventTarget interface
         void addEventListener(in DOMString type,

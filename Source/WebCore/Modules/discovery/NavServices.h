@@ -81,11 +81,8 @@ public:
     virtual const AtomicString& interfaceName() const;
     virtual ScriptExecutionContext* scriptExecutionContext() const;
 
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(devadded);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(devdropped);
-
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(servicesonline);
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(servicesoffline);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceavailable);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceunavailable);
 
     using RefCounted<NavServices>::ref;
     using RefCounted<NavServices>::deref;

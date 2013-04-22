@@ -431,10 +431,10 @@ void UPnPSearch::checkForDroppedDevs()
 
 				// Unresponsive. See note at top of file for reason for retries
 				devs_[type].devMap[dv.uuid].contactAttempts++;
-				//printf("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				printf("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
 				if ( devs_[type].devMap[dv.uuid].contactAttempts > MAX_CONTACT_ATTEMPTS) {
-					//printf("Device Off line... Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					printf("Device Off line... Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
 					if (devs_[type].devMap[dv.uuid].online) {
 						devs_[type].devMap[dv.uuid].online = false;
 						if (navDsc_)
@@ -444,7 +444,7 @@ void UPnPSearch::checkForDroppedDevs()
 			} else {
 				devs_[type].devMap[dv.uuid].contactAttempts = 0;
 				if (!devs_[type].devMap[dv.uuid].online) {
-					//printf("Device On line... Url: %s\n", dv.descURL.c_str());
+					printf("Device On line... Url: %s\n", dv.descURL.c_str());
 					devs_[type].devMap[dv.uuid].online = true;
 					if (navDsc_)
 						navDsc_->serviceOnline(type, devs_[type].devMap[dv.uuid]);

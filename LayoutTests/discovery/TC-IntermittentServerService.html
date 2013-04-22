@@ -17,18 +17,20 @@ function getNetworkServices(type, okCallback, errCallback) {
 
 var srvs;
 
-function noDevs() {
-	testPassed("No Devs found. (this is good)");
-	finishJSTest();
-}
-
 function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
 	shouldBe("srvs.servicesAvailable==0", "true");
-	srvs.ondevadded = addDevCB;
-	srvs.ondevdropped = dropDevCB
-	setTimeout("noDevs();", 5000);
+	srvs.onserviceavailable = addDevCB;
+	srvs.onserviceunavailable = dropDevCB
+}
+
+function okCallback2(services) {
+	testPassed("navigator.getNetworkServices() second call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable>0", "true");
+	srvs.onserviceavailable = addDevCB;
+	srvs.onserviceunavailable = dropDevCB
 }
 
 function errShouldNotbeCalled(err) {
@@ -41,13 +43,16 @@ function dropDevCB() {
 }
 
 function addDevCB() {
-	testFailed("Add dev callback.");
-	if (srvs.ondevadded == null) {
-		testFailed('AddDev should NOT have called addDevCB().');
-	}
-	srvs.ondevadded = null;
+	testPassed("Service came back.");
 
-	finishJSTest();
+	if (devdropped) {
+		srvs.onserviceavailable = null;
+		srvs.onserviceunavailable = null;
+		finishJSTest();
+	} else {
+		navigator.getNetworkServices(
+			"upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okCallback2, errCallback);
+	}
 }
 
 getNetworkServices("upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okAddDev, errShouldNotbeCalled);

@@ -213,9 +213,9 @@ void NavDsc::onNetworkChangedInternal(void *ptr)
 
 	for (int i=0; i<srvs.size(); i++) {
 		if (isUp)
-			srvs[i]->dispatchEvent(Event::create(eventNames().servicesonlineEvent, true, true));
+			srvs[i]->dispatchEvent(Event::create(eventNames().serviceavailableEvent, true, true));
 		else
-			srvs[i]->dispatchEvent(Event::create(eventNames().servicesofflineEvent, true, true));
+			srvs[i]->dispatchEvent(Event::create(eventNames().serviceunavailableEvent, true, true));
 	}
 	//printf("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
 }
@@ -269,10 +269,17 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 	}
 
 	for (int i=0; i<srvs.size(); i++) {
+		bool sendSevicesEvent = false;
 		for (int k=0; k<srvs[i]->m_services.size(); k++)
 		{
-			if (srvs[i]->m_services[k]->m_id.contains(String(dev.uuid.c_str()),true))
+			if (srvs[i]->m_services[k]->m_id.contains(String(dev.uuid.c_str()),true)) {
 				srvs[i]->m_services[k]->dispatchEvent(Event::create(eventNames().serviceofflineEvent, true, true));
+
+				if (!sendSevicesEvent) {
+					srvs[i]->dispatchEvent(Event::create(eventNames().serviceunavailableEvent, true, true));
+					sendSevicesEvent = true;
+				}
+			}
 		}
 	}
 	//printf("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
@@ -309,10 +316,17 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 	}
 
 	for (int i=0; i<srvs.size(); i++) {
+		bool sendSevicesEvent = false;
 		for (int k=0; k<srvs[i]->m_services.size(); k++)
 		{
-			if (srvs[i]->m_services[k]->m_id.contains(String(dev.uuid.c_str()),true))
+			if (srvs[i]->m_services[k]->m_id.contains(String(dev.uuid.c_str()),true)) {
 				srvs[i]->m_services[k]->dispatchEvent(Event::create(eventNames().serviceonlineEvent, true, true));
+
+				if (!sendSevicesEvent) {
+					srvs[i]->dispatchEvent(Event::create(eventNames().serviceavailableEvent, true, true));
+					sendSevicesEvent = true;
+				}
+			}
 		}
 	}
 	//printf("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
@@ -355,7 +369,7 @@ void NavDsc::UPnPDevAddedInternal(void *ptr)
 	}
 
 	for (int i=0; i<srvs.size(); i++) {
-		srvs[i]->dispatchEvent(Event::create(eventNames().devaddedEvent, true, true));
+		srvs[i]->dispatchEvent(Event::create(eventNames().serviceavailableEvent, true, true));
 	}
 	//printf("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
 }
@@ -375,7 +389,7 @@ void NavDsc::UPnPDevDroppedInternal(void *ptr)
 
 	std::vector<NavServices*> srvs = nv->getNavServices(type);
 	for (int i=0; i<srvs.size(); i++) {
-		srvs[i]->dispatchEvent(Event::create(eventNames().devdroppedEvent, false, false));
+		srvs[i]->dispatchEvent(Event::create(eventNames().serviceunavailableEvent, false, false));
 	}
 }
 

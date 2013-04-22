@@ -561,12 +561,10 @@ void MediaControlFFButtonElement::defaultEventHandler(Event* event)
 {
     updateDisplayType();
     if (event->type() == eventNames().clickEvent) {
-    	if (!mediaController()->paused())
-    		mediaController()->pause();
     	if (mediaController()->playbackRate() > 1.0f)
     		mediaController()->setPlaybackRate(1.0f);
     	else
-    		mediaController()->setPlaybackRate(2.0f);
+    		mediaController()->setPlaybackRate(8.0f);
     	mediaController()->play();
         event->setDefaultHandled();
     }
@@ -608,8 +606,6 @@ void MediaControlRevButtonElement::defaultEventHandler(Event* event)
 {
     if (event->type() == eventNames().clickEvent) {
 
-    	if (!mediaController()->paused())
-    		mediaController()->pause();
     	if (mediaController()->playbackRate() < 0.0f)
     		mediaController()->setPlaybackRate(1.0f);
     	else

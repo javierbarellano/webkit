@@ -693,6 +693,7 @@ float MediaPlayer::rate() const
 
 void MediaPlayer::setRate(float rate)
 {
+	printf("MediaPlayer::setRate(%f)\n", rate);
     m_rate = rate;
     m_private->setRate(rate);   
 }

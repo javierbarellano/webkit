@@ -55,8 +55,6 @@ namespace WebCore {
     macro(copy) \
     macro(cut) \
     macro(dblclick) \
-    macro(devadded) \
-    macro(devdropped) \
     macro(devicemotion) \
     macro(deviceorientation) \
     macro(dischargingtimechange) \
@@ -117,8 +115,8 @@ namespace WebCore {
     macro(selectionchange) \
     macro(serviceoffline) \
     macro(serviceonline) \
-    macro(servicesoffline) \
-    macro(servicesonline) \
+    macro(serviceunavailable) \
+    macro(serviceavailable) \
     macro(storage) \
     macro(submit) \
     macro(textInput) \
