@@ -88,10 +88,10 @@ using namespace std;
 
 namespace WebCore {
 
-#ifdef LOG_MEDIA_MESSAGE
-#undef LOG_MEDIA_MESSAGE
-#define LOG_MEDIA_MESSAGE(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
-#endif
+//#ifdef LOG_MEDIA_MESSAGE
+//#undef LOG_MEDIA_MESSAGE
+//#define LOG_MEDIA_MESSAGE(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
+//#endif
 
 static gboolean mediaPlayerPrivateMessageCallback(GstBus*, GstMessage* message, MediaPlayerPrivateGStreamer* player)
 {
@@ -807,12 +807,12 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 
 void MediaPlayerPrivateGStreamer::setRate(float rate)
 {
-    printf("MediaPlayerPrivateGStreamer::setRate(%f)\n", rate);
+	LOG_MEDIA_MESSAGE("MediaPlayerPrivateGStreamer::setRate(%f)\n", rate);
 	// Avoid useless playback rate update.
     if (m_playbackRate == rate)
         return;
 
-    printf("MediaPlayerPrivateGStreamer::setRate(%f) diff than old rate\n", rate);
+    LOG_MEDIA_MESSAGE("MediaPlayerPrivateGStreamer::setRate(%f) diff than old rate\n", rate);
     GstState state;
     GstState pending;
 
@@ -824,7 +824,7 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
     if (isLiveStream())
         return;
 
-    printf("MediaPlayerPrivateGStreamer::setRate() playing and not live\n");
+    LOG_MEDIA_MESSAGE("MediaPlayerPrivateGStreamer::setRate() playing and not live\n");
     m_playbackRate = rate;
     m_changingRate = true;
 
@@ -838,7 +838,7 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
     gint64 start; //, end;
     bool mute = false;
 
-    printf("MediaPlayerPrivateGStreamer::setRate(%f) currentPosition: %f mute: %s\n",
+    LOG_MEDIA_MESSAGE("MediaPlayerPrivateGStreamer::setRate(%f) currentPosition: %f mute: %s\n",
     		rate, currentPosition, (!m_preservesPitch && (rate < 0.8 || rate > 2)) ? "true":"false");
 
     LOG_MEDIA_MESSAGE("Set Rate to %f", rate);
@@ -866,10 +866,9 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
                           GST_SEEK_TYPE_SET, start,
                           GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE)) {
                           //GST_SEEK_TYPE_SET, end)) {
-    	printf("MediaPlayerPrivateGStreamer::setRate(%f) gst_element_seek() failed!\n", rate);
     	LOG_MEDIA_MESSAGE("Set rate to %f failed", rate);
     } else {
-    	printf("MediaPlayerPrivateGStreamer::setRate(%f) gst_element_seek() Succeeded.\n", rate);
+    	LOG_MEDIA_MESSAGE("MediaPlayerPrivateGStreamer::setRate(%f) gst_element_seek() Succeeded.\n", rate);
     	g_object_set(m_playBin.get(), "mute", mute, NULL);
     }
 }
