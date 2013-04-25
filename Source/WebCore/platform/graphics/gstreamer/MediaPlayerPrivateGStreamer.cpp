@@ -43,6 +43,7 @@
 #include <wtf/text/CString.h>
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrackPrivateGStreamer.h"
 #include "InbandTextTrackPrivateGStreamer.h"
 #endif
 
@@ -253,6 +254,12 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     }
 
 #if ENABLE(VIDEO_TRACK)
+    for (size_t i = 0; i < m_audioTracks.size(); ++i) {
+        m_audioTracks[i]->disconnect();
+        m_player->removeAudioTrack(m_audioTracks[i].release());
+    }
+    m_audioTracks.clear();
+
     for (size_t i = 0; i < m_textTracks.size(); ++i) {
         m_textTracks[i]->disconnect();
         m_player->removeTextTrack(m_textTracks[i].release());
@@ -556,6 +563,28 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
         templ = gst_element_class_get_pad_template(klass, "audio_sink");
         handler = &m_audioTimerHandler;
         callback = reinterpret_cast<GSourceFunc>(mediaPlayerPrivateAudioChangeTimeoutCallback);
+
+#if ENABLE(VIDEO_TRACK)
+        if (!m_audioAdder) {
+            m_audioAdder = gst_element_factory_make("adder", NULL);
+            gst_bin_add(GST_BIN(m_pipeline.get()), m_audioAdder.get());
+            gst_element_sync_state_with_parent(m_audioAdder.get());
+
+            GRefPtr<GstPad> audioSrc = adoptGRef(gst_element_get_static_pad(m_audioAdder.get(), "src"));
+            GRefPtr<GstPad> audioSink = adoptGRef(gst_element_get_request_pad(m_sink.get(), "audio_sink"));
+            ASSERT(audioSrc);
+            ASSERT(audioSink);
+
+            bool ret = gst_pad_link(audioSrc.get(), audioSink.get()) == GST_PAD_LINK_OK;
+            ASSERT(ret);
+        }
+
+        RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_audioAdder, pad);
+        MutexLocker lock(m_audioTrackMutex);
+        if (m_audioTracks.size() == 0)
+            track->setEnabled(true);
+        m_audioTracks.append(track.release());
+#endif
     } else if (g_str_has_prefix(name, "text")) {
         handler = &m_textTimerHandler;
         callback = reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback);
@@ -586,17 +615,50 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
 void MediaPlayerPrivateGStreamer::padRemoved(GstPad* pad)
 {
 #if ENABLE(VIDEO_TRACK)
-    MutexLocker lock(m_textTrackMutex);
-    for (size_t i = 0; i < m_textTracks.size(); ++i) {
-        RefPtr<InbandTextTrackPrivateGStreamer> track = m_textTracks[i];
-        if (track->pad() == pad) {
-            track->disconnect();
+    {
+        MutexLocker lock(m_audioTrackMutex);
+        for (size_t i = 0; i < m_audioTracks.size(); ++i) {
+            RefPtr<AudioTrackPrivateGStreamer> track = m_audioTracks[i];
+            if (track->pad() == pad) {
+                track->disconnect();
+                if (m_audioTracks.size() == 0) {
+                    if (m_audioAdder) {
+                        GRefPtr<GstPad> audioSrc = adoptGRef(gst_element_get_static_pad(m_audioAdder.get(), "src"));
+                        GRefPtr<GstPad> audioSink = adoptGRef(gst_element_get_request_pad(m_sink.get(), "audio_sink"));
+                        ASSERT(audioSrc);
+                        ASSERT(audioSink);
 
-            if (m_textTimerHandler)
-                g_source_remove(m_textTimerHandler);
-            m_textTimerHandler = g_timeout_add(0,
-                reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback), this);
-            break;
+                        bool ret = gst_pad_unlink(audioSrc.get(), audioSink.get());
+                        ASSERT(ret);
+                        gst_element_release_request_pad(m_sink.get(), audioSink.get());
+
+                        gst_bin_remove(GST_BIN(m_pipeline.get()), m_audioAdder.get());
+                        gst_element_set_state(m_audioAdder.get(), GST_STATE_NULL);
+                        m_audioAdder.clear();
+                    }
+                }
+
+                if (m_audioTimerHandler)
+                    g_source_remove(m_audioTimerHandler);
+                m_audioTimerHandler = g_timeout_add(0,
+                    reinterpret_cast<GSourceFunc>(mediaPlayerPrivateAudioChangeTimeoutCallback), this);
+                return;
+            }
+        }
+    }
+    {
+        MutexLocker lock(m_textTrackMutex);
+        for (size_t i = 0; i < m_textTracks.size(); ++i) {
+            RefPtr<InbandTextTrackPrivateGStreamer> track = m_textTracks[i];
+            if (track->pad() == pad) {
+                track->disconnect();
+
+                if (m_textTimerHandler)
+                    g_source_remove(m_textTimerHandler);
+                m_textTimerHandler = g_timeout_add(0,
+                    reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback), this);
+                return;
+            }
         }
     }
 #endif
@@ -628,7 +690,32 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideoCaps()
 void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 {
     m_audioTimerHandler = 0;
+
+#if ENABLE(VIDEO_TRACK)
+    {
+        MutexLocker lock(m_audioTrackMutex);
+        m_hasAudio = m_audioTracks.size() > 0;
+
+        size_t i = 0;
+        while (i < m_audioTracks.size()) {
+            RefPtr<AudioTrackPrivateGStreamer> track = m_audioTracks[i];
+            if (track->isDisconnected()) {
+                m_player->removeAudioTrack(track.release());
+                m_audioTracks.remove(i);
+                continue;
+            }
+
+            if (!track->hasBeenReported()) {
+                m_player->addAudioTrack(track);
+                track->setHasBeenReported(true);
+            }
+            ++i;
+        }
+    }
+#else
     m_hasAudio = true;
+#endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 

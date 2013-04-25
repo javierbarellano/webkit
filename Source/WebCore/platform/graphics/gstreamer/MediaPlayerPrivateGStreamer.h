@@ -39,6 +39,7 @@ typedef struct _GstElement GstElement;
 
 namespace WebCore {
 
+class AudioTrackPrivateGStreamer;
 class InbandTextTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
@@ -179,7 +180,10 @@ private:
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
 #if ENABLE(VIDEO_TRACK)
+    GRefPtr<GstElement> m_audioAdder;
+    Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
     Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
+    Mutex m_audioTrackMutex;
     Mutex m_textTrackMutex;
 #endif
 };
