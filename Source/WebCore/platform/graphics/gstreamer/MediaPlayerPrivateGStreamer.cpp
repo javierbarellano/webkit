@@ -45,6 +45,7 @@
 #if ENABLE(VIDEO_TRACK)
 #include "AudioTrackPrivateGStreamer.h"
 #include "InbandTextTrackPrivateGStreamer.h"
+#include "VideoTrackPrivateGStreamer.h"
 #endif
 
 #ifdef GST_API_VERSION_1
@@ -265,6 +266,12 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
         m_player->removeTextTrack(m_textTracks[i].release());
     }
     m_textTracks.clear();
+
+    for (size_t i = 0; i < m_videoTracks.size(); ++i) {
+        m_videoTracks[i]->disconnect();
+        m_player->removeVideoTrack(m_videoTracks[i].release());
+    }
+    m_videoTracks.clear();
 #endif
 
     GRefPtr<GstPad> videoSinkPad = adoptGRef(gst_element_get_static_pad(m_webkitVideoSink.get(), "sink"));
@@ -598,6 +605,30 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
         templ = gst_element_class_get_pad_template(klass, "video_sink");
         handler = &m_videoTimerHandler;
         callback = reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback);
+
+#if ENABLE(VIDEO_TRACK)
+        if (!m_videoSelector) {
+            m_videoSelector = gst_element_factory_make("input-selector", NULL);
+            // Sync mode 1 = "clock"
+            g_object_set(m_videoSelector.get(), "sync-streams", TRUE, NULL);
+            // Maybe block the input selector until we have streams?
+
+            gst_bin_add(GST_BIN(m_pipeline.get()), m_videoSelector.get());
+            gst_element_sync_state_with_parent(m_videoSelector.get());
+
+            GRefPtr<GstPad> videoSrc = adoptGRef(gst_element_get_static_pad(m_videoSelector.get(), "src"));
+            GRefPtr<GstPad> videoSink = adoptGRef(gst_element_get_request_pad(m_sink.get(), "video_sink"));
+            ASSERT(videoSrc);
+            ASSERT(videoSink);
+            bool ret = gst_pad_link(videoSrc.get(), videoSink.get()) == GST_PAD_LINK_OK;
+            ASSERT(ret);
+        }
+        RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_videoSelector, pad);
+        MutexLocker lock(m_videoTrackMutex);
+        if (m_videoTracks.size() == 0)
+            track->setSelected(true);
+        m_videoTracks.append(track.release());
+#endif
     } else
         return;
 
@@ -661,6 +692,34 @@ void MediaPlayerPrivateGStreamer::padRemoved(GstPad* pad)
             }
         }
     }
+    {
+        MutexLocker lock(m_videoTrackMutex);
+        for (size_t i = 0; i < m_videoTracks.size(); ++i) {
+            RefPtr<VideoTrackPrivateGStreamer> track = m_videoTracks[i];
+            if (track->pad() == pad) {
+                track->disconnect();
+
+                if (m_videoTracks.size() == 0) {
+                    GRefPtr<GstPad> videoSrc = adoptGRef(gst_element_get_static_pad(m_videoSelector.get(), "src"));
+                    GRefPtr<GstPad> videoSink = adoptGRef(gst_element_get_request_pad(m_sink.get(), "video_sink"));
+                    ASSERT(videoSrc);
+                    ASSERT(videoSink);
+                    bool ret = gst_pad_unlink(videoSrc.get(), videoSink.get());
+                    ASSERT(ret);
+
+                    gst_bin_remove(GST_BIN(m_pipeline.get()), m_videoSelector.get());
+                    gst_element_set_state(m_videoSelector.get(), GST_STATE_NULL);
+                    m_videoSelector.clear();
+                }
+
+                if (m_videoTimerHandler)
+                    g_source_remove(m_videoTimerHandler);
+                m_videoTimerHandler = g_timeout_add(0,
+                    reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
+                return;
+            }
+        }
+    }
 #endif
 }
 
@@ -674,7 +733,32 @@ void MediaPlayerPrivateGStreamer::videoCapsChanged()
 void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 {
     m_videoTimerHandler = 0;
+
+#if ENABLE(VIDEO_TRACK)
+    {
+        MutexLocker lock(m_videoTrackMutex);
+        m_hasVideo = m_videoTracks.size() > 0;
+
+        size_t i = 0;
+        while (i < m_videoTracks.size()) {
+            RefPtr<VideoTrackPrivateGStreamer> track = m_videoTracks[i];
+            if (track->isDisconnected()) {
+                m_player->removeVideoTrack(track.release());
+                m_videoTracks.remove(i);
+                continue;
+            }
+
+            if (!track->hasBeenReported()) {
+                m_player->addVideoTrack(track);
+                track->setHasBeenReported(true);
+            }
+            ++i;
+        }
+    }
+#else
     m_hasVideo = true;
+#endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 

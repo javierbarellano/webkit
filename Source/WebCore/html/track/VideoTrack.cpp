@@ -82,7 +82,6 @@ const AtomicString& VideoTrack::commentaryKeyword()
 VideoTrack::VideoTrack(VideoTrackClient* client, PassRefPtr<VideoTrackPrivate> trackPrivate)
     : TrackBase(TrackBase::VideoTrack, trackPrivate->label(), trackPrivate->language())
     , m_id(trackPrivate->id())
-    , m_selected(trackPrivate->selected())
     , m_client(client)
     , m_private(trackPrivate)
 {
@@ -141,10 +140,10 @@ bool VideoTrack::isValidKind(const AtomicString& value) const
 
 void VideoTrack::setSelected(const bool selected)
 {
-    if (m_selected == selected)
+    if (m_private->selected() == selected)
         return;
 
-    m_selected = selected;
+    m_private->setSelected(selected);
 
     if (m_client)
         m_client->videoTrackSelectedChanged(this);
