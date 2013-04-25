@@ -145,6 +145,7 @@ void AudioTrack::setEnabled(const bool enabled)
         return;
 
     m_enabled = enabled;
+    m_private->setEnabled(enabled);
 
     if (m_client)
         m_client->audioTrackEnabledChanged(this);
@@ -154,6 +155,16 @@ size_t AudioTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
     return m_private->audioTrackIndex();
+}
+
+void AudioTrack::setLabel(const AtomicString& label)
+{
+    TrackBase::setLabel(label);
+}
+
+void AudioTrack::setLanguage(const AtomicString& language)
+{
+    TrackBase::setLanguage(language);
 }
 
 void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)

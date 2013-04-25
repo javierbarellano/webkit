@@ -40,6 +40,8 @@ class AudioTrackPrivate;
 class AudioTrackPrivateClient {
 public:
     virtual ~AudioTrackPrivateClient() { }
+    virtual void setLabel(const AtomicString&) = 0;
+    virtual void setLanguage(const AtomicString&) = 0;
     virtual void willRemoveAudioTrackPrivate(AudioTrackPrivate*) = 0;
 };
 

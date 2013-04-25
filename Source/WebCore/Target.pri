@@ -3390,8 +3390,10 @@ enable?(VIDEO) {
             platform/graphics/gstreamer/ImageGStreamerQt.cpp
         enable?(VIDEO_TRACK) {
             HEADERS += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h \
                 platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h
             SOURCES += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp \
                 platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp
         }
 
