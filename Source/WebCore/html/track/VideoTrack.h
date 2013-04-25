@@ -65,8 +65,8 @@ public:
     static const AtomicString& commentaryKeyword();
     virtual const AtomicString& defaultKindKeyword() const OVERRIDE { return emptyAtom; }
 
-    bool selected() const { return m_selected; }
-    virtual void setSelected(const bool);
+    bool selected() const { return m_private->selected(); }
+    void setSelected(const bool);
 
     virtual void clearClient() OVERRIDE { m_client = 0; }
     VideoTrackClient* client() const { return m_client; }
@@ -81,7 +81,6 @@ private:
     virtual void willRemoveVideoTrackPrivate(VideoTrackPrivate*) OVERRIDE;
 
     AtomicString m_id;
-    bool m_selected;
     VideoTrackClient* m_client;
 
     RefPtr<VideoTrackPrivate> m_private;

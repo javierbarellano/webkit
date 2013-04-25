@@ -41,6 +41,7 @@ namespace WebCore {
 
 class AudioTrackPrivateGStreamer;
 class InbandTextTrackPrivateGStreamer;
+class VideoTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
 public:
@@ -181,10 +182,13 @@ private:
     bool m_missingPlugins;
 #if ENABLE(VIDEO_TRACK)
     GRefPtr<GstElement> m_audioAdder;
+    GRefPtr<GstElement> m_videoSelector;
     Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
     Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
+    Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
     Mutex m_audioTrackMutex;
     Mutex m_textTrackMutex;
+    Mutex m_videoTrackMutex;
 #endif
 };
 }
