@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<title>WebKit Player</title>
+<style>
+.customClass {background: #FF0; color: #000;}
+</style>
+<script>
+function insertCtrl() {
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("video");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	//v.audioTracks.onaddtrack = addTrack;
+	var src = document.createElement("source");
+	src.setAttribute('src', 'media/two_videos.ogv');
+	v.appendChild(src);
+	body.appendChild(v);
+}
+
+/******
+function insertCtrl()
+{
+	var body = document.getElementsByTagName("body")[0];
+	var v = document.createElement("video");
+	v.setAttribute('controls', 'yes');
+	v.setAttribute('width', '740px');
+	var src = document.createElement("source");
+	//src.setAttribute('src', 'http://10.36.32.186:4004/ocaphn/recording?rrid=8&profile=MPEG_TS_SD_NA_ISO&mime=video/mpeg');
+	src.setAttribute('src', 'two_videos.ogv');
+	src.setAttribute('type', 'video/mpeg');
+	v.appendChild(src);
+	body.appendChild(v);
+
+	textTrack();
+}
+*********/
+
+function textTrack()
+{
+	var v = document.getElementsByTagName("video")[0];
+	var tt = v.textTracks;
+	var vt = v.videoTracks;
+	var at = v.audioTracks;
+	v.onratechange = rateChanged;
+	//tt.onaddtrack = addTextTrack;
+	//tt.ontrackselected = selTextTrack;
+	//vt.ontrackselected = selVideoTrack;
+	//at.ontrackselected = selAudioTrack;
+	//v.onfastforward = ff;
+	//v.onreverse = reverse;
+	//window.console.log("Setting onplay");
+}
+
+function selTextTrack(info)
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + 
+		"<br/>Selected Text track: " + info.track.language; 
+}
+
+function selVideoTrack(info)
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + 
+		"<br/>Selected Video track: " + info.track.language; 
+}
+
+function selAudioTrack(info)
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + 
+		"<br/>Selected Audio track: " + info.track.language; 
+}
+
+function addTextTrack(info)
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + 
+		"<br/>Add text track: " + info.track.language; 
+}
+
+function addVideoTrack(info)
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + 
+		"<br/>Add Video track: " + info.track.label + " " + info.track.selected; 
+}
+
+function ff()
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + " FF";
+}
+
+function reverse()
+{
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + " Rev";
+}
+
+function hideShowVideoTrack()
+{
+	var v = document.getElementsByTagName("video")[0];
+	var index = v.videoTracks.selectedindex;
+	if (index >= 0) {
+		var b = document.getElementById("videoHideShow");
+		b.value = "ShowVideo";
+		v.videoTracks.item(index).selected = false;
+	} else {
+		var b = document.getElementById("videoHideShow");
+		b.value = "HideVideo";
+		v.videoTracks.item(0).selected = true;
+	}
+}
+
+function hideShowAudioTrack()
+{
+	var v = document.getElementsByTagName("video")[0];
+	var index = -1;
+	for (var i=0; i<v.audioTracks.length; i++)
+	{
+		var track = v.audioTracks.item(i);
+		if (track.enabled) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index >= 0) {
+		var b = document.getElementById("audioHideShow");
+		b.value = "ShowAudio";
+		v.audioTracks.item(index).enabled = false;
+	} else {
+		var b = document.getElementById("audioHideShow");
+		b.value = "HideAudio";
+		v.audioTracks.item(0).enabled = true;
+	}
+}
+
+function hideShowTextTrack()
+{
+	var v = document.getElementsByTagName("video")[0];
+	var index = v.textTracks.selectedindex;
+	if (index >= 0) {
+		var b = document.getElementById("textHideShow");
+		b.value = "ShowText";
+		v.textTracks.item(index).mode = "hidden";
+	} else {
+		var b = document.getElementById("textHideShow");
+		b.value = "HideText";
+		v.textTracks.item(0).mode = "showing";
+	}
+}
+
+function rateChanged()
+{
+	var v = document.getElementsByTagName("video")[0];
+	document.getElementById("texttrackInfo").innerHTML = 
+		document.getElementById("texttrackInfo").innerHTML + " Rate Changed: " + v.playbackRate;
+}
+
+</script>
+</head>
+
+<body>
+
+<!--
+<video controls="yes">
+    <source type="video/ogg" src="sintel_trailer-480p.ogv">
+</video>
+-->
+<input type="button" value="video" onclick="insertCtrl();" />
+<input type="button" value="HideVideo" id="videoHideShow" onclick="hideShowVideoTrack();" />
+<input type="button" value="HideAudio" id="audioHideShow" onclick="hideShowAudioTrack();" />
+<input type="button" value="HideText"  id="textHideShow"  onclick="hideShowTextTrack();" />
+<div id='texttrackInfo'></div>
+
+
+</body></html>
