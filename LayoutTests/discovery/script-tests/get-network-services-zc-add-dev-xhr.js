@@ -13,7 +13,7 @@ function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
 	shouldBe("srvs.servicesAvailable==0", "true");
-	srvs.ondevadded = addDevCB;
+	srvs.onserviceavailable = addDevCB;
 }
 
 function errShouldNotbeCalled(err) {
@@ -25,12 +25,12 @@ function okSecondCallCB(services) {
 	shouldBe("srvs.servicesAvailable>=1", "true");
 	if (srvs.servicesAvailable) {
 		var srv = srvs[0];
-//		if (srv && srv.url)
-//			window.console.log("okSecondCallCB():  srv.url: " + srv.url + "/databases");
+		//if (srv && srv.url)
+		//	window.console.log("okSecondCallCB():  srv.url: " + srv.url + "/databases1/containers");
 
 		req = new XMLHttpRequest();
 
-		req.open("GET", srv.url + "/databases", false);
+		req.open("GET", srv.url + "/databases/1/containers", false);
 		req.send();
 		resp = req.responseText;
 
@@ -42,10 +42,10 @@ function okSecondCallCB(services) {
 }
 
 function addDevCB() {
-	if (srvs.ondevadded == null) {
+	if (srvs.onserviceavailable == null) {
 		testFailed('GetNetworkServices() should have called dummyCB.');
 	}
-	srvs.ondevadded = null;
+	srvs.onserviceavailable = null;
 	
 	getNetworkServices("zeroconf:_daap", okSecondCallCB, errShouldNotbeCalled)
 }

@@ -35,7 +35,7 @@ function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() called ok callback.");
 	srvs = services;
 	shouldBe("srvs.servicesAvailable==0", "true");
-	srvs.ondevadded = addDevCB;
+	srvs.onserviceavailable = addDevCB;
 }
 
 function errShouldNotbeCalled(services) {
@@ -43,12 +43,12 @@ function errShouldNotbeCalled(services) {
 }
 
 function addDevCB() {
-	if (srvs.ondevadded == null) {
+	if (srvs.onserviceavailable == null) {
 		testFailed('GetNetworkServices() srvs.ondevadded = null did not work!');
 	}
 	
 	testPassed("Add Device callback called.");
-	srvs.ondevadded = null;
+	srvs.onserviceavailable = null;
 	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
 }
 

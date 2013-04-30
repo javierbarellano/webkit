@@ -37,16 +37,27 @@ class Nav;
 class IDiscoveryAPI;
 class Frame;
 
+enum ProtocolType
+{
+	BAD_PROTO = 0,
+	UPNP_PROTO = 1,
+	ZC_PROTO =2,
+	EVENT_PROTO = 3,
+};
+
+typedef struct _EventData
+{
+	ProtocolType proto;
+	bool online;
+	std::string type;
+	UPnPDevice dev;
+	ZCDevice zcdev;
+	RefPtr<NavEvent> evnt;
+} EventData;
+
 class NavDsc
 {
 public:
-	enum ProtocolType
-	{
-		BAD_PROTO = 0,
-		UPNP_PROTO = 1,
-		ZC_PROTO =2
-	};
-
 	static FILE *HN_FD_; // Used for logging
 
 	static NavDsc *create(Frame * frame);
@@ -95,29 +106,19 @@ public:
 		m_UPnPnav[std::string(type)] = nav;
 	}
 
-	void upnpReset() {m_resetSet = true;}
-	void zcReset() {m_resetSet = true;}
+	void upnpReset() {m_resetSet = true; }
+	void zcReset() {m_resetSet = true;  }
 
 	void onUPnPError(int error);
 	void onZCError(int error);
-
-	void onNetworkChanged(bool isUP);
-	static void onNetworkChangedInternal(void *ptr);
-
-	void foundUPnPDev(std::string type);
-    static void UPnPDevAddedInternal(void *ptr);
-	void foundZCDev(std::string type);
-    static void ZCDevAddedInternal(void *ptr);
 
 	void serviceOffline(std::string type, UPnPDevice &dev);
     static void serviceOfflineInternal(void *ptr);
 	void serviceOnline(std::string type, UPnPDevice &dev);
     static void serviceOnlineInternal(void *ptr);
 
-	void lostUPnPDev(std::string type);
-    static void UPnPDevDroppedInternal(void *ptr);
-	void lostZCDev(std::string type);
-    static void ZCDevDroppedInternal(void *ptr);
+	void zcServiceOffline(std::string type, ZCDevice &dev);
+	void zcServiceOnline(std::string type, ZCDevice &dev);
 
 	void sendEvent(std::string uuid, std::string stype, std::string body);
     static void sendEventInternal(void *ptr);
@@ -126,6 +127,9 @@ private:
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
+
+    void addUPnPDev(std::string type, std::map<std::string, UPnPDevice> devs);
+    void addZCDev(std::string type, std::map<std::string, ZCDevice> devs);
 
     void setServices(
     		std::string strType,
@@ -150,26 +154,13 @@ private:
 	std::map<std::string, bool> m_whiteBlackList;
 
     // Events
-	std::queue<bool> m_curNetworkStatus;
-	std::queue<std::string> m_curType;
-	std::queue<UPnPDevice> m_devs;
-	int m_eventType;
-	std::queue<RefPtr<NavEvent> > m_event;
-
-	enum EventType {
-		ADDED_UPNP_EVENT,
-		DROPPED_UPNP_EVENT,
-		SENDEVENT_UPNP_EVENT,
-		ADDED_ZC_EVENT,
-		DROPPED_ZC_EVENT,
-	};
-
+	std::queue<EventData> m_eventData;
     Mutex *m_main;
 
     bool m_resetSet;
 
     // Map by type
-    std::map<std::string, std::vector<RefPtr<NavServices> > > m_services;
+    std::map<std::string, RefPtr<NavServices> > m_services;
 
 };
 } // namespace WebCore

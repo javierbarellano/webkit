@@ -20,15 +20,15 @@ NavServices::NavServices(const NavServices &that) :
 		, ActiveDOMObject(that.scriptExecutionContext())
 {
 	clearSrvs();
-	for (int i=0; i < (int)that.m_services.size(); i++)
-		m_services.append(that.m_services.at(i));
+	for (int i=0; i < (int)that.m_devs.size(); i++)
+		m_devs.append(that.m_devs.at(i));
 }
 
 NavServices& NavServices::operator= (const NavServices &that)
 {
 	clearSrvs();
-	for (int i=0; i < (int)that.m_services.size(); i++)
-		m_services.append(that.m_services[i]);
+	for (int i=0; i < (int)that.m_devs.size(); i++)
+		m_devs.append(that.m_devs[i]);
 
 	return *this;
 }

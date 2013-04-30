@@ -42,6 +42,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+//#define LOGGING_NAV 1
+
+#ifdef LOGGING_NAV
+#define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#else
+#define NAV_LOG(fmt,...)
+#endif
+#define ERR_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+
 #define MAX_CONTACT_ATTEMPTS 2
 /* Note: The reason we try to contact the device multiple times is that there appears to be a bug in WebKit
  * that causes UPnPSearch to timeout on a legitimate HTTPGet, if WebKit is elsewhere trying to load a non-existant page at the same time.
@@ -124,8 +133,6 @@ void discoveryThread(void *context)
 					bool netIdUp = upnp->m_udpSocket->send(upnp->sendData_.c_str(), upnp->sendData_.length());
 					if (netIdUp != upnp->m_netIsUp) {
 						upnp->m_netIsUp = netIdUp;
-						if (upnp->navDsc_)
-							upnp->navDsc_->onNetworkChanged(netIdUp);
 					}
 					usleep(75L*1000L); // 75ms
 				}
@@ -156,8 +163,6 @@ void notifyThread(void *context)
 
 				if (upnp->m_netIsUp) {
 					upnp->m_netIsUp = false;
-					if (upnp->navDsc_)
-						upnp->navDsc_->onNetworkChanged(upnp->m_netIsUp);
 				}
     			usleep(20000L*1000L); // 20 secs
     			continue;
@@ -165,8 +170,6 @@ void notifyThread(void *context)
 
 			if (!upnp->m_netIsUp) {
 				upnp->m_netIsUp = true;
-				if (upnp->navDsc_)
-					upnp->navDsc_->onNetworkChanged(upnp->m_netIsUp);
 			}
     	}
 
@@ -240,14 +243,12 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
 	{
 		UPnPDevMap dm = devs_[type];
 		if (dm.devMap.find(uuid) != dm.devMap.end())
-		{
 			name.append(dm.devMap[uuid].friendlyName);
-		}
 		else
-			printf("getUPnPFriendlyName() UUID(%s) not found! dm.devMao.size=%d\n", uuid.c_str(), (int)dm.devMap.size());
+			ERR_LOG("getUPnPFriendlyName() UUID(%s) not found! dm.devMao.size=%d\n", uuid.c_str(), (int)dm.devMap.size());
 	}
 	else
-		printf("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
+		ERR_LOG("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
 	devLock_->unlock();
 
 }
@@ -268,7 +269,7 @@ void UPnPSearch::createConnect(const char *type)
         // Constructor connects to socket
         instance_->m_udpSocket = UDPSocketHandle::create(url, false, instance_);
         if (!instance_->m_udpSocket->connected()) {
-        	printf("createConnect() Not connected\n");
+        	ERR_LOG("createConnect() Not connected\n");
         	instance_->m_udpSocket.release();
         	instance_->m_udpSocket = NULL;
         	instance_->m_netIsUp = false;
@@ -372,10 +373,10 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
             if ( type == "upnp:rootdevice")
             {
                 if (st == "ssdp:alive") {
-                    //fprintf(stderr,"Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
+                    //NAV_LOG("Received NOTIFY:alive - %s: %s\n", location.c_str(), uuid.c_str());
                     parseDev(data, dLen, NULL);
                 } else if (st == "ssdp:byebye"){
-                    //fprintf(stderr,"Received NOTIFY:byebye: %s\n", uuid.c_str());
+                    //NAV_LOG("Received NOTIFY:byebye: %s\n", uuid.c_str());
                     // We don't know which list(s) the device is on, so check them both.
                 	devLock_->lock();
                     removeDevice(&devs_, uuid);
@@ -386,7 +387,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         } else if (location.size() > 0){
             // Not a NOTIFY. Must be an M_SEARCH reply
             parseDev(data, dLen, NULL);
-            //fprintf(stderr,"Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
+            //NAV_LOG("Received M-SEARCH reply - %s: %s\n", location.c_str(), uuid.c_str());
         }
     }
 }
@@ -397,7 +398,7 @@ void UPnPSearch::UDPdidClose(UDPSocketHandle* handle)
 
 void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 {
-	//printf("UPnPSearch::didFail() UDPSocketHandle error: %d\n", error.getErr());
+	ERR_LOG("UPnPSearch::didFail() UDPSocketHandle error: %d\n", error.getErr());
 	if (navDsc_)
 		navDsc_->onUPnPError(error.getErr());
 	if (api_)
@@ -406,7 +407,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 
 void UPnPSearch::checkForDroppedDevs()
 {
-	//printf("checkForDroppedDevs() start devs: %d\n", devs_.size());
+	//NAV_LOG("checkForDroppedDevs() start devs: %d\n", devs_.size());
 	devLock_->lock();
 	for (std::map<std::string, UPnPDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
@@ -431,10 +432,10 @@ void UPnPSearch::checkForDroppedDevs()
 
 				// Unresponsive. See note at top of file for reason for retries
 				devs_[type].devMap[dv.uuid].contactAttempts++;
-				printf("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				NAV_LOG("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
 				if ( devs_[type].devMap[dv.uuid].contactAttempts > MAX_CONTACT_ATTEMPTS) {
-					printf("Device Off line... Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					NAV_LOG("Device Off line... Url: %s, Reply: %s, navDsc: %p\n", dv.descURL.c_str(), bf, navDsc_ );
 					if (devs_[type].devMap[dv.uuid].online) {
 						devs_[type].devMap[dv.uuid].online = false;
 						if (navDsc_)
@@ -444,7 +445,7 @@ void UPnPSearch::checkForDroppedDevs()
 			} else {
 				devs_[type].devMap[dv.uuid].contactAttempts = 0;
 				if (!devs_[type].devMap[dv.uuid].online) {
-					printf("Device On line... Url: %s\n", dv.descURL.c_str());
+					NAV_LOG("Device On line... Url: %s, navDsc: %p\n", dv.descURL.c_str(), navDsc_);
 					devs_[type].devMap[dv.uuid].online = true;
 					if (navDsc_)
 						navDsc_->serviceOnline(type, devs_[type].devMap[dv.uuid]);
@@ -458,8 +459,8 @@ void UPnPSearch::checkForDroppedDevs()
             	devs_[type].devMap.find(dropMe.at(d))->second.online = true;
             }
 
-			if (navDsc_)
-				navDsc_->lostUPnPDev(type);
+			//if (navDsc_)
+			//	navDsc_->lostUPnPDev(type);
 		}
 	}
 	devLock_->unlock();
@@ -467,7 +468,7 @@ void UPnPSearch::checkForDroppedDevs()
 
 void UPnPSearch::checkForDroppedInternalDevs()
 {
-    //fprintf(stderr,"checkForDroppedInternalDevs() start\n");
+    //NAV_LOG("checkForDroppedInternalDevs() start\n");
 	for (std::map<std::string, UPnPDevMap>::iterator i = internalDevs_.begin(); i != internalDevs_.end(); i++)
 	{
 		std::vector<std::string> dropMe;
@@ -496,10 +497,10 @@ void UPnPSearch::checkForDroppedInternalDevs()
 
 				// Unresponsive. See note at top of file for reason for retries
 				dv.contactAttempts++;
-				//fprintf(stderr,"Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
+				//NAV_LOG("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
 
 				if ( dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
-					//fprintf(stderr,"Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
+					//NAV_LOG("Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
 					dropMe.push_back((*k).first);
 				}
 			} else {
@@ -575,13 +576,13 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
     std::string sLoc = getTokenValue(headers, "LOCATION");
     if ( sLoc.empty()) {
-        //printf("No Location header found!\n");
+        //NAV_LOG("No Location header found!\n");
         return false;
     }
 
     std::string usn = getTokenValue(headers, "USN");
     if ( usn.empty()) {
-        printf("No USN header found!\n");
+        ERR_LOG("No USN header found!\n");
         return false;
     }
 
@@ -618,13 +619,13 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	HTTPget(host.c_str(), atoi(port.c_str()), path.c_str(), bf, &len);
 	
 	if (!len) {
-		//printf("Parse(): HTTPget(%s) len==0! Skipping...\n", sLoc.c_str());
+		//NAV_LOG("Parse(): HTTPget(%s) len==0! Skipping...\n", sLoc.c_str());
 		return false;
 	}
 
 	bf[len] = 0;
 	std::vector<std::string> foundTypes;
-	//printf("Parse(%s): len=%d\n%s\n", sLoc.c_str(), (int)len, bf);
+	//NAV_LOG("Parse(%s): len=%d\n%s\n", sLoc.c_str(), (int)len, bf);
 
 	// Look for the service type that was given to us from JavaScript
 	// Form is something like:
@@ -633,7 +634,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	{
 		if (notInBadList(sUuid)) {
 			badDevs_.push_back(sUuid);
-			//printf("%s doesn't include a registered service.\n",host.c_str());
+			//NAV_LOG("%s doesn't include a registered service.\n",host.c_str());
 		}
 		return false;
 	}
@@ -643,7 +644,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
     if (friendlyName.length() == 0)
 	{
 		badDevs_.push_back(sUuid);
-		printf("%s has no friendlyName!!!!\n",host.c_str());
+		ERR_LOG("%s has no friendlyName!!!!\n",host.c_str());
 		return false;
 	}
 
@@ -736,18 +737,21 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
                 if (it != dm.devMap.end()) {
                     //action = (char*)"Updating";
                     if (!dm.devMap[sUuid].changed(d)) {
+                    	devLock_->unlock();
                         continue;
                     }
                 }
 
 				dm.devMap[sUuid] = d;
                 devs_[foundType] = dm;
-                //printf("device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+                devLock_->unlock();
+
+                NAV_LOG("device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
                 if (navDsc_) {
-                    navDsc_->foundUPnPDev(foundType);
+                    navDsc_->serviceOnline(foundType, devs_[foundType].devMap[sUuid]); //foundUPnPDev(foundType);
                 }
-			}
-            devLock_->unlock();
+			} else
+				devLock_->unlock();
 		}
 	}
 
@@ -770,7 +774,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
             dm.devMap[sUuid] = d;
             internalDevs_[internal_type_] = dm;  // By value, so copy in new contents.
 
-            //fprintf(stderr,"%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
+            //NAV_LOG("%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
             fflush(stderr);
             if (api_) {
                 api_->serverListUpdate(internal_type_, &dm.devMap);
@@ -855,7 +859,7 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
  	size_t len = sizeof(bf);
  	DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), ss.str().length(), bf, &len);
  	bf[len] = 0;
- 	//printf("eventServer() returned:\n%s\n", bf);
+ 	//NAV_LOG("eventServer() returned:\n%s\n", bf);
 }
 
 // Called when Socket Stream is opened.
@@ -876,7 +880,7 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
 	memcpy(bf, data, dLen);
 	bf[dLen] = 0;
 
-    //printf("GOT Event:\n%s\n", bf);
+    //NAV_LOG("GOT Event:\n%s\n", bf);
 
 	/*
 		NOTIFY /fd079abb-e638-46d4-bc74-5f62e453a95f/urn:schemas-upnp-org:service:ContentDirectory:1 HTTP/1.1
@@ -907,7 +911,7 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
  	std::string resp(data);
  	if (resp.find("NOTIFY ") == std::string::npos)
  	{
- 		printf("-ERROR- UPnPSearch::didReceiveData() 'NOTIFY ' not found in response.\n");
+ 		ERR_LOG("-ERROR- UPnPSearch::didReceiveData() 'NOTIFY ' not found in response.\n");
  		return;
  	}
 
@@ -923,12 +927,12 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
 
  	if (resp.find("<?xml")== std::string::npos)
  	{
- 		printf("-ERROR- UPnPSearch::didReceiveData() No body found in response.\n");
+ 		ERR_LOG("-ERROR- UPnPSearch::didReceiveData() No body found in response.\n");
  		return;
  	}
  	std::string body = resp.substr(resp.find("<?xml"));
 
- 	//printf("Got Event(%s, %s)\n", uuid.c_str(), type.c_str());
+ 	//NAV_LOG("Got Event(%s, %s)\n", uuid.c_str(), type.c_str());
 
  	navDsc_->sendEvent(uuid, type, body);
 }
@@ -942,7 +946,7 @@ void UPnPSearch::HNdidClose(HNEventServerHandle* hServer)
 // Called when Socket Stream has an error.
 void UPnPSearch::HNdidFail(HNEventServerHandle* hServer, HNEventError& err)
 {
-	//printf("UPnPSearch: didFail(): HNEventServerHandle error: %d\n", err.getErr());
+	//NAV_LOG("UPnPSearch: didFail(): HNEventServerHandle error: %d\n", err.getErr());
 	//navDsc_->onUPnPError(err.getErr());
 }
 

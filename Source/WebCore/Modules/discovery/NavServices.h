@@ -46,36 +46,50 @@ public:
 
     virtual ~NavServices(){ clearSrvs(); }
 
-    int servicesAvailable() const {return m_services.size();}
+    int servicesAvailable() const {return m_devs.size();}
 
-    int length() const {return m_services.size();}
+    int length() const {return m_devs.size();}
     bool online() const {return m_online;}
     void setOnline(bool online) { m_online = online;}
 
-    NavService* item(unsigned short index) {return m_services.at(index).get();}
+    NavService* item(unsigned short index) {return m_devs.at(index).get();}
 
     void setServices(Vector<RefPtr<NavService> >* vDevs)
     {
-    	m_services.clear();
+    	m_devs.clear();
     	for (int i=0; i < (int)vDevs->size(); i++)
-    		m_services.append(vDevs->at(i));
+    		m_devs.append(vDevs->at(i));
+    }
+
+    void append(RefPtr<NavService> dev)
+    {
+    	bool found = false;
+    	for (int i=0; i<m_devs.size(); i++) {
+    		if (!strcmp(m_devs[i].get()->m_id.ascii().data(), dev->m_id.ascii().data())) {
+    			found = true;
+    			break;
+    		}
+    	}
+
+    	if (!found)
+    		m_devs.append(dev);
     }
 
     NavService* find(std::string uuid)
     {
-    	for (int i=0; i<(int)m_services.size(); i++)
+    	for (int i=0; i<(int)m_devs.size(); i++)
 //    		if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
-    			return m_services[i].get();
+    			return m_devs[i].get();
 
     	return NULL;
     }
 
     void clearSrvs()
     {
-    	for (int i=0; i<(int)m_services.size(); i++)
-    		m_services.at(i).release();
+    	for (int i=0; i<(int)m_devs.size(); i++)
+    		m_devs.at(i).release();
 
-    	m_services.clear();
+    	m_devs.clear();
     }
 
     virtual const AtomicString& interfaceName() const;
@@ -87,7 +101,7 @@ public:
     using RefCounted<NavServices>::ref;
     using RefCounted<NavServices>::deref;
 
-    Vector<RefPtr<NavService> > m_services;
+    Vector<RefPtr<NavService> > m_devs;
 
     std::string m_serviceType;
 

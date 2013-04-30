@@ -12,7 +12,7 @@ function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() first call to ok callback.");
 	srvs = services;
 	shouldBe("srvs.servicesAvailable==0", "true");
-	srvs.ondevadded = addDevCB;
+	srvs.onserviceavailable = addDevCB;
 }
 
 function errShouldNotbeCalled(err) {
@@ -24,8 +24,6 @@ function okSecondCallCB(services) {
 	shouldBe("srvs.servicesAvailable>=1", "true");
 	if (srvs.servicesAvailable) {
 		var srv = srvs[0];
-//		if (srv && srv.url)
-//			window.console.log("okSecondCallCB():  srv.url: " + srv.url);
 
 		req = new XMLHttpRequest();
 
@@ -41,10 +39,10 @@ function okSecondCallCB(services) {
 }
 
 function addDevCB() {
-	if (srvs.ondevadded == null) {
+	if (srvs.onserviceavailable == null) {
 		testFailed('GetNetworkServices() should have called dummyCB.');
 	}
-	srvs.ondevadded = null;
+	srvs.onserviceavailable = null;
 	
 	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
 }

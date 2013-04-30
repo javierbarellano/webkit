@@ -39,6 +39,8 @@ public:
 
 	static ZeroConf* getInstance();
 
+	static ZCDevMap* getDevs(const char *type);
+
     // Called when Socket Stream is opened.
     virtual void UDPdidOpenStream(UDPSocketHandle*);
 
@@ -84,7 +86,7 @@ private:
 	std::string daapType_;
 
 	// Return pos
-	int parseRec(const char* resp, size_t respLen, int pos, int numRecs, std::string& name);
+	int parseRec(const char* resp, size_t respLen, int pos, int numRecs, std::string& name, std::string& portnm);
 
 	// Return pos
 	int cxSupport(const char* resp, int pos, std::string& subName, int curPos);

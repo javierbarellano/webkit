@@ -16,6 +16,7 @@ function getNetworkServices(type, okCallback, errCallback) {
 }
 
 var srvs;
+var serviceType = "upnp:urn:schemas-upnp-org:service:RemoteUIServer:1";
 
 function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() first call to ok callback.");
@@ -43,19 +44,19 @@ function dropDevCB() {
 }
 
 function addDevCB() {
-	testPassed("Service came back.");
-
 	if (devdropped) {
+		testPassed("Service came back.");
 		srvs.onserviceavailable = null;
 		srvs.onserviceunavailable = null;
 		finishJSTest();
-	} else {
-		navigator.getNetworkServices(
-			"upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okCallback2, errCallback);
+	}
+	else {
+		testPassed("Found device with service: " + serviceType);
+		navigator.getNetworkServices(serviceType, okCallback2, errShouldNotbeCalled);
 	}
 }
 
-getNetworkServices("upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okAddDev, errShouldNotbeCalled);
+getNetworkServices(serviceType, okAddDev, errShouldNotbeCalled);
 window.jsTestIsAsync = true;
 </script>
 

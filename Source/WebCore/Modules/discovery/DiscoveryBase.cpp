@@ -38,6 +38,15 @@
 #define MAX_RCVBUF 8192
 #define MAX_TAG 256
 
+//#define LOGGING_NAV 1
+
+#ifdef LOGGING_NAV
+#define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#else
+#define NAV_LOG(fmt,...)
+#endif
+#define ERR_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+
 // Utility methods. Should we find a better location for these?
 // trim from start
 static std::string& ltrim(std::string &s)
@@ -183,7 +192,7 @@ void DiscoveryBase::getPath(const char *url,char* path)
 
 	strcpy(path, &host[strchr(host,'/')-host]);
 
-	//printf("getPath: host=%s, path=%s\n",host, path);
+	//NAV_LOG("getPath: host=%s, path=%s\n",host, path);
 }
 
 void DiscoveryBase::socketSend(const char *host, int port, const char *toSend, size_t sLen, char *bf, size_t *len)
@@ -217,14 +226,14 @@ void DiscoveryBase::HTTPget(const char *host, int port, const char *path, char *
 	toSend << "Host: " << host << ":" << port << "\r\n";
 	toSend << "Connection: keep-alive\r\n\r\n";
 
-	//printf("HTTPget: host=%s, port=%d, path=%s\n",host, port, path);
+	//NAV_LOG("HTTPget: host=%s, port=%d, path=%s\n",host, port, path);
 
 	socketSend(host, port, toSend.str().c_str(), toSend.str().length(), bf, len);
 }
 
 void DiscoveryBase::HTTPget(KURL &url, char *bf, size_t *len)
 {
-	//printf("HTTPget(KURL)\n");
+	//NAV_LOG("HTTPget(KURL)\n");
 	String path = url.path();
 	String query = url.query();
 	std::string pq(path.ascii().data());
@@ -244,7 +253,7 @@ void DiscoveryBase::HTTPget(KURL &url, char *bf, size_t *len)
 // optHeaders should include /r/n at the end of lines
 void DiscoveryBase::HTTPpost(KURL &url, char *postBody, char *optHeaders, char *bf, size_t *len)
 {
-	//printf("HTTPget2(KURL)\n");
+	//NAV_LOG("HTTPget2(KURL)\n");
 	/*
 	POST /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
 	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
@@ -308,7 +317,7 @@ void DiscoveryBase::hexDump(const char *data, int len, int pos)
 		start = 0;
 	}
 
-	printf("%s",ss.str().c_str());
+	NAV_LOG("%s",ss.str().c_str());
 }
 
 // Here to lookup a token in a map returned from parseUDPMessage

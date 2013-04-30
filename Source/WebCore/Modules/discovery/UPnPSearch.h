@@ -108,6 +108,16 @@ public:
 
 	std::string sendData_;
 
+	static UPnPDevMap *getDevs(const char *type) {
+		if (!instance_)
+			return NULL;
+
+		if (instance_->devs_.find(type) != instance_->devs_.end())
+			return &(instance_->devs_.find(type)->second);
+
+		return NULL;
+	}
+
 protected:
 
     virtual bool parseDev(const char* resp, std::size_t respLen, const char* hostPort);

@@ -10,7 +10,7 @@ function okAddDev(services) {
 	testPassed("navigator.getNetworkServices() called ok callback.");
 	srvs = services;
 	shouldBe("srvs.length==0", "true");
-	srvs.ondevadded = addDevCB;
+	srvs.onserviceavailable = addDevCB;
 }
 
 function errShouldNotbeCalled(services) {
@@ -18,12 +18,12 @@ function errShouldNotbeCalled(services) {
 }
 
 function addDevCB() {
-	if (srvs.ondevadded == null) {
+	if (srvs.onserviceavailable == null) {
 		testFailed('addDevCB() called when srvs.ondevadded == null');
 	}
 	
 	testPassed("HomeNetworking called Device Added callback.");
-	srvs.ondevadded = null;
+	srvs.onserviceavailable = null;
 	finishJSTest();
 }
 

@@ -14,6 +14,7 @@ typedef struct sZCDevice
 {
 	std::string url;
 	std::string friendlyName;
+	bool online;
 } ZCDevice;
 
 #endif /* ZCDEVICE_H_ */

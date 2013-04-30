@@ -42,6 +42,15 @@
 #define SKIP true
 #define GET_NAME false
 
+//#define LOGGING_NAV 1
+
+#ifdef LOGGING_NAV
+#define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#else
+#define NAV_LOG(fmt,...)
+#endif
+#define ERR_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+
 namespace WebCore
 {
 
@@ -111,7 +120,6 @@ void zcDiscoveryThread(void *context)
                 	zc->m_udpSocket.release();
                 	zc->m_udpSocket = NULL;
                 }
-
         	}
 
         	if (zc->m_udpSocket) {
@@ -119,8 +127,6 @@ void zcDiscoveryThread(void *context)
 				bool netIdUp = zc->m_udpSocket->send(zc->query_, zc->queryLen_);
 				if (netIdUp != zc->m_netIsUp) {
 					zc->m_netIsUp = netIdUp;
-					if (zc->navDsc_)
-						zc->navDsc_->onNetworkChanged(netIdUp);
 				}
         	}
 		}
@@ -133,6 +139,8 @@ void zcDiscoveryThread(void *context)
 // static
 std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc *navDsc)
 {
+	NAV_LOG("ZeroConf::discoverDevs(%s)\n", type);
+
 	if (!instance_)
 		instance_ = new ZeroConf(type);
 
@@ -148,13 +156,18 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
 		}
 		instance_->m_tID = WTF::createThread(zcDiscoveryThread, instance_, "ZC_discovery");
 		instance_->m_tDroppedID = WTF::createThread(zcDroppedDevsThread, instance_, "DroppedZC");
+
+		NAV_LOG("ZeroConf::discoverDevs(%s) UDP set up. URL: %s, Connected: %s\n",
+				type, instance_->url_, instance_->m_udpSocket->connected() ? "true":"false");
  	}
  	instance_->navDsc_ = navDsc;
+
 
  	instance_->devLock_->lock();
  	if (instance_->devs_.find(std::string(type)) != instance_->devs_.end())
  	{
  		ZCDevMap dm = instance_->devs_.find(std::string(type))->second;
+ 		NAV_LOG("ZeroConf::discoverDevs(%s) Found one or more devs, size: %d\n", type, dm.devMap.size());
  		instance_->devLock_->unlock();
  		return (dm.devMap);
  	}
@@ -221,17 +234,27 @@ void ZeroConf::UDPdidClose(UDPSocketHandle* udpHandle)
 
 void ZeroConf::UDPdidFail(UDPSocketHandle* handle, UDPSocketError& error)
 {
-// 	printf("ZeroConf::didFail() UDPSocketHandle error: %d\n", error.getErr());
+// 	NAV_LOG("ZeroConf::didFail() UDPSocketHandle error: %d\n", error.getErr());
 	navDsc_->onZCError(error.getErr());
+}
+
+ZCDevMap* ZeroConf::getDevs(const char *type)
+{
+	if (!instance_)
+		return NULL;
+
+	if (instance_->devs_.find(type) != instance_->devs_.end())
+		return &(instance_->devs_.find(type)->second);
+
+	return NULL;
 }
 
 void ZeroConf::checkForDroppedDevs()
 {
 	devLock_->lock();
-	//printf("checkForDroppedDevs() start\n");
+	//NAV_LOG("checkForDroppedDevs() start\n");
 	for (std::map<std::string, ZCDevMap>::iterator i = devs_.begin(); i != devs_.end(); i++)
 	{
-		std::vector<std::string> dropMe;
 		ZCDevMap dm = (*i).second;
 		std::string type = (*i).first;
 		for (std::map<std::string, ZCDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++)
@@ -244,25 +267,29 @@ void ZeroConf::checkForDroppedDevs()
 			unsigned int port = atoi(dv.url.substr(dv.url.find(":",7)+1).c_str());
 			HTTPget(host.c_str(), port, (char*)"/databases/1/containers", bf, &len);
 
-			//std::string path = dv.url+"/databases/1/containers";
-			//printf("Try: %s\n", path.c_str());
+			std::string path = dv.url+"/databases/1/containers";
+			NAV_LOG("Try: %s\n", path.c_str());
 
 			// Get Description of servcie to insure the device is still working
-			if (len > 0)
+			if (len > 0 || !strstr(bf,"HTTP/1.1 200 OK")) {
+				if (!dv.online) {
+					dv.online = true;
+					NAV_LOG("Device ON line... Url: %s, navDsc: %p\n", dv.url.c_str(), navDsc_ );
+					if (navDsc_)
+						navDsc_->zcServiceOnline(type, dv);
+				}
 				continue;
+			}
 
 			// Found one that dropped
-			dropMe.push_back((*k).first);
+			if (dv.online) {
+				dv.online = false;
+				NAV_LOG("Device Off line... Url: %s, Reply: %s, navDsc: %p\n", dv.url.c_str(), bf, navDsc_ );
+				if (navDsc_)
+					navDsc_->zcServiceOffline(type, dv);
+			}
 		}
 
-		if (dropMe.size())
-		{
-			for (int d=0; d<(int)dropMe.size(); d++)
-				dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
-
-			devs_[type] = dm;
-			navDsc_->lostZCDev(type);
-		}
 	}
 	devLock_->unlock();
 
@@ -272,7 +299,7 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 {
 	ZCDevice zcd;
 
-	//printf("parseDev() start\n");
+	NAV_LOG("parseDev(%s) start\n", hostPort);
 
 	zcd.url = "http://";
 	std::string hp(hostPort);
@@ -293,27 +320,31 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 	if (!flags || !answers)
 		return false;
 
-	//printf("parseDev() questions: %d, len: %d\n", questions, (int)respLen);
+	//NAV_LOG("parseDev() questions: %d, len: %d\n", questions, (int)respLen);
 	int pos = 12;
 	std::string dummy;
-	pos = parseRec(resp, respLen, pos, questions, dummy);
-
-	//printf("parseDev() answers: %d, pos: %d, len: %d\n", answers, pos, (int)respLen);
-	// Get friendly name
-	pos = parseRec(resp, respLen, pos, answers, zcd.friendlyName);
-	//printf("parseDev() name: %s\n", zcd.friendlyName.c_str());
-
-	//printf("parseDev() authorities: %d, pos: %d, len: %d\n", authorities, pos, (int)respLen);
-	// Skip authorities
-	pos = parseRec(resp, respLen, pos, authorities, dummy);
-
-	//printf("parseDev() additionals: %d, pos: %d, len: %d\n", additionals, pos, (int)respLen);
-	// Get port
 	std::string port;
-	pos = parseRec(resp, respLen, pos, additionals, port);
-	zcd.url += ":"+port;
+	pos = parseRec(resp, respLen, pos, questions, dummy, port);
 
-	//printf("ZC parseRec(): url: %s\n", zcd.url.c_str());
+	NAV_LOG("parseDev() answers: %d, pos: %d, len: %d\n", answers, pos, (int)respLen);
+	// Get friendly name
+	pos = parseRec(resp, respLen, pos, answers, zcd.friendlyName, port);
+
+	//NAV_LOG("parseDev() authorities: %d, pos: %d, len: %d\n", authorities, pos, (int)respLen);
+	// Skip authorities
+	pos = parseRec(resp, respLen, pos, authorities, dummy, port);
+
+	NAV_LOG("parseDev() additionals: %d, pos: %d, len: %d\n", additionals, pos, (int)respLen);
+
+	if (!port.length()) {
+		// Get port
+		pos = parseRec(resp, respLen, pos, additionals, dummy, port);
+	}
+
+	if (port.length())
+		zcd.url += ":"+port;
+
+	NAV_LOG("ZC parseRec(): url: %s\n", zcd.url.c_str());
 
 	ZCDevMap dm;
 	devLock_->lock();
@@ -324,42 +355,45 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 
 	if (dm.devMap.find(zcd.friendlyName) == dm.devMap.end())
 	{
+		zcd.online = true;
 		dm.devMap[zcd.friendlyName] = zcd;
 		devs_[daapType_] = dm;
 
-		//printf("Adding dev: %s\n", zcd.friendlyName.c_str());
-		if (navDsc_)
-			navDsc_->foundZCDev(daapType_);
+        NAV_LOG("---Adding ZeroConf device: %s : %s, devs: %d\n", zcd.url.c_str(), zcd.friendlyName.c_str(), (int)dm.devMap.size());
+        if (navDsc_) {
+            navDsc_->zcServiceOnline(daapType_, zcd);
+        }
 	}
 	devLock_->unlock();
 
 	return true;
 }
 
-int ZeroConf::parseRec(const char* resp, size_t respLen, int pos, int numRecs, std::string& name)
+int ZeroConf::parseRec(const char* resp, size_t respLen, int pos, int numRecs, std::string& name, std::string& portnm)
 {
-	//printf("parseRec() start - ");
+	//NAV_LOG("parseRec() start - ");
 
 	if (!respLen || !numRecs)
 	{
-		//printf("end len==0\n");
+		//NAV_LOG("end len==0\n");
 		return pos;
 	}
 
+	NAV_LOG("parseRec(): numRecs: %d, len: 0x%x (%d)\n", numRecs, (int)respLen, (int)respLen);
 	for (int p=0; p<numRecs; p++)
 	{
-		//printf("Record[%d] [0]: 0x%x, [1]: 0x%x [2]: 0x%x\n",p, resp[pos], resp[pos+1], resp[pos+2]);
+		NAV_LOG("Record[%d](%d) 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+				p, pos, resp[pos]&0xff, resp[pos+1]&0xff, resp[pos+2]&0xff, resp[pos+3]&0xff, resp[pos+4]&0xff, resp[pos+5]&0xff);
+
 		// Rec name
 		std::string recName;
 		pos = setName(resp, pos, recName);
 
 		int type = ((resp[pos]&0xff) << 8) + (resp[pos+1]&0xff);
-		//printf(" Type: %d\n", type);
-		// Type
-		pos += 2;
+		NAV_LOG(" Type: %d, pos: %d\n", type, pos);
 
-		// Class
-		pos += 2;
+		pos += 2; // Type
+		pos += 2; // Class
 
 		if (resp[pos] == 0 && resp[pos+1] == 0)
 		{
@@ -378,7 +412,7 @@ int ZeroConf::parseRec(const char* resp, size_t respLen, int pos, int numRecs, s
 			if (type == 12) // PTR (Domain Name)
 			{
 				setName(resp, pos, name);
-
+				NAV_LOG("PTR (Domain Name): pos: %d\n", pos);
 			}
 			else if (type == 33)  // SRV (get port)
 			{
@@ -387,7 +421,8 @@ int ZeroConf::parseRec(const char* resp, size_t respLen, int pos, int numRecs, s
 				int port = ((resp[pos+4]&0xff) << 8) + (resp[pos+5]&0xff);
 				std::stringstream ss;
 				ss << port;
-				name.append(ss.str());
+				portnm = ss.str();
+				NAV_LOG("SRV port: %s len: %d\n", portnm.c_str(), dataLen);
 			}
 
 			pos += dataLen;
@@ -395,7 +430,7 @@ int ZeroConf::parseRec(const char* resp, size_t respLen, int pos, int numRecs, s
 
 	}
 
-	//printf("end\n");
+	//NAV_LOG("end\n");
 	return pos;
 }
 
@@ -437,13 +472,13 @@ int ZeroConf::setName(const char* resp, int pos, std::string& name)
 
 int ZeroConf::cxSupport(const char* resp, int pos, std::string& subName, int curPos)
 {
-    if (resp[pos]==(char)0xc0 || resp[pos]==(char)0xc1)
+    if ((resp[pos] & (char)0xc0) == (char)0xc0)
     {
        if (curPos != pos)
     	   subName += ".";
 
        std::string indirectName;
-       int inPos = (int)resp[pos+1]&0xff;
+       int inPos = (((int)resp[pos]&0xf)<<8) + ((int)resp[pos+1]&0xff);
        setName(resp, inPos, indirectName);
        subName += indirectName;
        pos += 2;
@@ -483,6 +518,9 @@ bool ZeroConf::hostPortOk(const char* host, int port)
 			std::string url = d.url;
 
 			getHostPort(url.c_str(),lhost, &lport);
+
+			NAV_LOG("ZeroConf::hostPortOk(%s, %d) lhost: '%s', lport: %d\n",
+					host, port, lhost, lport);
 
 			if (lport == port && !strcmp(host,lhost)) {
 				devLock_->unlock();
