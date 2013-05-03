@@ -360,6 +360,9 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
         size_t pos = usn.find_first_of(':');
         if (pos != std::string::npos) {
             uuid = usn.substr(pos+1);
+        } else {
+        	//ERR_LOG("UDPdidReceiveData(): USN didn't contain ':' USN: '%s'\n", usn.c_str());
+        	return;
         }
 
         std::string line1 = getTokenValue(headers,"LINE1");
@@ -582,7 +585,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
     std::string usn = getTokenValue(headers, "USN");
     if ( usn.empty()) {
-        ERR_LOG("No USN header found!\n");
+        ERR_LOG("parseDev(): No USN header found!\n");
         return false;
     }
 
@@ -590,6 +593,9 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
     size_t pos = usn.find_first_of(':');
     if (pos != std::string::npos) {
         sUuid = usn.substr(pos+1);
+    } else {
+    	ERR_LOG("parseDev(): USN didn't contain ':' USN: '%s'\n", usn.c_str());
+    	return false;
     }
 
     UPnPDevMap dm;
@@ -597,14 +603,30 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	// Now get the friendly name, ugh...
 	std::string path;
 	std::string port;
-	std::string host = sLoc.substr(sLoc.find("://")+3);
+	pos = sLoc.find("://");
+	if (pos == std::string::npos) {
+    	ERR_LOG("parseDev(): LOCATION: didn't contain '://' LOCATION: '%s'\n", sLoc.c_str());
+    	return false;
+	}
+	std::string host = sLoc.substr(pos+3);
 
-	path = host.substr(host.find("/"));
+	pos = host.find("/");
+	if (pos == std::string::npos) {
+    	ERR_LOG("parseDev(): host: didn't contain '/' LOCATION: '%s'\n", host.c_str());
+    	return false;
+	}
+	path = host.substr(pos);
 
-	if (host.find(":") != host.npos)
+	pos = host.find(":");
+	if (pos != host.npos)
 	{
-		port = host.substr(host.find(":")+1);
-		port = port.substr(0,port.find("/"));
+		port = host.substr(pos+1);
+		pos = port.find("/");
+		if (pos == std::string::npos) {
+	    	ERR_LOG("parseDev(): port: didn't contain '/' port: '%s'\n", port.c_str());
+	    	return false;
+		}
+		port = port.substr(0,pos);
 
 		host = host.substr(0, host.find(":"));
 	}
