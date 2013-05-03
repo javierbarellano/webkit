@@ -573,7 +573,10 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
 
 #if ENABLE(VIDEO_TRACK)
         if (!m_audioAdder) {
-            m_audioAdder = gst_element_factory_make("adder", NULL);
+            // Currently this is a copy of videoSelector since adder has some problems
+            m_audioAdder = gst_element_factory_make("input-selector", NULL);
+            g_object_set(m_audioAdder.get(), "sync-streams", TRUE, NULL);
+
             gst_bin_add(GST_BIN(m_pipeline.get()), m_audioAdder.get());
             gst_element_sync_state_with_parent(m_audioAdder.get());
 
@@ -661,7 +664,6 @@ void MediaPlayerPrivateGStreamer::padRemoved(GstPad* pad)
 
                         bool ret = gst_pad_unlink(audioSrc.get(), audioSink.get());
                         ASSERT(ret);
-                        gst_element_release_request_pad(m_sink.get(), audioSink.get());
 
                         gst_bin_remove(GST_BIN(m_pipeline.get()), m_audioAdder.get());
                         gst_element_set_state(m_audioAdder.get(), GST_STATE_NULL);

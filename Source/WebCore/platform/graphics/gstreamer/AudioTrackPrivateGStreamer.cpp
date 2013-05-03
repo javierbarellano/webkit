@@ -35,16 +35,15 @@
 
 namespace WebCore {
 
+static void audioTrackPrivateActivePadChangedCallback(GObject*, GParamSpec*, AudioTrackPrivateGStreamer* track)
+{
+    track->activePadChanged();
+}
+
 #ifdef GST_API_VERSION_1
 static GstPadProbeReturn inbandTextTrackPrivateTextTagCallback(GstPad*, GstPadProbeInfo* info, AudioTrackPrivateGStreamer* track)
 {
     track->handleTag(gst_pad_probe_info_get_event(info));
-    return GST_PAD_PROBE_OK;
-}
-
-static GstPadProbeReturn inbandTextTrackPrivateUnlinkCallback(GstPad * pad, GstPadProbeInfo * info, AudioTrackPrivateGStreamer* track)
-{
-    track->unlinkPad();
     return GST_PAD_PROBE_OK;
 }
 #else
@@ -55,6 +54,12 @@ static gboolean inbandTextTrackPrivateTextTagCallback(GstPad*, GstEvent* event, 
 }
 #endif
 
+static gboolean audioTrackPrivateActivePadChangedTimeoutCallback(AudioTrackPrivateGStreamer* track)
+{
+    track->notifyPlayerOfActivePad();
+    return FALSE;
+}
+
 static gboolean inbandTextTrackPrivateTagTimeoutCallback(AudioTrackPrivateGStreamer* track)
 {
     track->notifyPlayerOfTag();
@@ -64,6 +69,7 @@ static gboolean inbandTextTrackPrivateTagTimeoutCallback(AudioTrackPrivateGStrea
 AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> adder, GstPad* pad)
     : m_srcPad(pad)
     , m_adder(adder)
+    , m_activePadTimerHandler(0)
     , m_tagTimerHandler(0)
     , m_unlinkProbe(0)
 #ifndef GST_API_VERSION_1
@@ -72,6 +78,12 @@ AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> adder
     , m_hasBeenReported(false)
     , m_isDisconnected(false)
 {
+    m_sinkPad = gst_element_get_request_pad(m_adder.get(), "sink_%u");
+    ASSERT(m_sinkPad.get());
+    GstPadLinkReturn ret = gst_pad_link(m_srcPad.get(), m_sinkPad.get());
+    ASSERT(GST_PAD_LINK_SUCCESSFUL(ret));
+
+    g_signal_connect(m_adder.get(), "notify::active-pad", G_CALLBACK (audioTrackPrivateActivePadChangedCallback), this);
 
 #ifdef GST_API_VERSION_1
     m_tagProbe = gst_pad_add_probe(m_srcPad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
@@ -105,21 +117,21 @@ void AudioTrackPrivateGStreamer::disconnect()
 #endif
     m_tagProbe = 0;
 
-    if (m_unlinkProbe)
-        gst_pad_remove_probe(m_srcPad.get(), m_unlinkProbe);
-    m_unlinkProbe = 0;
+    g_signal_handlers_disconnect_by_func(m_sinkPad.get(),
+        reinterpret_cast<gpointer>(audioTrackPrivateActivePadChangedCallback), this);
 
-    if (m_sinkPad) {
-        gst_pad_unlink(m_srcPad.get(), m_sinkPad.get());
-        gst_element_release_request_pad(m_adder.get(), m_sinkPad.get());
-    }
+    if (m_activePadTimerHandler)
+        g_source_remove(m_activePadTimerHandler);
+
+    if (m_tagTimerHandler)
+        g_source_remove(m_tagTimerHandler);
+
+    gst_pad_unlink(m_srcPad.get(), m_sinkPad.get());
+    gst_element_release_request_pad(m_adder.get(), m_sinkPad.get());
 
     m_adder.clear();
     m_sinkPad.clear();
     m_srcPad.clear();
-
-    if (m_tagTimerHandler)
-        g_source_remove(m_tagTimerHandler);
 }
 
 GstTagList* AudioTrackPrivateGStreamer::tags() const
@@ -133,35 +145,37 @@ GstTagList* AudioTrackPrivateGStreamer::tags() const
 
 void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
 {
-    if(enabled == this->enabled())
+    if (enabled == this->enabled())
         return;
     AudioTrackPrivate::setEnabled(enabled);
 
-    if(enabled) {
-        if (m_unlinkProbe)
-            gst_pad_remove_probe(m_srcPad.get(), m_unlinkProbe);
-        m_unlinkProbe = 0;
+    GstPad* oldSinkpad;
+    g_object_get(m_adder.get(), "active-pad", &oldSinkpad, NULL);
 
-        m_sinkPad = gst_element_get_request_pad(m_adder.get(), "sink_%u");
-        GstPadLinkReturn ret = gst_pad_link(m_srcPad.get(), m_sinkPad.get());
-        UNUSED_PARAM(ret);
-        ASSERT(GST_PAD_LINK_SUCCESSFUL(ret));
-    } else if (!m_unlinkProbe)
-        m_unlinkProbe = gst_pad_add_probe(m_srcPad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-            reinterpret_cast<GstPadProbeCallback>(inbandTextTrackPrivateUnlinkCallback), this, NULL);
+    if (enabled && oldSinkpad != m_sinkPad.get()) {
+        g_object_set(m_adder.get(), "active-pad", m_sinkPad.get(), NULL);
+    } else if (!enabled && oldSinkpad == m_sinkPad.get()) {
+        g_object_set(m_adder.get(), "active-pad", NULL, NULL);
+    }
 }
 
-void AudioTrackPrivateGStreamer::unlinkPad()
+void AudioTrackPrivateGStreamer::activePadChanged()
 {
-    if (m_unlinkProbe)
-        gst_pad_remove_probe(m_srcPad.get(), m_unlinkProbe);
-    m_unlinkProbe = 0;
+    if (m_activePadTimerHandler)
+        g_source_remove(m_activePadTimerHandler);
+    m_activePadTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(audioTrackPrivateActivePadChangedTimeoutCallback), this);
+}
 
-    gboolean ret = gst_pad_unlink(m_srcPad.get(), m_sinkPad.get());
-    UNUSED_PARAM(ret);
-    ASSERT(ret);
-    gst_element_release_request_pad(m_adder.get(), m_sinkPad.get());
-    m_sinkPad.clear();
+void AudioTrackPrivateGStreamer::notifyPlayerOfActivePad()
+{
+    m_activePadTimerHandler = 0;
+
+    if(!m_sinkPad)
+        return;
+
+    gboolean active;
+    g_object_get(m_sinkPad.get(), "active", &active, NULL);
+    setEnabled(active);
 }
 
 void AudioTrackPrivateGStreamer::handleTag(GstEvent* event)
