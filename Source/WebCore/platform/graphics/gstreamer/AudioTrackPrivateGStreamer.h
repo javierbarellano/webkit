@@ -54,8 +54,9 @@ public:
     bool hasBeenReported() const { return m_hasBeenReported; }
     void setHasBeenReported(bool reported) { m_hasBeenReported = reported; }
 
+    void activePadChanged();
     void handleTag(GstEvent*);
-    void unlinkPad();
+    void notifyPlayerOfActivePad();
     void notifyPlayerOfTag();
 
     virtual AtomicString label() const OVERRIDE { return m_label; }
@@ -73,6 +74,7 @@ private:
     GRefPtr<GstPad> m_srcPad;
     GRefPtr<GstElement> m_adder;
     gulong m_tagProbe;
+    guint m_activePadTimerHandler;
     guint m_tagTimerHandler;
     gulong m_unlinkProbe;
 #ifdef GST_API_VERSION_1
