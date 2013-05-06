@@ -73,7 +73,6 @@ namespace WebCore
 
 DiscoveryBase::DiscoveryBase()
 {
-	//cur_type_ = "Bad Type, Don't use!";
     m_udpSocket = NULL;
     m_mcastSocket = NULL;
     canReceiveAnotherDev_ = false;
@@ -210,9 +209,6 @@ void DiscoveryBase::socketSend(const char *host, int port, const char *toSend, s
 
 void DiscoveryBase::HTTPget(const char *host, int port, const char *path, char *bf, size_t *len)
 {
-    /* TODO: Review requirements for User-Agent string, i.e. DLNA-HTML5/1.0, (CertID 1122334455667788)
-     */
-
 	/*
 	GET /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
 	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
