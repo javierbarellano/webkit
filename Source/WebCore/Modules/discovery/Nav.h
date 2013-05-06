@@ -67,20 +67,14 @@ public:
 			PassRefPtr<NavServiceErrorCB> errorCB );
 
 
+    // Implement IDiscoveryAPI interface
     virtual void onError(int error){}
-
-    virtual void UPnPDevAdded(std::string type);
-
-    virtual void ZCDevAdded(std::string type);
-
-    virtual void UPnPDevDropped(std::string type);
-
-    virtual void ZCDevDropped(std::string type);
-
-    virtual void sendEvent(std::string uuid, std::string stype, std::string body);
-
+    virtual void UPnPDevAdded(std::string type){}
+    virtual void ZCDevAdded(std::string type){}
+    virtual void UPnPDevDropped(std::string type){}
+    virtual void ZCDevDropped(std::string type){}
+    virtual void sendEvent(std::string uuid, std::string stype, std::string body){}
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
-
     virtual void receiveID(long idFromHN) { m_hn_id = idFromHN; }
 
     // Events

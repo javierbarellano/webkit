@@ -129,28 +129,6 @@ void Nav::getNetworkServices(
 }
 
 
-void Nav::UPnPDevAdded(std::string type)
-{
-}
-
-void Nav::ZCDevAdded(std::string type)
-{
-}
-
-void Nav::UPnPDevDropped(std::string type)
-{
-}
-
-void Nav::ZCDevDropped(std::string type)
-{
-}
-
-
-void Nav::sendEvent(std::string uuid, std::string stype, std::string body)
-{
-}
-
-
 Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset)
 {
 	*reset = false;
