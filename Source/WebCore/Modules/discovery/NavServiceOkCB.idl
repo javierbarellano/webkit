@@ -2,7 +2,6 @@
 
     interface [
                Conditional=DISCOVERY,
-               Callback
     ] NavServiceOkCB
     {
         boolean handleEvent(in NavServices services);
