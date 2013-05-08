@@ -26,11 +26,13 @@
 
 #include "DocumentLoader.h"
 #include "DocumentMarkerController.h"
+#include "Editor.h"
 #include "EventHandler.h"
 #include "FocusController.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClientEfl.h"
+#include "FrameSelection.h"
 #include "FrameView.h"
 #include "HTMLCollection.h"
 #include "HTMLHeadElement.h"
@@ -50,6 +52,7 @@
 #include "PlatformWheelEvent.h"
 #include "ProgressTracker.h"
 #include "ResourceRequest.h"
+#include "ScriptController.h"
 #include "ScriptValue.h"
 #include "SharedBuffer.h"
 #include "SubstituteData.h"
@@ -446,7 +449,6 @@ const char* ewk_frame_script_execute(Evas_Object* ewkFrame, const char* script)
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame, 0);
     EINA_SAFETY_ON_NULL_RETURN_VAL(script, 0);
 
-#if USE(JSC)
     WTF::String resultString;
     JSC::JSValue result = smartData->frame->script()->executeScript(WTF::String::fromUTF8(script), true).jsValue();
 
@@ -460,10 +462,6 @@ const char* ewk_frame_script_execute(Evas_Object* ewkFrame, const char* script)
     JSC::JSLockHolder lock(exec);
     resultString = result.toString(exec)->value(exec);
     return eina_stringshare_add(resultString.utf8().data());
-#else
-    notImplemented();
-    return 0;
-#endif
 }
 
 Eina_Bool ewk_frame_editable_get(const Evas_Object* ewkFrame)

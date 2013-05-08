@@ -39,8 +39,7 @@ enum ViewportErrorCode {
     UnrecognizedViewportArgumentKeyError,
     UnrecognizedViewportArgumentValueError,
     TruncatedViewportArgumentValueError,
-    MaximumScaleTooLargeError,
-    TargetDensityDpiUnsupported
+    MaximumScaleTooLargeError
 };
 
 struct ViewportAttributes {
@@ -73,11 +72,7 @@ struct ViewportArguments {
         ValueDeviceWidth = -2,
         ValueDeviceHeight = -3,
         ValuePortrait = -4,
-        ValueLandscape = -5,
-        ValueDeviceDPI = -6,
-        ValueLowDPI = -7,
-        ValueMediumDPI = -8,
-        ValueHighDPI = -9
+        ValueLandscape = -5
     };
 
     ViewportArguments(Type type = Implicit)
@@ -93,7 +88,6 @@ struct ViewportArguments {
         , maxZoom(ValueAuto)
         , userZoom(ValueAuto)
         , orientation(ValueAuto)
-        , deprecatedTargetDensityDPI(ValueAuto)
     {
     }
 
@@ -111,7 +105,6 @@ struct ViewportArguments {
     float maxZoom;
     float userZoom;
     float orientation;
-    float deprecatedTargetDensityDPI; // Only used for Android WebView
 
     bool operator==(const ViewportArguments& other) const
     {
@@ -127,8 +120,7 @@ struct ViewportArguments {
             && minZoom == other.minZoom
             && maxZoom == other.maxZoom
             && userZoom == other.userZoom
-            && orientation == other.orientation
-            && deprecatedTargetDensityDPI == other.deprecatedTargetDensityDPI;
+            && orientation == other.orientation;
     }
 
     bool operator!=(const ViewportArguments& other) const
@@ -136,9 +128,11 @@ struct ViewportArguments {
         return !(*this == other);
     }
 
+#if PLATFORM(BLACKBERRY) || PLATFORM(EFL) || PLATFORM(GTK) || PLATFORM(QT)
     // FIXME: We're going to keep this constant around until all embedders
     // refactor their code to no longer need it.
     static const float deprecatedTargetDPI;
+#endif
 };
 
 ViewportAttributes computeViewportAttributes(ViewportArguments args, int desktopWidth, int deviceWidth, int deviceHeight, float devicePixelRatio, IntSize visibleViewport);

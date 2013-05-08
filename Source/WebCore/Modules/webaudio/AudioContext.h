@@ -31,7 +31,6 @@
 #include "AudioDestinationNode.h"
 #include "EventListener.h"
 #include "EventTarget.h"
-#include "HRTFDatabaseLoader.h"
 #include <wtf/HashSet.h>
 #include <wtf/MainThread.h>
 #include <wtf/OwnPtr.h>
@@ -51,6 +50,7 @@ class AudioBufferSourceNode;
 class MediaElementAudioSourceNode;
 class MediaStreamAudioDestinationNode;
 class MediaStreamAudioSourceNode;
+class HRTFDatabaseLoader;
 class HTMLMediaElement;
 class ChannelMergerNode;
 class ChannelSplitterNode;
@@ -247,8 +247,6 @@ public:
     void fireCompletionEvent();
     
     static unsigned s_hardwareContextCount;
-
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
 
 protected:
     explicit AudioContext(Document*);

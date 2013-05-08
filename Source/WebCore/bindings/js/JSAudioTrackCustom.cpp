@@ -26,30 +26,14 @@
 #include "config.h"
 
 #if ENABLE(VIDEO_TRACK)
-#include "JSAudioTrackCustom.h"
 
 #include "JSAudioTrack.h"
+
+#include "JSTrackCustom.h"
 
 using namespace JSC;
 
 namespace WebCore {
-
-bool JSAudioTrackOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)
-{
-    JSAudioTrack* jsAudioTrack = jsCast<JSAudioTrack*>(handle.get().asCell());
-    AudioTrack* audioTrack = static_cast<AudioTrack*>(jsAudioTrack->impl());
-
-    // If the cue is firing event listeners, its wrapper is reachable because
-    // the wrapper is responsible for marking those event listeners.
-    if (audioTrack->isFiringEventListeners())
-        return true;
-
-    // If the cue has no event listeners and has no custom properties, it is not reachable.
-    if (!audioTrack->hasEventListeners() && !jsAudioTrack->hasCustomProperties())
-        return false;
-
-    return visitor.containsOpaqueRoot(root(audioTrack));
-}
 
 void JSAudioTrack::visitChildren(JSCell* cell, SlotVisitor& visitor)
 {
@@ -61,8 +45,6 @@ void JSAudioTrack::visitChildren(JSCell* cell, SlotVisitor& visitor)
 
     AudioTrack* audioTrack = static_cast<AudioTrack*>(jsAudioTrack->impl());
     visitor.addOpaqueRoot(root(audioTrack));
-
-    audioTrack->visitJSEventListeners(visitor);
 }
 
 } // namespace WebCore

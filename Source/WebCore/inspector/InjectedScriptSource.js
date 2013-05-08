@@ -550,7 +550,9 @@ InjectedScript.prototype = {
      */
     _evaluateOn: function(evalFunction, object, objectGroup, expression, isEvalOnCallFrame, injectCommandLineAPI)
     {
-        if (InjectedScriptHost.evaluateReturnsEvalFunction) {
+        var commandLineAPI = injectCommandLineAPI ? new CommandLineAPI(this._commandLineAPIImpl, isEvalOnCallFrame ? object : null) : null;
+
+        if (isEvalOnCallFrame) {
             // We can only use this approach if the evaluate function is the true 'eval'. That allows us to use it with
             // the 'eval' identifier when calling it. Using 'eval' grants access to the local scope of the closure we
             // create that provides the command line APIs.
@@ -558,14 +560,13 @@ InjectedScript.prototype = {
             var parameters = [InjectedScriptHost.evaluate, expression];
             var expressionFunctionBody = "var __originalEval = window.eval; window.eval = __eval; try { return eval(__currentExpression); } finally { window.eval = __originalEval; }";
 
-            if (injectCommandLineAPI) {
+            if (commandLineAPI) {
                 // To avoid using a 'with' statement (which fails in strict mode and requires injecting the API object)
                 // we instead create a closure where we evaluate the expression. The command line APIs are passed as
                 // parameters to the closure so they are in scope but not injected. This allows the code evaluated in
                 // the console to stay in strict mode (if is was already set), or to get strict mode by prefixing
                 // expressions with 'use strict';.
 
-                var commandLineAPI = new CommandLineAPI(this._commandLineAPIImpl, isEvalOnCallFrame ? object : null);
                 var parameterNames = Object.getOwnPropertyNames(commandLineAPI);
                 for (var i = 0; i < parameterNames.length; ++i)
                     parameters.push(commandLineAPI[parameterNames[i]]);
@@ -588,24 +589,24 @@ InjectedScript.prototype = {
             return result;
         }
 
-        // FIXME: This code path should be removed once V8 also returns 'eval' as the evaluate function. See: https://webkit.org/b/113134
-
-        // Only install command line api object for the time of evaluation.
-        // Surround the expression in with statements to inject our command line API so that
-        // the window object properties still take more precedent than our API functions.
+        // When not evaluating on a call frame we use a 'with' statement to allow var and function statements to leak
+        // into the global scope. This allow them to stick around between evaluations.
 
         try {
-            if (injectCommandLineAPI && inspectedWindow.console) {
-                inspectedWindow.console._commandLineAPI = new CommandLineAPI(this._commandLineAPIImpl, isEvalOnCallFrame ? object : null);
-                expression = "with ((window && window.console && window.console._commandLineAPI) || {}) {\n" + expression + "\n}";
+            if (commandLineAPI && inspectedWindow.console) {
+                inspectedWindow.console.__commandLineAPI = commandLineAPI;
+                expression = "with ((window && window.console && window.console.__commandLineAPI) || {}) { " + expression + " }";
             }
+
             var result = evalFunction.call(object, expression);
+
             if (objectGroup === "console")
                 this._lastResult = result;
+
             return result;
         } finally {
-            if (injectCommandLineAPI && inspectedWindow.console)
-                delete inspectedWindow.console._commandLineAPI;
+            if (commandLineAPI && inspectedWindow.console)
+                delete inspectedWindow.console.__commandLineAPI;
         }
     },
 

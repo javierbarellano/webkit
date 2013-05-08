@@ -119,14 +119,9 @@ public:
     void setCompositingLayersNeedRebuild(bool needRebuild = true);
     bool compositingLayersNeedRebuild() const { return m_compositingLayersNeedRebuild; }
 
-    // Controls whether or not to consult geometry when deciding which layers need
-    // to be composited. Defaults to true.
-    void setCompositingConsultsOverlap(bool b) { m_compositingConsultsOverlap = b; }
-    bool compositingConsultsOverlap() const { return m_compositingConsultsOverlap; }
-    
     // GraphicsLayers buffer state, which gets pushed to the underlying platform layers
     // at specific times.
-    void scheduleLayerFlush();
+    void scheduleLayerFlush(bool canThrottle);
     void flushPendingLayerChanges(bool isFlushRoot = true);
     
     // flushPendingLayerChanges() flushes the entire GraphicsLayer tree, which can cross frame boundaries.
@@ -269,7 +264,6 @@ public:
     void resetTrackedRepaintRects();
     void setTracksRepaints(bool);
 
-    void reportMemoryUsage(MemoryObjectInfo*) const;
     void setShouldReevaluateCompositingAfterLayout() { m_reevaluateCompositingAfterLayout = true; }
 
     bool viewHasTransparentBackground(Color* backgroundColor = 0) const;
@@ -277,13 +271,16 @@ public:
     bool hasNonMainLayersWithTiledBacking() const { return m_layersWithTiledBackingCount; }
 
     CompositingReasons reasonsForCompositing(const RenderLayer*) const;
-    
+
+    void setLayerFlushThrottlingEnabled(bool);
+    void disableLayerFlushThrottlingTemporarilyForInteraction();
+
 private:
     class OverlapMap;
 
     // GraphicsLayerClient implementation
     virtual void notifyAnimationStarted(const GraphicsLayer*, double) OVERRIDE { }
-    virtual void notifyFlushRequired(const GraphicsLayer*) OVERRIDE { scheduleLayerFlush(); }
+    virtual void notifyFlushRequired(const GraphicsLayer*) OVERRIDE;
     virtual void paintContents(const GraphicsLayer*, GraphicsContext&, GraphicsLayerPaintingPhase, const IntRect&) OVERRIDE;
 
     virtual bool isTrackingRepaints() const OVERRIDE;
@@ -380,6 +377,16 @@ private:
     bool requiresContentShadowLayer() const;
 #endif
 
+    bool hasCoordinatedScrolling() const;
+    bool shouldCompositeOverflowControls() const;
+
+    void scheduleLayerFlushNow();
+    bool isThrottlingLayerFlushes() const;
+    void startLayerFlushTimerIfNeeded();
+    void layerFlushTimerFired(Timer<RenderLayerCompositor>*);
+
+    void paintRelatedMilestonesTimerFired(Timer<RenderLayerCompositor>*);
+
 #if !LOG_DISABLED
     const char* logReasonsForCompositing(const RenderLayer*);
     void logLayerInfo(const RenderLayer*, int depth);
@@ -397,7 +404,6 @@ private:
     bool m_showDebugBorders;
     bool m_showRepaintCounter;
     bool m_acceleratedDrawingEnabled;
-    bool m_compositingConsultsOverlap;
 
     // When true, we have to wait until layout has happened before we can decide whether to enter compositing mode,
     // because only then do we know the final size of plugins and iframes.
@@ -440,6 +446,13 @@ private:
 #endif
 
     OwnPtr<GraphicsLayerUpdater> m_layerUpdater; // Updates tiled layer visible area periodically while animations are running.
+
+    Timer<RenderLayerCompositor> m_layerFlushTimer;
+    bool m_layerFlushThrottlingEnabled;
+    bool m_layerFlushThrottlingTemporarilyDisabledForInteraction;
+    bool m_hasPendingLayerFlush;
+
+    Timer<RenderLayerCompositor> m_paintRelatedMilestonesTimer;
 
 #if !LOG_DISABLED
     int m_rootLayerUpdateCount;

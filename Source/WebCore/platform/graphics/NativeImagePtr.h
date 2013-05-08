@@ -28,10 +28,7 @@
 #ifndef NativeImagePtr_h
 #define NativeImagePtr_h
 
-#if PLATFORM(WX)
-class wxBitmap;
-class wxGraphicsBitmap;
-#elif USE(CG)
+#if USE(CG)
 typedef struct CGImage* CGImageRef;
 #elif PLATFORM(QT)
 #include "NativeImageQt.h"
@@ -40,44 +37,30 @@ QT_BEGIN_NAMESPACE
 class QPixmap;
 QT_END_NAMESPACE
 #elif USE(CAIRO)
-#include "NativeImageCairo.h"
-#elif USE(SKIA)
-#include "NativeImageSkia.h"
-namespace WebCore {
-class NativeImageSkia;
-}
+#include "RefPtrCairo.h"
 #elif OS(WINCE)
 #include "SharedBitmap.h"
 #endif
 
-namespace WTF {
-class MemoryObjectInfo;
-}
-
 namespace WebCore {
 
+// FIXME: NativeImagePtr and PassNativeImagePtr should be smart
+// pointers (see SVGImage::nativeImageForCurrentFrame()).
 #if USE(CG)
 typedef CGImageRef NativeImagePtr;
 #elif PLATFORM(QT)
 typedef QPixmap* NativeImagePtr;
-#elif PLATFORM(OPENVG)
-class TiledImageOpenVG;
-typedef TiledImageOpenVG* NativeImagePtr;
-#elif PLATFORM(WX)
-#if USE(WXGC)
-typedef wxGraphicsBitmap* NativeImagePtr;
-#else
-typedef wxBitmap* NativeImagePtr;
-#endif
 #elif USE(CAIRO)
-typedef WebCore::NativeImageCairo* NativeImagePtr;
-#elif USE(SKIA)
-typedef WebCore::NativeImageSkia* NativeImagePtr;
-void reportMemoryUsage(const NativeImageSkia*, WTF::MemoryObjectInfo*);
+typedef RefPtr<cairo_surface_t> NativeImagePtr;
+typedef PassRefPtr<cairo_surface_t> PassNativeImagePtr;
 #elif OS(WINCE)
 typedef RefPtr<SharedBitmap> NativeImagePtr;
 #elif PLATFORM(BLACKBERRY)
 typedef void* NativeImagePtr;
+#endif
+
+#if !USE(CAIRO)
+typedef NativeImagePtr PassNativeImagePtr;
 #endif
 
 }

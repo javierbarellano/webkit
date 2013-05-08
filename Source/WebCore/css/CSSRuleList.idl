@@ -25,12 +25,11 @@
 
 // Introduced in DOM Level 2:
 [
-    JSCustomIsReachable,
+    CustomIsReachable,
     IndexedGetter,
-    V8DependentLifetime,
-    V8SkipVTableValidation
+    SkipVTableValidation
 ] interface CSSRuleList {
     readonly attribute unsigned long    length;
-    CSSRule           item(in [Optional=DefaultIsUndefined] unsigned long index);
+    CSSRule           item([Default=Undefined] optional unsigned long index);
 };
 

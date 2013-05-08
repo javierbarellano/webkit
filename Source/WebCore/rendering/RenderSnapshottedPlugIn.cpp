@@ -26,6 +26,7 @@
 #include "config.h"
 #include "RenderSnapshottedPlugIn.h"
 
+#include "CachedImage.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "Cursor.h"
@@ -39,6 +40,7 @@
 #include "Page.h"
 #include "PaintInfo.h"
 #include "Path.h"
+#include "PlatformMouseEvent.h"
 #include "RenderView.h"
 
 namespace WebCore {
@@ -171,8 +173,9 @@ void RenderSnapshottedPlugIn::handleEvent(Event* event)
 
     if (event->type() == eventNames().clickEvent || (m_isPotentialMouseActivation && event->type() == eventNames().mouseupEvent)) {
         m_isPotentialMouseActivation = false;
-        plugInImageElement()->setDisplayState(HTMLPlugInElement::RestartingWithPendingMouseClick);
-        plugInImageElement()->userDidClickSnapshot(mouseEvent);
+        bool clickWasOnOverlay = plugInImageElement()->partOfSnapshotOverlay(event->target()->toNode());
+        plugInImageElement()->setDisplayState(clickWasOnOverlay ? HTMLPlugInElement::Restarting : HTMLPlugInElement::RestartingWithPendingMouseClick);
+        plugInImageElement()->userDidClickSnapshot(mouseEvent, !clickWasOnOverlay);
         event->setDefaultHandled();
     } else if (event->type() == eventNames().mousedownEvent) {
         m_isPotentialMouseActivation = true;

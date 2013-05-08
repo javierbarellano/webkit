@@ -83,7 +83,6 @@ public:
     virtual void didReceiveResponse(const ResourceResponse&);
     virtual void didReceiveData(const char*, int, long long encodedDataLength, DataPayloadType);
     virtual void didReceiveBuffer(PassRefPtr<SharedBuffer>, long long encodedDataLength, DataPayloadType);
-    virtual void didReceiveCachedMetadata(const char*, int) { }
     void willStopBufferingData(const char*, int);
     virtual void didFinishLoading(double finishTime);
     virtual void didFail(const ResourceError&);
@@ -106,7 +105,6 @@ public:
     virtual void didReceiveResponse(ResourceHandle*, const ResourceResponse&) OVERRIDE;
     virtual void didReceiveData(ResourceHandle*, const char*, int, int encodedDataLength) OVERRIDE;
     virtual void didReceiveBuffer(ResourceHandle*, PassRefPtr<SharedBuffer>, int encodedDataLength) OVERRIDE;
-    virtual void didReceiveCachedMetadata(ResourceHandle*, const char* data, int length) OVERRIDE { didReceiveCachedMetadata(data, length); }
     virtual void didFinishLoading(ResourceHandle*, double finishTime) OVERRIDE;
     virtual void didFail(ResourceHandle*, const ResourceError&) OVERRIDE;
     virtual void wasBlocked(ResourceHandle*) OVERRIDE;
@@ -133,24 +131,19 @@ public:
     // FIXME: Windows should use willCacheResponse - <https://bugs.webkit.org/show_bug.cgi?id=57257>.
     virtual bool shouldCacheResponse(ResourceHandle*, CFCachedURLResponseRef) OVERRIDE;
 #endif
-#if PLATFORM(CHROMIUM)
-    virtual void didDownloadData(ResourceHandle*, int);
-    virtual void didDownloadData(int);
-#endif
 
     const KURL& url() const { return m_request.url(); } 
     ResourceHandle* handle() const { return m_handle.get(); }
     bool shouldSendResourceLoadCallbacks() const { return m_options.sendLoadCallbacks == SendCallbacks; }
     void setSendCallbackPolicy(SendCallbackPolicy sendLoadCallbacks) { m_options.sendLoadCallbacks = sendLoadCallbacks; }
     bool shouldSniffContent() const { return m_options.sniffContent == SniffContent; }
+    ClientCredentialPolicy clientCredentialPolicy() const { return m_options.clientCredentialPolicy; }
 
     bool reachedTerminalState() const { return m_reachedTerminalState; }
 
     const ResourceRequest& request() const { return m_request; }
 
     void setDataBufferingPolicy(DataBufferingPolicy);
-
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const;
 
 protected:
     ResourceLoader(Frame*, ResourceLoaderOptions);

@@ -39,11 +39,11 @@ class FloatPoint;
 }
 #endif
 
-#if USE(CG) || USE(SKIA_ON_MAC_CHROMIUM)
+#if USE(CG)
 typedef struct CGPoint CGPoint;
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
+#if PLATFORM(MAC)
 #ifdef NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES
 typedef struct CGPoint NSPoint;
 #else
@@ -56,10 +56,6 @@ typedef struct _NSPoint NSPoint;
 QT_BEGIN_NAMESPACE
 class QPointF;
 QT_END_NAMESPACE
-#endif
-
-#if USE(SKIA)
-struct SkPoint;
 #endif
 
 namespace WebCore {
@@ -150,13 +146,12 @@ public:
         return FloatPoint(m_y, m_x);
     }
 
-#if USE(CG) || USE(SKIA_ON_MAC_CHROMIUM)
+#if USE(CG)
     FloatPoint(const CGPoint&);
     operator CGPoint() const;
 #endif
 
-#if (PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))) \
-        && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)
+#if PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)
     FloatPoint(const NSPoint&);
     operator NSPoint() const;
 #endif
@@ -169,11 +164,6 @@ public:
 #if PLATFORM(BLACKBERRY)
     FloatPoint(const BlackBerry::Platform::FloatPoint&);
     operator BlackBerry::Platform::FloatPoint() const;
-#endif
-
-#if USE(SKIA)
-    operator SkPoint() const;
-    FloatPoint(const SkPoint&);
 #endif
 
     FloatPoint matrixTransform(const TransformationMatrix&) const;

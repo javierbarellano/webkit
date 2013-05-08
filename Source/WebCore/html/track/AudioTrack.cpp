@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc.  All rights reserved.
- * Copyright (C) 2011 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2012, 2013 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -35,10 +35,11 @@
 
 #include "AudioTrack.h"
 
+#include "AudioTrackList.h"
 #include "Event.h"
 #include "ExceptionCode.h"
 #include "HTMLMediaElement.h"
-#include "AudioTrackList.h"
+#include "TrackBase.h"
 
 namespace WebCore {
 
@@ -78,89 +79,99 @@ const AtomicString& AudioTrack::commentaryKeyword()
     return commentary;
 }
 
-AudioTrack::AudioTrack(ScriptExecutionContext* context, AudioTrackClient* client, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language)
-    : TrackBase(context, TrackBase::AudioTrack)
-    , m_mediaElement(0)
-    , m_id(id)
-    , m_label(label)
-    , m_language(language)
-    , m_enabled(enabled)
+AudioTrack::AudioTrack(AudioTrackClient* client, PassRefPtr<AudioTrackPrivate> trackPrivate)
+    : TrackBase(TrackBase::AudioTrack, trackPrivate->label(), trackPrivate->language())
+    , m_id(trackPrivate->id())
     , m_client(client)
-    , m_readinessState(NotLoaded)
-    , m_trackIndex(index)
+    , m_private(trackPrivate)
 {
-    setKind(kind);
+    m_private->setClient(this);
+
+    switch (m_private->kind()) {
+    case AudioTrackPrivate::Alternative:
+        setKind(AudioTrack::alternativeKeyword());
+        break;
+    case AudioTrackPrivate::Description:
+        setKind(AudioTrack::descriptionKeyword());
+        break;
+    case AudioTrackPrivate::Main:
+        setKind(AudioTrack::mainKeyword());
+        break;
+    case AudioTrackPrivate::MainDesc:
+        setKind(AudioTrack::mainDescKeyword());
+        break;
+    case AudioTrackPrivate::Translation:
+        setKind(AudioTrack::translationKeyword());
+        break;
+    case AudioTrackPrivate::Commentary:
+        setKind(AudioTrack::commentaryKeyword());
+        break;
+    case AudioTrackPrivate::None:
+        setKind(emptyString());
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
 }
 
 AudioTrack::~AudioTrack()
 {
-    clearClient();
+    m_private->setClient(0);
 }
 
-bool AudioTrack::isValidKindKeyword(const String& value)
+bool AudioTrack::isValidKind(const AtomicString& value) const
 {
-    if (equalIgnoringCase(value, alternativeKeyword()))
+    if (value == alternativeKeyword())
         return true;
-    if (equalIgnoringCase(value, descriptionKeyword()))
+    if (value == descriptionKeyword())
         return true;
-    if (equalIgnoringCase(value, mainKeyword()))
+    if (value == mainKeyword())
         return true;
-    if (equalIgnoringCase(value, mainDescKeyword()))
+    if (value == mainDescKeyword())
         return true;
-    if (equalIgnoringCase(value, translationKeyword()))
+    if (value == translationKeyword())
         return true;
-    if (equalIgnoringCase(value, commentaryKeyword()))
+    if (value == commentaryKeyword())
         return true;
 
     return false;
 }
 
-void AudioTrack::setId(const String& id)
+void AudioTrack::setEnabled(const bool enabled)
 {
-    m_id = id;
+    if (m_private->enabled() == enabled)
+        return;
+
+    m_private->setEnabled(enabled);
+
+    if (m_client)
+        m_client->audioTrackEnabledChanged(this);
 }
 
-void AudioTrack::setKind(const String& kind)
+size_t AudioTrack::inbandTrackIndex()
 {
-    String oldKind = m_kind;
-
-    if (isValidKindKeyword(kind))
-        m_kind = kind;
-    else
-        m_kind = "";
-
-//    if (m_client && oldKind != m_kind)
-//        m_client->audioTrackKindChanged(this);
+    ASSERT(m_private);
+    return m_private->audioTrackIndex();
 }
 
-int AudioTrack::trackIndex()
+void AudioTrack::setLabel(const AtomicString& label)
 {
-    return m_trackIndex;
+    TrackBase::setLabel(label);
 }
 
-void AudioTrack::setEnabled(bool enabled) {
-    if(enabled == m_enabled) return;
+void AudioTrack::setLanguage(const AtomicString& language)
+{
+    TrackBase::setLanguage(language);
+}
 
-	// This is a hack because GStreamer doesn't support multiple audio tracks
-    // playing at the same time. This should probably be handled there.
-	if(enabled && m_mediaElement) {
-		AudioTrackList *list = m_mediaElement->audioTracks();
-		// TODO: Detect when we're not in the list
-		for(unsigned i = 0; i < list->length(); ++i) {
-			AudioTrack* item = list->item(i);
-			if(item != this && item->enabled()) {
-				item->setEnabled(false);
-			}
-		}
-	}
-
-    m_enabled = enabled;
-
-    // Tell media player which track was selected
-    if(m_client)
-        m_client->audioTrackEnabled(this, enabled);
-
+void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)
+{
+    UNUSED_PARAM(trackPrivate);
+    ASSERT(trackPrivate == m_private);
+    mediaElement()->removeAudioTrack(this);
 }
 
 } // namespace WebCore
+
 #endif

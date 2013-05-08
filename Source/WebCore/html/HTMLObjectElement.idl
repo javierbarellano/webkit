@@ -21,7 +21,6 @@
 [
     CustomNamedSetter,
     JSCustomGetOwnPropertySlotAndDescriptor,
-    V8CustomIndexedGetter,
     CustomCall
 ] interface HTMLObjectElement : HTMLElement {
     readonly attribute HTMLFormElement form;
@@ -45,13 +44,13 @@
     readonly attribute ValidityState validity;
     readonly attribute DOMString validationMessage;
     boolean checkValidity();
-    void setCustomValidity(in [TreatNullAs=NullString, TreatUndefinedAs=NullString] DOMString error);
+    void setCustomValidity([TreatNullAs=NullString, TreatUndefinedAs=NullString] DOMString error);
 
     // Introduced in DOM Level 2:
     [CheckSecurityForNode] readonly attribute Document contentDocument;
 
 #if defined(ENABLE_SVG) && ENABLE_SVG
-#if !defined(LANGUAGE_OBJECTIVE_C) || !LANGUAGE_OBJECTIVE_C || defined(ENABLE_SVG_DOM_OBJC_BINDINGS) && ENABLE_SVG_DOM_OBJC_BINDINGS
+#if !defined(LANGUAGE_OBJECTIVE_C) || !LANGUAGE_OBJECTIVE_C
     [CheckSecurityForNode] SVGDocument getSVGDocument() raises(DOMException);
 #endif
 #endif

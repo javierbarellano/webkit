@@ -28,6 +28,7 @@
 
 #import "PluginProcessManager.h"
 #import "SharedWorkerProcessManager.h"
+#import "TextChecker.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WebKitSystemInterface.h"
@@ -66,6 +67,7 @@ NSString *SchemeForCustomProtocolRegisteredNotificationName = @"WebKitSchemeForC
 NSString *SchemeForCustomProtocolUnregisteredNotificationName = @"WebKitSchemeForCustomProtocolUnregisteredNotification";
 
 static bool s_applicationIsOccluded = false;
+static bool s_applicationWindowModificationsHaveStopped = false;
 static bool s_occlusionNotificationHandlersRegistered = false;
 static bool s_processSuppressionEnabledForAllContexts = true;
 
@@ -128,31 +130,57 @@ static void applicationBecameOccluded(uint32_t, void*, uint32_t, void*, uint32_t
     s_applicationIsOccluded = true;
     applicationOcclusionStateChanged();
 }
+
+static void applicationWindowModificationsStarted(uint32_t, void*, uint32_t, void*, uint32_t)
+{
+    if (!s_applicationWindowModificationsHaveStopped)
+        return;
+    s_applicationWindowModificationsHaveStopped = false;
+    applicationOcclusionStateChanged();
+}
+
+static void applicationWindowModificationsStopped(uint32_t, void*, uint32_t, void*, uint32_t)
+{
+    if (s_applicationWindowModificationsHaveStopped)
+        return;
+    s_applicationWindowModificationsHaveStopped = true;
+    applicationOcclusionStateChanged();
+}
+
+struct OcclusionNotificationHandler {
+    WKOcclusionNotificationType notificationType;
+    WKOcclusionNotificationHandler handler;
+    const char *name;
+};
+
+static const OcclusionNotificationHandler occlusionNotificationHandlers[] = {
+    { WKOcclusionNotificationTypeApplicationBecameVisible, applicationBecameVisible, "Application Became Visible" },
+    { WKOcclusionNotificationTypeApplicationBecameOccluded, applicationBecameOccluded, "Application Became Occluded" },
+    { WKOcclusionNotificationTypeApplicationWindowModificationsStarted, applicationWindowModificationsStarted, "Application Window Modifications Started" },
+    { WKOcclusionNotificationTypeApplicationWindowModificationsStopped, applicationWindowModificationsStopped, "Application Window Modifications Stopped" },
+};
+
 #endif
 
 static void registerOcclusionNotificationHandlers()
 {
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-    if (!WKRegisterOcclusionNotificationHandler(WKOcclusionNotificationTypeApplicationBecameVisible, applicationBecameVisible)) {
-        WTFLogAlways("Registration of \"Application Became Visible\" notification handler failed.\n");
-        return;
+    for (const OcclusionNotificationHandler& occlusionNotificationHandler : occlusionNotificationHandlers) {
+        bool result = WKRegisterOcclusionNotificationHandler(occlusionNotificationHandler.notificationType, occlusionNotificationHandler.handler);
+        UNUSED_PARAM(result);
+        ASSERT_WITH_MESSAGE(result, "Registration of \"%s\" notification handler failed.\n", occlusionNotificationHandler.name);
     }
-    
-    if (!WKRegisterOcclusionNotificationHandler(WKOcclusionNotificationTypeApplicationBecameOccluded, applicationBecameOccluded))
-        WTFLogAlways("Registration of \"Application Became Occluded\" notification handler failed.\n");
 #endif
 }
 
 static void unregisterOcclusionNotificationHandlers()
 {
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-    if (!WKUnregisterOcclusionNotificationHandler(WKOcclusionNotificationTypeApplicationBecameOccluded, applicationBecameOccluded)) {
-        WTFLogAlways("Unregistration of \"Application Became Occluded\" notification handler failed.\n");
-        return;
+    for (const OcclusionNotificationHandler& occlusionNotificationHandler : occlusionNotificationHandlers) {
+        bool result = WKUnregisterOcclusionNotificationHandler(occlusionNotificationHandler.notificationType, occlusionNotificationHandler.handler);
+        UNUSED_PARAM(result);
+        ASSERT_WITH_MESSAGE(result, "Unregistration of \"%s\" notification handler failed.\n", occlusionNotificationHandler.name);
     }
-    
-    if (!WKUnregisterOcclusionNotificationHandler(WKOcclusionNotificationTypeApplicationBecameOccluded, applicationBecameVisible))
-        WTFLogAlways("Unregistration of \"Application Became Visible\" notification handler failed.\n");
 #endif
 }
 
@@ -296,7 +324,7 @@ void WebContext::platformInvalidateContext()
 
 String WebContext::platformDefaultDiskCacheDirectory() const
 {
-    RetainPtr<NSString> cachePath(AdoptNS, (NSString *)WKCopyFoundationCacheDirectory());
+    RetainPtr<NSString> cachePath = adoptNS((NSString *)WKCopyFoundationCacheDirectory());
     if (!cachePath)
         cachePath = @"~/Library/Caches/com.apple.WebKit2.WebProcess";
 
@@ -446,18 +474,18 @@ void WebContext::updateProcessSuppressionStateOfChildProcesses()
 
 bool WebContext::canEnableProcessSuppressionForNetworkProcess() const
 {
-    return s_applicationIsOccluded && m_processSuppressionEnabled && !omitProcessSuppression();
+    return (s_applicationIsOccluded || s_applicationWindowModificationsHaveStopped) && m_processSuppressionEnabled && !omitProcessSuppression();
 }
 
 bool WebContext::canEnableProcessSuppressionForWebProcess(const WebKit::WebProcessProxy *webProcess) const
 {
-    return (s_applicationIsOccluded || webProcess->allPagesAreProcessSuppressible())
+    return (s_applicationIsOccluded || s_applicationWindowModificationsHaveStopped || webProcess->allPagesAreProcessSuppressible())
            && m_processSuppressionEnabled && !omitProcessSuppression();
 }
 
 bool WebContext::canEnableProcessSuppressionForGlobalChildProcesses()
 {
-    return s_applicationIsOccluded && s_processSuppressionEnabledForAllContexts && !omitProcessSuppression();
+    return (s_applicationIsOccluded || s_applicationWindowModificationsHaveStopped) && s_processSuppressionEnabledForAllContexts && !omitProcessSuppression();
 }
 
 void WebContext::processSuppressionEnabledChanged()
@@ -483,24 +511,53 @@ void WebContext::registerNotificationObservers()
         ASSERT([scheme isKindOfClass:[NSString class]]);
         registerSchemeForCustomProtocol(scheme);
     }];
-    
+
     m_customSchemeUnregisteredObserver = [[NSNotificationCenter defaultCenter] addObserverForName:WebKit::SchemeForCustomProtocolUnregisteredNotificationName object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
         NSString *scheme = [notification object];
         ASSERT([scheme isKindOfClass:[NSString class]]);
         unregisterSchemeForCustomProtocol(scheme);
     }];
-    
+
     // Listen for enhanced accessibility changes and propagate them to the WebProcess.
     m_enhancedAccessibilityObserver = [[NSNotificationCenter defaultCenter] addObserverForName:WebKitApplicationDidChangeAccessibilityEnhancedUserInterfaceNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *note) {
         setEnhancedAccessibility([[[note userInfo] objectForKey:@"AXEnhancedUserInterface"] boolValue]);
     }];
+
+    m_automaticTextReplacementNotificationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSSpellCheckerDidChangeAutomaticTextReplacementNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
+        TextChecker::didChangeAutomaticTextReplacementEnabled();
+        textCheckerStateChanged();
+    }];
+    
+    m_automaticSpellingCorrectionNotificationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSSpellCheckerDidChangeAutomaticSpellingCorrectionNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
+        TextChecker::didChangeAutomaticSpellingCorrectionEnabled();
+        textCheckerStateChanged();
+    }];
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    m_automaticQuoteSubstitutionNotificationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSSpellCheckerDidChangeAutomaticQuoteSubstitutionNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
+        TextChecker::didChangeAutomaticQuoteSubstitutionEnabled();
+        textCheckerStateChanged();
+    }];
+
+    m_automaticDashSubstitutionNotificationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSSpellCheckerDidChangeAutomaticDashSubstitutionNotification object:nil queue:[NSOperationQueue currentQueue] usingBlock:^(NSNotification *notification) {
+        TextChecker::didChangeAutomaticDashSubstitutionEnabled();
+        textCheckerStateChanged();
+    }];
+#endif
 }
 
 void WebContext::unregisterNotificationObservers()
 {
-    [[NSNotificationCenter defaultCenter] removeObserver:(id)m_customSchemeRegisteredObserver.get()];
-    [[NSNotificationCenter defaultCenter] removeObserver:(id)m_customSchemeUnregisteredObserver.get()];
-    [[NSNotificationCenter defaultCenter] removeObserver:(id)m_enhancedAccessibilityObserver.get()];
+    [[NSNotificationCenter defaultCenter] removeObserver:m_customSchemeRegisteredObserver.get()];
+    [[NSNotificationCenter defaultCenter] removeObserver:m_customSchemeUnregisteredObserver.get()];
+    [[NSNotificationCenter defaultCenter] removeObserver:m_enhancedAccessibilityObserver.get()];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:m_automaticTextReplacementNotificationObserver.get()];
+    [[NSNotificationCenter defaultCenter] removeObserver:m_automaticSpellingCorrectionNotificationObserver.get()];
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    [[NSNotificationCenter defaultCenter] removeObserver:m_automaticQuoteSubstitutionNotificationObserver.get()];
+    [[NSNotificationCenter defaultCenter] removeObserver:m_automaticDashSubstitutionNotificationObserver.get()];
+#endif
 }
 
 } // namespace WebKit

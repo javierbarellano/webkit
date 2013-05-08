@@ -20,9 +20,9 @@
  */
 
 #include "config.h"
-#include "PageViewportController.h"
 
-#if USE(TILED_BACKING_STORE)
+#if USE(ACCELERATED_COMPOSITING)
+#include "PageViewportController.h"
 
 #include "PageViewportControllerClient.h"
 #include "WebPageProxy.h"
@@ -250,7 +250,7 @@ void PageViewportController::didChangeViewportSize(const FloatSize& newSize)
 
     // Let the WebProcess know about the new viewport size, so that
     // it can resize the content accordingly.
-    m_webPageProxy->drawingArea()->setSize(roundedIntSize(newSize), IntSize());
+    m_webPageProxy->drawingArea()->setSize(roundedIntSize(newSize), IntSize(), IntSize());
 }
 
 void PageViewportController::didChangeContentsVisibility(const FloatPoint& position, float scale, const FloatPoint& trajectoryVector)

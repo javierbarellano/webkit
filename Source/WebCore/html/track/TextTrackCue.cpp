@@ -40,8 +40,8 @@
 #include "DocumentFragment.h"
 #include "Event.h"
 #include "HTMLDivElement.h"
-#include "HTMLMediaElement.h"
 #include "HTMLSpanElement.h"
+#include "Logging.h"
 #include "NodeTraversal.h"
 #include "RenderTextTrackCue.h"
 #include "Text.h"
@@ -193,6 +193,7 @@ TextTrackCue::TextTrackCue(ScriptExecutionContext* context, double start, double
     , m_textPosition(50)
     , m_cueSize(100)
     , m_cueIndex(invalidCueIndex)
+    , m_processingCueChanges(0)
     , m_writingDirection(Horizontal)
     , m_cueAlignment(Middle)
     , m_webVTTNodeTree(0)
@@ -234,14 +235,21 @@ PassRefPtr<TextTrackCueBox> TextTrackCue::displayTreeInternal()
     return m_displayTree;
 }
 
-void TextTrackCue::cueWillChange()
+void TextTrackCue::willChange()
 {
+    if (++m_processingCueChanges > 1)
+        return;
+
     if (m_track)
         m_track->cueWillChange(this);
 }
 
-void TextTrackCue::cueDidChange()
+void TextTrackCue::didChange()
 {
+    ASSERT(m_processingCueChanges);
+    if (--m_processingCueChanges)
+        return;
+
     if (m_track)
         m_track->cueDidChange(this);
 
@@ -263,9 +271,9 @@ void TextTrackCue::setId(const String& id)
     if (m_id == id)
         return;
 
-    cueWillChange();
+    willChange();
     m_id = id;
-    cueDidChange();
+    didChange();
 }
 
 void TextTrackCue::setStartTime(double value, ExceptionCode& ec)
@@ -279,10 +287,10 @@ void TextTrackCue::setStartTime(double value, ExceptionCode& ec)
     // TODO(93143): Add spec-compliant behavior for negative time values.
     if (m_startTime == value || value < 0)
         return;
-    
-    cueWillChange();
+
+    willChange();
     m_startTime = value;
-    cueDidChange();
+    didChange();
 }
     
 void TextTrackCue::setEndTime(double value, ExceptionCode& ec)
@@ -296,10 +304,10 @@ void TextTrackCue::setEndTime(double value, ExceptionCode& ec)
     // TODO(93143): Add spec-compliant behavior for negative time values.
     if (m_endTime == value || value < 0)
         return;
-    
-    cueWillChange();
+
+    willChange();
     m_endTime = value;
-    cueDidChange();
+    didChange();
 }
     
 void TextTrackCue::setPauseOnExit(bool value)
@@ -307,9 +315,7 @@ void TextTrackCue::setPauseOnExit(bool value)
     if (m_pauseOnExit == value)
         return;
     
-    cueWillChange();
     m_pauseOnExit = value;
-    cueDidChange();
 }
 
 const String& TextTrackCue::vertical() const
@@ -348,9 +354,9 @@ void TextTrackCue::setVertical(const String& value, ExceptionCode& ec)
     if (direction == m_writingDirection)
         return;
 
-    cueWillChange();
+    willChange();
     m_writingDirection = direction;
-    cueDidChange();
+    didChange();
 }
 
 void TextTrackCue::setSnapToLines(bool value)
@@ -358,9 +364,9 @@ void TextTrackCue::setSnapToLines(bool value)
     if (m_snapToLines == value)
         return;
     
-    cueWillChange();
+    willChange();
     m_snapToLines = value;
-    cueDidChange();
+    didChange();
 }
 
 void TextTrackCue::setLine(int position, ExceptionCode& ec)
@@ -377,10 +383,10 @@ void TextTrackCue::setLine(int position, ExceptionCode& ec)
     if (m_linePosition == position)
         return;
 
-    cueWillChange();
+    willChange();
     m_linePosition = position;
     m_computedLinePosition = calculateComputedLinePosition();
-    cueDidChange();
+    didChange();
 }
 
 void TextTrackCue::setPosition(int position, ExceptionCode& ec)
@@ -397,9 +403,9 @@ void TextTrackCue::setPosition(int position, ExceptionCode& ec)
     if (m_textPosition == position)
         return;
     
-    cueWillChange();
+    willChange();
     m_textPosition = position;
-    cueDidChange();
+    didChange();
 }
 
 void TextTrackCue::setSize(int size, ExceptionCode& ec)
@@ -416,9 +422,9 @@ void TextTrackCue::setSize(int size, ExceptionCode& ec)
     if (m_cueSize == size)
         return;
     
-    cueWillChange();
+    willChange();
     m_cueSize = size;
-    cueDidChange();
+    didChange();
 }
 
 const String& TextTrackCue::align() const
@@ -457,9 +463,9 @@ void TextTrackCue::setAlign(const String& value, ExceptionCode& ec)
     if (alignment == m_cueAlignment)
         return;
 
-    cueWillChange();
+    willChange();
     m_cueAlignment = alignment;
-    cueDidChange();
+    didChange();
 }
     
 void TextTrackCue::setText(const String& text)
@@ -467,17 +473,17 @@ void TextTrackCue::setText(const String& text)
     if (m_content == text)
         return;
     
-    cueWillChange();
+    willChange();
     // Clear the document fragment but don't bother to create it again just yet as we can do that
     // when it is requested.
     m_webVTTNodeTree = 0;
     m_content = text;
-    cueDidChange();
+    didChange();
 }
 
 int TextTrackCue::cueIndex()
 {
-    if (m_cueIndex == invalidCueIndex)
+    if (m_cueIndex == invalidCueIndex && track()->cues())
         m_cueIndex = track()->cues()->getCueIndex(this);
 
     return m_cueIndex;
@@ -540,9 +546,9 @@ void TextTrackCue::setRegionId(const String& regionId)
     if (m_regionId == regionId)
         return;
 
-    cueWillChange();
+    willChange();
     m_regionId = regionId;
-    cueDidChange();
+    didChange();
 }
 #endif
 
@@ -763,7 +769,7 @@ void TextTrackCue::markFutureAndPastNodes(ContainerNode* root, double previousTi
     }
 }
 
-void TextTrackCue::updateDisplayTree(float movieTime)
+void TextTrackCue::updateDisplayTree(double movieTime)
 {
     // The display tree may contain WebVTT timestamp objects representing
     // timestamps (processing instructions), along with displayable nodes.
@@ -1152,12 +1158,12 @@ EventTargetData* TextTrackCue::ensureEventTargetData()
     return &m_eventTargetData;
 }
 
-bool TextTrackCue::operator==(const TextTrackCue& cue) const
+bool TextTrackCue::isEqual(const TextTrackCue& cue, CueMatchRules match) const
 {
     if (cueType() != cue.cueType())
         return false;
-
-    if (m_endTime != cue.endTime())
+    
+    if (match != IgnoreDuration && m_endTime != cue.endTime())
         return false;
     if (m_startTime != cue.startTime())
         return false;
@@ -1177,6 +1183,15 @@ bool TextTrackCue::operator==(const TextTrackCue& cue) const
         return false;
     
     return true;
+}
+void TextTrackCue::setFontSize(int fontSize, const IntSize&, bool important)
+{
+    if (!hasDisplayTree() || !fontSize)
+        return;
+    
+    LOG(Media, "TextTrackCue::setFontSize - setting cue font size to %i", fontSize);
+
+    element()->setInlineStyleProperty(CSSPropertyFontSize, String::number(fontSize) + "px", important);
 }
 
 } // namespace WebCore

@@ -45,6 +45,7 @@
 #include "CookieJar.h"
 #include "DOMImplementation.h"
 #include "DOMPatchSupport.h"
+#include "DOMWrapperWorld.h"
 #include "DeviceOrientationController.h"
 #include "Document.h"
 #include "DocumentLoader.h"
@@ -69,6 +70,7 @@
 #include "Page.h"
 #include "RegularExpression.h"
 #include "ResourceBuffer.h"
+#include "ScriptController.h"
 #include "ScriptObject.h"
 #include "SecurityOrigin.h"
 #include "Settings.h"
@@ -265,6 +267,35 @@ void InspectorPageAgent::resourceContent(ErrorString* errorString, Frame* frame,
         *errorString = "No resource with given URL found";
 }
 
+//static
+String InspectorPageAgent::sourceMapURLForResource(CachedResource* cachedResource)
+{
+    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeader, (ASCIILiteral("SourceMap")));
+    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeaderDeprecated, (ASCIILiteral("X-SourceMap")));
+
+    if (!cachedResource)
+        return String();
+
+    // Scripts are handled in a separate path.
+    if (cachedResource->type() != CachedResource::CSSStyleSheet)
+        return String();
+
+    String sourceMapHeader = cachedResource->response().httpHeaderField(sourceMapHTTPHeader);
+    if (!sourceMapHeader.isEmpty())
+        return sourceMapHeader;
+
+    sourceMapHeader = cachedResource->response().httpHeaderField(sourceMapHTTPHeaderDeprecated);
+    if (!sourceMapHeader.isEmpty())
+        return sourceMapHeader;
+
+    String content;
+    bool base64Encoded;
+    if (InspectorPageAgent::cachedResourceContent(cachedResource, &content, &base64Encoded) && !base64Encoded)
+        return ContentSearchUtils::findStylesheetSourceMapURL(content);
+
+    return String();
+}
+
 CachedResource* InspectorPageAgent::cachedResource(Frame* frame, const KURL& url)
 {
     CachedResource* cachedResource = frame->document()->cachedResourceLoader()->cachedResource(url);
@@ -343,6 +374,7 @@ InspectorPageAgent::InspectorPageAgent(InstrumentingAgents* instrumentingAgents,
     , m_lastScriptIdentifier(0)
     , m_enabled(false)
     , m_isFirstLayoutAfterOnLoad(false)
+    , m_originalScriptExecutionDisabled(false)
     , m_geolocationOverridden(false)
     , m_ignoreScriptsEnabledNotification(false)
 {
@@ -403,6 +435,11 @@ void InspectorPageAgent::enable(ErrorString*)
     m_enabled = true;
     m_state->setBoolean(PageAgentState::pageAgentEnabled, true);
     m_instrumentingAgents->setInspectorPageAgent(this);
+
+    if (Frame* frame = mainFrame()) {
+        if (Settings* settings = frame->settings())
+            m_originalScriptExecutionDisabled = !settings->isScriptEnabled();
+    }
 }
 
 void InspectorPageAgent::disable(ErrorString*)
@@ -412,7 +449,7 @@ void InspectorPageAgent::disable(ErrorString*)
     m_state->remove(PageAgentState::pageAgentScriptsToEvaluateOnLoad);
     m_instrumentingAgents->setInspectorPageAgent(0);
 
-    setScriptExecutionDisabled(0, false);
+    setScriptExecutionDisabled(0, m_originalScriptExecutionDisabled);
     setShowPaintRects(0, false);
     setShowDebugBorders(0, false);
     setShowFPSCounter(0, false);
@@ -1106,6 +1143,9 @@ PassRefPtr<TypeBuilder::Page::FrameResourceTree> InspectorPageAgent::buildObject
             resourceObject->setCanceled(true);
         else if (cachedResource->status() == CachedResource::LoadError)
             resourceObject->setFailed(true);
+        String sourceMappingURL = InspectorPageAgent::sourceMapURLForResource(cachedResource);
+        if (!sourceMappingURL.isEmpty())
+            resourceObject->setSourceMapURL(sourceMappingURL);
         subresources->addItem(resourceObject);
     }
 

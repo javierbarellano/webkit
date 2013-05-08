@@ -61,7 +61,7 @@ public:
     virtual void setMenubarVisible(bool);
     virtual bool menubarVisible();
     virtual void setResizable(bool);
-    virtual void addMessageToConsole(MessageSource, MessageLevel, const String& message, unsigned lineNumber, const String& sourceID);
+    virtual void addMessageToConsole(MessageSource, MessageLevel, const String& message, unsigned lineNumber, unsigned columnNumber, const String& sourceID);
     virtual bool canRunBeforeUnloadConfirmPanel();
     virtual bool runBeforeUnloadConfirmPanel(const String&, Frame*);
     virtual void closeWindowSoon();
@@ -150,9 +150,6 @@ public:
     virtual void scheduleCompositingLayerFlush();
     virtual bool allowsAcceleratedCompositing() const;
 #endif
-
-    virtual void addSearchProvider(const BlackBerry::Platform::String&, const BlackBerry::Platform::String&);
-    virtual int isSearchProviderInstalled(const BlackBerry::Platform::String&);
 
     BlackBerry::WebKit::WebPagePrivate* webPagePrivate() const { return m_webPagePrivate; }
 

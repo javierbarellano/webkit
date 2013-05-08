@@ -28,30 +28,12 @@
 #if ENABLE(VIDEO_TRACK)
 #include "JSVideoTrackList.h"
 
-#include "HTMLMediaElement.h"
+#include "Element.h"
+#include "JSNodeCustom.h"
 
 using namespace JSC;
 
 namespace WebCore {
-
-bool JSVideoTrackListOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)
-{
-    JSVideoTrackList* jsVideoTrackList = jsCast<JSVideoTrackList*>(handle.get().asCell());
-    VideoTrackList* videoTrackList = static_cast<VideoTrackList*>(jsVideoTrackList->impl());
-
-    // If the list is firing event listeners, its wrapper is reachable because
-    // the wrapper is responsible for marking those event listeners.
-    if (videoTrackList->isFiringEventListeners())
-        return true;
-
-    // If the list has no event listeners and has no custom properties, it is not reachable.
-    if (!videoTrackList->hasEventListeners() && !jsVideoTrackList->hasCustomProperties())
-        return false;
-
-    // It is reachable if the media element parent is reachable.
-    //return visitor.containsOpaqueRoot(root(videoTrackList->owner()));
-    return visitor.containsOpaqueRoot(videoTrackList->owner());
-}
 
 void JSVideoTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
 {
@@ -60,13 +42,12 @@ void JSVideoTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
     COMPILE_ASSERT(StructureFlags & OverridesVisitChildren, OverridesVisitChildrenWithoutSettingFlag);
     ASSERT(jsVideoTrackList->structure()->typeInfo().overridesVisitChildren());
     Base::visitChildren(jsVideoTrackList, visitor);
-    
+
     VideoTrackList* videoTrackList = static_cast<VideoTrackList*>(jsVideoTrackList->impl());
-    //visitor.addOpaqueRoot(root(videoTrackList->owner()));
-    visitor.addOpaqueRoot(videoTrackList->owner());
+    visitor.addOpaqueRoot(root(videoTrackList->element()));
     videoTrackList->visitJSEventListeners(visitor);
 }
-    
+
 } // namespace WebCore
 
 #endif

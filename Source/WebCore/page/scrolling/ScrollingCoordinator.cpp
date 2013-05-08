@@ -39,6 +39,7 @@
 #include "RenderView.h"
 #include "ScrollAnimator.h"
 #include <wtf/MainThread.h>
+#include <wtf/text/StringBuilder.h>
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "RenderLayerCompositor.h"
@@ -46,10 +47,6 @@
 
 #if ENABLE(THREADED_SCROLLING)
 #include "ScrollingCoordinatorMac.h"
-#endif
-
-#if PLATFORM(CHROMIUM)
-#include "ScrollingCoordinatorChromium.h"
 #endif
 
 #if USE(COORDINATED_GRAPHICS)
@@ -66,10 +63,6 @@ PassRefPtr<ScrollingCoordinator> ScrollingCoordinator::create(Page* page)
 {
 #if USE(ACCELERATED_COMPOSITING) && ENABLE(THREADED_SCROLLING)
     return adoptRef(new ScrollingCoordinatorMac(page));
-#endif
-
-#if PLATFORM(CHROMIUM)
-    return adoptRef(new ScrollingCoordinatorChromium(page));
 #endif
 
 #if USE(COORDINATED_GRAPHICS)
@@ -412,7 +405,7 @@ void ScrollingCoordinator::updateMainFrameScrollPosition(const IntPoint& scrollP
 #endif
 }
 
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
+#if PLATFORM(MAC)
 void ScrollingCoordinator::handleWheelEventPhase(PlatformWheelEventPhase phase)
 {
     ASSERT(isMainThread());
@@ -466,7 +459,7 @@ MainThreadScrollingReasons ScrollingCoordinator::mainThreadScrollingReasons() co
         mainThreadScrollingReasons |= HasViewportConstrainedObjectsWithoutSupportingFixedLayers;
     if (supportsFixedPositionLayers() && hasVisibleSlowRepaintViewportConstrainedObjects(frameView))
         mainThreadScrollingReasons |= HasNonLayerViewportConstrainedObjects;
-    if (m_page->mainFrame()->document()->isImageDocument())
+    if (m_page->mainFrame()->document() && m_page->mainFrame()->document()->isImageDocument())
         mainThreadScrollingReasons |= IsImageDocument;
 
     return mainThreadScrollingReasons;

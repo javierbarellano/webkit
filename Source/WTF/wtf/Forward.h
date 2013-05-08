@@ -24,20 +24,21 @@
 #include <stddef.h>
 
 namespace WTF {
+
     template<typename T> class Function;
-    template<typename T> class ListRefPtr;
     template<typename T> class OwnArrayPtr;
     template<typename T> class OwnPtr;
     template<typename T> class PassOwnArrayPtr;
     template<typename T> class PassOwnPtr;
     template<typename T> class PassRefPtr;
     template<typename T> class RefPtr;
-    template<typename T, size_t inlineCapacity> class Vector;
+    template<typename T, size_t inlineCapacity, typename OverflowHandler> class Vector;
     
     class ArrayBuffer;
     class ArrayBufferView;
     class AtomicString;
     class AtomicStringImpl;
+    class BinarySemaphore;
     class CString;
     class Decoder;
     class Encoder;
@@ -46,8 +47,7 @@ namespace WTF {
     class Int8Array;
     class Int16Array;
     class Int32Array;
-    class MemoryInstrumentation;
-    class MemoryObjectInfo;
+    class PrintStream;
     class String;
     template <typename T> class StringBuffer;
     class StringBuilder;
@@ -59,7 +59,6 @@ namespace WTF {
 }
 
 using WTF::Function;
-using WTF::ListRefPtr;
 using WTF::OwnArrayPtr;
 using WTF::OwnPtr;
 using WTF::PassOwnArrayPtr;
@@ -72,6 +71,7 @@ using WTF::ArrayBuffer;
 using WTF::ArrayBufferView;
 using WTF::AtomicString;
 using WTF::AtomicStringImpl;
+using WTF::BinarySemaphore;
 using WTF::CString;
 using WTF::Encoder;
 using WTF::Decoder;
@@ -80,8 +80,7 @@ using WTF::Float64Array;
 using WTF::Int8Array;
 using WTF::Int16Array;
 using WTF::Int32Array;
-using WTF::MemoryInstrumentation;
-using WTF::MemoryObjectInfo;
+using WTF::PrintStream;
 using WTF::String;
 using WTF::StringBuffer;
 using WTF::StringBuilder;

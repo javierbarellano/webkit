@@ -94,6 +94,7 @@ class WebRenderLayer;
 class WebRenderObject;
 class WebTextChecker;
 class WebVibrationProxy;
+class WebViewportAttributes;
 
 WK_ADD_API_MAPPING(WKApplicationCacheManagerRef, WebApplicationCacheManagerProxy)
 WK_ADD_API_MAPPING(WKAuthenticationChallengeRef, AuthenticationChallengeProxy)
@@ -138,6 +139,7 @@ WK_ADD_API_MAPPING(WKRenderLayerRef, WebRenderLayer)
 WK_ADD_API_MAPPING(WKRenderObjectRef, WebRenderObject)
 WK_ADD_API_MAPPING(WKTextCheckerRef, WebTextChecker)
 WK_ADD_API_MAPPING(WKVibrationRef, WebVibrationProxy)
+WK_ADD_API_MAPPING(WKViewportAttributesRef, WebViewportAttributes)
 WK_ADD_API_MAPPING(WKInspectorRef, WebInspectorProxy)
 
 /* Enum conversions */
@@ -439,10 +441,6 @@ inline ProxyingRefPtr<WebGrammarDetail> toAPI(const WebCore::GrammarDetail& gram
 }
 
 } // namespace WebKit
-
-#if (defined(WIN32) || defined(_WIN32)) && !defined(BUILDING_QT__)
-#include "WKAPICastWin.h"
-#endif
 
 #if defined(BUILDING_GTK__)
 #include "WKAPICastGtk.h"

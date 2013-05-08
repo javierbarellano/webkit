@@ -26,16 +26,11 @@
 #include <BlackBerryPlatformInputEvents.h>
 #include <BlackBerryPlatformString.h>
 #include <BlackBerryPlatformWebContext.h>
+#include <JavaScriptCore/JSBase.h>
 #include <imf/input_data.h>
 #include <network/NetworkRequest.h>
 #include <string>
 #include <vector>
-
-struct OpaqueJSContext;
-typedef const struct OpaqueJSContext* JSContextRef;
-
-struct OpaqueJSValue;
-typedef const struct OpaqueJSValue* JSValueRef;
 
 namespace WebCore {
 class ChromeClientBlackBerry;
@@ -93,15 +88,11 @@ public:
 
     WebPageClient* client() const;
 
-    void load(const BlackBerry::Platform::String& url, const BlackBerry::Platform::String& networkToken, bool isInitial = false, bool needReferer = false, bool forceDownload = false);
-
-    void loadExtended(const char* url, const char* networkToken, const char* method, Platform::NetworkRequest::CachePolicy = Platform::NetworkRequest::UseProtocolCachePolicy, const char* data = 0, size_t dataLength = 0, const char* const* headers = 0, size_t headersLength = 0, bool mustHandleInternally = false);
-
     void loadFile(const BlackBerry::Platform::String& path, const BlackBerry::Platform::String& overrideContentType = "");
 
     void loadString(const BlackBerry::Platform::String&, const BlackBerry::Platform::String& baseURL, const BlackBerry::Platform::String& contentType = "text/html", const BlackBerry::Platform::String& failingURL = BlackBerry::Platform::String::emptyString());
 
-    void download(const Platform::NetworkRequest&);
+    void load(const Platform::NetworkRequest&, bool needReferer = false);
 
     bool executeJavaScript(const BlackBerry::Platform::String& script, JavaScriptDataType& returnType, BlackBerry::Platform::String& returnValue);
 
@@ -233,6 +224,7 @@ public:
     void clearCredentials();
     void clearAutofillData();
     void clearNeverRememberSites();
+    void clearWebFileSystem();
 
     void runLayoutTests();
 
@@ -240,8 +232,7 @@ public:
     // Case sensitivity, wrapping, and highlighting all matches are also toggleable.
     bool findNextString(const char*, bool forward, bool caseSensitive, bool wrap, bool highlightAllMatches);
 
-    JSContextRef scriptContext() const;
-    JSValueRef windowObject() const;
+    JSGlobalContextRef globalContext() const;
 
     unsigned timeoutForJavaScriptExecution() const;
     void setTimeoutForJavaScriptExecution(unsigned ms);
@@ -264,7 +255,6 @@ public:
 
     void setSpellCheckingEnabled(bool);
     void spellCheckingRequestProcessed(int32_t transactionId, spannable_string_t*);
-    void spellCheckingRequestCancelled(int32_t transactionId);
 
     bool isInputMode() const;
     void setDocumentSelection(const Platform::IntPoint& documentStartPoint, const Platform::IntPoint& documentEndPoint);
@@ -273,6 +263,7 @@ public:
     void expandSelection(bool isScrollStarted);
     void setOverlayExpansionPixelHeight(int);
     void setParagraphExpansionPixelScrollMargin(const Platform::IntSize&);
+    void setSelectionDocumentViewportSize(const Platform::IntSize&);
     void selectionCancelled();
     bool selectionContainsDocumentPoint(const Platform::IntPoint&);
 
@@ -337,6 +328,7 @@ public:
     void inspectCurrentContextElement();
 
     Platform::IntPoint adjustDocumentScrollPosition(const Platform::IntPoint& documentScrollPosition, const Platform::IntRect& documentPaddingRect);
+    Platform::IntSize fixedElementSizeDelta();
 
     // FIXME: Needs API review on this header. See PR #120402.
     void notifyPagePause();
@@ -383,8 +375,6 @@ public:
 
     void autofillTextField(const BlackBerry::Platform::String&);
 
-    void enableQnxJavaScriptObject(bool);
-
     BlackBerry::Platform::String renderTreeAsText();
 
     void updateNotificationPermission(const BlackBerry::Platform::String& requestId, bool allowed);
@@ -394,6 +384,8 @@ public:
     void notificationShown(const BlackBerry::Platform::String& notificationId);
 
     void animateToScaleAndDocumentScrollPosition(double destinationZoomScale, const BlackBerry::Platform::FloatPoint& destinationScrollPosition, bool shouldConstrainScrollingToContentEdge = true);
+
+    bool isProcessingUserGesture() const;
 
 private:
     virtual ~WebPage();

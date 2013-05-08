@@ -80,6 +80,7 @@ SOURCES += \
      bindings/js/Dictionary.cpp \
      bindings/js/GCController.cpp \
      bindings/js/JSArrayBufferCustom.cpp \
+     bindings/js/JSAudioBufferCustom.cpp \
      bindings/js/JSAttrCustom.cpp \
      bindings/js/JSBlobCustom.cpp \
      bindings/js/JSCDATASectionCustom.cpp \
@@ -175,6 +176,7 @@ SOURCES += \
      bindings/js/JSPopStateEventCustom.cpp \
      bindings/js/JSProcessingInstructionCustom.cpp \
      bindings/js/JSRequestAnimationFrameCallbackCustom.cpp \
+     bindings/js/JSRTCStatsResponseCustom.cpp \
      bindings/js/JSStorageCustom.cpp \
      bindings/js/JSStyleSheetCustom.cpp \
      bindings/js/JSStyleSheetListCustom.cpp \
@@ -310,6 +312,7 @@ SOURCES += \
     css/CSSValueList.cpp \
     css/CSSValuePool.cpp \
     css/DOMWindowCSS.cpp \
+    css/DeprecatedStyleBuilder.cpp \
     css/DocumentRuleSets.cpp \
     css/ElementRuleCollector.cpp \
     css/FontFeatureValue.cpp \
@@ -334,7 +337,6 @@ SOURCES += \
     css/SelectorCheckerFastPath.cpp \
     css/SelectorFilter.cpp \
     css/ShadowValue.cpp \
-    css/StyleBuilder.cpp \
     css/StyleInvalidationAnalysis.cpp \
     css/StyleMedia.cpp \
     css/StylePropertySet.cpp \
@@ -346,6 +348,7 @@ SOURCES += \
     css/StyleSheet.cpp \
     css/StyleSheetContents.cpp \
     css/StyleSheetList.cpp \
+    css/TransformFunctions.cpp \
     css/ViewportStyleResolver.cpp \
     css/WebKitCSSArrayFunctionValue.cpp \
     css/WebKitCSSFilterRule.cpp \
@@ -353,6 +356,7 @@ SOURCES += \
     css/WebKitCSSKeyframeRule.cpp \
     css/WebKitCSSKeyframesRule.cpp \
     css/WebKitCSSMatrix.cpp \
+    css/WebKitCSSMatFunctionValue.cpp \
     css/WebKitCSSMixFunctionValue.cpp \
     css/WebKitCSSRegionRule.cpp \
     css/WebKitCSSSVGDocumentValue.cpp \
@@ -459,7 +463,6 @@ SOURCES += \
     dom/NodeRenderingTraversal.cpp \
     dom/NodeTraversal.cpp \
     dom/Notation.cpp \
-    dom/StaticHashSetNodeList.cpp \
     dom/OverflowEvent.cpp \
     dom/PageTransitionEvent.cpp \
     dom/PendingScript.cpp \
@@ -506,7 +509,6 @@ SOURCES += \
     dom/UserTypingGestureIndicator.cpp \
     dom/ViewportArguments.cpp \
     dom/VisitedLinkState.cpp \
-    dom/WebCoreMemoryInstrumentation.cpp \
     dom/WebKitAnimationEvent.cpp \
     dom/WebKitTransitionEvent.cpp \
     dom/WheelEvent.cpp \
@@ -768,7 +770,6 @@ SOURCES += \
     html/parser/XSSAuditorDelegate.cpp \
     html/shadow/ClearButtonElement.cpp \
     html/shadow/ContentDistributor.cpp \
-    html/shadow/ContentSelectorQuery.cpp \
     html/shadow/DateTimeEditElement.cpp \
     html/shadow/DateTimeFieldElement.cpp \
     html/shadow/DateTimeFieldElements.cpp \
@@ -776,38 +777,18 @@ SOURCES += \
     html/shadow/DateTimeSymbolicFieldElement.cpp \
     html/shadow/DetailsMarkerControl.cpp \
     html/shadow/HTMLContentElement.cpp \
-    html/shadow/HTMLShadowElement.cpp \
     html/shadow/InsertionPoint.cpp \
     html/shadow/MediaControls.cpp \
     html/shadow/MediaControlsApple.cpp \
     html/shadow/MeterShadowElement.cpp \
     html/shadow/ProgressShadowElement.cpp \
-    html/shadow/SelectRuleFeatureSet.cpp \
     html/shadow/SliderThumbElement.cpp \
     html/shadow/SpinButtonElement.cpp \
     html/shadow/TextControlInnerElements.cpp \
-    html/track/AudioTrack.cpp \
-    html/track/AudioTrackList.cpp \
-    html/track/InbandTextTrack.cpp \
-    html/track/LoadableTextTrack.cpp \
-    html/track/TextTrack.cpp \
-    html/track/TextTrackCueGeneric.cpp \
-    html/track/TextTrackCue.cpp \
-    html/track/TextTrackCueList.cpp \
-    html/track/TextTrackList.cpp \
-    html/track/TrackBase.cpp \
-    html/track/TrackEvent.cpp \
-    html/track/LoadableTextTrack.cpp \
-    html/track/VideoTrack.cpp \
-    html/track/VideoTrackList.cpp \
-    html/track/WebVTTParser.cpp \
-    html/track/WebVTTTokenizer.cpp \
-    html/track/WebVTTElement.cpp \
     inspector/ConsoleMessage.cpp \
     inspector/ContentSearchUtils.cpp \
     inspector/DOMEditor.cpp \
     inspector/DOMPatchSupport.cpp \
-    inspector/HeapGraphSerializer.cpp \
     inspector/IdentifiersFactory.cpp \
     inspector/InjectedScript.cpp \
     inspector/InjectedScriptBase.cpp \
@@ -850,7 +831,6 @@ SOURCES += \
     inspector/InspectorValues.cpp \
     inspector/InspectorWorkerAgent.cpp \
     inspector/InstrumentingAgents.cpp \
-    inspector/MemoryInstrumentationImpl.cpp \
     inspector/NetworkResourcesData.cpp \
     inspector/PageConsoleAgent.cpp \
     inspector/PageDebuggerAgent.cpp \
@@ -873,7 +853,6 @@ SOURCES += \
     loader/appcache/ManifestParser.cpp \
     loader/archive/ArchiveResource.cpp \
     loader/archive/ArchiveResourceCollection.cpp \
-    loader/CachedMetadata.cpp \
     loader/cache/MemoryCache.cpp \
     loader/cache/CachedCSSStyleSheet.cpp \
     loader/cache/CachedFont.cpp \
@@ -884,8 +863,7 @@ SOURCES += \
     loader/cache/CachedScript.cpp \
     loader/cache/CachedShader.cpp \
     loader/cache/CachedSVGDocument.cpp \
-    loader/cache/CachedTextTrack.cpp \
-    loader/cache/CachedSVGDocument.h \
+    loader/cache/CachedSVGDocumentReference.cpp \
     loader/cache/CachedXSLStyleSheet.cpp \
     loader/CookieJar.cpp \
     loader/CrossOriginAccessControl.cpp \
@@ -929,9 +907,7 @@ SOURCES += \
     loader/SinkDocument.cpp \
     loader/SubframeLoader.cpp \
     loader/SubresourceLoader.cpp \
-    loader/SubstituteData.cpp \
     loader/TextResourceDecoder.cpp \
-    loader/TextTrackLoader.cpp \
     loader/ThreadableLoader.cpp \
     page/animation/AnimationBase.cpp \
     page/animation/AnimationController.cpp \
@@ -1078,7 +1054,6 @@ SOURCES += \
     platform/graphics/surfaces/qt/GraphicsSurfaceQt.cpp \
     platform/graphics/SurrogatePairAwareTextIterator.cpp \
     platform/graphics/TextRun.cpp \
-    platform/graphics/TextTrackRepresentation.cpp \
     platform/graphics/TiledBackingStore.cpp \
     platform/graphics/transforms/AffineTransform.cpp \
     platform/graphics/transforms/TransformationMatrix.cpp \
@@ -1100,7 +1075,6 @@ SOURCES += \
     platform/KillRingNone.cpp \
     platform/KURL.cpp \
     platform/Language.cpp \
-    platform/LayoutTestSupport.cpp \
     platform/Length.cpp \
     platform/LengthBox.cpp \
     platform/text/LineEnding.cpp \
@@ -1145,7 +1119,6 @@ SOURCES += \
     platform/text/RegularExpression.cpp \
     platform/PlatformEvent.cpp \
     platform/PlatformInstrumentation.cpp \
-    platform/PlatformMemoryInstrumentation.cpp \
     platform/RuntimeApplicationChecks.cpp \
     platform/RunLoop.cpp \
     platform/SchemeRegistry.cpp \
@@ -1157,7 +1130,6 @@ SOURCES += \
     platform/ScrollView.cpp \
     platform/SharedBuffer.cpp \
     platform/SharedBufferChunkReader.cpp \
-    platform/StatsCounter.cpp \
     platform/sql/SQLiteAuthorizer.cpp \
     platform/sql/SQLiteDatabase.cpp \
     platform/sql/SQLiteFileSystem.cpp \
@@ -1183,7 +1155,6 @@ SOURCES += \
     platform/text/UnicodeRange.cpp \
     platform/text/transcoder/FontTranscoder.cpp \
     platform/UUID.cpp \
-    platform/VisitedLinks.cpp \
     platform/Widget.cpp \
     platform/PlatformStrategies.cpp \
     plugins/IFrameShimSupport.cpp \
@@ -1291,7 +1262,6 @@ SOURCES += \
     rendering/RenderTextControlMultiLine.cpp \
     rendering/RenderTextControlSingleLine.cpp \
     rendering/RenderTextFragment.cpp \
-    rendering/RenderTextTrackCue.cpp \
     rendering/RenderTheme.cpp \
     rendering/RenderTreeAsText.cpp \
     rendering/RenderView.cpp \
@@ -1329,7 +1299,6 @@ SOURCES += \
     rendering/style/StyleSurroundData.cpp \
     rendering/style/StyleTransformData.cpp \
     rendering/style/StyleVisualData.cpp \
-    storage/StorageTask.cpp \
     storage/StorageThread.cpp \
     storage/Storage.cpp \
     storage/StorageAreaImpl.cpp \
@@ -1606,6 +1575,7 @@ HEADERS += \
     css/CSSValueList.h \
     css/CSSValuePool.h \
     css/CSSVariableValue.h \
+    css/DeprecatedStyleBuilder.h \
     css/DOMWindowCSS.h \
     css/FontFeatureValue.h \
     css/FontLoader.h \
@@ -1622,9 +1592,7 @@ HEADERS += \
     css/RGBColor.h \
     css/SelectorChecker.h \
     css/ShadowValue.h \
-    css/SiblingTraversalStrategies.h \
     css/StyleMedia.h \
-    css/StyleBuilder.h \
     css/StyleInvalidationAnalysis.h \
     css/StylePropertySet.h \
     css/StylePropertyShorthand.h \
@@ -1634,6 +1602,7 @@ HEADERS += \
     css/StyleSheet.h \
     css/StyleSheetContents.h \
     css/StyleSheetList.h \
+    css/TransformFunctions.h \
     css/ViewportStyleResolver.h \
     css/WebKitCSSArrayFunctionValue.h \
     css/WebKitCSSFilterRule.h \
@@ -1641,6 +1610,7 @@ HEADERS += \
     css/WebKitCSSKeyframeRule.h \
     css/WebKitCSSKeyframesRule.h \
     css/WebKitCSSMatrix.h \
+    css/WebKitCSSMatFunctionValue.h \
     css/WebKitCSSMixFunctionValue.h \
     css/WebKitCSSRegionRule.h \
     css/WebKitCSSSVGDocumentValue.h \
@@ -1741,7 +1711,6 @@ HEADERS += \
     dom/NodeRenderingTraversal.h \
     dom/NodeTraversal.h \
     dom/Notation.h \
-    dom/StaticHashSetNodeList.h \
     dom/OverflowEvent.h \
     dom/PageTransitionEvent.h \
     dom/Position.h \
@@ -1784,7 +1753,6 @@ HEADERS += \
     dom/UIEventWithKeyState.h \
     dom/UserGestureIndicator.h \
     dom/ViewportArguments.h \
-    dom/WebCoreMemoryInstrumentation.h \
     dom/WebKitAnimationEvent.h \
     dom/WebKitNamedFlow.h \
     dom/WebKitTransitionEvent.h \
@@ -1969,7 +1937,6 @@ HEADERS += \
     html/HTMLTextAreaElement.h \
     html/HTMLTextFormControlElement.h \
     html/HTMLTitleElement.h \
-    html/HTMLTrackElement.h \
     html/HTMLUListElement.h \
     html/HTMLVideoElement.h \
     html/HTMLViewSourceDocument.h \
@@ -2014,35 +1981,19 @@ HEADERS += \
     html/parser/XSSAuditor.h \
     html/parser/XSSAuditorDelegate.h \
     html/shadow/ContentDistributor.h \
-    html/shadow/ContentSelectorQuery.h \
     html/shadow/HTMLContentElement.h \
-    html/shadow/HTMLShadowElement.h \
     html/shadow/MediaControlElementTypes.h \
     html/shadow/MediaControlElements.h \
     html/shadow/MediaSelControlElements.h \
     html/shadow/MediaControls.h \
     html/shadow/MediaControlsApple.h \
     html/shadow/DetailsMarkerControl.h \
-    html/track/InbandTextTrack.h \
-    html/track/LoadableTextTrack.h \
-    html/track/TextTrack.h \
-    html/track/TextTrackCue.h \
-    html/track/TextTrackCueGeneric.h \
-    html/track/TextTrackCueList.h \
-    html/track/TextTrackList.h \
-    html/track/TrackBase.h \
-    html/track/TrackEvent.h \
-    html/track/WebVTTParser.h \
-    html/track/WebVTTToken.h \
-    html/track/WebVTTTokenizer.h \
-    html/track/WebVTTElement.h \
     inspector/BindingVisitors.h \
     inspector/ConsoleAPITypes.h \
     inspector/ConsoleMessage.h \
     inspector/ContentSearchUtils.h \
     inspector/DOMEditor.h \
     inspector/DOMPatchSupport.h \
-    inspector/HeapGraphSerializer.h \
     inspector/IdentifiersFactory.h \
     inspector/InjectedScript.h \
     inspector/InjectedScriptBase.h \
@@ -2086,7 +2037,6 @@ HEADERS += \
     inspector/InspectorTimelineAgent.h \
     inspector/InspectorWorkerAgent.h \
     inspector/InstrumentingAgents.h \
-    inspector/MemoryInstrumentationImpl.h \
     inspector/NetworkResourcesData.h \
     inspector/PageConsoleAgent.h \
     inspector/PageDebuggerAgent.h \
@@ -2108,13 +2058,14 @@ HEADERS += \
     loader/cache/CachedCSSStyleSheet.h \
     loader/cache/CachedFont.h \
     loader/cache/CachedImage.h \
+    loader/cache/CachedRawResource.h \
+    loader/cache/CachedRawResourceClient.h \
     loader/cache/CachedResourceClientWalker.h \
     loader/cache/CachedResource.h \
     loader/cache/CachedResourceHandle.h \
     loader/cache/CachedScript.h \
     loader/cache/CachedShader.h \
     loader/cache/CachedSVGDocument.h \
-    loader/cache/CachedTextTrack.h \
     loader/cache/CachedXSLStyleSheet.h \
     loader/cache/MemoryCache.h \
     loader/CookieJar.h \
@@ -2152,7 +2103,6 @@ HEADERS += \
     loader/SubresourceLoader.h \
     loader/SubstituteData.h \
     loader/TextResourceDecoder.h \
-    loader/TextTrackLoader.h \
     loader/ThreadableLoader.h \
     loader/WorkerThreadableLoader.h \
     mathml/MathMLElement.h \
@@ -2258,6 +2208,7 @@ HEADERS += \
     platform/graphics/CrossfadeGeneratedImage.h \
     platform/graphics/filters/texmap/TextureMapperPlatformCompiledProgram.h \
     platform/graphics/filters/CustomFilterArrayParameter.h \
+    platform/graphics/filters/CustomFilterColorParameter.h \
     platform/graphics/filters/CustomFilterConstants.h \
     platform/graphics/filters/CustomFilterGlobalContext.h \
     platform/graphics/filters/CustomFilterMesh.h \
@@ -2323,8 +2274,6 @@ HEADERS += \
     platform/graphics/Image.h \
     platform/graphics/ImageOrientation.h \
     platform/graphics/ImageSource.h \
-    platform/graphics/InbandTextTrackPrivate.h \
-    platform/graphics/InbandTextTrackPrivateClient.h \
     platform/graphics/IntPoint.h \
     platform/graphics/IntPointHash.h \
     platform/graphics/IntRect.h \
@@ -2433,7 +2382,6 @@ HEADERS += \
     platform/network/ResourceErrorBase.h \
     platform/network/ResourceHandle.h \
     platform/network/ResourceHandleTypes.h \
-    platform/network/ResourceLoadInfo.h \
     platform/network/ResourceLoadPriority.h \
     platform/network/ResourceLoadTiming.h \
     platform/network/ResourceRequestBase.h \
@@ -2441,7 +2389,6 @@ HEADERS += \
     platform/network/qt/NetworkStateNotifierPrivate.h \
     platform/network/qt/CookieJarQt.h \
     platform/PlatformExportMacros.h \
-    platform/PlatformMemoryInstrumentation.h \
     platform/PlatformTouchEvent.h \
     platform/PlatformTouchPoint.h \
     platform/PopupMenu.h \
@@ -2527,8 +2474,9 @@ HEADERS += \
     rendering/InlineBox.h \
     rendering/InlineFlowBox.h \
     rendering/InlineTextBox.h \
-    rendering/LayoutState.h \
     rendering/LayoutRepainter.h \
+    rendering/LayoutState.h \
+    rendering/LogicalSelectionOffsetCaches.h \
     rendering/mathml/RenderMathMLBlock.h \
     rendering/mathml/RenderMathMLFenced.h \
     rendering/mathml/RenderMathMLFraction.h \
@@ -2723,7 +2671,6 @@ HEADERS += \
     storage/StorageNamespace.h \
     storage/StorageNamespaceImpl.h \
     storage/StorageSyncManager.h \
-    storage/StorageTask.h \
     storage/StorageThread.h \
     storage/StorageTracker.h \
     storage/StorageTrackerClient.h \
@@ -3495,6 +3442,16 @@ enable?(VIDEO) {
             platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp \
             platform/graphics/gstreamer/PlatformVideoWindowQt.cpp \
             platform/graphics/gstreamer/ImageGStreamerQt.cpp
+        enable?(VIDEO_TRACK) {
+            HEADERS += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h \
+                platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h \
+                platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h
+            SOURCES += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp \
+                platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
+                platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp
+        }
 
     } else:use?(QT_MULTIMEDIA) {
         HEADERS += \
@@ -4056,21 +4013,64 @@ enable?(JAVASCRIPT_DEBUGGER) {
 
 
 enable?(VIDEO_TRACK) {
+    HEADERS += \
+        bindings/js/JSTrackCustom.h \
+        html/HTMLTrackElement.h \
+        html/track/AudioTrack.h \
+        html/track/AudioTrackList.h \
+        html/track/InbandTextTrack.h \
+        html/track/LoadableTextTrack.h \
+        html/track/TextTrack.h \
+        html/track/TextTrackCue.h \
+        html/track/TextTrackCueGeneric.h \
+        html/track/TextTrackCueList.h \
+        html/track/TextTrackList.h \
+        html/track/TrackBase.h \
+        html/track/TrackEvent.h \
+        html/track/TrackListBase.h \
+        html/track/VideoTrack.h \
+        html/track/VideoTrackList.h \
+        html/track/WebVTTParser.h \
+        html/track/WebVTTToken.h \
+        html/track/WebVTTTokenizer.h \
+        loader/TextTrackLoader.h \
+        platform/graphics/AudioTrackPrivate.h \
+        platform/graphics/InbandTextTrackPrivate.h \
+        platform/graphics/InbandTextTrackPrivateClient.h
+        platform/graphics/VideoTrackPrivate.h \
+
     SOURCES += \
         bindings/js/JSAudioTrackCustom.cpp \
-        bindings/js/JSAudioTrackCustom.h \
         bindings/js/JSAudioTrackListCustom.cpp \
         bindings/js/JSTextTrackCueCustom.cpp \
         bindings/js/JSTextTrackCustom.cpp \
-        bindings/js/JSTextTrackCustom.h \
         bindings/js/JSTrackCustom.cpp \
-        bindings/js/JSTrackCustom.h \
         bindings/js/JSTrackEventCustom.cpp \
         bindings/js/JSTextTrackListCustom.cpp \
         bindings/js/JSVideoTrackCustom.cpp \
-        bindings/js/JSVideoTrackCustom.h \
         bindings/js/JSVideoTrackListCustom.cpp \
-        html/HTMLTrackElement.cpp
+        html/HTMLTrackElement.cpp \
+        html/track/AudioTrack.cpp \
+        html/track/AudioTrackList.cpp \
+        html/track/InbandTextTrack.cpp \
+        html/track/LoadableTextTrack.cpp \
+        html/track/TextTrack.cpp \
+        html/track/TextTrackCue.cpp \
+        html/track/TextTrackCueGeneric.cpp \
+        html/track/TextTrackCueList.cpp \
+        html/track/TextTrackList.cpp \
+        html/track/TrackBase.cpp \
+        html/track/TrackEvent.cpp \
+        html/track/TrackListBase.cpp \
+        html/track/VideoTrack.cpp \
+        html/track/VideoTrackList.cpp \
+        html/track/WebVTTElement.cpp \
+        html/track/WebVTTParser.cpp \
+        html/track/WebVTTTokenizer.cpp \
+        loader/cache/CachedTextTrack.cpp \
+        loader/TextTrackLoader.cpp \
+        platform/graphics/TextTrackRepresentation.cpp \
+        rendering/RenderTextTrackCue.cpp
 }
 
 enable?(WEB_SOCKETS) {
@@ -4206,6 +4206,13 @@ enable?(CANVAS_PROXY) {
 
 use?(3D_GRAPHICS) {
     HEADERS += \
+        page/scrolling/ScrollingConstraints.h \
+        page/scrolling/ScrollingCoordinator.h \
+        page/scrolling/ScrollingStateFixedNode.h \
+        page/scrolling/ScrollingStateNode.h \
+        page/scrolling/ScrollingStateScrollingNode.h \
+        page/scrolling/ScrollingStateStickyNode.h \
+        page/scrolling/ScrollingStateTree.h \
         page/scrolling/coordinatedgraphics/ScrollingCoordinatorCoordinatedGraphics.h \
         platform/graphics/cpu/arm/GraphicsContext3DNEON.h \
         platform/graphics/ANGLEWebKitBridge.h \
@@ -4231,7 +4238,16 @@ use?(3D_GRAPHICS) {
         platform/graphics/texmap/coordinated/UpdateAtlas.h
 
     SOURCES += \
+        page/scrolling/ScrollingConstraints.cpp \
+        page/scrolling/ScrollingCoordinator.cpp \
+        page/scrolling/ScrollingStateFixedNode.cpp \
+        page/scrolling/ScrollingStateNode.cpp \
+        page/scrolling/ScrollingStateScrollingNode.cpp \
+        page/scrolling/ScrollingStateStickyNode.cpp \
+        page/scrolling/ScrollingStateTree.cpp \
         page/scrolling/coordinatedgraphics/ScrollingCoordinatorCoordinatedGraphics.cpp \
+        page/scrolling/coordinatedgraphics/ScrollingStateNodeCoordinatedGraphics.cpp \
+        page/scrolling/coordinatedgraphics/ScrollingStateScrollingNodeCoordinatedGraphics.cpp \
         platform/graphics/ANGLEWebKitBridge.cpp \
         platform/graphics/GraphicsContext3D.cpp \
         platform/graphics/gpu/DrawingBuffer.cpp \

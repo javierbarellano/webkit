@@ -51,7 +51,7 @@
 #include <gst/interfaces/streamvolume.h>
 #endif
 
-GST_DEBUG_CATEGORY_STATIC(webkit_media_player_debug);
+GST_DEBUG_CATEGORY(webkit_media_player_debug);
 #define GST_CAT_DEFAULT webkit_media_player_debug
 
 using namespace std;
@@ -108,6 +108,9 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
     , m_buffer(0)
     , m_volumeTimerHandler(0)
     , m_muteTimerHandler(0)
+    , m_repaintHandler(0)
+    , m_volumeSignalHandler(0)
+    , m_muteSignalHandler(0)
 {
 }
 
@@ -208,7 +211,8 @@ void MediaPlayerPrivateGStreamerBase::setVolume(float volume)
     if (!m_volumeElement)
         return;
 
-    gst_stream_volume_set_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC, static_cast<double>(volume));
+    volume = gst_stream_volume_convert_volume(GST_STREAM_VOLUME_FORMAT_CUBIC, GST_STREAM_VOLUME_FORMAT_LINEAR, volume);
+    g_object_set(m_volumeElement.get(), "volume", volume, NULL);
 }
 
 float MediaPlayerPrivateGStreamerBase::volume() const
@@ -216,7 +220,11 @@ float MediaPlayerPrivateGStreamerBase::volume() const
     if (!m_volumeElement)
         return 0;
 
-    return gst_stream_volume_get_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC);
+    double volume;
+    g_object_get(m_volumeElement.get(), "volume", &volume, NULL);
+    volume = gst_stream_volume_convert_volume(GST_STREAM_VOLUME_FORMAT_LINEAR, GST_STREAM_VOLUME_FORMAT_CUBIC, volume);
+
+    return volume;
 }
 
 
@@ -226,8 +234,9 @@ void MediaPlayerPrivateGStreamerBase::notifyPlayerOfVolumeChange()
 
     if (!m_player || !m_volumeElement)
         return;
-    double volume;
-    volume = gst_stream_volume_get_volume(m_volumeElement.get(), GST_STREAM_VOLUME_FORMAT_CUBIC);
+
+    double volume = this->volume();
+
     // get_volume() can return values superior to 1.0 if the user
     // applies software user gain via third party application (GNOME
     // volume control for instance).
@@ -349,12 +358,7 @@ void MediaPlayerPrivateGStreamerBase::exitFullscreen()
 
 bool MediaPlayerPrivateGStreamerBase::supportsFullscreen() const
 {
-#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED == 1050
-    // See <rdar://problem/7389945>
-    return false;
-#else
     return true;
-#endif
 }
 
 PlatformMedia MediaPlayerPrivateGStreamerBase::platformMedia() const
@@ -391,6 +395,7 @@ GstElement* MediaPlayerPrivateGStreamerBase::createVideoSink(GstElement* pipelin
     m_gstGWorld = GStreamerGWorld::createGWorld(pipeline);
     m_webkitVideoSink = webkitVideoSinkNew(m_gstGWorld.get());
 #else
+    UNUSED_PARAM(pipeline);
     m_webkitVideoSink = webkitVideoSinkNew();
 #endif
     m_videoSinkPad = adoptGRef(gst_element_get_static_pad(m_webkitVideoSink.get(), "sink"));
@@ -474,7 +479,7 @@ GstElement* MediaPlayerPrivateGStreamerBase::createVideoSink(GstElement* pipelin
 #endif
 }
 
-void MediaPlayerPrivateGStreamerBase::setStreamVolumeElement(GstStreamVolume* volume)
+void MediaPlayerPrivateGStreamerBase::setStreamVolumeElement(GstElement* volume)
 {
     ASSERT(!m_volumeElement);
     m_volumeElement = volume;

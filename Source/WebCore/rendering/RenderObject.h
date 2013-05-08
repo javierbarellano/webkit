@@ -37,10 +37,7 @@
 #include "ScrollBehavior.h"
 #include "StyleInheritedData.h"
 #include "TextAffinity.h"
-#include "TransformationMatrix.h"
 #include <wtf/HashSet.h>
-#include <wtf/StackStats.h>
-#include <wtf/UnusedParam.h>
 
 namespace WebCore {
 
@@ -51,8 +48,6 @@ class Document;
 class HitTestLocation;
 class HitTestResult;
 class InlineBox;
-class InlineFlowBox;
-class OverlapTestRequestClient;
 class Path;
 class Position;
 class PseudoStyleRequest;
@@ -64,7 +59,6 @@ class RenderGeometryMap;
 class RenderLayer;
 class RenderLayerModelObject;
 class RenderNamedFlowThread;
-class RenderTable;
 class RenderTheme;
 class TransformState;
 class VisiblePosition;
@@ -257,6 +251,7 @@ public:
     // RenderObject tree manipulation
     //////////////////////////////////////////
     virtual bool canHaveChildren() const { return virtualChildren(); }
+    virtual bool canDOMChildrenHaveRenderParent() const { return false; } // Even if this render object can't have render children, the children in the DOM tree may have a render parent (that is different from this object).
     virtual bool canHaveGeneratedChildren() const;
     virtual bool isChildAllowed(RenderObject*, RenderStyle*) const { return true; }
     virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0);
@@ -264,8 +259,6 @@ public:
     virtual void removeChild(RenderObject*);
     virtual bool createsAnonymousWrapper() const { return false; }
     //////////////////////////////////////////
-
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const;
 
 protected:
     //////////////////////////////////////////
@@ -666,7 +659,7 @@ public:
 
     virtual RenderObject* hoverAncestor() const { return parent(); }
 
-    Element* offsetParent() const;
+    RenderBoxModelObject* offsetParent() const;
 
     void markContainingBlocksForLayout(bool scheduleRelayout = true, RenderObject* newRoot = 0);
     void setNeedsLayout(bool needsLayout, MarkingBehavior = MarkContainingBlockChain);
@@ -1327,17 +1320,6 @@ inline bool RenderObject::backgroundIsKnownToBeObscured()
         m_bitfields.setBoxDecorationState(boxDecorationState);
     }
     return m_bitfields.boxDecorationState() == HasBoxDecorationsAndBackgroundIsKnownToBeObscured;
-}
-
-inline void makeMatrixRenderable(TransformationMatrix& matrix, bool has3DRendering)
-{
-#if !ENABLE(3D_RENDERING)
-    UNUSED_PARAM(has3DRendering);
-    matrix.makeAffine();
-#else
-    if (!has3DRendering)
-        matrix.makeAffine();
-#endif
 }
 
 inline int adjustForAbsoluteZoom(int value, RenderObject* renderer)

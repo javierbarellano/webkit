@@ -102,7 +102,8 @@ typedef enum {
 
 /// Enum values containing page contents type values.
 typedef enum {
-    EWK_PAGE_CONTENTS_TYPE_MHTML
+    EWK_PAGE_CONTENTS_TYPE_MHTML,
+    EWK_PAGE_CONTENTS_TYPE_STRING
 } Ewk_Page_Contents_Type;
 
 typedef struct Ewk_View_Smart_Data Ewk_View_Smart_Data;
@@ -281,8 +282,9 @@ typedef enum {
  *
  * @param type type of the contents
  * @param data string buffer of the contents
+ * @param user_data user data will be passed when ewk_view_page_contents_get is called
  */
-typedef void (*Ewk_Page_Contents_Cb)(Ewk_Page_Contents_Type type, const char *data);
+typedef void (*Ewk_Page_Contents_Cb)(Ewk_Page_Contents_Type type, const char *data, void *user_data);
 
 /**
  * Sets the smart class APIs, enabling view to be inherited.
@@ -630,10 +632,10 @@ EAPI const char *ewk_view_theme_get(const Evas_Object *o);
  *
  * @param o view object to get the current encoding
  *
- * @return @c eina_strinshare containing the current encoding, or
+ * @return @c eina_stringshare containing the current encoding, or
  *         @c NULL if it's not set
  */
-EAPI const char  *ewk_view_custom_encoding_get(const Evas_Object *o);
+EAPI const char *ewk_view_custom_encoding_get(const Evas_Object *o);
 
 /**
  * Sets the custom character encoding and reloads the page.
@@ -643,7 +645,27 @@ EAPI const char  *ewk_view_custom_encoding_get(const Evas_Object *o);
  *
  * @return @c EINA_TRUE on success @c EINA_FALSE otherwise
  */
-EAPI Eina_Bool    ewk_view_custom_encoding_set(Evas_Object *o, const char *encoding);
+EAPI Eina_Bool ewk_view_custom_encoding_set(Evas_Object *o, const char *encoding);
+
+/**
+ * Gets the current user agent string.
+ *
+ * @param o view object to get the current user agent
+ *
+ * @return @c eina_stringshare containing the current user agent, or
+ *         @c default user agent if it's not set
+ */
+EAPI const char *ewk_view_user_agent_get(const Evas_Object *o);
+
+/**
+ * Sets the user agent string.
+ *
+ * @param o view to set the user agent
+ * @param user_agent the user agent string to set or @c NULL to restore the default one
+ *
+ * @return @c EINA_TRUE on success @c EINA_FALSE otherwise
+ */
+EAPI Eina_Bool ewk_view_user_agent_set(Evas_Object *o, const char *encoding);
 
 /**
  * Searches and hightlights the given string in the document.
@@ -821,10 +843,11 @@ EAPI void ewk_view_draws_page_background_set(Evas_Object *o, Eina_Bool enabled);
  * @param o view object to get the page contents
  * @param type type of the page contents
  * @param callback callback function to be called when the operation is finished
+ * @param user_data user data to be passed to the callback function
  *
  * @return @c EINA_TRUE on success or @c EINA_FALSE otherwise
  */
-EAPI Eina_Bool ewk_view_page_contents_get(const Evas_Object *o, Ewk_Page_Contents_Type type, Ewk_Page_Contents_Cb callback);
+EAPI Eina_Bool ewk_view_page_contents_get(const Evas_Object *o, Ewk_Page_Contents_Type type, Ewk_Page_Contents_Cb callback, void *user_data);
 
 /**
  * Sets the source mode as EINA_TRUE to display the web source code

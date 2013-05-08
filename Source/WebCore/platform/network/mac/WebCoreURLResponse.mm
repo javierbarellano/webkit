@@ -294,20 +294,20 @@ void adjustMIMETypeIfNecessary(CFURLResponseRef cfResponse)
         CFURLRef url = wkGetCFURLResponseURL(cfResponse);
         NSURL *nsURL = (NSURL *)url;
         if ([nsURL isFileURL]) {
-            RetainPtr<CFStringRef> extension(AdoptCF, CFURLCopyPathExtension(url));
+            RetainPtr<CFStringRef> extension = adoptCF(CFURLCopyPathExtension(url));
             if (extension) {
                 // <rdar://problem/7007389> CoreTypes UTI map is missing 100+ file extensions that GateKeeper knew about
                 // When this radar is resolved, we can remove this file:// url specific code.
                 static CFDictionaryRef extensionMap = createExtensionToMIMETypeMap();
                 CFMutableStringRef mutableExtension = CFStringCreateMutableCopy(kCFAllocatorDefault, 0, extension.get());
                 CFStringLowercase(mutableExtension, NULL);
-                extension.adoptCF(mutableExtension);
+                extension = adoptCF(mutableExtension);
                 result = (CFStringRef) CFDictionaryGetValue(extensionMap, extension.get());
                 
                 if (!result) {
                     // If the Gatekeeper-based map doesn't have a MIME type, we'll try to figure out what it should be by
                     // looking up the file extension in the UTI maps.
-                    RetainPtr<CFStringRef> uti(AdoptCF, UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, extension.get(), 0));
+                    RetainPtr<CFStringRef> uti = adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, extension.get(), 0));
                     result = mimeTypeFromUTITree(uti.get());
                 }
             }
@@ -318,12 +318,6 @@ void adjustMIMETypeIfNecessary(CFURLResponseRef cfResponse)
         static CFStringRef defaultMIMETypeString = WebCore::defaultMIMEType().createCFString().leakRef();
         result = defaultMIMETypeString;
     }
-
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED == 1050
-    // Workaround for <rdar://problem/5539824>
-    if (CFStringCompare(result.get(), CFSTR("text/xml"), 0) == kCFCompareEqualTo)
-        result = CFSTR("application/xml");
-#endif
 
     if (result != originalResult)
         wkSetCFURLResponseMIMEType(cfResponse, result.get());

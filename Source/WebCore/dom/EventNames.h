@@ -89,6 +89,8 @@ namespace WebCore {
     macro(loadstart) \
     macro(message) \
     macro(mousedown) \
+    macro(mouseenter) \
+    macro(mouseleave) \
     macro(mousemove) \
     macro(mouseout) \
     macro(mouseover) \
@@ -255,9 +257,6 @@ namespace WebCore {
     macro(webkitresourcetimingbufferfull) \
     \
     macro(webkitdeviceproximity) \
-    \
-    macro(autocomplete) \
-    macro(autocompleteerror) \
     \
     macro(webkitprerenderstart) \
     macro(webkitprerenderstop) \

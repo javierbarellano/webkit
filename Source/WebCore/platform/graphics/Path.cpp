@@ -32,12 +32,13 @@
 #include "FloatPoint.h"
 #include "FloatRect.h"
 #include "PathTraversalState.h"
+#include "RoundedRect.h"
 #include <math.h>
 #include <wtf/MathExtras.h>
 
 namespace WebCore {
 
-#if !PLATFORM(OPENVG) && !PLATFORM(QT)
+#if !PLATFORM(QT)
 static void pathLengthApplierFunction(void* info, const PathElement* element)
 {
     PathTraversalState& traversalState = *static_cast<PathTraversalState*>(info);

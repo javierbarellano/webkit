@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,20 +28,13 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "EventListener.h"
-#include "EventTarget.h"
-#include "Timer.h"
-#include <algorithm>
-#include <wtf/PassRefPtr.h>
-#include <wtf/RefCounted.h>
-#include <wtf/Vector.h>
+#include "TrackListBase.h"
 
 namespace WebCore {
 
-class HTMLMediaElement;
 class VideoTrack;
 
-class VideoTrackList : public RefCounted<VideoTrackList>, public EventTarget {
+class VideoTrackList : public TrackListBase {
 public:
     static PassRefPtr<VideoTrackList> create(HTMLMediaElement* owner, ScriptExecutionContext* context)
     {
@@ -49,51 +42,19 @@ public:
     }
     ~VideoTrackList();
 
-    unsigned length() const;
-    unsigned getTrackIndex(VideoTrack*);
-    long selectedIndex();
-    void setSelectedIndex(long index);
+    VideoTrack* getTrackById(const AtomicString&) const;
+    long selectedIndex() const;
 
-    VideoTrack* item(unsigned index);
+    VideoTrack* item(unsigned) const;
+    VideoTrack* lastItem() const { return item(length() - 1); }
     void append(PassRefPtr<VideoTrack>);
-    void remove(VideoTrack*);
-    void clear();
 
     // EventTarget
-    virtual const AtomicString& interfaceName() const;
-    using RefCounted<VideoTrackList>::ref;
-    using RefCounted<VideoTrackList>::deref;
-    virtual ScriptExecutionContext* scriptExecutionContext() const { return m_context; }
-
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
-
-    void clearOwner() { m_owner = 0; }
-    Node* owner() const;
-    
-    bool isFiringEventListeners() { return m_dispatchingEvents; }
+    virtual const AtomicString& interfaceName() const OVERRIDE;
 
 private:
     VideoTrackList(HTMLMediaElement*, ScriptExecutionContext*);
 
-    // EventTarget
-    virtual void refEventTarget() { ref(); }
-    virtual void derefEventTarget() { deref(); }
-    virtual EventTargetData* eventTargetData() { return &m_eventTargetData; }
-    virtual EventTargetData* ensureEventTargetData() { return &m_eventTargetData; }
-
-    void scheduleAddTrackEvent(PassRefPtr<VideoTrack>);
-    void asyncEventTimerFired(Timer<VideoTrackList>*);
-
-    ScriptExecutionContext* m_context;
-    HTMLMediaElement* m_owner;
-
-    Vector<RefPtr<Event> > m_pendingEvents;
-    Timer<VideoTrackList> m_pendingEventTimer;
-
-    EventTargetData m_eventTargetData;
-    Vector<RefPtr<VideoTrack> > m_tracks;
-    
-    int m_dispatchingEvents;
 };
 
 } // namespace WebCore

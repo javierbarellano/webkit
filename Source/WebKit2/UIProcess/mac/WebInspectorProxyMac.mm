@@ -36,6 +36,7 @@
 #import "WebPageProxy.h"
 #import "WebPreferences.h"
 #import "WebProcessProxy.h"
+#import <algorithm>
 #import <mach-o/dyld.h>
 #import <WebKitSystemInterface.h>
 #import <WebCore/InspectorFrontendClientLocal.h>
@@ -144,15 +145,6 @@ static const NSUInteger windowStyleMask = NSTitledWindowMask | NSClosableWindowM
     return WKInspectorViewTag;
 }
 
-- (BOOL)_shouldUseTiledDrawingArea
-{
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
-    return YES;
-#else
-    return NO;
-#endif
-}
-
 @end
 
 @interface NSWindow (AppKitDetails)
@@ -224,6 +216,11 @@ static void setWindowFrame(WKPageRef, WKRect frame, const void* clientInfo)
     webInspectorProxy->setInspectorWindowFrame(frame);
 }
 
+static unsigned long long exceededDatabaseQuota(WKPageRef, WKFrameRef, WKSecurityOriginRef, WKStringRef, WKStringRef, unsigned long long, unsigned long long, unsigned long long currentDatabaseUsage, unsigned long long expectedUsage, const void*)
+{
+    return std::max<unsigned long long>(expectedUsage, currentDatabaseUsage * 1.25);
+}
+
 void WebInspectorProxy::setInspectorWindowFrame(WKRect& frame)
 {
     if (m_isAttached)
@@ -279,15 +276,15 @@ void WebInspectorProxy::createInspectorWindow()
     [window setContentBorderThickness:windowContentBorderThickness forEdge:NSMaxYEdge];
     WKNSWindowMakeBottomCornersSquare(window);
 
-    m_inspectorWindow.adoptNS(window);
+    m_inspectorWindow = adoptNS(window);
 
     NSView *contentView = [window contentView];
 
-    static const int32_t firstVersionOfSafariWithDockToRightSupport = 0x02192400; // 537.36.0
+    static const int32_t firstVersionOfSafariWithDockToRightSupport = 0x02181d0d; // 536.29.13
     static bool supportsDockToRight = NSVersionOfLinkTimeLibrary("Safari") >= firstVersionOfSafariWithDockToRightSupport;
 
-    m_dockBottomButton.adoptNS(createDockButton(@"DockBottom"));
-    m_dockRightButton.adoptNS(createDockButton(@"DockRight"));
+    m_dockBottomButton = adoptNS(createDockButton(@"DockBottom"));
+    m_dockRightButton = adoptNS(createDockButton(@"DockRight"));
 
     m_dockBottomButton.get().target = m_inspectorProxyObjCAdapter.get();
     m_dockBottomButton.get().action = @selector(attachBottom:);
@@ -371,12 +368,12 @@ WebPageProxy* WebInspectorProxy::platformCreateInspectorPage()
             initialRect = [NSWindow contentRectForFrameRect:windowFrame styleMask:windowStyleMask];
     }
 
-    m_inspectorView.adoptNS([[WKWebInspectorWKView alloc] initWithFrame:initialRect contextRef:toAPI(page()->process()->context()) pageGroupRef:toAPI(inspectorPageGroup()) relatedToPage:toAPI(m_page)]);
+    m_inspectorView = adoptNS([[WKWebInspectorWKView alloc] initWithFrame:initialRect contextRef:toAPI(page()->process()->context()) pageGroupRef:toAPI(inspectorPageGroup()) relatedToPage:toAPI(m_page)]);
     ASSERT(m_inspectorView);
 
     [m_inspectorView.get() setDrawsBackground:NO];
 
-    m_inspectorProxyObjCAdapter.adoptNS([[WKWebInspectorProxyObjCAdapter alloc] initWithWebInspectorProxy:this]);
+    m_inspectorProxyObjCAdapter = adoptNS([[WKWebInspectorProxyObjCAdapter alloc] initWithWebInspectorProxy:this]);
 
     WebPageProxy* inspectorPage = toImpl(m_inspectorView.get().pageRef);
 
@@ -410,7 +407,7 @@ WebPageProxy* WebInspectorProxy::platformCreateInspectorPage()
         0, // runBeforeUnloadConfirmPanel
         0, // didDraw
         0, // pageDidScroll
-        0, // exceededDatabaseQuota
+        exceededDatabaseQuota,
         0, // runOpenPanel
         0, // decidePolicyForGeolocationPermissionRequest
         0, // headerHeight
@@ -520,36 +517,39 @@ void WebInspectorProxy::inspectedViewFrameDidChange(CGFloat currentDimension)
 
     WKView *inspectedView = m_page->wkView();
     NSRect inspectedViewFrame = [inspectedView frame];
-    NSRect inspectorFrame = inspectedViewFrame;
+    NSRect inspectorFrame = NSZeroRect;
     NSRect parentBounds = [[inspectedView superview] bounds];
 
     switch (m_attachmentSide) {
         case AttachmentSideBottom: {
             if (!currentDimension)
                 currentDimension = NSHeight([m_inspectorView.get() frame]);
+
             CGFloat parentHeight = NSHeight(parentBounds);
             CGFloat inspectorHeight = InspectorFrontendClientLocal::constrainedAttachedWindowHeight(currentDimension, parentHeight);
-            inspectedViewFrame.origin.y = inspectorHeight;
-            inspectedViewFrame.size.height = parentHeight - inspectorHeight;
-            inspectorFrame.origin.y = 0;
-            inspectorFrame.size.height = inspectorHeight;
+
+            inspectedViewFrame = NSMakeRect(0, inspectorHeight, NSWidth(parentBounds), parentHeight - inspectorHeight);
+            inspectorFrame = NSMakeRect(0, 0, NSWidth(inspectedViewFrame), inspectorHeight);
             break;
         }
 
         case AttachmentSideRight: {
             if (!currentDimension)
                 currentDimension = NSWidth([m_inspectorView.get() frame]);
+
             CGFloat parentWidth = NSWidth(parentBounds);
             CGFloat inspectorWidth = InspectorFrontendClientLocal::constrainedAttachedWindowWidth(currentDimension, parentWidth);
-            inspectedViewFrame.origin.x = 0;
-            inspectedViewFrame.size.width = parentWidth - inspectorWidth;
-            inspectorFrame.origin.x = parentWidth - inspectorWidth;
-            inspectorFrame.size.width = inspectorWidth;
+
+            inspectedViewFrame = NSMakeRect(0, 0, parentWidth - inspectorWidth, NSHeight(parentBounds));
+            inspectorFrame = NSMakeRect(parentWidth - inspectorWidth, 0, inspectorWidth, NSHeight(inspectedViewFrame));
             break;
         }
     }
 
-    [m_inspectorView.get() setFrame:inspectorFrame];
+    // Disable screen updates to make sure the layers for both views resize in sync.
+    [[m_inspectorView window] disableScreenUpdatesUntilFlush];
+
+    [m_inspectorView setFrame:inspectorFrame];
     [inspectedView setFrame:inspectedViewFrame];
 }
 
@@ -610,22 +610,7 @@ void WebInspectorProxy::platformDetach()
     // Make sure that we size the inspected view's frame after detaching so that it takes up the space that the
     // attached inspector used to.
 
-    NSRect inspectedViewFrame = [inspectedView frame];
-    NSRect parentBounds = [[inspectedView superview] bounds];
-
-    switch (m_attachmentSide) {
-    case AttachmentSideBottom:
-        inspectedViewFrame.size.height = NSHeight(parentBounds);
-        inspectedViewFrame.origin.y = 0;
-        break;
-
-    case AttachmentSideRight:
-        inspectedViewFrame.size.width = NSWidth(parentBounds);
-        inspectedViewFrame.origin.x = 0;
-        break;
-    }
-
-    [inspectedView setFrame:inspectedViewFrame];
+    [inspectedView setFrame:[[inspectedView superview] bounds]];
 
     // Return early if we are not visible. This means the inspector was closed while attached
     // and we should not create and show the inspector window.

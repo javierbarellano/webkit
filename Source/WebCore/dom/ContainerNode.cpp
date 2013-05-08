@@ -2,7 +2,7 @@
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2001 Dirk Mueller (mueller@kde.org)
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -28,9 +28,7 @@
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "ContainerNodeAlgorithms.h"
-#if ENABLE(DELETION_UI)
-#include "DeleteButtonController.h"
-#endif
+#include "Editor.h"
 #include "EventNames.h"
 #include "ExceptionCode.h"
 #include "FloatRect.h"
@@ -40,24 +38,25 @@
 #include "InlineTextBox.h"
 #include "InsertionPoint.h"
 #include "InspectorInstrumentation.h"
+#include "JSNode.h"
 #include "LoaderStrategy.h"
 #include "MemoryCache.h"
 #include "MutationEvent.h"
 #include "NodeRenderStyle.h"
 #include "NodeTraversal.h"
-#include "ResourceLoadScheduler.h"
 #include "Page.h"
 #include "PlatformStrategies.h"
 #include "RenderBox.h"
 #include "RenderTheme.h"
 #include "RenderWidget.h"
+#include "ResourceLoadScheduler.h"
 #include "RootInlineBox.h"
 #include "TemplateContentDocumentFragment.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/Vector.h>
 
-#if USE(JSC)
-#include "JSNode.h"
+#if ENABLE(DELETION_UI)
+#include "DeleteButtonController.h"
 #endif
 
 using namespace std;
@@ -464,7 +463,7 @@ static void willRemoveChildren(ContainerNode* container)
     container->document()->nodeChildrenWillBeRemoved(container);
 
     ChildListMutationScope mutation(container);
-    for (NodeVector::const_iterator it = children.begin(); it != children.end(); it++) {
+    for (NodeVector::const_iterator it = children.begin(); it != children.end(); ++it) {
         Node* child = it->get();
         mutation.willRemoveChild(child);
         child->notifyMutationObserversNodeWillDetach();
@@ -608,39 +607,15 @@ void ContainerNode::removeChildren()
     // and remove... e.g. stop loading frames, fire unload events.
     willRemoveChildren(protect.get());
 
-    Vector<RefPtr<Node>, 10> removedChildren;
+    NodeVector removedChildren;
     {
         WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
         {
             NoEventDispatchAssertion assertNoEventDispatch;
             removedChildren.reserveInitialCapacity(childNodeCount());
             while (RefPtr<Node> n = m_firstChild) {
-                Node* next = n->nextSibling();
-
-                // Remove the node from the tree before calling detach or removedFromDocument (4427024, 4129744).
-                // removeChild() does this after calling detach(). There is no explanation for
-                // this discrepancy between removeChild() and its optimized version removeChildren().
-                n->setPreviousSibling(0);
-                n->setNextSibling(0);
-                n->setParentOrShadowHostNode(0);
-                document()->adoptIfNeeded(n.get());
-
-                m_firstChild = next;
-                if (n == m_lastChild)
-                    m_lastChild = 0;
-                removedChildren.append(n.release());
-            }
-
-            // Detach the nodes only after properly removed from the tree because
-            // a. detaching requires a proper DOM tree (for counters and quotes for
-            // example) and during the previous loop the next sibling still points to
-            // the node being removed while the node being removed does not point back
-            // and does not point to the same parent as its next sibling.
-            // b. destroying Renderers of standalone nodes is sometimes faster.
-            for (size_t i = 0; i < removedChildren.size(); ++i) {
-                Node* removedChild = removedChildren[i].get();
-                if (removedChild->attached())
-                    removedChild->detach();
+                removedChildren.append(m_firstChild);
+                removeBetween(0, m_firstChild->nextSibling(), m_firstChild);
             }
         }
 
@@ -841,21 +816,36 @@ void ContainerNode::childrenChanged(bool changedByParser, Node*, Node*, int chil
     invalidateNodeListCachesInAncestors();
 }
 
+inline static void cloneChildNodesAvoidingDeleteButton(ContainerNode* parent, ContainerNode* clonedParent, HTMLElement* deleteButtonContainerElement)
+{
+    ExceptionCode ec = 0;
+    for (Node* child = parent->firstChild(); child && !ec; child = child->nextSibling()) {
+
+#if ENABLE(DELETION_UI)
+        if (child == deleteButtonContainerElement)
+            continue;
+#else
+        UNUSED_PARAM(deleteButtonContainerElement);
+#endif
+
+        RefPtr<Node> clonedChild = child->cloneNode(false);
+        clonedParent->appendChild(clonedChild, ec);
+
+        if (!ec && child->isContainerNode())
+            cloneChildNodesAvoidingDeleteButton(toContainerNode(child), toContainerNode(clonedChild.get()), deleteButtonContainerElement);
+    }
+}
+
 void ContainerNode::cloneChildNodes(ContainerNode *clone)
 {
 #if ENABLE(DELETION_UI)
     HTMLElement* deleteButtonContainerElement = 0;
     if (Frame* frame = document()->frame())
         deleteButtonContainerElement = frame->editor()->deleteButtonController()->containerElement();
+    cloneChildNodesAvoidingDeleteButton(this, clone, deleteButtonContainerElement);
+#else
+    cloneChildNodesAvoidingDeleteButton(this, clone, 0);
 #endif
-    ExceptionCode ec = 0;
-    for (Node* n = firstChild(); n && !ec; n = n->nextSibling()) {
-#if ENABLE(DELETION_UI)
-        if (n == deleteButtonContainerElement)
-            continue;
-#endif
-        clone->appendChild(n->cloneNode(true), ec);
-    }
 }
 
 bool ContainerNode::getUpperLeftCorner(FloatPoint& point) const
@@ -1081,20 +1071,6 @@ Node *ContainerNode::childNode(unsigned index) const
     return n;
 }
 
-void ContainerNode::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
-    Node::reportMemoryUsage(memoryObjectInfo);
-    info.ignoreMember(m_firstChild);
-    info.ignoreMember(m_lastChild);
-
-    // Report child nodes as direct members to make them look like a tree in the snapshot.
-    NodeVector children;
-    getChildNodes(const_cast<ContainerNode*>(this), children);
-    for (size_t i = 0; i < children.size(); ++i)
-        info.addMember(children[i], "child");
-}
-
 static void dispatchChildInsertionEvents(Node* child)
 {
     if (child->isInShadowTree())
@@ -1124,9 +1100,7 @@ static void dispatchChildRemovalEvents(Node* child)
 
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
 
-#if USE(JSC)
     willCreatePossiblyOrphanedTreeByRemoval(child);
-#endif
     InspectorInstrumentation::willRemoveDOMNode(child->document(), child);
 
     RefPtr<Node> c = child;

@@ -108,9 +108,8 @@ public:
     virtual void notifyDocumentOnLoad(bool) = 0;
 
     virtual void notifyWindowObjectCleared() = 0;
-    virtual BlackBerry::Platform::String invokeClientJavaScriptCallback(const char* const* args, unsigned numArgs) = 0;
 
-    virtual void addMessageToConsole(const unsigned short* message, unsigned messageLength, const unsigned short* source, unsigned sourceLength, unsigned lineNumber) = 0;
+    virtual void addMessageToConsole(const unsigned short* message, unsigned messageLength, const unsigned short* source, unsigned sourceLength, unsigned lineNumber, unsigned columnNumber) = 0;
     virtual int showAlertDialog(AlertType) = 0;
 
     virtual BlackBerry::Platform::String serializePageCacheState() const = 0;
@@ -122,11 +121,6 @@ public:
     virtual bool runBeforeUnloadConfirmPanel(const unsigned short* message, unsigned messageLength, const char* origin, unsigned originLength) = 0;
 
     virtual bool shouldInterruptJavaScript() = 0;
-
-    virtual void javascriptSourceParsed(const unsigned short* url, unsigned urlLength, const unsigned short* script, unsigned scriptLength) = 0;
-    virtual void javascriptParsingFailed(const unsigned short* url, unsigned urlLength, const unsigned short* error, unsigned errorLength, int lineNumber) = 0;
-    virtual void javascriptPaused(const unsigned short* stack, unsigned stackLength) = 0;
-    virtual void javascriptContinued() = 0;
 
     virtual void contentsSizeChanged() = 0;
     virtual void scrollChanged() = 0;
@@ -177,7 +171,7 @@ public:
     virtual void openPopupList(bool multiple, int size, const ScopeArray<BlackBerry::Platform::String>& labels, const bool* enableds, const int* itemType, const bool* selecteds) = 0;
     virtual bool chooseFilenames(bool allowMultiple, const SharedArray<BlackBerry::Platform::String>& acceptTypes, const SharedArray<BlackBerry::Platform::String>& initialFiles, const BlackBerry::Platform::String& capture, SharedArray<BlackBerry::Platform::String>& chosenFiles) = 0;
 
-    virtual WebPage* createWindow(int x, int y, int width, int height, unsigned flags, const BlackBerry::Platform::String& url, const BlackBerry::Platform::String& windowName) = 0;
+    virtual WebPage* createWindow(int x, int y, int width, int height, unsigned flags, const BlackBerry::Platform::String& url, const BlackBerry::Platform::String& windowName, bool userGesture) = 0;
 
     virtual void scheduleCloseWindow() = 0;
 

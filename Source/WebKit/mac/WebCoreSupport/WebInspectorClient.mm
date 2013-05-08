@@ -33,17 +33,21 @@
 #import "WebFrameInternal.h"
 #import "WebFrameView.h"
 #import "WebInspector.h"
-#import "WebInspectorPrivate.h"
 #import "WebInspectorFrontend.h"
+#import "WebInspectorPrivate.h"
 #import "WebLocalizableStringsInternal.h"
 #import "WebNodeHighlighter.h"
-#import "WebUIDelegate.h"
 #import "WebPolicyDelegate.h"
+#import "WebQuotaManager.h"
+#import "WebSecurityOriginPrivate.h"
+#import "WebUIDelegate.h"
 #import "WebViewInternal.h"
+#import <algorithm>
 #import <WebCore/Frame.h>
 #import <WebCore/InspectorController.h>
 #import <WebCore/InspectorFrontendClient.h>
 #import <WebCore/Page.h>
+#import <WebCore/ScriptController.h>
 #import <WebCore/ScriptValue.h>
 #import <WebCore/SoftLinking.h>
 #import <WebKit/DOMExtensions.h>
@@ -122,7 +126,7 @@ using namespace WebCore;
 
 WebInspectorClient::WebInspectorClient(WebView *webView)
     : m_webView(webView)
-    , m_highlighter(AdoptNS, [[WebNodeHighlighter alloc] initWithInspectedWebView:webView])
+    , m_highlighter(adoptNS([[WebNodeHighlighter alloc] initWithInspectedWebView:webView]))
     , m_frontendPage(0)
     , m_frontendClient(0)
 {
@@ -136,13 +140,13 @@ void WebInspectorClient::inspectorDestroyed()
 
 InspectorFrontendChannel* WebInspectorClient::openInspectorFrontend(InspectorController* inspectorController)
 {
-    RetainPtr<WebInspectorWindowController> windowController(AdoptNS, [[WebInspectorWindowController alloc] initWithInspectedWebView:m_webView]);
+    RetainPtr<WebInspectorWindowController> windowController = adoptNS([[WebInspectorWindowController alloc] initWithInspectedWebView:m_webView]);
     [windowController.get() setInspectorClient:this];
 
     m_frontendPage = core([windowController.get() webView]);
     OwnPtr<WebInspectorFrontendClient> frontendClient = adoptPtr(new WebInspectorFrontendClient(m_webView, windowController.get(), inspectorController, m_frontendPage, createFrontendSettings()));
     m_frontendClient = frontendClient.get();
-    RetainPtr<WebInspectorFrontend> webInspectorFrontend(AdoptNS, [[WebInspectorFrontend alloc] initWithFrontendClient:frontendClient.get()]);
+    RetainPtr<WebInspectorFrontend> webInspectorFrontend = adoptNS([[WebInspectorFrontend alloc] initWithFrontendClient:frontendClient.get()]);
     [[m_webView inspector] setFrontend:webInspectorFrontend.get()];
     m_frontendPage->inspectorController()->setInspectorFrontendClient(frontendClient.release());
     return this;
@@ -685,6 +689,12 @@ void WebInspectorFrontendClient::append(const String& url, const String& content
         }
         [resultListener chooseFilenames:filenames];
     }];
+}
+
+- (void)webView:(WebView *)sender frame:(WebFrame *)frame exceededDatabaseQuotaForSecurityOrigin:(WebSecurityOrigin *)origin database:(NSString *)databaseIdentifier
+{
+    id <WebQuotaManager> databaseQuotaManager = origin.databaseQuotaManager;
+    databaseQuotaManager.quota = std::max<unsigned long long>(5 * 1024 * 1024, databaseQuotaManager.usage * 1.25);
 }
 
 // MARK: -

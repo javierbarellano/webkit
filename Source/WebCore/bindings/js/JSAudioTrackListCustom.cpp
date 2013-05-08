@@ -28,30 +28,12 @@
 #if ENABLE(VIDEO_TRACK)
 #include "JSAudioTrackList.h"
 
-#include "HTMLMediaElement.h"
+#include "Element.h"
+#include "JSNodeCustom.h"
 
 using namespace JSC;
 
 namespace WebCore {
-
-bool JSAudioTrackListOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)
-{
-    JSAudioTrackList* jsAudioTrackList = jsCast<JSAudioTrackList*>(handle.get().asCell());
-    AudioTrackList* audioTrackList = static_cast<AudioTrackList*>(jsAudioTrackList->impl());
-
-    // If the list is firing event listeners, its wrapper is reachable because
-    // the wrapper is responsible for marking those event listeners.
-    if (audioTrackList->isFiringEventListeners())
-        return true;
-
-    // If the list has no event listeners and has no custom properties, it is not reachable.
-    if (!audioTrackList->hasEventListeners() && !jsAudioTrackList->hasCustomProperties())
-        return false;
-
-    // It is reachable if the media element parent is reachable.
-    //return visitor.containsOpaqueRoot(root(audioTrackList->owner()));
-    return visitor.containsOpaqueRoot(audioTrackList->owner());
-}
 
 void JSAudioTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
 {
@@ -60,13 +42,12 @@ void JSAudioTrackList::visitChildren(JSCell* cell, SlotVisitor& visitor)
     COMPILE_ASSERT(StructureFlags & OverridesVisitChildren, OverridesVisitChildrenWithoutSettingFlag);
     ASSERT(jsAudioTrackList->structure()->typeInfo().overridesVisitChildren());
     Base::visitChildren(jsAudioTrackList, visitor);
-    
+
     AudioTrackList* audioTrackList = static_cast<AudioTrackList*>(jsAudioTrackList->impl());
-    //visitor.addOpaqueRoot(root(audioTrackList->owner()));
-    visitor.addOpaqueRoot(audioTrackList->owner());
+    visitor.addOpaqueRoot(root(audioTrackList->element()));
     audioTrackList->visitJSEventListeners(visitor);
 }
-    
+
 } // namespace WebCore
 
 #endif

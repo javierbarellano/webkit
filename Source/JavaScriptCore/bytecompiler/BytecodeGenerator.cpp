@@ -46,81 +46,6 @@ using namespace std;
 
 namespace JSC {
 
-/*
-    The layout of a register frame looks like this:
-
-    For
-
-    function f(x, y) {
-        var v1;
-        function g() { }
-        var v2;
-        return (x) * (y);
-    }
-
-    assuming (x) and (y) generated temporaries t1 and t2, you would have
-
-    ------------------------------------
-    |  x |  y |  g | v2 | v1 | t1 | t2 | <-- value held
-    ------------------------------------
-    | -5 | -4 | -3 | -2 | -1 | +0 | +1 | <-- register index
-    ------------------------------------
-    | params->|<-locals      | temps->
-
-    Because temporary registers are allocated in a stack-like fashion, we
-    can reclaim them with a simple popping algorithm. The same goes for labels.
-    (We never reclaim parameter or local registers, because parameters and
-    locals are DontDelete.)
-
-    The register layout before a function call looks like this:
-
-    For
-
-    function f(x, y)
-    {
-    }
-
-    f(1);
-
-    >                        <------------------------------
-    <                        >  reserved: call frame  |  1 | <-- value held
-    >         >snip<         <------------------------------
-    <                        > +0 | +1 | +2 | +3 | +4 | +5 | <-- register index
-    >                        <------------------------------
-    | params->|<-locals      | temps->
-
-    The call instruction fills in the "call frame" registers. It also pads
-    missing arguments at the end of the call:
-
-    >                        <-----------------------------------
-    <                        >  reserved: call frame  |  1 |  ? | <-- value held ("?" stands for "undefined")
-    >         >snip<         <-----------------------------------
-    <                        > +0 | +1 | +2 | +3 | +4 | +5 | +6 | <-- register index
-    >                        <-----------------------------------
-    | params->|<-locals      | temps->
-
-    After filling in missing arguments, the call instruction sets up the new
-    stack frame to overlap the end of the old stack frame:
-
-                             |---------------------------------->                        <
-                             |  reserved: call frame  |  1 |  ? <                        > <-- value held ("?" stands for "undefined")
-                             |---------------------------------->         >snip<         <
-                             | -7 | -6 | -5 | -4 | -3 | -2 | -1 <                        > <-- register index
-                             |---------------------------------->                        <
-                             |                        | params->|<-locals       | temps->
-
-    That way, arguments are "copied" into the callee's stack frame for free.
-
-    If the caller supplies too many arguments, this trick doesn't work. The
-    extra arguments protrude into space reserved for locals and temporaries.
-    In that case, the call instruction makes a real copy of the call frame header,
-    along with just the arguments expected by the callee, leaving the original
-    call frame header and arguments behind. (The call instruction can't just discard
-    extra arguments, because the "arguments" object may access them later.)
-    This copying strategy ensures that all named values will be at the indices
-    expected by the callee.
-*/
-
 void Label::setLocation(unsigned location)
 {
     m_location = location;
@@ -205,8 +130,8 @@ ParserError BytecodeGenerator::generate()
     m_codeBlock->shrinkToFit();
 
     if (m_expressionTooDeep)
-        return ParserError::OutOfMemory;
-    return ParserError::ErrorNone;
+        return ParserError(ParserError::OutOfMemory);
+    return ParserError(ParserError::ErrorNone);
 }
 
 bool BytecodeGenerator::addVar(const Identifier& ident, bool isConstant, RegisterID*& r0)
@@ -230,12 +155,12 @@ void BytecodeGenerator::preserveLastVar()
         m_lastVar = &m_calleeRegisters.last();
 }
 
-BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope*, ProgramNode* programNode, UnlinkedProgramCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
+BytecodeGenerator::BytecodeGenerator(VM& vm, JSScope*, ProgramNode* programNode, UnlinkedProgramCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
     : m_shouldEmitDebugHooks(debuggerMode == DebuggerOn)
     , m_shouldEmitProfileHooks(profilerMode == ProfilerOn)
     , m_symbolTable(0)
     , m_scopeNode(programNode)
-    , m_codeBlock(globalData, codeBlock)
+    , m_codeBlock(vm, codeBlock)
     , m_thisRegister(CallFrame::thisArgumentOffset())
     , m_emptyValueRegister(0)
     , m_globalObjectRegister(0)
@@ -248,7 +173,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope*, Program
     , m_firstLazyFunction(0)
     , m_lastLazyFunction(0)
     , m_staticPropertyAnalyzer(&m_instructions)
-    , m_globalData(&globalData)
+    , m_vm(&vm)
     , m_lastOpcodeID(op_end)
 #ifndef NDEBUG
     , m_lastOpcodePosition(0)
@@ -270,7 +195,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope*, Program
     for (size_t i = 0; i < functionStack.size(); ++i) {
         FunctionBodyNode* function = functionStack[i];
         UnlinkedFunctionExecutable* unlinkedFunction = makeFunction(function);
-        codeBlock->addFunctionDeclaration(*m_globalData, function->ident(), unlinkedFunction);
+        codeBlock->addFunctionDeclaration(*m_vm, function->ident(), unlinkedFunction);
     }
 
     for (size_t i = 0; i < varStack.size(); ++i)
@@ -278,13 +203,13 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope*, Program
 
 }
 
-BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, FunctionBodyNode* functionBody, UnlinkedFunctionCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
+BytecodeGenerator::BytecodeGenerator(VM& vm, JSScope* scope, FunctionBodyNode* functionBody, UnlinkedFunctionCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
     : m_shouldEmitDebugHooks(debuggerMode == DebuggerOn)
     , m_shouldEmitProfileHooks(profilerMode == ProfilerOn)
     , m_symbolTable(codeBlock->symbolTable())
     , m_scopeNode(functionBody)
-    , m_scope(globalData, scope)
-    , m_codeBlock(globalData, codeBlock)
+    , m_scope(vm, scope)
+    , m_codeBlock(vm, codeBlock)
     , m_activationRegister(0)
     , m_emptyValueRegister(0)
     , m_globalObjectRegister(0)
@@ -297,7 +222,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, F
     , m_firstLazyFunction(0)
     , m_lastLazyFunction(0)
     , m_staticPropertyAnalyzer(&m_instructions)
-    , m_globalData(&globalData)
+    , m_vm(&vm)
     , m_lastOpcodeID(op_end)
 #ifndef NDEBUG
     , m_lastOpcodePosition(0)
@@ -351,7 +276,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, F
     bool shouldCaptureAllTheThings = m_shouldEmitDebugHooks || codeBlock->usesEval();
 
     bool capturesAnyArgumentByName = false;
-    Vector<RegisterID*> capturedArguments;
+    Vector<RegisterID*, 0, UnsafeVectorOverflow> capturedArguments;
     if (functionBody->hasCapturedVariables() || shouldCaptureAllTheThings) {
         FunctionParameters& parameters = *functionBody->parameters();
         capturedArguments.resize(parameters.size());
@@ -475,13 +400,13 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, F
     }
 }
 
-BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, EvalNode* evalNode, UnlinkedEvalCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
+BytecodeGenerator::BytecodeGenerator(VM& vm, JSScope* scope, EvalNode* evalNode, UnlinkedEvalCodeBlock* codeBlock, DebuggerMode debuggerMode, ProfilerMode profilerMode)
     : m_shouldEmitDebugHooks(debuggerMode == DebuggerOn)
     , m_shouldEmitProfileHooks(profilerMode == ProfilerOn)
     , m_symbolTable(codeBlock->symbolTable())
     , m_scopeNode(evalNode)
-    , m_scope(globalData, scope)
-    , m_codeBlock(globalData, codeBlock)
+    , m_scope(vm, scope)
+    , m_codeBlock(vm, codeBlock)
     , m_thisRegister(CallFrame::thisArgumentOffset())
     , m_emptyValueRegister(0)
     , m_globalObjectRegister(0)
@@ -494,7 +419,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, E
     , m_firstLazyFunction(0)
     , m_lastLazyFunction(0)
     , m_staticPropertyAnalyzer(&m_instructions)
-    , m_globalData(&globalData)
+    , m_vm(&vm)
     , m_lastOpcodeID(op_end)
 #ifndef NDEBUG
     , m_lastOpcodePosition(0)
@@ -516,7 +441,7 @@ BytecodeGenerator::BytecodeGenerator(JSGlobalData& globalData, JSScope* scope, E
 
     const DeclarationStacks::VarStack& varStack = evalNode->varStack();
     unsigned numVariables = varStack.size();
-    Vector<Identifier> variables;
+    Vector<Identifier, 0, UnsafeVectorOverflow> variables;
     variables.reserveCapacity(numVariables);
     for (size_t i = 0; i < numVariables; ++i)
         variables.append(*varStack[i].first);
@@ -730,9 +655,7 @@ UnlinkedValueProfile BytecodeGenerator::emitProfiledOpcode(OpcodeID opcodeID)
 
 void BytecodeGenerator::emitLoopHint()
 {
-#if ENABLE(DFG_JIT)
     emitOpcode(op_loop_hint);
-#endif
 }
 
 void BytecodeGenerator::retrieveLastBinaryOp(int& dstIndex, int& src1Index, int& src2Index)
@@ -1035,7 +958,7 @@ unsigned BytecodeGenerator::addConstant(const Identifier& ident)
     StringImpl* rep = ident.impl();
     IdentifierMap::AddResult result = m_identifierMap.add(rep, m_codeBlock->numberOfIdentifiers());
     if (result.isNewEntry)
-        m_codeBlock->addIdentifier(Identifier(m_globalData, rep));
+        m_codeBlock->addIdentifier(Identifier(m_vm, rep));
 
     return result.iterator->value;
 }
@@ -1093,34 +1016,18 @@ RegisterID* BytecodeGenerator::emitUnaryOp(OpcodeID opcodeID, RegisterID* dst, R
     return dst;
 }
 
-RegisterID* BytecodeGenerator::emitPreInc(RegisterID* srcDst)
+RegisterID* BytecodeGenerator::emitInc(RegisterID* srcDst)
 {
-    emitOpcode(op_pre_inc);
+    emitOpcode(op_inc);
     instructions().append(srcDst->index());
     return srcDst;
 }
 
-RegisterID* BytecodeGenerator::emitPreDec(RegisterID* srcDst)
+RegisterID* BytecodeGenerator::emitDec(RegisterID* srcDst)
 {
-    emitOpcode(op_pre_dec);
+    emitOpcode(op_dec);
     instructions().append(srcDst->index());
     return srcDst;
-}
-
-RegisterID* BytecodeGenerator::emitPostInc(RegisterID* dst, RegisterID* srcDst)
-{
-    emitOpcode(op_post_inc);
-    instructions().append(dst->index());
-    instructions().append(srcDst->index());
-    return dst;
-}
-
-RegisterID* BytecodeGenerator::emitPostDec(RegisterID* dst, RegisterID* srcDst)
-{
-    emitOpcode(op_post_dec);
-    instructions().append(dst->index());
-    instructions().append(srcDst->index());
-    return dst;
 }
 
 RegisterID* BytecodeGenerator::emitBinaryOp(OpcodeID opcodeID, RegisterID* dst, RegisterID* src1, RegisterID* src2, OperandTypes types)
@@ -1224,7 +1131,7 @@ RegisterID* BytecodeGenerator::emitLoad(RegisterID* dst, const Identifier& ident
 {
     JSString*& stringInMap = m_stringMap.add(identifier.impl(), 0).iterator->value;
     if (!stringInMap)
-        stringInMap = jsOwnedString(globalData(), identifier.string());
+        stringInMap = jsOwnedString(vm(), identifier.string());
     return emitLoad(dst, JSValue(stringInMap));
 }
 
@@ -1280,7 +1187,7 @@ ResolveResult BytecodeGenerator::resolve(const Identifier& property)
     unsigned flags = 0;
     for (; iter != end; ++iter, ++depth) {
         JSObject* currentScope = iter.get();
-        if (!currentScope->isVariableObject())
+        if (!currentScope->isStaticScopeObject())
             return ResolveResult::dynamicResolve();
 
         JSSymbolTableObject* currentVariableObject = jsCast<JSSymbolTableObject*>(currentScope);
@@ -1558,7 +1465,7 @@ RegisterID* BytecodeGenerator::emitDirectPutById(RegisterID* base, const Identif
     instructions().append(0);
     instructions().append(0);
     instructions().append(
-        property != m_globalData->propertyNames->underscoreProto
+        property != m_vm->propertyNames->underscoreProto
         && PropertyName(property).asIndex() == PropertyName::NotAnIndex);
     return value;
 }
@@ -1691,7 +1598,7 @@ JSString* BytecodeGenerator::addStringConstant(const Identifier& identifier)
 {
     JSString*& stringInMap = m_stringMap.add(identifier.impl(), 0).iterator->value;
     if (!stringInMap) {
-        stringInMap = jsString(globalData(), identifier.string());
+        stringInMap = jsString(vm(), identifier.string());
         addConstantValue(stringInMap);
     }
     return stringInMap;
@@ -1705,7 +1612,7 @@ RegisterID* BytecodeGenerator::emitNewArray(RegisterID* dst, ElementNode* elemen
     bool hadVariableExpression = false;
     if (length) {
         for (ElementNode* n = elements; n; n = n->next()) {
-            if (!n->value()->isNumber() && !n->value()->isString()) {
+            if (!n->value()->isConstant()) {
                 hadVariableExpression = true;
                 break;
             }
@@ -1721,12 +1628,8 @@ RegisterID* BytecodeGenerator::emitNewArray(RegisterID* dst, ElementNode* elemen
             JSValue* constantBuffer = m_codeBlock->constantBuffer(constantBufferIndex).data();
             unsigned index = 0;
             for (ElementNode* n = elements; index < length; n = n->next()) {
-                if (n->value()->isNumber())
-                    constantBuffer[index++] = jsNumber(static_cast<NumberNode*>(n->value())->value());
-                else {
-                    ASSERT(n->value()->isString());
-                    constantBuffer[index++] = addStringConstant(static_cast<StringNode*>(n->value())->value());
-                }
+                ASSERT(n->value()->isConstant());
+                constantBuffer[index++] = static_cast<ConstantNode*>(n->value())->jsValue(*this);
             }
             emitOpcode(op_new_array_buffer);
             instructions().append(dst->index());
@@ -1737,7 +1640,7 @@ RegisterID* BytecodeGenerator::emitNewArray(RegisterID* dst, ElementNode* elemen
         }
     }
 
-    Vector<RefPtr<RegisterID>, 16> argv;
+    Vector<RefPtr<RegisterID>, 16, UnsafeVectorOverflow> argv;
     for (ElementNode* n = elements; n; n = n->next()) {
         if (n->elision())
             break;
@@ -1837,9 +1740,9 @@ RegisterID* BytecodeGenerator::emitCallEval(RegisterID* dst, RegisterID* func, C
 
 ExpectedFunction BytecodeGenerator::expectedFunctionForIdentifier(const Identifier& identifier)
 {
-    if (identifier == m_globalData->propertyNames->Object)
+    if (identifier == m_vm->propertyNames->Object)
         return ExpectObjectConstructor;
-    if (identifier == m_globalData->propertyNames->Array)
+    if (identifier == m_vm->propertyNames->Array)
         return ExpectArrayConstructor;
     return NoExpectedFunction;
 }
@@ -1924,7 +1827,7 @@ RegisterID* BytecodeGenerator::emitCall(OpcodeID opcodeID, RegisterID* dst, Regi
         emitNode(callArguments.argumentRegister(argument++), n);
 
     // Reserve space for call frame.
-    Vector<RefPtr<RegisterID>, JSStack::CallFrameHeaderSize> callFrame;
+    Vector<RefPtr<RegisterID>, JSStack::CallFrameHeaderSize, UnsafeVectorOverflow> callFrame;
     for (int i = 0; i < JSStack::CallFrameHeaderSize; ++i)
         callFrame.append(newTemporary());
 
@@ -2047,7 +1950,7 @@ RegisterID* BytecodeGenerator::emitConstruct(RegisterID* dst, RegisterID* func, 
     }
 
     // Reserve space for call frame.
-    Vector<RefPtr<RegisterID>, JSStack::CallFrameHeaderSize> callFrame;
+    Vector<RefPtr<RegisterID>, JSStack::CallFrameHeaderSize, UnsafeVectorOverflow> callFrame;
     for (int i = 0; i < JSStack::CallFrameHeaderSize; ++i)
         callFrame.append(newTemporary());
 
@@ -2130,6 +2033,7 @@ void BytecodeGenerator::emitDebugHook(DebugHookID debugHookID, int firstLine, in
     if (!m_shouldEmitDebugHooks)
         return;
 #endif
+    emitExpressionInfo(charPosition, 0, 0);
     emitOpcode(op_debug);
     instructions().append(debugHookID);
     instructions().append(firstLine);
@@ -2441,7 +2345,7 @@ RegisterID* BytecodeGenerator::popTryAndEmitCatch(TryData* tryData, RegisterID* 
 void BytecodeGenerator::emitThrowReferenceError(const String& message)
 {
     emitOpcode(op_throw_static_error);
-    instructions().append(addConstantValue(jsString(globalData(), message))->index());
+    instructions().append(addConstantValue(addStringConstant(Identifier(m_vm, message)))->index());
     instructions().append(true);
 }
 
@@ -2599,7 +2503,7 @@ void BytecodeGenerator::emitReadOnlyExceptionIfNeeded()
     if (!isStrictMode())
         return;
     emitOpcode(op_throw_static_error);
-    instructions().append(addConstantValue(jsString(globalData(), StrictModeReadonlyPropertyWriteError))->index());
+    instructions().append(addConstantValue(addStringConstant(Identifier(m_vm, StrictModeReadonlyPropertyWriteError)))->index());
     instructions().append(false);
 }
 

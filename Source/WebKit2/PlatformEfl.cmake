@@ -27,6 +27,14 @@ list(APPEND WebKit2_SOURCES
     Shared/efl/ProcessExecutablePathEfl.cpp
     Shared/efl/WebEventFactory.cpp
 
+    Shared/linux/SeccompFilters/OpenSyscall.cpp
+    Shared/linux/SeccompFilters/SigactionSyscall.cpp
+    Shared/linux/SeccompFilters/SigprocmaskSyscall.cpp
+    Shared/linux/SeccompFilters/SeccompBroker.cpp
+    Shared/linux/SeccompFilters/SeccompFilters.cpp
+    Shared/linux/SeccompFilters/Syscall.cpp
+    Shared/linux/SeccompFilters/SyscallPolicy.cpp
+
     Shared/linux/WebMemorySamplerLinux.cpp
 
     Shared/soup/PlatformCertificateInfo.cpp
@@ -38,10 +46,12 @@ list(APPEND WebKit2_SOURCES
 
     UIProcess/API/C/cairo/WKIconDatabaseCairo.cpp
 
+    UIProcess/API/C/CoordinatedGraphics/WKView.cpp
+
     UIProcess/API/C/efl/WKPageEfl.cpp
     UIProcess/API/C/efl/WKPopupItem.cpp
     UIProcess/API/C/efl/WKPopupMenuListener.cpp
-    UIProcess/API/C/efl/WKView.cpp
+    UIProcess/API/C/efl/WKViewEfl.cpp
 
     UIProcess/API/cpp/efl/WKEinaSharedString.cpp
 
@@ -86,6 +96,9 @@ list(APPEND WebKit2_SOURCES
 
     UIProcess/cairo/BackingStoreCairo.cpp
 
+    UIProcess/CoordinatedGraphics/WebView.cpp
+    UIProcess/CoordinatedGraphics/WebViewClient.cpp
+
     UIProcess/efl/BatteryProvider.cpp
     UIProcess/efl/ContextHistoryClientEfl.cpp
     UIProcess/efl/ContextMenuClientEfl.cpp
@@ -99,9 +112,11 @@ list(APPEND WebKit2_SOURCES
     UIProcess/efl/PageUIClientEfl.cpp
     UIProcess/efl/PageViewportControllerClientEfl.cpp
     UIProcess/efl/RequestManagerClientEfl.cpp
+    UIProcess/efl/TextCheckerClientEfl.cpp
     UIProcess/efl/TextCheckerEfl.cpp
     UIProcess/efl/VibrationClientEfl.cpp
     UIProcess/efl/ViewClientEfl.cpp
+    UIProcess/efl/WebViewEfl.cpp
     UIProcess/efl/WebContextEfl.cpp
     UIProcess/efl/WebContextMenuProxyEfl.cpp
     UIProcess/efl/WebFullScreenManagerProxyEfl.cpp
@@ -112,8 +127,6 @@ list(APPEND WebKit2_SOURCES
     UIProcess/efl/WebPreferencesEfl.cpp
     UIProcess/efl/WebProcessProxyEfl.cpp
     UIProcess/efl/WebUIPopupMenuClient.cpp
-    UIProcess/efl/WebView.cpp
-    UIProcess/efl/WebViewClient.cpp
 
     UIProcess/InspectorServer/efl/WebInspectorServerEfl.cpp
     UIProcess/InspectorServer/soup/WebSocketServerSoup.cpp
@@ -149,6 +162,7 @@ list(APPEND WebKit2_SOURCES
     WebProcess/WebPage/efl/WebInspectorEfl.cpp
     WebProcess/WebPage/efl/WebPageEfl.cpp
 
+    WebProcess/efl/SeccompFiltersWebProcessEfl.cpp
     WebProcess/efl/WebProcessMainEfl.cpp
 
     WebProcess/soup/WebProcessSoup.cpp
@@ -174,6 +188,7 @@ list(APPEND WebKit2_INCLUDE_DIRECTORIES
     "${WEBKIT2_DIR}/Shared/efl"
     "${WEBKIT2_DIR}/Shared/soup"
     "${WEBKIT2_DIR}/UIProcess/API/C/cairo"
+    "${WEBKIT2_DIR}/UIProcess/API/C/CoordinatedGraphics"
     "${WEBKIT2_DIR}/UIProcess/API/C/efl"
     "${WEBKIT2_DIR}/UIProcess/API/C/soup"
     "${WEBKIT2_DIR}/UIProcess/API/cpp/efl"
@@ -255,6 +270,21 @@ list(APPEND WebProcess_LIBRARIES
     ${SQLITE_LIBRARIES}
 )
 
+if (ENABLE_SECCOMP_FILTERS)
+    list(APPEND WebKit2_LIBRARIES
+        ${LIBSECCOMP_LIBRARIES}
+    )
+    list(APPEND WebKit2_INCLUDE_DIRECTORIES
+        ${LIBSECCOMP_INCLUDE_DIRS}
+    )
+
+    # If building with jhbuild, add the root build directory to the
+    # filesystem access policy.
+    if (IS_DIRECTORY ${CMAKE_SOURCE_DIR}/WebKitBuild/Dependencies)
+        add_definitions(-DSOURCE_DIR=\"${CMAKE_SOURCE_DIR}\")
+    endif ()
+endif ()
+
 if (ENABLE_ECORE_X)
     list(APPEND WebProcess_LIBRARIES
         ${ECORE_X_LIBRARIES}
@@ -263,6 +293,7 @@ endif ()
 
 add_custom_target(forwarding-headerEfl
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include efl
+    COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include CoordinatedGraphics
 )
 set(ForwardingHeaders_NAME forwarding-headerEfl)
 
@@ -359,7 +390,6 @@ set(TEST_INJECTED_BUNDLE_DIR ${WEBKIT2_EFL_TEST_DIR}/InjectedBundle)
 
 add_definitions(-DTEST_RESOURCES_DIR=\"${TEST_RESOURCES_DIR}\"
     -DTEST_LIB_DIR=\"${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\"
-    -DTEST_THEME_DIR=\"${THEME_BINARY_DIR}\"
     -DGTEST_LINKED_AS_SHARED_LIBRARY=1
     -DLIBEXECDIR=\"${CMAKE_INSTALL_PREFIX}/${EXEC_INSTALL_DIR}\"
     -DWEBPROCESSNAME=\"${WebProcess_EXECUTABLE_NAME}\"

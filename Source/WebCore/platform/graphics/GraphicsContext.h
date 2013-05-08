@@ -46,42 +46,9 @@ namespace WebCore {
 class PlatformContextCairo;
 }
 typedef WebCore::PlatformContextCairo PlatformGraphicsContext;
-#elif PLATFORM(OPENVG)
-namespace WebCore {
-class SurfaceOpenVG;
-}
-typedef class WebCore::SurfaceOpenVG PlatformGraphicsContext;
 #elif PLATFORM(QT)
 #include <QPainter>
-namespace WebCore {
-class ShadowBlur;
-}
 typedef QPainter PlatformGraphicsContext;
-#elif PLATFORM(WX)
-class wxGCDC;
-class wxWindowDC;
-
-// wxGraphicsContext allows us to support Path, etc.
-// but on some platforms, e.g. Linux, it requires fairly
-// new software.
-#if USE(WXGC)
-// On OS X, wxGCDC is just a typedef for wxDC, so use wxDC explicitly to make
-// the linker happy.
-#ifdef __APPLE__
-    class wxDC;
-    typedef wxDC PlatformGraphicsContext;
-#else
-    typedef wxGCDC PlatformGraphicsContext;
-#endif
-#else
-    typedef wxWindowDC PlatformGraphicsContext;
-#endif
-#elif USE(SKIA)
-namespace WebCore {
-class PlatformContextSkia;
-typedef PlatformContextSkia GraphicsContextPlatformPrivate;
-}
-typedef WebCore::PlatformContextSkia PlatformGraphicsContext;
 #elif OS(WINCE)
 typedef struct HDC__ PlatformGraphicsContext;
 #else
@@ -116,9 +83,7 @@ namespace WebCore {
     class AffineTransform;
     class DrawingBuffer;
     class Generator;
-#if !USE(SKIA)
     class GraphicsContextPlatformPrivate;
-#endif
     class ImageBuffer;
     class IntRect;
     class RoundedRect;
@@ -273,7 +238,7 @@ namespace WebCore {
         void applyFillPattern();
         void drawPath(const Path&);
 
-        void drawNativeImage(NativeImagePtr, const FloatSize& selfSize, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect, CompositeOperator = CompositeSourceOver, BlendMode = BlendModeNormal, ImageOrientation = DefaultImageOrientation);
+        void drawNativeImage(PassNativeImagePtr, const FloatSize& selfSize, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatRect& srcRect, CompositeOperator = CompositeSourceOver, BlendMode = BlendModeNormal, ImageOrientation = DefaultImageOrientation);
 
         // Allow font smoothing (LCD antialiasing). Not part of the graphics state.
         void setAllowsFontSmoothing(bool);
@@ -303,15 +268,12 @@ namespace WebCore {
         void fillEllipse(const FloatRect&);
         void strokeEllipse(const FloatRect&);
 
-        // Arc drawing (used by border-radius in CSS) just supports stroking at the moment.
-        void strokeArc(const IntRect&, int startAngle, int angleSpan);
-
         void fillRect(const FloatRect&);
         void fillRect(const FloatRect&, const Color&, ColorSpace);
         void fillRect(const FloatRect&, Generator&);
-        void fillRect(const FloatRect&, const Color&, ColorSpace, CompositeOperator);
+        void fillRect(const FloatRect&, const Color&, ColorSpace, CompositeOperator, BlendMode = BlendModeNormal);
         void fillRoundedRect(const IntRect&, const IntSize& topLeft, const IntSize& topRight, const IntSize& bottomLeft, const IntSize& bottomRight, const Color&, ColorSpace);
-        void fillRoundedRect(const RoundedRect&, const Color&, ColorSpace);
+        void fillRoundedRect(const RoundedRect&, const Color&, ColorSpace, BlendMode = BlendModeNormal);
         void fillRectWithRoundedHole(const IntRect&, const RoundedRect& roundedHoleRect, const Color&, ColorSpace);
 
         void clearRect(const FloatRect&);
@@ -393,6 +355,11 @@ namespace WebCore {
 
         bool getShadow(FloatSize&, float&, Color&, ColorSpace&) const;
         void clearShadow();
+
+        bool hasBlurredShadow() const;
+#if PLATFORM(QT) || USE(CAIRO)
+        bool mustUseShadowBlur() const;
+#endif
 
         void drawFocusRing(const Vector<IntRect>&, int width, int offset, const Color&);
         void drawFocusRing(const Path&, int width, int offset, const Color&);
@@ -506,19 +473,9 @@ namespace WebCore {
 #endif // PLATFORM(WIN)
 #endif // OS(WINDOWS)
 
-#if PLATFORM(WX)
-        // This is needed because of a bug whereby getting an HDC from a GDI+ context
-        // loses the scale operations applied to the context.
-        FloatSize currentScale(); 
-#endif
-
 #if PLATFORM(QT)
         void pushTransparencyLayerInternal(const QRect&, qreal, QPixmap&);
         void takeOwnershipOfPlatformContext();
-#endif
-
-#if PLATFORM(QT)
-        ShadowBlur* shadowBlur();
 #endif
 
 #if USE(CAIRO)

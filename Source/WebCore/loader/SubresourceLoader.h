@@ -45,15 +45,14 @@ class SubresourceLoader : public ResourceLoader {
 public:
     static PassRefPtr<SubresourceLoader> create(Frame*, CachedResource*, const ResourceRequest&, const ResourceLoaderOptions&);
 
+    virtual ~SubresourceLoader();
+
     void cancelIfNotFinishing();
     virtual bool isSubresourceLoader();
     CachedResource* cachedResource();
 
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
-
 private:
     SubresourceLoader(Frame*, CachedResource*, const ResourceLoaderOptions&);
-    virtual ~SubresourceLoader();
 
     virtual bool init(const ResourceRequest&) OVERRIDE;
 
@@ -62,7 +61,6 @@ private:
     virtual void didReceiveResponse(const ResourceResponse&) OVERRIDE;
     virtual void didReceiveData(const char*, int, long long encodedDataLength, DataPayloadType) OVERRIDE;
     virtual void didReceiveBuffer(PassRefPtr<SharedBuffer>, long long encodedDataLength, DataPayloadType) OVERRIDE;
-    virtual void didReceiveCachedMetadata(const char*, int) OVERRIDE;
     virtual void didFinishLoading(double finishTime) OVERRIDE;
     virtual void didFail(const ResourceError&) OVERRIDE;
     virtual void willCancel(const ResourceError&) OVERRIDE;
@@ -71,9 +69,6 @@ private:
 #if USE(NETWORK_CFDATA_ARRAY_CALLBACK)
     virtual bool supportsDataArray() OVERRIDE { return true; }
     virtual void didReceiveDataArray(CFArrayRef) OVERRIDE;
-#endif
-#if PLATFORM(CHROMIUM)
-    virtual void didDownloadData(int) OVERRIDE;
 #endif
     virtual void releaseResources() OVERRIDE;
 

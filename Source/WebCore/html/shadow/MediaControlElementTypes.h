@@ -84,11 +84,6 @@ inline HTMLMediaElement* toParentMediaElement(RenderObject* renderer) { return t
 
 MediaControlElementType mediaControlElementType(Node*);
 
-#if ENABLE(VIDEO_TRACK)
-const AtomicString& trackIndexAttributeName();
-int trackListIndexForElement(Element*);
-#endif
-
 // ----------------------------
 
 class MediaControlElement {
@@ -139,14 +134,14 @@ private:
 
 class MediaControlTimeDisplayElement : public MediaControlDivElement {
 public:
-    void setCurrentValue(float);
-    float currentValue() const { return m_currentValue; }
+    void setCurrentValue(double);
+    double currentValue() const { return m_currentValue; }
 
 protected:
     explicit MediaControlTimeDisplayElement(Document*, MediaControlElementType);
 
 private:
-    float m_currentValue;
+    double m_currentValue;
 };
 
 // ----------------------------
@@ -183,7 +178,7 @@ private:
 
     void startTimer();
     void stopTimer();
-    float nextRate() const;
+    double nextRate() const;
     void seekTimerFired(Timer<MediaControlSeekButtonElement>*);
 
     enum ActionType { Nothing, Play, Pause };
@@ -199,7 +194,7 @@ class MediaControlVolumeSliderElement : public MediaControlInputElement {
 public:
     virtual bool willRespondToMouseMoveEvents() OVERRIDE;
     virtual bool willRespondToMouseClickEvents() OVERRIDE;
-    void setVolume(float);
+    void setVolume(double);
     void setClearMutedOnUserInteraction(bool);
 
 protected:

@@ -20,10 +20,9 @@
 
 [
     CustomToJSObject,
-    JSCustomIsReachable,
+    CustomIsReachable,
     JSCustomFinalize,
     ObjCPolymorphic,
-    V8DependentLifetime,
     ImplementationLacksVTable
 ] interface CSSValue {
 

@@ -131,6 +131,7 @@ namespace WebKit {
 class DrawingArea;
 class InjectedBundleBackForwardList;
 class NotificationPermissionRequestManager;
+class PageBanner;
 class PageOverlay;
 class PluginView;
 class SessionState;
@@ -288,7 +289,7 @@ public:
     PassRefPtr<WebCore::Range> currentSelectionAsRange();
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
-    PassRefPtr<Plugin> createPlugin(WebFrame*, WebCore::HTMLPlugInElement*, const Plugin::Parameters&);
+    PassRefPtr<Plugin> createPlugin(WebFrame*, WebCore::HTMLPlugInElement*, const Plugin::Parameters&, String& newMIMEType);
 #endif
 
     EditorState editorState() const;
@@ -361,6 +362,7 @@ public:
     bool windowIsVisible() const { return m_windowIsVisible; }
     void updatePluginsActiveAndFocusedState();
     const WebCore::FloatRect& windowFrameInScreenCoordinates() const { return m_windowFrameInScreenCoordinates; }
+    const WebCore::FloatRect& windowFrameInUnflippedScreenCoordinates() const { return m_windowFrameInUnflippedScreenCoordinates; }
     const WebCore::FloatRect& viewFrameInWindowCoordinates() const { return m_viewFrameInWindowCoordinates; }
 
     bool hasCachedWindowFrame() const { return m_hasCachedWindowFrame; }
@@ -372,6 +374,8 @@ public:
     void setHeaderLayerWithHeight(CALayer *, int);
     CALayer *getFooterLayer() const;
     void setFooterLayerWithHeight(CALayer *, int);
+
+    void updateHeaderAndFooterLayersForDeviceScaleChange(float scaleFactor);
 #endif
 
     bool windowIsFocused() const;
@@ -380,7 +384,13 @@ public:
     void uninstallPageOverlay(PageOverlay*, bool shouldFadeOut = false);
     bool hasPageOverlay() const { return m_pageOverlays.size(); }
     PageOverlayList& pageOverlays() { return m_pageOverlays; }
-    
+
+    void setHeaderPageBanner(PassRefPtr<PageBanner>);
+    PageBanner* headerPageBanner();
+    void setFooterPageBanner(PassRefPtr<PageBanner>);
+    PageBanner* footerPageBanner();
+
+
     WebCore::IntPoint screenToWindow(const WebCore::IntPoint&);
     WebCore::IntRect windowToScreen(const WebCore::IntRect&);
 
@@ -408,6 +418,7 @@ public:
 
 #if ENABLE(CONTEXT_MENUS)
     WebContextMenu* contextMenu();
+    WebContextMenu* contextMenuAtPointInWindow(const WebCore::IntPoint&);
 #endif
     
     bool hasLocalDataForURL(const WebCore::KURL&);
@@ -622,10 +633,6 @@ public:
     void setPDFPluginEnabled(bool enabled) { m_pdfPluginEnabled = enabled; }
 #endif
 
-#if PLATFORM(MAC)
-    static HashSet<String, CaseFoldingHash> pdfAndPostScriptMIMETypes();
-#endif
-
     void savePDFToFileInDownloadsFolder(const String& suggestedFilename, const String& originatingURLString, const uint8_t* data, unsigned long size);
 #if PLATFORM(MAC)
     void savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, const String& originatingURLString, const uint8_t* data, unsigned long size, const String& pdfUUID);
@@ -644,6 +651,7 @@ public:
 
 #if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
     void determinePrimarySnapshottedPlugIn();
+    void determinePrimarySnapshottedPlugInTimerFired();
     void resetPrimarySnapshottedPlugIn();
     bool matchesPrimaryPlugIn(const String& pageOrigin, const String& pluginOrigin, const String& mimeType) const;
 #endif
@@ -754,7 +762,7 @@ private:
     void performDictionaryLookupForRange(DictionaryPopupInfo::Type, WebCore::Frame*, WebCore::Range*, NSDictionary *options);
 
     void setWindowIsVisible(bool windowIsVisible);
-    void windowAndViewFramesChanged(const WebCore::FloatRect& windowFrameInScreenCoordinates, const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
+    void windowAndViewFramesChanged(const WebCore::FloatRect& windowFrameInScreenCoordinates, const WebCore::FloatRect& windowFrameInUnflippedScreenCoordinates, const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
 
     RetainPtr<PDFDocument> pdfDocumentForPrintingFrame(WebCore::Frame*);
     void computePagesForPrintingPDFDocument(uint64_t frameID, const PrintInfo&, Vector<WebCore::IntRect>& resultPageRects);
@@ -815,6 +823,7 @@ private:
 
     void changeSelectedIndex(int32_t index);
     void setCanStartMediaTimerFired();
+    void didUpdateInWindowStateTimerFired();
 
     bool canHandleUserEvents() const;
 
@@ -869,6 +878,7 @@ private:
     String m_primaryPlugInPageOrigin;
     String m_primaryPlugInOrigin;
     String m_primaryPlugInMimeType;
+    WebCore::RunLoop::Timer<WebPage> m_determinePrimarySnapshottedPlugInTimer;
 #endif
 
 #if PLATFORM(MAC)
@@ -881,6 +891,9 @@ private:
 
     // The frame of the containing window in screen coordinates.
     WebCore::FloatRect m_windowFrameInScreenCoordinates;
+
+    // The frame of the containing window in unflipped screen coordinates.
+    WebCore::FloatRect m_windowFrameInUnflippedScreenCoordinates;
 
     // The frame of the view in window coordinates.
     WebCore::FloatRect m_viewFrameInWindowCoordinates;
@@ -906,8 +919,12 @@ private:
     uint64_t m_nativeWindowHandle;
 #endif
 #endif
-    
+
+    RefPtr<PageBanner> m_headerBanner;
+    RefPtr<PageBanner> m_footerBanner;
+
     WebCore::RunLoop::Timer<WebPage> m_setCanStartMediaTimer;
+    WebCore::RunLoop::Timer<WebPage> m_sendDidUpdateInWindowStateTimer;
     bool m_mayStartMediaWhenInWindow;
 
     HashMap<uint64_t, RefPtr<WebUndoStep> > m_undoStepMap;

@@ -388,11 +388,14 @@ bool SecurityOrigin::canAccessStorage(const SecurityOrigin* topOrigin) const
     if (isUnique())
         return false;
 
+    if (m_storageBlockingPolicy == BlockAllStorage)
+        return false;
+
     // FIXME: This check should be replaced with an ASSERT once we can guarantee that topOrigin is not null.
     if (!topOrigin)
         return true;
 
-    if (m_storageBlockingPolicy == BlockAllStorage || topOrigin->m_storageBlockingPolicy == BlockAllStorage)
+    if (topOrigin->m_storageBlockingPolicy == BlockAllStorage)
         return false;
 
     if ((m_storageBlockingPolicy == BlockThirdPartyStorage || topOrigin->m_storageBlockingPolicy == BlockThirdPartyStorage) && topOrigin->isThirdParty(this))
@@ -529,7 +532,7 @@ PassRefPtr<SecurityOrigin> SecurityOrigin::createFromDatabaseIdentifier(const St
     String host = databaseIdentifier.substring(separator1 + 1, separator2 - separator1 - 1);
     
     host = decodeURLEscapeSequences(host);
-    return create(KURL(ParsedURLString, protocol + "://" + host + ":" + String::number(port) + "/"));
+    return create(KURL(KURL(), protocol + "://" + host + ":" + String::number(port) + "/"));
 }
 
 PassRefPtr<SecurityOrigin> SecurityOrigin::create(const String& protocol, const String& host, int port)
@@ -537,7 +540,7 @@ PassRefPtr<SecurityOrigin> SecurityOrigin::create(const String& protocol, const 
     if (port < 0 || port > MaxAllowedPort)
         createUnique();
     String decodedHost = decodeURLEscapeSequences(host);
-    return create(KURL(ParsedURLString, protocol + "://" + host + ":" + String::number(port) + "/"));
+    return create(KURL(KURL(), protocol + "://" + host + ":" + String::number(port) + "/"));
 }
 
 String SecurityOrigin::databaseIdentifier() const 

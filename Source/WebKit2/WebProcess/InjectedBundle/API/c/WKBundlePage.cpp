@@ -29,6 +29,7 @@
 
 #include "InjectedBundleBackForwardList.h"
 #include "InjectedBundleNodeHandle.h"
+#include "PageBanner.h"
 #include "WKAPICast.h"
 #include "WKArray.h"
 #include "WKBundleAPICast.h"
@@ -51,6 +52,7 @@
 #include <WebCore/Frame.h>
 #include <WebCore/KURL.h>
 #include <WebCore/Page.h>
+#include <wtf/OwnArrayPtr.h>
 #include <wtf/UnusedParam.h>
 
 using namespace WebKit;
@@ -158,6 +160,27 @@ WKArrayRef WKBundlePageCopyContextMenuItemTitles(WKBundlePageRef pageRef)
         itemNames[i] = WKStringCreateWithUTF8CString(items[i].title().utf8().data());
 
     return WKArrayCreateAdoptingValues(itemNames.get(), arrayLength);
+#else
+    return 0;
+#endif
+}
+
+WKArrayRef WKBundlePageCopyContextMenuAtPointInWindow(WKBundlePageRef pageRef, WKPoint point)
+{
+#if ENABLE(CONTEXT_MENUS)
+    WebContextMenu* contextMenu = toImpl(pageRef)->contextMenuAtPointInWindow(toIntPoint(point));
+    if (!contextMenu)
+        return 0;
+
+    const Vector<WebContextMenuItemData>& items = contextMenu->items();
+    size_t arrayLength = items.size();
+
+    RefPtr<MutableArray> menuArray = MutableArray::create();
+    menuArray->reserveCapacity(arrayLength);
+    for (unsigned i = 0; i < arrayLength; ++i)
+        menuArray->append(WebContextMenuItem::create(items[i]).get());
+    
+    return toAPI(menuArray.release().leakRef());
 #else
     return 0;
 #endif
@@ -303,24 +326,34 @@ void WKBundlePageUninstallPageOverlayWithAnimation(WKBundlePageRef pageRef, WKBu
     toImpl(pageRef)->uninstallPageOverlay(toImpl(pageOverlayRef), true);
 }
 
-void WKBundlePageSetTopOverhangImage(WKBundlePageRef page, WKImageRef image)
+void WKBundlePageSetTopOverhangImage(WKBundlePageRef pageRef, WKImageRef imageRef)
 {
 #if PLATFORM(MAC)
-    toImpl(page)->setTopOverhangImage(toImpl(image));
+    toImpl(pageRef)->setTopOverhangImage(toImpl(imageRef));
 #else
-    UNUSED_PARAM(page);
-    UNUSED_PARAM(image);
+    UNUSED_PARAM(pageRef);
+    UNUSED_PARAM(imageRef);
 #endif
 }
 
-void WKBundlePageSetBottomOverhangImage(WKBundlePageRef page, WKImageRef image)
+void WKBundlePageSetBottomOverhangImage(WKBundlePageRef pageRef, WKImageRef imageRef)
 {
 #if PLATFORM(MAC)
-    toImpl(page)->setBottomOverhangImage(toImpl(image));
+    toImpl(pageRef)->setBottomOverhangImage(toImpl(imageRef));
 #else
-    UNUSED_PARAM(page);
-    UNUSED_PARAM(image);
+    UNUSED_PARAM(pageRef);
+    UNUSED_PARAM(imageRef);
 #endif
+}
+
+void WKBundlePageSetHeaderBanner(WKBundlePageRef pageRef, WKBundlePageBannerRef bannerRef)
+{
+    toImpl(pageRef)->setHeaderPageBanner(toImpl(bannerRef));
+}
+
+void WKBundlePageSetFooterBanner(WKBundlePageRef pageRef, WKBundlePageBannerRef bannerRef)
+{
+    toImpl(pageRef)->setFooterPageBanner(toImpl(bannerRef));
 }
 
 bool WKBundlePageHasLocalDataForURL(WKBundlePageRef pageRef, WKURLRef urlRef)

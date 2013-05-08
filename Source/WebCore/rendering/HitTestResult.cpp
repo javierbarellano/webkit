@@ -24,6 +24,7 @@
 
 #include "CachedImage.h"
 #include "DocumentMarkerController.h"
+#include "Editor.h"
 #include "Frame.h"
 #include "FrameSelection.h"
 #include "FrameTree.h"
@@ -510,6 +511,11 @@ bool HitTestResult::isLiveLink() const
 #endif
 
     return false;
+}
+
+bool HitTestResult::isOverLink() const
+{
+    return m_innerURLElement && m_innerURLElement->isLink();
 }
 
 String HitTestResult::titleDisplayString() const

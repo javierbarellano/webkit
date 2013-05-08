@@ -1,5 +1,6 @@
 add_custom_target(forwarding-headersEflForTestWebKitAPI
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include efl
+    COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include CoordinatedGraphics
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${TESTWEBKITAPI_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include efl
 )
 set(ForwardingHeadersForTestWebKitAPI_NAME forwarding-headersEflForTestWebKitAPI)
@@ -11,6 +12,7 @@ add_custom_target(forwarding-headersSoupForTestWebKitAPI
 set(ForwardingNetworkHeadersForTestWebKitAPI_NAME forwarding-headersSoupForTestWebKitAPI)
 
 include_directories(
+    ${WEBKIT2_DIR}/UIProcess/API/C/CoordinatedGraphics
     ${WEBKIT2_DIR}/UIProcess/API/C/soup
     ${WEBKIT2_DIR}/UIProcess/API/C/efl
     ${WEBKIT2_DIR}/UIProcess/API/efl
@@ -50,6 +52,11 @@ set(test_webcore_BINARIES
     KURL
 )
 
+# In here we list the bundles that are used by our specific WK2 API Tests
+list(APPEND bundle_harness_SOURCES
+    ${TESTWEBKITAPI_DIR}/Tests/WebKit2/efl/WKViewClientWebProcessCallbacks_Bundle.cpp
+)
+
 set(test_webkit2_api_BINARIES
     AboutBlankLoad
     CookieManager
@@ -68,6 +75,7 @@ set(test_webkit2_api_BINARIES
     InjectedBundleInitializationUserDataCallbackWins
     LoadAlternateHTMLStringWithNonDirectoryURL
     LoadCanceledNoServerRedirectCallback
+    LoadPageOnCrash
     MouseMoveAfterCrash
     ReloadPageAfterCrash
     ResizeWindowAfterCrash
@@ -79,7 +87,6 @@ set(test_webkit2_api_BINARIES
     ParentFrame
     PreventEmptyUserAgent
     PrivateBrowsingPushStateNoHistoryCallback
-    ShouldGoToBackForwardListItem
     UserMessage
     WKConnection
     WKPreferences
@@ -90,16 +97,24 @@ set(test_webkit2_api_BINARIES
     efl/WKViewClientWebProcessCallbacks
 )
 
+# Seccomp filters is an internal API and its symbols
+# are not (and should not) be exposed by default. We
+# can only test it when building shared core.
+if (ENABLE_SECCOMP_FILTERS AND SHARED_CORE)
+    list(APPEND test_webkit2_api_BINARIES
+        SeccompFilters
+    )
+endif ()
+
 set(test_webkit2_api_fail_BINARIES
     CanHandleRequest
     DOMWindowExtensionBasic
     DownloadDecideDestinationCrash
     NewFirstVisuallyNonEmptyLayoutFrames
     RestoreSessionStateContainingFormData
+    ShouldGoToBackForwardListItem
     WKPageGetScaleFactorNotZero
 )
-
-add_definitions(-DTHEME_DIR="${THEME_BINARY_DIR}")
 
 # Tests disabled because of missing features on the test harness:
 #

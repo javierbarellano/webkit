@@ -23,26 +23,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-    interface [
-        Conditional=VIDEO_TRACK,
-        V8EnabledAtRuntime=webkitVideoTrack,
-        EventTarget,
-        JSCustomMarkFunction,
-        JSCustomIsReachable
-    ] VideoTrack {
-		readonly attribute DOMString id;
-		readonly attribute DOMString kind;
-		readonly attribute DOMString label;
-		readonly attribute DOMString language;
-		attribute boolean selected;
-		
-        // EventTarget interface
-        void addEventListener(in DOMString type, 
-                              in EventListener listener, 
-                              in [Optional] boolean useCapture);
-        void removeEventListener(in DOMString type, 
-                                 in EventListener listener, 
-                                 in [Optional] boolean useCapture);
-        boolean dispatchEvent(in Event evt)
-            raises(EventException);
-	};
+[
+    Conditional=VIDEO_TRACK,
+    GenerateIsReachable=ImplElementRoot,
+    JSCustomMarkFunction
+] interface VideoTrack {
+    readonly attribute DOMString id;
+    readonly attribute DOMString kind;
+    readonly attribute DOMString label;
+    readonly attribute DOMString language;
+
+    attribute boolean selected;
+};

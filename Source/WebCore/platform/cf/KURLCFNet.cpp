@@ -49,13 +49,7 @@ KURL::KURL(CFURLRef url)
     char* bytes = &buffer[0];
     CFURLGetBytes(url, reinterpret_cast<UInt8*>(bytes), bytesLength);
     bytes[bytesLength] = '\0';
-#if !USE(WTFURL)
     parse(bytes);
-#else
-    // FIXME: Add WTFURL Implementation.
-    UNUSED_PARAM(url);
-    invalidate();
-#endif // USE(WTFURL)
 }
 
 CFURLRef createCFURLFromBuffer(const CharBuffer& buffer)
@@ -73,24 +67,19 @@ CFURLRef createCFURLFromBuffer(const CharBuffer& buffer)
 #if !PLATFORM(MAC) && !(PLATFORM(QT) && USE(QTKIT))
 CFURLRef KURL::createCFURL() const
 {
-#if !USE(WTFURL)
     // FIXME: What should this return for invalid URLs?
     // Currently it throws away the high bytes of the characters in the string in that case,
     // which is clearly wrong.
     CharBuffer buffer;
     copyToBuffer(buffer);
     return createCFURLFromBuffer(buffer);
-#else // USE(WTFURL)
-    // FIXME: Add WTFURL Implementation.
-    return 0;
-#endif
 }
 #endif
 
-#if !USE(WTFURL) && !(PLATFORM(QT) && USE(QTKIT))
+#if !(PLATFORM(QT) && USE(QTKIT))
 String KURL::fileSystemPath() const
 {
-    RetainPtr<CFURLRef> cfURL(AdoptCF, createCFURL());
+    RetainPtr<CFURLRef> cfURL = adoptCF(createCFURL());
     if (!cfURL)
         return String();
 
@@ -99,7 +88,7 @@ String KURL::fileSystemPath() const
 #else
     CFURLPathStyle pathStyle = kCFURLPOSIXPathStyle;
 #endif
-    return RetainPtr<CFStringRef>(AdoptCF, CFURLCopyFileSystemPath(cfURL.get(), pathStyle)).get();
+    return adoptCF(CFURLCopyFileSystemPath(cfURL.get(), pathStyle)).get();
 }
 #endif
 

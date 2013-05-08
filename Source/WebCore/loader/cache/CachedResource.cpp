@@ -25,7 +25,6 @@
 #include "CachedResource.h"
 
 #include "MemoryCache.h"
-#include "CachedMetadata.h"
 #include "CachedResourceClient.h"
 #include "CachedResourceClientWalker.h"
 #include "CachedResourceHandle.h"
@@ -47,24 +46,12 @@
 #include "SecurityOrigin.h"
 #include "SecurityPolicy.h"
 #include "SubresourceLoader.h"
-#include "WebCoreMemoryInstrumentation.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/MathExtras.h>
-#include <wtf/MemoryInstrumentationHashCountedSet.h>
-#include <wtf/MemoryInstrumentationHashSet.h>
-#include <wtf/MemoryObjectInfo.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/CString.h>
 #include <wtf/Vector.h>
-
-namespace WTF {
-
-template<> struct SequenceMemoryInstrumentationTraits<WebCore::CachedResourceClient*> {
-    template <typename I> static void reportMemoryUsage(I, I, MemoryClassInfo&) { }
-};
-
-}
 
 using namespace WTF;
 
@@ -152,7 +139,7 @@ static ResourceLoadPriority defaultPriorityForResourceType(CachedResource::Type 
     return ResourceLoadPriorityLow;
 }
 
-#if PLATFORM(CHROMIUM) || PLATFORM(BLACKBERRY)
+#if PLATFORM(BLACKBERRY)
 static ResourceRequest::TargetType cachedResourceTypeToTargetType(CachedResource::Type type)
 {
     switch (type) {
@@ -311,7 +298,7 @@ void CachedResource::load(CachedResourceLoader* cachedResourceLoader, const Reso
     m_options = options;
     m_loading = true;
 
-#if PLATFORM(CHROMIUM) || PLATFORM(BLACKBERRY)
+#if PLATFORM(BLACKBERRY)
     if (m_resourceRequest.targetType() == ResourceRequest::TargetIsUnspecified)
         m_resourceRequest.setTargetType(cachedResourceTypeToTargetType(type()));
 #endif
@@ -459,34 +446,6 @@ void CachedResource::responseReceived(const ResourceResponse& response)
     String encoding = response.textEncodingName();
     if (!encoding.isNull())
         setEncoding(encoding);
-}
-
-void CachedResource::setSerializedCachedMetadata(const char* data, size_t size)
-{
-    // We only expect to receive cached metadata from the platform once.
-    // If this triggers, it indicates an efficiency problem which is most
-    // likely unexpected in code designed to improve performance.
-    ASSERT(!m_cachedMetadata);
-
-    m_cachedMetadata = CachedMetadata::deserialize(data, size);
-}
-
-void CachedResource::setCachedMetadata(unsigned dataTypeID, const char* data, size_t size)
-{
-    // Currently, only one type of cached metadata per resource is supported.
-    // If the need arises for multiple types of metadata per resource this could
-    // be enhanced to store types of metadata in a map.
-    ASSERT(!m_cachedMetadata);
-
-    m_cachedMetadata = CachedMetadata::create(dataTypeID, data, size);
-    ResourceHandle::cacheMetadata(m_response, m_cachedMetadata->serialize());
-}
-
-CachedMetadata* CachedResource::cachedMetadata(unsigned dataTypeID) const
-{
-    if (!m_cachedMetadata || m_cachedMetadata->dataTypeID() != dataTypeID)
-        return 0;
-    return m_cachedMetadata.get();
 }
 
 void CachedResource::stopLoading()
@@ -941,38 +900,13 @@ void CachedResource::CachedResourceCallback::timerFired(Timer<CachedResourceCall
     m_resource->didAddClient(m_client);
 }
 
-void CachedResource::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::CachedResource);
-    memoryObjectInfo->setName(url().string().utf8().data());
-    info.addMember(m_resourceRequest, "resourceRequest");
-    info.addMember(m_fragmentIdentifierForRequest, "fragmentIdentifierForRequest");
-    info.addMember(m_clients, "clients");
-    info.addMember(m_accept, "accept");
-    info.addMember(m_loader, "loader");
-    info.addMember(m_response, "response");
-    info.addMember(m_data, "data");
-    info.addMember(m_cachedMetadata, "cachedMetadata");
-    info.addMember(m_nextInAllResourcesList, "nextInAllResourcesList");
-    info.addMember(m_prevInAllResourcesList, "prevInAllResourcesList");
-    info.addMember(m_nextInLiveResourcesList, "nextInLiveResourcesList");
-    info.addMember(m_prevInLiveResourcesList, "prevInLiveResourcesList");
-    info.addMember(m_owningCachedResourceLoader, "owningCachedResourceLoader");
-    info.addMember(m_resourceToRevalidate, "resourceToRevalidate");
-    info.addMember(m_proxyResource, "proxyResource");
-    info.addMember(m_handlesToRevalidate, "handlesToRevalidate");
-    info.addMember(m_options, "options");
-    info.addMember(m_decodedDataDeletionTimer, "decodedDataDeletionTimer");
-    info.ignoreMember(m_clientsAwaitingCallback);
-
-    if (m_purgeableData && !m_purgeableData->wasPurged())
-        info.addRawBuffer(m_purgeableData.get(), m_purgeableData->size(), "PurgeableData", "purgeableData");
-}
-
 #if PLATFORM(MAC)
 void CachedResource::tryReplaceEncodedData(PassRefPtr<SharedBuffer> newBuffer)
 {
     if (!m_data)
+        return;
+    
+    if (!mayTryReplaceEncodedData())
         return;
     
     // Because the disk cache is asynchronous and racey with regards to the data we might be asked to replace,

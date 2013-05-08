@@ -32,10 +32,12 @@
 
 #include "Font.h"
 #include "FontCache.h"
-#include "OpenTypeVerticalData.h"
-
 #include <wtf/MathExtras.h>
 #include <wtf/UnusedParam.h>
+
+#if ENABLE(OPENTYPE_VERTICAL)
+#include "OpenTypeVerticalData.h"
+#endif
 
 using namespace std;
 
@@ -269,7 +271,7 @@ SimpleFontData::DerivedFontData::~DerivedFontData()
             SimpleFontData** fonts = stash.data();
             CFDictionaryGetKeysAndValues(dictionary, 0, (const void **)fonts);
             while (count-- > 0 && *fonts) {
-                OwnPtr<SimpleFontData> afont = adoptPtr(*fonts++);
+                RefPtr<SimpleFontData> afont = adoptRef(*fonts++);
                 GlyphPageTreeNode::pruneTreeCustomFontData(afont.get());
             }
         }

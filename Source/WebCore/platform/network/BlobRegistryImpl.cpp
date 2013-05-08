@@ -49,7 +49,6 @@ BlobRegistryImpl::~BlobRegistryImpl()
 {
 }
 
-#if !PLATFORM(CHROMIUM)
 static PassRefPtr<ResourceHandle> createResourceHandle(const ResourceRequest& request, ResourceHandleClient* client)
 {
     return static_cast<BlobRegistryImpl&>(blobRegistry()).createResourceHandle(request, client);
@@ -70,13 +69,6 @@ static void registerBlobResourceHandleConstructor()
         didRegister = true;
     }
 }
-
-#else
-
-static void registerBlobResourceHandleConstructor()
-{
-}
-#endif
 
 PassRefPtr<ResourceHandle> BlobRegistryImpl::createResourceHandle(const ResourceRequest& request, ResourceHandleClient* client)
 {
@@ -194,7 +186,7 @@ void BlobRegistryImpl::unregisterBlobURL(const KURL& url)
 BlobStorageData* BlobRegistryImpl::getBlobDataFromURL(const KURL& url) const
 {
     ASSERT(isMainThread());
-    return m_blobs.get(url.string()).get();
+    return m_blobs.get(url.string());
 }
 
 } // namespace WebCore

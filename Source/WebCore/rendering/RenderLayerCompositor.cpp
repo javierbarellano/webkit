@@ -59,8 +59,6 @@
 #include "Settings.h"
 #include "TiledBacking.h"
 #include "TransformState.h"
-#include "WebCoreMemoryInstrumentation.h"
-#include <wtf/MemoryInstrumentationHashMap.h>
 #include <wtf/TemporaryChange.h>
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -84,9 +82,11 @@ bool WebCoreHas3DRendering = true;
 #define WTF_USE_COMPOSITING_FOR_SMALL_CANVASES 1
 #endif
 
-static const int canvasAreaThresholdRequiringCompositing = 50 * 100;
-
 namespace WebCore {
+
+static const int canvasAreaThresholdRequiringCompositing = 50 * 100;
+// During page loading delay layer flushes up to this many seconds to allow them coalesce, reducing workload.
+static const double throttledLayerFlushDelay = .5;
 
 using namespace HTMLNames;
 
@@ -139,7 +139,7 @@ public:
 
     void popCompositingContainer()
     {
-        m_overlapStack[m_overlapStack.size() - 2].append(m_overlapStack.last());
+        m_overlapStack[m_overlapStack.size() - 2].appendVector(m_overlapStack.last());
         m_overlapStack.removeLast();
     }
 
@@ -153,7 +153,7 @@ private:
 };
 
 struct CompositingState {
-    CompositingState(RenderLayer* compAncestor, bool testOverlap)
+    CompositingState(RenderLayer* compAncestor, bool testOverlap = true)
         : m_compositingAncestor(compAncestor)
         , m_subtreeIsCompositing(false)
         , m_testingOverlap(testOverlap)
@@ -200,7 +200,6 @@ RenderLayerCompositor::RenderLayerCompositor(RenderView* renderView)
     , m_showDebugBorders(false)
     , m_showRepaintCounter(false)
     , m_acceleratedDrawingEnabled(false)
-    , m_compositingConsultsOverlap(true)
     , m_reevaluateCompositingAfterLayout(false)
     , m_compositing(false)
     , m_compositingLayersNeedRebuild(false)
@@ -211,6 +210,11 @@ RenderLayerCompositor::RenderLayerCompositor(RenderView* renderView)
     , m_isTrackingRepaints(false)
     , m_layersWithTiledBackingCount(0)
     , m_rootLayerAttachment(RootLayerUnattached)
+    , m_layerFlushTimer(this, &RenderLayerCompositor::layerFlushTimerFired)
+    , m_layerFlushThrottlingEnabled(false)
+    , m_layerFlushThrottlingTemporarilyDisabledForInteraction(false)
+    , m_hasPendingLayerFlush(false)
+    , m_paintRelatedMilestonesTimer(this, &RenderLayerCompositor::paintRelatedMilestonesTimerFired)
 #if !LOG_DISABLED
     , m_rootLayerUpdateCount(0)
     , m_obligateCompositedLayerCount(0)
@@ -317,10 +321,25 @@ void RenderLayerCompositor::customPositionForVisibleRectComputation(const Graphi
     position = -scrollPosition;
 }
 
-void RenderLayerCompositor::scheduleLayerFlush()
+void RenderLayerCompositor::notifyFlushRequired(const GraphicsLayer* layer)
 {
+    scheduleLayerFlush(layer->canThrottleLayerFlush());
+}
+
+void RenderLayerCompositor::scheduleLayerFlushNow()
+{
+    m_hasPendingLayerFlush = false;
     if (Page* page = this->page())
         page->chrome()->client()->scheduleCompositingLayerFlush();
+}
+
+void RenderLayerCompositor::scheduleLayerFlush(bool canThrottle)
+{
+    if (canThrottle && isThrottlingLayerFlushes()) {
+        m_hasPendingLayerFlush = true;
+        return;
+    }
+    scheduleLayerFlushNow();
 }
 
 void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
@@ -342,8 +361,8 @@ void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
     ASSERT(!m_flushingLayers);
     m_flushingLayers = true;
 
+    FrameView* frameView = m_renderView ? m_renderView->frameView() : 0;
     if (GraphicsLayer* rootLayer = rootGraphicsLayer()) {
-        FrameView* frameView = m_renderView ? m_renderView->frameView() : 0;
         if (frameView) {
             // Having a m_clipLayer indicates that we're doing scrolling via GraphicsLayers.
             IntRect visibleRect = m_clipLayer ? IntRect(IntPoint(), frameView->contentsSize()) : frameView->visibleContentRect();
@@ -354,6 +373,9 @@ void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
     ASSERT(m_flushingLayers);
     m_flushingLayers = false;
 
+    if (!m_paintRelatedMilestonesTimer.isActive())
+        m_paintRelatedMilestonesTimer.startOneShot(0);
+
     if (!m_viewportConstrainedLayersNeedingUpdate.isEmpty()) {
         HashSet<RenderLayer*>::const_iterator end = m_viewportConstrainedLayersNeedingUpdate.end();
         for (HashSet<RenderLayer*>::const_iterator it = m_viewportConstrainedLayersNeedingUpdate.begin(); it != end; ++it)
@@ -361,6 +383,7 @@ void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
         
         m_viewportConstrainedLayersNeedingUpdate.clear();
     }
+    startLayerFlushTimerIfNeeded();
 }
 
 void RenderLayerCompositor::didFlushChangesForLayer(RenderLayer* layer, const GraphicsLayer* graphicsLayer)
@@ -384,8 +407,9 @@ void RenderLayerCompositor::didChangeVisibleRect()
         return;
 
     IntRect visibleRect = m_clipLayer ? IntRect(IntPoint(), frameView->contentsSize()) : frameView->visibleContentRect();
-    if (rootLayer->visibleRectChangeRequiresFlush(visibleRect))
-        scheduleLayerFlush();
+    if (!rootLayer->visibleRectChangeRequiresFlush(visibleRect))
+        return;
+    scheduleLayerFlushNow();
 }
 
 void RenderLayerCompositor::notifyFlushBeforeDisplayRefresh(const GraphicsLayer*)
@@ -478,8 +502,7 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
         checkForHierarchyUpdate = true;
         break;
     case CompositingUpdateOnScroll:
-        if (m_compositingConsultsOverlap)
-            checkForHierarchyUpdate = true; // Overlap can change with scrolling, so need to check for hierarchy updates.
+        checkForHierarchyUpdate = true; // Overlap can change with scrolling, so need to check for hierarchy updates.
 
         needGeometryUpdate = true;
         break;
@@ -493,11 +516,10 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
 
     bool needHierarchyUpdate = m_compositingLayersNeedRebuild;
     bool isFullUpdate = !updateRoot;
-    if (!updateRoot || m_compositingConsultsOverlap) {
-        // Only clear the flag if we're updating the entire hierarchy.
-        m_compositingLayersNeedRebuild = false;
-        updateRoot = rootRenderLayer();
-    }
+
+    // Only clear the flag if we're updating the entire hierarchy.
+    m_compositingLayersNeedRebuild = false;
+    updateRoot = rootRenderLayer();
 
     if (isFullUpdate && updateType == CompositingUpdateAfterLayout)
         m_reevaluateCompositingAfterLayout = false;
@@ -513,15 +535,11 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
     if (checkForHierarchyUpdate) {
         // Go through the layers in presentation order, so that we can compute which RenderLayers need compositing layers.
         // FIXME: we could maybe do this and the hierarchy udpate in one pass, but the parenting logic would be more complex.
-        CompositingState compState(updateRoot, m_compositingConsultsOverlap);
+        CompositingState compState(updateRoot);
         bool layersChanged = false;
         bool saw3DTransform = false;
-        if (m_compositingConsultsOverlap) {
-            OverlapMap overlapTestRequestMap;
-            computeCompositingRequirements(0, updateRoot, &overlapTestRequestMap, compState, layersChanged, saw3DTransform);
-        } else
-            computeCompositingRequirements(0, updateRoot, 0, compState, layersChanged, saw3DTransform);
-        
+        OverlapMap overlapTestRequestMap;
+        computeCompositingRequirements(0, updateRoot, &overlapTestRequestMap, compState, layersChanged, saw3DTransform);
         needHierarchyUpdate |= layersChanged;
     }
 
@@ -534,8 +552,7 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
 
         Frame* frame = m_renderView->frameView()->frame();
         bool isMainFrame = !m_renderView->document()->ownerElement();
-        LOG(Compositing, "\nUpdate %d of %s. Overlap testing is %s\n", m_rootLayerUpdateCount, isMainFrame ? "main frame" : frame->tree()->uniqueName().string().utf8().data(),
-            m_compositingConsultsOverlap ? "on" : "off");
+        LOG(Compositing, "\nUpdate %d of %s.\n", m_rootLayerUpdateCount, isMainFrame ? "main frame" : frame->tree()->uniqueName().string().utf8().data());
     }
 #endif
 
@@ -602,8 +619,9 @@ void RenderLayerCompositor::logLayerInfo(const RenderLayer* layer, int depth)
         m_secondaryBackingStoreBytes += backing->backingStoreMemoryEstimate();
     }
 
-    LOG(Compositing, "%*p %dx%d %.2fKB (%s) %s\n", 12 + depth * 2, layer, backing->compositedBounds().width(), backing->compositedBounds().height(),
+    LOG(Compositing, "%*p %dx%d %.2fKB %s(%s) %s\n", 12 + depth * 2, layer, backing->compositedBounds().width(), backing->compositedBounds().height(),
         backing->backingStoreMemoryEstimate() / 1024,
+        backing->graphicsLayer()->contentsOpaque() ? "opaque " : "",
         logReasonsForCompositing(layer), layer->name().utf8().data());
 }
 #endif
@@ -760,14 +778,7 @@ IntRect RenderLayerCompositor::calculateCompositedBounds(const RenderLayer* laye
 {
     if (!canBeComposited(layer))
         return IntRect();
-
-    RenderLayer::CalculateLayerBoundsFlags flags = RenderLayer::DefaultCalculateLayerBoundsFlags | RenderLayer::ExcludeHiddenDescendants | RenderLayer::DontConstrainForMask;
-#if ENABLE(CSS_FILTERS) && HAVE(COMPOSITOR_FILTER_OUTSETS)
-    // If the compositor computes its own filter outsets, don't include them in the composited bounds.
-    if (!layer->paintsWithFilters())
-        flags &= ~RenderLayer::IncludeLayerFilterOutsets;
-#endif
-    return layer->calculateLayerBounds(ancestorLayer, 0, flags);
+    return layer->calculateLayerBounds(ancestorLayer, 0, RenderLayer::DefaultCalculateLayerBoundsFlags | RenderLayer::ExcludeHiddenDescendants | RenderLayer::DontConstrainForMask);
 }
 
 void RenderLayerCompositor::layerWasAdded(RenderLayer* /*parent*/, RenderLayer* /*child*/)
@@ -1240,6 +1251,12 @@ void RenderLayerCompositor::frameViewDidChangeSize()
     }
 }
 
+bool RenderLayerCompositor::hasCoordinatedScrolling() const
+{
+    ScrollingCoordinator* scrollingCoordinator = this->scrollingCoordinator();
+    return scrollingCoordinator && scrollingCoordinator->coordinatesScrollingForFrameView(m_renderView->frameView());
+}
+
 void RenderLayerCompositor::frameViewDidScroll()
 {
     FrameView* frameView = m_renderView->frameView();
@@ -1250,11 +1267,12 @@ void RenderLayerCompositor::frameViewDidScroll()
 
     // If there's a scrolling coordinator that manages scrolling for this frame view,
     // it will also manage updating the scroll layer position.
-    if (ScrollingCoordinator* scrollingCoordinator = this->scrollingCoordinator()) {
-        if (scrollingCoordinator->coordinatesScrollingForFrameView(frameView))
-            return;
-        if (Settings* settings = m_renderView->document()->settings()) {
-            if (settings->compositedScrollingForFramesEnabled())
+    if (hasCoordinatedScrolling())
+        return;
+
+    if (Settings* settings = m_renderView->document()->settings()) {
+        if (settings->compositedScrollingForFramesEnabled()) {
+            if (ScrollingCoordinator* scrollingCoordinator = this->scrollingCoordinator())
                 scrollingCoordinator->scrollableAreaScrollLayerDidChange(frameView);
         }
     }
@@ -2082,7 +2100,8 @@ bool RenderLayerCompositor::requiresCompositingForAnimation(RenderObject* render
         return false;
 
     if (AnimationController* animController = renderer->animation()) {
-        return (animController->isRunningAnimationOnRenderer(renderer, CSSPropertyOpacity) && inCompositingMode())
+        return (animController->isRunningAnimationOnRenderer(renderer, CSSPropertyOpacity)
+                && (inCompositingMode() || (m_compositingTriggers & ChromeClient::AnimatedOpacityTrigger)))
 #if ENABLE(CSS_FILTERS)
 #if !PLATFORM(MAC) || (!PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080)
             // <rdar://problem/10907251> - WebKit2 doesn't support CA animations of CI filters on Lion and below
@@ -2170,7 +2189,7 @@ bool RenderLayerCompositor::requiresCompositingForPosition(RenderObject* rendere
     }
 
     if (isSticky)
-        return true;
+        return hasCoordinatedScrolling();
 
     RenderObject* container = renderer->container();
     // If the renderer is not hooked up yet then we have to wait until it is.
@@ -2278,11 +2297,6 @@ void RenderLayerCompositor::paintContents(const GraphicsLayer* graphicsLayer, Gr
         transformedClip.moveBy(scrollCorner.location());
         m_renderView->frameView()->paintScrollCorner(&context, transformedClip);
         context.restore();
-#if PLATFORM(CHROMIUM) && ENABLE(RUBBER_BANDING)
-    } else if (graphicsLayer == layerForOverhangAreas()) {
-        ScrollView* view = m_renderView->frameView();
-        view->calculateAndPaintOverhangAreas(&context, clip);
-#endif
     }
 }
 
@@ -2369,40 +2383,38 @@ bool RenderLayerCompositor::keepLayersPixelAligned() const
     return true;
 }
 
-static bool shouldCompositeOverflowControls(FrameView* view)
+bool RenderLayerCompositor::shouldCompositeOverflowControls() const
 {
+    FrameView* view = m_renderView->frameView();
+
     if (view->platformWidget())
         return false;
 
-    if (Page* page = view->frame()->page()) {
-        if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
-            if (scrollingCoordinator->coordinatesScrollingForFrameView(view))
-                return true;
-    }
+    if (hasCoordinatedScrolling())
+        return true;
 
-#if !PLATFORM(CHROMIUM)
     if (!view->hasOverlayScrollbars())
         return false;
-#endif
+
     return true;
 }
 
 bool RenderLayerCompositor::requiresHorizontalScrollbarLayer() const
 {
     FrameView* view = m_renderView->frameView();
-    return shouldCompositeOverflowControls(view) && view->horizontalScrollbar();
+    return shouldCompositeOverflowControls() && view->horizontalScrollbar();
 }
 
 bool RenderLayerCompositor::requiresVerticalScrollbarLayer() const
 {
     FrameView* view = m_renderView->frameView();
-    return shouldCompositeOverflowControls(view) && view->verticalScrollbar();
+    return shouldCompositeOverflowControls() && view->verticalScrollbar();
 }
 
 bool RenderLayerCompositor::requiresScrollCornerLayer() const
 {
     FrameView* view = m_renderView->frameView();
-    return shouldCompositeOverflowControls(view) && view->isScrollCornerVisible();
+    return shouldCompositeOverflowControls() && view->isScrollCornerVisible();
 }
 
 #if ENABLE(RUBBER_BANDING)
@@ -2415,11 +2427,6 @@ bool RenderLayerCompositor::requiresOverhangAreasLayer() const
     // We do want a layer if we have a scrolling coordinator and can scroll.
     if (scrollingCoordinator() && m_renderView->frameView()->hasOpaqueBackground() && !m_renderView->frameView()->prohibitsScrolling())
         return true;
-
-    // Chromium always wants a layer.
-#if PLATFORM(CHROMIUM)
-    return true;
-#endif
 
     return false;
 }
@@ -2510,6 +2517,7 @@ GraphicsLayer* RenderLayerCompositor::updateLayerForHeader(bool wantsLayer)
         m_layerForHeader->setName("header");
 #endif
         m_scrollLayer->addChildBelow(m_layerForHeader.get(), m_rootContentLayer.get());
+        m_renderView->frameView()->addPaintPendingMilestones(DidFirstFlushForHeaderLayer);
     }
 
     m_layerForHeader->setPosition(FloatPoint(0, 0));
@@ -3136,29 +3144,56 @@ Page* RenderLayerCompositor::page() const
     return 0;
 }
 
-void RenderLayerCompositor::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
+void RenderLayerCompositor::setLayerFlushThrottlingEnabled(bool enabled)
 {
-    MemoryClassInfo info(memoryObjectInfo, this, PlatformMemoryTypes::Rendering);
-    info.addWeakPointer(m_renderView);
-    info.addMember(m_rootContentLayer, "rootContentLayer");
-    info.addMember(m_updateCompositingLayersTimer, "updateCompositingLayersTimer");
-    info.addMember(m_clipLayer, "clipLayer");
-    info.addMember(m_scrollLayer, "scrollLayer");
-    info.addMember(m_viewportConstrainedLayers, "viewportConstrainedLayers");
-    info.addMember(m_viewportConstrainedLayersNeedingUpdate, "viewportConstrainedLayersNeedingUpdate");
-    info.addMember(m_overflowControlsHostLayer, "overflowControlsHostLayer");
-    info.addMember(m_layerForHorizontalScrollbar, "layerForHorizontalScrollbar");
-    info.addMember(m_layerForVerticalScrollbar, "layerForVerticalScrollbar");
-    info.addMember(m_layerForScrollCorner, "layerForScrollCorner");
-#if ENABLE(RUBBER_BANDING)
-    info.addMember(m_layerForOverhangAreas, "layerForOverhangAreas");
-    info.addMember(m_contentShadowLayer, "contentShadowLayer");
-    info.addMember(m_layerForTopOverhangArea, "layerForTopOverhangArea");
-    info.addMember(m_layerForBottomOverhangArea, "layerForBottomOverhangArea");
-    info.addMember(m_layerForHeader, "layerForHeader");
-    info.addMember(m_layerForFooter, "layerForFooter");
-#endif
-    info.addMember(m_layerUpdater, "layerUpdater");
+    m_layerFlushThrottlingEnabled = enabled;
+    if (m_layerFlushThrottlingEnabled)
+        return;
+    m_layerFlushTimer.stop();
+    if (!m_hasPendingLayerFlush)
+        return;
+    scheduleLayerFlushNow();
+}
+
+void RenderLayerCompositor::disableLayerFlushThrottlingTemporarilyForInteraction()
+{
+    if (m_layerFlushThrottlingTemporarilyDisabledForInteraction)
+        return;
+    m_layerFlushThrottlingTemporarilyDisabledForInteraction = true;
+}
+
+bool RenderLayerCompositor::isThrottlingLayerFlushes() const
+{
+    if (!m_layerFlushThrottlingEnabled)
+        return false;
+    if (!m_layerFlushTimer.isActive())
+        return false;
+    if (m_layerFlushThrottlingTemporarilyDisabledForInteraction)
+        return false;
+    return true;
+}
+
+void RenderLayerCompositor::startLayerFlushTimerIfNeeded()
+{
+    m_layerFlushThrottlingTemporarilyDisabledForInteraction = false;
+    m_layerFlushTimer.stop();
+    if (!m_layerFlushThrottlingEnabled)
+        return;
+    m_layerFlushTimer.startOneShot(throttledLayerFlushDelay);
+}
+
+void RenderLayerCompositor::layerFlushTimerFired(Timer<RenderLayerCompositor>*)
+{
+    if (!m_hasPendingLayerFlush)
+        return;
+    scheduleLayerFlushNow();
+}
+
+void RenderLayerCompositor::paintRelatedMilestonesTimerFired(Timer<RenderLayerCompositor>*)
+{
+    FrameView* frameView = m_renderView ? m_renderView->frameView() : 0;
+    if (frameView)
+        frameView->firePaintRelatedMilestones();
 }
 
 } // namespace WebCore

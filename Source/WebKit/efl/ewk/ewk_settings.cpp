@@ -66,6 +66,7 @@ static const char* _ewk_icon_database_path = 0;
 
 static const char* s_webDatabasePath = 0;
 static const char* s_localStoragePath = 0;
+static const char* s_cssMediaType = 0;
 static uint64_t s_webDatabaseQuota = 1 * 1024 * 1024; // 1MB.
 
 static WTF::String _ewk_settings_webkit_platform_get()
@@ -213,11 +214,11 @@ cairo_surface_t* ewk_settings_icon_database_icon_surface_get(const char* url)
     EINA_SAFETY_ON_NULL_RETURN_VAL(url, 0);
 
     WebCore::KURL kurl(WebCore::KURL(), WTF::String::fromUTF8(url));
-    WebCore::NativeImagePtr icon = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
+    RefPtr<cairo_surface_t> icon = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
     if (!icon)
         ERR("no icon for url %s", url);
 
-    return icon ? icon->surface() : 0;
+    return icon.get();
 }
 
 Evas_Object* ewk_settings_icon_database_icon_object_get(const char* url, Evas* canvas)
@@ -226,15 +227,14 @@ Evas_Object* ewk_settings_icon_database_icon_object_get(const char* url, Evas* c
     EINA_SAFETY_ON_NULL_RETURN_VAL(canvas, 0);
 
     WebCore::KURL kurl(WebCore::KURL(), WTF::String::fromUTF8(url));
-    WebCore::NativeImagePtr icon = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
+    RefPtr<cairo_surface_t> surface = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
 
-    if (!icon) {
+    if (!surface) {
         ERR("no icon for url %s", url);
         return 0;
     }
 
-    cairo_surface_t* surface = icon->surface();
-    return surface ? WebCore::evasObjectFromCairoImageSurface(canvas, surface).leakRef() : 0;
+    return surface ? WebCore::evasObjectFromCairoImageSurface(canvas, surface.get()).leakRef() : 0;
 }
 
 void ewk_settings_object_cache_capacity_set(unsigned minDeadCapacity, unsigned maxDeadCapacity, unsigned totalCapacity)
@@ -388,4 +388,14 @@ void ewk_settings_application_cache_clear()
 double ewk_settings_default_timer_interval_get(void)
 {
     return WebCore::Settings::defaultMinDOMTimerInterval();
+}
+
+void ewk_settings_css_media_type_set(const char* type)
+{
+    eina_stringshare_replace(&s_cssMediaType, type);
+}
+
+const char* ewk_settings_css_media_type_get()
+{
+    return s_cssMediaType;
 }

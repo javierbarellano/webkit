@@ -63,7 +63,7 @@ public:
 
     bool selectionContains(const WebCore::IntPoint&);
 
-    void setSelection(const WebCore::IntPoint& start, const WebCore::IntPoint& end);
+    void setSelection(WebCore::IntPoint start, WebCore::IntPoint end);
     void selectAtPoint(const WebCore::IntPoint&, SelectionExpansionType);
     void selectObject(const WebCore::IntPoint&, WebCore::TextGranularity);
     void selectObject(WebCore::TextGranularity);
@@ -80,11 +80,12 @@ public:
     void expandSelection(bool isScrollStarted);
     void setOverlayExpansionHeight(int dy) { m_overlayExpansionHeight = dy; }
     void setParagraphExpansionScrollMargin(const WebCore::IntSize&);
-    void setSelectionViewportRect(const WebCore::IntRect& selectionViewportRect) { m_selectionViewportRect = selectionViewportRect; }
+    void setSelectionViewportSize(const WebCore::IntSize& selectionViewportSize) { m_selectionViewportSize = selectionViewportSize; }
+    void setSelectionSubframeViewportRect(const WebCore::IntRect& selectionSubframeViewportRect) { m_selectionSubframeViewportRect = selectionSubframeViewportRect; }
     WebCore::IntRect selectionViewportRect() const;
 
 private:
-    void notifyCaretPositionChangedIfNeeded(bool userTouchTriggered = true);
+    void notifyCaretPositionChangedIfNeeded(bool userTouchTriggeredOnTextField);
     void caretPositionChanged(bool userTouchTriggered);
     void regionForTextQuads(WTF::Vector<WebCore::FloatQuad>&, BlackBerry::Platform::IntRectRegion&, bool shouldClipToVisibleContent = true) const;
     WebCore::IntRect clippingRectForVisibleContent() const;
@@ -107,6 +108,8 @@ private:
 
     bool selectNodeIfFatFingersResultIsLink(FatFingersResult);
 
+    WebCore::IntRect startCaretViewportRect(const WebCore::IntPoint& frameOffset) const;
+
     WebPagePrivate* m_webPage;
 
     bool m_selectionActive;
@@ -124,7 +127,8 @@ private:
     BlackBerry::Platform::StopWatch m_timer;
 
     WebCore::IntSize m_scrollMargin;
-    WebCore::IntRect m_selectionViewportRect;
+    WebCore::IntSize m_selectionViewportSize;
+    WebCore::IntRect m_selectionSubframeViewportRect;
     WebCore::VisibleSelection m_lastSelection;
 };
 
