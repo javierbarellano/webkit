@@ -131,7 +131,7 @@ private:
 	
 	bool notInBadList(std::string sUUid);
 
-	bool isCurrentType(const char* type, std::vector<std::string> &regType);
+	bool isRegisteredType(const char* type, std::vector<std::string> &regType);
 	bool isInternalType(const char* type);
     bool removeDevice(std::map<std::string, UPnPDevMap>* devices, std::string uuid);
     static UPnPSearch* instance_;

@@ -652,7 +652,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	// Look for the service type that was given to us from JavaScript
 	// Form is something like:
 	//    urn:schemas-upnp-org:service:ContentDirectory:1
-	if (!isCurrentType(bf, foundTypes) && !isInternalType(bf))
+	if (!isRegisteredType(bf, foundTypes) && !isInternalType(bf))
 	{
 		if (notInBadList(sUuid)) {
 			badDevs_.push_back(sUuid);
@@ -722,7 +722,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
                     // Check service type
                     std::string serviceType = getElementValue(service.c_str(), (char*)"serviceType");
-                    if (isCurrentType(serviceType.c_str(), foundTypes) || isInternalType(serviceType.c_str())) {
+                    if (isRegisteredType(serviceType.c_str(), foundTypes) || isInternalType(serviceType.c_str())) {
                         eventUrl = getElementValue(service.c_str(), "eventSubURL");
                     }
                     j++;
@@ -743,7 +743,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 
     foundTypes.clear();
-	if (isCurrentType(bf, foundTypes))
+	if (isRegisteredType(bf, foundTypes))
 	{
 		for (int i=0; i<foundTypes.size(); i++) {
             std::string foundType = foundTypes.at(i);
@@ -807,7 +807,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 	return true;
 }
 
-bool UPnPSearch::isCurrentType(const char* type, std::vector<std::string> &regType)
+bool UPnPSearch::isRegisteredType(const char* type, std::vector<std::string> &regType)
 {
 	devLock_->lock();
 	if (regTypes_.size() > 0) {
