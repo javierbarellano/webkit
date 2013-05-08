@@ -1,6 +1,6 @@
-    interface [
-               Conditional=DISCOVERY,
-    ] NavEventCB {
-        boolean handleEvent( in NavEvent event );
-    };
+[
+    Conditional=DISCOVERY,
+] callback interface NavEventCB {
+    boolean handleEvent( in NavEvent event );
+};
 

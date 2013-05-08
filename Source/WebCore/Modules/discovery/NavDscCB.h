@@ -8,6 +8,8 @@
 #ifndef NAVIGATORNETWORKDISCOVERYCALLBACK_H_
 #define NAVIGATORNETWORKDISCOVERYCALLBACK_H_
 
+#if ENABLE(DISCOVERY)
+
 #include <wtf/RefCounted.h>
 
 namespace WebCore {
@@ -27,4 +29,5 @@ protected:
 
 } // namespace WebCore
 
+#endif
 #endif /* NAVIGATORNETWORKDISCOVERYCALLBACK_H_ */

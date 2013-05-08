@@ -13,6 +13,7 @@
 #include <runtime/JSExportMacros.h>
 
 #include "Event.h"
+#include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 #include <wtf/RefCounted.h>
 #include "Modules/discovery/NavService.h"
@@ -21,8 +22,6 @@
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTarget.h"
-
-
 
 namespace WebCore {
 

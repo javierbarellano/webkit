@@ -8,6 +8,7 @@
 #ifndef UPNPSEARCH_H_
 #define UPNPSEARCH_H_
 
+#if ENABLE(DISCOVERY)
 #include <map>
 #include <set>
 #include <vector>
@@ -162,5 +163,6 @@ private:
 };
 
 } // namespace WebCore
+#endif
 
 #endif /* UPNPSEARCH_H_ */

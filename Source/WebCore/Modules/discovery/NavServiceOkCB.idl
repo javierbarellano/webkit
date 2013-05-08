@@ -1,8 +1,5 @@
-
-
-    interface [
-               Conditional=DISCOVERY,
-    ] NavServiceOkCB
-    {
-        boolean handleEvent(in NavServices services);
-    };
+[
+    Conditional=DISCOVERY,
+] callback interface NavServiceOkCB {
+    boolean handleEvent(in NavServices services);
+};

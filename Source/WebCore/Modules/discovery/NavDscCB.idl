@@ -1,6 +1,5 @@
-
-	interface [
-               Conditional=DISCOVERY,
-    ] NavDscCB {
-        boolean handleEvent(in NavService service);
-    };
+[
+    Conditional=DISCOVERY,
+] callback interface NavDscCB {
+    boolean handleEvent(in NavService service);
+};

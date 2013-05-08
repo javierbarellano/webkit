@@ -1,7 +1,5 @@
-
-
-	interface [
-               Conditional=DISCOVERY,
-    ] NavServiceErrorCB {
-        boolean handleEvent( in NavServiceError error );
-    };
+[
+    Conditional=DISCOVERY,
+] callback interface NavServiceErrorCB {
+    boolean handleEvent( in NavServiceError error );
+};

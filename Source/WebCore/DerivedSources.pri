@@ -90,16 +90,6 @@ PLUGINS_EMBED = \
     $$PWD/Resources/plugIns.js
 
 IDL_BINDINGS += \
-    $$PWD/Modules/discovery/NavServiceErrorCB.idl \
-    $$PWD/Modules/discovery/NavServiceOkCB.idl \
-    $$PWD/Modules/discovery/NavServices.idl \
-    $$PWD/Modules/discovery/NavService.idl \
-    $$PWD/Modules/discovery/NavEvent.idl \
-    $$PWD/Modules/discovery/NavEventCB.idl \
-    $$PWD/Modules/discovery/NavServiceError.idl \
-    $$PWD/Modules/discovery/NavDscCB.idl \
-    $$PWD/Modules/discovery/Nav.idl \
-    $$PWD/Modules/discovery/UPnPEvent.idl \
     $$PWD/Modules/filesystem/DOMFileSystem.idl \
     $$PWD/Modules/filesystem/DOMFileSystemSync.idl \
     $$PWD/Modules/filesystem/DOMWindowFileSystem.idl \
@@ -653,6 +643,20 @@ enable?(SVG) {
     $$PWD/svg/SVGViewSpec.idl \
     $$PWD/svg/SVGZoomAndPan.idl \
     $$PWD/svg/SVGZoomEvent.idl
+}
+
+enable?(DISCOVERY) {
+  IDL_BINDINGS += \
+    $$PWD/Modules/discovery/Nav.idl \
+    $$PWD/Modules/discovery/NavDscCB.idl \
+    $$PWD/Modules/discovery/NavEvent.idl \
+    $$PWD/Modules/discovery/NavEventCB.idl \
+    $$PWD/Modules/discovery/NavServiceErrorCB.idl \
+    $$PWD/Modules/discovery/NavServiceOkCB.idl \
+    $$PWD/Modules/discovery/NavServices.idl \
+    $$PWD/Modules/discovery/NavService.idl \
+    $$PWD/Modules/discovery/NavServiceError.idl \
+    $$PWD/Modules/discovery/UPnPEvent.idl
 }
 
 enable?(GAMEPAD) {

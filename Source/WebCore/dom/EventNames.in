@@ -25,7 +25,7 @@ TextEvent
 TransitionEvent
 UIEvent
 UIEvents interfaceName=UIEvent
-UPnPEvent
+UPnPEvent conditional=DISCOVERY
 WebKitAnimationEvent
 WebKitTransitionEvent
 WheelEvent

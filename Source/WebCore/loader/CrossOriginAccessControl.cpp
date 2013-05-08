@@ -26,8 +26,11 @@
 
 #include "config.h"
 #include "CrossOriginAccessControl.h"
+
+#if ENABLE(DISCOVERY)
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/ZeroConf.h"
+#endif
 
 #include "HTTPParsers.h"
 #include "ResourceRequest.h"
@@ -160,6 +163,7 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
         else
             errorDescription =  "Origin " + securityOrigin->toString() + " is not allowed by Access-Control-Allow-Origin.";
 
+#if ENABLE(DISCOVERY)
         char host[1000];
         for (int i=0; i<(int)response.url().host().length(); i++)
         	host[i] = (char)response.url().host().characterStartingAt(i);
@@ -175,7 +179,7 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
             if (!ok)
             	return false;
         }
-
+#endif
     }
 
     if (includeCredentials == AllowStoredCredentials) {

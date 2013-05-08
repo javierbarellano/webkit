@@ -67,8 +67,7 @@ SOURCES += \
     accessibility/AXObjectCache.cpp \
     bindings/generic/ActiveDOMCallback.cpp \
     bindings/generic/BindingSecurity.cpp \
-    bindings/generic/RuntimeEnabledFeatures.cpp \
-    Modules/discovery/DiscoveryWrapper.cpp
+    bindings/generic/RuntimeEnabledFeatures.cpp
 
 SOURCES += \
      bindings/ScriptControllerBase.cpp \
@@ -226,10 +225,6 @@ SOURCES += \
 
 
 SOURCES += \
-    Modules/discovery/Nav.cpp \
-    Modules/discovery/NavEvent.cpp \
-    Modules/discovery/NavServices.cpp \
-    Modules/discovery/NavService.cpp \
     Modules/filesystem/DOMFilePath.cpp \
     Modules/filesystem/DOMFileSystem.cpp \
     Modules/filesystem/DOMFileSystemBase.cpp \
@@ -363,10 +358,6 @@ SOURCES += \
     css/WebKitCSSShaderValue.cpp \
     css/WebKitCSSTransformValue.cpp \
     css/WebKitCSSViewportRule.cpp \
-    Modules/discovery/DiscoveryBase.cpp \
-    Modules/discovery/NavDsc.cpp \
-    Modules/discovery/UPnPSearch.cpp \
-    Modules/discovery/ZeroConf.cpp \
     dom/ActiveDOMObject.cpp \
     dom/Attr.cpp \
     dom/BeforeTextInsertedEvent.cpp \
@@ -1363,8 +1354,7 @@ HEADERS += \
     bindings/ScriptControllerBase.h \
     bindings/generic/ActiveDOMCallback.h \
     bindings/generic/BindingSecurity.h \
-    bindings/generic/RuntimeEnabledFeatures.h \
-    Modules/discovery/DiscoveryWrapper.h
+    bindings/generic/RuntimeEnabledFeatures.h
 
 HEADERS += \
     bindings/js/BindingState.h \
@@ -1444,23 +1434,6 @@ HEADERS += \
     plugins/npruntime.h
 
 HEADERS += \
-    Modules/discovery/DiscoveryBase.h \
-    Modules/discovery/NavDsc.h \
-    Modules/discovery/UPnPSearch.h \
-    Modules/discovery/ZeroConf.h \
-    Modules/discovery/UPnPDevice.h \
-    Modules/discovery/ZCDevice.h \
-    \
-    Modules/discovery/Nav.h \
-    Modules/discovery/NavDscCB.h \
-    Modules/discovery/NavService.h \
-    Modules/discovery/NavServices.h \
-    Modules/discovery/NavEvent.h \
-    Modules/discovery/NavEventCB.h \
-    Modules/discovery/NavServiceError.h \
-    Modules/discovery/NavServiceErrorCB.h \
-    Modules/discovery/NavServiceOkCB.h \
-    \
     Modules/geolocation/Coordinates.h \
     Modules/geolocation/Geolocation.h \
     Modules/geolocation/GeolocationController.h \
@@ -1617,12 +1590,6 @@ HEADERS += \
     css/WebKitCSSShaderValue.h \
     css/WebKitCSSTransformValue.h \
     css/WebKitCSSViewportRule.h \
-    Modules/discovery/DiscoveryBase.h \
-    Modules/discovery/NavDsc.h \
-    Modules/discovery/UPnPSearch.h \
-    Modules/discovery/ZeroConf.h \
-    Modules/discovery/UPnPDevice.h \
-    Modules/discovery/ZCDevice.h \
     dom/ActiveDOMObject.h \
     dom/Attr.h \
     dom/Attribute.h \
@@ -3185,7 +3152,10 @@ enable?(DATA_TRANSFER_ITEMS) {
 
 enable?(DISCOVERY) {
     HEADERS += \
+        Modules/discovery/DiscoveryBase.h \
+        Modules/discovery/DiscoveryWrapper.h \
         Modules/discovery/Nav.h \
+        Modules/discovery/NavDsc.h \
         Modules/discovery/NavDscCB.h \
         Modules/discovery/NavEvent.h \
         Modules/discovery/NavEventCB.h \
@@ -3193,7 +3163,21 @@ enable?(DISCOVERY) {
         Modules/discovery/NavServiceError.h \
         Modules/discovery/NavServiceErrorCB.h \
         Modules/discovery/NavServiceOkCB.h \
-        Modules/discovery/NavServices.h
+        Modules/discovery/NavServices.h \
+        Modules/discovery/UPnPDevice.h \
+        Modules/discovery/UPnPSearch.h \
+        Modules/discovery/ZCDevice.h \
+        Modules/discovery/ZeroConf.h
+    SOURCES += \
+        Modules/discovery/DiscoveryBase.cpp \
+        Modules/discovery/DiscoveryWrapper.cpp \
+        Modules/discovery/Nav.cpp \
+        Modules/discovery/NavDsc.cpp \
+        Modules/discovery/NavEvent.cpp \
+        Modules/discovery/NavService.cpp \
+        Modules/discovery/NavServices.cpp \
+        Modules/discovery/UPnPSearch.cpp \
+        Modules/discovery/ZeroConf.cpp
 }
 
 enable?(FILE_SYSTEM) {

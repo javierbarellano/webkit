@@ -8,6 +8,8 @@
 #ifndef ZEROCONF_H_
 #define ZEROCONF_H_
 
+#if ENABLE(DISCOVERY)
+
 #include <vector>
 #include <map>
 
@@ -106,5 +108,5 @@ private:
 };
 
 }
-
+#endif
 #endif /* ZEROCONF_H_ */

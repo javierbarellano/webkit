@@ -33,8 +33,10 @@
 #include "config.h"
 #include "FrameLoaderClientQt.h"
 
+#if ENABLE(DISCOVERY)
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/ZeroConf.h"
+#endif
 
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
@@ -1046,10 +1048,11 @@ void FrameLoaderClientQt::dispatchWillSendRequest(WebCore::DocumentLoader*, unsi
     if (QWebPageAdapter::drtRun
         && !host.isEmpty()
         && (urlScheme == QLatin1String("http") || urlScheme == QLatin1String("https"))) {
-
         QUrl testURL = m_webFrame->pageAdapter->mainFrameAdapter()->frameLoaderClient->lastRequestedUrl();
         QString testHost = testURL.host();
         QString testURLScheme = testURL.scheme().toLower();
+
+#if ENABLE(DISCOVERY)
         int port = (int)newRequest.url().port();
 
         UPnPSearch* upnp = WebCore::UPnPSearch::getInstance();
@@ -1059,6 +1062,9 @@ void FrameLoaderClientQt::dispatchWillSendRequest(WebCore::DocumentLoader*, unsi
             ZeroConf* zc = WebCore::ZeroConf::getInstance();
             homeNetworkingOK = zc->hostPortOk(host.toLocal8Bit().data(), port);
         }
+#else
+        bool homeNetworkingOK = true;
+#endif
 
         if (!isLocalhost(host)
         	&& !homeNetworkingOK
