@@ -40,11 +40,6 @@ typedef struct _GdkEventScroll GdkEventScroll;
 typedef struct _Evas_Event_Mouse_Wheel Evas_Event_Mouse_Wheel;
 #endif
 
-#if PLATFORM(WX)
-class wxMouseEvent;
-class wxPoint;
-#endif
-
 namespace WebCore {
 
     class FloatPoint;
@@ -60,7 +55,7 @@ namespace WebCore {
         ScrollByPixelWheelEvent,
     };
 
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
+#if PLATFORM(MAC)
     enum PlatformWheelEventPhase {
         PlatformWheelEventPhaseNone        = 0,
         PlatformWheelEventPhaseBegan       = 1 << 0,
@@ -82,10 +77,8 @@ namespace WebCore {
             , m_wheelTicksY(0)
             , m_granularity(ScrollByPixelWheelEvent)
             , m_directionInvertedFromDevice(false)
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM)
+#if PLATFORM(MAC)
             , m_hasPreciseScrollingDeltas(false)
-#endif
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
             , m_phase(PlatformWheelEventPhaseNone)
             , m_momentumPhase(PlatformWheelEventPhaseNone)
             , m_scrollCount(0)
@@ -105,10 +98,8 @@ namespace WebCore {
             , m_wheelTicksY(wheelTicksY)
             , m_granularity(granularity)
             , m_directionInvertedFromDevice(false)
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM)
+#if PLATFORM(MAC)
             , m_hasPreciseScrollingDeltas(false)
-#endif
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
             , m_phase(PlatformWheelEventPhaseNone)
             , m_momentumPhase(PlatformWheelEventPhaseNone)
             , m_scrollCount(0)
@@ -151,11 +142,9 @@ namespace WebCore {
         explicit PlatformWheelEvent(const Evas_Event_Mouse_Wheel*);
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM)
+#if PLATFORM(MAC)
         bool hasPreciseScrollingDeltas() const { return m_hasPreciseScrollingDeltas; }
         void setHasPreciseScrollingDeltas(bool b) { m_hasPreciseScrollingDeltas = b; }
-#endif
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
         PlatformWheelEventPhase phase() const { return m_phase; }
         PlatformWheelEventPhase momentumPhase() const { return m_momentumPhase; }
         unsigned scrollCount() const { return m_scrollCount; }
@@ -171,10 +160,6 @@ namespace WebCore {
         PlatformWheelEvent(HWND, const FloatSize& delta, const FloatPoint& location);
 #endif
 
-#if PLATFORM(WX)
-        PlatformWheelEvent(const wxMouseEvent&, const wxPoint&);
-#endif
-
     protected:
         IntPoint m_position;
         IntPoint m_globalPosition;
@@ -184,10 +169,8 @@ namespace WebCore {
         float m_wheelTicksY;
         PlatformWheelEventGranularity m_granularity;
         bool m_directionInvertedFromDevice;
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM)
+#if PLATFORM(MAC)
         bool m_hasPreciseScrollingDeltas;
-#endif
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
         PlatformWheelEventPhase m_phase;
         PlatformWheelEventPhase m_momentumPhase;
         unsigned m_scrollCount;

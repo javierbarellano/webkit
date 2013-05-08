@@ -37,6 +37,14 @@ my @txtGetProps = ();
 
 my $className = "";
 
+# FIXME: this should be replaced with a function that recurses up the tree
+# to find the actual base type.
+my %baseTypeHash = ("Object" => 1, "Node" => 1, "NodeList" => 1, "NamedNodeMap" => 1, "DOMImplementation" => 1,
+                    "Event" => 1, "CSSRule" => 1, "CSSValue" => 1, "StyleSheet" => 1, "MediaList" => 1,
+                    "Counter" => 1, "Rect" => 1, "RGBColor" => 1, "XPathExpression" => 1, "XPathResult" => 1,
+                    "NodeIterator" => 1, "TreeWalker" => 1, "AbstractView" => 1, "Blob" => 1, "DOMTokenList" => 1,
+                    "HTMLCollection" => 1);
+
 # Default constructor
 sub new {
     my $object = shift;
@@ -82,6 +90,25 @@ sub GetParentImplClassName {
     return "Object" if @{$interface->parents} eq 0;
     return $interface->parents(0);
 }
+
+sub IsBaseType
+{
+    my $type = shift;
+
+    return 1 if $baseTypeHash{$type};
+    return 0;
+}
+
+sub GetBaseClass
+{
+    $parent = shift;
+
+    return $parent if $parent eq "Object" or IsBaseType($parent);
+    return "Event" if $parent eq "UIEvent" or $parent eq "MouseEvent";
+    return "CSSValue" if $parent eq "SVGColor" or $parent eq "CSSValueList";
+    return "Node";
+}
+
 
 # From String::CamelCase 0.01
 sub camelize
@@ -266,12 +293,12 @@ sub SkipFunction {
         return 1;
     }
 
-    # Skip functions that have ["Callback"] parameters, because this
+    # Skip functions that have callback parameters, because this
     # code generator doesn't know how to auto-generate callbacks.
     # Skip functions that have "MediaQueryListListener" or sequence<T> parameters, because this
     # code generator doesn't know how to auto-generate MediaQueryListListener or sequence<T>.
     foreach my $param (@{$function->parameters}) {
-        if ($param->extendedAttributes->{"Callback"} ||
+        if ($codeGenerator->IsCallbackInterface($param->type) ||
             $param->extendedAttributes->{"Clamp"} ||
             $param->type eq "MediaQueryListListener" ||
             $codeGenerator->GetSequenceType($param->type)) {
@@ -359,7 +386,6 @@ sub GetWriteableProperties {
     my @result = ();
 
     foreach my $property (@{$properties}) {
-        my $writeable = $property->type !~ /^readonly/;
         my $gtype = GetGValueTypeName($property->signature->type);
         my $hasGtypeSignature = ($gtype eq "boolean" || $gtype eq "float" || $gtype eq "double" ||
                                  $gtype eq "uint64" || $gtype eq "ulong" || $gtype eq "long" || 
@@ -368,7 +394,7 @@ sub GetWriteableProperties {
         # FIXME: We are not generating setters for 'Replaceable'
         # attributes now, but we should somehow.
         my $replaceable = $property->signature->extendedAttributes->{"Replaceable"};
-        if ($writeable && $hasGtypeSignature && !$replaceable) {
+        if (!$property->isReadOnly && $hasGtypeSignature && !$replaceable) {
             push(@result, $property);
         }
     }
@@ -433,7 +459,7 @@ sub GenerateProperty {
 
     my $gtype = GetGValueTypeName($propType);
     my $gparamflag = "WEBKIT_PARAM_READABLE";
-    my $writeable = $attribute->type !~ /^readonly/;
+    my $writeable = !$attribute->isReadOnly;
     my $const = "read-only ";
     my $custom = $attribute->signature->extendedAttributes->{"Custom"};
     if ($writeable && $custom) {
@@ -897,11 +923,7 @@ sub GenerateFunction {
     }
 
     if ($returnType ne "void" && $returnValueIsGDOMType && $functionSigType ne "any") {
-        if ($functionSigType ne "EventTarget") {
-            $implIncludes{"WebKitDOM${functionSigType}Private.h"} = 1;
-        } else {
-            $implIncludes{"WebKitDOM${functionSigType}.h"} = 1;
-        }
+        $implIncludes{"WebKitDOM${functionSigType}Private.h"} = 1;
     }
 
     if (@{$function->raisesExceptions}) {
@@ -1210,8 +1232,7 @@ sub GenerateFunctions {
 
         # FIXME: We are not generating setters for 'Replaceable'
         # attributes now, but we should somehow.
-        if ($attribute->type =~ /^readonly/ ||
-            $attribute->signature->extendedAttributes->{"Replaceable"}) {
+        if ($attribute->isReadOnly || $attribute->signature->extendedAttributes->{"Replaceable"}) {
             next TOP;
         }
         
@@ -1250,6 +1271,7 @@ sub GenerateCFile {
     my $clsCaps = uc(FixUpDecamelizedName(decamelize($interfaceName)));
     my $lowerCaseIfaceName = "webkit_dom_" . FixUpDecamelizedName(decamelize($interfaceName));
     my $parentImplClassName = GetParentImplClassName($interface);
+    my $baseClassName = GetBaseClass($parentImplClassName);
 
     # Add a private struct only for direct subclasses of Object so that we can use RefPtr
     # for the WebCore wrapped object and make sure we only increment the reference counter once.
@@ -1269,21 +1291,32 @@ ${defineTypeMacro}(${className}, ${lowerCaseIfaceName}, ${parentGObjType}${defin
 EOF
     push(@cBodyProperties, $implContent);
 
-    if (!UsesManualKitImplementation($interfaceName)) {
-        $implContent = << "EOF";
-${className}* kit(WebCore::$interfaceName* obj)
-{
-    if (!obj)
-        return 0;
-
-    if (gpointer ret = DOMObjectCache::get(obj))
-        return WEBKIT_DOM_${clsCaps}(ret);
-
-    return wrap${interfaceName}(obj);
-}
-
-EOF
-        push(@cBodyPriv, $implContent);
+    if ($parentImplClassName eq "Object") {
+        push(@cBodyPriv, "${className}* kit(WebCore::$interfaceName* obj)\n");
+        push(@cBodyPriv, "{\n");
+        push(@cBodyPriv, "    if (!obj)\n");
+        push(@cBodyPriv, "        return 0;\n\n");
+        push(@cBodyPriv, "    if (gpointer ret = DOMObjectCache::get(obj))\n");
+        push(@cBodyPriv, "        return WEBKIT_DOM_${clsCaps}(ret);\n\n");
+        if (IsPolymorphic($interfaceName)) {
+            push(@cBodyPriv, "    return wrap(obj);\n");
+        } else {
+            push(@cBodyPriv, "    return wrap${interfaceName}(obj);\n");
+        }
+        push(@cBodyPriv, "}\n\n");
+    } else {
+        push(@cBodyPriv, "${className}* kit(WebCore::$interfaceName* obj)\n");
+        push(@cBodyPriv, "{\n");
+        if (!IsPolymorphic($baseClassName)) {
+            push(@cBodyPriv, "    if (!obj)\n");
+            push(@cBodyPriv, "        return 0;\n\n");
+            push(@cBodyPriv, "    if (gpointer ret = DOMObjectCache::get(obj))\n");
+            push(@cBodyPriv, "        return WEBKIT_DOM_${clsCaps}(ret);\n\n");
+            push(@cBodyPriv, "    return wrap${interfaceName}(obj);\n");
+        } else {
+            push(@cBodyPriv, "    return WEBKIT_DOM_${clsCaps}(kit(static_cast<WebCore::$baseClassName*>(obj)));\n");
+        }
+        push(@cBodyPriv, "}\n\n");
     }
 
     $implContent = << "EOF";
@@ -1315,10 +1348,11 @@ sub GenerateEndHeader {
     push(@hPrefixGuardEnd, "#endif /* $guard */\n");
 }
 
-sub UsesManualKitImplementation {
+sub IsPolymorphic {
     my $type = shift;
 
-    return 1 if $type eq "Node" or $type eq "Element" or $type eq "HTMLElement" or $type eq "Event";
+    # FIXME: should we use ObjCPolymorphic attribute? or is it specific to ObjC bindings?
+    return 1 if $type eq "Node" or $type eq "Event" or $type eq "HTMLCollection" or $type eq "StyleSheet" or $type eq "Blob";
     return 0;
 }
 
@@ -1381,18 +1415,23 @@ sub Generate {
     my $parentClassName = GetParentClassName($interface);
     my $parentGObjType = GetParentGObjType($interface);
     my $interfaceName = $interface->name;
+    my $parentImplClassName = GetParentImplClassName($interface);
+    my $baseClassName = GetBaseClass($parentImplClassName);
 
     # Add the default impl header template
     @cPrefix = split("\r", $licenceTemplate);
     push(@cPrefix, "\n");
 
     $implIncludes{"DOMObjectCache.h"} = 1;
-    $implIncludes{"WebKitDOMBinding.h"} = 1;
+    $implIncludes{"WebKitDOMPrivate.h"} = 1;
     $implIncludes{"gobject/ConvertToUTF8String.h"} = 1;
     $implIncludes{"${className}Private.h"} = 1;
     $implIncludes{"JSMainThreadExecState.h"} = 1;
     $implIncludes{"ExceptionCode.h"} = 1;
     $implIncludes{"CSSImportRule.h"} = 1;
+    if ($parentImplClassName ne "Object" and IsPolymorphic($baseClassName)) {
+        $implIncludes{"WebKitDOM${baseClassName}Private.h"} = 1;
+    }
 
     $hdrIncludes{"webkitdom/${parentClassName}.h"} = 1;
 
@@ -1435,14 +1474,11 @@ EOF
     $text = << "EOF";
 namespace WebKit {
 ${className}* wrap${interfaceName}(WebCore::${interfaceName}*);
-WebCore::${interfaceName}* core(${className}* request);
+${className}* kit(WebCore::${interfaceName}*);
+WebCore::${interfaceName}* core(${className}*);
 EOF
 
     print PRIVHEADER $text;
-
-    if ($className ne "WebKitDOMNode") {
-        print PRIVHEADER "${className}* kit(WebCore::${interfaceName}* node);\n"
-    }
 
     $text = << "EOF";
 } // namespace WebKit

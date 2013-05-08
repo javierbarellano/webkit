@@ -78,10 +78,10 @@ SharedWorkerThread* SharedWorkerContext::thread()
     return static_cast<SharedWorkerThread*>(Base::thread());
 }
 
-void SharedWorkerContext::logExceptionToConsole(const String& errorMessage, const String& sourceURL, int lineNumber, PassRefPtr<ScriptCallStack> callStack)
+void SharedWorkerContext::logExceptionToConsole(const String& errorMessage, const String& sourceURL, int lineNumber, int columnNumber, PassRefPtr<ScriptCallStack> callStack)
 {
-    WorkerContext::logExceptionToConsole(errorMessage, sourceURL, lineNumber, callStack);
-    addMessageToWorkerConsole(JSMessageSource, ErrorMessageLevel, errorMessage, sourceURL, lineNumber, callStack);
+    WorkerContext::logExceptionToConsole(errorMessage, sourceURL, lineNumber, columnNumber, callStack);
+    addMessageToWorkerConsole(JSMessageSource, ErrorMessageLevel, errorMessage, sourceURL, lineNumber, columnNumber, callStack);
 }
 
 } // namespace WebCore

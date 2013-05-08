@@ -69,15 +69,19 @@ namespace WebCore {
         virtual void didReceiveData(ResourceHandle*, const char*, int, int /*encodedDataLength*/) { }
         virtual void didReceiveBuffer(ResourceHandle*, PassRefPtr<SharedBuffer>, int encodedDataLength);
         
-        virtual void didReceiveCachedMetadata(ResourceHandle*, const char*, int) { }
         virtual void didFinishLoading(ResourceHandle*, double /*finishTime*/) { }
         virtual void didFail(ResourceHandle*, const ResourceError&) { }
         virtual void wasBlocked(ResourceHandle*) { }
         virtual void cannotShowURL(ResourceHandle*) { }
 
         virtual bool usesAsyncCallbacks() { return false; }
+
         // Client will pass an updated request using ResourceHandle::continueWillSendRequest() when ready.
         virtual void willSendRequestAsync(ResourceHandle*, const ResourceRequest&, const ResourceResponse& redirectResponse);
+
+        // Client will call ResourceHandle::continueDidReceiveResponse() when ready.
+        virtual void didReceiveResponseAsync(ResourceHandle*, const ResourceResponse&);
+
         // Client will pass an updated request using ResourceHandle::continueShouldUseCredentialStorage() when ready.
         virtual void shouldUseCredentialStorageAsync(ResourceHandle*);
 #if USE(PROTECTION_SPACE_AUTH_CALLBACK)
@@ -95,7 +99,7 @@ namespace WebCore {
 #endif
 
 #if USE(SOUP)
-        virtual char* getBuffer(int requestedLength, int* actualLength);
+        virtual char* getOrCreateReadBuffer(size_t /*requestedLength*/, size_t& /*actualLength*/) { return 0; }
 #endif
 
         virtual bool shouldUseCredentialStorage(ResourceHandle*) { return false; }
@@ -117,14 +121,7 @@ namespace WebCore {
 #if PLATFORM(WIN) && USE(CFNETWORK)
         virtual bool shouldCacheResponse(ResourceHandle*, CFCachedURLResponseRef) { return true; }
 #endif
-#if PLATFORM(CHROMIUM)
-        virtual void didDownloadData(ResourceHandle*, int /*dataLength*/) { }
-#endif
 
-#if USE(SOUP)
-private:
-        char* m_buffer;
-#endif
     };
 
 }

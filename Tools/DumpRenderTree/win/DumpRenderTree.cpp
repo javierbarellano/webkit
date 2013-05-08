@@ -136,14 +136,14 @@ bool setAlwaysAcceptCookies(bool alwaysAcceptCookies)
 
 static RetainPtr<CFStringRef> substringFromIndex(CFStringRef string, CFIndex index)
 {
-    return RetainPtr<CFStringRef>(AdoptCF, CFStringCreateWithSubstring(kCFAllocatorDefault, string, CFRangeMake(index, CFStringGetLength(string) - index)));
+    return adoptCF(CFStringCreateWithSubstring(kCFAllocatorDefault, string, CFRangeMake(index, CFStringGetLength(string) - index)));
 }
 
 wstring urlSuitableForTestResult(const wstring& urlString)
 {
-    RetainPtr<CFURLRef> url(AdoptCF, CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(urlString.c_str()), urlString.length() * sizeof(wstring::value_type), kCFStringEncodingUTF16, 0));
+    RetainPtr<CFURLRef> url = adoptCF(CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(urlString.c_str()), urlString.length() * sizeof(wstring::value_type), kCFStringEncodingUTF16, 0));
 
-    RetainPtr<CFStringRef> scheme(AdoptCF, CFURLCopyScheme(url.get()));
+    RetainPtr<CFStringRef> scheme = adoptCF(CFURLCopyScheme(url.get()));
     if (scheme && CFStringCompare(scheme.get(), CFSTR("file"), kCFCompareCaseInsensitive) != kCFCompareEqualTo)
         return urlString;
 
@@ -161,11 +161,11 @@ wstring urlSuitableForTestResult(const wstring& urlString)
     if (FAILED(request->URL(requestURLString.GetAddress())))
         return urlString;
 
-    RetainPtr<CFURLRef> requestURL(AdoptCF, CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(requestURLString.GetBSTR()), requestURLString.length() * sizeof(OLECHAR), kCFStringEncodingUTF16, 0));
-    RetainPtr<CFURLRef> baseURL(AdoptCF, CFURLCreateCopyDeletingLastPathComponent(kCFAllocatorDefault, requestURL.get()));
+    RetainPtr<CFURLRef> requestURL = adoptCF(CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(requestURLString.GetBSTR()), requestURLString.length() * sizeof(OLECHAR), kCFStringEncodingUTF16, 0));
+    RetainPtr<CFURLRef> baseURL = adoptCF(CFURLCreateCopyDeletingLastPathComponent(kCFAllocatorDefault, requestURL.get()));
 
-    RetainPtr<CFStringRef> basePath(AdoptCF, CFURLCopyPath(baseURL.get()));
-    RetainPtr<CFStringRef> path(AdoptCF, CFURLCopyPath(url.get()));
+    RetainPtr<CFStringRef> basePath = adoptCF(CFURLCopyPath(baseURL.get()));
+    RetainPtr<CFStringRef> path = adoptCF(CFURLCopyPath(url.get()));
 
     return cfStringRefToWString(substringFromIndex(path.get(), CFStringGetLength(basePath.get())).get());
 }
@@ -175,8 +175,8 @@ wstring lastPathComponent(const wstring& urlString)
     if (urlString.empty())
         return urlString;
 
-    RetainPtr<CFURLRef> url(AdoptCF, CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(urlString.c_str()), urlString.length() * sizeof(wstring::value_type), kCFStringEncodingUTF16, 0));
-    RetainPtr<CFStringRef> lastPathComponent(CFURLCopyLastPathComponent(url.get()));
+    RetainPtr<CFURLRef> url = adoptCF(CFURLCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(urlString.c_str()), urlString.length() * sizeof(wstring::value_type), kCFStringEncodingUTF16, 0));
+    RetainPtr<CFStringRef> lastPathComponent = adoptCF(CFURLCopyLastPathComponent(url.get()));
 
     return cfStringRefToWString(lastPathComponent.get());
 }
@@ -931,11 +931,11 @@ static void sizeWebViewForCurrentTest()
     unsigned width;
     unsigned height;
     if (isSVGW3CTest) {
-        width = 480;
-        height = 360;
+        width = TestRunner::w3cSVGViewWidth;
+        height = TestRunner::w3cSVGViewHeight;
     } else {
-        width = TestRunner::maxViewWidth;
-        height = TestRunner::maxViewHeight;
+        width = TestRunner::viewWidth;
+        height = TestRunner::viewHeight;
     }
 
     ::SetWindowPos(webViewWindow, 0, 0, 0, width, height, SWP_NOMOVE);
@@ -1190,8 +1190,8 @@ WindowToWebViewMap& windowToWebViewMap()
 
 IWebView* createWebViewAndOffscreenWindow(HWND* webViewWindow)
 {
-    unsigned maxViewWidth = TestRunner::maxViewWidth;
-    unsigned maxViewHeight = TestRunner::maxViewHeight;
+    unsigned maxViewWidth = TestRunner::viewWidth;
+    unsigned maxViewHeight = TestRunner::viewHeight;
     HWND hostWindow = CreateWindowEx(WS_EX_TOOLWINDOW, kDumpRenderTreeClassName, TEXT("DumpRenderTree"), WS_POPUP,
       -maxViewWidth, -maxViewHeight, maxViewWidth, maxViewHeight, 0, 0, GetModuleHandle(0), 0);
 
@@ -1278,7 +1278,7 @@ RetainPtr<CFURLCacheRef> sharedCFURLCache()
 
     typedef CFURLCacheRef (*CFURLCacheCopySharedURLCacheProcPtr)(void);
     if (CFURLCacheCopySharedURLCacheProcPtr copyCache = reinterpret_cast<CFURLCacheCopySharedURLCacheProcPtr>(GetProcAddress(module, "CFURLCacheCopySharedURLCache")))
-        return RetainPtr<CFURLCacheRef>(AdoptCF, copyCache());
+        return adoptCF(copyCache());
 
     typedef CFURLCacheRef (*CFURLCacheSharedURLCacheProcPtr)(void);
     if (CFURLCacheSharedURLCacheProcPtr sharedCache = reinterpret_cast<CFURLCacheSharedURLCacheProcPtr>(GetProcAddress(module, "CFURLCacheSharedURLCache")))

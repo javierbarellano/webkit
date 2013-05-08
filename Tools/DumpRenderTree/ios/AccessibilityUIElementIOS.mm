@@ -74,8 +74,13 @@ AccessibilityUIElement::~AccessibilityUIElement()
 - (NSString *)stringForRange:(NSRange)range;
 - (NSArray *)elementsForRange:(NSRange)range;
 - (NSString *)selectionRangeString;
+- (CGPoint)accessibilityClickPoint;
 - (void)accessibilityModifySelection:(WebCore::TextGranularity)granularity increase:(BOOL)increase;
 - (void)accessibilitySetPostedNotificationCallback:(AXPostedNotificationCallback)function withContext:(void*)context;
+@end
+
+@interface NSObject (WebAccessibilityObjectWrapperPrivate)
+- (CGPathRef)_accessibilityPath;
 @end
 
 static JSStringRef concatenateAttributeAndValue(NSString* attribute, NSString* value)
@@ -87,7 +92,7 @@ static JSStringRef concatenateAttributeAndValue(NSString* attribute, NSString* v
     
     Vector<UniChar> valueBuffer([value length]);
     [value getCharacters:valueBuffer.data()];
-    buffer.append(valueBuffer);
+    buffer.appendVector(valueBuffer);
     
     return JSStringCreateWithCharacters(buffer.data(), buffer.size());
 }
@@ -168,13 +173,13 @@ double AccessibilityUIElement::height()
 
 double AccessibilityUIElement::clickPointX()
 {
-    CGPoint centerPoint = [m_element accessibilityActivationPoint];
+    CGPoint centerPoint = [m_element accessibilityClickPoint];
     return centerPoint.x;
 }
 
 double AccessibilityUIElement::clickPointY()
 {
-    CGPoint centerPoint = [m_element accessibilityActivationPoint];
+    CGPoint centerPoint = [m_element accessibilityClickPoint];
     return centerPoint.y;
 }
 
@@ -338,6 +343,42 @@ void AccessibilityUIElement::elementsForRange(unsigned location, unsigned length
         AccessibilityUIElement element = AccessibilityUIElement(object);
         elements.append(element);
     }
+}
+
+static void _CGPathEnumerationIteration(void *info, const CGPathElement *element)
+{
+    NSMutableString *result = (NSMutableString *)info;
+    switch (element->type) {
+    case kCGPathElementMoveToPoint:
+        [result appendString:@"\tMove to point\n"];
+        break;
+        
+    case kCGPathElementAddLineToPoint:
+        [result appendString:@"\tLine to\n"];
+        break;
+        
+    case kCGPathElementAddQuadCurveToPoint:
+        [result appendString:@"\tQuad curve to\n"];
+        break;
+        
+    case kCGPathElementAddCurveToPoint:
+        [result appendString:@"\tCurve to\n"];
+        break;
+        
+    case kCGPathElementCloseSubpath:
+        [result appendString:@"\tClose\n"];
+        break;
+    }
+}
+
+JSStringRef AccessibilityUIElement::pathDescription() const
+{
+    NSMutableString *result = [NSMutableString stringWithString:@"\nStart Path\n"];
+    CGPathRef pathRef = [m_element _accessibilityPath];
+    
+    CGPathApply(pathRef, result, _CGPathEnumerationIteration);
+    
+    return [result createJSStringRef];
 }
 
 #pragma mark Unused

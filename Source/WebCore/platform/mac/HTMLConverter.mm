@@ -53,8 +53,6 @@ using namespace HTMLNames;
 static NSFileWrapper *fileWrapperForURL(DocumentLoader *, NSURL *);
 static NSFileWrapper *fileWrapperForElement(Element*);
 
-#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-
 // Additional control Unicode characters
 const unichar WebNextLineCharacter = 0x0085;
 
@@ -99,11 +97,7 @@ static NSFont *WebDefaultFont()
     return defaultFont;
 }
 
-#endif
-
 @implementation WebHTMLConverter
-
-#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 
 static NSFont *_fontForNameAndSize(NSString *fontName, CGFloat size, NSMutableDictionary *cache)
 {
@@ -1664,15 +1658,13 @@ static NSInteger _colCompare(id block1, id block2, void *)
     return (0 == _errorCode) ? [[_attrStr retain] autorelease] : nil;
 }
 
-#endif // PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-
 // This function uses TextIterator, which makes offsets in its result compatible with HTML editing.
 + (NSAttributedString *)editingAttributedStringFromRange:(Range*)range
 {
     NSFontManager *fontManager = [NSFontManager sharedFontManager];
     NSMutableAttributedString *string = [[NSMutableAttributedString alloc] init];
     NSUInteger stringLength = 0;
-    RetainPtr<NSMutableDictionary> attrs(AdoptNS, [[NSMutableDictionary alloc] init]);
+    RetainPtr<NSMutableDictionary> attrs = adoptNS([[NSMutableDictionary alloc] init]);
 
     for (TextIterator it(range); !it.atEnd(); it.advance()) {
         RefPtr<Range> currentTextRange = it.range();
@@ -1715,7 +1707,7 @@ static NSInteger _colCompare(id block1, id block2, void *)
         else
             [attrs.get() removeObjectForKey:NSBackgroundColorAttributeName];
 
-        RetainPtr<NSString> substring(AdoptNS, [[NSString alloc] initWithCharactersNoCopy:const_cast<UChar*>(it.characters()) length:currentTextLength freeWhenDone:NO]);
+        RetainPtr<NSString> substring = adoptNS([[NSString alloc] initWithCharactersNoCopy:const_cast<UChar*>(it.characters()) length:currentTextLength freeWhenDone:NO]);
         [string replaceCharactersInRange:NSMakeRange(stringLength, 0) withString:substring.get()];
         [string setAttributes:attrs.get() range:NSMakeRange(stringLength, currentTextLength)];
         stringLength += currentTextLength;

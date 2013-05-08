@@ -46,12 +46,16 @@ public:
     static PassOwnPtr<CaptionUserPreferences> create(PageGroup* group) { return adoptPtr(new CaptionUserPreferences(group)); }
     virtual ~CaptionUserPreferences();
 
-    virtual bool userHasCaptionPreferences() const { return m_testingMode && m_havePreferences; }
-    virtual bool shouldShowCaptions() const;
-    virtual void setShouldShowCaptions(bool);
+    enum CaptionDisplayMode {
+        Automatic,
+        ForcedOnly,
+        AlwaysOn
+    };
+    virtual CaptionDisplayMode captionDisplayMode() const;
+    virtual void setCaptionDisplayMode(CaptionDisplayMode);
 
     virtual int textTrackSelectionScore(TextTrack*, HTMLMediaElement*) const;
-    virtual int textTrackLanguageSelectionScore(TextTrack*) const;
+    virtual int textTrackLanguageSelectionScore(TextTrack*, const Vector<String>&) const;
 
     virtual bool userPrefersCaptions() const;
     virtual void setUserPrefersCaptions(bool);
@@ -62,37 +66,45 @@ public:
     virtual bool userPrefersTextDescriptions() const;
     virtual void setUserPrefersTextDescriptions(bool preference);
 
-    virtual float captionFontSizeScale(bool& important) const { important = false; return 0.05f; }
-    virtual String captionsStyleSheetOverride() const { return emptyString(); }
+    virtual float captionFontSizeScaleAndImportance(bool& important) const { important = false; return 0.05f; }
+
+    virtual String captionsStyleSheetOverride() const { return m_captionsStyleSheetOverride; }
+    virtual void setCaptionsStyleSheetOverride(const String&);
 
     virtual void setInterestedInCaptionPreferenceChanges() { }
 
     virtual void captionPreferencesChanged();
 
-    virtual void setPreferredLanguage(String);
+    virtual void setPreferredLanguage(const String&);
     virtual Vector<String> preferredLanguages() const;
 
     virtual String displayNameForTrack(TextTrack*) const;
     virtual Vector<RefPtr<TextTrack> > sortedTrackListForMenu(TextTrackList*);
 
+    void setPrimaryAudioTrackLanguageOverride(const String& language) { m_primaryAudioTrackLanguageOverride = language;  }
+    String primaryAudioTrackLanguageOverride() const;
+
     virtual bool testingMode() const { return m_testingMode; }
     virtual void setTestingMode(bool override) { m_testingMode = override; }
-
+    
     PageGroup* pageGroup() const { return m_pageGroup; }
 
 protected:
     CaptionUserPreferences(PageGroup*);
+    void updateCaptionStyleSheetOveride();
 
 private:
     void timerFired(Timer<CaptionUserPreferences>*);
     void notify();
 
     PageGroup* m_pageGroup;
+    CaptionDisplayMode m_displayMode;
     Timer<CaptionUserPreferences> m_timer;
     String m_userPreferredLanguage;
+    String m_captionsStyleSheetOverride;
+    String m_primaryAudioTrackLanguageOverride;
     bool m_testingMode;
     bool m_havePreferences;
-    bool m_shouldShowCaptions;
 };
     
 }

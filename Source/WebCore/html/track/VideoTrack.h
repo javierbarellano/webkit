@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,37 +31,31 @@
 
 #include "ExceptionCode.h"
 #include "TrackBase.h"
+#include "VideoTrackPrivate.h"
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class HTMLMediaElement;
 class VideoTrack;
 
 class VideoTrackClient {
 public:
     virtual ~VideoTrackClient() { }
-    virtual void videoTrackSelected(VideoTrack*, bool) = 0;
+    virtual void videoTrackSelectedChanged(VideoTrack*) = 0;
 };
 
-class VideoTrack : public TrackBase {
+class VideoTrack : public TrackBase, public VideoTrackPrivateClient {
 public:
-    static PassRefPtr<VideoTrack> create(ScriptExecutionContext* context, VideoTrackClient* client, int index, bool selected, const String& id, const String& kind, const String& label, const String& language)
+    static PassRefPtr<VideoTrack> create(VideoTrackClient* client, PassRefPtr<VideoTrackPrivate> trackPrivate)
     {
-        return adoptRef(new VideoTrack(context, client, index, selected, id, kind, label, language));
+        return adoptRef(new VideoTrack(client, trackPrivate));
     }
     virtual ~VideoTrack();
 
-    void setMediaElement(HTMLMediaElement* element) { m_mediaElement = element; }
-    HTMLMediaElement* mediaElement() { return m_mediaElement; }
-
-    String id() const { return m_id; }
-    void setId(const String&);
-
-    String kind() const { return m_kind; }
-    void setKind(const String&);
+    AtomicString id() const { return m_id; }
+    void setId(const AtomicString& id) { m_id = id; }
 
     static const AtomicString& alternativeKeyword();
     static const AtomicString& captionsKeyword();
@@ -68,55 +63,34 @@ public:
     static const AtomicString& signKeyword();
     static const AtomicString& subtitlesKeyword();
     static const AtomicString& commentaryKeyword();
-    static bool isValidKindKeyword(const String&);
+    virtual const AtomicString& defaultKindKeyword() const OVERRIDE { return emptyAtom; }
 
-    String label() const { return m_label; }
-    void setLabel(const String& label) { m_label = label; }
+    bool selected() const { return m_private->selected(); }
+    void setSelected(const bool);
 
-    String language() const { return m_language; }
-    void setLanguage(const String& language) { m_language = language; }
+    virtual void clearClient() OVERRIDE { m_client = 0; }
+    VideoTrackClient* client() const { return m_client; }
 
-    bool selected() const { return m_selected; }
-    void setSelected(bool selected);
-
-    enum ReadinessState { NotLoaded = 0, Loading = 1, Loaded = 2, FailedToLoad = 3 };
-    ReadinessState readinessState() const { return m_readinessState; }
-    void setReadinessState(ReadinessState state) { m_readinessState = state; }
-
-    virtual void clearClient() { m_client = 0; }
-    VideoTrackClient* client() { return m_client; }
-
-    int trackIndex();
-
-    bool isRendered();
+    size_t inbandTrackIndex();
 
 protected:
-    VideoTrack(
-    		ScriptExecutionContext*,
-    		VideoTrackClient*,
-    		int index,
-    		bool selected,
-    		const String& id,
-    		const String& kind,
-    		const String& label,
-    		const String& language);
-
-    VideoTrack(
-    		ScriptExecutionContext* context,
-    		VideoTrackClient* client,
-    		const String& kind);
+    VideoTrack(VideoTrackClient*, PassRefPtr<VideoTrackPrivate> privateTrack);
 
 private:
-    HTMLMediaElement* m_mediaElement;
-    String m_id;
-    String m_kind;
-    String m_label;
-    String m_language;
-    bool m_selected;
+    virtual bool isValidKind(const AtomicString&) const OVERRIDE;
+    virtual void willRemoveVideoTrackPrivate(VideoTrackPrivate*) OVERRIDE;
+
+    AtomicString m_id;
     VideoTrackClient* m_client;
-    ReadinessState m_readinessState;
-    int m_trackIndex;
+
+    RefPtr<VideoTrackPrivate> m_private;
 };
+
+inline VideoTrack* toVideoTrack(TrackBase* track)
+{
+    ASSERT(track->type() == TrackBase::VideoTrack);
+    return static_cast<VideoTrack*>(track);
+}
 
 } // namespace WebCore
 

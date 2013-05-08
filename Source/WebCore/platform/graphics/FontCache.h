@@ -55,7 +55,7 @@ class OpenTypeVerticalData;
 class SimpleFontData;
 
 #if PLATFORM(WIN)
-#if !OS(WINCE) || defined(IMLANG_FONT_LINK) && (IMLANG_FONT_LINK == 2)
+#if USE(IMLANG_FONT_LINK2)
 typedef IMLangFontLink2 IMLangFontLinkType;
 #else
 typedef IMLangFontLink IMLangFontLinkType;
@@ -82,11 +82,9 @@ public:
 
 #if PLATFORM(WIN)
     IMLangFontLinkType* getFontLinkInterface();
-#if OS(WINCE)
     static void comInitialize();
     static void comUninitialize();
     static IMultiLanguage* getMultiLanguageInterface();
-#endif
 #endif
 
     void getTraitsInFamily(const AtomicString&, Vector<unsigned>&);
@@ -107,16 +105,10 @@ public:
 
 #if PLATFORM(WIN)
     PassRefPtr<SimpleFontData> fontDataFromDescriptionAndLogFont(const FontDescription&, ShouldRetain, const LOGFONT&, AtomicString& outFontFamilyName);
-#elif PLATFORM(CHROMIUM) && OS(WINDOWS)
-    PassRefPtr<SimpleFontData> fontDataFromDescriptionAndLogFont(const FontDescription&, ShouldRetain, const LOGFONT&, wchar_t* outFontFamilyName);
 #endif
 
 #if ENABLE(OPENTYPE_VERTICAL)
-#if USE(SKIA)
-    typedef uint32_t FontFileKey;
-#else
     typedef AtomicString FontFileKey;
-#endif
     PassRefPtr<OpenTypeVerticalData> getVerticalData(const FontFileKey&, const FontPlatformData&);
 #endif
 
@@ -150,14 +142,14 @@ private:
 
     // These methods are implemented by each platform.
     PassRefPtr<SimpleFontData> getSimilarFontPlatformData(const Font&);
-    FontPlatformData* createFontPlatformData(const FontDescription&, const AtomicString& family);
+    PassOwnPtr<FontPlatformData> createFontPlatformData(const FontDescription&, const AtomicString& family);
 
     PassRefPtr<SimpleFontData> getCachedFontData(const FontPlatformData*, ShouldRetain = Retain);
 
     // Don't purge if this count is > 0;
     int m_purgePreventCount;
 
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN)) || OS(ANDROID)
+#if PLATFORM(MAC)
     friend class ComplexTextController;
 #endif
     friend class SimpleFontData; // For getCachedFontData(const FontPlatformData*)

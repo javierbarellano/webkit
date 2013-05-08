@@ -47,7 +47,7 @@
 #include "npruntime_internal.h"
 #endif
 
-#if OS(WINDOWS) && (PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(WX))
+#if OS(WINDOWS) && (PLATFORM(GTK) || PLATFORM(QT))
 typedef struct HWND__* HWND;
 typedef HWND PlatformPluginWidget;
 #else
@@ -75,13 +75,11 @@ QT_END_NAMESPACE
 typedef struct _GtkSocket GtkSocket;
 #endif
 
-#if USE(JSC)
 namespace JSC {
     namespace Bindings {
         class Instance;
     }
 }
-#endif
 
 namespace WebCore {
     class Frame;
@@ -156,9 +154,7 @@ namespace WebCore {
 #if ENABLE(NETSCAPE_PLUGIN_API)
         NPObject* npObject();
 #endif
-#if USE(JSC)
         PassRefPtr<JSC::Bindings::Instance> bindingInstance();
-#endif
 
         PluginStatus status() const { return m_status; }
 
@@ -312,7 +308,7 @@ namespace WebCore {
         Vector<IntRect> m_invalidRects;
 
         void performRequest(PluginRequest*);
-        void scheduleRequest(PluginRequest*);
+        void scheduleRequest(PassOwnPtr<PluginRequest>);
         void requestTimerFired(Timer<PluginView>*);
         void invalidateTimerFired(Timer<PluginView>*);
         Timer<PluginView> m_requestTimer;
@@ -373,7 +369,7 @@ namespace WebCore {
         Vector<bool, 4> m_popupStateStack;
 
         HashSet<RefPtr<PluginStream> > m_streams;
-        Vector<PluginRequest*> m_requests;
+        Vector<OwnPtr<PluginRequest> > m_requests;
 
         bool m_isWindowed;
         bool m_isTransparent;
@@ -393,7 +389,7 @@ namespace WebCore {
         bool m_haveUpdatedPluginWidget;
 #endif
 
-#if ((PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(WX)) && OS(WINDOWS)) || defined(XP_MACOSX) || PLATFORM(EFL)
+#if ((PLATFORM(GTK) || PLATFORM(QT)) && OS(WINDOWS)) || defined(XP_MACOSX) || PLATFORM(EFL)
         // On Mac OSX and Qt/Windows the plugin does not have its own native widget,
         // but is using the containing window as its reference for positioning/painting.
         PlatformPluginWidget m_window;

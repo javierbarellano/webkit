@@ -154,6 +154,11 @@ void ResourceHandle::continueWillSendRequest(const ResourceRequest&)
     ASSERT_NOT_REACHED();
 }
 
+void ResourceHandle::continueDidReceiveResponse()
+{
+    ASSERT_NOT_REACHED();
+}
+
 void ResourceHandle::continueShouldUseCredentialStorage(bool)
 {
     ASSERT_NOT_REACHED();
@@ -235,11 +240,6 @@ void ResourceHandle::setDefersLoading(bool defers)
 }
 
 void ResourceHandle::didChangePriority(ResourceLoadPriority)
-{
-    // Optionally implemented by platform.
-}
-
-void ResourceHandle::cacheMetadata(const ResourceResponse&, const Vector<char>&)
 {
     // Optionally implemented by platform.
 }

@@ -96,12 +96,6 @@
 #define ENABLE_TEXT_CARET 0
 #endif
 
-#if ENABLE(NOTIFICATIONS)
-#if !defined(ENABLE_TEXT_NOTIFICATIONS_ONLY)
-#define ENABLE_TEXT_NOTIFICATIONS_ONLY 1
-#endif
-#endif
-
 #if !defined(ENABLE_WEB_ARCHIVE)
 #define ENABLE_WEB_ARCHIVE 1
 #endif
@@ -162,12 +156,6 @@
 
 #if !defined(ENABLE_SMOOTH_SCROLLING)
 #define ENABLE_SMOOTH_SCROLLING 1
-#endif
-
-#if ENABLE(NOTIFICATIONS)
-#if !defined(ENABLE_TEXT_NOTIFICATIONS_ONLY)
-#define ENABLE_TEXT_NOTIFICATIONS_ONLY 1
-#endif
 #endif
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
@@ -243,23 +231,6 @@
 
 #endif /* PLATFORM(WIN_CAIRO) */
 
-/* --------- WX port (Mac OS and Windows) --------- */
-#if PLATFORM(WX)
-
-#if OS(DARWIN)
-#if !defined(ENABLE_WEB_ARCHIVE)
-#define ENABLE_WEB_ARCHIVE 1
-#endif
-#endif
-
-#if OS(UNIX)
-#if !defined(ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH)
-#define ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH 1
-#endif
-#endif
-
-#endif /* PLATFORM(WX) */
-
 /* --------- EFL port (Unix) --------- */
 #if PLATFORM(EFL)
 
@@ -306,10 +277,6 @@
 
 /* ENABLE macro defaults for WebCore */
 /* Do not use PLATFORM() tests in this section ! */
-
-#if !defined(ENABLE_3D_PLUGIN)
-#define ENABLE_3D_PLUGIN 0
-#endif
 
 #if !defined(ENABLE_3D_RENDERING)
 #define ENABLE_3D_RENDERING 0
@@ -695,10 +662,6 @@
 #endif
 #endif
 
-#if !defined(ENABLE_PARSED_STYLE_SHEET_CACHING)
-#define ENABLE_PARSED_STYLE_SHEET_CACHING 1
-#endif
-
 #if !defined(ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH)
 #define ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH 0
 #endif
@@ -729,10 +692,6 @@
 
 #if !defined(ENABLE_REQUEST_ANIMATION_FRAME)
 #define ENABLE_REQUEST_ANIMATION_FRAME 0
-#endif
-
-#if !defined(ENABLE_REQUEST_AUTOCOMPLETE)
-#define ENABLE_REQUEST_AUTOCOMPLETE 0
 #endif
 
 #if !defined(ENABLE_RUBBER_BANDING)
@@ -784,12 +743,6 @@
 #endif
 
 #if ENABLE(SVG)
-#if !defined(ENABLE_SVG_DOM_OBJC_BINDINGS)
-#define ENABLE_SVG_DOM_OBJC_BINDINGS 0
-#endif
-#endif
-
-#if ENABLE(SVG)
 #if !defined(ENABLE_SVG_FONTS)
 #define ENABLE_SVG_FONTS 1
 #endif
@@ -805,10 +758,6 @@
 
 #if !defined(ENABLE_TEXT_CARET)
 #define ENABLE_TEXT_CARET 1
-#endif
-
-#if !defined(ENABLE_TEXT_NOTIFICATIONS_ONLY)
-#define ENABLE_TEXT_NOTIFICATIONS_ONLY 0
 #endif
 
 #if !defined(ENABLE_THREADED_HTML_PARSER)
@@ -871,6 +820,10 @@
 #define ENABLE_WEB_TIMING 0
 #endif
 
+#if !defined(ENABLE_WEB_TIMING_MINIMAL)
+#define ENABLE_WEB_TIMING_MINIMAL 0
+#endif
+
 #if !defined(ENABLE_WORKERS)
 #define ENABLE_WORKERS 0
 #endif
@@ -889,16 +842,16 @@
 #error "ENABLE(SATURATED_LAYOUT_ARITHMETIC) requires ENABLE(SUBPIXEL_LAYOUT)"
 #endif
 
-#if ENABLE(SVG_DOM_OBJC_BINDINGS) && !ENABLE(SVG)
-#error "ENABLE(SVG_DOM_OBJC_BINDINGS) requires ENABLE(SVG)"
-#endif
-
 #if ENABLE(SVG_FONTS) && !ENABLE(SVG)
 #error "ENABLE(SVG_FONTS) requires ENABLE(SVG)"
 #endif
 
 #if ENABLE(VIDEO_TRACK) && !ENABLE(VIDEO)
 #error "ENABLE(VIDEO_TRACK) requires ENABLE(VIDEO)"
+#endif
+
+#if ENABLE(WEB_TIMING) && ENABLE(WEB_TIMING_MINIMAL)
+#error "ENABLE(WEB_TIMING) and ENABLE(WEB_TIMING_MINIMAL) are mutually exclusive."
 #endif
 
 #endif /* WTF_FeatureDefines_h */

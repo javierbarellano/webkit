@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +29,7 @@
 
 #if ENABLE(VIDEO_TRACK)
 
+#include "AudioTrackPrivate.h"
 #include "ExceptionCode.h"
 #include "TrackBase.h"
 #include <wtf/PassOwnPtr.h>
@@ -36,39 +38,24 @@
 
 namespace WebCore {
 
-class HTMLMediaElement;
 class AudioTrack;
 
 class AudioTrackClient {
 public:
     virtual ~AudioTrackClient() { }
-    virtual void audioTrackEnabled(AudioTrack*, bool) = 0;
+    virtual void audioTrackEnabledChanged(AudioTrack*) = 0;
 };
 
-class AudioTrack : public TrackBase {
+class AudioTrack : public TrackBase, public AudioTrackPrivateClient {
 public:
-    static PassRefPtr<AudioTrack> create(
-    		ScriptExecutionContext* context,
-    		AudioTrackClient* client,
-    		int index,
-    		bool enabled,
-    		const String& id,
-    		const String& kind,
-    		const String& label,
-    		const String& language)
+    static PassRefPtr<AudioTrack> create(AudioTrackClient* client, PassRefPtr<AudioTrackPrivate> trackPrivate)
     {
-        return adoptRef(new AudioTrack(context, client, index, enabled, id, kind, label, language));
+        return adoptRef(new AudioTrack(client, trackPrivate));
     }
     virtual ~AudioTrack();
 
-    void setMediaElement(HTMLMediaElement* element) { m_mediaElement = element; }
-    HTMLMediaElement* mediaElement() { return m_mediaElement; }
-
-    String id() const { return m_id; }
-    void setId(const String&);
-
-    String kind() const { return m_kind; }
-    void setKind(const String&);
+    AtomicString id() const { return m_id; }
+    void setId(const AtomicString& id) { m_id = id; }
 
     static const AtomicString& alternativeKeyword();
     static const AtomicString& descriptionKeyword();
@@ -76,42 +63,36 @@ public:
     static const AtomicString& mainDescKeyword();
     static const AtomicString& translationKeyword();
     static const AtomicString& commentaryKeyword();
-    static bool isValidKindKeyword(const String&);
+    virtual const AtomicString& defaultKindKeyword() const OVERRIDE { return emptyAtom; }
 
-    String label() const { return m_label; }
-    void setLabel(const String& label) { m_label = label; }
+    bool enabled() const { return m_private->enabled(); }
+    virtual void setEnabled(const bool);
 
-    String language() const { return m_language; }
-    void setLanguage(const String& language) { m_language = language; }
+    virtual void clearClient() OVERRIDE { m_client = 0; }
+    AudioTrackClient* client() const { return m_client; }
 
-    bool enabled() const { return m_enabled; }
-    void setEnabled(bool selected);
-
-    enum ReadinessState { NotLoaded = 0, Loading = 1, Loaded = 2, FailedToLoad = 3 };
-    ReadinessState readinessState() const { return m_readinessState; }
-    void setReadinessState(ReadinessState state) { m_readinessState = state; }
-
-    virtual void clearClient() { m_client = 0; }
-    AudioTrackClient* client() { return m_client; }
-
-    int trackIndex();
-
-    bool isRendered();
+    size_t inbandTrackIndex();
 
 protected:
-    AudioTrack(ScriptExecutionContext*, AudioTrackClient*, int index, bool enabled, const String& id, const String& kind, const String& label, const String& language);
+    AudioTrack(AudioTrackClient*, PassRefPtr<AudioTrackPrivate>);
 
 private:
-    HTMLMediaElement* m_mediaElement;
-    String m_id;
-    String m_kind;
-    String m_label;
-    String m_language;
-    bool m_enabled;
+    virtual bool isValidKind(const AtomicString&) const OVERRIDE;
+    virtual void setLabel(const AtomicString&) OVERRIDE;
+    virtual void setLanguage(const AtomicString&) OVERRIDE;
+    virtual void willRemoveAudioTrackPrivate(AudioTrackPrivate*) OVERRIDE;
+
+    AtomicString m_id;
     AudioTrackClient* m_client;
-    ReadinessState m_readinessState;
-    int m_trackIndex;
+
+    RefPtr<AudioTrackPrivate> m_private;
 };
+
+inline AudioTrack* toAudioTrack(TrackBase* track)
+{
+    ASSERT(track->type() == TrackBase::AudioTrack);
+    return static_cast<AudioTrack*>(track);
+}
 
 } // namespace WebCore
 

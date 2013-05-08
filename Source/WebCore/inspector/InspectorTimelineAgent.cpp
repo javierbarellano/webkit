@@ -225,9 +225,6 @@ void InspectorTimelineAgent::supportsFrameInstrumentation(ErrorString*, bool* re
 
 void InspectorTimelineAgent::didBeginFrame()
 {
-#if PLATFORM(CHROMIUM)
-    TRACE_EVENT_INSTANT0("webkit", InstrumentationEvents::BeginFrame);
-#endif
     m_pendingFrameRecord = TimelineRecordFactory::createGenericRecord(timestamp(), 0);
 }
 
@@ -606,11 +603,7 @@ void InspectorTimelineAgent::setNativeHeapStatistics(TypeBuilder::Timeline::Time
         return;
     if (!m_state->getBoolean(TimelineAgentState::includeNativeMemoryStatistics))
         return;
-    HashMap<String, size_t> map;
-    m_memoryAgent->getProcessMemoryDistributionMap(&map);
     RefPtr<InspectorObject> stats = InspectorObject::create();
-    for (HashMap<String, size_t>::iterator it = map.begin(); it != map.end(); ++it)
-        stats->setNumber(it->key, it->value);
     size_t privateBytes = 0;
     size_t sharedBytes = 0;
     MemoryUsageSupport::processMemorySizesInBytes(&privateBytes, &sharedBytes);

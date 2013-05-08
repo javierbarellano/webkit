@@ -127,6 +127,12 @@ using namespace std;
     return (m_object->isLink() && !m_object->isImageMapLink()) || m_object->isImage();
 }
 
+// On iOS, we don't have to return the value in the title. We can return the actual title, given the API.
+- (BOOL)fileUploadButtonReturnsValueInTitle
+{
+    return YES;
+}
+
 // This should be the "visible" text that's actually on the screen if possible.
 // If there's alternative text, that can override the title.
 - (NSString *)accessibilityTitle
@@ -138,7 +144,7 @@ using namespace std;
     // A file upload button presents a challenge because it has button text and a value, but the
     // API doesn't support this paradigm.
     // The compromise is to return the button type in the role description and the value of the file path in the title
-    if (m_object->isFileUploadButton())
+    if (m_object->isFileUploadButton() && [self fileUploadButtonReturnsValueInTitle])
         return m_object->stringValue();
     
     Vector<AccessibilityText> textOrder;
@@ -224,6 +230,116 @@ using namespace std;
     }
     
     return [NSString string];
+}
+
+struct PathConversionInfo {
+    WebAccessibilityObjectWrapperBase *wrapper;
+    CGMutablePathRef path;
+};
+
+static void ConvertPathToScreenSpaceFunction(void* info, const PathElement* element)
+{
+    PathConversionInfo* conversion = (PathConversionInfo*)info;
+    WebAccessibilityObjectWrapperBase *wrapper = conversion->wrapper;
+    CGMutablePathRef newPath = conversion->path;
+    switch (element->type) {
+    case PathElementMoveToPoint:
+    {
+        CGPoint newPoint = [wrapper convertPointToScreenSpace:element->points[0]];
+        CGPathMoveToPoint(newPath, nil, newPoint.x, newPoint.y);
+        break;
+    }
+    case PathElementAddLineToPoint:
+    {
+        CGPoint newPoint = [wrapper convertPointToScreenSpace:element->points[0]];
+        CGPathAddLineToPoint(newPath, nil, newPoint.x, newPoint.y);
+        break;
+    }
+    case PathElementAddQuadCurveToPoint:
+    {
+        CGPoint newPoint1 = [wrapper convertPointToScreenSpace:element->points[0]];
+        CGPoint newPoint2 = [wrapper convertPointToScreenSpace:element->points[1]];
+        CGPathAddQuadCurveToPoint(newPath, nil, newPoint1.x, newPoint1.y, newPoint2.x, newPoint2.y);
+        break;
+    }
+    case PathElementAddCurveToPoint:
+    {
+        CGPoint newPoint1 = [wrapper convertPointToScreenSpace:element->points[0]];
+        CGPoint newPoint2 = [wrapper convertPointToScreenSpace:element->points[1]];
+        CGPoint newPoint3 = [wrapper convertPointToScreenSpace:element->points[2]];
+        CGPathAddCurveToPoint(newPath, nil, newPoint1.x, newPoint1.y, newPoint2.x, newPoint2.y, newPoint3.x, newPoint3.y);
+        break;
+    }
+    case PathElementCloseSubpath:
+    {
+        CGPathCloseSubpath(newPath);
+        break;
+    }
+    }
+}
+
+- (CGPathRef)convertPathToScreenSpace:(Path &)path
+{
+    PathConversionInfo conversion = { self, CGPathCreateMutable() };
+    path.apply(&conversion, ConvertPathToScreenSpaceFunction);    
+    return (CGPathRef)[(id)conversion.path autorelease];
+}
+
+- (CGPoint)convertPointToScreenSpace:(FloatPoint &)point
+{
+    UNUSED_PARAM(point);
+    ASSERT_NOT_REACHED();
+    return CGPointZero;
+}
+
+- (NSString *)ariaLandmarkRoleDescription
+{
+    switch (m_object->roleValue()) {
+    case LandmarkApplicationRole:
+        return AXARIAContentGroupText(@"ARIALandmarkApplication");
+    case LandmarkBannerRole:
+        return AXARIAContentGroupText(@"ARIALandmarkBanner");
+    case LandmarkComplementaryRole:
+        return AXARIAContentGroupText(@"ARIALandmarkComplementary");
+    case LandmarkContentInfoRole:
+        return AXARIAContentGroupText(@"ARIALandmarkContentInfo");
+    case LandmarkMainRole:
+        return AXARIAContentGroupText(@"ARIALandmarkMain");
+    case LandmarkNavigationRole:
+        return AXARIAContentGroupText(@"ARIALandmarkNavigation");
+    case LandmarkSearchRole:
+        return AXARIAContentGroupText(@"ARIALandmarkSearch");
+    case ApplicationAlertRole:
+        return AXARIAContentGroupText(@"ARIAApplicationAlert");
+    case ApplicationAlertDialogRole:
+        return AXARIAContentGroupText(@"ARIAApplicationAlertDialog");
+    case ApplicationDialogRole:
+        return AXARIAContentGroupText(@"ARIAApplicationDialog");
+    case ApplicationLogRole:
+        return AXARIAContentGroupText(@"ARIAApplicationLog");
+    case ApplicationMarqueeRole:
+        return AXARIAContentGroupText(@"ARIAApplicationMarquee");
+    case ApplicationStatusRole:
+        return AXARIAContentGroupText(@"ARIAApplicationStatus");
+    case ApplicationTimerRole:
+        return AXARIAContentGroupText(@"ARIAApplicationTimer");
+    case DocumentRole:
+        return AXARIAContentGroupText(@"ARIADocument");
+    case DocumentArticleRole:
+        return AXARIAContentGroupText(@"ARIADocumentArticle");
+    case DocumentMathRole:
+        return AXARIAContentGroupText(@"ARIADocumentMath");
+    case DocumentNoteRole:
+        return AXARIAContentGroupText(@"ARIADocumentNote");
+    case DocumentRegionRole:
+        return AXARIAContentGroupText(@"ARIADocumentRegion");
+    case UserInterfaceTooltipRole:
+        return AXARIAContentGroupText(@"ARIAUserInterfaceTooltip");
+    case TabPanelRole:
+        return AXARIAContentGroupText(@"ARIATabPanel");
+    default:
+        return nil;
+    }
 }
 
 // This is set by DRT when it wants to listen for notifications.

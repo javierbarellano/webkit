@@ -178,7 +178,7 @@ bool RuntimeEnabledFeatures::isMediaSourceEnabled = false;
 #endif
 
 #if ENABLE(VIDEO_TRACK)
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(CHROMIUM) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(QT)
     bool RuntimeEnabledFeatures::isVideoTrackEnabled = true;
 #else
     bool RuntimeEnabledFeatures::isVideoTrackEnabled = false;
@@ -229,10 +229,6 @@ bool RuntimeEnabledFeatures::isInputTypeWeekEnabled = true;
 
 #if ENABLE(DIALOG_ELEMENT)
 bool RuntimeEnabledFeatures::isDialogElementEnabled = false;
-#endif
-
-#if ENABLE(REQUEST_AUTOCOMPLETE)
-bool RuntimeEnabledFeatures::isRequestAutocompleteEnabled = false;
 #endif
 
 #if ENABLE(CSP_NEXT)

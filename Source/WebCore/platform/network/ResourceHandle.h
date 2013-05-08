@@ -103,8 +103,6 @@ public:
     static PassRefPtr<ResourceHandle> create(NetworkingContext*, const ResourceRequest&, ResourceHandleClient*, bool defersLoading, bool shouldContentSniff);
     static void loadResourceSynchronously(NetworkingContext*, const ResourceRequest&, StoredCredentials, ResourceError&, ResourceResponse&, Vector<char>& data);
 
-    static void cacheMetadata(const ResourceResponse&, const Vector<char>&);
-
     virtual ~ResourceHandle();
 
 #if PLATFORM(MAC) || USE(CFNETWORK)
@@ -169,6 +167,7 @@ public:
     void sendPendingRequest();
     bool shouldUseCredentialStorage();
     bool cancelledOrClientless();
+    void ensureReadBuffer();
     static SoupSession* defaultSession();
     static uint64_t getSoupRequestInitiatingPageID(SoupRequest*);
     static void setHostAllowsAnyHTTPSCertificate(const String&);
@@ -189,12 +188,18 @@ public:
 
     // Called in response to ResourceHandleClient::willSendRequestAsync().
     void continueWillSendRequest(const ResourceRequest&);
+
+    // Called in response to ResourceHandleClient::didReceiveResponseAsync().
+    void continueDidReceiveResponse();
+
     // Called in response to ResourceHandleClient::shouldUseCredentialStorageAsync().
     void continueShouldUseCredentialStorage(bool);
+
 #if USE(PROTECTION_SPACE_AUTH_CALLBACK)
     // Called in response to ResourceHandleClient::canAuthenticateAgainstProtectionSpaceAsync().
     void continueCanAuthenticateAgainstProtectionSpace(bool);
 #endif
+
 #if PLATFORM(MAC)
     // Called in response to ResourceHandleClient::willCacheResponseAsync().
     void continueWillCacheResponse(NSCachedURLResponse *);

@@ -28,7 +28,7 @@
 
 VPATH = \
     $(WebCore) \
-    $(WebCore)/Modules/discovery \
+	$(WebCore)/Modules/encryptedmedia \
     $(WebCore)/Modules/filesystem \
     $(WebCore)/Modules/geolocation \
     $(WebCore)/Modules/indexeddb \
@@ -427,6 +427,8 @@ BINDING_IDLS = \
     $(WebCore)/html/canvas/WebGLCompressedTextureS3TC.idl \
     $(WebCore)/html/canvas/WebGLContextAttributes.idl \
     $(WebCore)/html/canvas/WebGLContextEvent.idl \
+    $(WebCore)/html/canvas/WebGLDebugRendererInfo.idl \
+    $(WebCore)/html/canvas/WebGLDebugShaders.idl \
     $(WebCore)/html/canvas/WebGLDepthTexture.idl \
     $(WebCore)/html/canvas/WebGLFramebuffer.idl \
     $(WebCore)/html/canvas/WebGLLoseContext.idl \
@@ -439,12 +441,15 @@ BINDING_IDLS = \
     $(WebCore)/html/canvas/WebGLUniformLocation.idl \
     $(WebCore)/html/canvas/WebGLVertexArrayObjectOES.idl \
     $(WebCore)/html/shadow/HTMLContentElement.idl \
-    $(WebCore)/html/shadow/HTMLShadowElement.idl \
+    $(WebCore)/html/track/AudioTrack.idl \
+    $(WebCore)/html/track/AudioTrackList.idl \
     $(WebCore)/html/track/TextTrack.idl \
     $(WebCore)/html/track/TextTrackCue.idl \
     $(WebCore)/html/track/TextTrackCueList.idl \
     $(WebCore)/html/track/TextTrackList.idl \
     $(WebCore)/html/track/TrackEvent.idl \
+    $(WebCore)/html/track/VideoTrack.idl \
+    $(WebCore)/html/track/VideoTrackList.idl \
     $(WebCore)/inspector/InjectedScriptHost.idl \
     $(WebCore)/inspector/InspectorFrontendHost.idl \
     $(WebCore)/inspector/ScriptProfile.idl \
@@ -663,9 +668,6 @@ DOM_CLASSES=$(basename $(notdir $(BINDING_IDLS)))
 JS_DOM_HEADERS=$(filter-out JSMediaQueryListListener.h JSEventListener.h, $(DOM_CLASSES:%=JS%.h))
 
 WEB_DOM_HEADERS :=
-ifeq ($(findstring BUILDING_WX,$(FEATURE_DEFINES)), BUILDING_WX)
-WEB_DOM_HEADERS := $(filter-out WebDOMXSLTProcessor.h WebDOMEventTarget.h, $(DOM_CLASSES:%=WebDOM%.h))
-endif # BUILDING_WX
 
 all : \
     $(SUPPLEMENTAL_DEPENDENCY_FILE) \
@@ -685,6 +687,7 @@ all : \
     HTMLEntityTable.cpp \
     HTMLNames.cpp \
     JSSVGElementWrapperFactory.cpp \
+    PlugInsResources.h \
     SVGElementFactory.cpp \
     SVGNames.cpp \
     UserAgentStyleSheets.h \
@@ -836,6 +839,15 @@ UserAgentStyleSheets.h : css/make-css-file-arrays.pl bindings/scripts/preprocess
 
 # --------
 
+# plugIns resources
+
+PLUG_INS_RESOURCES = $(WebCore)/Resources/plugIns.js
+
+PlugInsResources.h : css/make-css-file-arrays.pl bindings/scripts/preprocessor.pm $(PLUG_INS_RESOURCES)
+	perl -I$(WebCore)/bindings/scripts $< --defines "$(FEATURE_DEFINES)" $@ PlugInsResourcesData.cpp $(PLUG_INS_RESOURCES)
+
+# --------
+
 WebKitFontFamilyNames.cpp WebKitFontFamilyNames.h : dom/make_names.pl bindings/scripts/Hasher.pm bindings/scripts/StaticString.pm css/WebKitFontFamilyNames.in
 	perl -I $(WebCore)/bindings/scripts $< --fonts $(WebCore)/css/WebKitFontFamilyNames.in
 
@@ -976,22 +988,7 @@ preprocess_idls_script = perl $(addprefix -I $(WebCore)/, $(sort $(dir $(1)))) $
 # JS bindings generator
 
 IDL_INCLUDES = \
-    $(WebCore)/Modules/battery \
-    $(WebCore)/Modules/discovery \
-	$(WebCore)/Modules/encryptedmedia \
-    $(WebCore)/Modules/filesystem \
-    $(WebCore)/Modules/gamepad \
-    $(WebCore)/Modules/geolocation \
-    $(WebCore)/Modules/indexeddb \
-    $(WebCore)/Modules/mediasource \
-    $(WebCore)/Modules/mediastream \
-    $(WebCore)/Modules/networkinfo \
-    $(WebCore)/Modules/notifications \
-    $(WebCore)/Modules/speech \
-    $(WebCore)/Modules/vibration \
-    $(WebCore)/Modules/webaudio \
-    $(WebCore)/Modules/webdatabase \
-    $(WebCore)/Modules/websockets \
+    $(WebCore)/Modules \
     $(WebCore)/css \
     $(WebCore)/dom \
     $(WebCore)/fileapi \
@@ -1063,13 +1060,6 @@ InjectedScriptCanvasModuleSource.h : InjectedScriptCanvasModuleSource.js
 	perl $(WebCore)/inspector/xxd.pl InjectedScriptCanvasModuleSource_js $(WebCore)/inspector/InjectedScriptCanvasModuleSource.js InjectedScriptCanvasModuleSource.h
 
 -include $(JS_DOM_HEADERS:.h=.dep)
-
-ifeq ($(findstring BUILDING_WX,$(FEATURE_DEFINES)), BUILDING_WX)
-CPP_BINDINGS_SCRIPTS = $(GENERATE_SCRIPTS) bindings/scripts/CodeGeneratorCPP.pm
-
-WebDOM%.h : %.idl $(CPP_BINDINGS_SCRIPTS)
-	$(call generator_script, $(CPP_BINDINGS_SCRIPTS)) $(IDL_COMMON_ARGS) --defines "$(FEATURE_DEFINES) $(ADDITIONAL_IDL_DEFINES) LANGUAGE_CPP" --generator CPP --supplementalDependencyFile $(SUPPLEMENTAL_DEPENDENCY_FILE) $<
-endif # BUILDING_WX
 
 # ------------------------
 

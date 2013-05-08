@@ -65,7 +65,6 @@ list(APPEND WebCore_SOURCES
     platform/efl/EventLoopEfl.cpp
     platform/efl/FileSystemEfl.cpp
     platform/efl/GamepadsEfl.cpp
-    platform/efl/KURLEfl.cpp
     platform/efl/LanguageEfl.cpp
     platform/efl/LocalizedStringsEfl.cpp
     platform/efl/LoggingEfl.cpp
@@ -96,7 +95,6 @@ list(APPEND WebCore_SOURCES
     platform/graphics/cairo/ImageBufferCairo.cpp
     platform/graphics/cairo/ImageCairo.cpp
     platform/graphics/cairo/IntRectCairo.cpp
-    platform/graphics/cairo/NativeImageCairo.cpp
     platform/graphics/cairo/OwnPtrCairo.cpp
     platform/graphics/cairo/PathCairo.cpp
     platform/graphics/cairo/PatternCairo.cpp
@@ -124,6 +122,7 @@ list(APPEND WebCore_SOURCES
     platform/graphics/gstreamer/GStreamerUtilities.cpp
     platform/graphics/gstreamer/GStreamerVersioning.cpp
     platform/graphics/gstreamer/ImageGStreamerCairo.cpp
+    platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp
     platform/graphics/gstreamer/PlatformVideoWindowEfl.cpp
@@ -168,9 +167,6 @@ list(APPEND WebCore_SOURCES
     platform/text/efl/TextBreakIteratorInternalICUEfl.cpp
     platform/text/enchant/TextCheckerEnchant.cpp
     platform/text/LocaleICU.cpp
-    platform/text/TextBreakIteratorICU.cpp
-    platform/text/TextCodecICU.cpp
-    platform/text/TextEncodingDetectorICU.cpp
 )
 
 if (ENABLE_BATTERY_STATUS)
@@ -222,7 +218,6 @@ list(APPEND WebCore_LIBRARIES
     ${EVAS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
     ${FREETYPE_LIBRARIES}
-    ${ICU_LIBRARIES}
     ${JPEG_LIBRARIES}
     ${LIBXML2_LIBRARIES}
     ${LIBXSLT_LIBRARIES}
@@ -250,7 +245,6 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     ${EINA_INCLUDE_DIRS}
     ${EVAS_INCLUDE_DIRS}
     ${FREETYPE_INCLUDE_DIRS}
-    ${ICU_INCLUDE_DIRS}
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIR}
     ${SQLITE_INCLUDE_DIR}
@@ -363,8 +357,6 @@ if (WTF_USE_3D_GRAPHICS)
         )
     endif ()
 endif ()
-
-add_definitions(-DDATA_DIR="${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}")
 
 if (ENABLE_WEB_AUDIO)
     list(APPEND WebCore_INCLUDE_DIRECTORIES

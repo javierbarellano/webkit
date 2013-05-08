@@ -81,7 +81,6 @@ InternalSettings::Backup::Backup(Settings* settings)
     , m_originalTextAutosizingWindowSizeOverride(settings->textAutosizingWindowSizeOverride())
     , m_originalTextAutosizingFontScaleFactor(settings->textAutosizingFontScaleFactor())
 #endif
-    , m_originalResolutionOverride(settings->resolutionOverride())
     , m_originalMediaTypeOverride(settings->mediaTypeOverride())
 #if ENABLE(DIALOG_ELEMENT)
     , m_originalDialogElementEnabled(RuntimeEnabledFeatures::dialogElementEnabled())
@@ -119,7 +118,6 @@ void InternalSettings::Backup::restoreTo(Settings* settings)
     settings->setTextAutosizingWindowSizeOverride(m_originalTextAutosizingWindowSizeOverride);
     settings->setTextAutosizingFontScaleFactor(m_originalTextAutosizingFontScaleFactor);
 #endif
-    settings->setResolutionOverride(m_originalResolutionOverride);
     settings->setMediaTypeOverride(m_originalMediaTypeOverride);
 #if ENABLE(DIALOG_ELEMENT)
     RuntimeEnabledFeatures::setDialogElementEnabled(m_originalDialogElementEnabled);
@@ -330,13 +328,6 @@ void InternalSettings::setTextAutosizingWindowSizeOverride(int width, int height
 #endif
 }
 
-void InternalSettings::setResolutionOverride(int dotsPerCSSInchHorizontally, int dotsPerCSSInchVertically, ExceptionCode& ec)
-{
-    InternalSettingsGuardForSettings();
-    // An empty size resets the override.
-    settings()->setResolutionOverride(IntSize(dotsPerCSSInchHorizontally, dotsPerCSSInchVertically));
-}
-
 void InternalSettings::setMediaTypeOverride(const String& mediaType, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
@@ -387,8 +378,6 @@ void InternalSettings::setEditingBehavior(const String& editingBehavior, Excepti
         settings()->setEditingBehaviorType(EditingMacBehavior);
     else if (equalIgnoringCase(editingBehavior, "unix"))
         settings()->setEditingBehaviorType(EditingUnixBehavior);
-    else if (equalIgnoringCase(editingBehavior, "android"))
-        settings()->setEditingBehaviorType(EditingAndroidBehavior);
     else
         ec = SYNTAX_ERR;
 }

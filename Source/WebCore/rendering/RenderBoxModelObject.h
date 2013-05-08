@@ -26,7 +26,6 @@
 
 #include "LayoutRect.h"
 #include "RenderLayerModelObject.h"
-#include "ShadowData.h"
 
 namespace WebCore {
 
@@ -45,6 +44,7 @@ enum BackgroundBleedAvoidance {
 enum ContentChangeType {
     ImageChanged,
     MaskImageChanged,
+    BackgroundImageChanged,
     CanvasChanged,
     CanvasPixelsChanged,
     VideoChanged,
@@ -52,6 +52,7 @@ enum ContentChangeType {
 };
 
 class KeyframeList;
+class InlineFlowBox;
 class StickyPositionViewportConstraints;
 
 // This class is the base for all objects that adhere to the CSS box model as described
@@ -174,6 +175,7 @@ public:
 
     bool canHaveBoxInfoInRegion() const { return !isFloating() && !isReplaced() && !isInline() && !hasColumns() && !isTableCell() && isBlockFlow(); }
 
+    void getGeometryForBackgroundImage(IntRect& destRect, IntPoint& phase, IntSize& tileSize);
 #if USE(ACCELERATED_COMPOSITING)
     void contentChanged(ContentChangeType);
     bool hasAcceleratedCompositing() const;

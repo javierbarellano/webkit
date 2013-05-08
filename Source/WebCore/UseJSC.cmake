@@ -30,6 +30,7 @@ list(APPEND WebCore_SOURCES
     bindings/js/Dictionary.cpp
     bindings/js/GCController.cpp
     bindings/js/JSArrayBufferCustom.cpp
+    bindings/js/JSAudioBufferCustom.cpp
     bindings/js/JSAttrCustom.cpp
     bindings/js/JSBlobCustom.cpp
     bindings/js/JSCDATASectionCustom.cpp
@@ -219,11 +220,15 @@ endif ()
 
 if (ENABLE_VIDEO_TRACK)
     list(APPEND WebCore_SOURCES
+        bindings/js/JSAudioTrackCustom.cpp
+        bindings/js/JSAudioTrackListCustom.cpp
         bindings/js/JSTextTrackCueCustom.cpp
         bindings/js/JSTextTrackCustom.cpp
         bindings/js/JSTextTrackListCustom.cpp
         bindings/js/JSTrackCustom.cpp
         bindings/js/JSTrackEventCustom.cpp
+        bindings/js/JSVideoTrackCustom.cpp
+        bindings/js/JSVideoTrackListCustom.cpp
     )
 endif ()
 
@@ -261,6 +266,12 @@ if (ENABLE_WEB_AUDIO)
         bindings/js/JSBiquadFilterNodeCustom.cpp
         bindings/js/JSOscillatorNodeCustom.cpp
         bindings/js/JSPannerNodeCustom.cpp
+    )
+endif ()
+
+if (ENABLE_MEDIA_STREAM)
+    list(APPEND WebCore_SOURCES
+        bindings/js/JSRTCStatsResponseCustom.cpp
     )
 endif ()
 

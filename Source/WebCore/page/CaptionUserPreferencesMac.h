@@ -41,25 +41,27 @@ public:
     virtual ~CaptionUserPreferencesMac();
 
 #if HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
-    virtual bool userHasCaptionPreferences() const OVERRIDE;
-    virtual bool shouldShowCaptions() const OVERRIDE;
-    virtual void setShouldShowCaptions(bool) OVERRIDE;
+    virtual CaptionDisplayMode captionDisplayMode() const OVERRIDE;
+    virtual void setCaptionDisplayMode(CaptionDisplayMode) OVERRIDE;
 
     virtual bool userPrefersCaptions() const OVERRIDE;
     virtual bool userPrefersSubtitles() const OVERRIDE;
     
-    virtual float captionFontSizeScale(bool&) const OVERRIDE;
-    virtual String captionsStyleSheetOverride() const OVERRIDE;
+    virtual float captionFontSizeScaleAndImportance(bool&) const OVERRIDE;
 
     virtual void setInterestedInCaptionPreferenceChanges() OVERRIDE;
 
-    virtual void setPreferredLanguage(String) OVERRIDE;
+    virtual void setPreferredLanguage(const String&) OVERRIDE;
     virtual Vector<String> preferredLanguages() const OVERRIDE;
 
     virtual void captionPreferencesChanged() OVERRIDE;
 
+    bool shouldFilterTrackMenu() const { return true; }
+#else
+    bool shouldFilterTrackMenu() const { return false; }
 #endif
 
+    virtual String captionsStyleSheetOverride() const OVERRIDE;
     virtual int textTrackSelectionScore(TextTrack*, HTMLMediaElement*) const OVERRIDE;
     virtual Vector<RefPtr<TextTrack> > sortedTrackListForMenu(TextTrackList*) OVERRIDE;
     virtual String displayNameForTrack(TextTrack*) const OVERRIDE;
@@ -78,8 +80,6 @@ private:
     String captionsTextEdgeCSS() const;
     String cssPropertyWithTextEdgeColor(CSSPropertyID, const String&, const Color&, bool) const;
     String colorPropertyCSS(CSSPropertyID, const Color&, bool) const;
-
-    void updateCaptionStyleSheetOveride();
 
     bool m_listeningForPreferenceChanges;
 #endif

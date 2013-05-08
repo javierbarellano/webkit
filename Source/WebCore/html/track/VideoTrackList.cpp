@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,160 +30,69 @@
 #include "VideoTrackList.h"
 
 #include "EventNames.h"
-#include "HTMLMediaElement.h"
-#include "HTMLNames.h"
-#include "ScriptExecutionContext.h"
 #include "VideoTrack.h"
-#include "TrackEvent.h"
 
-namespace WebCore
-{
+using namespace WebCore;
 
-VideoTrackList::VideoTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
-    : m_context(context)
-    , m_owner(owner)
-    , m_pendingEventTimer(this, &VideoTrackList::asyncEventTimerFired)
-    , m_dispatchingEvents(0)
+VideoTrackList::VideoTrackList(HTMLMediaElement* element, ScriptExecutionContext* context)
+    : TrackListBase(element, context)
 {
-    ASSERT(context->isDocument());
 }
 
 VideoTrackList::~VideoTrackList()
 {
 }
 
-unsigned VideoTrackList::length() const
-{
-    return m_tracks.size();
-}
-
-long VideoTrackList::selectedIndex()
-{
-    for(size_t i = 0; i < m_tracks.size(); ++i) {
-        if(m_tracks[i]->selected()) {
-            return (long)i;
-        }
-    }
-
-    return -1L;
-}
-
-void VideoTrackList::setSelectedIndex(long index)
-{
-	long oldSelectedIndex = selectedIndex();
-	if(oldSelectedIndex == index)
-		return;
-
-	if(index == -1) {
-		VideoTrack* track = item(oldSelectedIndex);
-		if(track) {
-			track->setSelected(false);
-		}
-	} else {
-		VideoTrack* track = item(index);
-		if(track) {
-			track->setSelected(true);
-		}
-	}
-}
-
-unsigned VideoTrackList::getTrackIndex(VideoTrack* track) {
-    return m_tracks.find(track);
-}
-
-VideoTrack* VideoTrackList::item(unsigned index)
-{
-    if (index < m_tracks.size())
-        return m_tracks[index].get();
-
-    return 0;
-}
-
 void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
 {
     RefPtr<VideoTrack> track = prpTrack;
 
-    // Insert tracks added in the correct order
-    int index = track->trackIndex();
-    bool inserted = false;
-    for(size_t i = 0; i < m_tracks.size(); ++i) {
-        if(m_tracks[i]->trackIndex() > index) {
-            m_tracks.insert(i, track);
-            inserted = true;
-            break;
-        }
-    }
-    if(!inserted) {
-        m_tracks.append(track);
-    }
+    // Insert tracks in the media file order.
+    size_t index = track->inbandTrackIndex();
+    m_inbandTracks.insert(index, track);
 
-    ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
-    track->setMediaElement(m_owner);
+    ASSERT(!track->mediaElement() || track->mediaElement() == mediaElement());
+    track->setMediaElement(mediaElement());
 
     scheduleAddTrackEvent(track.release());
 }
 
-void VideoTrackList::remove(VideoTrack* track)
+VideoTrack* VideoTrackList::item(unsigned index) const
 {
-    size_t index = m_tracks.find(track);
-    if (index == notFound)
-        return;
+    if (index < m_inbandTracks.size())
+        return toVideoTrack(m_inbandTracks[index].get());
 
-    ASSERT(track->mediaElement() == m_owner);
-    track->setMediaElement(0);
-
-    m_tracks.remove(index);
+    return 0;
 }
 
-void VideoTrackList::clear()
+VideoTrack* VideoTrackList::getTrackById(const AtomicString& id) const
 {
-    m_tracks.clear();
+    for (size_t i = 0; i < length(); ++i) {
+        VideoTrack* track = toVideoTrack(m_inbandTracks[i].get());
+        if (track->id() == id)
+            return track;
+    }
+    return 0;
+}
+
+long VideoTrackList::selectedIndex() const
+{
+    // 4.8.10.10.1 AudioTrackList and VideoTrackList objects
+    // The VideoTrackList.selectedIndex attribute must return the index of the
+    // currently selected track, if any. If the VideoTrackList object does not
+    // currently represent any tracks, or if none of the tracks are selected,
+    // it must instead return −1.
+    for (size_t i = 0; i < length(); ++i) {
+        VideoTrack* track = toVideoTrack(m_inbandTracks[i].get());
+        if (track->selected())
+            return i;
+    }
+    return -1;
 }
 
 const AtomicString& VideoTrackList::interfaceName() const
 {
     return eventNames().interfaceForVideoTrackList;
 }
-
-void VideoTrackList::scheduleAddTrackEvent(PassRefPtr<VideoTrack> track)
-{
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.4 Text track API
-    // ... then queue a task to fire an event with the name addtrack, that does not 
-    // bubble and is not cancelable, and that uses the TrackEvent interface, with 
-    // the track attribute initialized to the text track's VideoTrack object, at
-    // the media element's VideoTracks attribute's VideoTrackList object.
-
-    RefPtr<VideoTrack> trackRef = track;
-    TrackEventInit initializer;
-    initializer.track = trackRef;
-    initializer.bubbles = false;
-    initializer.cancelable = false;
-
-    m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-    if (!m_pendingEventTimer.isActive())
-        m_pendingEventTimer.startOneShot(0);
-}
-
-void VideoTrackList::asyncEventTimerFired(Timer<VideoTrackList>*)
-{
-    Vector<RefPtr<Event> > pendingEvents;
-    ExceptionCode ec = 0;
-    
-    ++m_dispatchingEvents;
-    m_pendingEvents.swap(pendingEvents);
-    size_t count = pendingEvents.size();
-    for (size_t index = 0; index < count; ++index)
-        dispatchEvent(pendingEvents[index].release(), ec);
-    --m_dispatchingEvents;
-}
-
-Node* VideoTrackList::owner() const
-{
-    return m_owner;
-}
-
-} // namespace WebCore
 
 #endif

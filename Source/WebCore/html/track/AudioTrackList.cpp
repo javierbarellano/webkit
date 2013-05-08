@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,156 +29,55 @@
 
 #include "AudioTrackList.h"
 
-#include "EventNames.h"
-#include "HTMLMediaElement.h"
-#include "HTMLNames.h"
-#include "ScriptExecutionContext.h"
 #include "AudioTrack.h"
-#include "TrackEvent.h"
+#include "EventNames.h"
 
 using namespace WebCore;
 
-AudioTrackList::AudioTrackList(HTMLMediaElement* owner, ScriptExecutionContext* context)
-    : m_context(context)
-    , m_owner(owner)
-    , m_pendingEventTimer(this, &AudioTrackList::asyncEventTimerFired)
-    , m_dispatchingEvents(0)
+AudioTrackList::AudioTrackList(HTMLMediaElement* element, ScriptExecutionContext* context)
+    : TrackListBase(element, context)
 {
-    ASSERT(context->isDocument());
 }
 
 AudioTrackList::~AudioTrackList()
 {
 }
 
-unsigned AudioTrackList::length() const
-{
-    return m_tracks.size();
-}
-
-unsigned AudioTrackList::getTrackIndex(AudioTrack* track) {
-    return m_tracks.find(track);
-}
-
-long AudioTrackList::selectedIndex() const
-{
-    for(size_t i = 0; i < m_tracks.size(); ++i) {
-        if(m_tracks[i]->enabled()) {
-            return (long)i;
-        }
-    }
-
-    return -1L;
-}
-
-void AudioTrackList::setSelectedIndex(long index)
-{
-	long oldSelectedIndex = selectedIndex();
-	if(oldSelectedIndex == index)
-		return;
-
-	AudioTrack* track = item(index);
-	if(track) {
-		track->setEnabled(true);
-	}
-
-	AudioTrack* old = item(oldSelectedIndex);
-	if(old) {
-		old->setEnabled(false);
-	}
-}
-
-AudioTrack* AudioTrackList::item(unsigned index)
-{
-	if (index < m_tracks.size())
-		return m_tracks[index].get();
-
-	return 0;
-}
-
 void AudioTrackList::append(PassRefPtr<AudioTrack> prpTrack)
 {
     RefPtr<AudioTrack> track = prpTrack;
 
-    // Insert tracks added in the correct order
-    int index = track->trackIndex();
-    bool inserted = false;
-    for(size_t i = 0; i < m_tracks.size(); ++i) {
-        if(m_tracks[i]->trackIndex() > index) {
-            m_tracks.insert(i, track);
-            inserted = true;
-            break;
-        }
-    }
-    if(!inserted) {
-        m_tracks.append(track);
-    }
+    // Insert tracks in the media file order.
+    size_t index = track->inbandTrackIndex();
+    m_inbandTracks.insert(index, track);
 
-    ASSERT(!track->mediaElement() || track->mediaElement() == m_owner);
-    track->setMediaElement(m_owner);
+    ASSERT(!track->mediaElement() || track->mediaElement() == mediaElement());
+    track->setMediaElement(mediaElement());
 
     scheduleAddTrackEvent(track.release());
 }
 
-void AudioTrackList::remove(AudioTrack* track)
+AudioTrack* AudioTrackList::item(unsigned index) const
 {
-    size_t index = m_tracks.find(track);
-    if (index == notFound)
-        return;
+    if (index < m_inbandTracks.size())
+        return toAudioTrack(m_inbandTracks[index].get());
 
-    ASSERT(track->mediaElement() == m_owner);
-    track->setMediaElement(0);
-
-    m_tracks.remove(index);
+    return 0;
 }
 
-void AudioTrackList::clear()
+AudioTrack* AudioTrackList::getTrackById(const AtomicString& id) const
 {
-    m_tracks.clear();
+    for (size_t i = 0; i < m_inbandTracks.size(); ++i) {
+        AudioTrack* track = toAudioTrack(m_inbandTracks[i].get());
+        if (track->id() == id)
+            return track;
+    }
+    return 0;
 }
 
 const AtomicString& AudioTrackList::interfaceName() const
 {
     return eventNames().interfaceForAudioTrackList;
-}
-
-void AudioTrackList::scheduleAddTrackEvent(PassRefPtr<AudioTrack> track)
-{
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.3 Sourcing out-of-band text tracks
-    // 4.8.10.12.4 Text track API
-    // ... then queue a task to fire an event with the name addtrack, that does not 
-    // bubble and is not cancelable, and that uses the TrackEvent interface, with 
-    // the track attribute initialized to the text track's AudioTrack object, at
-    // the media element's AudioTracks attribute's AudioTrackList object.
-
-    RefPtr<AudioTrack> trackRef = track;
-    TrackEventInit initializer;
-    initializer.track = trackRef;
-    initializer.bubbles = false;
-    initializer.cancelable = false;
-
-    m_pendingEvents.append(TrackEvent::create(eventNames().addtrackEvent, initializer));
-    if (!m_pendingEventTimer.isActive())
-        m_pendingEventTimer.startOneShot(0);
-}
-
-void AudioTrackList::asyncEventTimerFired(Timer<AudioTrackList>*)
-{
-    Vector<RefPtr<Event> > pendingEvents;
-    ExceptionCode ec = 0;
-    
-    ++m_dispatchingEvents;
-    m_pendingEvents.swap(pendingEvents);
-    size_t count = pendingEvents.size();
-    for (size_t index = 0; index < count; ++index)
-        dispatchEvent(pendingEvents[index].release(), ec);
-    --m_dispatchingEvents;
-}
-
-Node* AudioTrackList::owner() const
-{
-    return m_owner;
 }
 
 #endif

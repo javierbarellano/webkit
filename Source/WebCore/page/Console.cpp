@@ -56,10 +56,6 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 
-#if PLATFORM(CHROMIUM)
-#include "TraceEvent.h"
-#endif
-
 namespace WebCore {
 
 Console::Console(Frame* frame)
@@ -93,7 +89,7 @@ static void internalAddMessage(Page* page, MessageType type, MessageLevel level,
         return;
 
     if (gotMessage)
-        page->chrome()->client()->addMessageToConsole(ConsoleAPIMessageSource, type, level, message, lastCaller.lineNumber(), lastCaller.sourceURL());
+        page->chrome()->client()->addMessageToConsole(ConsoleAPIMessageSource, type, level, message, lastCaller.lineNumber(), lastCaller.columnNumber(), lastCaller.sourceURL());
 
     if (!page->settings()->logsPageMessagesToSystemConsoleEnabled() && !PageConsole::shouldPrintExceptions())
         return;
@@ -205,7 +201,7 @@ void Console::profile(const String& title, ScriptState* state)
 
     RefPtr<ScriptCallStack> callStack(createScriptCallStack(state, 1));
     const ScriptCallFrame& lastCaller = callStack->at(0);
-    InspectorInstrumentation::addStartProfilingMessageToConsole(page, resolvedTitle, lastCaller.lineNumber(), lastCaller.sourceURL());
+    InspectorInstrumentation::addStartProfilingMessageToConsole(page, resolvedTitle, lastCaller.lineNumber(), lastCaller.columnNumber(), lastCaller.sourceURL());
 }
 
 void Console::profileEnd(const String& title, ScriptState* state)
@@ -231,16 +227,10 @@ void Console::profileEnd(const String& title, ScriptState* state)
 void Console::time(const String& title)
 {
     InspectorInstrumentation::startConsoleTiming(m_frame, title);
-#if PLATFORM(CHROMIUM)
-    TRACE_EVENT_COPY_ASYNC_BEGIN0("webkit", title.utf8().data(), this);
-#endif
 }
 
 void Console::timeEnd(ScriptState* state, const String& title)
 {
-#if PLATFORM(CHROMIUM)
-    TRACE_EVENT_COPY_ASYNC_END0("webkit", title.utf8().data(), this);
-#endif
     RefPtr<ScriptCallStack> callStack(createScriptCallStackForConsole(state));
     InspectorInstrumentation::stopConsoleTiming(m_frame, title, callStack.release());
 }
@@ -262,7 +252,7 @@ void Console::groupCollapsed(ScriptState* state, PassRefPtr<ScriptArguments> arg
 
 void Console::groupEnd()
 {
-    InspectorInstrumentation::addMessageToConsole(page(), ConsoleAPIMessageSource, EndGroupMessageType, LogMessageLevel, String(), String(), 0);
+    InspectorInstrumentation::addMessageToConsole(page(), ConsoleAPIMessageSource, EndGroupMessageType, LogMessageLevel, String(), String(), 0, 0);
 }
 
 PassRefPtr<MemoryInfo> Console::memory() const

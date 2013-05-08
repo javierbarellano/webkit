@@ -21,6 +21,7 @@
 #include "Page.h"
 
 #include "AlternativeTextClient.h"
+#include "AnimationController.h"
 #include "BackForwardController.h"
 #include "BackForwardList.h"
 #include "Chrome.h"
@@ -32,6 +33,7 @@
 #include "DocumentMarkerController.h"
 #include "DocumentStyleSheetCollection.h"
 #include "DragController.h"
+#include "Editor.h"
 #include "EditorClient.h"
 #include "Event.h"
 #include "EventNames.h"
@@ -46,6 +48,7 @@
 #include "FrameTree.h"
 #include "FrameView.h"
 #include "HTMLElement.h"
+#include "HistoryController.h"
 #include "HistoryItem.h"
 #include "InspectorController.h"
 #include "InspectorInstrumentation.h"
@@ -67,6 +70,7 @@
 #include "RenderWidget.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SchemeRegistry.h"
+#include "ScriptController.h"
 #include "ScrollingCoordinator.h"
 #include "Settings.h"
 #include "SharedBuffer.h"
@@ -75,7 +79,6 @@
 #include "TextResourceDecoder.h"
 #include "VisitedLinkState.h"
 #include "VoidCallback.h"
-#include "WebCoreMemoryInstrumentation.h"
 #include "Widget.h"
 #include <wtf/HashMap.h>
 #include <wtf/RefCountedLeakCounter.h>
@@ -170,7 +173,7 @@ Page::Page(PageClients& pageClients)
     , m_visibilityState(PageVisibilityStateVisible)
 #endif
     , m_displayID(0)
-    , m_layoutMilestones(0)
+    , m_requestedLayoutMilestones(0)
     , m_isCountingRelevantRepaintedObjects(false)
 #ifndef NDEBUG
     , m_isPainting(false)
@@ -1083,7 +1086,7 @@ void Page::setDebugger(JSC::Debugger* debugger)
 StorageNamespace* Page::sessionStorage(bool optionalCreate)
 {
     if (!m_sessionStorage && optionalCreate)
-        m_sessionStorage = StorageNamespace::sessionStorageNamespace(this, m_settings->sessionStorageQuota());
+        m_sessionStorage = StorageNamespace::sessionStorageNamespace(this);
 
     return m_sessionStorage.get();
 }
@@ -1267,7 +1270,12 @@ PageVisibilityState Page::visibilityState() const
 void Page::addLayoutMilestones(LayoutMilestones milestones)
 {
     // In the future, we may want a function that replaces m_layoutMilestones instead of just adding to it.
-    m_layoutMilestones |= milestones;
+    m_requestedLayoutMilestones |= milestones;
+}
+
+void Page::removeLayoutMilestones(LayoutMilestones milestones)
+{
+    m_requestedLayoutMilestones &= ~milestones;
 }
 
 // These are magical constants that might be tweaked over time.
@@ -1276,7 +1284,7 @@ static double gMaximumUnpaintedAreaRatio = 0.04;
 
 bool Page::isCountingRelevantRepaintedObjects() const
 {
-    return m_isCountingRelevantRepaintedObjects && (m_layoutMilestones & DidHitRelevantRepaintedObjectsAreaThreshold);
+    return m_isCountingRelevantRepaintedObjects && (m_requestedLayoutMilestones & DidHitRelevantRepaintedObjectsAreaThreshold);
 }
 
 void Page::startCountingRelevantRepaintedObjects()
@@ -1472,54 +1480,6 @@ void Page::hiddenPageCSSAnimationSuspensionStateChanged()
     }
 }
 #endif
-
-void Page::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::Page);
-    info.addMember(m_chrome, "chrome");
-    info.addMember(m_dragCaretController, "dragCaretController");
-
-#if ENABLE(DRAG_SUPPORT)
-    info.addMember(m_dragController, "dragController");
-#endif
-    info.addMember(m_focusController, "focusController");
-#if ENABLE(CONTEXT_MENUS)
-    info.addMember(m_contextMenuController, "contextMenuController");
-#endif
-#if ENABLE(INSPECTOR)
-    info.addMember(m_inspectorController, "inspectorController");
-#endif
-#if ENABLE(POINTER_LOCK)
-    info.addMember(m_pointerLockController, "pointerLockController");
-#endif
-    info.addMember(m_scrollingCoordinator, "scrollingCoordinator");
-    info.addMember(m_settings, "settings");
-    info.addMember(m_progress, "progress");
-    info.addMember(m_backForwardController, "backForwardController");
-    info.addMember(m_mainFrame, "mainFrame");
-    info.addMember(m_pluginData, "pluginData");
-    info.addMember(m_theme, "theme");
-    info.addMember(m_featureObserver, "featureObserver");
-    info.addMember(m_groupName, "groupName");
-    info.addMember(m_pagination, "pagination");
-    info.addMember(m_userStyleSheetPath, "userStyleSheetPath");
-    info.addMember(m_userStyleSheet, "userStyleSheet");
-    info.addMember(m_singlePageGroup, "singlePageGroup");
-    info.addMember(m_group, "group");
-    info.addMember(m_sessionStorage, "sessionStorage");
-    info.addMember(m_relevantUnpaintedRenderObjects, "relevantUnpaintedRenderObjects");
-    info.addMember(m_topRelevantPaintedRegion, "relevantPaintedRegion");
-    info.addMember(m_bottomRelevantPaintedRegion, "relevantPaintedRegion");
-    info.addMember(m_relevantUnpaintedRegion, "relevantUnpaintedRegion");
-    info.addMember(m_seenPlugins, "seenPlugins");
-    info.addMember(m_seenMediaEngines, "seenMediaEngines");
-
-    info.ignoreMember(m_debugger);
-    info.ignoreMember(m_alternativeTextClient);
-    info.ignoreMember(m_editorClient);
-    info.ignoreMember(m_plugInClient);
-    info.ignoreMember(m_validationMessageClient);
-}
 
 #if ENABLE(VIDEO_TRACK)
 void Page::captionPreferencesChanged()

@@ -33,9 +33,7 @@
 
 #include <wtf/Platform.h>
 #include <wtf/ExportMacros.h>
-#if USE(JSC)
 #include <runtime/JSExportMacros.h>
-#endif
 
 #if defined(__APPLE__) && __APPLE__
 
@@ -47,7 +45,7 @@
 #endif
 #endif
 
-#elif defined(WIN32) || defined(_WIN32)
+#elif PLATFORM(WIN)
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -66,11 +64,11 @@
 #undef WTF_USE_CURL
 #endif
 
-#endif
+#endif // PLATFORM(WIN)
 
 #include <stdint.h>
 
-#if !PLATFORM(IOS) && ((!PLATFORM(CHROMIUM) && !PLATFORM(WIN)) || (PLATFORM(GTK) && defined(BUILDING_WEBKIT2__)))
+#if !PLATFORM(IOS) && !PLATFORM(WIN) && !(PLATFORM(GTK) && !defined(BUILDING_WEBKIT2__))
 #include <WebKit2/WebKit2_C.h>
 #endif
 

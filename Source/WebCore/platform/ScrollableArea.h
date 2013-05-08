@@ -69,8 +69,8 @@ public:
     ScrollElasticity horizontalScrollElasticity() const { return static_cast<ScrollElasticity>(m_horizontalScrollElasticity); }
 
     bool inLiveResize() const { return m_inLiveResize; }
-    void willStartLiveResize();
-    void willEndLiveResize();
+    virtual void willStartLiveResize();
+    virtual void willEndLiveResize();
 
     void contentAreaWillPaint() const;
     void mouseEnteredContentArea() const;
@@ -83,10 +83,8 @@ public:
 
     void finishCurrentScrollAnimations() const;
 
-    void didAddVerticalScrollbar(Scrollbar*);
-    void willRemoveVerticalScrollbar(Scrollbar*);
-    virtual void didAddHorizontalScrollbar(Scrollbar*);
-    virtual void willRemoveHorizontalScrollbar(Scrollbar*);
+    virtual void didAddScrollbar(Scrollbar*, ScrollbarOrientation);
+    virtual void willRemoveScrollbar(Scrollbar*, ScrollbarOrientation);
 
     virtual void contentsResized();
 
@@ -146,6 +144,7 @@ public:
     virtual IntSize contentsSize() const = 0;
     virtual IntSize overhangAmount() const { return IntSize(); }
     virtual IntPoint lastKnownMousePosition() const { return IntPoint(); }
+    virtual bool isHandlingWheelEvent() const { return false; }
 
     virtual int headerHeight() const { return 0; }
     virtual int footerHeight() const { return 0; }
@@ -185,8 +184,6 @@ public:
     virtual TiledBacking* tiledBacking() { return 0; }
     virtual bool usesCompositedScrolling() const { return false; }
 #endif
-
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const;
 
 protected:
     ScrollableArea();

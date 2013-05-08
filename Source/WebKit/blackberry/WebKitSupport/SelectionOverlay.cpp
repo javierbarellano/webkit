@@ -22,11 +22,13 @@
 
 #include "SelectionOverlay.h"
 
+#include "Frame.h"
 #include "GraphicsContext.h"
 #include "LayerMessage.h"
 #include "LayerWebKitThread.h"
 #include "Path.h"
 #include "RenderTheme.h"
+#include "RenderView.h"
 #include "WebPage_p.h"
 
 #include <BlackBerryPlatformMessageClient.h>
@@ -111,6 +113,13 @@ void SelectionOverlay::paintContents(const GraphicsLayer* layer, GraphicsContext
 
     for (unsigned i = 0; i < quads.size(); ++i) {
         FloatRect rectToPaint = quads[i].boundingBox();
+
+        // Selection on non-composited sub-frames need to be adjusted.
+        if (!m_page->focusedOrMainFrame()->contentRenderer()->isComposited()) {
+            WebCore::IntPoint framePosition = m_page->frameOffset(m_page->focusedOrMainFrame());
+            rectToPaint.move(framePosition.x(), framePosition.y());
+        }
+
         rectToPaint.intersect(clip);
         if (rectToPaint.isEmpty())
             continue;
@@ -119,16 +128,6 @@ void SelectionOverlay::paintContents(const GraphicsLayer* layer, GraphicsContext
     }
 
     c.restore();
-}
-
-bool SelectionOverlay::showDebugBorders(const GraphicsLayer* layer) const
-{
-    return m_page->showDebugBorders(layer);
-}
-
-bool SelectionOverlay::showRepaintCounter(const GraphicsLayer* layer) const
-{
-    return m_page->showRepaintCounter(layer);
 }
 
 } // namespace WebKit

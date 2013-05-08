@@ -29,11 +29,11 @@
 #include "IntPoint.h"
 #include <wtf/Vector.h>
 
-#if USE(CG) || USE(SKIA_ON_MAC_CHROMIUM)
+#if USE(CG)
 typedef struct CGRect CGRect;
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN)) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
 #ifdef NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES
 typedef struct CGRect NSRect;
 #else
@@ -63,15 +63,6 @@ class IntRect;
 
 #if USE(CAIRO)
 typedef struct _cairo_rectangle_int cairo_rectangle_int_t;
-#endif
-
-#if PLATFORM(WX)
-class wxRect;
-#endif
-
-#if USE(SKIA)
-struct SkRect;
-struct SkIRect;
 #endif
 
 namespace WebCore {
@@ -194,11 +185,6 @@ public:
 
     IntRect transposedRect() const { return IntRect(m_location.transposedPoint(), m_size.transposedSize()); }
 
-#if PLATFORM(WX)
-    IntRect(const wxRect&);
-    operator wxRect() const;
-#endif
-
 #if PLATFORM(WIN)
     IntRect(const RECT&);
     operator RECT() const;
@@ -220,19 +206,11 @@ public:
     operator cairo_rectangle_int_t() const;
 #endif
 
-#if USE(CG) || USE(SKIA_ON_MAC_CHROMIUM)
+#if USE(CG)
     operator CGRect() const;
 #endif
 
-#if USE(SKIA)
-    IntRect(const SkIRect&);
-    operator SkRect() const;
-    operator SkIRect() const;
-#endif
-
-#if (PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))) \
-        && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES) \
-        || (PLATFORM(QT) && USE(QTKIT))
+#if (PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)) || (PLATFORM(QT) && USE(QTKIT))
     operator NSRect() const;
 #endif
 
@@ -279,12 +257,11 @@ inline IntRect enclosingIntRect(const IntRect& rect)
     return rect;
 }
 
-#if USE(CG) || USE(SKIA_ON_MAC_CHROMIUM)
+#if USE(CG)
 IntRect enclosingIntRect(const CGRect&);
 #endif
 
-#if (PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)) \
-        || (PLATFORM(CHROMIUM) && OS(DARWIN)) || (PLATFORM(QT) && USE(QTKIT))
+#if (PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)) || (PLATFORM(QT) && USE(QTKIT))
 IntRect enclosingIntRect(const NSRect&);
 #endif
 

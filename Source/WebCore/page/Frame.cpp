@@ -30,24 +30,28 @@
 #include "config.h"
 #include "Frame.h"
 
+#include "AnimationController.h"
 #include "ApplyStyleCommand.h"
 #include "BackForwardController.h"
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
 #include "CachedCSSStyleSheet.h"
+#include "CachedResourceLoader.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "DOMWindow.h"
-#include "CachedResourceLoader.h"
 #include "DocumentType.h"
+#include "Editor.h"
 #include "EditorClient.h"
 #include "Event.h"
+#include "EventHandler.h"
 #include "EventNames.h"
 #include "FloatQuad.h"
 #include "FocusController.h"
 #include "FrameDestructionObserver.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
+#include "FrameSelection.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
 #include "GraphicsLayer.h"
@@ -60,7 +64,9 @@
 #include "HitTestResult.h"
 #include "ImageBuffer.h"
 #include "InspectorInstrumentation.h"
+#include "JSDOMWindowShell.h"
 #include "Logging.h"
+#include "MathMLNames.h"
 #include "MediaFeatureNames.h"
 #include "Navigator.h"
 #include "NodeList.h"
@@ -75,6 +81,7 @@
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "RuntimeEnabledFeatures.h"
+#include "SVGNames.h"
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
 #include "ScriptValue.h"
@@ -87,11 +94,13 @@
 #include "UserTypingGestureIndicator.h"
 #include "VisibleUnits.h"
 #include "WebKitFontFamilyNames.h"
+#include "XLinkNames.h"
 #include "XMLNSNames.h"
 #include "XMLNames.h"
 #include "htmlediting.h"
 #include "markup.h"
 #include "npruntime_impl.h"
+#include "runtime_root.h"
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
@@ -99,15 +108,6 @@
 #if USE(ACCELERATED_COMPOSITING)
 #include "RenderLayerCompositor.h"
 #endif
-
-#if USE(JSC)
-#include "JSDOMWindowShell.h"
-#include "runtime_root.h"
-#endif
-
-#include "MathMLNames.h"
-#include "SVGNames.h"
-#include "XLinkNames.h"
 
 #if ENABLE(SVG)
 #include "SVGDocument.h"
@@ -155,11 +155,11 @@ inline Frame::Frame(Page* page, HTMLFrameOwnerElement* ownerElement, FrameLoader
     , m_loader(this, frameLoaderClient)
     , m_navigationScheduler(this)
     , m_ownerElement(ownerElement)
-    , m_script(this)
-    , m_editor(this)
-    , m_selection(this)
-    , m_eventHandler(this)
-    , m_animationController(this)
+    , m_script(adoptPtr(new ScriptController(this)))
+    , m_editor(adoptPtr(new Editor(this)))
+    , m_selection(adoptPtr(new FrameSelection(this)))
+    , m_eventHandler(adoptPtr(new EventHandler(this)))
+    , m_animationController(adoptPtr(new AnimationController(this)))
     , m_pageZoomFactor(parentPageZoomFactor(this))
     , m_textZoomFactor(parentTextZoomFactor(this))
 #if ENABLE(ORIENTATION_EVENTS)
@@ -294,13 +294,11 @@ void Frame::setDocument(PassRefPtr<Document> newDoc)
     ASSERT(!m_doc || m_doc->domWindow());
     ASSERT(!m_doc || m_doc->domWindow()->frame() == this);
 
-    selection()->updateSecureKeyboardEntryIfActive();
-
     if (m_doc && !m_doc->attached())
         m_doc->attach();
 
     if (m_doc) {
-        m_script.updateDocument();
+        m_script->updateDocument();
         m_doc->updateViewportArguments();
     }
 
@@ -315,7 +313,7 @@ void Frame::setDocument(PassRefPtr<Document> newDoc)
     // Suspend document if this frame was created in suspended state.
     if (m_doc && activeDOMObjectsAndAnimationsSuspended()) {
         m_doc->suspendScriptedAnimationControllerCallbacks();
-        m_animationController.suspendAnimationsForDocument(m_doc.get());
+        m_animationController->suspendAnimationsForDocument(m_doc.get());
         m_doc->suspendActiveDOMObjects(ActiveDOMObject::PageWillBeSuspended);
     }
 }
@@ -592,7 +590,7 @@ void Frame::injectUserScriptsForWorld(DOMWrapperWorld* world, const UserScriptVe
             continue;
 
         if (script->injectionTime() == injectionTime && UserContentURLPattern::matchesPatterns(doc->url(), script->whitelist(), script->blacklist()))
-            m_script.evaluateInWorld(ScriptSourceCode(script->source(), script->url()), world);
+            m_script->evaluateInWorld(ScriptSourceCode(script->source(), script->url()), world);
     }
 }
 
@@ -662,17 +660,6 @@ void Frame::dispatchVisibilityStateChangeEvent()
         childFrames[i]->dispatchVisibilityStateChangeEvent();
 }
 #endif
-
-void Frame::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::DOM);
-    info.addMember(m_doc, "doc");
-    info.ignoreMember(m_view);
-    info.addMember(m_ownerElement, "ownerElement");
-    info.addMember(m_page, "page");
-    info.addMember(m_loader, "loader");
-    info.ignoreMember(m_destructionObservers);
-}
 
 void Frame::willDetachPage()
 {
@@ -920,7 +907,7 @@ void Frame::setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor
     if (!document)
         return;
 
-    m_editor.dismissCorrectionPanelAsIgnored();
+    m_editor->dismissCorrectionPanelAsIgnored();
 
 #if ENABLE(SVG)
     // Respect SVGs zoomAndPan="disabled" property in standalone SVG documents.

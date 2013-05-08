@@ -41,7 +41,7 @@
 namespace WebCore {
 
     class AudioContext;
-    class AudioTrack;
+    class AudioTrackList;
     class DedicatedWorkerContext;
     class DOMApplicationCache;
     class DOMWindow;
@@ -70,7 +70,7 @@ namespace WebCore {
     class SourceBufferList;
     class TextTrack;
     class TextTrackCue;
-    class VideoTrack;
+    class VideoTrackList;
     class WebSocket;
     class WebKitNamedFlow;
     class Worker;
@@ -128,15 +128,14 @@ namespace WebCore {
 
         bool hasEventListeners();
         bool hasEventListeners(const AtomicString& eventType);
+        bool hasCapturingEventListeners(const AtomicString& eventType);
         const EventListenerVector& getEventListeners(const AtomicString& eventType);
 
         bool fireEventListeners(Event*);
         bool isFiringEventListeners();
 
-#if USE(JSC)
         void visitJSEventListeners(JSC::SlotVisitor&);
         void invalidateJSEventListeners(JSC::JSObject*);
-#endif
 
     protected:
         virtual ~EventTarget();
@@ -179,14 +178,12 @@ namespace WebCore {
         EventListener* on##attribute() { return recipient ? recipient->getAttributeEventListener(eventNames().attribute##Event) : 0; } \
         void setOn##attribute(PassRefPtr<EventListener> listener) { if (recipient) recipient->setAttributeEventListener(eventNames().attribute##Event, listener); } \
 
-#if USE(JSC)
     inline void EventTarget::visitJSEventListeners(JSC::SlotVisitor& visitor)
     {
         EventListenerIterator iterator(this);
         while (EventListener* listener = iterator.nextListener())
             listener->visitJSFunction(visitor);
     }
-#endif
 
     inline bool EventTarget::isFiringEventListeners()
     {
@@ -210,6 +207,14 @@ namespace WebCore {
         if (!d)
             return false;
         return d->eventListenerMap.contains(eventType);
+    }
+
+    inline bool EventTarget::hasCapturingEventListeners(const AtomicString& eventType)
+    {
+        EventTargetData* d = eventTargetData();
+        if (!d)
+            return false;
+        return d->eventListenerMap.containsCapturing(eventType);
     }
 
 } // namespace WebCore

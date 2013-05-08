@@ -348,8 +348,9 @@ void MediaControlsApple::makeTransparent()
 void MediaControlsApple::changedClosedCaptionsVisibility()
 {
     MediaControls::changedClosedCaptionsVisibility();
-    if (m_closedCaptionsTrackList)
-        m_closedCaptionsTrackList->resetTrackListMenu();
+    if (m_closedCaptionsContainer && m_closedCaptionsContainer->isShowing())
+        m_closedCaptionsContainer->hide();
+
 }
 
 void MediaControlsApple::reset()
@@ -365,7 +366,7 @@ void MediaControlsApple::reset()
     else
         m_fullScreenButton->hide();
 
-    float duration = m_mediaController->duration();
+    double duration = m_mediaController->duration();
     if (std::isfinite(duration) || page->theme()->hasOwnDisabledStateHandlingFor(MediaSliderPart)) {
         m_timeline->setDuration(duration);
         m_timelineContainer->show();
@@ -383,11 +384,9 @@ void MediaControlsApple::reset()
         m_volumeSlider->setVolume(m_mediaController->volume());
 
     if (m_toggleClosedCaptionsButton) {
-        if (m_mediaController->hasClosedCaptions()) {
+        if (m_mediaController->hasClosedCaptions())
             m_toggleClosedCaptionsButton->show();
-            if (m_closedCaptionsTrackList)
-                m_closedCaptionsTrackList->resetTrackListMenu();
-        } else
+        else
             m_toggleClosedCaptionsButton->hide();
     }
 
@@ -541,8 +540,8 @@ void MediaControlsApple::setTextTrackSelected(int index)
 
 void MediaControlsApple::updateCurrentTimeDisplay()
 {
-    float now = m_mediaController->currentTime();
-    float duration = m_mediaController->duration();
+    double now = m_mediaController->currentTime();
+    double duration = m_mediaController->duration();
 
     Page* page = document()->page();
     if (!page)
@@ -669,8 +668,6 @@ void MediaControlsApple::toggleClosedCaptionTrackList()
 
 void MediaControlsApple::closedCaptionTracksChanged()
 {
-    if (m_closedCaptionsTrackList)
-        m_closedCaptionsTrackList->resetTrackListMenu();
     if (m_toggleClosedCaptionsButton) {
         if (m_mediaController->hasClosedCaptions())
             m_toggleClosedCaptionsButton->show();

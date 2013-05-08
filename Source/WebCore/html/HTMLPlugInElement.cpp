@@ -29,6 +29,7 @@
 #include "CSSPropertyNames.h"
 #include "Document.h"
 #include "Event.h"
+#include "EventHandler.h"
 #include "Frame.h"
 #include "FrameLoader.h"
 #include "FrameTree.h"
@@ -38,6 +39,7 @@
 #include "RenderEmbeddedObject.h"
 #include "RenderSnapshottedPlugIn.h"
 #include "RenderWidget.h"
+#include "ScriptController.h"
 #include "Settings.h"
 #include "Widget.h"
 #include <wtf/UnusedParam.h>
@@ -240,6 +242,16 @@ bool HTMLPlugInElement::isKeyboardFocusable(KeyboardEvent* event) const
 bool HTMLPlugInElement::isPluginElement() const
 {
     return true;
+}
+
+bool HTMLPlugInElement::supportsFocus() const
+{
+    if (HTMLFrameOwnerElement::supportsFocus())
+        return true;
+
+    if (useFallbackContent() || !renderer() || !renderer()->isEmbeddedObject())
+        return false;
+    return !toRenderEmbeddedObject(renderer())->showsUnavailablePluginIndicator();
 }
 
 #if ENABLE(NETSCAPE_PLUGIN_API)

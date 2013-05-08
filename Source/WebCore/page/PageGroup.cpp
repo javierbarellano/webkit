@@ -28,6 +28,7 @@
 
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "DOMWrapperWorld.h"
 #include "Document.h"
 #include "DocumentStyleSheetCollection.h"
 #include "Frame.h"
@@ -44,10 +45,6 @@
 #else
 #include "CaptionUserPreferences.h"
 #endif
-#endif
-
-#if PLATFORM(CHROMIUM)
-#include "VisitedLinks.h"
 #endif
 
 namespace WebCore {
@@ -195,17 +192,12 @@ void PageGroup::removePage(Page* page)
 
 bool PageGroup::isLinkVisited(LinkHash visitedLinkHash)
 {
-#if PLATFORM(CHROMIUM)
-    // Use Chromium's built-in visited link database.
-    return VisitedLinks::isLinkVisited(visitedLinkHash);
-#else
     if (!m_visitedLinksPopulated) {
         m_visitedLinksPopulated = true;
         ASSERT(!m_pages.isEmpty());
         (*m_pages.begin())->chrome()->client()->populateVisitedLinks();
     }
     return m_visitedLinkHashes.contains(visitedLinkHash);
-#endif
 }
 
 void PageGroup::addVisitedLinkHash(LinkHash hash)
@@ -217,10 +209,8 @@ void PageGroup::addVisitedLinkHash(LinkHash hash)
 inline void PageGroup::addVisitedLink(LinkHash hash)
 {
     ASSERT(shouldTrackVisitedLinks);
-#if !PLATFORM(CHROMIUM)
     if (!m_visitedLinkHashes.add(hash).isNewEntry)
         return;
-#endif
     Page::visitedStateChanged(this, hash);
     pageCache()->markPagesForVistedLinkStyleRecalc();
 }
@@ -267,18 +257,19 @@ void PageGroup::setShouldTrackVisitedLinks(bool shouldTrack)
 
 StorageNamespace* PageGroup::localStorage()
 {
-    if (!m_localStorage) {
-        // Need a page in this page group to query the settings for the local storage database path.
-        // Having these parameters attached to the page settings is unfortunate since these settings are
-        // not per-page (and, in fact, we simply grab the settings from some page at random), but
-        // at this point we're stuck with it.
-        Page* page = *m_pages.begin();
-        const String& path = page->settings()->localStorageDatabasePath();
-        unsigned quota = m_groupSettings->localStorageQuotaBytes();
-        m_localStorage = StorageNamespace::localStorageNamespace(path, quota);
-    }
+    if (!m_localStorage)
+        m_localStorage = StorageNamespace::localStorageNamespace(this);
 
     return m_localStorage.get();
+}
+
+StorageNamespace* PageGroup::transientLocalStorage(const SecurityOrigin* topOrigin)
+{
+    String topOriginString = topOrigin->toString();
+    if (!m_transientLocalStorage.get(topOriginString))
+        m_transientLocalStorage.set(topOriginString, StorageNamespace::sessionStorageNamespace(*this->pages().begin()));
+
+    return m_transientLocalStorage.get(topOriginString);
 }
 
 void PageGroup::addUserScriptToWorld(DOMWrapperWorld* world, const String& source, const KURL& url,

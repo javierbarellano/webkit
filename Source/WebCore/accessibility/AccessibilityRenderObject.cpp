@@ -76,6 +76,7 @@
 #include "RenderMathMLBlock.h"
 #include "RenderMathMLOperator.h"
 #include "RenderMenuList.h"
+#include "RenderSVGShape.h"
 #include "RenderText.h"
 #include "RenderTextControl.h"
 #include "RenderTextControlSingleLine.h"
@@ -87,6 +88,7 @@
 #include "SVGDocument.h"
 #include "SVGImage.h"
 #include "SVGImageChromeClient.h"
+#include "SVGNames.h"
 #include "SVGSVGElement.h"
 #include "Text.h"
 #include "TextControlInnerElements.h"
@@ -222,9 +224,13 @@ AccessibilityObject* AccessibilityRenderObject::firstChild() const
     
     RenderObject* firstChild = firstChildConsideringContinuation(m_renderer);
 
-    if (!firstChild)
-        return 0;
-    
+    // If an object can't have children, then it is using this method to help
+    // calculate some internal property (like its description).
+    // In this case, it should check the Node level for children in case they're
+    // not rendered (like a <meter> element).
+    if (!firstChild && !canHaveChildren())
+        return AccessibilityNodeObject::firstChild();
+
     return axObjectCache()->getOrCreate(firstChild);
 }
 
@@ -235,9 +241,9 @@ AccessibilityObject* AccessibilityRenderObject::lastChild() const
 
     RenderObject* lastChild = lastChildConsideringContinuation(m_renderer);
 
-    if (!lastChild)
-        return 0;
-    
+    if (!lastChild && !canHaveChildren())
+        return AccessibilityNodeObject::lastChild();
+
     return axObjectCache()->getOrCreate(lastChild);
 }
 
@@ -834,6 +840,26 @@ LayoutRect AccessibilityRenderObject::elementRect() const
     
     return boundingBoxRect();
 }
+    
+bool AccessibilityRenderObject::supportsPath() const
+{
+#if ENABLE(SVG)
+    if (m_renderer && m_renderer->isSVGShape())
+        return true;
+#endif
+    
+    return false;
+}
+    
+Path AccessibilityRenderObject::elementPath() const
+{
+#if ENABLE(SVG)
+    if (m_renderer && m_renderer->isSVGShape())
+        return toRenderSVGShape(m_renderer)->path();
+#endif
+    
+    return Path();
+}
 
 IntPoint AccessibilityRenderObject::clickPoint()
 {
@@ -1225,6 +1251,9 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
             // informal standard is to ignore images with zero-length alt strings
             if (!alt.isNull())
                 return true;
+            // If an image has a title attribute on it, accessibility should be lenient and allow it to appear in the hierarchy (according to WAI-ARIA).
+            if (!getAttribute(titleAttr).isEmpty())
+                return false;
         }
         
         if (isNativeImage()) {
@@ -1245,9 +1274,12 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
     if (isCanvas()) {
         if (canvasHasFallbackContent())
             return false;
-        RenderHTMLCanvas* canvas = toRenderHTMLCanvas(m_renderer);
-        if (canvas->height() <= 1 || canvas->width() <= 1)
-            return true;
+
+        if (m_renderer->isBox()) {
+            RenderBox* canvasBox = toRenderBox(m_renderer);
+            if (canvasBox->height() <= 1 || canvasBox->width() <= 1)
+                return true;
+        }
         // Otherwise fall through; use presence of help text, title, or description to decide.
     }
 
@@ -1277,6 +1309,10 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
     if (!getAttribute(MathMLNames::alttextAttr).isEmpty())
         return false;
 #endif
+
+    // Other non-ignored host language elements
+    if (node && node->hasTagName(dfnTag))
+        return false;
     
     // By default, objects should be ignored so that the AX hierarchy is not 
     // filled with unnecessary items.
@@ -2157,7 +2193,7 @@ AccessibilityObject* AccessibilityRenderObject::accessibilityHitTest(const IntPo
     
     RenderLayer* layer = toRenderBox(m_renderer)->layer();
      
-    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active);
+    HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::AccessibilityHitTest);
     HitTestResult hitTestResult = HitTestResult(point);
     layer->hitTest(request, hitTestResult);
     if (!hitTestResult.innerNode())
@@ -2460,6 +2496,8 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
         return ImageRole;
     if (m_renderer->isSVGRoot())
         return SVGRootRole;
+    if (node && node->hasTagName(SVGNames::gTag))
+        return GroupRole;
 #endif
 
 #if ENABLE(MATHML)
@@ -2507,6 +2545,9 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
 
     if (node && node->hasTagName(labelTag))
         return LabelRole;
+
+    if (node && node->hasTagName(dfnTag))
+        return DefinitionRole;
 
     if (node && node->hasTagName(divTag))
         return DivRole;

@@ -30,7 +30,6 @@
 
 #include <glib.h>
 #include <gst/gst.h>
-#include <vector>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
 
@@ -39,6 +38,10 @@ typedef struct _GstMessage GstMessage;
 typedef struct _GstElement GstElement;
 
 namespace WebCore {
+
+class AudioTrackPrivateGStreamer;
+class InbandTextTrackPrivateGStreamer;
+class VideoTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
 public:
@@ -86,14 +89,13 @@ public:
     void durationChanged();
     void loadingFailed(MediaPlayer::NetworkState);
 
-    void videoChanged();
-    void audioChanged();
-    void videoTagsChanged();
-    void audioTagsChanged();
-    void notifyPlayerOfVideo();
+    void padAdded(GstPad*);
+    void padRemoved(GstPad*);
+    void videoCapsChanged();
     void notifyPlayerOfAudio();
-    void notifyPlayerOfVideoTags();
-    void notifyPlayerOfAudioTags();
+    void notifyPlayerOfText();
+    void notifyPlayerOfVideo();
+    void notifyPlayerOfVideoCaps();
 
     void sourceChanged();
     GstElement* audioSink() const;
@@ -101,15 +103,6 @@ public:
     void setAudioStreamProperties(GObject*);
 
     void simulateAudioInterruption();
-
-    virtual bool isAudioEnabled(int) const;
-    virtual void setAudioEnabled(int, bool);
-
-    virtual bool isTextEnabled(int) const;
-    virtual void setTextEnabled(int, bool);
-
-    virtual bool isVideoSelected(int) const;
-    virtual void setVideoSelected(int, bool);
 
 private:
     MediaPlayerPrivateGStreamer(MediaPlayer*);
@@ -129,7 +122,7 @@ private:
     void cacheDuration();
     void updateStates();
 
-    void createGSTPlayBin();
+    void createPipeline();
     bool changePipelineState(GstState);
 
     bool loadNextLocation();
@@ -142,13 +135,13 @@ private:
     virtual bool isLiveStream() const { return m_isStreaming; }
 
 #if ENABLE(VIDEO_TRACK)
-            unsigned getNumberOfAudioTracks() const;
-            unsigned getNumberOfTextTracks() const;
-            unsigned getNumberOfVideoTracks() const;
+    void resizeTextTracks(int);
 #endif
 
 private:
-    GRefPtr<GstElement> m_playBin;
+    GRefPtr<GstElement> m_pipeline;
+    GRefPtr<GstElement> m_decodebin;
+    GRefPtr<GstElement> m_sink;
     GRefPtr<GstElement> m_source;
     float m_seekTime;
     bool m_changingRate;
@@ -175,18 +168,28 @@ private:
     bool m_volumeAndMuteInitialized;
     bool m_hasVideo;
     bool m_hasAudio;
+    bool m_hasText;
     guint m_audioTimerHandler;
+    guint m_textTimerHandler;
     guint m_videoTimerHandler;
+    guint m_videoCapsTimerHandler;
     GRefPtr<GstElement> m_webkitAudioSink;
     mutable long m_totalBytes;
     KURL m_url;
-    bool m_originalPreloadWasAutoAndWasOverridden;
     bool m_preservesPitch;
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
-    guint m_audioTagsTimerHandler;
-    guint m_videoTagsTimerHandler;
+#if ENABLE(VIDEO_TRACK)
+    GRefPtr<GstElement> m_audioAdder;
+    GRefPtr<GstElement> m_videoSelector;
+    Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
+    Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
+    Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
+    Mutex m_audioTrackMutex;
+    Mutex m_textTrackMutex;
+    Mutex m_videoTrackMutex;
+#endif
 };
 }
 

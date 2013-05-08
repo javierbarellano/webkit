@@ -287,6 +287,13 @@ TEST_F(EWK2UnitTestBase, ewk_view_full_screen_exit)
     ASSERT_TRUE(fullScreenCallbackCalled);
 }
 
+TEST_F(EWK2UnitTestBase, ewk_view_cancel_full_screen_request)
+{
+    // FullScreenmanager should skip cancel fullscreen request if fullscreen
+    // mode was not set using FullScreen API.
+    ASSERT_FALSE(ewk_view_fullscreen_exit(webView()));
+}
+
 TEST_F(EWK2UnitTestBase, ewk_view_same_page_navigation)
 {
     // Tests that same page navigation updates the page URL.
@@ -926,7 +933,7 @@ TEST_F(EWK2UnitTestBase, ewk_view_contents_size_changed)
 
 static bool obtainedPageContents = false;
 
-static void PageContentsCallback(Ewk_Page_Contents_Type type, const char* data)
+static void PageContentsAsMHTMLCallback(Ewk_Page_Contents_Type type, const char* data, void*)
 {
     // Check the type
     ASSERT_EQ(EWK_PAGE_CONTENTS_TYPE_MHTML, type);
@@ -943,13 +950,29 @@ static void PageContentsCallback(Ewk_Page_Contents_Type type, const char* data)
     obtainedPageContents = true;
 }
 
+static void PageContentsAsStringCallback(Ewk_Page_Contents_Type type, const char* data, void*)
+{
+    // Check the type.
+    ASSERT_EQ(EWK_PAGE_CONTENTS_TYPE_STRING, type);
+
+    // The variable data should be "Simple HTML".
+    ASSERT_STREQ("Simple HTML", data);
+
+    obtainedPageContents = true;
+}
+
 TEST_F(EWK2UnitTestBase, ewk_view_page_contents_get)
 {
     const char content[] = "<p>Simple HTML</p>";
     ewk_view_html_string_load(webView(), content, 0, 0);
     waitUntilLoadFinished();
 
-    ASSERT_TRUE(ewk_view_page_contents_get(webView(), EWK_PAGE_CONTENTS_TYPE_MHTML, PageContentsCallback));
+    ASSERT_TRUE(ewk_view_page_contents_get(webView(), EWK_PAGE_CONTENTS_TYPE_MHTML, PageContentsAsMHTMLCallback, 0));
+    while (!obtainedPageContents)
+        ecore_main_loop_iterate();
+
+    obtainedPageContents = false;
+    ASSERT_TRUE(ewk_view_page_contents_get(webView(), EWK_PAGE_CONTENTS_TYPE_STRING, PageContentsAsStringCallback, 0));
     while (!obtainedPageContents)
         ecore_main_loop_iterate();
 }
@@ -973,4 +996,18 @@ TEST_F(EWK2UnitTestBase, ewk_view_source_mode)
     //       But it needs a way to retrieve the body contents to compare the loaded contents
     //       such as excuting the JavaScript, 'window.document.body.innerText'.
     //       https://bugs.webkit.org/show_bug.cgi?id=101904.
+}
+
+TEST_F(EWK2UnitTestBase, ewk_view_user_agent)
+{
+    const char* defaultUserAgent = eina_stringshare_add(ewk_view_user_agent_get(webView()));
+    const char customUserAgent[] = "Foo";
+
+    ASSERT_TRUE(ewk_view_user_agent_set(webView(), customUserAgent));
+    ASSERT_STREQ(customUserAgent, ewk_view_user_agent_get(webView()));
+
+    // Set the default user agent string.
+    ASSERT_TRUE(ewk_view_user_agent_set(webView(), 0));
+    ASSERT_STREQ(defaultUserAgent, ewk_view_user_agent_get(webView()));
+    eina_stringshare_del(defaultUserAgent);
 }

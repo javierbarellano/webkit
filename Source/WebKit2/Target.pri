@@ -20,7 +20,6 @@ HEADERS += \
     Platform/CoreIPC/ArgumentEncoder.h \
     Platform/CoreIPC/Arguments.h \
     Platform/CoreIPC/Attachment.h \
-    Platform/CoreIPC/BinarySemaphore.h \
     Platform/CoreIPC/Connection.h \
     Platform/CoreIPC/DataReference.h \
     Platform/CoreIPC/HandleMessage.h \
@@ -230,6 +229,8 @@ HEADERS += \
     UIProcess/ProcessModel.h \
     UIProcess/ResponsivenessTimer.h \
     UIProcess/StatisticsRequest.h \
+    UIProcess/Storage/LocalStorageDatabase.h \
+    UIProcess/Storage/LocalStorageDatabaseTracker.h \
     UIProcess/Storage/StorageManager.h \
     UIProcess/TextChecker.h \
     UIProcess/TextCheckerCompletion.h \
@@ -361,6 +362,7 @@ HEADERS += \
     WebProcess/WebPage/FindController.h \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.h \
     WebProcess/WebPage/TapHighlightController.h \
+    WebProcess/WebPage/PageBanner.h \
     WebProcess/WebPage/PageOverlay.h \
     WebProcess/WebPage/WebContextMenu.h \
     WebProcess/WebPage/WebFrame.h \
@@ -582,6 +584,8 @@ SOURCES += \
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp \
     UIProcess/ResponsivenessTimer.cpp \
     UIProcess/StatisticsRequest.cpp \
+    UIProcess/Storage/LocalStorageDatabase.cpp \
+    UIProcess/Storage/LocalStorageDatabaseTracker.cpp \
     UIProcess/Storage/StorageManager.cpp \
     UIProcess/VisitedLinkProvider.cpp \
     UIProcess/WebApplicationCacheManagerProxy.cpp \
@@ -704,8 +708,9 @@ SOURCES += \
     WebProcess/Plugins/PluginProxy.cpp \
     WebProcess/Plugins/PluginProcessConnection.cpp \
     WebProcess/Plugins/PluginProcessConnectionManager.cpp \
-    WebProcess/Storage/StorageAreaProxy.cpp \
-    WebProcess/Storage/StorageNamespaceProxy.cpp \
+    WebProcess/Storage/StorageAreaImpl.cpp \
+    WebProcess/Storage/StorageAreaMap.cpp \
+    WebProcess/Storage/StorageNamespaceImpl.cpp \
     WebProcess/Storage/WebKeyValueStorageManager.cpp \
     WebProcess/WebCoreSupport/WebBatteryClient.cpp \
     WebProcess/WebCoreSupport/WebChromeClient.cpp \
@@ -739,6 +744,7 @@ SOURCES += \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp \
     WebProcess/WebPage/TapHighlightController.cpp \
     WebProcess/WebPage/LayerTreeHost.cpp \
+    WebProcess/WebPage/PageBanner.cpp \
     WebProcess/WebPage/PageOverlay.cpp \
     WebProcess/WebPage/WebBackForwardListProxy.cpp \
     WebProcess/WebPage/WebContextMenu.cpp \
@@ -879,14 +885,29 @@ mac: {
         Platform/unix/SharedMemoryUnix.cpp
 }
 
-win32 {
-    SOURCES += \
-        Platform/CoreIPC/win/BinarySemaphoreWin.cpp
-} else {
-    SOURCES += \
-        Platform/CoreIPC/BinarySemaphore.cpp
-}
+enable?(SECCOMP_FILTERS) {
+    HEADERS += \
+        Shared/linux/SeccompFilters/OpenSyscall.h \
+        Shared/linux/SeccompFilters/SeccompBroker.h \
+        Shared/linux/SeccompFilters/SeccompFilters.h \
+        Shared/linux/SeccompFilters/SigactionSyscall.h \
+        Shared/linux/SeccompFilters/SigprocmaskSyscall.h \
+        Shared/linux/SeccompFilters/Syscall.h \
+        Shared/linux/SeccompFilters/SyscallPolicy.h \
+        WebProcess/qt/SeccompFiltersWebProcessQt.h
 
+    SOURCES += \
+        Shared/linux/SeccompFilters/OpenSyscall.cpp \
+        Shared/linux/SeccompFilters/SeccompBroker.cpp \
+        Shared/linux/SeccompFilters/SeccompFilters.cpp \
+        Shared/linux/SeccompFilters/SigactionSyscall.cpp \
+        Shared/linux/SeccompFilters/SigprocmaskSyscall.cpp \
+        Shared/linux/SeccompFilters/Syscall.cpp \
+        Shared/linux/SeccompFilters/SyscallPolicy.cpp \
+        WebProcess/qt/SeccompFiltersWebProcessQt.cpp
+
+    DEFINES += SOURCE_DIR=\\\"$${ROOT_WEBKIT_DIR}\\\"
+}
 
 enable?(INSPECTOR_SERVER) {
     HEADERS += \

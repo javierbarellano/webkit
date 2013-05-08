@@ -44,17 +44,13 @@
 #include "config.h"
 #include "RenderLayer.h"
 
+#include "AnimationController.h"
 #include "ColumnInfo.h"
 #include "CSSPropertyNames.h"
 #include "Chrome.h"
 #include "Document.h"
 #include "DocumentEventQueue.h"
 #include "EventHandler.h"
-#if ENABLE(CSS_FILTERS)
-#include "FEColorMatrix.h"
-#include "FEMerge.h"
-#include "FilterEffectRenderer.h"
-#endif
 #include "FeatureObserver.h"
 #include "FloatConversion.h"
 #include "FloatPoint3D.h"
@@ -104,11 +100,16 @@
 #include "TextStream.h"
 #include "TransformationMatrix.h"
 #include "TranslateTransformOperation.h"
-#include "WebCoreMemoryInstrumentation.h"
-#include <wtf/MemoryInstrumentationVector.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/UnusedParam.h>
 #include <wtf/text/CString.h>
+
+#if ENABLE(CSS_FILTERS)
+#include "FEColorMatrix.h"
+#include "FEMerge.h"
+#include "FilterEffectRenderer.h"
+#include "RenderLayerFilterInfo.h"
+#endif
 
 #if USE(ACCELERATED_COMPOSITING)
 #include "RenderLayerBacking.h"
@@ -146,6 +147,17 @@ bool ClipRect::intersects(const HitTestLocation& hitTestLocation) const
     return hitTestLocation.intersects(m_rect);
 }
 
+void makeMatrixRenderable(TransformationMatrix& matrix, bool has3DRendering)
+{
+#if !ENABLE(3D_RENDERING)
+    UNUSED_PARAM(has3DRendering);
+    matrix.makeAffine();
+#else
+    if (!has3DRendering)
+        matrix.makeAffine();
+#endif
+}
+
 RenderLayer::RenderLayer(RenderLayerModelObject* renderer)
     : m_inResizeMode(false)
     , m_scrollDimensionsDirty(true)
@@ -178,7 +190,6 @@ RenderLayer::RenderLayer(RenderLayerModelObject* renderer)
 #if !ASSERT_DISABLED
     , m_layerListMutationAllowed(true)
 #endif
-    , m_canSkipRepaintRectsUpdateOnScroll(renderer->isTableCell())
 #if ENABLE(CSS_FILTERS)
     , m_hasFilterInfo(false)
 #endif
@@ -354,6 +365,28 @@ bool RenderLayer::requiresFullLayerImageForFilters() const
         return false;
     FilterEffectRenderer* filter = filterRenderer();
     return filter ? filter->hasFilterThatMovesPixels() : false;
+}
+
+FilterEffectRenderer* RenderLayer::filterRenderer() const
+{
+    RenderLayerFilterInfo* filterInfo = this->filterInfo();
+    return filterInfo ? filterInfo->renderer() : 0;
+}
+
+RenderLayerFilterInfo* RenderLayer::filterInfo() const
+{
+    return hasFilterInfo() ? RenderLayerFilterInfo::filterInfoForRenderLayer(this) : 0;
+}
+
+RenderLayerFilterInfo* RenderLayer::ensureFilterInfo()
+{
+    return RenderLayerFilterInfo::createFilterInfoForRenderLayerIfNeeded(this);
+}
+
+void RenderLayer::removeFilterInfoIfNeeded()
+{
+    if (hasFilterInfo())
+        RenderLayerFilterInfo::removeFilterInfoForRenderLayer(this); 
 }
 #endif
 
@@ -774,14 +807,13 @@ void RenderLayer::updateLayerPositionsAfterScroll(RenderGeometryMap* geometryMap
         flags |= HasSeenAncestorWithOverflowClip;
 
     if (flags & HasSeenViewportConstrainedAncestor
-        || (flags & IsOverflowScroll && flags & HasSeenAncestorWithOverflowClip && !m_canSkipRepaintRectsUpdateOnScroll)) {
+        || (flags & IsOverflowScroll && flags & HasSeenAncestorWithOverflowClip)) {
         // FIXME: We could track the repaint container as we walk down the tree.
         computeRepaintRects(renderer()->containerForRepaint(), geometryMap);
     } else {
         // Check that our cached rects are correct.
-        // FIXME: re-enable these assertions when the issue with table cells is resolved: https://bugs.webkit.org/show_bug.cgi?id=103432
-        // ASSERT(m_repaintRect == renderer()->clippedOverflowRectForRepaint(renderer()->containerForRepaint()));
-        // ASSERT(m_outlineBox == renderer()->outlineBoundsForRepaint(renderer()->containerForRepaint(), geometryMap));
+        ASSERT(m_repaintRect == renderer()->clippedOverflowRectForRepaint(renderer()->containerForRepaint()));
+        ASSERT(m_outlineBox == renderer()->outlineBoundsForRepaint(renderer()->containerForRepaint(), geometryMap));
     }
     
     for (RenderLayer* child = firstChild(); child; child = child->nextSibling())
@@ -2257,7 +2289,7 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& rect, const ScrollAlignm
         ASSERT(box);
         LayoutRect localExposeRect(box->absoluteToLocalQuad(FloatQuad(FloatRect(rect)), UseTransforms).boundingBox());
         LayoutRect layerBounds(0, 0, box->clientWidth(), box->clientHeight());
-        LayoutRect r = getRectToExpose(layerBounds, localExposeRect, alignX, alignY);
+        LayoutRect r = getRectToExpose(layerBounds, layerBounds, localExposeRect, alignX, alignY);
 
         IntSize clampedScrollOffset = clampScrollOffset(scrollOffset() + toIntSize(roundedIntRect(r).location()));
         if (clampedScrollOffset != scrollOffset()) {
@@ -2281,7 +2313,7 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& rect, const ScrollAlignm
 
                 if (frameElementAndViewPermitScroll(frameElement, frameView)) {
                     LayoutRect viewRect = frameView->visibleContentRect();
-                    LayoutRect exposeRect = getRectToExpose(viewRect, rect, alignX, alignY);
+                    LayoutRect exposeRect = getRectToExpose(viewRect, viewRect, rect, alignX, alignY);
 
                     int xOffset = roundToInt(exposeRect.x());
                     int yOffset = roundToInt(exposeRect.y());
@@ -2301,7 +2333,11 @@ void RenderLayer::scrollRectToVisible(const LayoutRect& rect, const ScrollAlignm
                 }
             } else {
                 LayoutRect viewRect = frameView->visibleContentRect();
-                LayoutRect r = getRectToExpose(viewRect, rect, alignX, alignY);
+                LayoutRect visibleRectRelativeToDocument = viewRect;
+                IntSize scrollOffsetRelativeToDocument = frameView->scrollOffsetRelativeToDocument();
+                visibleRectRelativeToDocument.setLocation(IntPoint(scrollOffsetRelativeToDocument.width(), scrollOffsetRelativeToDocument.height()));
+
+                LayoutRect r = getRectToExpose(viewRect, visibleRectRelativeToDocument, rect, alignX, alignY);
                 
                 frameView->setScrollPosition(roundedIntPoint(r.location()));
 
@@ -2332,19 +2368,16 @@ void RenderLayer::updateCompositingLayersAfterScroll()
         // Our stacking container is guaranteed to contain all of our descendants that may need
         // repositioning, so update compositing layers from there.
         if (RenderLayer* compositingAncestor = stackingContainer()->enclosingCompositingLayer()) {
-            if (compositor()->compositingConsultsOverlap()) {
-                if (usesCompositedScrolling() && !hasOutOfFlowPositionedDescendant())
-                    compositor()->updateCompositingLayers(CompositingUpdateOnCompositedScroll, compositingAncestor);
-                else
-                    compositor()->updateCompositingLayers(CompositingUpdateOnScroll, compositingAncestor);
-            } else
-                compositingAncestor->backing()->updateAfterLayout(RenderLayerBacking::IsUpdateRoot);
+            if (usesCompositedScrolling() && !hasOutOfFlowPositionedDescendant())
+                compositor()->updateCompositingLayers(CompositingUpdateOnCompositedScroll, compositingAncestor);
+            else
+                compositor()->updateCompositingLayers(CompositingUpdateOnScroll, compositingAncestor);
         }
     }
 #endif
 }
 
-LayoutRect RenderLayer::getRectToExpose(const LayoutRect &visibleRect, const LayoutRect &exposeRect, const ScrollAlignment& alignX, const ScrollAlignment& alignY)
+LayoutRect RenderLayer::getRectToExpose(const LayoutRect &visibleRect, const LayoutRect &visibleRectRelativeToDocument, const LayoutRect &exposeRect, const ScrollAlignment& alignX, const ScrollAlignment& alignY)
 {
     // Determine the appropriate X behavior.
     ScrollBehavior scrollX;
@@ -2384,7 +2417,7 @@ LayoutRect RenderLayer::getRectToExpose(const LayoutRect &visibleRect, const Lay
     // Determine the appropriate Y behavior.
     ScrollBehavior scrollY;
     LayoutRect exposeRectY(visibleRect.x(), exposeRect.y(), visibleRect.width(), exposeRect.height());
-    LayoutUnit intersectHeight = intersection(visibleRect, exposeRectY).height();
+    LayoutUnit intersectHeight = intersection(visibleRectRelativeToDocument, exposeRectY).height();
     if (intersectHeight == exposeRect.height())
         // If the rectangle is fully visible, use the specified visible behavior.
         scrollY = ScrollAlignment::getVisibleBehavior(alignY);
@@ -2718,6 +2751,11 @@ IntPoint RenderLayer::lastKnownMousePosition() const
     return renderer()->frame() ? renderer()->frame()->eventHandler()->lastKnownMousePosition() : IntPoint();
 }
 
+bool RenderLayer::isHandlingWheelEvent() const
+{
+    return renderer()->frame() ? renderer()->frame()->eventHandler()->isHandlingWheelEvent() : false;
+}
+
 IntRect RenderLayer::rectForHorizontalScrollbar(const IntRect& borderBoxRect) const
 {
     if (!m_hBar)
@@ -2841,10 +2879,7 @@ PassRefPtr<Scrollbar> RenderLayer::createScrollbar(ScrollbarOrientation orientat
         widget = RenderScrollbar::createCustomScrollbar(this, orientation, actualRenderer->node());
     else {
         widget = Scrollbar::createNativeScrollbar(this, orientation, RegularScrollbar);
-        if (orientation == HorizontalScrollbar)
-            didAddHorizontalScrollbar(widget.get());
-        else 
-            didAddVerticalScrollbar(widget.get());
+        didAddScrollbar(widget.get(), orientation);
     }
     renderer()->document()->view()->addChild(widget.get());        
     return widget.release();
@@ -2856,12 +2891,8 @@ void RenderLayer::destroyScrollbar(ScrollbarOrientation orientation)
     if (!scrollbar)
         return;
 
-    if (!scrollbar->isCustomScrollbar()) {
-        if (orientation == HorizontalScrollbar)
-            willRemoveHorizontalScrollbar(scrollbar.get());
-        else
-            willRemoveVerticalScrollbar(scrollbar.get());
-    }
+    if (!scrollbar->isCustomScrollbar())
+        willRemoveScrollbar(scrollbar.get(), orientation);
 
     scrollbar->removeFromParent();
     scrollbar->disconnectFromScrollableArea();
@@ -2934,14 +2965,14 @@ ScrollableArea* RenderLayer::enclosingScrollableArea() const
 
 int RenderLayer::verticalScrollbarWidth(OverlayScrollbarSizeRelevancy relevancy) const
 {
-    if (!m_vBar || (m_vBar->isOverlayScrollbar() && relevancy == IgnoreOverlayScrollbarSize))
+    if (!m_vBar || (m_vBar->isOverlayScrollbar() && (relevancy == IgnoreOverlayScrollbarSize || !m_vBar->shouldParticipateInHitTesting())))
         return 0;
     return m_vBar->width();
 }
 
 int RenderLayer::horizontalScrollbarHeight(OverlayScrollbarSizeRelevancy relevancy) const
 {
-    if (!m_hBar || (m_hBar->isOverlayScrollbar() && relevancy == IgnoreOverlayScrollbarSize))
+    if (!m_hBar || (m_hBar->isOverlayScrollbar() && (relevancy == IgnoreOverlayScrollbarSize || !m_hBar->shouldParticipateInHitTesting())))
         return 0;
     return m_hBar->height();
 }
@@ -3483,15 +3514,15 @@ static bool inContainingBlockChain(RenderLayer* startLayer, RenderLayer* endLaye
 void RenderLayer::clipToRect(RenderLayer* rootLayer, GraphicsContext* context, const LayoutRect& paintDirtyRect, const ClipRect& clipRect,
                              BorderRadiusClippingRule rule)
 {
-    if (clipRect.rect() == paintDirtyRect)
-        return;
-    context->save();
-    context->clip(pixelSnappedIntRect(clipRect.rect()));
+    if (clipRect.rect() != paintDirtyRect) {
+        context->save();
+        context->clip(pixelSnappedIntRect(clipRect.rect()));
+    }
     
+#ifndef DISABLE_ROUNDED_CORNER_CLIPPING
     if (!clipRect.hasRadius())
         return;
 
-#ifndef DISABLE_ROUNDED_CORNER_CLIPPING
     // If the clip rect has been tainted by a border radius, then we have to walk up our layer chain applying the clips from
     // any layers with overflow. The condition for being able to apply these clips is that the overflow object be in our
     // containing block chain so we check that also.
@@ -5533,6 +5564,15 @@ bool RenderLayer::backgroundIsKnownToBeOpaqueInRect(const LayoutRect& localRect)
     if (paintsWithTransparency(PaintBehaviorNormal))
         return false;
 
+    ASSERT(!m_visibleContentStatusDirty);
+    if (!hasVisibleContent())
+        return false;
+
+#if ENABLE(CSS_FILTERS)
+    if (paintsWithFilters() && renderer()->style()->filter().hasFilterThatAffectsOpacity())
+        return false;
+#endif
+
     // FIXME: Handle simple transforms.
     if (paintsWithTransform(PaintBehaviorNormal))
         return false;
@@ -6041,14 +6081,6 @@ void RenderLayer::updateOutOfFlowPositioned(const RenderStyle* oldStyle)
     }
 }
 
-#if ENABLE(CSS_FILTERS)
-static bool hasOrHadFilters(const RenderStyle* oldStyle, const RenderStyle* newStyle)
-{
-    ASSERT(newStyle);
-    return (oldStyle && oldStyle->hasFilter()) || newStyle->hasFilter();
-}
-#endif
-
 #if USE(ACCELERATED_COMPOSITING)
 inline bool RenderLayer::needsCompositingLayersRebuiltForClip(const RenderStyle* oldStyle, const RenderStyle* newStyle) const
 {
@@ -6061,60 +6093,7 @@ inline bool RenderLayer::needsCompositingLayersRebuiltForOverflow(const RenderSt
     ASSERT(newStyle);
     return !isComposited() && oldStyle && (oldStyle->overflowX() != newStyle->overflowX()) && stackingContainer()->hasCompositingDescendant();
 }
-
-#if ENABLE(CSS_FILTERS)
-inline bool RenderLayer::needsCompositingLayersRebuiltForFilters(const RenderStyle* oldStyle, const RenderStyle* newStyle, bool didPaintWithFilters) const
-{
-    if (!hasOrHadFilters(oldStyle, newStyle))
-        return false;
-
-    if (renderer()->animation()->isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyWebkitFilter)) {
-        // When the compositor is performing the filter animation, we shouldn't touch the compositing layers.
-        // All of the layers above us should have been promoted to compositing layers already.
-        return false;
-    }
-
-    FilterOutsets newOutsets = newStyle->filterOutsets();
-    if (oldStyle && (oldStyle->filterOutsets() != newOutsets)) {
-        // When filter outsets change, we need to:
-        // (1) Recompute the overlap map to promote the correct layers to composited layers.
-        // (2) Update the composited layer bounds (and child GraphicsLayer positions) on platforms
-        //     whose compositors can't compute their own filter outsets.
-        return true;
-    }
-
-#if HAVE(COMPOSITOR_FILTER_OUTSETS)
-    if ((didPaintWithFilters != paintsWithFilters()) && !newOutsets.isZero()) {
-        // When the layer used to paint filters in software and now paints filters in the
-        // compositor, the compositing layer bounds need to change from including filter outsets to
-        // excluding filter outsets, on platforms whose compositors compute their own outsets.
-        // Similarly for the reverse change from compositor-painted to software-painted filters.
-        return true;
-    }
-#endif
-
-    return false;
-}
-#endif // ENABLE(CSS_FILTERS)
 #endif // USE(ACCELERATED_COMPOSITING)
-
-#if ENABLE(CSS_FILTERS)
-void RenderLayer::updateFilters(const RenderStyle* oldStyle, const RenderStyle* newStyle)
-{
-    if (!hasOrHadFilters(oldStyle, newStyle))
-        return;
-
-    updateOrRemoveFilterClients();
-#if USE(ACCELERATED_COMPOSITING)
-    if (isComposited() && !renderer()->animation()->isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyWebkitFilter)) {
-        // During an accelerated animation, both WebKit and the compositor animate properties.
-        // However, WebKit shouldn't ask the compositor to update its filters if the compositor is performing the animation.
-        backing()->updateFilters(renderer()->style());
-    }
-#endif
-    updateOrRemoveFilterEffectRenderer();
-}
-#endif
 
 void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
 {
@@ -6167,14 +6146,8 @@ void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
 #if ENABLE(CSS_COMPOSITING)
     updateBlendMode();
 #endif
-
-#if USE(ACCELERATED_COMPOSITING)
-    bool didPaintWithFilters = false;
-#endif
 #if ENABLE(CSS_FILTERS)
-    if (paintsWithFilters())
-        didPaintWithFilters = true;
-    updateFilters(oldStyle, renderer()->style());
+    updateOrRemoveFilterClients();
 #endif
 
 #if USE(ACCELERATED_COMPOSITING)
@@ -6183,11 +6156,22 @@ void RenderLayer::styleChanged(StyleDifference, const RenderStyle* oldStyle)
     const RenderStyle* newStyle = renderer()->style();
     if (compositor()->updateLayerCompositingState(this)
         || needsCompositingLayersRebuiltForClip(oldStyle, newStyle)
-        || needsCompositingLayersRebuiltForOverflow(oldStyle, newStyle)
-        || needsCompositingLayersRebuiltForFilters(oldStyle, newStyle, didPaintWithFilters))
+        || needsCompositingLayersRebuiltForOverflow(oldStyle, newStyle))
         compositor()->setCompositingLayersNeedRebuild();
     else if (isComposited())
         backing()->updateGraphicsLayerGeometry();
+#endif
+
+#if ENABLE(CSS_FILTERS)
+    updateOrRemoveFilterEffectRenderer();
+#if USE(ACCELERATED_COMPOSITING)
+    bool backingDidCompositeLayers = isComposited() && backing()->canCompositeFilters();
+    if (isComposited() && backingDidCompositeLayers && !backing()->canCompositeFilters()) {
+        // The filters used to be drawn by platform code, but now the platform cannot draw them anymore.
+        // Fallback to drawing them in software.
+        setBackingNeedsRepaint();
+    }
+#endif
 #endif
 }
 
@@ -6205,12 +6189,18 @@ void RenderLayer::updateScrollableAreaSet(bool hasOverflow)
     if (HTMLFrameOwnerElement* owner = frame->ownerElement())
         isVisibleToHitTest &= owner->renderer() && owner->renderer()->visibleToHitTesting();
 
-    if (hasOverflow && isVisibleToHitTest ? frameView->addScrollableArea(this) : frameView->removeScrollableArea(this))
+    bool isScrollable = hasOverflow && isVisibleToHitTest;
+    bool addedOrRemoved = false;
+    if (isScrollable)
+        addedOrRemoved = frameView->addScrollableArea(this);
+    else
+        addedOrRemoved = frameView->removeScrollableArea(this);
+    
+    if (addedOrRemoved) {
 #if USE(ACCELERATED_COMPOSITING)
         updateNeedsCompositedScrolling();
-#else
-        return;
 #endif
+    }
 }
 
 void RenderLayer::updateScrollCornerStyle()
@@ -6340,9 +6330,15 @@ FilterOperations RenderLayer::computeFilterOperations(const RenderStyle* style)
             RefPtr<CustomFilterProgram> program = customOperation->program();
             if (!program->isLoaded())
                 continue;
-            
-            CustomFilterGlobalContext* globalContext = renderer()->view()->customFilterGlobalContext();
-            RefPtr<CustomFilterValidatedProgram> validatedProgram = globalContext->getValidatedProgram(program->programInfo());
+
+            RefPtr<CustomFilterValidatedProgram> validatedProgram = program->validatedProgram();
+            if (!validatedProgram) {
+                // Lazily create a validated program and store it on the CustomFilterProgram.
+                CustomFilterGlobalContext* globalContext = renderer()->view()->customFilterGlobalContext();
+                validatedProgram = CustomFilterValidatedProgram::create(globalContext, program->programInfo());
+                program->setValidatedProgram(validatedProgram);
+            }
+
             if (!validatedProgram->isInitialized())
                 continue;
 
@@ -6421,33 +6417,6 @@ void RenderLayer::filterNeedsRepaint()
         renderer()->repaint();
 }
 #endif
-
-void RenderLayer::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, WebCoreMemoryTypes::Rendering);
-    ScrollableArea::reportMemoryUsage(memoryObjectInfo);
-    info.addWeakPointer(m_renderer);
-    info.addWeakPointer(m_parent);
-    info.addWeakPointer(m_previous);
-    info.addWeakPointer(m_next);
-    info.addWeakPointer(m_first);
-    info.addWeakPointer(m_last);
-    info.addMember(m_hBar, "hBar");
-    info.addMember(m_vBar, "vBar");
-    info.addMember(m_posZOrderList, "posZOrderList");
-    info.addMember(m_negZOrderList, "negZOrderList");
-    info.addMember(m_normalFlowList, "normalFlowList");
-    info.addMember(m_clipRectsCache, "clipRectsCache");
-    info.addMember(m_marquee, "marquee");
-    info.addMember(m_transform, "transform");
-    info.addWeakPointer(m_reflection);
-    info.addWeakPointer(m_scrollCorner);
-    info.addWeakPointer(m_resizer);
-#if USE(ACCELERATED_COMPOSITING)
-    info.addMember(m_backing, "backing");
-#endif
-    info.setCustomAllocation(true);
-}
 
 } // namespace WebCore
 

@@ -50,6 +50,7 @@
 #include "PluginDocument.h"
 #include "RenderEmbeddedObject.h"
 #include "RenderView.h"
+#include "ScriptController.h"
 #include "SecurityOrigin.h"
 #include "SecurityPolicy.h"
 #include "Settings.h"
@@ -465,7 +466,7 @@ bool SubframeLoader::loadPlugin(HTMLPlugInImageElement* pluginElement, const KUR
     renderer->setWidget(widget);
     m_containsPlugins = true;
  
-#if ENABLE(PLUGIN_PROXY_FOR_VIDEO) || ENABLE(3D_PLUGIN)
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     pluginElement->setNeedsStyleRecalc(SyntheticStyleChange);
 #endif
     return true;

@@ -135,6 +135,8 @@ private:
     void pluginSnapshotTimerFired(WebCore::DeferrableOneShotTimer<PluginView>*);
     void pluginDidReceiveUserInteraction();
 
+    bool shouldCreateTransientPaintingSnapshot() const;
+
     // WebCore::PluginViewBase
 #if PLATFORM(MAC)
     virtual PlatformLayer* platformLayer() const;
@@ -148,6 +150,7 @@ private:
     virtual WebCore::Scrollbar* verticalScrollbar();
     virtual bool wantsWheelEvents();
     virtual bool shouldAlwaysAutoStart() const OVERRIDE;
+    virtual void beginSnapshottingRunningPlugin() OVERRIDE;
     virtual bool shouldAllowNavigationFromDrags() const OVERRIDE;
 
     // WebCore::Widget

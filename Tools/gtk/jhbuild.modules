@@ -20,6 +20,7 @@
       <dep package="gnome-icon-theme-symbolic"/>
       <dep package="gnome-themes-standard"/>
       <dep package="libsoup"/>
+      <dep package="atk"/>
       <dep package="at-spi2-core"/>
       <dep package="at-spi2-atk"/>
       <dep package="gstreamer"/>
@@ -50,6 +51,8 @@
       href="ftp://xmlsoft.org"/>
   <repository type="git" name="gstreamer"
       href="git://anongit.freedesktop.org/git/gstreamer/"/>
+  <repository type="tarball" name="savannah.gnu.org"
+      href="http://download.savannah.gnu.org/releases/"/>
 
   <autotools id="make" autogen-sh="configure">
     <branch repo="ftp.gnu.org"
@@ -60,7 +63,8 @@
     </branch>
   </autotools>
 
-  <autotools id="cairo" autogen-sh="configure">
+  <autotools id="cairo" autogen-sh="configure"
+             autogenargs="--enable-gl=yes --enable-egl=yes --enable-glx=yes">
     <dependencies>
       <dep package="fontconfig"/>
       <dep package="pixman"/>
@@ -86,11 +90,14 @@
     <branch repo="github.com" module="mrobinson/webkitgtk-test-fonts.git" checkoutdir="webkitgtk-test-fonts" tag="0.0.4"/>
   </autotools>
 
-  <tarball id="freetype6">
-    <source href="download.savannah.gnu.org/releases/freetype/freetype-2.4.2.tar.bz2" version="2.4.2"
-            hash="sha256:9a987aef8c50d9bcfdfdc9f012f8bd0de6095cc1a5524e62c1a037deb8dacbfe"
-            md5sum="647ee8ed266f9a4117c8d0a4855b3d3e"/>
-  </tarball>
+  <autotools id="freetype6" autogen-sh="configure">
+    <branch module="freetype/freetype-2.4.11.tar.bz2" version="2.4.11"
+            repo="savannah.gnu.org"
+            hash="sha256:ef9d0bcb64647d9e5125dc7534d7ca371c98310fec87677c410f397f71ffbe3f"
+            md5sum="b93435488942486c8d0ca22e8f768034">
+      <patch file="freetype6-2.4.11-truetype-font-height-fix.patch" strip="1"/>
+    </branch>
+  </autotools>
 
   <autotools id="harfbuzz" autogen-sh="configure">
     <branch module="software/harfbuzz/release/harfbuzz-0.9.14.tar.bz2" version="0.9.14"
@@ -210,18 +217,25 @@
       <dep package="gtk+"/>
       <dep package="librsvg"/>
     </dependencies>
-    <branch module="pub/GNOME/sources/gnome-themes-standard/3.4/gnome-themes-standard-3.4.2.tar.xz" version="3.4.2"
+    <branch module="pub/GNOME/sources/gnome-themes-standard/3.6/gnome-themes-standard-3.6.0.tar.xz" version="3.6.0"
             repo="ftp.gnome.org"
-            hash="sha256:aa29d23708e3357775fb7ea2de14b90551a2c732fce297f3372dae005374c3a8"
-            md5sum="bbe736709a7cf00bd18f3b2b82e7a59e">
+            hash="sha256:d832fd38f7659f470df5ddc52131a59f989c75f3a70f8b3a514f89d90d4f43ec">
     </branch>
+  </autotools>
+
+  <autotools id="atk"
+             autogen-sh="configure"
+             autogenargs="--disable-introspection">
+    <branch module="pub/GNOME/sources/atk/2.8/atk-2.8.0.tar.xz" version="2.8.0"
+            repo="ftp.gnome.org"
+            hash="sha256:b22519176226f3e07cf6d932b77852e6b6be4780977770704b32d0f4e0686df4"/>
   </autotools>
 
   <autotools id="at-spi2-core" 
              autogenargs="--disable-introspection">
-    <branch module="pub/GNOME/sources/at-spi2-core/2.5/at-spi2-core-2.5.3.tar.xz" version="2.5.3"
+    <branch module="pub/GNOME/sources/at-spi2-core/2.8/at-spi2-core-2.8.0.tar.xz" version="2.8.0"
             repo="ftp.gnome.org"
-            hash="sha256:f5b69ea237d1bb9da36a717a6e810baf3cd4094770f8361793e6cb3ec2443c3c">
+            hash="sha256:1861a30fc7f583d5a567a0ba547db67ce9bd294f0d1c9f7403c96a10a481c458">
     </branch>
     <dependencies>
       <dep package="glib"/>
@@ -229,12 +243,14 @@
   </autotools>
 
   <autotools id="at-spi2-atk">
-    <branch module="pub/GNOME/sources/at-spi2-atk/2.5/at-spi2-atk-2.5.3.tar.xz" version="2.5.3"
+    <branch module="pub/GNOME/sources/at-spi2-atk/2.8/at-spi2-atk-2.8.0.tar.xz" version="2.8.0"
             repo="ftp.gnome.org"
-            hash="sha256:bdbead509bb87e8939b06385febdadddef3c5e25dce4a0ed39f9a83d36c0c69b">
+            hash="sha256:4688acbc1474cda0aa49341f109ad0726603ce3e872cc6521c74931338c7ba20">
+      <patch file="at-spi2-atk-2.8.0-null-check-after-cleanup.patch" strip="1"/>
     </branch>
     <dependencies>
       <dep package="glib"/>
+      <dep package="atk"/>
       <dep package="at-spi2-core"/>
     </dependencies>
   </autotools>

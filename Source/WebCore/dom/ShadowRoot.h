@@ -33,15 +33,13 @@
 #include "Element.h"
 #include "ExceptionCode.h"
 #include "TreeScope.h"
-#include <wtf/DoublyLinkedList.h>
 
 namespace WebCore {
 
 class ElementShadow;
 class ScopeContentDistribution;
 
-class ShadowRoot : public DocumentFragment, public TreeScope, public DoublyLinkedListNode<ShadowRoot> {
-    friend class WTF::DoublyLinkedListNode<ShadowRoot>;
+class ShadowRoot : public DocumentFragment, public TreeScope {
 public:
     // FIXME: We will support multiple shadow subtrees, however current implementation does not work well
     // if a shadow root is dynamically created. So we prohibit multiple shadow subtrees
@@ -57,6 +55,8 @@ public:
         return adoptRef(new ShadowRoot(document, type));
     }
 
+    virtual ~ShadowRoot();
+
     void recalcStyle(StyleChange);
 
     virtual bool applyAuthorStyles() const OVERRIDE { return m_applyAuthorStyles; }
@@ -71,12 +71,6 @@ public:
     void setInnerHTML(const String&, ExceptionCode&);
 
     Element* activeElement() const;
-
-    ShadowRoot* youngerShadowRoot() const { return prev(); }
-    ShadowRoot* olderShadowRoot() const { return next(); }
-
-    bool isYoungest() const { return !youngerShadowRoot(); }
-    bool isOldest() const { return !olderShadowRoot(); }
 
     virtual void attach();
 
@@ -94,11 +88,8 @@ public:
 
     PassRefPtr<Node> cloneNode(bool, ExceptionCode&);
 
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
-
 private:
     ShadowRoot(Document*, ShadowRootType);
-    virtual ~ShadowRoot();
 
     virtual void dispose() OVERRIDE;
     virtual bool childTypeAllowed(NodeType) const OVERRIDE;
@@ -110,8 +101,6 @@ private:
     // FIXME: This shouldn't happen. https://bugs.webkit.org/show_bug.cgi?id=88834
     bool isOrphan() const { return !host(); }
 
-    ShadowRoot* m_prev;
-    ShadowRoot* m_next;
     OwnPtr<ScopeContentDistribution> m_scopeDistribution;
     unsigned m_numberOfStyles : 28;
     unsigned m_applyAuthorStyles : 1;

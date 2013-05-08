@@ -29,9 +29,9 @@
 
 #include "JSTrackCustom.h"
 
+#include "JSAudioTrack.h"
 #include "JSTextTrack.h"
 #include "JSVideoTrack.h"
-#include "JSAudioTrack.h"
 
 using namespace JSC;
 

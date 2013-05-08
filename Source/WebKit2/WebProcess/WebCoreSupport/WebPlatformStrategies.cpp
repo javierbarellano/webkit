@@ -32,7 +32,7 @@
 #include "DataReference.h"
 #include "NetworkResourceLoadParameters.h"
 #include "PluginInfoStore.h"
-#include "StorageNamespaceProxy.h"
+#include "StorageNamespaceImpl.h"
 #include "WebContextMessages.h"
 #include "WebCookieManager.h"
 #include "WebCoreArgumentCoders.h"
@@ -226,16 +226,25 @@ ResourceLoadScheduler* WebPlatformStrategies::resourceLoadScheduler()
     return scheduler;
 }
 
-void WebPlatformStrategies::loadResourceSynchronously(NetworkingContext* context, unsigned long resourceLoadIdentifier, const ResourceRequest& request, StoredCredentials storedCredentials, ResourceError& error, ResourceResponse& response, Vector<char>& data)
+void WebPlatformStrategies::loadResourceSynchronously(NetworkingContext* context, unsigned long resourceLoadIdentifier, const ResourceRequest& request, StoredCredentials storedCredentials, ClientCredentialPolicy clientCredentialPolicy, ResourceError& error, ResourceResponse& response, Vector<char>& data)
 {
     if (!WebProcess::shared().usesNetworkProcess()) {
-        LoaderStrategy::loadResourceSynchronously(context, resourceLoadIdentifier, request, storedCredentials, error, response, data);
+        LoaderStrategy::loadResourceSynchronously(context, resourceLoadIdentifier, request, storedCredentials, clientCredentialPolicy, error, response, data);
         return;
     }
 
     CoreIPC::DataReference dataReference;
 
-    NetworkResourceLoadParameters loadParameters(resourceLoadIdentifier, 0, 0, request, ResourceLoadPriorityHighest, SniffContent, storedCredentials, context->storageSession().isPrivateBrowsingSession(), context->shouldClearReferrerOnHTTPSToHTTPRedirect());
+    NetworkResourceLoadParameters loadParameters;
+    loadParameters.identifier = resourceLoadIdentifier;
+    loadParameters.request = request;
+    loadParameters.priority = ResourceLoadPriorityHighest;
+    loadParameters.contentSniffingPolicy = SniffContent;
+    loadParameters.allowStoredCredentials = storedCredentials;
+    loadParameters.clientCredentialPolicy = clientCredentialPolicy;
+    loadParameters.inPrivateBrowsingMode = context->storageSession().isPrivateBrowsingSession();
+    loadParameters.shouldClearReferrerOnHTTPSToHTTPRedirect = context->shouldClearReferrerOnHTTPSToHTTPRedirect();
+
     if (!WebProcess::shared().networkConnection()->connection()->sendSync(Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad(loadParameters), Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::Reply(error, response, dataReference), 0)) {
         response = ResourceResponse();
         error = internalError(request.url());
@@ -298,17 +307,21 @@ void WebPlatformStrategies::populatePluginCache()
 
 // StorageStrategy
 
-PassRefPtr<StorageNamespace> WebPlatformStrategies::localStorageNamespace(const String& path, unsigned quota)
-{
-    return StorageStrategy::localStorageNamespace(path, quota);
-}
-
-PassRefPtr<StorageNamespace> WebPlatformStrategies::sessionStorageNamespace(Page* page, unsigned quota)
+PassRefPtr<StorageNamespace> WebPlatformStrategies::localStorageNamespace(PageGroup* pageGroup)
 {
 #if ENABLE(UI_PROCESS_STORAGE)
-    return StorageNamespaceProxy::createSessionStorageNamespace(WebPage::fromCorePage(page));
+    return StorageNamespaceImpl::createLocalStorageNamespace(pageGroup);
 #else
-    return StorageStrategy::sessionStorageNamespace(page, quota);
+    return StorageStrategy::localStorageNamespace(pageGroup);
+#endif
+}
+
+PassRefPtr<StorageNamespace> WebPlatformStrategies::sessionStorageNamespace(Page* page)
+{
+#if ENABLE(UI_PROCESS_STORAGE)
+    return StorageNamespaceImpl::createSessionStorageNamespace(WebPage::fromCorePage(page));
+#else
+    return StorageStrategy::sessionStorageNamespace(page);
 #endif
 }
 

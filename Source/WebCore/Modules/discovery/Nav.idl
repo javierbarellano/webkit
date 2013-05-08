@@ -2,8 +2,7 @@
 
     [
                Conditional=DISCOVERY,
-               Supplemental=Navigator
-    ] interface Navigator {
+    ] partial interface Navigator {
 
         void getNetworkServices(
         		in DOMString type,

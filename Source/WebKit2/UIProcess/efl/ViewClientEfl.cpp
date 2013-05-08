@@ -28,10 +28,12 @@
 
 #include "EwkView.h"
 #include "PageViewportController.h" 
+#include "WebViewportAttributes.h"
 #include <WebKit2/WKString.h>
 #include <WebKit2/WKView.h>
 
 using namespace EwkViewCallbacks;
+using namespace WebCore;
 
 namespace WebKit {
 
@@ -49,7 +51,11 @@ void ViewClientEfl::didChangeContentsSize(WKViewRef, WKSize size, const void* cl
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage()))
+#if USE(ACCELERATED_COMPOSITING)
         ewkView->pageViewportController()->didChangeContentsSize(toIntSize(size));
+#else
+        { }
+#endif
     else
         ewkView->scheduleUpdateDisplay();
 
@@ -87,6 +93,66 @@ void ViewClientEfl::webProcessDidRelaunch(WKViewRef viewRef, const void* clientI
         WKViewSetThemePath(viewRef, adoptWK(WKStringCreateWithUTF8CString(themePath)).get());
 }
 
+void ViewClientEfl::didChangeContentsPosition(WKViewRef, WKPoint position, const void* clientInfo)
+{
+    EwkView* ewkView = toEwkView(clientInfo);
+    if (WKPageUseFixedLayout(ewkView->wkPage())) {
+#if USE(ACCELERATED_COMPOSITING)
+        ewkView->pageViewportController()->pageDidRequestScroll(toIntPoint(position));
+#endif
+        return;
+    }
+
+    ewkView->scheduleUpdateDisplay();
+}
+
+void ViewClientEfl::didRenderFrame(WKViewRef, WKSize contentsSize, WKRect coveredRect, const void* clientInfo)
+{
+    EwkView* ewkView = toEwkView(clientInfo);
+    if (WKPageUseFixedLayout(ewkView->wkPage())) {
+#if USE(ACCELERATED_COMPOSITING)
+        ewkView->pageViewportController()->didRenderFrame(toIntSize(contentsSize), toIntRect(coveredRect));
+#endif
+        return;
+    }
+
+    ewkView->scheduleUpdateDisplay();
+}
+
+void ViewClientEfl::didCompletePageTransition(WKViewRef, const void* clientInfo)
+{
+    EwkView* ewkView = toEwkView(clientInfo);
+    if (WKPageUseFixedLayout(ewkView->wkPage())) {
+#if USE(ACCELERATED_COMPOSITING)
+        ewkView->pageViewportController()->pageTransitionViewportReady();
+#endif
+        return;
+    }
+
+    ewkView->scheduleUpdateDisplay();
+}
+
+void ViewClientEfl::didChangeViewportAttributes(WKViewRef, WKViewportAttributesRef attributes, const void* clientInfo)
+{
+    EwkView* ewkView = toEwkView(clientInfo);
+    if (WKPageUseFixedLayout(ewkView->wkPage())) {
+#if USE(ACCELERATED_COMPOSITING)
+        // FIXME: pageViewportController should accept WKViewportAttributesRef.
+        ewkView->pageViewportController()->didChangeViewportAttributes(toImpl(attributes)->originalAttributes());
+#endif
+        return;
+    }
+    ewkView->scheduleUpdateDisplay();
+}
+
+void ViewClientEfl::didChangeTooltip(WKViewRef, WKStringRef tooltip, const void* clientInfo)
+{
+    if (WKStringIsEmpty(tooltip))
+        toEwkView(clientInfo)->smartCallback<TooltipTextUnset>().call();
+    else
+        toEwkView(clientInfo)->smartCallback<TooltipTextSet>().call(WKEinaSharedString(tooltip));
+}
+
 ViewClientEfl::ViewClientEfl(EwkView* view)
     : m_view(view)
 {
@@ -100,6 +166,10 @@ ViewClientEfl::ViewClientEfl(EwkView* view)
     viewClient.viewNeedsDisplay = viewNeedsDisplay;
     viewClient.webProcessCrashed = webProcessCrashed;
     viewClient.webProcessDidRelaunch = webProcessDidRelaunch;
+    viewClient.didChangeContentsPosition = didChangeContentsPosition;
+    viewClient.didRenderFrame = didRenderFrame;
+    viewClient.didCompletePageTransition = didCompletePageTransition;
+    viewClient.didChangeViewportAttributes = didChangeViewportAttributes;
 
     WKViewSetViewClient(m_view->wkView(), &viewClient);
 }

@@ -54,15 +54,11 @@ typedef const QMimeData* DragDataRef;
 #elif PLATFORM(WIN)
 typedef struct IDataObject* DragDataRef;
 #include <wtf/text/WTFString.h>
-#elif PLATFORM(WX)
-typedef class wxDataObject* DragDataRef;
 #elif PLATFORM(GTK)
 namespace WebCore {
 class DataObjectGtk;
 }
 typedef WebCore::DataObjectGtk* DragDataRef;
-#elif PLATFORM(CHROMIUM)
-#include "DragDataRef.h"
 #elif PLATFORM(EFL) || PLATFORM(BLACKBERRY)
 typedef void* DragDataRef;
 #endif

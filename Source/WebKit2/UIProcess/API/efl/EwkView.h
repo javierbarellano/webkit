@@ -29,7 +29,7 @@
 #include "WKEinaSharedString.h"
 #include "WKGeometry.h"
 #include "WKRetainPtr.h"
-#include "WebView.h"
+#include "WebViewEfl.h"
 #include "ewk_url_request_private.h"
 #include <Evas.h>
 #include <WebCore/FloatPoint.h>
@@ -62,10 +62,10 @@ class PageLoadClientEfl;
 class PagePolicyClientEfl;
 class PageUIClientEfl;
 class ViewClientEfl;
+#if USE(ACCELERATED_COMPOSITING)
 class PageViewportController;
 class PageViewportControllerClientEfl;
-class WebContextMenuItemData;
-class WebContextMenuProxyEfl;
+#endif
 class WebPageGroup;
 class WebPageProxy;
 
@@ -92,8 +92,10 @@ class EwkPopupMenu;
 class EwkSettings;
 class EwkWindowFeatures;
 
+#if USE(ACCELERATED_COMPOSITING)
 typedef struct _Evas_GL_Context Evas_GL_Context;
 typedef struct _Evas_GL_Surface Evas_GL_Surface;
+#endif
 
 typedef struct Ewk_View_Smart_Data Ewk_View_Smart_Data;
 typedef struct Ewk_View_Smart_Class Ewk_View_Smart_Class;
@@ -117,16 +119,13 @@ public:
     EwkSettings* settings() { return m_settings.get(); }
     EwkBackForwardList* backForwardList() { return m_backForwardList.get(); }
     EwkWindowFeatures* windowFeatures();
-    WebKit::PageViewportController* pageViewportController() { return m_pageViewportController.get(); }
 
-    bool isFocused() const;
-    bool isVisible() const;
+#if USE(ACCELERATED_COMPOSITING)
+    WebKit::PageViewportController* pageViewportController() { return m_pageViewportController.get(); }
+#endif
 
     void setDeviceScaleFactor(float scale);
     float deviceScaleFactor() const;
-
-    WebCore::IntSize size() const;
-    WebCore::IntSize deviceSize() const;
 
     WebCore::AffineTransform transformToScreen() const;
 
@@ -139,6 +138,8 @@ public:
     void setThemePath(const char* theme);
     const char* customTextEncodingName() const;
     void setCustomTextEncodingName(const String& encoding);
+    const char* userAgent() const { return m_userAgent; }
+    void setUserAgent(const char* userAgent);
 
     bool mouseEventsEnabled() const { return m_mouseEventsEnabled; }
     void setMouseEventsEnabled(bool enabled);
@@ -159,9 +160,10 @@ public:
 
     WKRect windowGeometry() const;
     void setWindowGeometry(const WKRect&);
-
+#if USE(ACCELERATED_COMPOSITING)
     bool createGLSurface();
     void setNeedsSurfaceResize() { m_pendingSurfaceResize = true; }
+#endif
 
 #if ENABLE(INPUT_TYPE_COLOR)
     void requestColorPicker(WKColorPickerResultListenerRef listener, const WebCore::Color&);
@@ -174,7 +176,7 @@ public:
     void requestPopupMenu(WKPopupMenuListenerRef, const WKRect&, WKPopupItemTextDirection, double pageScaleFactor, WKArrayRef items, int32_t selectedIndex);
     void closePopupMenu();
 
-    void showContextMenu(WebKit::WebContextMenuProxyEfl*, const WebCore::IntPoint& position, const Vector<WebKit::WebContextMenuItemData>& items);
+    void showContextMenu(WKPoint position, WKArrayRef items);
     void hideContextMenu();
 
     void updateTextInputState();
@@ -194,12 +196,6 @@ public:
     // FIXME: Remove when possible.
     WebKit::WebView* webView();
 
-    void setPageScaleFactor(float scaleFactor) { m_pageScaleFactor = scaleFactor; }
-    float pageScaleFactor() const { return m_pageScaleFactor; }
-
-    void setPagePosition(const WebCore::FloatPoint& position) { m_pagePosition = position; }
-    const WebCore::FloatPoint pagePosition() const { return m_pagePosition; }
-
     // FIXME: needs refactoring (split callback invoke)
     void informURLChange();
 
@@ -211,6 +207,9 @@ private:
 
     void setDeviceSize(const WebCore::IntSize&);
     Ewk_View_Smart_Data* smartData() const;
+
+    WebCore::IntSize size() const;
+    WebCore::IntSize deviceSize() const;
 
     void displayTimerFired(WebCore::Timer<EwkView>*);
 
@@ -248,12 +247,13 @@ private:
     Evas_Object* m_evasObject;
     RefPtr<EwkContext> m_context;
     RefPtr<EwkPageGroup> m_pageGroup;
+#if USE(ACCELERATED_COMPOSITING)
     OwnPtr<Evas_GL> m_evasGL;
     OwnPtr<WebKit::EvasGLContext> m_evasGLContext;
     OwnPtr<WebKit::EvasGLSurface> m_evasGLSurface;
-    WebCore::IntSize m_deviceSize;
-    WebCore::TransformationMatrix m_userViewportTransform;
     bool m_pendingSurfaceResize;
+#endif
+    WebCore::TransformationMatrix m_userViewportTransform;
     OwnPtr<WebKit::PageLoadClientEfl> m_pageLoadClient;
     OwnPtr<WebKit::PagePolicyClientEfl> m_pagePolicyClient;
     OwnPtr<WebKit::PageUIClientEfl> m_pageUIClient;
@@ -265,8 +265,6 @@ private:
     OwnPtr<WebKit::VibrationClientEfl> m_vibrationClient;
 #endif
     OwnPtr<EwkBackForwardList> m_backForwardList;
-    float m_pageScaleFactor;
-    WebCore::FloatPoint m_pagePosition;
     OwnPtr<EwkSettings> m_settings;
     RefPtr<EwkWindowFeatures> m_windowFeatures;
     const void* m_cursorIdentifier; // This is an address, do not free it.
@@ -274,6 +272,7 @@ private:
     mutable WKEinaSharedString m_title;
     WKEinaSharedString m_theme;
     mutable WKEinaSharedString m_customEncoding;
+    WKEinaSharedString m_userAgent;
     bool m_mouseEventsEnabled;
 #if ENABLE(TOUCH_EVENTS)
     bool m_touchEventsEnabled;
@@ -285,8 +284,10 @@ private:
 #if ENABLE(INPUT_TYPE_COLOR)
     OwnPtr<EwkColorPicker> m_colorPicker;
 #endif
+#if USE(ACCELERATED_COMPOSITING)
     OwnPtr<WebKit::PageViewportControllerClientEfl> m_pageViewportControllerClient;
     OwnPtr<WebKit::PageViewportController> m_pageViewportController;
+#endif
     bool m_isAccelerated;
 
     static Evas_Smart_Class parentSmartClass;

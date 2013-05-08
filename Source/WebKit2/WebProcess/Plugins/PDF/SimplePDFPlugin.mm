@@ -128,7 +128,7 @@ static void getAllScriptsInPDFDocument(CGPDFDocumentRef pdfDocument, Vector<Reta
         RetainPtr<CFDataRef> data;
         if (CGPDFDictionaryGetStream(javaScriptAction, "JS", &stream)) {
             CGPDFDataFormat format;
-            data.adoptCF(CGPDFStreamCopyData(stream, &format));
+            data = adoptCF(CGPDFStreamCopyData(stream, &format));
             if (!data)
                 continue;
             bytes = CFDataGetBytePtr(data.get());
@@ -141,7 +141,7 @@ static void getAllScriptsInPDFDocument(CGPDFDocumentRef pdfDocument, Vector<Reta
             continue;
 
         CFStringEncoding encoding = (length > 1 && bytes[0] == 0xFE && bytes[1] == 0xFF) ? kCFStringEncodingUnicode : kCFStringEncodingUTF8;
-        RetainPtr<CFStringRef> script(AdoptCF, CFStringCreateWithBytes(kCFAllocatorDefault, bytes, length, encoding, true));
+        RetainPtr<CFStringRef> script = adoptCF(CFStringCreateWithBytes(kCFAllocatorDefault, bytes, length, encoding, true));
         if (!script)
             continue;
 
@@ -184,6 +184,12 @@ PluginInfo SimplePDFPlugin::pluginInfo()
     pdfMimeClassInfo.desc = pdfDocumentTypeDescription();
     pdfMimeClassInfo.extensions.append("pdf");
     info.mimes.append(pdfMimeClassInfo);
+    
+    MimeClassInfo textPDFMimeClassInfo;
+    textPDFMimeClassInfo.type = "text/pdf";
+    textPDFMimeClassInfo.desc = pdfDocumentTypeDescription();
+    textPDFMimeClassInfo.extensions.append("pdf");
+    info.mimes.append(textPDFMimeClassInfo);
 
     MimeClassInfo postScriptMimeClassInfo;
     postScriptMimeClassInfo.type = postScriptMIMEType;
@@ -260,10 +266,7 @@ void SimplePDFPlugin::updateScrollbars()
 PassRefPtr<Scrollbar> SimplePDFPlugin::createScrollbar(ScrollbarOrientation orientation)
 {
     RefPtr<Scrollbar> widget = Scrollbar::createNativeScrollbar(this, orientation, RegularScrollbar);
-    if (orientation == HorizontalScrollbar)
-        didAddHorizontalScrollbar(widget.get());
-    else 
-        didAddVerticalScrollbar(widget.get());
+    didAddScrollbar(widget.get(), orientation);
     pluginView()->frame()->view()->addChild(widget.get());
     return widget.release();
 }
@@ -274,11 +277,7 @@ void SimplePDFPlugin::destroyScrollbar(ScrollbarOrientation orientation)
     if (!scrollbar)
         return;
 
-    if (orientation == HorizontalScrollbar)
-        willRemoveHorizontalScrollbar(scrollbar.get());
-    else
-        willRemoveVerticalScrollbar(scrollbar.get());
-
+    willRemoveScrollbar(scrollbar.get(), orientation);
     scrollbar->removeFromParent();
     scrollbar->disconnectFromScrollableArea();
     scrollbar = 0;
@@ -373,7 +372,7 @@ void SimplePDFPlugin::pdfDocumentDidLoad()
 {
     addArchiveResource();
 
-    m_pdfDocument.adoptNS([[pdfDocumentClass() alloc] initWithData:(NSData *)m_data.get()]);
+    m_pdfDocument = adoptNS([[pdfDocumentClass() alloc] initWithData:(NSData *)m_data.get()]);
 
     calculateSizes();
     updateScrollbars();
@@ -631,7 +630,7 @@ void SimplePDFPlugin::streamDidReceiveData(uint64_t streamID, const char* bytes,
     ASSERT_UNUSED(streamID, streamID == pdfDocumentRequestID);
 
     if (!m_data)
-        m_data.adoptCF(CFDataCreateMutable(0, 0));
+        m_data = adoptCF(CFDataCreateMutable(0, 0));
 
     CFDataAppendBytes(m_data.get(), reinterpret_cast<const UInt8*>(bytes), length);
 }
@@ -662,7 +661,7 @@ void SimplePDFPlugin::manualStreamDidReceiveResponse(const KURL& responseURL, ui
 void SimplePDFPlugin::manualStreamDidReceiveData(const char* bytes, int length)
 {
     if (!m_data)
-        m_data.adoptCF(CFDataCreateMutable(0, 0));
+        m_data = adoptCF(CFDataCreateMutable(0, 0));
 
     CFDataAppendBytes(m_data.get(), reinterpret_cast<const UInt8*>(bytes), length);
 }

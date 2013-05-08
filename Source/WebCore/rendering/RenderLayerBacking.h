@@ -33,13 +33,13 @@
 #include "GraphicsLayer.h"
 #include "GraphicsLayerClient.h"
 #include "RenderLayer.h"
-#include "TransformationMatrix.h"
 
 namespace WebCore {
 
 class KeyframeList;
 class RenderLayerCompositor;
 class TiledBacking;
+class TransformationMatrix;
 
 enum CompositingLayerType {
     NormalCompositingLayer, // non-tiled layer with backing store
@@ -186,17 +186,18 @@ public:
     GraphicsLayer* layerForScrollCorner() const { return m_layerForScrollCorner.get(); }
 
 #if ENABLE(CSS_FILTERS)
-    void updateFilters(const RenderStyle*);
     bool canCompositeFilters() const { return m_canCompositeFilters; }
 #endif
 
     // Return an estimate of the backing store area (in pixels) allocated by this object's GraphicsLayers.
     double backingStoreMemoryEstimate() const;
 
+    bool didSwitchToFullTileCoverageDuringLoading() const { return m_didSwitchToFullTileCoverageDuringLoading; }
+    void setDidSwitchToFullTileCoverageDuringLoading() { m_didSwitchToFullTileCoverageDuringLoading = true; }
+
 #if ENABLE(CSS_COMPOSITING)
     void setBlendMode(BlendMode);
 #endif
-    void reportMemoryUsage(MemoryObjectInfo*) const;
 
 private:
     void createPrimaryGraphicsLayer();
@@ -236,6 +237,9 @@ private:
 
     void updateOpacity(const RenderStyle*);
     void updateTransform(const RenderStyle*);
+#if ENABLE(CSS_FILTERS)
+    void updateFilters(const RenderStyle*);
+#endif
 #if ENABLE(CSS_COMPOSITING)
     void updateLayerBlendMode(const RenderStyle*);
 #endif
@@ -256,8 +260,11 @@ private:
     void updateImageContents();
 
     Color rendererBackgroundColor() const;
-    void updateBackgroundColor(bool isSimpleContainer);
-    void updateContentsRect(bool isSimpleContainer);
+    void updateDirectlyCompositedBackgroundColor(bool isSimpleContainer, bool& didUpdateContentsRect);
+    void updateDirectlyCompositedBackgroundImage(bool isSimpleContainer, bool& didUpdateContentsRect);
+    void updateDirectlyCompositedContents(bool isSimpleContainer, bool& didUpdateContentsRect);
+
+    void resetContentsRect();
 
     bool hasVisibleNonCompositingDescendantLayers() const;
 
@@ -301,6 +308,7 @@ private:
     bool m_canCompositeFilters;
 #endif
     bool m_backgroundLayerPaintsFixedRootBackground;
+    bool m_didSwitchToFullTileCoverageDuringLoading;
 
     static bool m_creatingPrimaryGraphicsLayer;
 };

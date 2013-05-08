@@ -32,6 +32,7 @@
 #include "Attribute.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "EventHandler.h"
 #include "EventNames.h"
 #include "ExceptionCodePlaceholder.h"
 #include "FormController.h"
@@ -48,10 +49,12 @@
 #include "NodeRenderingContext.h"
 #include "NodeTraversal.h"
 #include "Page.h"
+#include "PlatformMouseEvent.h"
 #include "RenderListBox.h"
 #include "RenderMenuList.h"
 #include "RenderTheme.h"
 #include "ScriptEventListener.h"
+#include "Settings.h"
 #include "SpatialNavigation.h"
 #include <wtf/text/StringBuilder.h>
 #include <wtf/unicode/Unicode.h>
@@ -1065,7 +1068,7 @@ void HTMLSelectElement::reset()
     setNeedsValidityCheck();
 }
 
-#if (!PLATFORM(WIN) && !(PLATFORM(CHROMIUM) && OS(WINDOWS))) || OS(WINCE)
+#if !PLATFORM(WIN)
 bool HTMLSelectElement::platformHandleKeydownEvent(KeyboardEvent* event)
 {
     const Page* page = document()->page();
@@ -1123,6 +1126,14 @@ void HTMLSelectElement::menuListDefaultEventHandler(Event* event)
         bool handled = true;
         const Vector<HTMLElement*>& listItems = this->listItems();
         int listIndex = optionToListIndex(selectedIndex());
+
+        // When using caret browsing, we want to be able to move the focus
+        // out of the select element when user hits a left or right arrow key.
+        const Frame* frame = document()->frame();
+        if (frame && frame->settings() && frame->settings()->caretBrowsingEnabled()) {
+            if (keyIdentifier == "Left" || keyIdentifier == "Right")
+                return;
+        }
 
         if (keyIdentifier == "Down" || keyIdentifier == "Right")
             listIndex = nextValidIndex(listIndex, SkipForwards, 1);
@@ -1302,7 +1313,7 @@ void HTMLSelectElement::listBoxDefaultEventHandler(Event* event)
         int listIndex = toRenderListBox(renderer())->listIndexAtOffset(toIntSize(localOffset));
         if (listIndex >= 0) {
             if (!isDisabledFormControl()) {
-#if PLATFORM(MAC) || (PLATFORM(CHROMIUM) && OS(DARWIN))
+#if PLATFORM(MAC)
                 updateSelectedState(listIndex, mouseEvent->metaKey(), mouseEvent->shiftKey());
 #else
                 updateSelectedState(listIndex, mouseEvent->ctrlKey(), mouseEvent->shiftKey());

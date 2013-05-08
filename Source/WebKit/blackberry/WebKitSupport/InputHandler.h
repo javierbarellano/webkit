@@ -146,10 +146,10 @@ public:
     int32_t setComposingText(spannable_string_t*, int32_t relativeCursorPosition);
     int32_t commitText(spannable_string_t*, int32_t relativeCursorPosition);
 
-    void requestCheckingOfString(PassRefPtr<WebCore::TextCheckingRequest>);
+    void requestCheckingOfString(PassRefPtr<WebCore::SpellCheckRequest>);
     void spellCheckingRequestProcessed(int32_t transactionId, spannable_string_t*);
-    void spellCheckingRequestCancelled(int32_t transactionId);
-    void stopPendingSpellCheckRequests();
+    void stopPendingSpellCheckRequests(bool isRestartRequired = false);
+    void spellCheckTextBlock(WebCore::Element* = 0);
 
     bool shouldRequestSpellCheckingOptionsForPoint(const Platform::IntPoint& documentContentPosition, const WebCore::Element*, imf_sp_text_t&);
     void requestSpellingCheckingOptions(imf_sp_text_t&, WebCore::IntSize& screenOffset, const bool shouldMoveDialog = false);
@@ -251,7 +251,7 @@ private:
     PendingKeyboardStateChange m_pendingKeyboardVisibilityChange;
     bool m_delayKeyboardVisibilityChange;
 
-    RefPtr<WebCore::TextCheckingRequest> m_request;
+    RefPtr<WebCore::SpellCheckRequest> m_request;
     int32_t m_processingTransactionId;
 
     bool m_shouldNotifyWebView;
@@ -263,8 +263,10 @@ private:
     SpellingHandler* m_spellingHandler;
     bool m_spellCheckStatusConfirmed;
     bool m_globalSpellCheckStatus;
+    int m_minimumSpellCheckingRequestSequence;
 
     OwnPtr<WebCore::SuggestionBoxHandler> m_suggestionDropdownBoxHandler;
+    bool m_elementTouchedIsCrossFrame;
 
     DISABLE_COPY(InputHandler);
 };

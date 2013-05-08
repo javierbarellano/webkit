@@ -20,7 +20,10 @@
 #include "config.h"
 #include "FrameSelection.h"
 
+#if HAVE(ACCESSIBILITY)
+
 #include "AXObjectCache.h"
+#include "Document.h"
 #include "Frame.h"
 #include "WebKitAccessibleWrapperAtk.h"
 
@@ -107,3 +110,5 @@ void FrameSelection::notifyAccessibilityForSelectionChange()
 }
 
 } // namespace WebCore
+
+#endif // HAVE(ACCESSIBILITY)

@@ -50,13 +50,13 @@ class AbstractEarlyWarningSystemTest(QueuesTest):
         self.assertMultiLineEqual(ews._failing_tests_message(task, patch), "New failing tests:\nbar.html\nfoo.html")
 
 
-class EarlyWarningSytemTest(QueuesTest):
+class EarlyWarningSystemTest(QueuesTest):
     def _default_expected_logs(self, ews):
         string_replacements = {
             "name": ews.name,
             "port": ews.port_name,
         }
-        if ews._default_run_tests:
+        if ews.run_tests:
             run_tests_line = "Running: webkit-patch --status-host=example.com build-and-test --no-clean --no-update --test --non-interactive --port=%(port)s\n" % string_replacements
         else:
             run_tests_line = ""
@@ -80,16 +80,12 @@ MOCK: release_work_item: %(name)s 10000
         ews.bind_to_tool(MockTool())
         options = Mock()
         options.port = None
-        options.run_tests = ews._default_run_tests
+        options.run_tests = ews.run_tests
         self.assert_queue_outputs(ews, expected_logs=self._default_expected_logs(ews), options=options)
 
-    def _test_ewses(self):
-        self._test_ews(MacEWS())
-        self._test_ews(MacWK2EWS())
-        self._test_ews(ChromiumLinuxEWS())
-        self._test_ews(ChromiumWindowsEWS())
-        self._test_ews(ChromiumAndroidEWS())
-        self._test_ews(QtEWS())
-        self._test_ews(QtWK2EWS())
-        self._test_ews(GtkEWS())
-        self._test_ews(EflEWS())
+    def test_ewses(self):
+        classes = AbstractEarlyWarningSystem.load_ews_classes()
+        self.assertTrue(classes)
+        self.maxDiff = None
+        for ews_class in classes:
+            self._test_ews(ews_class())

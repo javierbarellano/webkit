@@ -60,7 +60,9 @@ public:
     virtual void stopAnimation() OVERRIDE;
     virtual void resetAnimation() OVERRIDE;
 
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
+#if USE(CAIRO)
+    virtual PassNativeImagePtr nativeImageForCurrentFrame() OVERRIDE;
+#endif
 
 private:
     friend class SVGImageChromeClient;
@@ -81,8 +83,6 @@ private:
     // to prune because these functions are not implemented yet.
     virtual void destroyDecodedData(bool) { }
     virtual unsigned decodedSize() const { return 0; }
-
-    virtual NativeImagePtr frameAtIndex(size_t) { return 0; }
 
     // FIXME: Implement this to be less conservative.
     virtual bool currentFrameKnownToBeOpaque() OVERRIDE { return false; }

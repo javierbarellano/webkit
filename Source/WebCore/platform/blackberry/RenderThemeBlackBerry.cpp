@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2006, 2007 Apple Inc.
  * Copyright (C) 2009 Google Inc.
- * Copyright (C) 2009, 2010, 2011, 2012 Research In Motion Limited. All rights reserved.
+ * Copyright (C) 2009, 2010, 2011, 2012, 2013 Research In Motion Limited. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,6 +26,7 @@
 #include "HTMLMediaElement.h"
 #include "HostWindow.h"
 #include "InputType.h"
+#include "InputTypeNames.h"
 #include "MediaControlElements.h"
 #include "MediaPlayerPrivateBlackBerry.h"
 #include "Page.h"
@@ -42,34 +43,20 @@
 namespace WebCore {
 
 // Sizes (unit px)
-const unsigned smallRadius = 1;
-const unsigned largeRadius = 3;
-const unsigned lineWidth = 1;
-const float marginSize = 4;
+const float progressMinWidth = 16;
+const float progressTextureUnitWidth = 9.0;
 const float mediaControlsHeight = 44;
 const float mediaBackButtonHeight = 33;
 // Scale exit-fullscreen button size.
 const float mediaFullscreenButtonHeightRatio = 5 / 11.0;
 const float mediaFullscreenButtonWidthRatio = 3 / 11.0;
-const float mediaSliderOutlineWidth = 2;
+const float mediaSliderEndAdjust = 2;
 const float mediaSliderTrackRadius = 3;
 const float mediaSliderThumbWidth = 25;
 const float mediaSliderThumbHeight = 25;
 const float mediaSliderThumbRadius = 3;
 const float sliderThumbWidth = 15;
 const float sliderThumbHeight = 25;
-
-// Checkbox check scalers
-const float checkboxLeftX = 7 / 40.0;
-const float checkboxLeftY = 1 / 2.0;
-const float checkboxMiddleX = 19 / 50.0;
-const float checkboxMiddleY = 7 / 25.0;
-const float checkboxRightX = 33 / 40.0;
-const float checkboxRightY = 1 / 5.0;
-const float checkboxStrokeThickness = 6.5;
-
-// Radio button scaler
-const float radioButtonCheckStateScaler = 7 / 30.0;
 
 // Multipliers
 const unsigned paddingDivisor = 10;
@@ -91,52 +78,7 @@ const float widthRatio = 3;
 const float heightRatio = 0.23;
 
 // Colors
-const RGBA32 caretBottom = 0xff2163bf;
-const RGBA32 caretTop = 0xff69a5fa;
-
-const RGBA32 regularBottom = 0xffdcdee4;
-const RGBA32 regularTop = 0xfff7f2ee;
-const RGBA32 hoverBottom = 0xffb5d3fc;
-const RGBA32 hoverTop = 0xffcceaff;
-const RGBA32 depressedBottom = 0xff3388ff;
-const RGBA32 depressedTop = 0xff66a0f2;
-const RGBA32 disabledBottom = 0xffe7e7e7;
-const RGBA32 disabledTop = 0xffefefef;
-
-const RGBA32 regularBottomOutline = 0xff6e7073;
-const RGBA32 regularTopOutline = 0xffb9b8b8;
-const RGBA32 hoverBottomOutline = 0xff2163bf;
-const RGBA32 hoverTopOutline = 0xff69befa;
-const RGBA32 depressedBottomOutline = 0xff0c3d81;
-const RGBA32 depressedTopOutline = 0xff1d4d70;
-const RGBA32 disabledOutline = 0xffd5d9de;
-
-const RGBA32 progressRegularBottom = caretTop;
-const RGBA32 progressRegularTop = caretBottom;
-
-const RGBA32 rangeSliderRegularBottom = 0xfff6f2ee;
-const RGBA32 rangeSliderRegularTop = 0xffdee0e5;
-const RGBA32 rangeSliderRollBottom = 0xffc9e8fe;
-const RGBA32 rangeSliderRollTop = 0xffb5d3fc;
-
-const RGBA32 rangeSliderRegularBottomOutline = 0xffb9babd;
-const RGBA32 rangeSliderRegularTopOutline = 0xffb7b7b7;
-const RGBA32 rangeSliderRollBottomOutline = 0xff67abe0;
-const RGBA32 rangeSliderRollTopOutline = 0xff69adf9;
-
-const RGBA32 dragRegularLight = 0xfffdfdfd;
-const RGBA32 dragRegularDark = 0xffbababa;
-const RGBA32 dragRollLight = 0xfff2f2f2;
-const RGBA32 dragRollDark = 0xff69a8ff;
-
-const RGBA32 blackPen = Color::black;
 const RGBA32 focusRingPen = 0xffa3c8fe;
-
-const RGBA32 mediaSliderTrackOutline = 0xff848587;
-const RGBA32 mediaSliderTrackPlayed = 0xff2b8fff;
-const RGBA32 mediaSliderTrackBuffered = 0xffbbbdbf;
-
-const RGBA32 selection = 0xff2b8fff;
 
 float RenderThemeBlackBerry::defaultFontSize = 16;
 
@@ -144,14 +86,6 @@ const String& RenderThemeBlackBerry::defaultGUIFont()
 {
     DEFINE_STATIC_LOCAL(String, fontFace, (ASCIILiteral("Slate Pro")));
     return fontFace;
-}
-
-static PassRefPtr<Gradient> createLinearGradient(RGBA32 top, RGBA32 bottom, const IntPoint& a, const IntPoint& b)
-{
-    RefPtr<Gradient> gradient = Gradient::create(a, b);
-    gradient->addColorStop(0.0, Color(top));
-    gradient->addColorStop(1.0, Color(bottom));
-    return gradient.release();
 }
 
 static RenderSlider* determineRenderSlider(RenderObject* object)
@@ -282,7 +216,7 @@ static RefPtr<Image> loadImage(const char* filename)
     return resource;
 }
 
-PassRefPtr<RenderTheme> RenderTheme::themeForPage(Page* page)
+PassRefPtr<RenderTheme> RenderTheme::themeForPage(Page*)
 {
     static RenderTheme* theme = RenderThemeBlackBerry::create().leakRef();
     return theme;
@@ -731,36 +665,8 @@ bool RenderThemeBlackBerry::paintSliderTrack(RenderObject* object, const PaintIn
         rect2.setX(rect.x() + (rect.width() - SliderTrackHeight) / 2);
         rect2.setY(rect.y());
     }
-    return paintSliderTrackRect(object, info, rect2);
-}
-
-bool RenderThemeBlackBerry::paintSliderTrackRect(RenderObject* object, const PaintInfo& info, const IntRect& rect)
-{
-    return paintSliderTrackRect(object, info, rect, rangeSliderRegularTopOutline, rangeSliderRegularBottomOutline, rangeSliderRegularTop, rangeSliderRegularBottom);
-}
-
-bool RenderThemeBlackBerry::paintSliderTrackRect(RenderObject* object, const PaintInfo& info, const IntRect& rect, RGBA32 strokeColorStart, RGBA32 strokeColorEnd, RGBA32 fillColorStart, RGBA32 fillColorEnd)
-{
-    FloatSize smallCorner(mediaSliderTrackRadius, mediaSliderTrackRadius);
-
-    info.context->save();
-    info.context->setStrokeStyle(SolidStroke);
-    info.context->setStrokeThickness(lineWidth);
-
-#if USE(SKIA)
-    info.context->setStrokeGradient(createLinearGradient(strokeColorStart, strokeColorEnd, rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-    info.context->setFillGradient(createLinearGradient(fillColorStart, fillColorEnd, rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-#else
-    info.context->setStrokeColor(strokeColorStart, ColorSpaceDeviceRGB);
-    info.context->setFillColor(fillColorStart, ColorSpaceDeviceRGB);
-#endif
-
-    Path path;
-    path.addRoundedRect(rect, smallCorner);
-    info.context->fillPath(path);
-
-    info.context->restore();
-    return false;
+    static Image* sliderTrack = Image::loadPlatformResource("core_slider_bg").leakRef();
+    return paintSliderTrackRect(object, info, rect2, sliderTrack);
 }
 
 bool RenderThemeBlackBerry::paintSliderTrackRect(RenderObject* object, const PaintInfo& info, const IntRect& rect, Image* inactive)
@@ -846,16 +752,20 @@ void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle*
     Length controlsHeight(mediaControlsHeight * fullScreenMultiplier, Fixed);
     Length halfControlsWidth(mediaControlsHeight / 2 * fullScreenMultiplier, Fixed);
     Length displayHeight(mediaControlsHeight / 3 * fullScreenMultiplier, Fixed);
+    Length volOffset(mediaControlsHeight * fullScreenMultiplier + 5, Fixed);
     Length padding(mediaControlsHeight / 10 * fullScreenMultiplier, Fixed);
     float fontSize = mediaControlsHeight / 3 * fullScreenMultiplier;
 
     switch (style->appearance()) {
+    case MediaControlsBackgroundPart:
+        if (element->shadowPseudoId() == "-webkit-media-controls-placeholder")
+            style->setHeight(controlsHeight);
+        break;
     case MediaPlayButtonPart:
         style->setWidth(controlsHeight);
         style->setHeight(controlsHeight);
         break;
     case MediaMuteButtonPart:
-        style->setPaddingLeft(padding);
         style->setWidth(controlsHeight);
         style->setHeight(controlsHeight);
         break;
@@ -865,7 +775,6 @@ void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle*
         style->setHeight(controlsHeight);
         break;
     case MediaEnterFullscreenButtonPart:
-        style->setPaddingRight(padding);
         style->setWidth(controlsHeight);
         style->setHeight(controlsHeight);
         break;
@@ -884,7 +793,7 @@ void RenderThemeBlackBerry::adjustMediaControlStyle(StyleResolver*, RenderStyle*
         break;
     case MediaVolumeSliderContainerPart:
         style->setHeight(controlsHeight);
-        style->setBottom(controlsHeight);
+        style->setBottom(volOffset);
         break;
     default:
         break;
@@ -923,8 +832,17 @@ bool RenderThemeBlackBerry::paintMediaPlayButton(RenderObject* object, const Pai
 
     static Image* mediaPlay = Image::loadPlatformResource("play").leakRef();
     static Image* mediaPause = Image::loadPlatformResource("pause").leakRef();
+    static Image* mediaStop = Image::loadPlatformResource("stop").leakRef();
+    Image* nonPlayImage;
 
-    return paintMediaButton(paintInfo.context, rect, mediaElement->canPlay() ? mediaPlay : mediaPause);
+    // The BlackBerry port sets the movieLoadType to LiveStream if and only if
+    // "stop" must be used instead of "pause".
+    if (mediaElement->movieLoadType() == MediaPlayer::LiveStream)
+        nonPlayImage = mediaStop;
+    else
+        nonPlayImage = mediaPause;
+
+    return paintMediaButton(paintInfo.context, rect, mediaElement->canPlay() ? mediaPlay : nonPlayImage);
 #else
     UNUSED_PARAM(object);
     UNUSED_PARAM(paintInfo);
@@ -964,9 +882,9 @@ bool RenderThemeBlackBerry::paintMediaMuteButton(RenderObject* object, const Pai
     if (!mediaElement)
         return false;
 
-    static Image* divider = Image::loadPlatformResource("speaker").leakRef();
+    static Image* speaker = Image::loadPlatformResource("speaker").leakRef();
 
-    return paintMediaButton(paintInfo.context, rect, divider);
+    return paintMediaButton(paintInfo.context, rect, speaker);
 #else
     UNUSED_PARAM(object);
     UNUSED_PARAM(paintInfo);
@@ -1016,29 +934,25 @@ bool RenderThemeBlackBerry::paintMediaSliderTrack(RenderObject* object, const Pa
     float position = mediaElement->duration() > 0 ? (mediaElement->currentTime() / mediaElement->duration()) : 0;
 
     int intrinsicHeight = ceil(mediaSliderThumbHeight / 4);
-    int x = ceil(rect.x() + (mediaControlsHeight - intrinsicHeight) / 2 * fullScreenMultiplier - fullScreenMultiplier / 2);
+    int x = ceil(rect.x() + mediaSliderEndAdjust * fullScreenMultiplier);
     int y = ceil(rect.y() + (mediaControlsHeight / 2 - intrinsicHeight) / 2 * fullScreenMultiplier + fullScreenMultiplier / 2);
-    int w = ceil(rect.width() - (mediaControlsHeight - intrinsicHeight) * fullScreenMultiplier + fullScreenMultiplier / 2);
+    int w = ceil(rect.width() - mediaSliderEndAdjust * 2 * fullScreenMultiplier);
     int h = ceil(intrinsicHeight * fullScreenMultiplier);
     IntRect rect2(x, y, w, h);
 
-    int wPlayed = ceil(w * position);
-    int wLoaded = ceil((w - mediaSliderThumbWidth * fullScreenMultiplier) * loaded + mediaSliderThumbWidth * fullScreenMultiplier);
+    // We subtract a small amount from the width in the calculation below to
+    // prevent the played bar from poking out past the thumb accidentally.
+    int wPlayed = ceil((w - mediaSliderEndAdjust) * position);
+    // We adjust the buffered bar to make it visible to the right of the thumb.
+    // A small amount is subtracted from the mediaSliderThumbWidth in the first
+    // part of the expression to account for the fact that the slider track's
+    // width was shortened and x position was incremented above (to make sure
+    // its rounded ends get covered by the thumb).
+    int wLoaded = ceil((w - (mediaSliderThumbWidth - mediaSliderEndAdjust) * fullScreenMultiplier) * loaded + mediaSliderThumbWidth * fullScreenMultiplier);
 
     IntRect played(x, y, wPlayed, h);
-    IntRect buffered(x, y, wLoaded, h);
-#if USE(SKIA)
-    // This is to paint main slider bar.
-    bool result = paintSliderTrackRect(object, paintInfo, rect2);
+    IntRect buffered(x, y, wLoaded > w ? w : wLoaded, h);
 
-    if (loaded > 0 || position > 0) {
-        // This is to paint buffered bar.
-        paintSliderTrackRect(object, paintInfo, buffered, Color::darkGray, Color::darkGray, Color::darkGray, Color::darkGray);
-
-        // This is to paint played part of bar (left of slider thumb) using selection color.
-        paintSliderTrackRect(object, paintInfo, played, selection, selection, selection, selection);
-    }
-#else // GL renderer
     static Image* mediaBackground = Image::loadPlatformResource("core_slider_video_bg").leakRef();
     static Image* mediaPlayer = Image::loadPlatformResource("core_slider_played_bg").leakRef();
     static Image* mediaCache = Image::loadPlatformResource("core_slider_cache").leakRef();
@@ -1052,7 +966,7 @@ bool RenderThemeBlackBerry::paintMediaSliderTrack(RenderObject* object, const Pa
         // This is to paint played part of bar (left of slider thumb) using selection color.
         paintSliderTrackRect(object, paintInfo, played, mediaPlayer);
     }
-#endif // USE(SKIA)
+
     return result;
 #else
     UNUSED_PARAM(object);
@@ -1065,30 +979,6 @@ bool RenderThemeBlackBerry::paintMediaSliderTrack(RenderObject* object, const Pa
 bool RenderThemeBlackBerry::paintMediaSliderThumb(RenderObject* object, const PaintInfo& paintInfo, const IntRect& rect)
 {
 #if ENABLE(VIDEO)
-#if USE(SKIA)
-    RenderSlider* slider = determineRenderSlider(object);
-    if (!slider)
-        return false;
-
-    float fullScreenMultiplier = determineFullScreenMultiplier(toElement(slider->node()));
-
-    paintInfo.context->save();
-    Path mediaThumbRoundedRectangle;
-    mediaThumbRoundedRectangle.addRoundedRect(rect, FloatSize(mediaSliderThumbRadius * fullScreenMultiplier, mediaSliderThumbRadius * fullScreenMultiplier));
-    paintInfo.context->setStrokeStyle(SolidStroke);
-    paintInfo.context->setStrokeThickness(0.5);
-    paintInfo.context->setStrokeColor(Color::black, ColorSpaceDeviceRGB);
-
-    if (isPressed(object) || isHovered(object) || slider->inDragMode())
-        paintInfo.context->setFillGradient(createLinearGradient(selection, Color(selection).dark().rgb(), rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-    else
-        paintInfo.context->setFillGradient(createLinearGradient(Color::white, Color(Color::white).dark().rgb(), rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-
-    paintInfo.context->fillPath(mediaThumbRoundedRectangle);
-    paintInfo.context->restore();
-
-    return true;
-#else // GL renderer
     static Image* disabledMediaSliderThumb = Image::loadPlatformResource("core_slider_handle_disabled").leakRef();
     static Image* pressedMediaSliderThumb = Image::loadPlatformResource("core_slider_handle_pressed").leakRef();
     static Image* mediaSliderThumb = Image::loadPlatformResource("core_media_handle").leakRef();
@@ -1098,7 +988,6 @@ bool RenderThemeBlackBerry::paintMediaSliderThumb(RenderObject* object, const Pa
     if (isPressed(object) || isHovered(object) || isFocused(object))
         return paintMediaButton(paintInfo.context, rect, pressedMediaSliderThumb);
     return paintMediaButton(paintInfo.context, rect, mediaSliderThumb);
-#endif // USE(SKIA)
 #else
     UNUSED_PARAM(object);
     UNUSED_PARAM(paintInfo);
@@ -1119,21 +1008,12 @@ bool RenderThemeBlackBerry::paintMediaVolumeSliderTrack(RenderObject* object, co
 
     int intrinsicHeight = ceil(mediaSliderThumbHeight / 4);
     int x = ceil(rect.x() + (mediaControlsHeight - intrinsicHeight) / 2 * fullScreenMultiplier - fullScreenMultiplier / 2);
-    int y = ceil(rect.y() + (mediaControlsHeight / 2 - intrinsicHeight) / 2 * fullScreenMultiplier + fullScreenMultiplier / 2);
+    int y = ceil(rect.y() + (mediaControlsHeight - intrinsicHeight) / 2 * fullScreenMultiplier + fullScreenMultiplier / 2);
     int w = ceil(rect.width() - (mediaControlsHeight - intrinsicHeight) * fullScreenMultiplier + fullScreenMultiplier / 2);
     int h = ceil(intrinsicHeight * fullScreenMultiplier);
     IntRect rect2(x, y, w, h);
     IntRect volumeRect(x, y, ceil(w * volume), h);
 
-#if USE(SKIA)
-    // This is to paint main volume slider bar.
-    bool result = paintSliderTrackRect(object, paintInfo, rect2, Color(mediaSliderTrackOutline).rgb(), Color(mediaSliderTrackOutline).rgb(), rangeSliderRegularTop, rangeSliderRegularTop);
-
-    if (volume > 0) {
-        // This is to paint volume bar (left of volume slider thumb) using selection color.
-        result |= paintSliderTrackRect(object, paintInfo, volumeRect, Color(mediaSliderTrackOutline).rgb(), Color(mediaSliderTrackOutline).rgb(), selection, selection);
-    }
-#else // GL renderer
     static Image* volumeBackground = Image::loadPlatformResource("core_slider_video_bg").leakRef();
     static Image* volumeBar = Image::loadPlatformResource("core_slider_played_bg").leakRef();
 
@@ -1144,7 +1024,7 @@ bool RenderThemeBlackBerry::paintMediaVolumeSliderTrack(RenderObject* object, co
         // This is to paint volume bar (left of volume slider thumb) using selection color.
         result |= paintSliderTrackRect(object, paintInfo, volumeRect, volumeBar);
     }
-#endif // USE(SKIA)
+
     return result;
 #else
     UNUSED_PARAM(object);
@@ -1157,29 +1037,14 @@ bool RenderThemeBlackBerry::paintMediaVolumeSliderTrack(RenderObject* object, co
 bool RenderThemeBlackBerry::paintMediaVolumeSliderThumb(RenderObject* object, const PaintInfo& paintInfo, const IntRect& rect)
 {
 #if ENABLE(VIDEO)
-#if USE(SKIA)
     RenderSlider* slider = determineRenderSlider(object);
-    if (!slider)
-        return false;
+    float fullScreenMultiplier = slider ? determineFullScreenMultiplier(toElement(slider->node())) : 1;
 
-    float fullScreenMultiplier = determineFullScreenMultiplier(toElement(slider->node()));
+    int intrinsicHeight = ceil(mediaSliderThumbHeight / 4);
+    int y = ceil(rect.y() + (mediaControlsHeight / 2 - intrinsicHeight / 2) / 2 * fullScreenMultiplier);
+    IntRect adjustedRect(rect.x(), y, rect.width(), rect.height());
 
-    paintInfo.context->save();
-    Path mediaThumbRoundedRectangle;
-    mediaThumbRoundedRectangle.addRoundedRect(rect, FloatSize(mediaSliderThumbHeight / 2 * fullScreenMultiplier, mediaSliderThumbHeight / 2 * fullScreenMultiplier));
-
-    if (isPressed(object) || isHovered(object) || slider->inDragMode())
-        paintInfo.context->setFillGradient(createLinearGradient(selection, Color(selection).dark().rgb(), rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-    else
-        paintInfo.context->setFillGradient(createLinearGradient(mediaSliderTrackOutline, Color::black, rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-
-    paintInfo.context->fillPath(mediaThumbRoundedRectangle);
-    paintInfo.context->restore();
-
-    return true;
-#else // GL renderer
-    return paintMediaSliderThumb(object, paintInfo, rect);
-#endif // USE(SKIA)
+    return paintMediaSliderThumb(object, paintInfo, adjustedRect);
 #else
     UNUSED_PARAM(object);
     UNUSED_PARAM(paintInfo);
@@ -1215,6 +1080,36 @@ double RenderThemeBlackBerry::animationDurationForProgressBar(RenderProgress* re
     return renderProgress->isDeterminate() ? 0.0 : 2.0;
 }
 
+bool RenderThemeBlackBerry::paintProgressTrackRect(const PaintInfo& info, const IntRect& rect, Image* image)
+{
+    ASSERT(info.context);
+    info.context->save();
+    GraphicsContext* context = info.context;
+    drawThreeSliceHorizontal(context, rect, image, mediumSlice);
+    context->restore();
+    return false;
+}
+
+static void drawProgressTexture(GraphicsContext* gc, const FloatRect& rect, int n, Image* image)
+{
+    if (!image)
+        return;
+    float finalTexturePercentage = (int(rect.width()) % int(progressTextureUnitWidth)) / progressTextureUnitWidth;
+    FloatSize dstSlice(progressTextureUnitWidth, rect.height() - 2);
+    FloatRect srcRect(1, 2, image->width() - 2, image->height() - 4);
+    FloatRect dstRect(FloatPoint(rect.location().x() + 1, rect.location().y() + 1), dstSlice);
+
+    for (int i = 0; i < n; i++) {
+        gc->drawImage(image, ColorSpaceDeviceRGB, dstRect, srcRect);
+        dstRect.move(dstSlice.width(), 0);
+    }
+    if (finalTexturePercentage) {
+        srcRect.setWidth(srcRect.width() * finalTexturePercentage * finalTexturePercentage);
+        dstRect.setWidth(dstRect.width() * finalTexturePercentage * finalTexturePercentage);
+        gc->drawImage(image, ColorSpaceDeviceRGB, dstRect, srcRect);
+    }
+}
+
 bool RenderThemeBlackBerry::paintProgressBar(RenderObject* object, const PaintInfo& info, const IntRect& rect)
 {
     if (!object->isProgress())
@@ -1222,42 +1117,33 @@ bool RenderThemeBlackBerry::paintProgressBar(RenderObject* object, const PaintIn
 
     RenderProgress* renderProgress = toRenderProgress(object);
 
-    FloatSize smallCorner(smallRadius, smallRadius);
+    static Image* progressTrack = Image::loadPlatformResource("core_progressindicator_bg").leakRef();
+    static Image* progressBar = Image::loadPlatformResource("core_progressindicator_progress").leakRef();
+    static Image* progressPattern = Image::loadPlatformResource("core_progressindicator_pattern").leakRef();
+    static Image* progressComplete = Image::loadPlatformResource("core_progressindicator_complete").leakRef();
 
-    info.context->save();
-    info.context->setStrokeStyle(SolidStroke);
-    info.context->setStrokeThickness(lineWidth);
+    paintProgressTrackRect(info, rect, progressTrack);
 
-    info.context->setStrokeGradient(createLinearGradient(rangeSliderRegularTopOutline, rangeSliderRegularBottomOutline, rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
-    info.context->setFillGradient(createLinearGradient(rangeSliderRegularTop, rangeSliderRegularBottom, rect.maxXMinYCorner(), rect.maxXMaxYCorner()));
+    IntRect progressRect = rect;
+    progressRect.setX(progressRect.x() + 1);
+    progressRect.setHeight(progressRect.height() - 2);
+    progressRect.setY(progressRect.y() + 1);
 
-    Path path;
-    path.addRoundedRect(rect, smallCorner);
-    info.context->fillPath(path);
-
-    IntRect rect2 = rect;
-    rect2.setX(rect2.x() + 1);
-    rect2.setHeight(rect2.height() - 2);
-    rect2.setY(rect2.y() + 1);
-    info.context->setStrokeStyle(NoStroke);
-    info.context->setStrokeThickness(0);
-    if (renderProgress->isDeterminate()) {
-        rect2.setWidth(rect2.width() * renderProgress->position() - 2);
-        info.context->setFillGradient(createLinearGradient(progressRegularTop, progressRegularBottom, rect2.maxXMinYCorner(), rect2.maxXMaxYCorner()));
-    } else {
+    if (renderProgress->isDeterminate())
+        progressRect.setWidth((progressRect.width() - progressMinWidth) * renderProgress->position() + progressMinWidth - 2);
+    else {
         // Animating
-        rect2.setWidth(rect2.width() - 2);
-        RefPtr<Gradient> gradient = Gradient::create(rect2.minXMaxYCorner(), rect2.maxXMaxYCorner());
-        gradient->addColorStop(0.0, Color(progressRegularBottom));
-        gradient->addColorStop(renderProgress->animationProgress(), Color(progressRegularTop));
-        gradient->addColorStop(1.0, Color(progressRegularBottom));
-        info.context->setFillGradient(gradient);
+        progressRect.setWidth(progressRect.width() - 2);
     }
-    Path path2;
-    path2.addRoundedRect(rect2, smallCorner);
-    info.context->fillPath(path2);
 
-    info.context->restore();
+    if (renderProgress->position() < 1) {
+        paintProgressTrackRect(info, progressRect, progressBar);
+        int loop = floor((progressRect.width() - 2) / progressTextureUnitWidth);
+        progressRect.setWidth(progressRect.width() - 2);
+        drawProgressTexture(info.context, progressRect, loop, progressPattern);
+    } else
+        paintProgressTrackRect(info, progressRect, progressComplete);
+
     return false;
 }
 
@@ -1273,8 +1159,26 @@ Color RenderThemeBlackBerry::platformInactiveTextSearchHighlightColor() const
 
 bool RenderThemeBlackBerry::supportsDataListUI(const AtomicString& type) const
 {
-    // TODO: support other input types in the future.
-    return type == InputTypeNames::text();
+#if ENABLE(DATALIST_ELEMENT)
+    // We support all non-popup driven types.
+    return type == InputTypeNames::text() || type == InputTypeNames::search() || type == InputTypeNames::url()
+        || type == InputTypeNames::telephone() || type == InputTypeNames::email() || type == InputTypeNames::number()
+        || type == InputTypeNames::range();
+#else
+    return false;
+#endif
 }
+
+#if ENABLE(DATALIST_ELEMENT)
+IntSize RenderThemeBlackBerry::sliderTickSize() const
+{
+    return IntSize(1, 3);
+}
+
+int RenderThemeBlackBerry::sliderTickOffsetFromTrackCenter() const
+{
+    return -9;
+}
+#endif
 
 } // namespace WebCore

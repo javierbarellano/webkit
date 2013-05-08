@@ -522,7 +522,7 @@ static void registerMockScrollbars()
 
 WebView *createWebViewAndOffscreenWindow()
 {
-    NSRect rect = NSMakeRect(0, 0, TestRunner::maxViewWidth, TestRunner::maxViewHeight);
+    NSRect rect = NSMakeRect(0, 0, TestRunner::viewWidth, TestRunner::viewHeight);
     WebView *webView = [[WebView alloc] initWithFrame:rect frameName:nil groupName:@"org.webkit.DumpRenderTree"];
         
     [webView setUIDelegate:uiDelegate];
@@ -539,6 +539,11 @@ WebView *createWebViewAndOffscreenWindow()
     [WebView registerURLSchemeAsLocal:@"feedsearch"];
     
     [webView setContinuousSpellCheckingEnabled:YES];
+    [webView setAutomaticQuoteSubstitutionEnabled:NO];
+    [webView setAutomaticLinkDetectionEnabled:NO];
+    [webView setAutomaticDashSubstitutionEnabled:NO];
+    [webView setAutomaticTextReplacementEnabled:NO];
+    [webView setAutomaticSpellingCorrectionEnabled:YES];
     [webView setDefersCallbacks:NO];
     [webView setGrammarCheckingEnabled:YES];
     [webView setInteractiveFormValidationEnabled:YES];
@@ -596,7 +601,13 @@ static void resetDefaultsToConsistentValues()
     [defaults setBool:YES forKey:@"UseWebKitWebInspector"];
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-    [defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:@"notational", @"notationl", nil] forKey:@"NSTestCorrectionDictionary"];
+    [defaults setObject:[NSDictionary dictionaryWithObjectsAndKeys:
+        @"notational", @"notationl",
+        @"message", @"mesage",
+        @"would", @"wouldn",
+        @"welcome", @"wellcome",
+        @"hello\nworld", @"hellolfworld",
+        nil] forKey:@"NSTestCorrectionDictionary"];
 #endif
 
     // Scrollbars are drawn either using AppKit (which uses NSUserDefaults) or using HIToolbox (which uses CFPreferences / kCFPreferencesAnyApplication / kCFPreferencesCurrentUser / kCFPreferencesAnyHost)
@@ -610,7 +621,7 @@ static void resetDefaultsToConsistentValues()
 #endif
 
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 && !PLATFORM(CHROMIUM)
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
     [defaults setBool:NO forKey:@"NSScrollAnimationEnabled"];
 #else
     [defaults setBool:NO forKey:@"AppleScrollAnimationEnabled"];
@@ -1094,9 +1105,9 @@ static void sizeWebViewForCurrentTest()
     // W3C SVG tests expect to be 480x360
     bool isSVGW3CTest = (gTestRunner->testPathOrURL().find("svg/W3C-SVG-1.1") != string::npos);
     if (isSVGW3CTest)
-        [[mainFrame webView] setFrameSize:NSMakeSize(480, 360)];
+        [[mainFrame webView] setFrameSize:NSMakeSize(TestRunner::w3cSVGViewWidth, TestRunner::w3cSVGViewHeight)];
     else
-        [[mainFrame webView] setFrameSize:NSMakeSize(TestRunner::maxViewWidth, TestRunner::maxViewHeight)];
+        [[mainFrame webView] setFrameSize:NSMakeSize(TestRunner::viewWidth, TestRunner::viewHeight)];
 }
 
 static const char *methodNameStringForFailedTest()

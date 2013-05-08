@@ -38,9 +38,6 @@
 #include "IDBTransactionBackendImpl.h"
 #include "IDBTransactionCoordinator.h"
 #include "SharedBuffer.h"
-#if PLATFORM(CHROMIUM)
-#include <public/Platform.h>
-#endif
 #include <wtf/TemporaryChange.h>
 
 namespace WebCore {
@@ -625,7 +622,7 @@ void CreateIndexOperation::perform(IDBTransactionBackendImpl* transaction)
 void CreateIndexAbortOperation::perform(IDBTransactionBackendImpl* transaction)
 {
     IDB_TRACE("CreateIndexAbortOperation");
-    ASSERT(!transaction);
+    ASSERT_UNUSED(transaction, !transaction);
     m_database->removeIndex(m_objectStoreId, m_indexId);
 }
 
@@ -661,7 +658,7 @@ void DeleteIndexOperation::perform(IDBTransactionBackendImpl* transaction)
 void DeleteIndexAbortOperation::perform(IDBTransactionBackendImpl* transaction)
 {
     IDB_TRACE("DeleteIndexAbortOperation");
-    ASSERT(!transaction);
+    ASSERT_UNUSED(transaction, !transaction);
     m_database->addIndex(m_objectStoreId, m_indexMetadata, IDBIndexMetadata::InvalidId);
 }
 
@@ -1214,10 +1211,8 @@ void IDBDatabaseBackendImpl::openConnection(PassRefPtr<IDBCallbacks> prpCallback
     bool isNewDatabase = m_metadata.version == NoStringVersion && m_metadata.intVersion == IDBDatabaseMetadata::NoIntVersion;
 
     if (version == IDBDatabaseMetadata::DefaultIntVersion) {
+        // FIXME: this comments was related to Chromium code. It may be incorrect
         // For unit tests only - skip upgrade steps. Calling from script with DefaultIntVersion throws exception.
-#if PLATFORM(CHROMIUM)
-        ASSERT(WebKit::Platform::current()->unitTestSupport());
-#endif
         ASSERT(isNewDatabase);
         m_databaseCallbacksSet.add(databaseCallbacks);
         callbacks->onSuccess(this, this->metadata());
@@ -1356,11 +1351,7 @@ void IDBDatabaseBackendImpl::close(PassRefPtr<IDBDatabaseCallbacks> prpCallbacks
         m_backingStore.clear();
 
         // This check should only be false in unit tests.
-#if PLATFORM(CHROMIUM)
-        ASSERT(m_factory || WebKit::Platform::current()->unitTestSupport());
-#else
         ASSERT(m_factory);
-#endif
         if (m_factory)
             m_factory->removeIDBDatabaseBackend(m_identifier);
     }
@@ -1369,21 +1360,21 @@ void IDBDatabaseBackendImpl::close(PassRefPtr<IDBDatabaseCallbacks> prpCallbacks
 void CreateObjectStoreAbortOperation::perform(IDBTransactionBackendImpl* transaction)
 {
     IDB_TRACE("CreateObjectStoreAbortOperation");
-    ASSERT(!transaction);
+    ASSERT_UNUSED(transaction, !transaction);
     m_database->removeObjectStore(m_objectStoreId);
 }
 
 void DeleteObjectStoreAbortOperation::perform(IDBTransactionBackendImpl* transaction)
 {
     IDB_TRACE("DeleteObjectStoreAbortOperation");
-    ASSERT(!transaction);
+    ASSERT_UNUSED(transaction, !transaction);
     m_database->addObjectStore(m_objectStoreMetadata, IDBObjectStoreMetadata::InvalidId);
 }
 
 void IDBDatabaseBackendImpl::VersionChangeAbortOperation::perform(IDBTransactionBackendImpl* transaction)
 {
     IDB_TRACE("VersionChangeAbortOperation");
-    ASSERT(!transaction);
+    ASSERT_UNUSED(transaction, !transaction);
     m_database->m_metadata.version = m_previousVersion;
     m_database->m_metadata.intVersion = m_previousIntVersion;
 }

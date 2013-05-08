@@ -44,6 +44,7 @@
 #import "Range.h"
 #import "RenderView.h"
 #import "RuntimeApplicationChecksIOS.h"
+#import "SVGNames.h"
 #import "TextIterator.h"
 #import "WAKScrollView.h"
 #import "WAKView.h"
@@ -367,6 +368,21 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     return NSNotFound;
 }
 
+- (CGPathRef)_accessibilityPath
+{
+    if (![self _prepareAccessibilityCall])
+        return NULL;
+
+    if (!m_object->supportsPath())
+        return NULL;
+    
+    Path path = m_object->elementPath();
+    if (path.isEmpty())
+        return NULL;
+    
+    return [self convertPathToScreenSpace:path];
+}
+
 - (NSString *)accessibilityLanguage
 {
     if (![self _prepareAccessibilityCall])
@@ -544,6 +560,18 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     return traits;
 }
 
+- (BOOL)isSVGGroupElement
+{
+    // If an SVG group element has a title, it should be an accessible element on iOS.
+#if ENABLE(SVG)
+    Node* node = m_object->node();
+    if (node && node->hasTagName(SVGNames::gTag) && [[self accessibilityLabel] length] > 0)
+        return YES;
+#endif
+    
+    return NO;
+}
+
 - (BOOL)determineIsAccessibilityElement
 {
     if (!m_object)
@@ -601,7 +629,9 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
             if ([self containsUnnaturallySegmentedChildren] || ![self accessibilityElementCount])
                 return true;
             return false;
-
+        case GroupRole:
+            if ([self isSVGGroupElement])
+                return true;
         // All other elements are ignored on the iphone.
         default:
         case UnknownRole:
@@ -609,7 +639,6 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         case ScrollAreaRole:
         case TableRole:
         case ApplicationRole:
-        case GroupRole:
         case RadioGroupRole:
         case ListRole:
         case ListBoxRole:
@@ -658,8 +687,25 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return NO;
     if (m_object->roleValue() == PopUpButtonRole)
         return NO;
+    if (m_object->isFileUploadButton())
+        return NO;
 
     return YES;
+}
+
+- (BOOL)fileUploadButtonReturnsValueInTitle
+{
+    return NO;
+}
+
+static void appendStringToResult(NSMutableString *result, NSString *string)
+{
+    ASSERT(result);
+    if (![string length])
+        return;
+    if ([result length])
+        [result appendString:@", "];
+    [result appendString:string];
 }
 
 - (NSString *)accessibilityLabel
@@ -676,19 +722,20 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     // so concatentation will yield the best result.
     NSString *axTitle = [self accessibilityTitle];
     NSString *axDescription = [self accessibilityDescription];
-    NSUInteger axTitleLength = [axTitle length];
-    NSUInteger axDescriptionLength = [axDescription length];
+    NSString *landmarkDescription = [self ariaLandmarkRoleDescription];
+
+    NSMutableString *result = [NSMutableString string];
+
+    appendStringToResult(result, axTitle);
+    appendStringToResult(result, axDescription);
+    if ([self stringValueShouldBeUsedInLabel]) {
+        NSString *valueLabel = m_object->stringValue();
+        valueLabel = [valueLabel stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        appendStringToResult(result, valueLabel);
+    }
+    appendStringToResult(result, landmarkDescription);
     
-    if (axTitleLength && axDescriptionLength)
-        return [axTitle stringByAppendingFormat:@", %@", axDescription];
-    else if (axTitleLength)
-        return axTitle;
-    else if (axDescriptionLength)
-        return axDescription;
-    else if ([self stringValueShouldBeUsedInLabel])
-        return m_object->stringValue();
-    
-    return nil;
+    return [result length] ? result : nil;
 }
 
 - (AccessibilityTableCell*)tableCellParent
@@ -916,7 +963,29 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     return (NSURL*)url;
 }
 
-- (CGRect)_convertIntRectToScreenCoordinates:(IntRect)rect
+- (CGPoint)convertPointToScreenSpace:(FloatPoint &)point
+{
+    if (!m_object)
+        return CGPointZero;
+    
+    CGPoint cgPoint = CGPointMake(point.x(), point.y());
+    
+    FrameView* frameView = m_object->documentFrameView();
+    if (frameView) {
+        WAKView* view = frameView->documentView();
+        cgPoint = [view convertPoint:cgPoint toView:nil];
+    }
+    
+    // we need the web document view to give us our final screen coordinates
+    // because that can take account of the scroller
+    id webDocument = [self _accessibilityWebDocumentView];
+    if (webDocument)
+        cgPoint = [webDocument convertPoint:cgPoint toView:nil];
+    
+    return cgPoint;
+}
+
+- (CGRect)convertRectToScreenSpace:(IntRect &)rect
 {
     if (!m_object)
         return CGRectZero;
@@ -959,7 +1028,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return CGPointZero;
     
     IntRect rect = pixelSnappedIntRect(m_object->boundingBoxRect());
-    CGRect cgRect = [self _convertIntRectToScreenCoordinates:rect];
+    CGRect cgRect = [self convertRectToScreenSpace:rect];
     return CGPointMake(CGRectGetMidX(cgRect), CGRectGetMidY(cgRect));
 }
 
@@ -969,7 +1038,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         return CGRectZero;
     
     IntRect rect = pixelSnappedIntRect(m_object->elementRect());
-    return [self _convertIntRectToScreenCoordinates:rect];
+    return [self convertRectToScreenSpace:rect];
 }
 
 // Checks whether a link contains only static text and images (and has been divided unnaturally by <spans> and other nefarious mechanisms).
@@ -1858,7 +1927,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
         return CGRectZero;
 
     IntRect rect = m_object->boundsForVisiblePositionRange(VisiblePositionRange([startMarker visiblePosition], [endMarker visiblePosition]));
-    return [self _convertIntRectToScreenCoordinates:rect];
+    return [self convertRectToScreenSpace:rect];
 }
 
 - (WebAccessibilityTextMarker *)textMarkerForPoint:(CGPoint)point
@@ -1944,61 +2013,97 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathRootIndexObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathRootIndexObject() ? m_object->mathRootIndexObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathRadicandObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathRadicandObject() ? m_object->mathRadicandObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathNumeratorObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathNumeratorObject() ? m_object->mathNumeratorObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathDenominatorObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathDenominatorObject() ? m_object->mathDenominatorObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathBaseObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathBaseObject() ? m_object->mathBaseObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathSubscriptObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathSubscriptObject() ? m_object->mathSubscriptObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathSuperscriptObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathSuperscriptObject() ? m_object->mathSuperscriptObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathUnderObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathUnderObject() ? m_object->mathUnderObject()->wrapper() : 0;
 }
 
 - (WebAccessibilityObjectWrapper *)accessibilityMathOverObject
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathOverObject() ? m_object->mathOverObject()->wrapper() : 0;
 }
 
 - (NSString *)accessibilityMathFencedOpenString
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathFencedOpenString();
 }
 
 - (NSString *)accessibilityMathFencedCloseString
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     return m_object->mathFencedCloseString();
 }
 
 - (BOOL)accessibilityIsMathTopObject
 {
+    if (![self _prepareAccessibilityCall])
+        return NO;
+
     return m_object->roleValue() == DocumentMathRole;
 }
 
@@ -2012,6 +2117,9 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 
 - (NSString *)accessibilityMathType
 {
+    if (![self _prepareAccessibilityCall])
+        return nil;
+
     if (m_object->roleValue() == MathElementRole) {
         if (m_object->isMathFraction())
             return @"AXMathFraction";
@@ -2048,6 +2156,11 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     }
     
     return nil;
+}
+
+- (CGPoint)accessibilityClickPoint
+{
+    return m_object->clickPoint();
 }
 
 // These are used by DRT so that it can know when notifications are sent.

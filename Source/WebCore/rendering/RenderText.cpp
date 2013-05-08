@@ -43,9 +43,7 @@
 #include "TextBreakIterator.h"
 #include "TextResourceDecoder.h"
 #include "VisiblePosition.h"
-#include "WebCoreMemoryInstrumentation.h"
 #include "break_lines.h"
-#include <wtf/AlwaysInline.h>
 #include <wtf/text/StringBuffer.h>
 #include <wtf/unicode/CharacterNames.h>
 
@@ -1740,7 +1738,7 @@ int RenderText::previousOffset(int current) const
     return result;
 }
 
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM) && OS(MAC_OS_X)
+#if PLATFORM(MAC)
 
 #define HANGUL_CHOSEONG_START (0x1100)
 #define HANGUL_CHOSEONG_END (0x115F)
@@ -1782,7 +1780,7 @@ inline bool isRegionalIndicator(UChar32 c)
 
 int RenderText::previousOffsetForBackwardDeletion(int current) const
 {
-#if PLATFORM(MAC) || PLATFORM(CHROMIUM) && OS(MAC_OS_X)
+#if PLATFORM(MAC)
     ASSERT(m_text);
     StringImpl& text = *m_text.impl();
     UChar32 character;
@@ -1928,15 +1926,6 @@ void RenderText::momentarilyRevealLastTypedCharacter(unsigned lastTypedCharacter
         gSecureTextTimers->add(this, secureTextTimer);
     }
     secureTextTimer->restartWithNewText(lastTypedCharacterOffset);
-}
-
-void RenderText::reportMemoryUsage(MemoryObjectInfo* memoryObjectInfo) const
-{
-    MemoryClassInfo info(memoryObjectInfo, this, PlatformMemoryTypes::Rendering);
-    RenderObject::reportMemoryUsage(memoryObjectInfo);
-    info.addMember(m_text, "text");
-    info.addMember(m_firstTextBox, "firstTextBox");
-    info.addMember(m_lastTextBox, "lastTextBox");
 }
 
 } // namespace WebCore

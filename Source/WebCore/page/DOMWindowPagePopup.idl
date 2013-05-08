@@ -30,7 +30,6 @@
 
 [
     Conditional=PAGE_POPUP,
-    Supplemental=DOMWindow
-] interface DOMWindowPagePopup {
-    [V8EnabledPerContext=pagePopup] readonly attribute PagePopupController pagePopupController;
+] partial interface DOMWindow {
+    readonly attribute PagePopupController pagePopupController;
 };

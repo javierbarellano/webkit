@@ -163,7 +163,7 @@
 #endif
 
 /* CPU(ARM) - ARM, any version*/
-#define WTF_ARM_ARCH_AT_LEAST(N) (CPU(ARM) && defined(WTF_ARM_ARCH_VERSION) && WTF_ARM_ARCH_VERSION >= N)
+#define WTF_ARM_ARCH_AT_LEAST(N) (CPU(ARM) && WTF_ARM_ARCH_VERSION >= N)
 
 #if   defined(arm) \
     || defined(__arm__) \
@@ -181,8 +181,7 @@
 #elif !defined(__ARM_EABI__) \
     && !defined(__EABI__) \
     && !defined(__VFP_FP__) \
-    && !defined(_WIN32_WCE) \
-    && !defined(ANDROID)
+    && !defined(_WIN32_WCE)
 #define WTF_CPU_MIDDLE_ENDIAN 1
 
 #endif
@@ -324,11 +323,6 @@
 /* ==== OS() - underlying operating system; only to be used for mandated low-level services like 
    virtual memory, not to choose a GUI toolkit ==== */
 
-/* OS(ANDROID) - Android */
-#ifdef ANDROID
-#define WTF_OS_ANDROID 1
-#endif
-
 /* OS(AIX) - AIX */
 #ifdef _AIX
 #define WTF_OS_AIX 1
@@ -416,7 +410,6 @@
 
 /* OS(UNIX) - Any Unix-like system */
 #if   OS(AIX)              \
-    || OS(ANDROID)          \
     || OS(DARWIN)           \
     || OS(FREEBSD)          \
     || OS(HURD)             \
@@ -434,20 +427,14 @@
 /* Operating environments */
 
 /* FIXME: these are all mixes of OS, operating environment and policy choices. */
-/* PLATFORM(CHROMIUM) */
 /* PLATFORM(QT) */
-/* PLATFORM(WX) */
 /* PLATFORM(EFL) */
 /* PLATFORM(GTK) */
 /* PLATFORM(BLACKBERRY) */
 /* PLATFORM(MAC) */
 /* PLATFORM(WIN) */
-#if defined(BUILDING_CHROMIUM__)
-#define WTF_PLATFORM_CHROMIUM 1
-#elif defined(BUILDING_QT__)
+#if defined(BUILDING_QT__)
 #define WTF_PLATFORM_QT 1
-#elif defined(BUILDING_WX__)
-#define WTF_PLATFORM_WX 1
 #elif defined(BUILDING_EFL__)
 #define WTF_PLATFORM_EFL 1
 #elif defined(BUILDING_GTK__)
@@ -482,26 +469,7 @@
 #define WTF_USE_CA 1
 #endif
 
-/* USE(SKIA) for Win/Linux/Mac/Android */
-#if PLATFORM(CHROMIUM)
-#if OS(DARWIN)
-#define WTF_USE_SKIA 1
-#define WTF_USE_ICCJPEG 1
-#define WTF_USE_QCMSLIB 1
-#elif OS(ANDROID)
-#define WTF_USE_SKIA 1
-#define WTF_USE_LOW_QUALITY_IMAGE_INTERPOLATION 1
-#define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_DITHERING 1
-#define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_FANCY_UPSAMPLING 1
-#else
-#define WTF_USE_SKIA 1
-#define WTF_USE_ICCJPEG 1
-#define WTF_USE_QCMSLIB 1
-#endif
-#endif
-
 #if PLATFORM(BLACKBERRY)
-#define WTF_USE_SKIA 1
 #define WTF_USE_LOW_QUALITY_IMAGE_INTERPOLATION 1
 #define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_DITHERING 1
 #define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_FANCY_UPSAMPLING 1
@@ -528,11 +496,7 @@
 
 #endif  /* OS(WINCE) && !PLATFORM(QT) */
 
-#if OS(WINCE) && !PLATFORM(QT)
-#define WTF_USE_WCHAR_UNICODE 1
-#elif PLATFORM(GTK)
-/* The GTK+ Unicode backend is configurable */
-#else
+#if !USE(WCHAR_UNICODE)
 #define WTF_USE_ICU_UNICODE 1
 #endif
 
@@ -553,23 +517,6 @@
 #define WTF_USE_APPKIT 1
 #define WTF_USE_SECURITY_FRAMEWORK 1
 #endif /* PLATFORM(MAC) && !PLATFORM(IOS) */
-
-#if PLATFORM(CHROMIUM) && OS(DARWIN)
-#define WTF_USE_CF 1
-#define WTF_USE_WK_SCROLLBAR_PAINTER 1
-#endif
-
-#if PLATFORM(CHROMIUM)
-#if OS(DARWIN)
-/* We can't override the global operator new and delete on OS(DARWIN) because
- * some object are allocated by WebKit and deallocated by the embedder. */
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#else /* !OS(DARWIN) */
-/* On non-OS(DARWIN), the "system malloc" is actually TCMalloc anyway, so there's
- * no need to use WebKit's copy of TCMalloc. */
-#define USE_SYSTEM_MALLOC 1
-#endif /* OS(DARWIN) */
-#endif /* PLATFORM(CHROMIUM) */
 
 #if PLATFORM(IOS)
 #define DONT_FINALIZE_ON_MAIN_THREAD 1
@@ -605,22 +552,8 @@
 #define WTF_USE_CFURLCACHE 1
 #endif
 
-#if PLATFORM(WX)
-#if !CPU(PPC)
-#if !defined(ENABLE_ASSEMBLER)
-#define ENABLE_ASSEMBLER 1
-#endif
-#define ENABLE_JIT 1
-#endif
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#define ENABLE_LLINT 0
-#if OS(DARWIN)
-#define WTF_USE_CF 1
-#endif
-#endif
-
 #if !defined(HAVE_ACCESSIBILITY)
-#if PLATFORM(IOS) || PLATFORM(MAC) || PLATFORM(WIN) || PLATFORM(GTK) || (PLATFORM(CHROMIUM) && !OS(ANDROID)) || PLATFORM(EFL)
+#if PLATFORM(IOS) || PLATFORM(MAC) || PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(EFL)
 #define HAVE_ACCESSIBILITY 1
 #endif
 #endif /* !defined(HAVE_ACCESSIBILITY) */
@@ -636,7 +569,7 @@
 #define WTF_USE_PTHREADS 1
 #endif /* OS(UNIX) */
 
-#if OS(UNIX) && !OS(ANDROID) && !OS(QNX)
+#if OS(UNIX) && !OS(QNX)
 #define HAVE_LANGINFO_H 1
 #endif
 
@@ -656,7 +589,7 @@
 #endif
 #endif
 
-#if !OS(WINDOWS) && !OS(SOLARIS) && !OS(ANDROID)
+#if !OS(WINDOWS) && !OS(SOLARIS)
 #define HAVE_TM_GMTOFF 1
 #define HAVE_TM_ZONE 1
 #define HAVE_TIMEGM 1
@@ -666,6 +599,7 @@
 
 #define HAVE_DISPATCH_H 1
 #define HAVE_MADV_FREE 1
+#define HAVE_MADV_FREE_REUSE 1
 #define HAVE_MERGESORT 1
 #define HAVE_PTHREAD_SETNAME_NP 1
 #define HAVE_SYS_TIMEB_H 1
@@ -673,7 +607,6 @@
 
 #if !PLATFORM(IOS)
 #define HAVE_HOSTED_CORE_ANIMATION 1
-#define HAVE_MADV_FREE_REUSE 1
 #endif /* !PLATFORM(IOS) */
 
 #endif /* OS(DARWIN) */
@@ -707,6 +640,14 @@
 #if !OS(UNIX)
 #define USE_SYSTEM_MALLOC 1
 #endif
+#endif
+
+#if PLATFORM(EFL)
+#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
+#endif
+
+#if OS(WINDOWS)
+#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
 #endif
 
 #if !defined(ENABLE_GLOBAL_FASTMALLOC_NEW)
@@ -769,21 +710,13 @@
 #define ENABLE_DISASSEMBLER 1
 #endif
 
-/* On the GTK+ port we take an extra precaution for LLINT support:
- * We disable it on x86 builds if the build target doesn't support SSE2
- * instructions (LLINT requires SSE2 on this platform). */
-#if !defined(ENABLE_LLINT) && PLATFORM(GTK) && CPU(X86) && COMPILER(GCC) \
-    && !defined(__SSE2__)
-#define ENABLE_LLINT 0
-#endif
-
 /* On some of the platforms where we have a JIT, we want to also have the 
    low-level interpreter. */
 #if !defined(ENABLE_LLINT) \
     && ENABLE(JIT) \
     && (OS(DARWIN) || OS(LINUX)) \
     && (PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(GTK) || PLATFORM(QT)) \
-    && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2) || CPU(ARM_TRADITIONAL) || CPU(MIPS))
+    && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2) || CPU(ARM_TRADITIONAL) || CPU(MIPS) || CPU(SH4))
 #define ENABLE_LLINT 1
 #endif
 
@@ -877,7 +810,7 @@
 #define ENABLE_REGEXP_TRACING 0
 
 /* Yet Another Regex Runtime - turned on by default for JIT enabled ports. */
-#if !defined(ENABLE_YARR_JIT) && (ENABLE(JIT) || ENABLE(LLINT_C_LOOP)) && !PLATFORM(CHROMIUM) && !(OS(QNX) && PLATFORM(QT))
+#if !defined(ENABLE_YARR_JIT) && (ENABLE(JIT) || ENABLE(LLINT_C_LOOP)) && !(OS(QNX) && PLATFORM(QT))
 #define ENABLE_YARR_JIT 1
 
 /* Setting this flag compares JIT results with interpreter results. */
@@ -917,12 +850,6 @@
 /* Accelerated compositing */
 #if PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || (PLATFORM(WIN) && !OS(WINCE) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_ACCELERATED_COMPOSITING 1
-#endif
-
-/* FIXME: When all platforms' compositors can compute their own filter outsets, we should remove this define. 
-   https://bugs.webkit.org/show_bug.cgi?id=112830 */
-#if USE(CG)
-#define HAVE_COMPOSITOR_FILTER_OUTSETS 1
 #endif
 
 #if ENABLE(WEBGL) && !defined(WTF_USE_3D_GRAPHICS)
@@ -983,7 +910,7 @@
    since most ports try to support sub-project independence, adding new headers
    to WTF causes many ports to break, and so this way we can address the build
    breakages one port at a time. */
-#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT) || PLATFORM(WX))
+#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT))
 #define WTF_USE_EXPORT_MACROS 1
 #endif
 
@@ -993,6 +920,10 @@
 
 #if (PLATFORM(QT) && !OS(DARWIN) && !OS(WINDOWS)) || PLATFORM(GTK) || PLATFORM(EFL)
 #define WTF_USE_UNIX_DOMAIN_SOCKETS 1
+#endif
+
+#if !defined(WTF_USE_IMLANG_FONT_LINK2) && !OS(WINCE)
+#define WTF_USE_IMLANG_FONT_LINK2 1
 #endif
 
 #if !defined(ENABLE_COMPARE_AND_SWAP) && (OS(WINDOWS) || (COMPILER(GCC) && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2))))
@@ -1012,6 +943,10 @@
 #define ENABLE_GC_VALIDATION 1
 #endif
 
+#if !defined(ENABLE_BINDING_INTEGRITY) && !OS(WINDOWS)
+#define ENABLE_BINDING_INTEGRITY 1
+#endif
+
 #if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 #define WTF_USE_AVFOUNDATION 1
 #endif
@@ -1020,8 +955,12 @@
 #define WTF_USE_COREMEDIA 1
 #endif
 
+#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#define HAVE_AVFOUNDATION_MEDIA_SELECTION_GROUP 1
+#endif
+
 #if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-#define HAVE_AVFOUNDATION_TEXT_TRACK_SUPPORT 1
+#define HAVE_AVFOUNDATION_LEGIBLE_OUTPUT_SUPPORT 1
 #endif
 
 #if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
@@ -1044,15 +983,6 @@
 #define WTF_USE_COREAUDIO 1
 #endif
 
-#if !defined(WTF_USE_V8) && PLATFORM(CHROMIUM)
-#define WTF_USE_V8 1
-#endif
-
-/* Not using V8 implies using JSC and vice versa */
-#if !USE(V8)
-#define WTF_USE_JSC 1
-#endif
-
 #if !defined(WTF_USE_ZLIB) && !PLATFORM(QT)
 #define WTF_USE_ZLIB 1
 #endif
@@ -1067,5 +997,22 @@
 #if !PLATFORM(IOS) && PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 #define WTF_USE_CONTENT_FILTERING 1
 #endif
+
+
+#define WTF_USE_GRAMMAR_CHECKING 1
+
+#if PLATFORM(MAC) || PLATFORM(BLACKBERRY) || PLATFORM(EFL)
+#define WTF_USE_UNIFIED_TEXT_CHECKING 1
+#endif
+#if PLATFORM(MAC)
+#define WTF_USE_AUTOMATIC_TEXT_REPLACEMENT 1
+#endif
+
+#if PLATFORM(MAC) && (PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070)
+/* Some platforms provide UI for suggesting autocorrection. */
+#define WTF_USE_AUTOCORRECTION_PANEL 1
+/* Some platforms use spelling and autocorrection markers to provide visual cue. On such platform, if word with marker is edited, we need to remove the marker. */
+#define WTF_USE_MARKER_REMOVAL_UPON_EDITING 1
+#endif /* #if PLATFORM(MAC) && (PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070) */
 
 #endif /* WTF_Platform_h */

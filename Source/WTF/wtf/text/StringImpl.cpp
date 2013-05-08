@@ -115,12 +115,10 @@ StringImpl::~StringImpl()
 
     if (isAtomic())
         AtomicString::remove(this);
-#if USE(JSC)
     if (isIdentifier()) {
         if (!wtfThreadData().currentIdentifierTable()->remove(this))
             CRASH();
     }
-#endif
 
     BufferOwnership ownership = bufferOwnership();
 
@@ -148,6 +146,12 @@ StringImpl::~StringImpl()
     ASSERT(ownership == BufferSubstring);
     ASSERT(m_substringBuffer);
     m_substringBuffer->deref();
+}
+
+void StringImpl::destroy(StringImpl* stringImpl)
+{
+    stringImpl->~StringImpl();
+    fastFree(stringImpl);
 }
 
 PassRefPtr<StringImpl> StringImpl::createFromLiteral(const char* characters, unsigned length)

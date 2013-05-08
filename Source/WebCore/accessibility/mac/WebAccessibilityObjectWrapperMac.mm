@@ -46,6 +46,7 @@
 #import "ChromeClient.h"
 #import "ColorMac.h"
 #import "ContextMenuController.h"
+#import "Editor.h"
 #import "Font.h"
 #import "Frame.h"
 #import "FrameLoaderClient.h"
@@ -109,6 +110,10 @@ using namespace std;
 // Lists
 #ifndef NSAccessibilityContentListSubrole
 #define NSAccessibilityContentListSubrole @"AXContentList"
+#endif
+
+#ifndef NSAccessibilityDefinitionListSubrole
+#define NSAccessibilityDefinitionListSubrole @"AXDefinitionList"
 #endif
 
 #ifndef NSAccessibilityDescriptionListSubrole
@@ -348,6 +353,10 @@ using namespace std;
 
 #ifndef NSAccessibilityScrollToVisibleAction
 #define NSAccessibilityScrollToVisibleAction @"AXScrollToVisible"
+#endif
+
+#ifndef NSAccessibilityPathAttribute
+#define NSAccessibilityPathAttribute @"AXPath"
 #endif
 
 // Math attributes
@@ -925,11 +934,20 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
         return nil;
     
     // All elements should get ShowMenu and ScrollToVisible.
+    // But certain earlier VoiceOver versions do not support scroll to visible, and it confuses them to see it in the list.
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+    static NSArray *defaultElementActions = [[NSArray alloc] initWithObjects:NSAccessibilityShowMenuAction, nil];
+#else
     static NSArray *defaultElementActions = [[NSArray alloc] initWithObjects:NSAccessibilityShowMenuAction, NSAccessibilityScrollToVisibleAction, nil];
+#endif
 
     // Action elements allow Press.
     // The order is important to VoiceOver, which expects the 'default' action to be the first action. In this case the default action should be press.
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+    static NSArray *actionElementActions = [[NSArray alloc] initWithObjects:NSAccessibilityPressAction, NSAccessibilityShowMenuAction, nil];
+#else
     static NSArray *actionElementActions = [[NSArray alloc] initWithObjects:NSAccessibilityPressAction, NSAccessibilityShowMenuAction, NSAccessibilityScrollToVisibleAction, nil];
+#endif
 
     // Menu elements allow Press and Cancel.
     static NSArray *menuElementActions = [[actionElementActions arrayByAddingObject:NSAccessibilityCancelAction] retain];
@@ -1025,6 +1043,9 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
         [additional addObject:NSAccessibilityMathFencedOpenAttribute];
         [additional addObject:NSAccessibilityMathFencedCloseAttribute];
     }
+    
+    if (m_object->supportsPath())
+        [additional addObject:NSAccessibilityPathAttribute];
     
     return additional;
 }
@@ -1469,23 +1490,18 @@ static NSMutableArray* convertToNSArray(const AccessibilityObject::Accessibility
     return [self textMarkerRangeFromVisiblePositions:selection.visibleStart() endPosition:selection.visibleEnd()];
 }
 
-- (NSValue *)position
+- (CGPoint)convertPointToScreenSpace:(FloatPoint &)point
 {
-    IntRect rect = pixelSnappedIntRect(m_object->elementRect());
-    NSPoint point;
-    
     FrameView* frameView = m_object->documentFrameView();
     
     // WebKit1 code path... platformWidget() exists.
     if (frameView && frameView->platformWidget()) {
         
-        // The Cocoa accessibility API wants the lower-left corner.
-        point = NSMakePoint(rect.x(), rect.maxY());
-        
-        if (frameView) {
-            NSView* view = frameView->documentView();
-            point = [[view window] convertBaseToScreen:[view convertPoint: point toView:nil]];
-        }
+        NSPoint nsPoint = (NSPoint)point;
+        NSView* view = frameView->documentView();
+        nsPoint = [[view window] convertBaseToScreen:[view convertPoint:nsPoint toView:nil]];
+        return CGPointMake(nsPoint.x, nsPoint.y);
+
     } else {
         
         // Find the appropriate scroll view to use to convert the contents to the window.
@@ -1498,8 +1514,9 @@ static NSMutableArray* convertToNSArray(const AccessibilityObject::Accessibility
             }
         }
         
+        IntPoint intPoint = flooredIntPoint(point);
         if (scrollView)
-            rect = scrollView->contentsToRootView(rect);
+            intPoint = scrollView->contentsToRootView(intPoint);
         
         Page* page = m_object->page();
         
@@ -1508,13 +1525,63 @@ static NSMutableArray* convertToNSArray(const AccessibilityObject::Accessibility
         if (parent && page && page->chrome()->client()->isEmptyChromeClient())
             page = parent->page();
         
-        if (page)
-            point = page->chrome()->rootViewToScreen(rect).location();
-        else
-            point = rect.location();
+        if (page) {
+            IntRect rect = IntRect(intPoint, IntSize(0, 0));            
+            intPoint = page->chrome()->rootViewToScreen(rect).location();
+        }
+        
+        return intPoint;
     }
+}
+
+static void WebTransformCGPathToNSBezierPath(void *info, const CGPathElement *element)
+{
+    NSBezierPath *bezierPath = (NSBezierPath *)info;
+    switch (element->type) {
+    case kCGPathElementMoveToPoint:
+        [bezierPath moveToPoint:NSPointFromCGPoint(element->points[0])];
+        break;
+    case kCGPathElementAddLineToPoint:
+        [bezierPath lineToPoint:NSPointFromCGPoint(element->points[0])];
+        break;
+    case kCGPathElementAddCurveToPoint:
+        [bezierPath curveToPoint:NSPointFromCGPoint(element->points[0]) controlPoint1:NSPointFromCGPoint(element->points[1]) controlPoint2:NSPointFromCGPoint(element->points[2])];
+        break;
+    case kCGPathElementCloseSubpath:
+        [bezierPath closePath];
+        break;
+    default:
+        break;
+    }
+}
+
+- (NSBezierPath *)bezierPathFromPath:(CGPathRef)path
+{
+    NSBezierPath *bezierPath = [NSBezierPath bezierPath];
+    CGPathApply(path, bezierPath, WebTransformCGPathToNSBezierPath);
+    return bezierPath;
+}
+
+- (NSBezierPath *)path
+{
+    Path path = m_object->elementPath();
+    if (path.isEmpty())
+        return NULL;
     
-    return [NSValue valueWithPoint:point];
+    CGPathRef transformedPath = [self convertPathToScreenSpace:path];
+    return [self bezierPathFromPath:transformedPath];
+}
+
+- (NSValue *)position
+{
+    IntRect rect = pixelSnappedIntRect(m_object->elementRect());
+    
+    // The Cocoa accessibility API wants the lower-left corner.
+    FloatPoint floatPoint = FloatPoint(rect.x(), rect.maxY());
+
+    CGPoint cgPoint = [self convertPointToScreenSpace:floatPoint];
+    
+    return [NSValue valueWithPoint:NSMakePoint(cgPoint.x, cgPoint.y)];
 }
 
 typedef HashMap<int, NSString*> AccessibilityRoleMap;
@@ -1689,8 +1756,13 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         AccessibilityList* listObject = toAccessibilityList(m_object);
         if (listObject->isUnorderedList() || listObject->isOrderedList())
             return NSAccessibilityContentListSubrole;
-        if (listObject->isDescriptionList())
+        if (listObject->isDescriptionList()) {
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+            return NSAccessibilityDefinitionListSubrole;
+#else
             return NSAccessibilityDescriptionListSubrole;
+#endif
+        }
     }
     
     // ARIA content subroles.
@@ -1741,8 +1813,6 @@ static NSString* roleValueToNSString(AccessibilityRole value)
             return @"AXTabPanel";
         case DefinitionRole:
             return @"AXDefinition";
-        case DescriptionListRole:
-            return @"AXDescriptionList";
         case DescriptionListTermRole:
             return @"AXTerm";
         case DescriptionListDetailRole:
@@ -1805,51 +1875,12 @@ static NSString* roleValueToNSString(AccessibilityRole value)
     NSString* axRole = [self role];
     
     if ([axRole isEqualToString:NSAccessibilityGroupRole]) {
+        
+        NSString *ariaLandmarkRoleDescription = [self ariaLandmarkRoleDescription];
+        if (ariaLandmarkRoleDescription)
+            return ariaLandmarkRoleDescription;
+        
         switch (m_object->roleValue()) {
-            default:
-                return NSAccessibilityRoleDescription(NSAccessibilityGroupRole, [self subrole]);
-            case LandmarkApplicationRole:
-                return AXARIAContentGroupText(@"ARIALandmarkApplication");
-            case LandmarkBannerRole:
-                return AXARIAContentGroupText(@"ARIALandmarkBanner");
-            case LandmarkComplementaryRole:
-                return AXARIAContentGroupText(@"ARIALandmarkComplementary");
-            case LandmarkContentInfoRole:
-                return AXARIAContentGroupText(@"ARIALandmarkContentInfo");
-            case LandmarkMainRole:
-                return AXARIAContentGroupText(@"ARIALandmarkMain");
-            case LandmarkNavigationRole:
-                return AXARIAContentGroupText(@"ARIALandmarkNavigation");
-            case LandmarkSearchRole:
-                return AXARIAContentGroupText(@"ARIALandmarkSearch");
-            case ApplicationAlertRole:
-                return AXARIAContentGroupText(@"ARIAApplicationAlert");
-            case ApplicationAlertDialogRole:
-                return AXARIAContentGroupText(@"ARIAApplicationAlertDialog");
-            case ApplicationDialogRole:
-                return AXARIAContentGroupText(@"ARIAApplicationDialog");
-            case ApplicationLogRole:
-                return AXARIAContentGroupText(@"ARIAApplicationLog");
-            case ApplicationMarqueeRole:
-                return AXARIAContentGroupText(@"ARIAApplicationMarquee");
-            case ApplicationStatusRole:
-                return AXARIAContentGroupText(@"ARIAApplicationStatus");
-            case ApplicationTimerRole:
-                return AXARIAContentGroupText(@"ARIAApplicationTimer");
-            case DocumentRole:
-                return AXARIAContentGroupText(@"ARIADocument");
-            case DocumentArticleRole:
-                return AXARIAContentGroupText(@"ARIADocumentArticle");
-            case DocumentMathRole:
-                return AXARIAContentGroupText(@"ARIADocumentMath");
-            case DocumentNoteRole:
-                return AXARIAContentGroupText(@"ARIADocumentNote");
-            case DocumentRegionRole:
-                return AXARIAContentGroupText(@"ARIADocumentRegion");
-            case UserInterfaceTooltipRole:
-                return AXARIAContentGroupText(@"ARIAUserInterfaceTooltip");
-            case TabPanelRole:
-                return AXARIAContentGroupText(@"ARIATabPanel");
             case DefinitionRole:
                 return AXDefinitionText();
             case DescriptionListTermRole:
@@ -1858,6 +1889,8 @@ static NSString* roleValueToNSString(AccessibilityRole value)
                 return AXDescriptionListDetailText();
             case FooterRole:
                 return AXFooterRoleDescriptionText();
+            default:
+                return NSAccessibilityRoleDescription(NSAccessibilityGroupRole, [self subrole]);
         }
     }
     
@@ -2263,7 +2296,12 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         
         return m_object->stringValue();
     }
-    
+
+    if ([attributeName isEqualToString:(NSString *)kAXMenuItemMarkCharAttribute]) {
+        const unichar ch = 0x2713; // ✓ used on Mac for selected menu items.
+        return (m_object->isChecked()) ? [NSString stringWithCharacters:&ch length:1] : nil;
+    }
+
     if ([attributeName isEqualToString: NSAccessibilityMinValueAttribute])
         return [NSNumber numberWithFloat:m_object->minValueForRange()];
     
@@ -2286,6 +2324,8 @@ static NSString* roleValueToNSString(AccessibilityRole value)
     
     if ([attributeName isEqualToString: NSAccessibilityPositionAttribute])
         return [self position];
+    if ([attributeName isEqualToString:NSAccessibilityPathAttribute])
+        return [self path];
     
     if ([attributeName isEqualToString: NSAccessibilityWindowAttribute] ||
         [attributeName isEqualToString: NSAccessibilityTopLevelUIElementAttribute]) {

@@ -134,11 +134,11 @@ void DatePickerClient::setValueAndClosePopup(int, const String& value)
     m_element->document()->frame()->selection()->setCaretVisible(true);
 
     if (value != "-1")
-        m_element->setValue(value);
+        m_element->setValue(value, DispatchChangeEvent);
     closePopup();
 }
 
-void DatePickerClient::setValue(const String& value)
+void DatePickerClient::setValue(const String&)
 {
     notImplemented();
 }

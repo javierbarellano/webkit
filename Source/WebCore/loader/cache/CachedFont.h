@@ -62,12 +62,13 @@ public:
     SVGFontElement* getSVGFontById(const String&) const;
 #endif
 
-    virtual void reportMemoryUsage(MemoryObjectInfo*) const OVERRIDE;
-
 private:
     virtual void checkNotify();
+    virtual bool mayTryReplaceEncodedData() const OVERRIDE;
+
     FontCustomPlatformData* m_fontData;
     bool m_loadInitiated;
+    bool m_hasCreatedFontData;
 
 #if ENABLE(SVG_FONTS)
     RefPtr<SVGDocument> m_externalSVGDocument;
@@ -76,14 +77,6 @@ private:
     friend class MemoryCache;
 };
 
-class CachedFontClient : public CachedResourceClient {
-public:
-    virtual ~CachedFontClient() { }
-    static CachedResourceClientType expectedType() { return FontType; }
-    virtual CachedResourceClientType resourceClientType() const { return expectedType(); }
-    virtual void fontLoaded(CachedFont*) { }
-};
+} // namespace WebCore
 
-}
-
-#endif
+#endif // CachedFont_h

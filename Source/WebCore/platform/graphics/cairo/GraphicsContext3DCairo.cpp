@@ -186,11 +186,9 @@ bool GraphicsContext3D::ImageExtractor::extractImage(bool premultiplyAlpha, bool
         decoder.setData(m_image->data(), true);
         if (!decoder.frameCount() || !decoder.frameIsCompleteAtIndex(0))
             return false;
-        OwnPtr<NativeImageCairo> nativeImage = adoptPtr(decoder.createFrameAtIndex(0));
-        m_imageSurface = nativeImage->surface();
+        m_imageSurface = decoder.createFrameAtIndex(0);
     } else {
-        NativeImageCairo* nativeImage = m_image->nativeImageForCurrentFrame();
-        m_imageSurface = (nativeImage) ? nativeImage->surface() : 0;
+        m_imageSurface = m_image->nativeImageForCurrentFrame();
         // 1. For texImage2D with HTMLVideoElment input, assume no PremultiplyAlpha had been applied and the alpha value is 0xFF for each pixel,
         // which is true at present and may be changed in the future and needs adjustment accordingly.
         // 2. For texImage2D with HTMLCanvasElement input in which Alpha is already Premultiplied in this port, 
@@ -267,9 +265,15 @@ bool GraphicsContext3D::makeContextCurrent()
         return false;
     return m_private->makeContextCurrent();
 }
+
 PlatformGraphicsContext3D GraphicsContext3D::platformGraphicsContext3D()
 {
     return m_private->platformContext();
+}
+
+Platform3DObject GraphicsContext3D::platformTexture() const
+{
+    return m_texture;
 }
 
 bool GraphicsContext3D::isGLES2Compliant() const

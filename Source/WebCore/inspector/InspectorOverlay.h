@@ -59,6 +59,7 @@ public:
     Color margin;
     bool showInfo;
     bool showRulers;
+    bool usePageCoordinates;
 };
 
 enum HighlightType {
@@ -81,6 +82,7 @@ struct Highlight {
         borderColor = highlightConfig.border;
         marginColor = highlightConfig.margin;
         showRulers = highlightConfig.showRulers;
+        usePageCoordinates = highlightConfig.usePageCoordinates;
     }
 
     Color contentColor;
@@ -94,6 +96,7 @@ struct Highlight {
     HighlightType type;
     Vector<FloatQuad> quads;
     bool showRulers;
+    bool usePageCoordinates;
 };
 
 class InspectorOverlay {
@@ -118,8 +121,6 @@ public:
     void highlightQuad(PassOwnPtr<FloatQuad>, const HighlightConfig&);
 
     Node* highlightedNode() const;
-
-    void reportMemoryUsage(MemoryObjectInfo*) const;
 
     void freePage();
 private:

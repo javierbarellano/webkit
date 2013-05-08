@@ -21,7 +21,6 @@
 #include "config.h"
 #include "WebKitLoaderClient.h"
 
-#include "WebKit2GtkAuthenticationDialog.h"
 #include "WebKitBackForwardListPrivate.h"
 #include "WebKitURIResponsePrivate.h"
 #include "WebKitWebViewBasePrivate.h"
@@ -134,6 +133,11 @@ static void didReceiveAuthenticationChallengeInFrame(WKPageRef page, WKFrameRef 
     webkitWebViewHandleAuthenticationChallenge(WEBKIT_WEB_VIEW(clientInfo), toImpl(authenticationChallenge));
 }
 
+static void processDidCrash(WKPageRef page, const void* clientInfo)
+{
+    webkitWebViewWebProcessCrashed(WEBKIT_WEB_VIEW(clientInfo));
+}
+
 void attachLoaderClientToView(WebKitWebView* webView)
 {
     WKPageLoaderClient wkLoaderClient = {
@@ -160,7 +164,7 @@ void attachLoaderClientToView(WebKitWebView* webView)
         didChangeProgress, // didFinishProgress
         0, // didBecomeUnresponsive
         0, // didBecomeResponsive
-        0, // processDidCrash
+        processDidCrash,
         didChangeBackForwardList,
         0, // shouldGoToBackForwardListItem
         0, // didFailToInitializePlugin
@@ -168,10 +172,12 @@ void attachLoaderClientToView(WebKitWebView* webView)
         0, // didFirstVisuallyNonEmptyLayoutForFrame
         0, // willGoToBackForwardListItem
         0, // interactionOccurredWhileProcessUnresponsive
-        0, // pluginDidFail
+        0, // pluginDidFail_deprecatedForUseWithV1
         0, // didReceiveIntentForFrame
         0, // registerIntentServiceForFrame
         0, // didLayout
+        0, // pluginLoadPolicy
+        0, // pluginDidFail
     };
     WKPageRef wkPage = toAPI(webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(webView)));
     WKPageSetPageLoaderClient(wkPage, &wkLoaderClient);

@@ -42,16 +42,17 @@
 extern "C" int sandbox_init_with_parameters(const char *profile, uint64_t flags, const char *const parameters[], char **errorbuf);
 
 #ifdef __has_include
-#if __has_include(<CoreGraphics/CGSConnection.h>)
-#include <CoreGraphics/CGSConnection.h>
-#endif
-
 #if __has_include(<HIServices/ProcessesPriv.h>)
 #include <HIServices/ProcessesPriv.h>
 #endif
 #endif
 
-extern "C" CGError CGSShutdownServerConnections();
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+typedef bool (^LSServerConnectionAllowedBlock) ( CFDictionaryRef optionsRef );
+extern "C" void _LSSetApplicationLaunchServicesServerConnectionStatus(uint64_t flags, LSServerConnectionAllowedBlock block);
+extern "C" CFDictionaryRef _LSApplicationCheckIn(int sessionID, CFDictionaryRef applicationInfo);
+#endif
+
 extern "C" OSStatus SetApplicationIsDaemon(Boolean isDaemon);
 
 using namespace WebCore;
@@ -64,10 +65,13 @@ void ChildProcess::setProcessSuppressionEnabled(bool processSuppressionEnabled)
     if (this->processSuppressionEnabled() == processSuppressionEnabled)
         return;
 
-    if (processSuppressionEnabled)
+    if (processSuppressionEnabled) {
+        [[NSProcessInfo processInfo] endActivity:m_processSuppressionAssertion.get()];
         m_processSuppressionAssertion.clear();
-    else
-        m_processSuppressionAssertion = [[NSProcessInfo processInfo] beginSuspensionOfSystemBehaviors:WKProcessSuppressionSystemBehaviors reason:@"Process Suppression Disabled"];
+    } else {
+        NSActivityOptions options = NSActivityUserInitiatedAllowingIdleSystemSleep & ~(NSActivitySuddenTerminationDisabled | NSActivityAutomaticTerminationDisabled);
+        m_processSuppressionAssertion = [[NSProcessInfo processInfo] beginActivityWithOptions:options reason:@"Process Suppression Disabled"];
+    }
 #else
     UNUSED_PARAM(processSuppressionEnabled);
 #endif
@@ -83,10 +87,15 @@ static void initializeTimerCoalescingPolicy()
 }
 #endif
 
-void ChildProcess::shutdownWindowServerConnection()
+void ChildProcess::setApplicationIsDaemon()
 {
-    CGSShutdownServerConnections();
-    SetApplicationIsDaemon(true);
+    OSStatus error = SetApplicationIsDaemon(true);
+    ASSERT_UNUSED(error, error == noErr);
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    _LSSetApplicationLaunchServicesServerConnectionStatus(0, 0);
+    RetainPtr<CFDictionaryRef> unused = _LSApplicationCheckIn(-2, CFBundleGetInfoDictionary(CFBundleGetMainBundle()));
+#endif
 }
 
 void ChildProcess::platformInitialize()
@@ -96,10 +105,6 @@ void ChildProcess::platformInitialize()
 #endif
     // Starting with process suppression disabled.  The proxy for this process will enable if appropriate from didFinishLaunching().
     setProcessSuppressionEnabled(false);
-
-    // <rdar://problem/13229217> Sudden Termination is causing WebContent XPC services to be killed in response to memory pressure
-    // Hence, disable it until we can identify if it is being enabled in error or not.
-    [[NSProcessInfo processInfo] disableSuddenTermination];
 
     [[NSFileManager defaultManager] changeCurrentDirectoryPath:[[NSBundle mainBundle] bundlePath]];
 }
@@ -139,6 +144,15 @@ void ChildProcess::initializeSandbox(const ChildProcessInitializationParameters&
     }
 
     sandboxParameters.addPathParameter("HOME_DIR", pwd.pw_dir);
+
+    String path = String::fromUTF8(pwd.pw_dir);
+    path.append("/Library");
+
+    sandboxParameters.addPathParameter("HOME_LIBRARY_DIR", fileSystemRepresentation(path).data());
+
+    path.append("/Preferences");
+
+    sandboxParameters.addPathParameter("HOME_LIBRARY_PREFERENCES_DIR", fileSystemRepresentation(path).data());
 
     switch (sandboxParameters.mode()) {
     case SandboxInitializationParameters::UseDefaultSandboxProfilePath:

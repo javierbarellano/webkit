@@ -23,6 +23,7 @@
 #include "Frame.h"
 #include "FrameView.h"
 #include "HTMLFormElement.h"
+#include "HTMLFrameOwnerElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "HTMLTextAreaElement.h"
@@ -88,6 +89,15 @@ void visibleTextQuads(const Range& range, Vector<FloatQuad>& quads, bool useSele
         int endOffset = node == endContainer ? range.endOffset() : std::numeric_limits<int>::max();
         renderText->absoluteQuadsForRange(quads, startOffset, endOffset, useSelectionHeight);
     }
+}
+
+bool isShadowHostTextInputElement(Node* node)
+{
+    if (!node)
+        return false;
+
+    Element* element = node->shadowHost();
+    return element && DOMSupport::isTextInputElement(element);
 }
 
 bool isTextInputElement(Element* element)
@@ -220,6 +230,11 @@ AttributeState elementSupportsAutocomplete(const Element* element)
 AttributeState elementSupportsSpellCheck(const Element* element)
 {
     return elementAttributeState(element, HTMLNames::spellcheckAttr);
+}
+
+bool isElementReadOnly(const Element* element)
+{
+    return element->fastHasAttribute(HTMLNames::readonlyAttr);
 }
 
 AttributeState elementAttributeState(const Element* element, const QualifiedName& attributeName)
@@ -596,6 +611,12 @@ bool isFixedPositionOrHasFixedPositionAncestor(RenderObject* renderer)
         if (currentRenderer->isOutOfFlowPositioned() && currentRenderer->style()->position() == FixedPosition)
             return true;
 
+        // Check if the current frame is an iframe. If so, continue checking with the iframe's owner element.
+        if (!currentRenderer->parent() && currentRenderer->isRenderView() && currentRenderer->frame() && currentRenderer->frame()->ownerElement()) {
+            currentRenderer = currentRenderer->frame()->ownerElement()->renderer();
+            continue;
+        }
+
         currentRenderer = currentRenderer->parent();
     }
 
@@ -644,6 +665,11 @@ BlackBerry::Platform::RequestedHandlePosition elementHandlePositionAttribute(con
     else if (equalIgnoringCase(attributeString, "below"))
         position = BlackBerry::Platform::Below;
     return position;
+}
+
+bool isElementAndDocumentAttached(const WebCore::Element* element)
+{
+    return element && element->attached() && element->document() && element->document()->attached();
 }
 
 } // DOMSupport

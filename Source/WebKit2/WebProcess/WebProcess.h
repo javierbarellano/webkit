@@ -57,17 +57,10 @@ QT_END_NAMESPACE
 #include <dispatch/dispatch.h>
 #endif
 
-#if ENABLE(BATTERY_STATUS)
-#include "WebBatteryManager.h"
-#endif
-
-#if ENABLE(NETWORK_INFO)
-#include "WebNetworkInfoManager.h"
-#endif
-
 namespace WebCore {
-    class ResourceRequest;
-    struct PluginInfo;
+class PageGroup;
+class ResourceRequest;
+struct PluginInfo;
 }
 
 namespace WebKit {
@@ -128,7 +121,7 @@ public:
 
     bool shouldPlugInAutoStartFromOrigin(const WebPage*, const String& pageOrigin, const String& pluginOrigin, const String& mimeType);
     void plugInDidStartFromOrigin(const String& pageOrigin, const String& pluginOrigin, const String& mimeType);
-    void plugInDidReceiveUserInteraction(unsigned plugInOriginHash);
+    void plugInDidReceiveUserInteraction(const String& pageOrigin, const String& pluginOrigin, const String& mimeType);
 
     bool fullKeyboardAccessEnabled() const { return m_fullKeyboardAccessEnabled; }
 
@@ -136,6 +129,7 @@ public:
     void addWebFrame(uint64_t, WebFrame*);
     void removeWebFrame(uint64_t);
 
+    WebPageGroupProxy* webPageGroup(WebCore::PageGroup*);
     WebPageGroupProxy* webPageGroup(uint64_t pageGroupID);
     WebPageGroupProxy* webPageGroup(const WebPageGroupData&);
 
@@ -149,12 +143,6 @@ public:
 
 #if PLATFORM(QT)
     QNetworkAccessManager* networkAccessManager() { return m_networkAccessManager; }
-#endif
-#if ENABLE(BATTERY_STATUS)
-    WebBatteryManager& batteryManager() { return m_batteryManager; }
-#endif
-#if ENABLE(NETWORK_INFO)
-    WebNetworkInfoManager& networkInfoManager() { return m_networkInfoManager; }
 #endif
 #if USE(SOUP)
     WebSoupRequestManager& soupRequestManager() { return m_soupRequestManager; }
@@ -182,8 +170,10 @@ public:
     
     void pageDidEnterWindow(WebPage*);
     void pageWillLeaveWindow(WebPage*);
-    
+
     void nonVisibleProcessCleanupTimerFired(WebCore::Timer<WebProcess>*);
+
+    void updateActivePages();
 
 private:
     WebProcess();
@@ -313,12 +303,6 @@ private:
 
     TextCheckerState m_textCheckerState;
 
-#if ENABLE(BATTERY_STATUS)
-    WebBatteryManager m_batteryManager;
-#endif
-#if ENABLE(NETWORK_INFO)
-    WebNetworkInfoManager m_networkInfoManager;
-#endif
     WebIconDatabaseProxy* m_iconDatabaseProxy;
 
 #if ENABLE(NETWORK_PROCESS)

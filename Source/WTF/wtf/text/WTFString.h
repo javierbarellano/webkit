@@ -38,10 +38,6 @@ class QString;
 QT_END_NAMESPACE
 #endif
 
-#if PLATFORM(WX)
-class wxString;
-#endif
-
 #if PLATFORM(BLACKBERRY)
 namespace BlackBerry {
 namespace Platform {
@@ -53,7 +49,6 @@ class String;
 namespace WTF {
 
 class CString;
-class MemoryObjectInfo;
 struct StringHash;
 
 // Declarations of string operations
@@ -116,8 +111,8 @@ public:
     // which will sometimes return a null string when vector.data() is null
     // which can only occur for vectors without inline capacity.
     // See: https://bugs.webkit.org/show_bug.cgi?id=109792
-    template<size_t inlineCapacity>
-    explicit String(const Vector<UChar, inlineCapacity>&);
+    template<size_t inlineCapacity, typename OverflowHandler>
+    explicit String(const Vector<UChar, inlineCapacity, OverflowHandler>&);
 
     // Construct a string with UTF-16 data, from a null-terminated source.
     WTF_EXPORT_STRING_API String(const UChar*);
@@ -160,8 +155,8 @@ public:
 
     static String adopt(StringBuffer<LChar>& buffer) { return StringImpl::adopt(buffer); }
     static String adopt(StringBuffer<UChar>& buffer) { return StringImpl::adopt(buffer); }
-    template<typename CharacterType, size_t inlineCapacity>
-    static String adopt(Vector<CharacterType, inlineCapacity>& vector) { return StringImpl::adopt(vector); }
+    template<typename CharacterType, size_t inlineCapacity, typename OverflowHandler>
+    static String adopt(Vector<CharacterType, inlineCapacity, OverflowHandler>& vector) { return StringImpl::adopt(vector); }
 
     bool isNull() const { return !m_impl; }
     bool isEmpty() const { return !m_impl || !m_impl->length(); }
@@ -403,7 +398,13 @@ public:
 
     bool percentage(int& percentage) const;
 
+#if COMPILER_SUPPORTS(CXX_REFERENCE_QUALIFIED_FUNCTIONS)
+    WTF_EXPORT_STRING_API String isolatedCopy() const &;
+    WTF_EXPORT_STRING_API String isolatedCopy() const &&;
+#else
     WTF_EXPORT_STRING_API String isolatedCopy() const;
+#endif
+
     WTF_EXPORT_STRING_API bool isSafeToSendToAnotherThread() const;
 
     // Prevent Strings from being implicitly convertable to bool as it will be ambiguous on any platform that
@@ -430,11 +431,6 @@ public:
     WTF_EXPORT_STRING_API String(const QString&);
     WTF_EXPORT_STRING_API String(const QStringRef&);
     WTF_EXPORT_STRING_API operator QString() const;
-#endif
-
-#if PLATFORM(WX)
-    WTF_EXPORT_PRIVATE String(const wxString&);
-    WTF_EXPORT_PRIVATE operator wxString() const;
 #endif
 
 #if PLATFORM(BLACKBERRY)
@@ -543,8 +539,8 @@ inline void swap(String& a, String& b) { a.swap(b); }
 
 // Definitions of string operations
 
-template<size_t inlineCapacity>
-String::String(const Vector<UChar, inlineCapacity>& vector)
+template<size_t inlineCapacity, typename OverflowHandler>
+String::String(const Vector<UChar, inlineCapacity, OverflowHandler>& vector)
     : m_impl(vector.size() ? StringImpl::create(vector.data(), vector.size()) : StringImpl::empty())
 {
 }
