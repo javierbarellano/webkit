@@ -301,6 +301,14 @@ HTMLTrackElement::ReadyState HTMLTrackElement::readyState()
     return static_cast<ReadyState>(ensureTrack()->readinessState());
 }
 
+const AtomicString& HTMLTrackElement::mediaElementCrossOriginAttribute() const
+{
+    if (HTMLMediaElement* parent = mediaElement())
+        return parent->fastGetAttribute(HTMLNames::crossoriginAttr);
+    
+    return nullAtom;
+}
+
 void HTMLTrackElement::textTrackKindChanged(TextTrack* track)
 {
     if (HTMLMediaElement* parent = mediaElement())
@@ -340,16 +348,6 @@ void HTMLTrackElement::textTrackRemoveCue(TextTrack* track, PassRefPtr<TextTrack
     if (HTMLMediaElement* parent = mediaElement())
         return parent->textTrackRemoveCue(track, cue);
 }
-
-const AtomicString& HTMLTrackElement::mediaElementCrossOriginAttribute() const
-{
-    if (HTMLMediaElement* parent = mediaElement())
-        return parent->fastGetAttribute(HTMLNames::crossoriginAttr);
-
-    return nullAtom;
-}
-
-
 
 HTMLMediaElement* HTMLTrackElement::mediaElement() const
 {

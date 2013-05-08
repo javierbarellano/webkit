@@ -20,14 +20,6 @@
 #ifndef Navigator_h
 #define Navigator_h
 
-#include <string>
-#include <map>
-
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/ZCDevice.h"
-#include "Modules/discovery/NavDsc.h"
-#include "Modules/discovery/NavServices.h"
-
 #include "DOMWindowProperty.h"
 #include "NavigatorBase.h"
 #include "ScriptWrappable.h"
@@ -38,19 +30,12 @@
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
-
 namespace WebCore {
 
 class DOMMimeTypeArray;
 class DOMPluginArray;
 class Frame;
 class PluginData;
-
-// Home Networking
-class NavDscCB;
-class NavServiceErrorCB;
-class NavServiceOkCB;
-class NavEventCB;
 
 typedef int ExceptionCode;
 
@@ -67,13 +52,6 @@ public:
     bool javaEnabled() const;
 
     virtual String userAgent() const;
-
-
-public:
-
-#if ENABLE(POINTER_LOCK)
-    PointerLock* webkitPointer() const;
-#endif
 
     // Relinquishes the storage lock, if one exists.
     void getStorageUpdates();

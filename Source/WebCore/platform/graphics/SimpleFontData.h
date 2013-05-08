@@ -269,9 +269,6 @@ private:
 
     mutable OwnPtr<GlyphMetricsMap<FloatRect> > m_glyphToBoundsMap;
     mutable GlyphMetricsMap<float> m_glyphToWidthMap;
-#if ENABLE(OPENTYPE_VERTICAL)
-    const OpenTypeVerticalData* m_verticalData;
-#endif
 
     bool m_treatAsFixedPitch;
     bool m_isCustomFont;  // Whether or not we are custom font loaded via @font-face
