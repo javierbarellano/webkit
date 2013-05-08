@@ -271,7 +271,7 @@ void ZeroConf::checkForDroppedDevs()
 			NAV_LOG("Try: %s\n", path.c_str());
 
 			// Get Description of servcie to insure the device is still working
-			if (len > 0 || !strstr(bf,"HTTP/1.1 200 OK")) {
+			if (len > 0 || strstr(bf,"HTTP/1.1 200 OK")) {
 				if (!dv.online) {
 					dv.online = true;
 					NAV_LOG("Device ON line... Url: %s, navDsc: %p\n", dv.url.c_str(), navDsc_ );

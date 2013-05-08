@@ -153,7 +153,12 @@ std::vector<std::string> DiscoveryBase::getElementArray(const char* buffer, cons
 
 void DiscoveryBase::getHostPort(const char *url, char* host, int *port)
 {
+	if (!url) {
+		ERR_LOG("getHostPort() url is NULL.\n");
+		return;
+	}
 
+	NAV_LOG("getHostPort(%s)\n",url);
 	int start = 0;
 	if (strstr(url, "://"))
 	{
