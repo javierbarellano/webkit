@@ -71,7 +71,7 @@ public:
     
     virtual double defaultPlaybackRate() const { return m_defaultPlaybackRate; }
     virtual void setDefaultPlaybackRate(double);
-    virtual Vector<float> getSupportedPlayRates(){ return Vector<float>(); };
+    virtual Vector<double> getSupportedPlayRates() { return Vector<double>(); };
     
     virtual double playbackRate() const;
     virtual void setPlaybackRate(double);
@@ -110,13 +110,16 @@ public:
     
     virtual void returnToRealtime();
 
-    virtual std::vector<std::string> getSelTextTrackNames(int *index);
-    virtual std::vector<std::string> getSelVideoTrackNames(int *index);
-    virtual std::vector<std::string> getSelAudioTrackNames(int *index);
+#if ENABLE(VIDEO_TRACK)
+    // MediaSelectElements
+    virtual Vector<AtomicString> getSelTextTrackNames(int *selectedIndex) OVERRIDE;
+    virtual Vector<AtomicString> getSelVideoTrackNames(int *selectedIndex) OVERRIDE;
+    virtual Vector<AtomicString> getSelAudioTrackNames(int *selectedIndex) OVERRIDE;
 
-    virtual void selectTextTrack(int index){}
-    virtual void selectVideoTrack(int index){}
-    virtual void selectAudioTrack(int index){}
+    virtual void selectTextTrack(int index) OVERRIDE {}
+    virtual void selectVideoTrack(int index) OVERRIDE {}
+    virtual void selectAudioTrack(int index) OVERRIDE {}
+#endif
 
     bool isBlocked() const;
 

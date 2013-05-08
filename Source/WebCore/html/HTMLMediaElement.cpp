@@ -2910,6 +2910,91 @@ void HTMLMediaElement::mediaPlayerDidRemoveVideoTrack(PassRefPtr<VideoTrackPriva
     prpTrack->willBeRemoved();
 }
 
+void HTMLMediaElement::selectTextTrack(int index)
+{
+    if (!m_textTracks)
+        return;
+
+    for (size_t i = 0; i < m_textTracks->length(); ++i) {
+        AtomicString keyword;
+        if (i == index)
+            keyword = TextTrack::showingKeyword();
+        else
+            keyword = TextTrack::disabledKeyword();
+        m_textTracks->item(i)->setMode(keyword);
+    }
+}
+
+void HTMLMediaElement::selectVideoTrack(int index)
+{
+    if (!m_videoTracks)
+        return;
+
+    if (index < 0)
+        return;
+
+    RefPtr<VideoTrack> track = m_videoTracks->item(index);
+    if (track)
+        track->setSelected(true);
+}
+
+void HTMLMediaElement::selectAudioTrack(int index)
+{
+    if (!m_audioTracks)
+        return;
+
+    for (size_t i = 0; i < m_audioTracks->length(); ++i)
+        m_audioTracks->item(i)->setEnabled(i == index);
+}
+
+Vector<AtomicString> HTMLMediaElement::getSelAudioTrackNames(int *index)
+{
+    Vector<AtomicString> names;
+    *index = -1;
+    if (!m_audioTracks)
+        return names;
+
+    for (size_t i = 0; i < m_audioTracks->length(); ++i) {
+        RefPtr<AudioTrack> track = m_audioTracks->item(i);
+        names.append(track->label());
+        if (track->enabled())
+            *index = i;
+    }
+    return names;
+}
+
+Vector<AtomicString> HTMLMediaElement::getSelTextTrackNames(int *index)
+{
+    Vector<AtomicString> names;
+    *index = -1;
+    if (!m_textTracks)
+        return names;
+
+    for (size_t i = 0; i < m_textTracks->length(); ++i) {
+        RefPtr<TextTrack> track = m_textTracks->item(i);
+        names.append(track->label());
+        if (track->mode() == TextTrack::showingKeyword())
+            *index = i;
+    }
+    return names;
+}
+
+Vector<AtomicString> HTMLMediaElement::getSelVideoTrackNames(int *index)
+{
+    Vector<AtomicString> names;
+    *index = -1;
+    if (!m_videoTracks)
+        return names;
+
+    for (size_t i = 0; i < m_videoTracks->length(); ++i) {
+        RefPtr<VideoTrack> track = m_videoTracks->item(i);
+        names.append(track->label());
+        if (track->selected())
+            *index = i;
+    }
+    return names;
+}
+
 #if USE(PLATFORM_TEXT_TRACK_MENU)
 void HTMLMediaElement::setSelectedTextTrack(PassRefPtr<PlatformTextTrack> platformTrack)
 {

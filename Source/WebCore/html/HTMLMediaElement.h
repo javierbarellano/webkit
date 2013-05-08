@@ -311,6 +311,15 @@ public:
 
     bool requiresTextTrackRepresentation() const;
     void setTextTrackRepresentation(TextTrackRepresentation*);
+
+    // MediaSelectElements
+    virtual Vector<AtomicString> getSelTextTrackNames(int *selectedIndex) OVERRIDE;
+    virtual Vector<AtomicString> getSelVideoTrackNames(int *selectedIndex) OVERRIDE;
+    virtual Vector<AtomicString> getSelAudioTrackNames(int *selectedIndex) OVERRIDE;
+
+    virtual void selectTextTrack(int index) OVERRIDE;
+    virtual void selectVideoTrack(int index) OVERRIDE;
+    virtual void selectAudioTrack(int index) OVERRIDE;
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -381,11 +390,11 @@ public: // Rate Change
     // Events
     DEFINE_ATTRIBUTE_EVENT_LISTENER(ratechange);
 
-    virtual Vector<float> getSupportedPlayRates() {
-    	if (m_player)
-    		m_playRates = m_player->getPlayRates();
+    virtual Vector<double> getSupportedPlayRates() {
+        if (!m_player)
+            return Vector<double>();
 
-    	return m_playRates;
+        return m_player->getPlayRates();
     }
 
 protected:

@@ -31,6 +31,7 @@
 #include "CSSStyleDeclaration.h"
 #include "CSSValueKeywords.h"
 #include "DOMTokenList.h"
+#include "EventHandler.h"
 #include "EventNames.h"
 #include "FloatConversion.h"
 #include "FloatPoint.h"

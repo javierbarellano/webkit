@@ -1540,28 +1540,27 @@ void MediaControlVideoTrackSelButtonElement::display()
 		return;
 
 	int index = this->selectedIndex();
-	std::vector<std::string> names = m_mediaController->getSelVideoTrackNames(&index);
+	Vector<AtomicString> names = m_mediaController->getSelVideoTrackNames(&index);
 
 	if (names.size() == 0)
 		return;
 
-	int len = 0;
-	for (int i=0; i<(int)names.size(); i++)
-	{
-		if (names[i].length()>len) len = names[i].length();
-	}
+	size_t len = 0;
+	for (size_t i = 0; i < names.size(); i++)
+		if (names[i].length() > len)
+		    len = names[i].length();
 
 	// Set up Select control
 	ExceptionCode ec = 0;
 	removeChildren();
 	std::stringstream ss;
 	for (size_t i = 0; i < names.size(); ++i) {
-		std::string nam = names[i];
+		AtomicString name = names[i];
 
-		if (nam.length() == 0) {
+		if (name.length() == 0) {
 			ss.clear();
-			ss << "Video" << i;
-			nam = std::string(ss.str());
+			ss << "Video " << i;
+			name = AtomicString(ss.str().c_str());
 		}
 
 		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
@@ -1569,8 +1568,7 @@ void MediaControlVideoTrackSelButtonElement::display()
 		appendChild(option, ec);
 		option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
 		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
-		String sOpt(nam.c_str());
-		option->appendChild(Text::create(document(), sOpt), ec);
+		option->appendChild(Text::create(document(), name), ec);
 	}
 	if (index >= 0)
 		setSelectedIndex(index);
@@ -1629,36 +1627,34 @@ void MediaControlAudioTrackSelButtonElement::display()
 		return;
 
 	int index = this->selectedIndex();
-	std::vector<std::string> names = m_mediaController->getSelAudioTrackNames(&index);
+	Vector<AtomicString> names = m_mediaController->getSelAudioTrackNames(&index);
 
 	if (names.size() == 0)
 		return;
 
-	int len = 0;
-	for (int i=0; i<(int)names.size(); i++)
-	{
-		if (names[i].length()>len) len = names[i].length();
-	}
+	size_t len = 0;
+	for (size_t i = 0; i < names.size(); i++)
+	    if (names[i].length() > len)
+	        len = names[i].length();
 
 	// Set up Select control
 	ExceptionCode ec = 0;
 	removeChildren();
 	std::stringstream ss;
 	for (size_t i = 0; i < names.size(); ++i) {
-		std::string nam = names[i];
+		AtomicString name = names[i];
 
-		if (nam.length() == 0) {
+		if (name.length() == 0) {
 			ss.clear();
 			ss << "Audio" << i;
-			nam = std::string(ss.str());
+			name = AtomicString(ss.str().c_str());
 		}
 
 		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
 		appendChild(option, ec);
 		option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
 		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
-		String sOpt(nam.c_str());
-		option->appendChild(Text::create(document(), sOpt), ec);
+		option->appendChild(Text::create(document(), name), ec);
 	}
 	if (index >= 0)
 		setSelectedIndex(index);
@@ -1727,13 +1723,13 @@ void MediaControlTextTrackSelButtonElement::display()
 //	    }
 
 	int trackIndex = 0;
-	std::vector<std::string> names = m_mediaController->getSelTextTrackNames(&trackIndex);
+	Vector<AtomicString> names = m_mediaController->getSelTextTrackNames(&trackIndex);
 	if (names.size() == 0)
-		trackIndex = -1;
+	    trackIndex = -1;
 
-	names.insert(names.begin(),std::string("None"));
+	names.insert(0, AtomicString("None"));
 
-	int selectIndex = trackIndex+1; // allow for 'none' at the beginning
+	int selectIndex = trackIndex + 1; // allow for 'none' at the beginning
 
 	// Set up Select control
 	ExceptionCode ec = 0;
@@ -1741,12 +1737,12 @@ void MediaControlTextTrackSelButtonElement::display()
 	std::stringstream ss;
 
 	for (size_t i = 0; i < names.size(); ++i) {
-		std::string nam = names[i];
+		AtomicString name = names[i];
 
-		if (nam.length() == 0) {
+		if (name.length() == 0) {
 			ss.clear();
 			ss << "Text" << i;
-			nam = std::string(ss.str());
+			name = AtomicString(ss.str().c_str());
 		}
 
 		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
@@ -1756,8 +1752,7 @@ void MediaControlTextTrackSelButtonElement::display()
 		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
 		option->setSelected(i==selectIndex);
 
-		String sOpt(nam.c_str());
-		option->appendChild(Text::create(document(), sOpt), ec);
+		option->appendChild(Text::create(document(), name), ec);
 	}
 
 }
