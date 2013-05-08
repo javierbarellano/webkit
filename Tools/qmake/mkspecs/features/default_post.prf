@@ -247,7 +247,7 @@ root_project_file {
             previous_subdir = $$subdir # Save for later
 
             # For all the other subdirs, we disable docs the regular way
-            for(doc_target, doc_targets) { $${subdir}.CONFIG += no_$${doc_target}_target }
+            for(doc_target, doc_targets): $${subdir}.CONFIG += no_$${doc_target}_target
         }
     }
 }

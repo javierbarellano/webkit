@@ -30,8 +30,7 @@
 
 #include <QFile>
 #include <QDebug>
-//#include <QWebPage>
-#include "qwebpage.h"
+#include <QWebPage>
 
 UrlLoader::UrlLoader(QWebFrame* frame, const QString& inputFileName, int timeoutSeconds, int extraTimeSeconds)
     : m_frame(frame)

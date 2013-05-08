@@ -75,8 +75,6 @@
 // override the incorrect base URL and make sure we alway load correct local
 // saved resource files.
 
-#define WTF_DEPRECATED_STRING_OPERATORS
-
 #include "config.h"
 #include "WebPageSerializerImpl.h"
 

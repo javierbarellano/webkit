@@ -38,7 +38,6 @@ public:
 
     String media() const;
     String type() const;
-    String src() const;
     void setSrc(const String&);    
     void setMedia(const String&);
     void setType(const String&);

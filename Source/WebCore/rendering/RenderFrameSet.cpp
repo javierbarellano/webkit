@@ -137,7 +137,6 @@ void RenderFrameSet::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     size_t cols = m_cols.m_sizes.size();
     LayoutUnit borderThickness = frameSet()->border();
     
-
     LayoutUnit yPos = 0;
     for (size_t r = 0; r < rows; r++) {
         LayoutUnit xPos = 0;

@@ -22,16 +22,6 @@
 
 #include "config.h"
 #include "Navigator.h"
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/UPnPSearch.h"
-#include "Modules/discovery/NavDsc.h"
-
-#include "NavServiceError.h"
-#include "NavServiceErrorCB.h"
-#include "NavServiceOkCB.h"
-#include "NavDscCB.h"
-#include "NavEvent.h"
-#include "NavEventCB.h"
 
 #include "CookieJar.h"
 #include "DOMMimeTypeArray.h"
@@ -148,6 +138,5 @@ void Navigator::getStorageUpdates()
 {
     // FIXME: Remove this method or rename to yieldForStorageUpdates.
 }
-
 
 } // namespace WebCore
