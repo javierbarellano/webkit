@@ -30,7 +30,7 @@ function okSecondCallCB(services) {
 
 		req = new XMLHttpRequest();
 
-		testPassed("okSecondCallCB() XHR url: " + srv.url + "/databases/1/containers");
+		//testPassed("okSecondCallCB() XHR url: " + srv.url + "/databases/1/containers");
 
 		req.open("GET", srv.url + "/databases/1/containers", false);
 		req.send();
