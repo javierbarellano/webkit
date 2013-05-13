@@ -1278,7 +1278,10 @@ void MediaPlayerPrivateGStreamer::updateAudioSink()
 
     g_object_get(m_sink.get(), "audio-sink", &sinkPtr, NULL);
 #ifdef GST_API_VERSION_1
-    m_webkitAudioSink = adoptGRef(sinkPtr);
+    if (sinkPtr && !g_object_is_floating(sinkPtr))
+        m_webkitAudioSink = adoptGRef(sinkPtr);
+    else
+        m_webkitAudioSink = sinkPtr;
 #else
     m_webkitAudioSink = sinkPtr;
 #endif
