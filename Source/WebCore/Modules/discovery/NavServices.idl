@@ -1,31 +1,29 @@
-	interface [
-				Conditional=DISCOVERY,
-				IndexedGetter,
-				OmitConstructor,
-				ActiveDOMObject,
-				EventTarget
-	           ] NavServices {
+interface [
+    Conditional=DISCOVERY,
+    IndexedGetter,
+    ActiveDOMObject,
+    EventTarget
+] NavServices {
+    // NavigatorNetworkService item(index)
+    NavService item(in unsigned long index);
 
-		// NavigatorNetworkService item(index)
-		NavService item(in unsigned long index);
+    readonly attribute unsigned long length;
 
-		readonly attribute unsigned long length;
+    readonly attribute unsigned short servicesAvailable;
 
-		readonly attribute unsigned short servicesAvailable;
+    readonly attribute boolean  online;
+    
+    attribute EventListener onserviceavailable;
+    attribute EventListener onserviceunavailable;
 
-	    readonly attribute boolean  online;
-	    
-        attribute EventListener onserviceavailable;
-        attribute EventListener onserviceunavailable;
+    // EventTarget interface
+    void addEventListener(in DOMString type,
+                          in EventListener listener,
+                          in boolean useCapture);
+    void removeEventListener(in DOMString type,
+                             in EventListener listener,
+                             in boolean useCapture);
+    boolean dispatchEvent(in Event evt)
+        raises(EventException);
 
-        // EventTarget interface
-        void addEventListener(in DOMString type,
-                              in EventListener listener,
-                              in boolean useCapture);
-        void removeEventListener(in DOMString type,
-                                 in EventListener listener,
-                                 in boolean useCapture);
-        boolean dispatchEvent(in Event evt)
-            raises(EventException);
-
-	};
+};
