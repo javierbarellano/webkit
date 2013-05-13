@@ -65,14 +65,18 @@ private:
     // CoreIPC::MessageReceiver
     virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
 
+    void didGetValues();
     void didSetItem(const String& key, bool quotaError);
     void didRemoveItem(const String& key);
     void didClear();
 
-    void dispatchStorageEvent(uint64_t sourceStorageAreaID, const String& key, const String& oldValue, const String& newValue, const String& urlString);
-
     void resetValues();
     void loadValuesIfNeeded();
+
+    bool shouldApplyChangeForKey(const String& key) const;
+    void applyChange(const String& key, const String& newValue);
+
+    void dispatchStorageEvent(uint64_t sourceStorageAreaID, const String& key, const String& oldValue, const String& newValue, const String& urlString);
 
     void dispatchSessionStorageEvent(uint64_t sourceStorageAreaID, const String& key, const String& oldValue, const String& newValue, const String& urlString);
     void dispatchLocalStorageEvent(uint64_t sourceStorageAreaID, const String& key, const String& oldValue, const String& newValue, const String& urlString);
@@ -85,6 +89,7 @@ private:
     RefPtr<WebCore::SecurityOrigin> m_securityOrigin;
 
     RefPtr<WebCore::StorageMap> m_storageMap;
+    bool m_hasPendingClear;
     HashCountedSet<String> m_pendingValueChanges;
 };
 

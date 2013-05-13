@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="DerivedSources">
@@ -1116,9 +1116,6 @@
     <ClCompile Include="..\platform\DragImage.cpp">
       <Filter>platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\EventTracer.cpp">
-      <Filter>platform</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\FileChooser.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -1159,9 +1156,6 @@
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\MemoryPressureHandler.cpp">
-      <Filter>platform</Filter>
-    </ClCompile>
-    <ClCompile Include="..\platform\MemoryUsageSupport.cpp">
       <Filter>platform</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\MIMETypeRegistry.cpp">
@@ -4369,9 +4363,6 @@
       <Filter>html\shadow</Filter>
     </ClCompile>
     <ClCompile Include="..\html\shadow\ProgressShadowElement.cpp">
-      <Filter>html\shadow</Filter>
-    </ClCompile>
-    <ClCompile Include="..\html\shadow\SelectRuleFeatureSet.cpp">
       <Filter>html\shadow</Filter>
     </ClCompile>
     <ClCompile Include="..\html\shadow\SliderThumbElement.cpp">
@@ -7896,9 +7887,6 @@
     <ClInclude Include="..\platform\EventLoop.h">
       <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="..\platform\EventTracer.h">
-      <Filter>platform</Filter>
-    </ClInclude>
     <ClInclude Include="..\platform\FileChooser.h">
       <Filter>platform</Filter>
     </ClInclude>
@@ -7960,9 +7948,6 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\MemoryPressureHandler.h">
-      <Filter>platform</Filter>
-    </ClInclude>
-    <ClInclude Include="..\platform\MemoryUsageSupport.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\MainThreadTask.h">
@@ -11310,9 +11295,6 @@
     <ClInclude Include="..\html\shadow\ProgressShadowElement.h">
       <Filter>html\shadow</Filter>
     </ClInclude>
-    <ClInclude Include="..\html\shadow\SelectRuleFeatureSet.h">
-      <Filter>html\shadow</Filter>
-    </ClInclude>
     <ClInclude Include="..\html\shadow\SliderThumbElement.h">
       <Filter>html\shadow</Filter>
     </ClInclude>
@@ -11497,9 +11479,6 @@
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptHeapSnapshot.h">
-      <Filter>bindings\js</Filter>
-    </ClInclude>
-    <ClInclude Include="..\bindings\js\ScriptInstance.h">
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptObject.h">
@@ -14800,12 +14779,6 @@
     <None Include="..\inspector\front-end\NativeHeapGraph.js">
       <Filter>inspector\front-end</Filter>
     </None>
-    <None Include="..\inspector\front-end\nativeMemoryProfiler.css">
-      <Filter>inspector\front-end</Filter>
-    </None>
-    <None Include="..\inspector\front-end\NativeMemorySnapshotView.js">
-      <Filter>inspector\front-end</Filter>
-    </None>
     <None Include="..\inspector\front-end\NavigatorOverlayController.js">
       <Filter>inspector\front-end</Filter>
     </None>
@@ -15196,11 +15169,9 @@
     <None Include="..\inspector\front-end\cm\xml.js">
       <Filter>inspector\front-end</Filter>
     </None>
-    <None Include="..\Resources\plugIns.js">
-      <Filter>Resources</Filter>
-    </None>
     <None Include="WebCorePostBuild.cmd" />
     <None Include="WebCorePreBuild.cmd" />
+    <None Include="..\Resources\plugIns.js" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="..\platform\graphics\win\MediaPlayerPrivateFullscreenWindow.h">

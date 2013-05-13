@@ -389,6 +389,7 @@ webkit.org/b/103771 media/track/track-in-band.html [ Failure ]
 webkit.org/b/103771 media/track/track-in-band-cues-added-once.html [ Timeout ]
 webkit.org/b/103771 media/track/track-in-band-style.html [ Timeout ]
 webkit.org/b/103771 media/track/track-in-band-legacy-api.html [ Failure ]
+webkit.org/b/103771 media/track/track-in-band-mode.html [ Skip ]
 
 #Incorrect rebaseline
 webkit.org/b/107818 media/controls-styling.html [ Failure ]
@@ -1383,11 +1384,6 @@ webkit.org/b/115632 fast/exclusions/shape-outside-floats/shape-outside-floats-el
 webkit.org/b/115632 fast/exclusions/shape-outside-floats/shape-outside-floats-ellipse-margin-right.html [ Failure ]
 
 webkit.org/b/115633 accessibility/meter-element.html [ Failure ]
-
-webkit.org/b/115783 fast/regions/webkit-flow-double-pagination-float-push.html [ ImageOnlyFailure ]
-webkit.org/b/115783 fast/regions/webkit-flow-float-pushed-to-last-region.html [ ImageOnlyFailure ]
-webkit.org/b/115783 fast/regions/webkit-flow-float-unable-to-push.html [ ImageOnlyFailure ]
-webkit.org/b/115783 fast/regions/webkit-flow-floats-inside-regions-bounds.html [ ImageOnlyFailure ]
 
 #////////////////////////////////////////////////////////////////////////////////////////
 # End of Tests failing

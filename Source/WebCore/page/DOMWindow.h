@@ -399,7 +399,7 @@ namespace WebCore {
         DEFINE_ATTRIBUTE_EVENT_LISTENER(touchcancel);
 #endif
 
-#if ENABLE(WEB_TIMING) || ENABLE(WEB_TIMING_MINIMAL)
+#if ENABLE(WEB_TIMING)
         Performance* performance() const;
 #endif
 
@@ -411,6 +411,9 @@ namespace WebCore {
 
         void willDetachDocumentFromFrame();
         void willDestroyCachedFrame();
+
+        void enableSuddenTermination();
+        void disableSuddenTermination();
 
     private:
         explicit DOMWindow(Document*);
@@ -464,7 +467,7 @@ namespace WebCore {
         mutable RefPtr<Storage> m_localStorage;
         mutable RefPtr<DOMApplicationCache> m_applicationCache;
 
-#if ENABLE(WEB_TIMING) || ENABLE(WEB_TIMING_MINIMAL)
+#if ENABLE(WEB_TIMING)
         mutable RefPtr<Performance> m_performance;
 #endif
 

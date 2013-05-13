@@ -81,8 +81,6 @@ public:
     void setDrawsTransparentBackground(bool);
     bool drawsTransparentBackground() const;
 
-    void setThemePath(const String&);
-
     void suspendActiveDOMObjectsAndAnimations();
     void resumeActiveDOMObjectsAndAnimations();
 
@@ -103,6 +101,9 @@ public:
     // FIXME: Should become private when Web Events creation is moved to WebView.
     WebCore::AffineTransform transformFromScene() const;
     WebCore::AffineTransform transformToScene() const;
+
+    void setOpacity(double opacity) { m_opacity = clampTo(opacity, 0.0, 1.0); }
+    double opacity() const { return m_opacity; }
 
 protected:
     WebView(WebContext*, WebPageGroup*);
@@ -192,6 +193,7 @@ protected:
     bool m_focused;
     bool m_visible;
     float m_contentScaleFactor;
+    double m_opacity;
     WebCore::FloatPoint m_contentPosition; // Position in UI units.
 };
 

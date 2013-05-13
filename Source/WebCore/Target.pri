@@ -990,7 +990,6 @@ SOURCES += \
     platform/Decimal.cpp \
     platform/DragData.cpp \
     platform/DragImage.cpp \
-    platform/EventTracer.cpp \
     platform/FileChooser.cpp \
     platform/FileIconLoader.cpp \
     platform/FileStream.cpp \
@@ -1075,7 +1074,6 @@ SOURCES += \
     platform/LinkHash.cpp \
     platform/Logging.cpp \
     platform/MemoryPressureHandler.cpp \
-    platform/qt/MemoryUsageSupportQt.cpp \
     platform/MIMETypeRegistry.cpp \
     platform/mock/DeviceMotionClientMock.cpp \
     platform/mock/DeviceOrientationClientMock.cpp \
@@ -2152,7 +2150,6 @@ HEADERS += \
     platform/Decimal.h \
     platform/DragData.h \
     platform/DragImage.h \
-    platform/EventTracer.h \
     platform/FileChooser.h \
     platform/FileStream.h \
     platform/FileStreamClient.h \
@@ -2316,7 +2313,6 @@ HEADERS += \
     platform/Logging.h \
     platform/Language.h \
     platform/MemoryPressureHandler.h \
-    platform/MemoryUsageSupport.h \
     platform/MainThreadTask.h \
     platform/MIMETypeRegistry.h \
     platform/network/AuthenticationChallengeBase.h \

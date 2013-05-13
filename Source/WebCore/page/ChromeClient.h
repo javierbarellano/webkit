@@ -38,7 +38,6 @@
 #include "WebCoreKeyboardUIMode.h"
 #include <wtf/Forward.h>
 #include <wtf/PassOwnPtr.h>
-#include <wtf/UnusedParam.h>
 #include <wtf/Vector.h>
 
 #if ENABLE(SQL_DATABASE)
@@ -316,6 +315,9 @@ public:
     virtual void makeFirstResponder() { }
     virtual void willPopUpMenu(NSMenu *) { }
 #endif
+
+    virtual void enableSuddenTermination() { }
+    virtual void disableSuddenTermination() { }
 
 #if PLATFORM(WIN)
     virtual void setLastSetCursorToCurrentCursor() = 0;

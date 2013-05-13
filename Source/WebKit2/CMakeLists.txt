@@ -210,6 +210,7 @@ set(WebKit2_SOURCES
     Shared/API/c/WKMutableArray.cpp
     Shared/API/c/WKMutableDictionary.cpp
     Shared/API/c/WKNumber.cpp
+    Shared/API/c/WKPluginInformation.cpp
     Shared/API/c/WKRenderLayer.cpp
     Shared/API/c/WKRenderObject.cpp
     Shared/API/c/WKSecurityOrigin.cpp
@@ -235,6 +236,7 @@ set(WebKit2_SOURCES
 
     Shared/Plugins/Netscape/NetscapePluginModule.cpp
     Shared/Plugins/Netscape/NetscapePluginModuleNone.cpp
+    Shared/Plugins/Netscape/PluginInformation.cpp
 
     UIProcess/BackingStore.cpp
     UIProcess/DrawingAreaProxy.cpp

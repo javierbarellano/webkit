@@ -28879,14 +28879,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\platform\EventTracer.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\platform\EventTracer.h"
-				>
-			</File>
-			<File
 				RelativePath="..\platform\FileChooser.cpp"
 				>
 			</File>
@@ -29028,14 +29020,6 @@
 			</File>
 			<File
 				RelativePath="..\platform\MemoryPressureHandler.h"
-				>
-			</File>
-			<File
-				RelativePath="..\platform\MemoryUsageSupport.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\platform\MemoryUsageSupport.h"
 				>
 			</File>
 			<File
@@ -73070,10 +73054,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\bindings\js\ScriptInstance.h"
-					>
-				</File>
-				<File
 					RelativePath="..\bindings\js\ScriptObject.cpp"
 					>
 				</File>
@@ -77523,14 +77503,6 @@
 				</File>
 				<File
 					RelativePath="..\inspector\front-end\NativeMemoryGraph.js"
-					>
-				</File>
-				<File
-					RelativePath="..\inspector\front-end\nativeMemoryProfiler.css"
-					>
-				</File>
-				<File
-					RelativePath="..\inspector\front-end\NativeMemorySnapshotView.js"
 					>
 				</File>
 				<File

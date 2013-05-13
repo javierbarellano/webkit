@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,31 +27,28 @@
 #define Pasteboard_h
 
 #include <wtf/Forward.h>
-#include <wtf/HashSet.h>
+#include <wtf/ListHashSet.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
+
 #if PLATFORM(MAC)
 #include <wtf/RetainPtr.h>
 #endif
+
 #if PLATFORM(GTK)
+// FIXME: Why does this include need to be in the header?
 #include <PasteboardHelper.h>
-#endif
-#include <wtf/Vector.h>
-
-// FIXME: This class is too high-level to be in the platform directory, since it
-// uses the DOM and makes calls to Editor. It should either be divested of its
-// knowledge of the frame and editor or moved into the editing directory.
-
-#if PLATFORM(MAC)
-OBJC_CLASS NSAttributedString;
-OBJC_CLASS NSFileWrapper;
-OBJC_CLASS NSArray;
 #endif
 
 #if PLATFORM(WIN)
 #include <windows.h>
 typedef struct HWND__* HWND;
 #endif
+
+// FIXME: This class is too high-level to be in the platform directory, since it
+// uses the DOM and makes calls to Editor. It should either be divested of its
+// knowledge of the frame and editor or moved into the editing directory.
 
 namespace WebCore {
 
@@ -63,7 +60,6 @@ extern const char* WebURLPboardType;
 extern const char* WebURLsWithTitlesPboardType;
 #endif
 
-class ArchiveResource;
 class Clipboard;
 class DocumentFragment;
 class Frame;
@@ -84,6 +80,8 @@ public:
     };
 
 #if PLATFORM(MAC)
+    static PassOwnPtr<Pasteboard> create(const String& pasteboardName);
+
     // This is required to support OS X services.
     void writeSelectionForTypes(const Vector<String>& pasteboardTypes, bool canSmartCopyOrDelete, Frame*, ShouldSerializeSelectedTextForClipboard);
     explicit Pasteboard(const String& pasteboardName);
@@ -92,13 +90,27 @@ public:
 #endif
     
     static Pasteboard* generalPasteboard();
+
+    bool hasData();
+    ListHashSet<String> types();
+
+    String readString(const String& type);
+    Vector<String> readFilenames();
+
+    bool writeString(const String& type, const String& data);
     void writeSelection(Range*, bool canSmartCopyOrDelete, Frame*, ShouldSerializeSelectedTextForClipboard = DefaultSelectedTextType);
     void writePlainText(const String&, SmartReplaceOption);
     void writeURL(const KURL&, const String&, Frame* = 0);
     void writeImage(Node*, const KURL&, const String& title);
     void writeClipboard(Clipboard*);
+
     void clear();
+    void clear(const String& type);
+
     bool canSmartReplace();
+
+    // FIXME: Having these functions here is a layering violation.
+    // These functions need to move to the editing directory even if they have platform-specific aspects.
     PassRefPtr<DocumentFragment> documentFragment(Frame*, PassRefPtr<Range>, bool allowPlainText, bool& chosePlainText);
     String plainText(Frame* = 0);
     
@@ -119,6 +131,7 @@ private:
 
 #if PLATFORM(MAC)
     String m_pasteboardName;
+    long m_changeCount;
 #endif
 
 #if PLATFORM(WIN)
