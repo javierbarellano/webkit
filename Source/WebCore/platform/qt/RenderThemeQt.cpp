@@ -575,7 +575,9 @@ void RenderThemeQt::adjustMediaControlStyle(StyleResolver* selector, RenderStyle
 {
     ControlPart part = style->appearance();
 
-	if (part == MediaVideoTrackSelButtonPart ||
+	if (part == MediaRewindButtonPart && style->display() == NONE)
+		style->setDisplay(BOX);
+	else if (part == MediaVideoTrackSelButtonPart ||
 		part == MediaAudioTrackSelButtonPart ||
 		part == MediaTextTrackSelButtonPart) {
 
@@ -814,7 +816,7 @@ bool RenderThemeQt::paintMediaFFButton(RenderObject* o, const PaintInfo& paintIn
     return false;
 }
 
-bool RenderThemeQt::paintMediaRevButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
+bool RenderThemeQt::paintMediaRewindButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
 {
     HTMLMediaElement* mediaElement = toParentMediaElement(o);
     if (!mediaElement)

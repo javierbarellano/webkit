@@ -236,17 +236,34 @@ private:
 
 // ----------------------------
 
+class MediaControlFFButtonElement : public MediaControlInputElement {
+public:
+    static PassRefPtr<MediaControlFFButtonElement> create(Document*);
+
+    virtual void defaultEventHandler(Event*);
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    MediaControlElementType displayType();
+    virtual void updateDisplayType();
+
+private:
+    MediaControlFFButtonElement(Document*);
+
+    virtual const AtomicString& shadowPseudoId() const;
+};
+
+// ----------------------------
+
 class MediaControlRewindButtonElement : public MediaControlInputElement {
 public:
     static PassRefPtr<MediaControlRewindButtonElement> create(Document*);
 
+    virtual void defaultEventHandler(Event*) OVERRIDE;
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
 
 private:
     explicit MediaControlRewindButtonElement(Document*);
 
     virtual const AtomicString& shadowPseudoId() const OVERRIDE;
-    virtual void defaultEventHandler(Event*) OVERRIDE;
 };
 
 // ----------------------------
@@ -467,41 +484,6 @@ private:
 
 #endif
 // ----------------------------
-
-class MediaControlFFButtonElement : public MediaControlInputElement {
-public:
-    static PassRefPtr<MediaControlFFButtonElement> create(Document*);
-
-    virtual void defaultEventHandler(Event*);
-    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
-    MediaControlElementType displayType();
-    virtual void updateDisplayType();
-
-private:
-    MediaControlFFButtonElement(Document*);
-
-    virtual const AtomicString& shadowPseudoId() const;
-};
-
-// ----------------------------
-
-class MediaControlRevButtonElement : public MediaControlInputElement {
-public:
-    static PassRefPtr<MediaControlRevButtonElement> create(Document*);
-
-    virtual void defaultEventHandler(Event*);
-    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
-    MediaControlElementType displayType() const;
-    virtual void updateDisplayType();
-
-private:
-    MediaControlRevButtonElement(Document*);
-
-    virtual const AtomicString& shadowPseudoId() const;
-};
-
-// ----------------------------
-
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)
