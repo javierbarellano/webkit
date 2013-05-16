@@ -540,99 +540,6 @@ const AtomicString& MediaControlPlayButtonElement::shadowPseudoId() const
 
 // ----------------------------
 
-inline MediaControlFFButtonElement::MediaControlFFButtonElement(Document* document)
-    : MediaControlInputElement(document, MediaFFButton)
-{
-}
-
-PassRefPtr<MediaControlFFButtonElement> MediaControlFFButtonElement::create(Document* document)
-{
-    RefPtr<MediaControlFFButtonElement> button = adoptRef(new MediaControlFFButtonElement(document));
-    //button->createShadowSubtree();
-    button->setType("button");
-    return button.release();
-}
-
-void MediaControlFFButtonElement::defaultEventHandler(Event* event)
-{
-    updateDisplayType();
-    if (event->type() == eventNames().clickEvent) {
-    	if (mediaController()->playbackRate() > 1.0f)
-    		mediaController()->setPlaybackRate(1.0f);
-    	else
-    		mediaController()->setPlaybackRate(8.0f);
-    	mediaController()->play();
-        event->setDefaultHandled();
-    }
-    HTMLInputElement::defaultEventHandler(event);
-}
-
-MediaControlElementType MediaControlFFButtonElement::displayType()
-{
-    return MediaFFButton;
-}
-
-void MediaControlFFButtonElement::updateDisplayType()
-{
-	setDisplayType(MediaFFButton);
-}
-
-const AtomicString& MediaControlFFButtonElement::shadowPseudoId() const
-{
-    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-ff-button"));
-    return id;
-}
-
-// ----------------------------
-
-inline MediaControlRevButtonElement::MediaControlRevButtonElement(Document* document)
-    : MediaControlInputElement(document, MediaRevButton)
-{
-}
-
-PassRefPtr<MediaControlRevButtonElement> MediaControlRevButtonElement::create(Document* document)
-{
-    RefPtr<MediaControlRevButtonElement> button = adoptRef(new MediaControlRevButtonElement(document));
-    //button->createShadowSubtree();
-    button->setType("button");
-    return button.release();
-}
-
-void MediaControlRevButtonElement::defaultEventHandler(Event* event)
-{
-    if (event->type() == eventNames().clickEvent) {
-
-    	if (mediaController()->playbackRate() < 0.0f)
-    		mediaController()->setPlaybackRate(1.0f);
-    	else
-    		mediaController()->setPlaybackRate(-2.0f);
-
-    	mediaController()->play();
-
-        updateDisplayType();
-        event->setDefaultHandled();
-    }
-    HTMLInputElement::defaultEventHandler(event);
-}
-
-MediaControlElementType MediaControlRevButtonElement::displayType() const
-{
-    return MediaRevButton;
-}
-
-void MediaControlRevButtonElement::updateDisplayType()
-{
-	setDisplayType(MediaRevButton);
-}
-
-const AtomicString& MediaControlRevButtonElement::shadowPseudoId() const
-{
-    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-rev-button"));
-    return id;
-}
-
-// ----------------------------
-
 MediaControlOverlayPlayButtonElement::MediaControlOverlayPlayButtonElement(Document* document)
     : MediaControlInputElement(document, MediaOverlayPlayButton)
 {
@@ -715,6 +622,50 @@ const AtomicString& MediaControlSeekBackButtonElement::shadowPseudoId() const
 
 // ----------------------------
 
+inline MediaControlFFButtonElement::MediaControlFFButtonElement(Document* document)
+    : MediaControlInputElement(document, MediaFFButton)
+{
+}
+
+PassRefPtr<MediaControlFFButtonElement> MediaControlFFButtonElement::create(Document* document)
+{
+    RefPtr<MediaControlFFButtonElement> button = adoptRef(new MediaControlFFButtonElement(document));
+    button->setType("button");
+    return button.release();
+}
+
+void MediaControlFFButtonElement::defaultEventHandler(Event* event)
+{
+    updateDisplayType();
+    if (event->type() == eventNames().clickEvent) {
+    	if (mediaController()->playbackRate() > 1.0f)
+    		mediaController()->setPlaybackRate(1.0f);
+    	else
+    		mediaController()->setPlaybackRate(2.0f);
+    	mediaController()->play();
+        event->setDefaultHandled();
+    }
+    HTMLInputElement::defaultEventHandler(event);
+}
+
+MediaControlElementType MediaControlFFButtonElement::displayType()
+{
+    return MediaFFButton;
+}
+
+void MediaControlFFButtonElement::updateDisplayType()
+{
+	setDisplayType(MediaFFButton);
+}
+
+const AtomicString& MediaControlFFButtonElement::shadowPseudoId() const
+{
+	DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-ff-button", AtomicString::ConstructFromLiteral));
+    return id;
+}
+
+// ----------------------------
+
 MediaControlRewindButtonElement::MediaControlRewindButtonElement(Document* document)
     : MediaControlInputElement(document, MediaRewindButton)
 {
@@ -731,7 +682,11 @@ PassRefPtr<MediaControlRewindButtonElement> MediaControlRewindButtonElement::cre
 void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
 {
     if (event->type() == eventNames().clickEvent) {
-        mediaController()->setCurrentTime(max(0.0, mediaController()->currentTime() - 30), IGNORE_EXCEPTION);
+    	if (mediaController()->playbackRate() < 1.0f)
+    		mediaController()->setPlaybackRate(1.0f);
+    	else
+    		mediaController()->setPlaybackRate(-2.0f);
+    	mediaController()->play();
         event->setDefaultHandled();
     }
     HTMLInputElement::defaultEventHandler(event);

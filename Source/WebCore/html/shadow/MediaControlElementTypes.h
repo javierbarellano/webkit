@@ -74,7 +74,6 @@ enum MediaControlElementType {
     MediaAudioTrackSelButton,
     MediaTextTrackSelButton,
     MediaFFButton,
-    MediaRevButton,
     MediaClosedCaptionsContainer,
     MediaClosedCaptionsTrackList,
 };

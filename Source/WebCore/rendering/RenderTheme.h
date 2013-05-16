@@ -328,7 +328,6 @@ protected:
     virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaFFButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
-    virtual bool paintMediaRevButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaOverlayPlayButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }

@@ -147,7 +147,7 @@ protected:
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaFFButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
-    virtual bool paintMediaRevButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
+    virtual bool paintMediaRewindButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaSeekForwardButton(RenderObject*, const PaintInfo&, const IntRect&);

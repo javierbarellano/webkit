@@ -91,7 +91,6 @@ private:
 
     MediaControlRewindButtonElement* m_rewindButton;
     MediaControlFFButtonElement* m_ffButton;
-    MediaControlRevButtonElement* m_revButton;
     MediaControlReturnToRealtimeButtonElement* m_returnToRealTimeButton;
     MediaControlStatusDisplayElement* m_statusDisplay;
     MediaControlTimeRemainingDisplayElement* m_timeRemainingDisplay;

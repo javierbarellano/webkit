@@ -100,12 +100,6 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     if (ec)
         return 0;
 
-    RefPtr<MediaControlRevButtonElement> revButton = MediaControlRevButtonElement::create(document);
-    controls->m_revButton = revButton.get();
-    panel->appendChild(revButton.release(), ec, AttachLazily);
-    if (ec)
-        return 0;
-
     RefPtr<MediaControlReturnToRealtimeButtonElement> returnToRealtimeButton = MediaControlReturnToRealtimeButtonElement::create(document);
     controls->m_returnToRealTimeButton = returnToRealtimeButton.get();
     panel->appendChild(returnToRealtimeButton.release(), ec, AttachLazily);
@@ -278,8 +272,6 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_rewindButton->setMediaController(controller);
     if (m_ffButton)
     	m_ffButton->setMediaController(controller);
-    if (m_revButton)
-    	m_revButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
