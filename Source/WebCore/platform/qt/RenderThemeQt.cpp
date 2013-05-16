@@ -783,10 +783,6 @@ bool RenderThemeQt::paintMediaFastForwardButton(RenderObject* o, const PaintInfo
     if (!mediaElement)
         return false;
 
-//    MediaControlFastForwardButtonElement *ff = o->;
-//    if (ff->disabled())
-//    	printf("paintMediaFastForwardButton() Disabled!\n");
-
     QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
     if (p.isNull() || !p->isValid())
         return true;
