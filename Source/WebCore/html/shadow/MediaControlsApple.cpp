@@ -306,6 +306,8 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
     	m_audioTrackSelButton->setMediaController(controller);
     if (m_textTrackSelButton)
     	m_textTrackSelButton->setMediaController(controller);
+
+    addtrackControls();
 #endif
 }
 
@@ -423,9 +425,9 @@ void MediaControlsApple::addtrackControls()
 	//			m_audioTrackSelButton->hasTracks() ? "true":"false",
 	//			m_textTrackSelButton->hasTracks() ? "true":"false");
 
-	m_videoTrackSelButton->show();
-	m_audioTrackSelButton->show();
-	m_textTrackSelButton->show();
+	showVideoTrackDisplay();
+	showAudioTrackDisplay();
+	showTextTrackDisplay();
 }
 
 void MediaControlsApple::createVideoTrackDisplay()

@@ -1491,12 +1491,14 @@ void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 
 void MediaControlVideoTrackSelButtonElement::display()
 {
-	if (!renderer())
-		return;
+	//printf("Video::display() %s\n", renderer() ? "Has Renderer":"NO Renderer");
+	//if (!renderer())
+	//	return;
 
 	int index = this->selectedIndex();
 	Vector<AtomicString> names = m_mediaController->getSelVideoTrackNames(&index);
 
+	printf("Video::display() names len: %d\n", (int)names.size());
 	if (names.size() == 0)
 		return;
 
