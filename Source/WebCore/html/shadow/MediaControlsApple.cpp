@@ -94,9 +94,9 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     if (ec)
         return 0;
 
-    RefPtr<MediaControlFFButtonElement> ffButton = MediaControlFFButtonElement::create(document);
-    controls->m_ffButton = ffButton.get();
-    panel->appendChild(ffButton.release(), ec, AttachLazily);
+    RefPtr<MediaControlFastForwardButtonElement> FastForwardButton = MediaControlFastForwardButtonElement::create(document);
+    controls->m_FastForwardButton = FastForwardButton.get();
+    panel->appendChild(FastForwardButton.release(), ec, AttachLazily);
     if (ec)
         return 0;
 
@@ -270,8 +270,8 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
 
     if (m_rewindButton)
         m_rewindButton->setMediaController(controller);
-    if (m_ffButton)
-    	m_ffButton->setMediaController(controller);
+    if (m_FastForwardButton)
+    	m_FastForwardButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)

@@ -211,7 +211,7 @@ void RenderTheme::adjustStyle(StyleResolver* styleResolver, RenderStyle* style, 
     case MenulistButtonPart:
         return adjustMenuListButtonStyle(styleResolver, style, e);
     case MediaPlayButtonPart:
-    case MediaFFButtonPart:
+    case MediaFastForwardButtonPart:
     case MediaRewindButtonPart:
     case MediaCurrentTimePart:
     case MediaTimeRemainingPart:
@@ -335,8 +335,8 @@ bool RenderTheme::paint(RenderObject* o, const PaintInfo& paintInfo, const IntRe
         return paintMediaFullscreenButton(o, paintInfo, r);
     case MediaPlayButtonPart:
         return paintMediaPlayButton(o, paintInfo, r);
-    case MediaFFButtonPart:
-        return paintMediaFFButton(o, paintInfo, r);
+    case MediaFastForwardButtonPart:
+        return paintMediaFastForwardButton(o, paintInfo, r);
     case MediaVideoTrackSelButtonPart:
     case MediaAudioTrackSelButtonPart:
     case MediaTextTrackSelButtonPart:

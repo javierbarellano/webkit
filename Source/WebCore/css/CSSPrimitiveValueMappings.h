@@ -422,8 +422,8 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ControlPart e)
         case MediaPlayButtonPart:
             m_value.ident = CSSValueMediaPlayButton;
             break;
-        case MediaFFButtonPart:
-            m_value.ident = CSSValueMediaFfButton;
+        case MediaFastForwardButtonPart:
+            m_value.ident = CSSValueMediaFastForwardButton;
             break;
         case MediaOverlayPlayButtonPart:
             m_value.ident = CSSValueMediaOverlayPlayButton;

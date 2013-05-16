@@ -777,15 +777,11 @@ bool RenderThemeQt::paintMediaTrackSelButton(RenderObject* o, const PaintInfo& p
     return false;
 }
 
-bool RenderThemeQt::paintMediaFFButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
+bool RenderThemeQt::paintMediaFastForwardButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
 {
     HTMLMediaElement* mediaElement = toParentMediaElement(o);
     if (!mediaElement)
         return false;
-
-//    MediaControlFFButtonElement *ff = o->;
-//    if (ff->disabled())
-//    	printf("paintMediaFFButton() Disabled!\n");
 
     QSharedPointer<StylePainter> p = getStylePainter(paintInfo);
     if (p.isNull() || !p->isValid())

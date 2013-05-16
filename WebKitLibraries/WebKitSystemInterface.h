@@ -297,7 +297,7 @@ typedef enum {
     WKMediaUIPartVideoTrackSelButton,
     WKMediaUIPartAudioTrackSelButton,
     WKMediaUIPartTextTrackSelButton,
-    WKMediaUIPartFFButton,
+    WKMediaUIPartFastForwardButton,
 } WKMediaUIPart;
 
 typedef enum {
