@@ -236,9 +236,9 @@ private:
 
 // ----------------------------
 
-class MediaControlFFButtonElement : public MediaControlInputElement {
+class MediaControlFastForwardButtonElement : public MediaControlInputElement {
 public:
-    static PassRefPtr<MediaControlFFButtonElement> create(Document*);
+    static PassRefPtr<MediaControlFastForwardButtonElement> create(Document*);
 
     virtual void defaultEventHandler(Event*);
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
@@ -246,7 +246,7 @@ public:
     virtual void updateDisplayType();
 
 private:
-    MediaControlFFButtonElement(Document*);
+    MediaControlFastForwardButtonElement(Document*);
 
     virtual const AtomicString& shadowPseudoId() const;
 };

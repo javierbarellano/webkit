@@ -622,19 +622,19 @@ const AtomicString& MediaControlSeekBackButtonElement::shadowPseudoId() const
 
 // ----------------------------
 
-inline MediaControlFFButtonElement::MediaControlFFButtonElement(Document* document)
-    : MediaControlInputElement(document, MediaFFButton)
+inline MediaControlFastForwardButtonElement::MediaControlFastForwardButtonElement(Document* document)
+    : MediaControlInputElement(document, MediaFastForwardButton)
 {
 }
 
-PassRefPtr<MediaControlFFButtonElement> MediaControlFFButtonElement::create(Document* document)
+PassRefPtr<MediaControlFastForwardButtonElement> MediaControlFastForwardButtonElement::create(Document* document)
 {
-    RefPtr<MediaControlFFButtonElement> button = adoptRef(new MediaControlFFButtonElement(document));
+    RefPtr<MediaControlFastForwardButtonElement> button = adoptRef(new MediaControlFastForwardButtonElement(document));
     button->setType("button");
     return button.release();
 }
 
-void MediaControlFFButtonElement::defaultEventHandler(Event* event)
+void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
 {
     updateDisplayType();
     if (event->type() == eventNames().clickEvent) {
@@ -648,19 +648,19 @@ void MediaControlFFButtonElement::defaultEventHandler(Event* event)
     HTMLInputElement::defaultEventHandler(event);
 }
 
-MediaControlElementType MediaControlFFButtonElement::displayType()
+MediaControlElementType MediaControlFastForwardButtonElement::displayType()
 {
-    return MediaFFButton;
+    return MediaFastForwardButton;
 }
 
-void MediaControlFFButtonElement::updateDisplayType()
+void MediaControlFastForwardButtonElement::updateDisplayType()
 {
-	setDisplayType(MediaFFButton);
+	setDisplayType(MediaFastForwardButton);
 }
 
-const AtomicString& MediaControlFFButtonElement::shadowPseudoId() const
+const AtomicString& MediaControlFastForwardButtonElement::shadowPseudoId() const
 {
-	DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-ff-button", AtomicString::ConstructFromLiteral));
+	DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-fast-forward-button", AtomicString::ConstructFromLiteral));
     return id;
 }
 

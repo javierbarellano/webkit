@@ -73,7 +73,7 @@ enum MediaControlElementType {
     MediaVideoTrackSelButton,
     MediaAudioTrackSelButton,
     MediaTextTrackSelButton,
-    MediaFFButton,
+    MediaFastForwardButton,
     MediaClosedCaptionsContainer,
     MediaClosedCaptionsTrackList,
 };

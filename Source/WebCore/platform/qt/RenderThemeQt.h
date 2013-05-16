@@ -145,7 +145,7 @@ protected:
 #if ENABLE(VIDEO)
     virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaFFButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
+    virtual bool paintMediaFastForwardButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaRewindButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&);
