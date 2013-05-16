@@ -575,6 +575,9 @@ void RenderThemeQt::adjustMediaControlStyle(StyleResolver* selector, RenderStyle
 {
     ControlPart part = style->appearance();
 
+    // ToDo: We need to track this down to why MediaControls.css applies
+    // to all controls, but this one.
+    // MediaControls.css has display: -webkit-box and it is coming out NONE
 	if (part == MediaRewindButtonPart && style->display() == NONE)
 		style->setDisplay(BOX);
 	else if (part == MediaVideoTrackSelButtonPart ||

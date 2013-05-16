@@ -630,7 +630,6 @@ inline MediaControlFFButtonElement::MediaControlFFButtonElement(Document* docume
 PassRefPtr<MediaControlFFButtonElement> MediaControlFFButtonElement::create(Document* document)
 {
     RefPtr<MediaControlFFButtonElement> button = adoptRef(new MediaControlFFButtonElement(document));
-    //button->createShadowSubtree();
     button->setType("button");
     return button.release();
 }
