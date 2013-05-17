@@ -3077,26 +3077,26 @@ void HTMLMediaElement::closeCaptionTracksChanged()
 
 void HTMLMediaElement::textTracksChanged()
 {
-	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-		return;
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
 
-	mediaControls()->updateTextTrackDisplay();
+    mediaControls()->updateTextTrackDisplay();
 }
 
 void HTMLMediaElement::audioTracksChanged()
 {
-	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-		return;
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
 
-	mediaControls()->updateAudioTrackDisplay();
+    mediaControls()->updateAudioTrackDisplay();
 }
 
 void HTMLMediaElement::videoTracksChanged()
 {
-	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-		return;
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
 
-	mediaControls()->updateVideoTrackDisplay();
+    mediaControls()->updateVideoTrackDisplay();
 }
 
 void HTMLMediaElement::addAudioTrack(PassRefPtr<AudioTrack> track)

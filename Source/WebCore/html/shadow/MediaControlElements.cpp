@@ -638,11 +638,11 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
 {
     updateDisplayType();
     if (event->type() == eventNames().clickEvent) {
-    	if (mediaController()->playbackRate() > 1.0f)
-    		mediaController()->setPlaybackRate(1.0f);
-    	else
-    		mediaController()->setPlaybackRate(2.0f);
-    	mediaController()->play();
+        if (mediaController()->playbackRate() > 1.0f)
+            mediaController()->setPlaybackRate(1.0f);
+        else
+            mediaController()->setPlaybackRate(2.0f);
+        mediaController()->play();
         event->setDefaultHandled();
     }
     HTMLInputElement::defaultEventHandler(event);
@@ -655,12 +655,12 @@ MediaControlElementType MediaControlFastForwardButtonElement::displayType()
 
 void MediaControlFastForwardButtonElement::updateDisplayType()
 {
-	setDisplayType(MediaFastForwardButton);
+    setDisplayType(MediaFastForwardButton);
 }
 
 const AtomicString& MediaControlFastForwardButtonElement::shadowPseudoId() const
 {
-	DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-fast-forward-button", AtomicString::ConstructFromLiteral));
+    DEFINE_STATIC_LOCAL(AtomicString, id, ("-webkit-media-controls-fast-forward-button", AtomicString::ConstructFromLiteral));
     return id;
 }
 
@@ -682,11 +682,11 @@ PassRefPtr<MediaControlRewindButtonElement> MediaControlRewindButtonElement::cre
 void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
 {
     if (event->type() == eventNames().clickEvent) {
-    	if (mediaController()->playbackRate() < 1.0f)
-    		mediaController()->setPlaybackRate(1.0f);
-    	else
-    		mediaController()->setPlaybackRate(-2.0f);
-    	mediaController()->play();
+        if (mediaController()->playbackRate() < 1.0f)
+            mediaController()->setPlaybackRate(1.0f);
+        else
+            mediaController()->setPlaybackRate(-2.0f);
+        mediaController()->play();
         event->setDefaultHandled();
     }
     HTMLInputElement::defaultEventHandler(event);
@@ -1466,17 +1466,16 @@ inline MediaControlVideoTrackSelButtonElement::MediaControlVideoTrackSelButtonEl
 
 PassRefPtr<MediaControlVideoTrackSelButtonElement> MediaControlVideoTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
-	RefPtr<MediaControlVideoTrackSelButtonElement> button = adoptRef(new MediaControlVideoTrackSelButtonElement(document, controls));
-	//button->createShadowSubtree();
+    RefPtr<MediaControlVideoTrackSelButtonElement> button = adoptRef(new MediaControlVideoTrackSelButtonElement(document, controls));
     button->hide();
 
-	return button.release();
+    return button.release();
 }
 
 void MediaControlVideoTrackSelButtonElement::defaultEventHandler(Event* event) {
 
-	MediaSelectElement::defaultEventHandler(event);
-	fixEventState(event);
+    MediaSelectElement::defaultEventHandler(event);
+    fixEventState(event);
 }
 
 void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
@@ -1486,53 +1485,53 @@ void MediaControlVideoTrackSelButtonElement::changedVideoTrack()
 
 void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 {
-	setDisplayType(MediaVideoTrackSelButton);
+    setDisplayType(MediaVideoTrackSelButton);
 }
 
 void MediaControlVideoTrackSelButtonElement::display()
 {
-	if (!renderer())
-		return;
+    if (!renderer())
+        return;
 
-	int index = this->selectedIndex();
-	Vector<AtomicString> names = m_mediaController->getSelVideoTrackNames(&index);
+    int index = this->selectedIndex();
+    Vector<AtomicString> names = m_mediaController->getSelVideoTrackNames(&index);
 
-	if (names.size() == 0)
-		return;
+    if (names.isEmpty())
+        return;
 
-	size_t len = 0;
-	for (size_t i = 0; i < names.size(); i++)
-		if (names[i].length() > len)
-		    len = names[i].length();
+    size_t len = 0;
+    for (size_t i = 0; i < names.size(); i++)
+        if (names[i].length() > len)
+            len = names[i].length();
 
-	// Set up Select control
-	ExceptionCode ec = 0;
-	removeChildren();
-	for (size_t i = 0; i < names.size(); ++i) {
-		std::stringstream ss;
-		AtomicString name = names[i];
+    // Set up Select control
+    ExceptionCode ec = 0;
+    removeChildren();
+    for (size_t i = 0; i < names.size(); ++i) {
+        std::stringstream ss;
+        AtomicString name = names[i];
 
-		if (name.length() == 0) {
-			ss.clear();
-			ss << "Video " << i;
-			name = AtomicString(ss.str().c_str());
-		}
+        if (name.isEmpty()) {
+            ss.clear();
+            ss << "Video " << i;
+            name = AtomicString(ss.str().c_str());
+        }
 
-		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
+        RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
 
-		appendChild(option, ec);
-		option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
-		option->appendChild(Text::create(document(), name), ec);
-	}
-	if (index >= 0)
-		setSelectedIndex(index);
+        appendChild(option, ec);
+        option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+        option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+        option->appendChild(Text::create(document(), name), ec);
+    }
+    if (index >= 0)
+        setSelectedIndex(index);
 
 }
 
 void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
 {
-	mediaController()->selectVideoTrack(newIndex);
+    mediaController()->selectVideoTrack(newIndex);
 }
 
 
@@ -1551,18 +1550,17 @@ inline MediaControlAudioTrackSelButtonElement::MediaControlAudioTrackSelButtonEl
 
 PassRefPtr<MediaControlAudioTrackSelButtonElement> MediaControlAudioTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
-	RefPtr<MediaControlAudioTrackSelButtonElement> button = adoptRef(new MediaControlAudioTrackSelButtonElement(document, controls));
-	//button->createShadowSubtree();
+    RefPtr<MediaControlAudioTrackSelButtonElement> button = adoptRef(new MediaControlAudioTrackSelButtonElement(document, controls));
     button->hide();
 
-	return button.release();
+    return button.release();
 }
 
 
 void MediaControlAudioTrackSelButtonElement::defaultEventHandler(Event* event) {
 
-	MediaSelectElement::defaultEventHandler(event);
-	fixEventState(event);
+    MediaSelectElement::defaultEventHandler(event);
+    fixEventState(event);
 }
 
 void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
@@ -1572,54 +1570,54 @@ void MediaControlAudioTrackSelButtonElement::changedAudioTrack()
 
 void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 {
-	setDisplayType(MediaAudioTrackSelButton);
+    setDisplayType(MediaAudioTrackSelButton);
 
 }
 
 void MediaControlAudioTrackSelButtonElement::display()
 {
-	if (!renderer())
-		return;
+    if (!renderer())
+        return;
 
-	int index = this->selectedIndex();
-	Vector<AtomicString> names = m_mediaController->getSelAudioTrackNames(&index);
+    int index = this->selectedIndex();
+    Vector<AtomicString> names = m_mediaController->getSelAudioTrackNames(&index);
 
-	if (names.size() == 0)
-		return;
+    if (names.isEmpty())
+        return;
 
-	size_t len = 0;
-	for (size_t i = 0; i < names.size(); i++)
-	    if (names[i].length() > len)
-	        len = names[i].length();
+    size_t len = 0;
+    for (size_t i = 0; i < names.size(); i++)
+        if (names[i].length() > len)
+            len = names[i].length();
 
-	// Set up Select control
-	ExceptionCode ec = 0;
-	removeChildren();
-	for (size_t i = 0; i < names.size(); ++i) {
-		std::stringstream ss;
-		AtomicString name = names[i];
+    // Set up Select control
+    ExceptionCode ec = 0;
+    removeChildren();
+    for (size_t i = 0; i < names.size(); ++i) {
+        std::stringstream ss;
+        AtomicString name = names[i];
 
-		if (name.length() == 0) {
-			ss.clear();
-			ss << "Audio" << i;
-			name = AtomicString(ss.str().c_str());
-		}
+        if (name.isEmpty()) {
+            ss.clear();
+            ss << "Audio" << i;
+            name = AtomicString(ss.str().c_str());
+        }
 
-		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
-		appendChild(option, ec);
-		option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
-		option->appendChild(Text::create(document(), name), ec);
-	}
-	if (index >= 0)
-		setSelectedIndex(index);
+        RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
+        appendChild(option, ec);
+        option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+        option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+        option->appendChild(Text::create(document(), name), ec);
+    }
+    if (index >= 0)
+        setSelectedIndex(index);
 
 }
 
 
 void MediaControlAudioTrackSelButtonElement::selectChanged(int newIndex)
 {
-	mediaController()->selectAudioTrack(newIndex);
+    mediaController()->selectAudioTrack(newIndex);
 }
 
 const AtomicString& MediaControlAudioTrackSelButtonElement::shadowPseudoId() const
@@ -1637,18 +1635,17 @@ inline MediaControlTextTrackSelButtonElement::MediaControlTextTrackSelButtonElem
 
 PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButtonElement::create(Document* document, MediaControls* controls)
 {
-	RefPtr<MediaControlTextTrackSelButtonElement> button = adoptRef(new MediaControlTextTrackSelButtonElement(document, controls));
-	//button->createShadowSubtree();
+    RefPtr<MediaControlTextTrackSelButtonElement> button = adoptRef(new MediaControlTextTrackSelButtonElement(document, controls));
     button->hide();
 
-	return button.release();
+    return button.release();
 }
 
 
 void MediaControlTextTrackSelButtonElement::defaultEventHandler(Event* event) {
 
-	MediaSelectElement::defaultEventHandler(event);
-	fixEventState(event);
+    MediaSelectElement::defaultEventHandler(event);
+    fixEventState(event);
 }
 
 void MediaControlTextTrackSelButtonElement::changedTextTrack()
@@ -1658,66 +1655,56 @@ void MediaControlTextTrackSelButtonElement::changedTextTrack()
 
 void MediaControlTextTrackSelButtonElement::updateDisplayType()
 {
-	setDisplayType(MediaTextTrackSelButton);
+    setDisplayType(MediaTextTrackSelButton);
 
 }
 
 void MediaControlTextTrackSelButtonElement::display()
 {
-	if (renderer())
-		return;
+    if (renderer())
+        return;
 
-//		int oldIndex = -1;
-//	    const Vector<HTMLElement*>& items = listItems();
-//	    for (unsigned i = 0; i < items.size(); ++i) {
-//	        HTMLElement* element = items[i];
-//	        if (element->hasTagName(optionTag) && toHTMLOptionElement(element)->selected()) {
-//	        	oldIndex = i;
-//	        	break;
-//	        }
-//	    }
+    int trackIndex = 0;
+    Vector<AtomicString> names = m_mediaController->getSelTextTrackNames(&trackIndex);
+    if (names.isEmpty())
+        trackIndex = -1;
 
-	int trackIndex = 0;
-	Vector<AtomicString> names = m_mediaController->getSelTextTrackNames(&trackIndex);
-	if (names.size() == 0)
-	    trackIndex = -1;
+    names.insert(0, AtomicString("None"));
 
-	names.insert(0, AtomicString("None"));
+    int selectIndex = trackIndex + 1; // allow for 'none' at the beginning
 
-	int selectIndex = trackIndex + 1; // allow for 'none' at the beginning
+    // Set up Select control
+    ExceptionCode ec = 0;
+    removeChildren();
 
-	// Set up Select control
-	ExceptionCode ec = 0;
-	removeChildren();
+    for (size_t i = 0; i < names.size(); ++i) {
+        std::stringstream ss;
+        AtomicString name = names[i];
 
-	for (size_t i = 0; i < names.size(); ++i) {
-		std::stringstream ss;
-		AtomicString name = names[i];
+        if (name.isEmpty()) {
+            ss.clear();
+            ss << "Text" << i;
+            name = AtomicString(ss.str().c_str());
+        }
 
-		if (name.length() == 0) {
-			ss.clear();
-			ss << "Text" << i;
-			name = AtomicString(ss.str().c_str());
-		}
+        RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
+        appendChild(option, ec);
 
-		RefPtr<MediaOptionElement> option = MediaOptionElement::create(document());
-		appendChild(option, ec);
+        option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
+        option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
+        option->setSelected(i == selectIndex);
 
-		option->setInlineStyleProperty(CSSPropertyBackgroundColor, CSSValueBlack);
-		option->setInlineStyleProperty(CSSPropertyColor, String("#ff7835"));
-		option->setSelected(i==selectIndex);
-
-		option->appendChild(Text::create(document(), name), ec);
-	}
+        option->appendChild(Text::create(document(), name), ec);
+    }
 
 }
 
 
 void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
 {
-	printf("selectChanged() selIndex: %d, trackIndex: %d\n", newIndex, newIndex - 1);
+    printf("selectChanged() selIndex: %d, trackIndex: %d\n", newIndex, newIndex - 1);
 
-	mediaController()->selectTextTrack(newIndex-1);
+    mediaController()->selectTextTrack(newIndex-1);
 }
 
 const AtomicString& MediaControlTextTrackSelButtonElement::shadowPseudoId() const
