@@ -55,8 +55,6 @@ void VideoTrackList::append(PassRefPtr<VideoTrack> prpTrack)
     ASSERT(!track->mediaElement() || track->mediaElement() == mediaElement());
     track->setMediaElement(mediaElement());
 
-    mediaElement()->videoTracksChanged();
-
     scheduleAddTrackEvent(track.release());
 }
 

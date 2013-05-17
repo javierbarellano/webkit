@@ -3077,33 +3077,27 @@ void HTMLMediaElement::closeCaptionTracksChanged()
 
 void HTMLMediaElement::textTracksChanged()
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return;
+	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+		return;
 
 	mediaControls()->updateTextTrackDisplay();
 }
 
 void HTMLMediaElement::audioTracksChanged()
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return;
+	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+		return;
 
 	mediaControls()->updateAudioTrackDisplay();
-
 }
-
 
 void HTMLMediaElement::videoTracksChanged()
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
-        return;
+	if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+		return;
 
 	mediaControls()->updateVideoTrackDisplay();
-
 }
-
-
-
 
 void HTMLMediaElement::addAudioTrack(PassRefPtr<AudioTrack> track)
 {
@@ -3129,6 +3123,7 @@ void HTMLMediaElement::addVideoTrack(PassRefPtr<VideoTrack> track)
         return;
 
     videoTracks()->append(track);
+    videoTracksChanged();
 }
 
 void HTMLMediaElement::removeAudioTrack(AudioTrack* track)

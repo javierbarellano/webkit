@@ -40,7 +40,7 @@ namespace WebCore {
 class HTMLSelectElement;
 class RenderText;
 
-class RenderMenuList : public RenderFlexibleBox, public PopupMenuClient {
+class RenderMenuList : public RenderFlexibleBox, protected PopupMenuClient {
 
 public:
     RenderMenuList(Element*);
