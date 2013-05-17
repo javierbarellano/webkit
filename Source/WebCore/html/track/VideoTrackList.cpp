@@ -31,7 +31,6 @@
 
 #include "EventNames.h"
 #include "VideoTrack.h"
-#include "HTMLMediaElement.h"
 
 using namespace WebCore;
 

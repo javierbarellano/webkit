@@ -418,13 +418,6 @@ void MediaControlsApple::reset()
 
 void MediaControlsApple::addtrackControls()
 {
-	// Track support
-	//    printf("Reset(%s) video: %s, audio: %s, Text: %s\n",
-	//    		init ? "True":"false",
-	//			m_videoTrackSelButton->hasTracks() ? "true":"false",
-	//			m_audioTrackSelButton->hasTracks() ? "true":"false",
-	//			m_textTrackSelButton->hasTracks() ? "true":"false");
-
 	showVideoTrackDisplay();
 	showAudioTrackDisplay();
 	showTextTrackDisplay();
