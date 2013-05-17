@@ -3075,6 +3075,34 @@ void HTMLMediaElement::closeCaptionTracksChanged()
 #endif
 }
 
+void HTMLMediaElement::textTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
+
+}
+
+void HTMLMediaElement::audioTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
+
+
+}
+
+
+void HTMLMediaElement::videoTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+        return;
+
+	mediaControls()->updateVideoTrackDisplay();
+
+}
+
+
+
+
 void HTMLMediaElement::addAudioTrack(PassRefPtr<AudioTrack> track)
 {
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
