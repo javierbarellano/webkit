@@ -141,6 +141,9 @@ void RenderMediaMenuList::showPopup()
     //setPopUp(this);
     m_popupIsVisible = true;
 
+    if (!m_popup)
+        m_popup = document()->page()->chrome()->createPopupMenu(this);
+
     // Compute the top left taking transforms into account, but use
     // the actual width of the element to size the popup.
     FloatPoint absTopLeft = localToAbsolute(FloatPoint(), 0);

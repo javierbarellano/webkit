@@ -271,7 +271,7 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
     if (m_rewindButton)
         m_rewindButton->setMediaController(controller);
     if (m_FastForwardButton)
-    	m_FastForwardButton->setMediaController(controller);
+        m_FastForwardButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -301,11 +301,13 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
 
 #if ENABLE(VIDEO_TRACK)
     if (m_videoTrackSelButton)
-    	m_videoTrackSelButton->setMediaController(controller);
+        m_videoTrackSelButton->setMediaController(controller);
     if (m_audioTrackSelButton)
-    	m_audioTrackSelButton->setMediaController(controller);
+        m_audioTrackSelButton->setMediaController(controller);
     if (m_textTrackSelButton)
-    	m_textTrackSelButton->setMediaController(controller);
+        m_textTrackSelButton->setMediaController(controller);
+
+    addtrackControls();
 #endif
 }
 
@@ -416,16 +418,9 @@ void MediaControlsApple::reset()
 
 void MediaControlsApple::addtrackControls()
 {
-	// Track support
-	//    printf("Reset(%s) video: %s, audio: %s, Text: %s\n",
-	//    		init ? "True":"false",
-	//			m_videoTrackSelButton->hasTracks() ? "true":"false",
-	//			m_audioTrackSelButton->hasTracks() ? "true":"false",
-	//			m_textTrackSelButton->hasTracks() ? "true":"false");
-
-	m_videoTrackSelButton->show();
-	m_audioTrackSelButton->show();
-	m_textTrackSelButton->show();
+    showVideoTrackDisplay();
+    showAudioTrackDisplay();
+    showTextTrackDisplay();
 }
 
 void MediaControlsApple::createVideoTrackDisplay()
@@ -523,11 +518,11 @@ void MediaControlsApple::createAudioTrackDisplay()
 
 void MediaControlsApple::setTextTrackSelected(int index)
 {
-	if (index < 0)
-		return;
+    if (index < 0)
+        return;
 
-	m_textTrackSelButton->setSelectedIndex(index);
-	m_textTrackSelButton->display();
+    m_textTrackSelButton->setSelectedIndex(index);
+    m_textTrackSelButton->display();
 }
 
 void MediaControlsApple::updateCurrentTimeDisplay()

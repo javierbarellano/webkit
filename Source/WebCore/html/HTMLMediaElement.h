@@ -248,6 +248,11 @@ public:
     void removeVideoTrack(VideoTrack*);
     void removeAllInbandTracks();
     void closeCaptionTracksChanged();
+
+    void textTracksChanged();
+    void audioTracksChanged();
+    void videoTracksChanged();
+
     void notifyMediaPlayerOfTextTrackChanges();
 
     virtual void didAddTextTrack(HTMLTrackElement*);
