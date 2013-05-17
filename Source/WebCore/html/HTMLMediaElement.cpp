@@ -3080,6 +3080,7 @@ void HTMLMediaElement::textTracksChanged()
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
         return;
 
+	mediaControls()->updateTextTrackDisplay();
 }
 
 void HTMLMediaElement::audioTracksChanged()
@@ -3087,6 +3088,7 @@ void HTMLMediaElement::audioTracksChanged()
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
         return;
 
+	mediaControls()->updateAudioTrackDisplay();
 
 }
 

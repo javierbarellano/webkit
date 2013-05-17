@@ -1491,14 +1491,12 @@ void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 
 void MediaControlVideoTrackSelButtonElement::display()
 {
-	//printf("Video::display() %s\n", renderer() ? "Has Renderer":"NO Renderer");
-	//if (!renderer())
-	//	return;
+	if (!renderer())
+		return;
 
 	int index = this->selectedIndex();
 	Vector<AtomicString> names = m_mediaController->getSelVideoTrackNames(&index);
 
-	printf("Video::display() names len: %d\n", (int)names.size());
 	if (names.size() == 0)
 		return;
 
@@ -1510,8 +1508,8 @@ void MediaControlVideoTrackSelButtonElement::display()
 	// Set up Select control
 	ExceptionCode ec = 0;
 	removeChildren();
-	std::stringstream ss;
 	for (size_t i = 0; i < names.size(); ++i) {
+		std::stringstream ss;
 		AtomicString name = names[i];
 
 		if (name.length() == 0) {
@@ -1597,8 +1595,8 @@ void MediaControlAudioTrackSelButtonElement::display()
 	// Set up Select control
 	ExceptionCode ec = 0;
 	removeChildren();
-	std::stringstream ss;
 	for (size_t i = 0; i < names.size(); ++i) {
+		std::stringstream ss;
 		AtomicString name = names[i];
 
 		if (name.length() == 0) {
@@ -1691,9 +1689,9 @@ void MediaControlTextTrackSelButtonElement::display()
 	// Set up Select control
 	ExceptionCode ec = 0;
 	removeChildren();
-	std::stringstream ss;
 
 	for (size_t i = 0; i < names.size(); ++i) {
+		std::stringstream ss;
 		AtomicString name = names[i];
 
 		if (name.length() == 0) {
