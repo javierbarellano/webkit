@@ -1496,10 +1496,10 @@ void MediaControlVideoTrackSelButtonElement::display()
     int index = this->selectedIndex();
 
     Vector<AtomicString> names;
-    VideoTrackList *trackList = mediaController()->videoTracks();
+    VideoTrackList* trackList = mediaController()->videoTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            VideoTrack *track = trackList->item(i);
+            VideoTrack* track = trackList->item(i);
             names.append(track->label());
             if (track->selected())
                 index = i;
@@ -1541,10 +1541,10 @@ void MediaControlVideoTrackSelButtonElement::display()
 
 void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
 {
-    VideoTrackList *trackList = mediaController()->videoTracks();
+    VideoTrackList* trackList = mediaController()->videoTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            VideoTrack *track = trackList->item(i);
+            VideoTrack* track = trackList->item(i);
             track->setSelected(i == newIndex);
         }
     }
@@ -1597,10 +1597,10 @@ void MediaControlAudioTrackSelButtonElement::display()
 
     int index = this->selectedIndex();
     Vector<AtomicString> names;
-    AudioTrackList *trackList = mediaController()->audioTracks();
+    AudioTrackList* trackList = mediaController()->audioTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            AudioTrack *track = trackList->item(i);
+            AudioTrack* track = trackList->item(i);
             names.append(track->label());
             if (track->enabled())
                 index = i;
@@ -1642,10 +1642,10 @@ void MediaControlAudioTrackSelButtonElement::display()
 
 void MediaControlAudioTrackSelButtonElement::selectChanged(int newIndex)
 {
-    AudioTrackList *trackList = mediaController()->audioTracks();
+    AudioTrackList* trackList = mediaController()->audioTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            AudioTrack *track = trackList->item(i);
+            AudioTrack* track = trackList->item(i);
             track->setEnabled(i == newIndex);
         }
     }
@@ -1697,10 +1697,10 @@ void MediaControlTextTrackSelButtonElement::display()
 
     int trackIndex = -1;
     Vector<AtomicString> names;
-    TextTrackList *trackList = mediaController()->textTracks();
+    TextTrackList* trackList = mediaController()->textTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            TextTrack *track = trackList->item(i);
+            TextTrack* track = trackList->item(i);
             names.append(track->label());
             if (track->mode() == TextTrack::showingKeyword())
                 trackIndex = i;
@@ -1743,10 +1743,10 @@ void MediaControlTextTrackSelButtonElement::display()
 
 void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
 {
-    TextTrackList *trackList = mediaController()->textTracks();
+    TextTrackList* trackList = mediaController()->textTracks();
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
-            TextTrack *track = trackList->item(i);
+            TextTrack* track = trackList->item(i);
             track->setMode(i == (newIndex-1) ? TextTrack::showingKeyword():TextTrack::hiddenKeyword());
         }
     }

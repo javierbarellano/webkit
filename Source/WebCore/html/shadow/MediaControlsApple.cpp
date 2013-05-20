@@ -460,13 +460,12 @@ void MediaControlsApple::updateTextTrackSelDisplay()
     if (!m_textTrackSelButton)
         createTextTrackSelDisplay();
 
-    TextTrackList *tracks = m_textTrackSelButton->mediaController()->textTracks();
+    TextTrackList* tracks = m_textTrackSelButton->mediaController()->textTracks();
     if (tracks->length()) {
         m_textTrackSelButton->show();
         m_textTrackSelButton->display();
-    } else {
+    } else
         m_textTrackSelButton->hide();
-    }
 }
 
 void MediaControlsApple::updateVideoTrackDisplay()
@@ -474,13 +473,12 @@ void MediaControlsApple::updateVideoTrackDisplay()
     if (!m_videoTrackSelButton)
         createVideoTrackDisplay();
 
-    VideoTrackList *tracks = m_videoTrackSelButton->mediaController()->videoTracks();
+    VideoTrackList* tracks = m_videoTrackSelButton->mediaController()->videoTracks();
     if (tracks->length()>1) {
         m_videoTrackSelButton->show();
         m_videoTrackSelButton->display();
-    } else {
+    } else
         m_videoTrackSelButton->hide();
-    }
 }
 
 void MediaControlsApple::setVideoTrackSelected(int index)
@@ -497,13 +495,12 @@ void MediaControlsApple::updateAudioTrackDisplay()
     if (!m_audioTrackSelButton)
         createAudioTrackDisplay();
 
-    AudioTrackList *tracks = m_audioTrackSelButton->mediaController()->audioTracks();
+    AudioTrackList* tracks = m_audioTrackSelButton->mediaController()->audioTracks();
     if (tracks->length()>1) {
         m_audioTrackSelButton->show();
         m_audioTrackSelButton->display();
-    } else {
+    } else
         m_audioTrackSelButton->hide();
-    }
 }
 
 void MediaControlsApple::setAudioTrackSelected(int index)

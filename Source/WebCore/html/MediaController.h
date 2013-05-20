@@ -112,9 +112,9 @@ public:
 
 #if ENABLE(VIDEO_TRACK)
     // MediaSelectElements
-    virtual AudioTrackList* audioTracks() OVERRIDE { return NULL; }
-    virtual VideoTrackList* videoTracks() OVERRIDE { return NULL; }
-    virtual TextTrackList*  textTracks() OVERRIDE { return NULL; }
+    virtual AudioTrackList* audioTracks() OVERRIDE { return 0; }
+    virtual VideoTrackList* videoTracks() OVERRIDE { return 0; }
+    virtual TextTrackList*  textTracks() OVERRIDE { return 0; }
 #endif
 
     bool isBlocked() const;

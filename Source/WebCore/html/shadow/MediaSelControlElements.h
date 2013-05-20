@@ -292,7 +292,7 @@ public:
     virtual void updateDisplayType();
     virtual MediaControlElementType displayType() const {return MediaTextTrackSelButton;}
 
-    bool hasTracks() { return m_mediaController->textTracks()->length() > 0; }  // We add none so compare against 0
+    bool hasTracks() { return m_mediaController->textTracks()->length() > 0; } // We add none so compare against 0
 
     void display();
 
