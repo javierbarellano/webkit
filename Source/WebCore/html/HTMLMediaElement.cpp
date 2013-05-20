@@ -2976,7 +2976,12 @@ Vector<AtomicString> HTMLMediaElement::getSelTextTrackNames(int *index)
 
     for (size_t i = 0; i < m_textTracks->length(); ++i) {
         RefPtr<TextTrack> track = m_textTracks->item(i);
-        names.append(track->label());
+
+        AtomicString name = track->label();
+        if (name.isEmpty())
+            name = track->language();
+
+        names.append(name);
         if (track->mode() == TextTrack::showingKeyword())
             *index = i;
     }
@@ -3080,7 +3085,7 @@ void HTMLMediaElement::textTracksChanged()
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
         return;
 
-    mediaControls()->updateTextTrackDisplay();
+    mediaControls()->updateTextTrackSelDisplay();
 }
 
 void HTMLMediaElement::audioTracksChanged()
@@ -3105,6 +3110,7 @@ void HTMLMediaElement::addAudioTrack(PassRefPtr<AudioTrack> track)
         return;
 
     audioTracks()->append(track);
+    audioTracksChanged();
 }
 
 void HTMLMediaElement::addTextTrack(PassRefPtr<TextTrack> track)
@@ -3113,7 +3119,7 @@ void HTMLMediaElement::addTextTrack(PassRefPtr<TextTrack> track)
         return;
 
     textTracks()->append(track);
-
+    textTracksChanged();
     closeCaptionTracksChanged();
 }
 

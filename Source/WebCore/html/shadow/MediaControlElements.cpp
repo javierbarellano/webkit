@@ -1702,8 +1702,6 @@ void MediaControlTextTrackSelButtonElement::display()
 
 void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
 {
-    printf("selectChanged() selIndex: %d, trackIndex: %d\n", newIndex, newIndex - 1);
-
     mediaController()->selectTextTrack(newIndex-1);
 }
 

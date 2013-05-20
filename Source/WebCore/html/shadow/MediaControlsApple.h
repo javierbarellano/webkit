@@ -69,6 +69,9 @@ public:
 //    virtual void showTextTrackDisplay();
 //    virtual void hideTextTrackDisplay();
 //    virtual void updateTextTrackDisplay();
+
+    virtual void updateTextTrackSelDisplay();
+    virtual void showTextTrackSelDisplay();
     virtual void setTextTrackSelected(int index);
 
     virtual void createVideoTrackDisplay();
