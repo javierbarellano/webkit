@@ -30,6 +30,12 @@
 #ifndef MediaControlElements_h
 #define MediaControlElements_h
 
+#if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
+#include "TextTrackList.h"
+#include "VideoTrackList.h"
+#endif
+
 #if ENABLE(VIDEO)
 #include "MediaControlElementTypes.h"
 #include "TextTrackRepresentation.h"

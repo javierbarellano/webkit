@@ -65,24 +65,15 @@ public:
 #if ENABLE(VIDEO_TRACK)
     virtual void addtrackControls();
 
-//    virtual void createTextTrackDisplay();
-//    virtual void showTextTrackDisplay();
-//    virtual void hideTextTrackDisplay();
-//    virtual void updateTextTrackDisplay();
-
+    virtual void createTextTrackSelDisplay();
     virtual void updateTextTrackSelDisplay();
-    virtual void showTextTrackSelDisplay();
     virtual void setTextTrackSelected(int index);
 
     virtual void createVideoTrackDisplay();
-    virtual void showVideoTrackDisplay();
-    virtual void hideVideoTrackDisplay();
     virtual void updateVideoTrackDisplay();
     virtual void setVideoTrackSelected(int index);
 
     virtual void createAudioTrackDisplay();
-    virtual void showAudioTrackDisplay();
-    virtual void hideAudioTrackDisplay();
     virtual void updateAudioTrackDisplay();
     virtual void setAudioTrackSelected(int index);
 #endif
