@@ -447,6 +447,11 @@ void MediaControlsApple::hideVideoTrackDisplay()
     m_videoTrackSelButton->hide();
 }
 
+void MediaControlsApple::updateTextTrackSelDisplay()
+{
+    showTextTrackSelDisplay();
+}
+
 void MediaControlsApple::updateVideoTrackDisplay()
 {
     showVideoTrackDisplay();
@@ -459,6 +464,15 @@ void MediaControlsApple::setVideoTrackSelected(int index)
 
     m_videoTrackSelButton->setSelectedIndex(index);
     m_videoTrackSelButton->display();
+}
+
+void MediaControlsApple::showTextTrackSelDisplay()
+{
+    if (!m_textTrackSelButton)
+        createTextTrackDisplay();
+
+    m_textTrackSelButton->show();
+    m_textTrackSelButton->display();
 }
 
 void MediaControlsApple::showVideoTrackDisplay()
