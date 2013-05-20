@@ -103,7 +103,7 @@ class MediaControls : public HTMLDivElement {
     virtual void stopHideFullscreenControlsTimer();
 
 #if ENABLE(VIDEO_TRACK)
-    virtual void addtrackControls(){ }
+    virtual void addtrackControls() { }
 
     virtual void createTextTrackDisplay();
     virtual void showTextTrackDisplay();
