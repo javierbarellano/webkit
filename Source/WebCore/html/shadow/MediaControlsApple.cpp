@@ -435,8 +435,7 @@ void MediaControlsApple::createVideoTrackDisplay()
     m_videoTrackSelButton = videoDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
-    ExceptionCode ec;
-    insertBefore(videoDisplayButton.release(), m_panel, ec, AttachLazily);
+    insertBefore(videoDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
 void MediaControlsApple::createTextTrackSelDisplay()
@@ -451,8 +450,7 @@ void MediaControlsApple::createTextTrackSelDisplay()
     m_textTrackSelButton = textTrackSelButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
-    ExceptionCode ec;
-    insertBefore(textTrackSelButton.release(), m_panel, ec, AttachLazily);
+    insertBefore(textTrackSelButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
 void MediaControlsApple::updateTextTrackSelDisplay()
@@ -523,8 +521,7 @@ void MediaControlsApple::createAudioTrackDisplay()
     m_audioTrackSelButton = audioDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
-    ExceptionCode ec;
-    insertBefore(audioDisplayButton.release(), m_panel, ec, AttachLazily);
+    insertBefore(audioDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
 void MediaControlsApple::setTextTrackSelected(int index)

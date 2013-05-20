@@ -1542,12 +1542,8 @@ void MediaControlVideoTrackSelButtonElement::display()
 void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
 {
     VideoTrackList* trackList = mediaController()->videoTracks();
-    if (trackList) {
-        for (size_t i = 0; i < trackList->length(); ++i) {
-            VideoTrack* track = trackList->item(i);
-            track->setSelected(i == newIndex);
-        }
-    }
+    if (trackList && newIndex >= 0 && newIndex < trackList->length())
+        trackList->item(newIndex)->setSelected(true);
 }
 
 
@@ -1747,7 +1743,7 @@ void MediaControlTextTrackSelButtonElement::selectChanged(int newIndex)
     if (trackList) {
         for (size_t i = 0; i < trackList->length(); ++i) {
             TextTrack* track = trackList->item(i);
-            track->setMode(i == (newIndex-1) ? TextTrack::showingKeyword():TextTrack::hiddenKeyword());
+            track->setMode(i == (newIndex-1) ? TextTrack::showingKeyword():TextTrack::disabledKeyword());
         }
     }
 }
