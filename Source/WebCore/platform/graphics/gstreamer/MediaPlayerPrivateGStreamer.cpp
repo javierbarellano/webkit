@@ -1949,6 +1949,18 @@ void MediaPlayerPrivateGStreamer::createPipeline()
         g_signal_connect(videoSinkPad.get(), "notify::caps", G_CALLBACK(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
     createAudioSink();
+
+    GstCaps* caps = 0;
+    g_object_get(m_decodebin.get(), "caps", &caps, NULL);
+    ASSERT(caps);
+
+    caps = gst_caps_make_writable(caps);
+    ASSERT(caps);
+
+    gst_caps_append(caps, gst_caps_new_empty_simple("text/vtt"));
+    gst_caps_append(caps, gst_caps_new_empty_simple("text/track-metadata"));
+    ASSERT(caps);
+    g_object_set(m_decodebin.get(), "caps", caps, NULL);
 }
 
 void MediaPlayerPrivateGStreamer::simulateAudioInterruption()
