@@ -1542,7 +1542,7 @@ void MediaControlVideoTrackSelButtonElement::display()
 void MediaControlVideoTrackSelButtonElement::selectChanged(int newIndex)
 {
     VideoTrackList* trackList = mediaController()->videoTracks();
-    if (trackList && newIndex >= 0 && newIndex < trackList->length())
+    if (trackList->item(newIndex))
         trackList->item(newIndex)->setSelected(true);
 }
 
