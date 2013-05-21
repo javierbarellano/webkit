@@ -234,10 +234,6 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, const String& label, ExceptionCode& ec) { return addTextTrack(kind, label, emptyString(), ec); }
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
-    AudioTrackList* audioTracks();
-    TextTrackList* textTracks();
-    VideoTrackList* videoTracks();
-
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     void addAudioTrack(PassRefPtr<AudioTrack>);
@@ -318,13 +314,9 @@ public:
     void setTextTrackRepresentation(TextTrackRepresentation*);
 
     // MediaSelectElements
-    virtual Vector<AtomicString> getSelTextTrackNames(int *selectedIndex) OVERRIDE;
-    virtual Vector<AtomicString> getSelVideoTrackNames(int *selectedIndex) OVERRIDE;
-    virtual Vector<AtomicString> getSelAudioTrackNames(int *selectedIndex) OVERRIDE;
-
-    virtual void selectTextTrack(int index) OVERRIDE;
-    virtual void selectVideoTrack(int index) OVERRIDE;
-    virtual void selectAudioTrack(int index) OVERRIDE;
+    virtual AudioTrackList* audioTracks() OVERRIDE;
+    virtual TextTrackList*  textTracks() OVERRIDE;
+    virtual VideoTrackList* videoTracks() OVERRIDE;
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)

@@ -36,6 +36,10 @@ namespace WebCore {
 
 class TimeRanges;
 
+class AudioTrackList;
+class VideoTrackList;
+class TextTrackList;
+
 typedef int ExceptionCode;
 
 class MediaControllerInterface {
@@ -98,13 +102,9 @@ public:
 
 #if ENABLE(VIDEO_TRACK)
     // MediaSelectElements
-    virtual Vector<AtomicString> getSelTextTrackNames(int *selectedIndex) = 0;
-    virtual Vector<AtomicString> getSelVideoTrackNames(int *selectedIndex) = 0;
-    virtual Vector<AtomicString> getSelAudioTrackNames(int *selectedIndex) = 0;
-
-    virtual void selectTextTrack(int index) = 0;
-    virtual void selectVideoTrack(int index) = 0;
-    virtual void selectAudioTrack(int index) = 0;
+    virtual AudioTrackList* audioTracks() = 0;
+    virtual VideoTrackList* videoTracks() = 0;
+    virtual TextTrackList*  textTracks() = 0;
 #endif
 };
 

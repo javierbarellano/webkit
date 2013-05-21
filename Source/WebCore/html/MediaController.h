@@ -112,13 +112,9 @@ public:
 
 #if ENABLE(VIDEO_TRACK)
     // MediaSelectElements
-    virtual Vector<AtomicString> getSelTextTrackNames(int *selectedIndex) OVERRIDE;
-    virtual Vector<AtomicString> getSelVideoTrackNames(int *selectedIndex) OVERRIDE;
-    virtual Vector<AtomicString> getSelAudioTrackNames(int *selectedIndex) OVERRIDE;
-
-    virtual void selectTextTrack(int index) OVERRIDE {}
-    virtual void selectVideoTrack(int index) OVERRIDE {}
-    virtual void selectAudioTrack(int index) OVERRIDE {}
+    virtual AudioTrackList* audioTracks() OVERRIDE { return 0; }
+    virtual VideoTrackList* videoTracks() OVERRIDE { return 0; }
+    virtual TextTrackList*  textTracks() OVERRIDE { return 0; }
 #endif
 
     bool isBlocked() const;

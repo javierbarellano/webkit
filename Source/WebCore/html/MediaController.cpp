@@ -178,21 +178,6 @@ void MediaController::setCurrentTime(double time, ExceptionCode& code)
     scheduleTimeupdateEvent();
 }
 
-Vector<AtomicString> MediaController::getSelTextTrackNames(int *index)
-{
-	return Vector<AtomicString>();
-}
-
-Vector<AtomicString> MediaController::getSelVideoTrackNames(int *index)
-{
-    return Vector<AtomicString>();
-}
-
-Vector<AtomicString> MediaController::getSelAudioTrackNames(int *index)
-{
-    return Vector<AtomicString>();
-}
-
 void MediaController::unpause()
 {
     // When the unpause() method is invoked, if the MediaController is a paused media controller,

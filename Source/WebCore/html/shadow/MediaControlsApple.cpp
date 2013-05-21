@@ -307,7 +307,7 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
     if (m_textTrackSelButton)
         m_textTrackSelButton->setMediaController(controller);
 
-    addtrackControls();
+    updateTrackControls();
 #endif
 }
 
@@ -416,11 +416,11 @@ void MediaControlsApple::reset()
     makeOpaque();
 }
 
-void MediaControlsApple::addtrackControls()
+void MediaControlsApple::updateTrackControls()
 {
-    showVideoTrackDisplay();
-    showAudioTrackDisplay();
-    showTextTrackDisplay();
+    updateVideoTrackDisplay();
+    updateAudioTrackDisplay();
+    updateTextTrackDisplay();
 }
 
 void MediaControlsApple::createVideoTrackDisplay()
@@ -428,33 +428,49 @@ void MediaControlsApple::createVideoTrackDisplay()
     if (m_videoTrackSelButton)
         return;
 
-    RefPtr<MediaControls> controls = adoptRef(new MediaControlsApple(document()));
-
-    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), controls.get());
-    controls.release();
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), this);
     m_videoTrackSelButton = videoDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
-    ExceptionCode ec;
-    insertBefore(videoDisplayButton.release(), m_panel, ec, AttachLazily);
+    insertBefore(videoDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
-void MediaControlsApple::hideVideoTrackDisplay()
+void MediaControlsApple::createTextTrackSelDisplay()
 {
-    if (!m_videoTrackSelButton)
-        createVideoTrackDisplay();
+    if (m_textTrackSelButton)
+        return;
 
-    m_videoTrackSelButton->hide();
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), this);
+    m_textTrackSelButton = textTrackSelButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    insertBefore(textTrackSelButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
 void MediaControlsApple::updateTextTrackSelDisplay()
 {
-    showTextTrackSelDisplay();
+    if (!m_textTrackSelButton)
+        createTextTrackSelDisplay();
+
+    TextTrackList* tracks = m_textTrackSelButton->mediaController()->textTracks();
+    if (tracks->length()) {
+        m_textTrackSelButton->show();
+        m_textTrackSelButton->display();
+    } else
+        m_textTrackSelButton->hide();
 }
 
 void MediaControlsApple::updateVideoTrackDisplay()
 {
-    showVideoTrackDisplay();
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    VideoTrackList* tracks = m_videoTrackSelButton->mediaController()->videoTracks();
+    if (tracks->length()>1) {
+        m_videoTrackSelButton->show();
+        m_videoTrackSelButton->display();
+    } else
+        m_videoTrackSelButton->hide();
 }
 
 void MediaControlsApple::setVideoTrackSelected(int index)
@@ -466,44 +482,17 @@ void MediaControlsApple::setVideoTrackSelected(int index)
     m_videoTrackSelButton->display();
 }
 
-void MediaControlsApple::showTextTrackSelDisplay()
-{
-    if (!m_textTrackSelButton)
-        createTextTrackDisplay();
-
-    m_textTrackSelButton->show();
-    m_textTrackSelButton->display();
-}
-
-void MediaControlsApple::showVideoTrackDisplay()
-{
-    if (!m_videoTrackSelButton)
-        createVideoTrackDisplay();
-
-    m_videoTrackSelButton->show();
-    m_videoTrackSelButton->display();
-}
-
-void MediaControlsApple::showAudioTrackDisplay()
-{
-    if (!m_audioTrackSelButton)
-        createAudioTrackDisplay();
-
-    m_audioTrackSelButton->show();
-    m_audioTrackSelButton->display();
-}
-
-void MediaControlsApple::hideAudioTrackDisplay()
-{
-    if (!m_audioTrackSelButton)
-        createAudioTrackDisplay();
-
-    m_audioTrackSelButton->hide();
-}
-
 void MediaControlsApple::updateAudioTrackDisplay()
 {
-    showAudioTrackDisplay();
+    if (!m_audioTrackSelButton)
+        createAudioTrackDisplay();
+
+    AudioTrackList* tracks = m_audioTrackSelButton->mediaController()->audioTracks();
+    if (tracks->length()>1) {
+        m_audioTrackSelButton->show();
+        m_audioTrackSelButton->display();
+    } else
+        m_audioTrackSelButton->hide();
 }
 
 void MediaControlsApple::setAudioTrackSelected(int index)
@@ -519,15 +508,11 @@ void MediaControlsApple::createAudioTrackDisplay()
     if (m_audioTrackSelButton)
         return;
 
-    RefPtr<MediaControls> controls = adoptRef(new MediaControlsApple(document()));
-
-    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), controls.get());
-    controls.release();
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), this);
     m_audioTrackSelButton = audioDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
-    ExceptionCode ec;
-    insertBefore(audioDisplayButton.release(), m_panel, ec, AttachLazily);
+    insertBefore(audioDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
 }
 
 void MediaControlsApple::setTextTrackSelected(int index)
