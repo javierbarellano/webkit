@@ -307,7 +307,7 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
     if (m_textTrackSelButton)
         m_textTrackSelButton->setMediaController(controller);
 
-    addtrackControls();
+    updateTrackControls();
 #endif
 }
 
@@ -416,7 +416,7 @@ void MediaControlsApple::reset()
     makeOpaque();
 }
 
-void MediaControlsApple::addtrackControls()
+void MediaControlsApple::updateTrackControls()
 {
     updateVideoTrackDisplay();
     updateAudioTrackDisplay();

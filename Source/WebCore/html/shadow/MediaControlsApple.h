@@ -63,7 +63,7 @@ public:
     virtual void closedCaptionTracksChanged() OVERRIDE;
 
 #if ENABLE(VIDEO_TRACK)
-    virtual void addtrackControls();
+    virtual void updateTrackControls();
 
     virtual void createTextTrackSelDisplay();
     virtual void updateTextTrackSelDisplay();
