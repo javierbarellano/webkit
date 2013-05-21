@@ -452,6 +452,14 @@ void MediaControlsApple::updateTextTrackSelDisplay()
     if (!m_textTrackSelButton)
         createTextTrackSelDisplay();
 
+    // The control doesn't show up if it is hidden when the renderer is created
+    // So, fool the control if we don't have a renderer
+    if (!m_textTrackSelButton->renderer()) {
+        m_textTrackSelButton->show();
+        m_textTrackSelButton->display();
+        return;
+    }
+
     TextTrackList* tracks = m_textTrackSelButton->mediaController()->textTracks();
     if (tracks->length()) {
         m_textTrackSelButton->show();
@@ -464,6 +472,14 @@ void MediaControlsApple::updateVideoTrackDisplay()
 {
     if (!m_videoTrackSelButton)
         createVideoTrackDisplay();
+
+    // The control doesn't show up if it is hidden when the renderer is created
+    // So, fool the control if we don't have a renderer
+    if (!m_videoTrackSelButton->renderer()) {
+        m_videoTrackSelButton->show();
+        m_videoTrackSelButton->display();
+        return;
+    }
 
     VideoTrackList* tracks = m_videoTrackSelButton->mediaController()->videoTracks();
     if (tracks->length()>1) {
@@ -486,6 +502,14 @@ void MediaControlsApple::updateAudioTrackDisplay()
 {
     if (!m_audioTrackSelButton)
         createAudioTrackDisplay();
+
+    // The control doesn't show up if it is hidden when the renderer is created
+    // So, fool the control if we don't have a renderer
+    if (!m_audioTrackSelButton->renderer()) {
+        m_audioTrackSelButton->show();
+        m_audioTrackSelButton->display();
+        return;
+    }
 
     AudioTrackList* tracks = m_audioTrackSelButton->mediaController()->audioTracks();
     if (tracks->length()>1) {
