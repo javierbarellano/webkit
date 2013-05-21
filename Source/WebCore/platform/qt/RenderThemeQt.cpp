@@ -796,12 +796,12 @@ bool RenderThemeQt::paintMediaFastForwardButton(RenderObject* o, const PaintInfo
     p->painter->setBrush(getMediaControlForegroundColor(o));
 
     QPointF playPolygon[7];
-    double x=10;
-    double y=0;
-    double xc=50;
-    double yc=35;
-    double xe=90;
-    double ye=70;
+    double xc = 50;
+    double yc = 50;
+    double x = xc - 40;
+    double y = yc - 25;
+    double xe = xc + 40;
+    double ye = yc + 25;
 
     playPolygon[0].setX(x);  playPolygon[0].setY(y);
     playPolygon[1].setX(xc); playPolygon[1].setY(yc);
@@ -833,12 +833,12 @@ bool RenderThemeQt::paintMediaRewindButton(RenderObject* o, const PaintInfo& pai
     p->painter->setBrush(getMediaControlForegroundColor(o));
 
     QPointF playPolygon[7];
-    double x=10;
-    double y=0;
-    double xc=50;
-    double yc=35;
-    double xe=90;
-    double ye=70;
+    double xc = 50;
+    double yc = 50;
+    double x = xc - 40;
+    double y = yc - 25;
+    double xe = xc + 40;
+    double ye = yc + 25;
 
     playPolygon[0].setX(x);  playPolygon[0].setY(yc);
     playPolygon[1].setX(xc); playPolygon[1].setY(y);
