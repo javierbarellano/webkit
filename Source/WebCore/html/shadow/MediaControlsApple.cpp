@@ -428,10 +428,7 @@ void MediaControlsApple::createVideoTrackDisplay()
     if (m_videoTrackSelButton)
         return;
 
-    RefPtr<MediaControls> controls = adoptRef(new MediaControlsApple(document()));
-
-    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), controls.get());
-    controls.release();
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), this);
     m_videoTrackSelButton = videoDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
@@ -443,10 +440,7 @@ void MediaControlsApple::createTextTrackSelDisplay()
     if (m_textTrackSelButton)
         return;
 
-    RefPtr<MediaControls> controls = adoptRef(new MediaControlsApple(document()));
-
-    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), controls.get());
-    controls.release();
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), this);
     m_textTrackSelButton = textTrackSelButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
@@ -514,10 +508,7 @@ void MediaControlsApple::createAudioTrackDisplay()
     if (m_audioTrackSelButton)
         return;
 
-    RefPtr<MediaControls> controls = adoptRef(new MediaControlsApple(document()));
-
-    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), controls.get());
-    controls.release();
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), this);
     m_audioTrackSelButton = audioDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
