@@ -659,7 +659,7 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
                 break;
 
             if (rates[i] == currentRate) {
-                int nextI = (i==(size - 1)) ? (size - 1) : (i + 1);
+                int nextI = (i == (size - 1)) ? (size - 1) : (i + 1);
                 nextRate = rates[nextI];
                 break;
             }
@@ -727,7 +727,7 @@ void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
 
 
             if (rates[i] == currentRate) {
-                int nextI = (i == 0) ? 0 : (i - 1);
+                int nextI = (!i) ? 0 : (i - 1);
                 nextRate = rates[nextI];
                 break;
             }
