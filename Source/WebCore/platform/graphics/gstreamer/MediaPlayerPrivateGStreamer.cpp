@@ -430,8 +430,7 @@ void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
     INFO_MEDIA_MESSAGE("Update playrates supported");
     if (m_source) {
 
-        if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_source.get()), "supported_rates"))
-        {
+        if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_source.get()), "supported_rates")) {
             // Get supported rates property value which is a GArray
             GArray* arrayVal = 0;
             g_object_get(m_source.get(), "supported_rates", &arrayVal, NULL);
