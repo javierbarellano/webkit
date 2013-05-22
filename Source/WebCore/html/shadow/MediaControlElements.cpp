@@ -655,7 +655,7 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
                 continue;
 
             nextRate = rates[i];
-            if (currentRate == 0.0 || currentRate == 1.0)
+            if (currentRate <= 0.0 || currentRate == 1.0)
                 break;
 
             if (rates[i] == currentRate) {
@@ -664,6 +664,7 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
                 break;
             }
         }
+
         mediaController()->setPlaybackRate(nextRate);
         mediaController()->play();
         event->setDefaultHandled();
@@ -721,7 +722,7 @@ void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
                 continue;
 
             nextRate = rates[i];
-            if (currentRate == 0.0 || currentRate == 1.0)
+            if (currentRate == 0.0 || currentRate >= 1.0)
                 break;
 
 
