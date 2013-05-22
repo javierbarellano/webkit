@@ -645,9 +645,9 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
         Vector<double> rates = mediaController()->getSupportedPlayRates();
         double currentRate = mediaController()->paused() ? 0.0 : mediaController()->playbackRate();
         double nextRate = 1.0;
-        int size = (int)rates.size();
+        size_t size = rates.size();
 
-        for (int i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
 
             // Skip negative values (This is fast forward)
             // Skip fractional values if playing
@@ -659,7 +659,7 @@ void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
                 break;
 
             if (rates[i] == currentRate) {
-                int nextI = (i == (size - 1)) ? (size - 1) : (i + 1);
+                size_t nextI = (i == (size - 1)) ? (size - 1) : (i + 1);
                 nextRate = rates[nextI];
                 break;
             }
@@ -724,7 +724,6 @@ void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
             nextRate = rates[i];
             if (currentRate == 0.0 || currentRate >= 1.0)
                 break;
-
 
             if (rates[i] == currentRate) {
                 int nextI = (!i) ? 0 : (i - 1);
