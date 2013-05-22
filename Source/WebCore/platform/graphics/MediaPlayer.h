@@ -273,11 +273,6 @@ public:
 
     //Tell client what rates we support
     void playbackRatesSupported(Vector<double> &rates) {
-        /*
-        m_rates.clear();
-        for (int i = 0; i < count; i++)
-            m_rates.append(rates[i]);
-            */
         m_rates = rates;
     }
     Vector<double> getPlayRates() { return m_rates; }

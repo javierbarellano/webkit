@@ -428,33 +428,29 @@ void MediaPlayerPrivateGStreamer::prepareToPlay()
 void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
 {
     INFO_MEDIA_MESSAGE("Update playrates supported");
-    if (m_source && m_source.get()) {
-        if (g_strcmp0(G_OBJECT_TYPE_NAME(m_source.get()), "GstDlnaSrc"))
-            INFO_MEDIA_MESSAGE("Source is NOT dlnasrc, type: %s",
-                G_OBJECT_TYPE_NAME(m_source.get()));
-        else {
-            INFO_MEDIA_MESSAGE("Source is dlnasrc, type: %s",
-                G_OBJECT_TYPE_NAME(m_source.get()));
+    if (m_source) {
 
+        if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_source.get()), "supported_rates"))
+        {
             // Get supported rates property value which is a GArray
             GArray* arrayVal = 0;
-            gint i = 0;
             g_object_get(m_source.get(), "supported_rates", &arrayVal, NULL);
             if (arrayVal) {
                 Vector<double> rates;
 
                 INFO_MEDIA_MESSAGE("Supported rates cnt: %d\n", arrayVal->len);
-                for (i = 0; i < arrayVal->len; i++) {
+                for (gint i = 0; i < arrayVal->len; i++) {
                     rates.append(g_array_index(arrayVal, gfloat, i));
 
                     INFO_MEDIA_MESSAGE("Retrieved rate %d: %0.3f\n", (i+1), rates[i]);
                 }
 
-                INFO_MEDIA_MESSAGE("Calling player to update rates");
                 m_player->playbackRatesSupported(rates);
             } else
                 INFO_MEDIA_MESSAGE("Got null value for supported rates property\n");
-        }
+        } else
+            INFO_MEDIA_MESSAGE("Source type: %s did not have supported_rates property",
+                    G_OBJECT_TYPE_NAME(m_source.get()));
     } else
         INFO_MEDIA_MESSAGE("Source was NULL");
 }
