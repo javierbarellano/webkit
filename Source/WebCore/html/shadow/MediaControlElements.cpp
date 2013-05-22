@@ -71,6 +71,8 @@
 #include "RenderPart.h"
 #endif
 
+#include <wtf/Vector.h>
+
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -636,12 +638,33 @@ PassRefPtr<MediaControlFastForwardButtonElement> MediaControlFastForwardButtonEl
 
 void MediaControlFastForwardButtonElement::defaultEventHandler(Event* event)
 {
-    updateDisplayType();
+    // Each click increases the fast forward speed until it reaches the fastest speed
+    // If it was paused, then it starts with the first fractional speed and increments from there
     if (event->type() == eventNames().clickEvent) {
-        if (mediaController()->playbackRate() > 1.0f)
-            mediaController()->setPlaybackRate(1.0f);
-        else
-            mediaController()->setPlaybackRate(2.0f);
+
+        Vector<double> rates = mediaController()->getSupportedPlayRates();
+        double currentRate = mediaController()->paused() ? 0.0 : mediaController()->playbackRate();
+        double nextRate = 1.0;
+        int size = (int)rates.size();
+
+        for (int i = 0; i < size; i++) {
+
+            // Skip negative values (This is fast forward)
+            // Skip fractional values if playing
+            if (rates[i] < 0.0 || (rates[i] <= 1.0 && !mediaController()->paused()))
+                continue;
+
+            nextRate = rates[i];
+            if (currentRate == 0.0 || currentRate == 1.0)
+                break;
+
+            if (rates[i] == currentRate) {
+                int nextI = (i==(size - 1)) ? (size - 1) : (i + 1);
+                nextRate = rates[nextI];
+                break;
+            }
+        }
+        mediaController()->setPlaybackRate(nextRate);
         mediaController()->play();
         event->setDefaultHandled();
     }
@@ -681,11 +704,35 @@ PassRefPtr<MediaControlRewindButtonElement> MediaControlRewindButtonElement::cre
 
 void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
 {
+    // Each click increases the rewind speed until it reaches the fastest speed
+    // If it was paused, then it starts with the first fractional speed and increments from there
     if (event->type() == eventNames().clickEvent) {
-        if (mediaController()->playbackRate() < 1.0f)
-            mediaController()->setPlaybackRate(1.0f);
-        else
-            mediaController()->setPlaybackRate(-2.0f);
+
+        Vector<double> rates = mediaController()->getSupportedPlayRates();
+        double currentRate = mediaController()->paused() ? 0.0 : mediaController()->playbackRate();
+        double nextRate = 1.0;
+        int size = (int)rates.size();
+
+        for (int i = (size - 1); i >= 0; i--) {
+
+            // Skip positive values (This is rewind)
+            // Skip fractional values if playing
+            if (rates[i] > 0.0 || (abs(rates[i]) <= 1.0 && !mediaController()->paused()))
+                continue;
+
+            nextRate = rates[i];
+            if (currentRate == 0.0 || currentRate == 1.0)
+                break;
+
+
+            if (rates[i] == currentRate) {
+                int nextI = (i == 0) ? 0 : (i - 1);
+                nextRate = rates[nextI];
+                break;
+            }
+        }
+
+        mediaController()->setPlaybackRate(nextRate);
         mediaController()->play();
         event->setDefaultHandled();
     }
