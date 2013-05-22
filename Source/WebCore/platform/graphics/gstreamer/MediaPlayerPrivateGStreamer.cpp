@@ -36,6 +36,7 @@
 #include "SecurityOrigin.h"
 #include "TimeRanges.h"
 #include "WebKitWebSourceGStreamer.h"
+#include <glib.h>
 #include <gst/gst.h>
 #include <gst/pbutils/missing-plugins.h>
 #include <limits>
@@ -326,6 +327,8 @@ void MediaPlayerPrivateGStreamer::load(const String& url)
 
     if (!m_delayingLoad)
         commitLoad();
+
+    updatePlayRatesSupported();
 }
 
 #if ENABLE(MEDIA_SOURCE)
@@ -420,6 +423,41 @@ void MediaPlayerPrivateGStreamer::prepareToPlay()
         m_delayingLoad = false;
         commitLoad();
     }
+}
+
+void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
+{
+    INFO_MEDIA_MESSAGE("Update playrates supported");
+    if (m_source && m_source.get()) {
+        if (g_strcmp0(G_OBJECT_TYPE_NAME(m_source.get()), "GstDlnaSrc"))
+            INFO_MEDIA_MESSAGE("Source is NOT dlnasrc, type: %s",
+                G_OBJECT_TYPE_NAME(m_source.get()));
+        else {
+            INFO_MEDIA_MESSAGE("Source is dlnasrc, type: %s",
+                G_OBJECT_TYPE_NAME(m_source.get()));
+
+            // Get supported rates property value which is a GArray
+            GArray* arrayVal = 0;
+            gint i = 0;
+            g_object_get(m_source.get(), "supported_rates", &arrayVal, 0);
+            if (arrayVal) {
+                double rates[arrayVal->len];
+
+                INFO_MEDIA_MESSAGE("Supported rates cnt: %d\n", arrayVal->len);
+                for (i = 0; i < arrayVal->len; i++) {
+                    rates[i] = g_array_index(arrayVal, gfloat, i);
+
+                    INFO_MEDIA_MESSAGE("Retrieved rate %d: %f\n", (i+1), rates[i]);
+                    i++;
+                }
+
+                INFO_MEDIA_MESSAGE("Calling player to update rates");
+                m_player->playbackRatesSupported(rates, arrayVal->len);
+            } else
+                INFO_MEDIA_MESSAGE("Got null value for supported rates property\n");
+        }
+    } else
+        INFO_MEDIA_MESSAGE("Source was NULL");
 }
 
 void MediaPlayerPrivateGStreamer::play()
@@ -1593,6 +1631,9 @@ bool MediaPlayerPrivateGStreamer::loadNextLocation()
                 // Set the new uri and start playing.
                 g_object_set(m_pipeline.get(), "uri", newUrl.string().utf8().data(), NULL);
                 m_url = newUrl;
+
+                updatePlayRatesSupported();
+
                 gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
                 return true;
             }

@@ -131,6 +131,8 @@ private:
     void setDownloadBuffering();
     void processBufferingStats(GstMessage*);
 
+    void updatePlayRatesSupported();
+
     virtual String engineDescription() const { return "GStreamer"; }
     virtual bool isLiveStream() const { return m_isStreaming; }
 
