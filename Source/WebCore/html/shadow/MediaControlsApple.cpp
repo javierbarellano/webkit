@@ -695,8 +695,10 @@ void MediaControlsApple::updateTrickModeButtons()
         rates = m_mediaController->getSupportedPlayRates();
 
     if (rates.size()) {
-        if (m_FastForwardButton)
+        if (m_FastForwardButton && rates[rates.size() - 1] > 1.0)
             m_FastForwardButton->show();
+        else
+            m_FastForwardButton->hide();
 
         if (m_rewindButton) {
             if (rates[0] < 0.0)
