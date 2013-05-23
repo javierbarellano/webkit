@@ -210,6 +210,19 @@ void RenderTheme::adjustStyle(StyleResolver* styleResolver, RenderStyle* style, 
         return adjustMenuListStyle(styleResolver, style, e);
     case MenulistButtonPart:
         return adjustMenuListButtonStyle(styleResolver, style, e);
+    case MediaPlayButtonPart:
+    case MediaFastForwardButtonPart:
+    case MediaRewindButtonPart:
+    case MediaCurrentTimePart:
+    case MediaTimeRemainingPart:
+    case MediaEnterFullscreenButtonPart:
+    case MediaExitFullscreenButtonPart:
+    case MediaMuteButtonPart:
+    case MediaVolumeSliderContainerPart:
+    case MediaVideoTrackSelButtonPart:
+    case MediaAudioTrackSelButtonPart:
+    case MediaTextTrackSelButtonPart:
+        return adjustMediaControlStyle(styleResolver, style, e);
     case MediaSliderPart:
     case MediaVolumeSliderPart:
     case MediaFullScreenVolumeSliderPart:
