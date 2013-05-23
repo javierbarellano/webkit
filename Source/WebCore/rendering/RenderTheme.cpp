@@ -219,7 +219,6 @@ void RenderTheme::adjustStyle(StyleResolver* styleResolver, RenderStyle* style, 
     case MediaExitFullscreenButtonPart:
     case MediaMuteButtonPart:
     case MediaVolumeSliderContainerPart:
-        return adjustMediaControlStyle(styleResolver, style, e);
     case MediaVideoTrackSelButtonPart:
     case MediaAudioTrackSelButtonPart:
     case MediaTextTrackSelButtonPart:

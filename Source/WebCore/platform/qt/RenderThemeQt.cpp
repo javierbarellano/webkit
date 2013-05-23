@@ -571,28 +571,6 @@ double RenderThemeQt::mediaControlsBaselineOpacity() const
     return 0.4;
 }
 
-void RenderThemeQt::adjustMediaControlStyle(StyleResolver* selector, RenderStyle* style, Element* element) const
-{
-    ControlPart part = style->appearance();
-
-    // ToDo: We need to track this down to why MediaControls.css applies
-    // to all controls, but this one.
-    // MediaControls.css has display: -webkit-box and it is coming out NONE
-	if (part == MediaRewindButtonPart && style->display() == NONE)
-		style->setDisplay(BOX);
-	else if (part == MediaVideoTrackSelButtonPart ||
-		part == MediaAudioTrackSelButtonPart ||
-		part == MediaTextTrackSelButtonPart) {
-
-		//printf("adjustMediaControlStyle(%d) %f\n", part, style->minWidth().value());
-		//Length mw(style->width());
-		//mw.setValue(Fixed, mw.intValue() + 150);
-		//style->setMinWidth(mw);
-	}
-}
-
-
-
 void RenderThemeQt::paintMediaBackground(QPainter* painter, const IntRect& r) const
 {
     painter->setPen(Qt::NoPen);

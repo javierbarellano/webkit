@@ -93,6 +93,8 @@ class MediaControls : public HTMLDivElement {
     virtual void toggleClosedCaptionTrackList() { }
     virtual void closedCaptionTracksChanged();
 
+    virtual void updateTrickModeButtons() { }
+
     virtual void enteredFullscreen();
     virtual void exitedFullscreen();
 

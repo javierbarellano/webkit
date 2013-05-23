@@ -95,7 +95,7 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
         return 0;
 
     RefPtr<MediaControlFastForwardButtonElement> FastForwardButton = MediaControlFastForwardButtonElement::create(document);
-    controls->m_FastForwardButton = FastForwardButton.get();
+    controls->m_fastForwardButton = FastForwardButton.get();
     panel->appendChild(FastForwardButton.release(), ec, AttachLazily);
     if (ec)
         return 0;
@@ -270,8 +270,8 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
 
     if (m_rewindButton)
         m_rewindButton->setMediaController(controller);
-    if (m_FastForwardButton)
-        m_FastForwardButton->setMediaController(controller);
+    if (m_fastForwardButton)
+        m_fastForwardButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -308,6 +308,7 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_textTrackSelButton->setMediaController(controller);
 
     updateTrackControls();
+    updateTrickModeButtons();
 #endif
 }
 
@@ -414,6 +415,7 @@ void MediaControlsApple::reset()
     }
 
     makeOpaque();
+    updateTrickModeButtons();
 }
 
 void MediaControlsApple::updateTrackControls()
@@ -684,6 +686,34 @@ void MediaControlsApple::closedCaptionTracksChanged()
         else
             m_toggleClosedCaptionsButton->hide();
     }
+}
+
+void MediaControlsApple::updateTrickModeButtons()
+{
+    Vector<double> rates;
+    if (m_mediaController)
+        rates = m_mediaController->getSupportedPlayRates();
+
+    if (rates.size()) {
+        if (m_fastForwardButton && rates[rates.size() - 1] > 1.0)
+            m_fastForwardButton->show();
+        else if (m_fastForwardButton)
+            m_fastForwardButton->hide();
+
+        if (m_rewindButton) {
+            if (rates[0] < 0.0)
+                m_rewindButton->show();
+            else
+                m_rewindButton->hide();
+        }
+        return;
+    }
+
+    if (m_fastForwardButton)
+        m_fastForwardButton->hide();
+
+    if (m_rewindButton)
+        m_rewindButton->hide();
 }
 
 }

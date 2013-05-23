@@ -143,7 +143,7 @@ video::-webkit-media-controls-fullscreen-button {
 }
 
 audio::-webkit-media-controls-rewind-button, video::-webkit-media-controls-rewind-button {
-    display: none;
+    display: -webkit-box;
 }
 
 audio::-webkit-media-controls-return-to-realtime-button, video::-webkit-media-controls-return-to-realtime-button {

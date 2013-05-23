@@ -176,6 +176,9 @@ public:
     // A characteristic of the media file, eg. video, audio, closed captions, etc, has changed.
     virtual void mediaPlayerCharacteristicChanged(MediaPlayer*) { }
     
+    // The video pipeline just updated the supported play rates
+    virtual void mediaPlayerPlaybackRatesSupportedChanged(MediaPlayer*) { }
+
 #if USE(ACCELERATED_COMPOSITING)
     // whether the rendering system can accelerate the display of this MediaPlayer.
     virtual bool mediaPlayerRenderingCanBeAccelerated(MediaPlayer*) { return false; }
@@ -274,6 +277,8 @@ public:
     //Tell client what rates we support
     void playbackRatesSupported(Vector<double> &rates) {
         m_rates = rates;
+        if (m_mediaPlayerClient)
+            m_mediaPlayerClient->mediaPlayerPlaybackRatesSupportedChanged(this);
     }
     Vector<double> getPlayRates() { return m_rates; }
 
