@@ -95,7 +95,7 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
         return 0;
 
     RefPtr<MediaControlFastForwardButtonElement> FastForwardButton = MediaControlFastForwardButtonElement::create(document);
-    controls->m_FastForwardButton = FastForwardButton.get();
+    controls->m_fastForwardButton = FastForwardButton.get();
     panel->appendChild(FastForwardButton.release(), ec, AttachLazily);
     if (ec)
         return 0;
@@ -270,8 +270,8 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
 
     if (m_rewindButton)
         m_rewindButton->setMediaController(controller);
-    if (m_FastForwardButton)
-        m_FastForwardButton->setMediaController(controller);
+    if (m_fastForwardButton)
+        m_fastForwardButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -695,10 +695,10 @@ void MediaControlsApple::updateTrickModeButtons()
         rates = m_mediaController->getSupportedPlayRates();
 
     if (rates.size()) {
-        if (m_FastForwardButton && rates[rates.size() - 1] > 1.0)
-            m_FastForwardButton->show();
-        else
-            m_FastForwardButton->hide();
+        if (m_fastForwardButton && rates[rates.size() - 1] > 1.0)
+            m_fastForwardButton->show();
+        else if (m_fastForwardButton)
+            m_fastForwardButton->hide();
 
         if (m_rewindButton) {
             if (rates[0] < 0.0)
@@ -709,8 +709,8 @@ void MediaControlsApple::updateTrickModeButtons()
         return;
     }
 
-    if (m_FastForwardButton)
-        m_FastForwardButton->hide();
+    if (m_fastForwardButton)
+        m_fastForwardButton->hide();
 
     if (m_rewindButton)
         m_rewindButton->hide();

@@ -86,7 +86,7 @@ private:
     virtual void defaultEventHandler(Event*) OVERRIDE;
 
     MediaControlRewindButtonElement* m_rewindButton;
-    MediaControlFastForwardButtonElement* m_FastForwardButton;
+    MediaControlFastForwardButtonElement* m_fastForwardButton;
     MediaControlReturnToRealtimeButtonElement* m_returnToRealTimeButton;
     MediaControlStatusDisplayElement* m_statusDisplay;
     MediaControlTimeRemainingDisplayElement* m_timeRemainingDisplay;
