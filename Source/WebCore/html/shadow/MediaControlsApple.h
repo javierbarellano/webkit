@@ -62,6 +62,8 @@ public:
     virtual void toggleClosedCaptionTrackList() OVERRIDE;
     virtual void closedCaptionTracksChanged() OVERRIDE;
 
+    virtual void updateTrickModeButtons();
+
 #if ENABLE(VIDEO_TRACK)
     virtual void updateTrackControls();
 

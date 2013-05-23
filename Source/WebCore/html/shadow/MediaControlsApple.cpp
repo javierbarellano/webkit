@@ -308,6 +308,7 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_textTrackSelButton->setMediaController(controller);
 
     updateTrackControls();
+    updateTrickModeButtons();
 #endif
 }
 
@@ -414,6 +415,7 @@ void MediaControlsApple::reset()
     }
 
     makeOpaque();
+    updateTrickModeButtons();
 }
 
 void MediaControlsApple::updateTrackControls()
@@ -684,6 +686,32 @@ void MediaControlsApple::closedCaptionTracksChanged()
         else
             m_toggleClosedCaptionsButton->hide();
     }
+}
+
+void MediaControlsApple::updateTrickModeButtons()
+{
+    Vector<double> rates;
+    if (m_mediaController)
+        rates = m_mediaController->getSupportedPlayRates();
+
+    if (rates.size()) {
+        if (m_FastForwardButton)
+            m_FastForwardButton->show();
+
+        if (m_rewindButton) {
+            if (rates[0] < 0.0)
+                m_rewindButton->show();
+            else
+                m_rewindButton->hide();
+        }
+        return;
+    }
+
+    if (m_FastForwardButton)
+        m_FastForwardButton->hide();
+
+    if (m_rewindButton)
+        m_rewindButton->hide();
 }
 
 }

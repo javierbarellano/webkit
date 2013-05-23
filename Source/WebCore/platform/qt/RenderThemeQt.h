@@ -97,8 +97,6 @@ public:
 #endif
 
 protected:
-    virtual void adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const;
-
     virtual bool paintCheckbox(RenderObject*, const PaintInfo&, const IntRect&);
     virtual void setCheckboxSize(RenderStyle*) const;
 
