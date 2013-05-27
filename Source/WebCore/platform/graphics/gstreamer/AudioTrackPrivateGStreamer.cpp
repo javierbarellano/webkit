@@ -81,6 +81,7 @@ AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> adder
     m_sinkPad = gst_element_get_request_pad(m_adder.get(), "sink_%u");
     ASSERT(m_sinkPad.get());
     GstPadLinkReturn ret = gst_pad_link(m_srcPad.get(), m_sinkPad.get());
+    UNUSED_PARAM(ret);
     ASSERT(GST_PAD_LINK_SUCCESSFUL(ret));
 
     g_signal_connect(m_adder.get(), "notify::active-pad", G_CALLBACK (audioTrackPrivateActivePadChangedCallback), this);
