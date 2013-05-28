@@ -618,6 +618,7 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
             ASSERT(audioSink);
 
             bool ret = gst_pad_link(audioSrc.get(), audioSink.get()) == GST_PAD_LINK_OK;
+            UNUSED_PARAM(ret);
             ASSERT(ret);
         }
 
@@ -656,6 +657,7 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
             ASSERT(videoSrc);
             ASSERT(videoSink);
             bool ret = gst_pad_link(videoSrc.get(), videoSink.get()) == GST_PAD_LINK_OK;
+            UNUSED_PARAM(ret);
             ASSERT(ret);
         }
         RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_videoSelector, pad);
@@ -695,6 +697,7 @@ void MediaPlayerPrivateGStreamer::padRemoved(GstPad* pad)
                         ASSERT(audioSink);
 
                         bool ret = gst_pad_unlink(audioSrc.get(), audioSink.get());
+                        UNUSED_PARAM(ret);
                         ASSERT(ret);
 
                         gst_bin_remove(GST_BIN(m_pipeline.get()), m_audioAdder.get());
@@ -739,6 +742,7 @@ void MediaPlayerPrivateGStreamer::padRemoved(GstPad* pad)
                     ASSERT(videoSrc);
                     ASSERT(videoSink);
                     bool ret = gst_pad_unlink(videoSrc.get(), videoSink.get());
+                    UNUSED_PARAM(ret);
                     ASSERT(ret);
 
                     gst_bin_remove(GST_BIN(m_pipeline.get()), m_videoSelector.get());

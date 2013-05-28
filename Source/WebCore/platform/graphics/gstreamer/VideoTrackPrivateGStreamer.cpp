@@ -79,6 +79,7 @@ VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> selec
     m_sinkPad = gst_element_get_request_pad(m_selector.get(), "sink_%u");
     ASSERT(m_sinkPad.get());
     GstPadLinkReturn ret = gst_pad_link(m_srcPad.get(), m_sinkPad.get());
+    UNUSED_PARAM(ret);
     ASSERT(GST_PAD_LINK_SUCCESSFUL(ret));
 
     g_signal_connect(m_selector.get(), "notify::active-pad", G_CALLBACK (videoTrackPrivateActivePadChangedCallback), this);
