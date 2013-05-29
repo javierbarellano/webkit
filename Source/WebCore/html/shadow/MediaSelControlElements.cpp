@@ -764,8 +764,8 @@ void MediaSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
     int listIndex = optionToListIndex(optionIndex);
 
     for (int i = 0; i < (int)items.size(); i++) {
-        MediaOptionElement* melmnt = static_cast<MediaOptionElement*>(items[i]);
-        melmnt->setSelected(i == optionIndex);
+        MediaOptionElement* mediaOptElement = static_cast<MediaOptionElement*>(items[i]);
+        mediaOptElement->setSelected(i == optionIndex);
         toHTMLOptionElement(items[i])->setSelectedState(i == listIndex);
     }
 
