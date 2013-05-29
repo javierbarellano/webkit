@@ -760,25 +760,14 @@ void MediaSelectElement::optionSelectionStateChanged(HTMLOptionElement* option, 
 
 void MediaSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
 {
-    bool shouldDeselect = !m_multiple || (flags & DeselectOtherOptions);
-
     const Vector<HTMLElement*>& items = listItems();
     int listIndex = optionToListIndex(optionIndex);
 
-    HTMLElement* element = 0;
-    if (listIndex >= 0) {
-        element = items[listIndex];
-        if (element->hasTagName(optionTag)) {
-            if (m_activeSelectionAnchorIndex < 0 || shouldDeselect)
-                setActiveSelectionAnchorIndex(listIndex);
-            if (m_activeSelectionEndIndex < 0 || shouldDeselect)
-                setActiveSelectionEndIndex(listIndex);
-            toHTMLOptionElement(element)->setSelectedState(true);
-        }
+    for (int i = 0; i < (int)items.size(); i++) {
+        MediaOptionElement* melmnt = static_cast<MediaOptionElement*>(items[i]);
+        melmnt->setSelected(i == optionIndex);
+        toHTMLOptionElement(items[i])->setSelectedState(i == listIndex);
     }
-
-    if (shouldDeselect)
-        deselectItemsWithoutValidation(element);
 
     // For the menu list case, this is what makes the selected element appear.
     if (RenderObject* renderer = this->renderer())
