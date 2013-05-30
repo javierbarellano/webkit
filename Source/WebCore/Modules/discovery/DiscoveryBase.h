@@ -26,49 +26,47 @@ class NavDsc;
 class DiscoveryBase : public UDPSocketHandleClient
 {
 public:
-	DiscoveryBase();
-	virtual ~DiscoveryBase();
+    DiscoveryBase();
+    virtual ~DiscoveryBase();
 
-	static void socketSend(const char *url, int port, const char *toSend, size_t sLen, char *bf, size_t *len);
-	static void HTTPget(const char *host, int port, const char *path, char *bf, size_t *len);
-	static void HTTPget(KURL &url, char *bf, size_t *len);
-	static void HTTPpost(KURL &url, char *postBody, char *optHeaders, char *bf, size_t *len);
+    static void socketSend(const char *url, int port, const char *toSend, size_t sLen, char *bf, size_t *len);
+    static void HTTPget(const char *host, int port, const char *path, char *bf, size_t *len);
 
-	// White list imp
-	virtual bool hostPortOk(const char* host, int port)=0;
+    // White list imp
+    virtual bool hostPortOk(const char* host, int port)=0;
 
-	virtual void getHostPort(const char *url, char* host, int *port);
-	virtual void getPath(const char *url,char* path);
+    virtual void getHostPort(const char *url, char* host, int *port);
+    virtual void getPath(const char *url, char* path);
 
 
-	bool canReceiveAnotherDev() {return canReceiveAnotherDev_;}
-	void resetCanReceiveAnotherDev() {canReceiveAnotherDev_ = false;}
+    bool canReceiveAnotherDev() {return m_canReceiveAnotherDev;}
+    void resetCanReceiveAnotherDev() {m_canReceiveAnotherDev = false;}
 
-	static void hexDump(const char *data, int len, int pos=0);
+    static void hexDump(const char *data, int len, int pos = 0);
 
-	virtual bool networkIsUp() { return m_netIsUp;}
+    virtual bool networkIsUp() { return m_netIsUp;}
 
-	UDPSocketHandle* socketHandle_;
+    UDPSocketHandle* m_socketHandle;
 
-	HNEventServerHandle* serverHandle_;
+    HNEventServerHandle* m_serverHandle;
 
 
-	bool m_stillRunning;
-	bool m_droppedStillRunning;
+    bool m_stillRunning;
+    bool m_droppedStillRunning;
 
     mutable RefPtr<UDPSocketHandle> m_udpSocket;
     mutable RefPtr<UDPSocketHandle> m_mcastSocket;
 
-	bool stopDicovery_;
-	bool threadDone_;
+    bool m_stopDicovery;
+    bool m_threadDone;
 
     std::string getElementValue(const char* buffer, const char* tag, char** ppos=0);
     std::vector<std::string> getElementArray(const char* buffer, const char* tag, char** ppos=0);
 
-	char url_[1024];
+    char m_url[1024];
 
-	NavDsc *navDsc_;
-	bool m_netIsUp;
+    NavDsc *m_navDsc;
+    bool m_netIsUp;
 
 protected:
 
@@ -78,9 +76,7 @@ protected:
     std::map<std::string,std::string> parseUDPMessage( const char *data, int dLen );
     std::string getTokenValue( std::map<std::string,std::string> map, std::string token );
 
-	bool canReceiveAnotherDev_;
-
-	//std::string cur_type_;
+    bool m_canReceiveAnotherDev;
 
     ThreadIdentifier m_tID;
     ThreadIdentifier m_tNotifyID;
