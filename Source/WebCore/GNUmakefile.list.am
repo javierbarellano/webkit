@@ -6421,12 +6421,16 @@ endif # END USE_GLES2
 
 if USE_GSTREAMER
 platform_sources += \
+	Source/WebCore/platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/GRefPtrGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GRefPtrGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.cpp \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h
+	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h \
+	Source/WebCore/platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h
 endif
 
 # ---

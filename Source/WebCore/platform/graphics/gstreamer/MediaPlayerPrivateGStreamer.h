@@ -32,12 +32,16 @@
 #include <gst/gst.h>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
+#include <wtf/Vector.h>
 
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
 typedef struct _GstElement GstElement;
 
 namespace WebCore {
+
+class AudioTrackPrivateGStreamer;
+class VideoTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
 public:
@@ -86,8 +90,10 @@ public:
     void loadingFailed(MediaPlayer::NetworkState);
 
     void videoChanged();
+    void videoCapsChanged();
     void audioChanged();
     void notifyPlayerOfVideo();
+    void notifyPlayerOfVideoCaps();
     void notifyPlayerOfAudio();
 
     void sourceChanged();
@@ -131,6 +137,9 @@ private:
     virtual bool isLiveStream() const { return m_isStreaming; }
 
 private:
+#if ENABLE(VIDEO_TRACK)
+    GRefPtr<GstElement> m_audioAdder;
+#endif
     GRefPtr<GstElement> m_playBin;
     GRefPtr<GstElement> m_source;
     float m_seekTime;
@@ -163,6 +172,7 @@ private:
     bool m_hasAudio;
     guint m_audioTimerHandler;
     guint m_videoTimerHandler;
+    guint m_videoCapsTimerHandler;
     GRefPtr<GstElement> m_webkitAudioSink;
     mutable long m_totalBytes;
     KURL m_url;
@@ -170,6 +180,11 @@ private:
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
+#if ENABLE(VIDEO_TRACK)
+    Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
+    Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
+    RefPtr<AudioTrackPrivateGStreamer> m_defaultAudioTrack;
+#endif
 };
 }
 

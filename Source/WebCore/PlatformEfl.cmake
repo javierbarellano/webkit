@@ -119,6 +119,7 @@ list(APPEND WebCore_SOURCES
     platform/graphics/freetype/GlyphPageTreeNodeFreeType.cpp
     platform/graphics/freetype/SimpleFontDataFreeType.cpp
 
+    platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/GRefPtrGStreamer.cpp
     platform/graphics/gstreamer/GStreamerGWorld.cpp
     platform/graphics/gstreamer/GStreamerUtilities.cpp
@@ -129,6 +130,7 @@ list(APPEND WebCore_SOURCES
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp
     platform/graphics/gstreamer/PlatformVideoWindowEfl.cpp
     platform/graphics/gstreamer/VideoSinkGStreamer.cpp
+    platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp
 
     platform/graphics/harfbuzz/HarfBuzzFaceCairo.cpp
