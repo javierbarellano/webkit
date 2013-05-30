@@ -43,9 +43,11 @@
 #include <wtf/text/CString.h>
 
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+#include "AudioTrackPrivateGStreamer.h"
 #include "InbandTextTrackPrivateGStreamer.h"
 #include "TextCombinerGStreamer.h"
 #include "TextSinkGStreamer.h"
+#include "VideoTrackPrivateGStreamer.h"
 #endif
 
 #ifdef GST_API_VERSION_1
@@ -104,7 +106,7 @@ static void mediaPlayerPrivateSourceChangedCallback(GObject*, GParamSpec*, Media
 
 static void mediaPlayerPrivateVideoSinkCapsChangedCallback(GObject*, GParamSpec*, MediaPlayerPrivateGStreamer* player)
 {
-    player->videoChanged();
+    player->videoCapsChanged();
 }
 
 static void mediaPlayerPrivateVideoChangedCallback(GObject*, MediaPlayerPrivateGStreamer* player)
@@ -138,6 +140,13 @@ static gboolean mediaPlayerPrivateVideoChangeTimeoutCallback(MediaPlayerPrivateG
 {
     // This is the callback of the timeout source created in ::videoChanged.
     player->notifyPlayerOfVideo();
+    return FALSE;
+}
+
+static gboolean mediaPlayerPrivateVideoCapsChangeTimeoutCallback(MediaPlayerPrivateGStreamer* player)
+{
+    // This is the callback of the timeout source created in ::videoCapsChanged.
+    player->notifyPlayerOfVideoCaps();
     return FALSE;
 }
 
@@ -268,6 +277,7 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_audioTimerHandler(0)
     , m_textTimerHandler(0)
     , m_videoTimerHandler(0)
+    , m_videoCapsTimerHandler(0)
     , m_readyTimerHandler(0)
     , m_webkitAudioSink(0)
     , m_totalBytes(-1)
@@ -280,8 +290,14 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
 MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 {
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    for (size_t i = 0; i < m_audioTracks.size(); ++i)
+        m_audioTracks[i]->disconnect();
+
     for (size_t i = 0; i < m_textTracks.size(); ++i)
         m_textTracks[i]->disconnect();
+
+    for (size_t i = 0; i < m_videoTracks.size(); ++i)
+        m_videoTracks[i]->disconnect();
 #endif
     if (m_fillTimer.isActive())
         m_fillTimer.stop();
@@ -319,14 +335,17 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     GRefPtr<GstPad> videoSinkPad = adoptGRef(gst_element_get_static_pad(m_webkitVideoSink.get(), "sink"));
     g_signal_handlers_disconnect_by_func(videoSinkPad.get(), reinterpret_cast<gpointer>(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
-    if (m_videoTimerHandler)
-        g_source_remove(m_videoTimerHandler);
-
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
 
     if (m_textTimerHandler)
         g_source_remove(m_textTimerHandler);
+
+    if (m_videoTimerHandler)
+        g_source_remove(m_videoTimerHandler);
+
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
@@ -630,18 +649,58 @@ void MediaPlayerPrivateGStreamer::videoChanged()
     m_videoTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoChangeTimeoutCallback), this);
 }
 
+void MediaPlayerPrivateGStreamer::videoCapsChanged()
+{
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
+    m_videoCapsTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(mediaPlayerPrivateVideoCapsChangeTimeoutCallback), this);
+}
+
 void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 {
     m_videoTimerHandler = 0;
 
-    gint videoTracks = 0;
+    gint numTracks = 0;
     if (m_playBin)
-        g_object_get(m_playBin.get(), "n-video", &videoTracks, NULL);
+        g_object_get(m_playBin.get(), "n-video", &numTracks, NULL);
 
-    m_hasVideo = videoTracks > 0;
+    m_hasVideo = numTracks > 0;
 
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    for (gint i = 0; i < numTracks; ++i) {
+        GstPad* pad;
+        g_signal_emit_by_name(m_playBin.get(), "get-video-pad", i, &pad, NULL);
+        ASSERT(pad);
+
+        if (i < static_cast<gint>(m_videoTracks.size())) {
+            RefPtr<VideoTrackPrivateGStreamer> existingTrack = m_videoTracks[i];
+            existingTrack->setIndex(i);
+            if (existingTrack->pad() == pad) {
+                gst_object_unref(pad);
+                continue;
+            }
+        }
+
+        RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_playBin, i, adoptGRef(pad));
+        m_videoTracks.append(track);
+        m_player->addVideoTrack(track.release());
+    }
+
+    while (static_cast<gint>(m_videoTracks.size()) > numTracks) {
+        RefPtr<VideoTrackPrivateGStreamer> track = m_videoTracks.last();
+        track->disconnect();
+        m_videoTracks.removeLast();
+        m_player->removeVideoTrack(track.release());
+    }
+#endif
+
+    m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
+}
+
+void MediaPlayerPrivateGStreamer::notifyPlayerOfVideoCaps()
+{
+    m_videoCapsTimerHandler = 0;
     m_videoSize = IntSize();
-
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 
@@ -656,10 +715,53 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 {
     m_audioTimerHandler = 0;
 
-    gint audioTracks = 0;
+    gint numTracks = 0;
     if (m_playBin)
-        g_object_get(m_playBin.get(), "n-audio", &audioTracks, NULL);
-    m_hasAudio = audioTracks > 0;
+        g_object_get(m_playBin.get(), "n-audio", &numTracks, NULL);
+
+    m_hasAudio = numTracks > 0;
+
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    for (gint i = 0; i < numTracks; ++i) {
+        GstPad* pad;
+        g_signal_emit_by_name(m_playBin.get(), "get-audio-pad", i, &pad, NULL);
+        ASSERT(pad);
+
+        if (i < static_cast<gint>(m_audioTracks.size())) {
+            RefPtr<AudioTrackPrivateGStreamer> existingTrack = m_audioTracks[i];
+            existingTrack->setIndex(i);
+            if (existingTrack->pad() == pad) {
+                gst_object_unref(pad);
+                continue;
+            }
+        }
+
+        RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_playBin, i, adoptGRef(pad));
+        m_audioTracks.insert(i, track);
+        m_player->addAudioTrack(track.release());
+    }
+
+    while (static_cast<gint>(m_audioTracks.size()) > numTracks) {
+        RefPtr<AudioTrackPrivateGStreamer> track = m_audioTracks.last();
+        track->disconnect();
+        m_audioTracks.removeLast();
+        if (track == m_defaultAudioTrack)
+            m_defaultAudioTrack = 0;
+        m_player->removeAudioTrack(track.release());
+    }
+
+    // Enable the first track automatically
+    if (!m_audioTracks.isEmpty()) {
+        RefPtr<AudioTrackPrivateGStreamer> firstTrack = m_audioTracks[0];
+        if (firstTrack != m_defaultAudioTrack) {
+            if (m_defaultAudioTrack)
+                m_defaultAudioTrack->setEnabled(false);
+            firstTrack->setEnabled(true);
+            m_defaultAudioTrack = firstTrack.release();
+        }
+    }
+#endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 
@@ -1776,6 +1878,11 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
         g_signal_connect(m_textAppSink.get(), "new-sample", G_CALLBACK(mediaPlayerPrivateNewTextSampleCallback), this);
 
         g_object_set(m_playBin.get(), "text-sink", m_textAppSink.get(), NULL);
+
+        GRefPtr<GstElement> audioAdder = gst_element_factory_make("adder", NULL);
+        ASSERT(audioAdder);
+
+        g_object_set(m_playBin.get(), "audio-stream-combiner", audioAdder.get(), NULL);
     }
 #endif
 

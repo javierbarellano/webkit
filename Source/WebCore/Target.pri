@@ -3335,13 +3335,17 @@ enable?(VIDEO) {
             platform/graphics/gstreamer/ImageGStreamerQt.cpp
         enable?(VIDEO_TRACK) {
             HEADERS += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h \
                 platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h \
                 platform/graphics/gstreamer/TextCombinerGStreamer.h \
-                platform/graphics/gstreamer/TextSinkGStreamer.h
+                platform/graphics/gstreamer/TextSinkGStreamer.h \
+                platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h
             SOURCES += \
+                platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp \
                 platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
                 platform/graphics/gstreamer/TextCombinerGStreamer.cpp \
-                platform/graphics/gstreamer/TextSinkGStreamer.cpp
+                platform/graphics/gstreamer/TextSinkGStreamer.cpp \
+                platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp
         }
         use?(NATIVE_FULLSCREEN_VIDEO) {
             HEADERS += \

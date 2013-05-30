@@ -1,11 +1,36 @@
-function testAttribute(uri, attribute, values)
+function testAddTrack(uri, type)
+{
+    var addtrackEventCount = 0;
+
+    function trackAdded(event)
+    {
+        consoleWrite("EVENT(" + event.type + ")");
+        compareTracks("event.track", "video." + type + "Tracks[" + addtrackEventCount + "]");
+        ++addtrackEventCount;
+        consoleWrite("");
+    }
+
+    function compareTracks(track1, track2)
+    {
+        var equal = (eval(track1) == eval(track2));
+        reportExpected(equal, track1, "==", track2, track1);
+    }
+
+    findMediaElement();
+    var tracks = eval("video." + type + "Tracks");
+    tracks.addEventListener("addtrack", trackAdded);
+    video.src = uri;
+    waitForEventAndEnd('canplaythrough');
+}
+
+function testAttribute(uri, type, attribute, values)
 {
     function canplaythrough()
     {
         consoleWrite("<br><i>** Check in-band kind attributes</i>");
-        testExpected("video.textTracks.length", values.length);
+        testExpected("video." + type +"Tracks.length", values.length);
         for (var i = 0; i < values.length; ++i) {
-            testExpected("video.textTracks[" + i + "]." + attribute, values[i]);
+            testExpected("video." + type +"Tracks[" + i + "]." + attribute, values[i]);
         }
 
         consoleWrite("");
@@ -75,7 +100,7 @@ function testCuesAddedOnce(uri)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testMode(uri)
+function testTextTrackMode(uri, type)
 {
     function seeked()
     {
@@ -109,7 +134,7 @@ function testMode(uri)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testStyle(uri)
+function testCueStyle(uri)
 {
     function seeked()
     {
@@ -141,7 +166,8 @@ function testStyle(uri)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testTrackOrder(uri) {
+function testTextTrackOrder(uri)
+{
     var addtrackEventCount = 0;
 
     function trackAdded(event)
