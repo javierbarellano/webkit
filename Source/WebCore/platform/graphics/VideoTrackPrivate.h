@@ -49,7 +49,14 @@ public:
     void setClient(VideoTrackPrivateClient* client) { m_client = client; }
     virtual VideoTrackPrivateClient* client() const OVERRIDE { return m_client; }
 
-    virtual void setSelected(bool selected) { m_selected = selected; };
+    virtual void setSelected(bool selected)
+    {
+        if (m_selected == selected)
+            return;
+        m_selected = selected;
+        if (m_client)
+            m_client->selectedChanged(this, m_selected);
+    };
     virtual bool selected() const { return m_selected; }
 
     enum Kind { Alternative, Captions, Main, Sign, Subtitles, Commentary, None };

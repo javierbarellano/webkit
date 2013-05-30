@@ -1286,3 +1286,7 @@ webkit.org/b/123369 [ Mavericks ] svg/filters/feSpecularLight-premultiplied.svg 
 webkit.org/b/123369 [ Mavericks ] svg/masking/mask-type-luminance.svg [ ImageOnlyFailure ]
 webkit.org/b/123369 [ Mavericks ] svg/masking/mask-type-not-set.svg [ ImageOnlyFailure ]
 webkit.org/b/123369 [ Mavericks ] svg/repaint/buffered-rendering-static-image.html [ ImageOnlyFailure ]
+
+# Audio and video tracks aren't supported on mac
+media/track/audio
+media/track/video

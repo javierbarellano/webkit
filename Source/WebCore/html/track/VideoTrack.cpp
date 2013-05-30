@@ -145,6 +145,7 @@ void VideoTrack::setSelected(const bool selected)
         return;
 
     m_selected = selected;
+    m_private->setSelected(selected);
 
     if (m_client)
         m_client->videoTrackSelectedChanged(this);

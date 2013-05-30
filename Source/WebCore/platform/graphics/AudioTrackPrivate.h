@@ -49,7 +49,14 @@ public:
     void setClient(AudioTrackPrivateClient* client) { m_client = client; }
     virtual AudioTrackPrivateClient* client() const OVERRIDE { return m_client; }
 
-    virtual void setEnabled(bool enabled) { m_enabled = enabled; };
+    virtual void setEnabled(bool enabled)
+    {
+        if (m_enabled == enabled)
+            return;
+        m_enabled = enabled;
+        if (m_client)
+            m_client->enabledChanged(this, enabled);
+    };
     virtual bool enabled() const { return m_enabled; }
 
     enum Kind { Alternative, Description, Main, MainDesc, Translation, Commentary, None };

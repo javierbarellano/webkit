@@ -145,7 +145,6 @@ void AudioTrack::setEnabled(const bool enabled)
         return;
 
     m_enabled = enabled;
-
     m_private->setEnabled(enabled);
 
     if (m_client)
