@@ -73,27 +73,27 @@ namespace WebCore
 
 DiscoveryBase::DiscoveryBase()
 {
-    m_udpSocket = NULL;
-    m_mcastSocket = NULL;
-    canReceiveAnotherDev_ = false;
-	threadDone_ = true;
-	socketHandle_ = NULL;
-	serverHandle_ = NULL;
-	m_netIsUp = false;
-	m_stillRunning = false;
-	m_droppedStillRunning = false;
-	m_tID = 0;
-	navDsc_ = NULL;
-	m_tNotifyID = 0;
-	m_tDroppedID = 0;
-	stopDicovery_ = false;
+    m_udpSocket = 0;
+    m_mcastSocket = 0;
+    m_canReceiveAnotherDev = false;
+    m_threadDone = true;
+    m_socketHandle = 0;
+    m_serverHandle = 0;
+    m_netIsUp = false;
+    m_stillRunning = false;
+    m_droppedStillRunning = false;
+    m_tID = 0;
+    m_navDsc = 0;
+    m_tNotifyID = 0;
+    m_tDroppedID = 0;
+    m_stopDicovery = false;
 }
 
 DiscoveryBase::~DiscoveryBase()
 {
-	stopDicovery_ = true;
-	while (!threadDone_) usleep(50000); // 50 ms
-
+    m_stopDicovery = true;
+    while (!m_threadDone)
+        usleep(50000); // 50 ms
 }
 
 // extremely primitive xml element parser. Returns value for FIRST occurance of tag or empty string if not found.
@@ -153,35 +153,33 @@ std::vector<std::string> DiscoveryBase::getElementArray(const char* buffer, cons
 
 void DiscoveryBase::getHostPort(const char *url, char* host, int *port)
 {
-	if (!url) {
-		ERR_LOG("getHostPort() url is NULL.\n");
-		return;
-	}
+    if (!url) {
+        ERR_LOG("getHostPort() url is 0.\n");
+        return;
+    }
 
-	NAV_LOG("getHostPort(%s)\n",url);
-	int start = 0;
-	if (strstr(url, "://"))
-	{
-		start = strstr(url, "://") - url + 3;
-	}
+    NAV_LOG("getHostPort(%s)\n", url);
+    int start = 0;
+    if (strstr(url, "://"))
+        start = strstr(url, "://") - url + 3;
 
-	strcpy(host, &url[start]);
-	int end = strstr(host, ":")-host;
-	host[end] = 0;
+    strcpy(host, &url[start]);
+    int end = strstr(host, ":")-host;
+    host[end] = 0;
 
-	char sPort[100];
-	strncpy(sPort, &host[end+1],20);
-	sPort[strlen(&host[end+1])] = 0;
+    char sPort[100];
+    strncpy(sPort, &host[end+1], 20);
+    sPort[strlen(&host[end+1])] = 0;
 
-	if (strchr(sPort,'/')) {
-		end = strchr(sPort,'/')-sPort;
-		sPort[end] = 0;
-	}
+    if (strchr(sPort, '/')) {
+        end = strchr(sPort, '/') - sPort;
+        sPort[end] = 0;
+    }
 
 	*port = atoi(sPort);
 }
 
-void DiscoveryBase::getPath(const char *url,char* path)
+void DiscoveryBase::getPath(const char *url, char* path)
 {
 	char bURL[4096];
 
@@ -230,61 +228,6 @@ void DiscoveryBase::HTTPget(const char *host, int port, const char *path, char *
 	//NAV_LOG("HTTPget: host=%s, port=%d, path=%s\n",host, port, path);
 
 	socketSend(host, port, toSend.str().c_str(), toSend.str().length(), bf, len);
-}
-
-void DiscoveryBase::HTTPget(KURL &url, char *bf, size_t *len)
-{
-	//NAV_LOG("HTTPget(KURL)\n");
-	String path = url.path();
-	String query = url.query();
-	std::string pq(path.ascii().data());
-	if (query.length())
-	{
-		pq += "?";
-		pq += std::string(query.ascii().data());
-	}
-	String host = url.host();
-	int port = url.port();
-
-	HTTPget(host.ascii().data(), port, pq.c_str(), bf, len);
-
-}
-
-// optHeaders can be NULL
-// optHeaders should include /r/n at the end of lines
-void DiscoveryBase::HTTPpost(KURL &url, char *postBody, char *optHeaders, char *bf, size_t *len)
-{
-	//NAV_LOG("HTTPget2(KURL)\n");
-	/*
-	POST /upnphost/udhisapi.dll?content=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5 HTTP/1.1
-	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
-	Content-Length: ???
-	Host: 10.36.0.237:2869
-	*/
-
-	String path = url.path();
-	String query = url.query();
-	std::string pq(path.ascii().data());
-	if (query.length())
-	{
-		pq += "?";
-		pq += std::string(query.ascii().data());
-	}
-	std::string host(url.host().ascii().data());
-	int port = url.port();
-
-	std::stringstream toSend;
-	toSend << "POST "<< pq << " http/1.1\r\n";
-	toSend << "User-Agent: Platinum/0.5.3.0, DLNADOC/1.50\r\n";
-	toSend << "Host: " << host << ":" << port << "\r\n\r\n";
-	toSend << "Content-Length: " << strlen(postBody) << "\r\n";
-	toSend << "Content-Type: application/soap+xml; charset=utf-8" << "\r\n";
-	if (optHeaders)
-		toSend << optHeaders;
-	toSend << "\r\n";
-	toSend << postBody << "\r\n\r\n";
-
-	socketSend(host.c_str(), port, toSend.str().c_str(), toSend.str().length(), bf, len);
 }
 
 // static
@@ -365,7 +308,7 @@ std::map<std::string,std::string> DiscoveryBase::parseUDPMessage( const char *da
             map[token] = value;
         }
 
-        p = strtok(NULL,"\r\n");
+        p = strtok(0, "\r\n");
     }
 
     //delete buffer;
