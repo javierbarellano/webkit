@@ -214,7 +214,6 @@ DiscoveryBase()
 
     m_api = 0;
     m_navDsc = 0;
-    m_tcpSocket = new std::map<long, KURL>();
 
     m_sendData = "M-SEARCH * HTTP/1.1\r\nST: upnp:rootdevice\r\nMX: 5\r\nMAN: \"ssdp:discover\"\r\nHOST: 239.255.255.250:1900\r\n\r\n";
 
@@ -232,7 +231,6 @@ UPnPSearch::~UPnPSearch()
         closeServer();
 
     m_devs.clear();
-    delete m_tcpSocket;
     m_instance = 0;
 }
 

@@ -151,8 +151,6 @@ private:
 
     bool m_sendPending;
 
-    std::map<long, KURL> *m_tcpSocket;
-
     // Private API support
     IDiscoveryAPI *m_api;
     std::map<std::string, UPnPDevMap> m_internalDevs;
