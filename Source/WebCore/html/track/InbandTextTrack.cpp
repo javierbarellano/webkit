@@ -37,6 +37,7 @@
 #include "Logging.h"
 #include "TextTrackCueGeneric.h"
 #include "TextTrackCueList.h"
+#include "WebVTTParser.h"
 #include <math.h>
 
 namespace WebCore {
@@ -257,6 +258,17 @@ void InbandTextTrack::removeGenericCue(InbandTextTrackPrivate*, GenericCueData* 
         removeCue(cue.get(), IGNORE_EXCEPTION);
     } else
         m_cueMap.remove(cueData);
+}
+
+void InbandTextTrack::addWebVTTCue(InbandTextTrackPrivate* trackPrivate, PassRefPtr<WebVTTCueData> prpCueData)
+{
+    UNUSED_PARAM(trackPrivate);
+    ASSERT(trackPrivate == m_private);
+
+    RefPtr<WebVTTCueData> cueData = prpCueData;
+    RefPtr<TextTrackCue> cue = TextTrackCue::create(scriptExecutionContext(), cueData->startTime(), cueData->endTime(), cueData->content());
+    cue->setCueSettings(cueData->settings());
+    addCue(cue.release());
 }
 
 void InbandTextTrack::removeCue(TextTrackCue* cue, ExceptionCode& ec)
