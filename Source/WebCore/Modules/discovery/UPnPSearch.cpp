@@ -208,14 +208,12 @@ UPnPSearch* UPnPSearch::create()
 UPnPSearch::UPnPSearch(const char *type) :
 DiscoveryBase()
 {
-    m_devLock = new Mutex();
     m_internalType = "";
     if (type)
         m_regTypes.insert(std::string(type));
 
     m_api = 0;
     m_navDsc = 0;
-    m_tcpSocket = new std::map<long, KURL>();
 
     m_sendData = "M-SEARCH * HTTP/1.1\r\nST: upnp:rootdevice\r\nMX: 5\r\nMAN: \"ssdp:discover\"\r\nHOST: 239.255.255.250:1900\r\n\r\n";
 
@@ -233,9 +231,7 @@ UPnPSearch::~UPnPSearch()
         closeServer();
 
     m_devs.clear();
-    delete m_tcpSocket;
     m_instance = 0;
-    delete m_devLock;
 }
 
 void UPnPSearch::closeServer()
@@ -245,7 +241,7 @@ void UPnPSearch::closeServer()
 
 void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::string& name)
 {
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     if (m_devs.find(type) != m_devs.end()) {
         UPnPDevMap dm = m_devs[type];
         if (dm.devMap.find(uuid) != dm.devMap.end())
@@ -254,7 +250,6 @@ void UPnPSearch::getUPnPFriendlyName(std::string uuid, std::string type, std::st
             ERR_LOG("getUPnPFriendlyName() UUID(%s) not found! dm.devMao.size=%d\n", uuid.c_str(), (int)dm.devMap.size());
     } else
         ERR_LOG("getUPnPFriendlyName() Type(%s) not found!\n", type.c_str());
-    m_devLock->unlock();
 
 }
 
@@ -322,15 +317,13 @@ std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, Nav
     createConnect(type);
     m_instance->m_navDsc = navDsc;
 
-    m_instance->m_devLock->lock();
+    MutexLocker lock(m_instance->m_devLock);
     m_instance->m_regTypes.insert(std::string(type));
 
     if (m_instance->m_devs.find(std::string(type)) != m_instance->m_devs.end()) {
         UPnPDevMap dm = m_instance->m_devs.find(std::string(type))->second;
-        m_instance->m_devLock->unlock();
         return (dm.devMap);
     }
-    m_instance->m_devLock->unlock();
 
     return empty;
 }
@@ -379,10 +372,9 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
                 } else if (st == "ssdp:byebye") {
                     NAV_LOG("Received NOTIFY:byebye: %s\n", uuid.c_str());
                     // We don't know which list(s) the device is on, so check them both.
-                    m_devLock->lock();
+                    MutexLocker lock(m_devLock);
                     removeDevice(&m_devs, uuid);
                     removeDevice(&m_internalDevs, uuid);
-                    m_devLock->unlock();
                 }
             }
         } else if (location.size() > 0) {
@@ -409,7 +401,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 void UPnPSearch::checkForDroppedDevs()
 {
     // NAV_LOG("checkForDroppedDevs() start devs: %d\n", devs_.size());
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     for (std::map<std::string, UPnPDevMap>::iterator i = m_devs.begin(); i != m_devs.end(); i++) {
         std::vector<std::string> dropMe;
         dropMe.clear();
@@ -461,7 +453,6 @@ void UPnPSearch::checkForDroppedDevs()
                 m_devs[type].devMap.find(dropMe.at(d))->second.online = true;
         }
     }
-    m_devLock->unlock();
 }
 
 void UPnPSearch::checkForDroppedInternalDevs()
@@ -528,7 +519,7 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
     char lhost[1000];
     int lport;
 
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     std::map<std::string, UPnPDevMap>::iterator it =  m_devs.begin();
     for (; it != m_devs.end(); it++) {
         UPnPDevMap dm = it->second;
@@ -539,13 +530,10 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 
             getHostPort(url.c_str(), lhost, &lport);
 
-            if (lport == port && !strcmp(host, lhost)) {
-                m_devLock->unlock();
+            if (lport == port && !strcmp(host, lhost))
                 return true;
-            }
         }
     }
-    m_devLock->unlock();
 
     return false;
 }
@@ -728,7 +716,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
         for (int i = 0; i < foundTypes.size(); i++) {
             std::string foundType = foundTypes.at(i);
 
-            m_devLock->lock();
+            MutexLocker lock(m_devLock);
             if (m_devs.find(foundType) == m_devs.end() || m_devs[foundType].devMap.find(sUuid) == m_devs[foundType].devMap.end()) {
 
                 dm = m_devs[foundType];
@@ -737,20 +725,17 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
                 it = dm.devMap.find(sUuid);
                 if (it != dm.devMap.end()) {
                     if (!dm.devMap[sUuid].changed(d)) {
-                        m_devLock->unlock();
                         continue;
                     }
                 }
 
                 dm.devMap[sUuid] = d;
                 m_devs[foundType] = dm;
-                m_devLock->unlock();
 
                 NAV_LOG("device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
                 if (m_navDsc)
                     m_navDsc->serviceOnline(foundType, m_devs[foundType].devMap[sUuid]);
-            } else
-                m_devLock->unlock();
+            }
         }
     }
 
@@ -783,7 +768,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
 bool UPnPSearch::isRegisteredType(const char* type, std::vector<std::string> &regType)
 {
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     if (m_regTypes.size() > 0) {
         std::set<std::string>::iterator i = m_regTypes.begin();
         while (i != m_regTypes.end()) {
@@ -792,10 +777,8 @@ bool UPnPSearch::isRegisteredType(const char* type, std::vector<std::string> &re
 
             i++;
         }
-        m_devLock->unlock();
         return regType.size()>0;
     }
-    m_devLock->unlock();
 
     return false;
 }
