@@ -633,7 +633,14 @@ void MediaPlayerPrivateGStreamer::padAdded(GstPad* pad)
         callback = reinterpret_cast<GSourceFunc>(mediaPlayerPrivateTextChangeTimeoutCallback);
 
 #if ENABLE(VIDEO_TRACK)
-        RefPtr<InbandTextTrackPrivateGStreamer> track = InbandTextTrackPrivateGStreamer::create(m_pipeline, pad);
+        InbandTextTrackPrivateGStreamer::Format format;
+        if (g_str_equal(name, "text/x-raw") || g_str_equal(name, "text/plain"))
+            format = InbandTextTrackPrivateGStreamer::PlainText;
+        else if (g_str_equal(name, "text/vtt"))
+            format = InbandTextTrackPrivateGStreamer::WebVTT;
+        else
+            format = InbandTextTrackPrivateGStreamer::Metadata;
+        RefPtr<InbandTextTrackPrivateGStreamer> track = InbandTextTrackPrivateGStreamer::create(m_pipeline, pad, format);
         MutexLocker lock(m_textTrackMutex);
         m_textTracks.append(track.release());
 #endif
