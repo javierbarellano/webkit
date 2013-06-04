@@ -30,6 +30,7 @@
 
 #include "GRefPtrGStreamer.h"
 #include "InbandTextTrackPrivate.h"
+#include "WebVTTParser.h"
 #include <gst/gstevent.h>
 #include <gst/gsttaglist.h>
 #include <wtf/Vector.h>
@@ -39,11 +40,18 @@ namespace WebCore {
 class MediaPlayerPrivateGStreamer;
 class GenericCueData;
 
-class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
+class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate, private WebVTTParserClient
+{
 public:
-    static PassRefPtr<InbandTextTrackPrivateGStreamer> create(GRefPtr<GstElement> pipeline, GstPad* pad)
+    enum Format {
+        PlainText,
+        WebVTT,
+        Metadata
+    };
+
+    static PassRefPtr<InbandTextTrackPrivateGStreamer> create(GRefPtr<GstElement> pipeline, GstPad* pad, Format format)
     {
-        return adoptRef(new InbandTextTrackPrivateGStreamer(pipeline, pad));
+        return adoptRef(new InbandTextTrackPrivateGStreamer(pipeline, pad, format));
     }
 
     ~InbandTextTrackPrivateGStreamer();
@@ -67,6 +75,12 @@ public:
     virtual AtomicString language() const OVERRIDE { return m_language; }
 
 private:
+    virtual void newCuesParsed() OVERRIDE;
+#if ENABLE(WEBVTT_REGIONS)
+    virtual void newRegionsParsed() OVERRIDE;
+#endif
+    virtual void fileFailedToParse() OVERRIDE;
+
     struct TextBufferData {
         String data;
         float end;
@@ -75,7 +89,7 @@ private:
 
     GstTagList* tags() const;
 
-    InbandTextTrackPrivateGStreamer(GRefPtr<GstElement>, GstPad*);
+    InbandTextTrackPrivateGStreamer(GRefPtr<GstElement>, GstPad*, Format);
 
     Vector<RefPtr<GenericCueData> > m_cues;
     Mutex m_cueMutex;
@@ -97,6 +111,8 @@ private:
     String m_language;
     bool m_hasBeenReported;
     bool m_isDisconnected;
+    const Format m_format;
+    OwnPtr<WebVTTParser> m_vttParser;
 };
 
 } // namespace WebCore

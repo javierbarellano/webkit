@@ -39,6 +39,7 @@ namespace WebCore {
 class Document;
 class InbandTextTrackPrivate;
 class TextTrackCue;
+class WebVTTCueData;
 
 class TextTrackCueMap {
 public:
@@ -80,6 +81,7 @@ private:
     virtual void updateGenericCue(InbandTextTrackPrivate*, GenericCueData*) OVERRIDE;
     virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) OVERRIDE;
     virtual void removeCue(TextTrackCue*, ExceptionCode&) OVERRIDE;
+    virtual void addWebVTTCue(InbandTextTrackPrivate*, PassRefPtr<WebVTTCueData>) OVERRIDE;
     virtual void setLabel(const AtomicString&) OVERRIDE;
     virtual void setLanguage(const AtomicString&) OVERRIDE;
     virtual void willRemoveTextTrackPrivate(InbandTextTrackPrivate*) OVERRIDE;

@@ -79,7 +79,7 @@ static gboolean inbandTextTrackPrivateTagTimeoutCallback(InbandTextTrackPrivateG
     return FALSE;
 }
 
-InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElement> pipeline, GstPad* pad)
+InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElement> pipeline, GstPad* pad, Format format)
     : m_pad(pad)
     , m_pipeline(pipeline)
     , m_queue(gst_element_factory_make("queue", NULL))
@@ -91,6 +91,8 @@ InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElem
 #endif
     , m_hasBeenReported(false)
     , m_isDisconnected(false)
+    , m_format(format)
+    , m_vttParser(WebVTTParser::create(this, 0))
 {
     gst_bin_add_many(GST_BIN(m_pipeline.get()), m_queue.get(), m_sink.get(), NULL);
     gst_element_sync_state_with_parent(m_queue.get());
@@ -214,8 +216,14 @@ void InbandTextTrackPrivateGStreamer::notifyPlayerOfSample()
     m_sampleTimerHandler = 0;
 
     MutexLocker lock(m_cueMutex);
-    for (size_t i = 0; i < m_cues.size() && client(); ++i)
-        client()->addGenericCue(this, m_cues[i].release());
+    for (size_t i = 0; i < m_cues.size() && client(); ++i) {
+        if (m_format == WebVTT) {
+            // FIXME: Pass WebVTT content in a better data structure..
+            String content = m_cues[i]->content();
+            m_vttParser->parseBytes(reinterpret_cast<const char*>(content.characters8()), content.length());
+        } else
+            client()->addGenericCue(this, m_cues[i].release());
+    }
     m_cues.clear();
 }
 
@@ -265,6 +273,26 @@ void InbandTextTrackPrivateGStreamer::notifyPlayerOfTag()
         client()->setLabel(str);
         g_free(str);
     }
+}
+
+void InbandTextTrackPrivateGStreamer::newCuesParsed()
+{
+    Vector<RefPtr<WebVTTCueData> > cues;
+    m_vttParser->getNewCues(cues);
+    for (size_t i = 0; i < cues.size(); ++i)
+        client()->addWebVTTCue(this, cues[i]);
+}
+
+#if ENABLE(WEBVTT_REGIONS)
+void InbandTextTrackPrivateGStreamer::newRegionsParsed()
+{
+
+}
+#endif
+
+void InbandTextTrackPrivateGStreamer::fileFailedToParse()
+{
+    g_warning("Failed to parse in-band WebVTT input.\n");
 }
 
 } // namespace WebCore
