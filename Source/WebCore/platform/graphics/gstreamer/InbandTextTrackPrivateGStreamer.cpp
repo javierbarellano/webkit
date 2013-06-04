@@ -217,13 +217,12 @@ void InbandTextTrackPrivateGStreamer::notifyPlayerOfSample()
 
     MutexLocker lock(m_cueMutex);
     for (size_t i = 0; i < m_cues.size() && client(); ++i) {
-        RefPtr<GenericCueData> data = m_cues[i];
         if (m_format == WebVTT) {
             // FIXME: Pass WebVTT content in a better data structure..
-            String content = data->content();
+            String content = m_cues[i]->content();
             m_vttParser->parseBytes(reinterpret_cast<const char*>(content.characters8()), content.length());
         } else
-            client()->addGenericCue(this, data);
+            client()->addGenericCue(this, m_cues[i].release());
     }
     m_cues.clear();
 }
