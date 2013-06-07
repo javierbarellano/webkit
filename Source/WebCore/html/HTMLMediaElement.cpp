@@ -3048,6 +3048,7 @@ void HTMLMediaElement::removeAudioTrack(AudioTrack* track)
         return;
 
     m_audioTracks->remove(track);
+    audioTracksChanged();
 }
 
 void HTMLMediaElement::removeTextTrack(TextTrack* track)
@@ -3062,6 +3063,7 @@ void HTMLMediaElement::removeTextTrack(TextTrack* track)
     track->clearClient();
     m_textTracks->remove(track);
 
+    textTracksChanged();
     closeCaptionTracksChanged();
 }
 
@@ -3071,6 +3073,7 @@ void HTMLMediaElement::removeVideoTrack(VideoTrack* track)
         return;
 
     m_videoTracks->remove(track);
+    videoTracksChanged();
 }
 
 void HTMLMediaElement::removeAllInbandTracks()
