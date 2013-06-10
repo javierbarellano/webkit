@@ -203,9 +203,9 @@ static bool shouldAutofocus(HTMLFormControlElement* element)
 }
 
 static void focusPostAttach(Node* element, unsigned)
-{ 
-    toElement(element)->focus(); 
-    element->deref(); 
+{
+    toElement(element)->focus();
+    element->deref();
 }
 
 void HTMLFormControlElement::attach()
@@ -416,6 +416,7 @@ bool HTMLFormControlElement::checkValidity(Vector<RefPtr<FormAssociatedElement> 
 {
     if (!willValidate() || isValidFormControlElement())
         return true;
+    printf("HTMLFormControlElement::checkValidity()\n");
     // An event handler can deref this object.
     RefPtr<HTMLFormControlElement> protector(this);
     RefPtr<Document> originalDocument(document());

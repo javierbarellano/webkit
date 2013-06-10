@@ -7,9 +7,17 @@
 #include "Chrome.h"
 #include "Frame.h"
 #include "Document.h"
+#include "HTMLDivElement.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoaderClient.h"
 #include "ResourceHandle.h"
+#include "CSSValueKeywords.h"
+#include "HTMLInputElement.h"
+#include "HTMLBRElement.h"
+#include "HTMLNames.h"
+#include "HTMLFontElement.h"
+#include "ShadowRoot.h"
+
 
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
@@ -71,7 +79,8 @@ NavDsc *NavDsc::create(Frame * frame)
 }
 
 NavDsc::NavDsc(Frame * frame) :
-		  m_frame(frame)
+    EventListener(NativeEventListenerType)
+    , m_frame(frame)
 {
 	m_resetSet = false;
 	m_main = new Mutex();
@@ -85,6 +94,23 @@ NavDsc::~NavDsc()
 	delete m_main;
 	instance = NULL;
 }
+
+// --------
+
+void NavDsc::handleEvent(ScriptExecutionContext*, Event* event)
+{
+    if (event->type() == eventNames().clickEvent && event->isMouseEvent()) {
+        //MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
+        printf("NavDsc::handleEvent() ok clicked!\n");
+    }
+}
+
+bool NavDsc::operator==(const EventListener& listener)
+{
+    return false;
+}
+
+// --------
 
 void NavDsc::addUPnPDev(std::string type, std::map<std::string, UPnPDevice> devs)
 {
@@ -303,6 +329,7 @@ void NavDsc::serviceOnline(std::string type, UPnPDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s, id: %s\n",
 			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
+
 	m_main->lock();
 	EventData ed = {UPNP_PROTO, true, type, dev, ZCDevice(), NULL};
 	m_eventData.push(ed);
@@ -356,6 +383,83 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 	}
 }
 
+void NavDsc::createPermissionsDialog(EventData ed)
+{
+    const int divWidth = 640;
+    const int divHeight = 480;
+    const int titleHeight = 26;
+    const int divLeft = 0;
+    const int divTop = 0;
+    const int divZ = 1000;
+    ExceptionCode ec;
+
+    std::vector< NavServices* > srvs = getNavServices(ed.type, ed.online);
+
+    RefPtr<HTMLDivElement> div = HTMLDivElement::create(m_frame->document());
+    div->setInlineStyleProperty(CSSPropertyBorder, String("2px solid black"));
+    div->setInlineStyleProperty(CSSPropertyBoxShadow, String("10px 10px 5px #888888"));
+    div->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#f0f0f0"));
+    div->setInlineStyleProperty(CSSPropertyWidth, String::number(divWidth) + "px");
+    div->setInlineStyleProperty(CSSPropertyHeight, String::number(divHeight) + "px");
+    div->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
+    div->setInlineStyleProperty(CSSPropertyLeft, String::number(divLeft) + "px");
+    div->setInlineStyleProperty(CSSPropertyTop, String::number(divTop) + "px");
+    div->setInlineStyleProperty(CSSPropertyZIndex, String::number(divZ));
+
+    RefPtr<HTMLDivElement> title = HTMLDivElement::create(m_frame->document());
+    title->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#505050"));
+    title->setInlineStyleProperty(CSSPropertyWidth, String::number(divWidth) + "px");
+    title->setInlineStyleProperty(CSSPropertyHeight, String::number(titleHeight) + "px");
+    title->setInlineStyleProperty(CSSPropertyLeft, String::number(divLeft) + "px");
+    title->setInlineStyleProperty(CSSPropertyTop, String::number(divTop) + "px");
+
+    RefPtr<HTMLFontElement> titleFnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
+    titleFnt->setInlineStyleProperty(CSSPropertyColor, String("#fff"));
+    titleFnt->setInlineStyleProperty(CSSPropertyMarginLeft, String("3px"));
+    titleFnt->setInnerText(String("Permissions"), ec);
+    title->appendChild(titleFnt.release());
+
+    div->appendChild(title.release());
+
+    RefPtr<HTMLFontElement> msgFnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
+    msgFnt->setInnerText(String("Please check all devices you would like this page to use."), ec);
+    div->appendChild(msgFnt.release());
+
+    for (int k=0; k<srvs[0]->m_devs.size(); k++)
+    {
+
+        RefPtr<HTMLBRElement> br = HTMLBRElement::create(m_frame->document());
+        div->appendChild(br.release());
+
+        RefPtr<HTMLInputElement> chk = HTMLInputElement::create(HTMLNames::inputTag, m_frame->document(), 0, false);
+        chk->setType(String("checkbox"));
+        div->appendChild(chk.release());
+
+        RefPtr<HTMLFontElement> fnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
+        fnt->setInnerText(String(srvs[0]->m_devs[k]->name()), ec);
+        div->appendChild(fnt.release());
+    }
+
+    RefPtr<HTMLDivElement> footer = HTMLDivElement::create(m_frame->document());
+    footer->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
+    footer->setInlineStyleProperty(CSSPropertyTop, String("440px"));
+    footer->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
+    footer->setInlineStyleProperty(CSSPropertyMarginLeft, String("270px"));
+    footer->setInlineStyleProperty(CSSPropertyHeight, String("30px"));
+
+    RefPtr<HTMLInputElement> ok = HTMLInputElement::create(HTMLNames::inputTag, m_frame->document(), 0, false);
+    ok->setType(String("button"));
+    ok->setValue(String("OK"), ec, DispatchNoEvent);
+    ok->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
+    ok->setOnclick(this);
+    footer->appendChild(ok.release());
+
+    div->appendChild(footer.release());
+
+    //m_frame->document()->firstChild()->appendChild(div.release(), ec, AttachLazily);
+    m_frame->document()->documentElement()->ensureUserAgentShadowRoot()->appendChild(div.release(), ec, AttachLazily);
+}
+
 void NavDsc::serviceOnlineInternal(void *ptr)
 {
 	NAV_LOG("NavDsc::serviceOnlineInternal()\n");
@@ -396,6 +500,8 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 		ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
 		return;
 	}
+
+	//nd->createPermissionsDialog(ed);
 
 	bool sendSevicesEvent = false;
 	NAV_LOG("serviceOnlineInternal: service: %s, devs: %d\n", srvs[0]->m_serviceType.c_str(), srvs[0]->m_devs.size());
@@ -527,7 +633,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
 		for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
 			UPnPSearch::getInstance()->eventServer(type, (*it).second.eventURL, (*it).second.uuid, (*it).second.host, (*it).second.port);
 
-	
+
 		std::string strType(type);
 		std::map<std::string, ZCDevice> zcdevs;
 		addUPnPDev(strType, devs);

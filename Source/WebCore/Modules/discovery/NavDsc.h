@@ -13,6 +13,8 @@
 #include "wtf/ExportMacros.h"
 #include "wtf/Platform.h"
 
+#include "EventListener.h"
+
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"
@@ -55,7 +57,7 @@ typedef struct _EventData
 	RefPtr<NavEvent> evnt;
 } EventData;
 
-class NavDsc
+class NavDsc : public EventListener
 {
 public:
 	static FILE *HN_FD_; // Used for logging
@@ -123,6 +125,12 @@ public:
 	void sendEvent(std::string uuid, std::string stype, std::string body);
     static void sendEventInternal(void *ptr);
 
+
+    // EventListener interface
+    virtual bool operator==(const EventListener&);
+    virtual void handleEvent(ScriptExecutionContext*, Event*);
+
+
 private:
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
@@ -138,6 +146,8 @@ private:
     		std::map<std::string, ZCDevice> zcdevs,
     		ProtocolType protoType
     		);
+
+    void createPermissionsDialog(EventData ed);
 
 	pthread_t threadHandle;
 	static NavDsc *instance;
