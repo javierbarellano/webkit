@@ -1,4 +1,5 @@
 #include "DiscoveryWrapper.h"
+#include "HTMLInputElement.h"
 #include "NavDsc.h"
 
 namespace WebCore {

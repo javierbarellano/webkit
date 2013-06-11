@@ -63,6 +63,57 @@
 
 namespace WebCore {
 
+// ----------------------------
+
+PermissionInput::PermissionInput(const QualifiedName& tag, Document* doc) :
+        HTMLInputElement(tag, doc, 0, false)
+{
+
+}
+
+// ----------------------------
+
+PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* doc)
+{
+    RefPtr<PermissionButtonElement> button = adoptRef(new PermissionButtonElement(doc));
+    button->setType(String("button"));
+    return button.release();
+}
+
+
+PermissionButtonElement::PermissionButtonElement(Document* doc) :
+        PermissionInput(HTMLNames::inputTag, doc)
+{
+
+}
+
+void PermissionButtonElement::defaultEventHandler(Event* event)
+{
+
+}
+
+// ----------------------------
+
+PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document* doc)
+{
+    RefPtr<PermissionCheckBoxElement> button = adoptRef(new PermissionCheckBoxElement(doc));
+    button->setType(String("checkbox"));
+    return button.release();
+}
+
+PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc) :
+        PermissionInput(HTMLNames::inputTag, doc)
+{
+
+}
+
+void PermissionCheckBoxElement::defaultEventHandler(Event* event)
+{
+
+}
+
+// ----------------------------
+
 FILE *NavDsc::HN_FD_; // Used for logging
 NavDsc *NavDsc::instance = 0;
 
@@ -431,8 +482,7 @@ void NavDsc::createPermissionsDialog(EventData ed)
         RefPtr<HTMLBRElement> br = HTMLBRElement::create(m_frame->document());
         div->appendChild(br.release());
 
-        RefPtr<HTMLInputElement> chk = HTMLInputElement::create(HTMLNames::inputTag, m_frame->document(), 0, false);
-        chk->setType(String("checkbox"));
+        RefPtr<PermissionCheckBoxElement> chk = PermissionCheckBoxElement::create(m_frame->document());
         div->appendChild(chk.release());
 
         RefPtr<HTMLFontElement> fnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
@@ -447,11 +497,11 @@ void NavDsc::createPermissionsDialog(EventData ed)
     footer->setInlineStyleProperty(CSSPropertyMarginLeft, String("270px"));
     footer->setInlineStyleProperty(CSSPropertyHeight, String("30px"));
 
-    RefPtr<HTMLInputElement> ok = HTMLInputElement::create(HTMLNames::inputTag, m_frame->document(), 0, false);
+    RefPtr<PermissionButtonElement> ok = PermissionButtonElement::create(m_frame->document());
     ok->setType(String("button"));
     ok->setValue(String("OK"), ec, DispatchNoEvent);
     ok->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
-    ok->setOnclick(this);
+    //ok->setOnclick(this);
     footer->appendChild(ok.release());
 
     div->appendChild(footer.release());
@@ -501,7 +551,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 		return;
 	}
 
-	//nd->createPermissionsDialog(ed);
+	nd->createPermissionsDialog(ed);
 
 	bool sendSevicesEvent = false;
 	NAV_LOG("serviceOnlineInternal: service: %s, devs: %d\n", srvs[0]->m_serviceType.c_str(), srvs[0]->m_devs.size());
