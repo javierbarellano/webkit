@@ -105,7 +105,7 @@ InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElem
     ret = gst_element_link(m_queue.get(), m_sink.get());
     ASSERT(ret);
 
-    g_object_set(m_sink.get(), "emit-signals", true, "sync", true, NULL);
+    g_object_set(m_sink.get(), "emit-signals", true, "async", false, NULL);
     g_signal_connect(m_sink.get(), gSampleSignal, G_CALLBACK(inbandTextTrackPrivateNewSampleCallback), this);
 
     GstPad* sinkPad = gst_element_get_static_pad(m_sink.get(), "sink");
