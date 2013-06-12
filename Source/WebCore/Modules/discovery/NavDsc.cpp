@@ -12,10 +12,12 @@
 #include "FrameLoaderClient.h"
 #include "ResourceHandle.h"
 #include "CSSValueKeywords.h"
+#include "HTMLElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLBRElement.h"
 #include "HTMLNames.h"
 #include "HTMLFontElement.h"
+#include "NodeList.h"
 #include "ShadowRoot.h"
 
 
@@ -65,18 +67,67 @@ namespace WebCore {
 
 // ----------------------------
 
+class PermissionInput FINAL : public HTMLInputElement {
+public:
+    void setNavDsc(NavDsc* nd) {m_navdsc = nd;}
+    NavDsc* getNavDsc() {return m_navdsc;}
+
+protected:
+    explicit PermissionInput(const QualifiedName &, Document*);
+    NavDsc* m_navdsc;
+};
+
+// ----------------------------
+
+class PermissionButtonElement FINAL : public PermissionInput {
+public:
+    static PassRefPtr<PermissionButtonElement> create(Document*, NavDsc *);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+private:
+    explicit PermissionButtonElement(Document*);
+
+    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual void defaultEventHandler(Event*) OVERRIDE;
+
+};
+
+// ----------------------------
+
+class PermissionCheckBoxElement FINAL : public PermissionInput {
+public:
+    static PassRefPtr<PermissionCheckBoxElement> create(Document*, NavDsc *);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+    void setEventData(EventData ed) { m_ed = ed; }
+
+private:
+    explicit PermissionCheckBoxElement(Document*);
+
+    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual void defaultEventHandler(Event*) OVERRIDE;
+    EventData m_ed;
+};
+
+
+// ----------------------------
+
 PermissionInput::PermissionInput(const QualifiedName& tag, Document* doc) :
-        HTMLInputElement(tag, doc, 0, false)
+    HTMLInputElement(tag, doc, 0, false)
+    , m_navdsc(0)
 {
 
 }
 
 // ----------------------------
 
-PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* doc)
+PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* doc, NavDsc *navdsc)
 {
     RefPtr<PermissionButtonElement> button = adoptRef(new PermissionButtonElement(doc));
     button->setType(String("button"));
+    button->setNavDsc(navdsc);
+
     return button.release();
 }
 
@@ -89,15 +140,25 @@ PermissionButtonElement::PermissionButtonElement(Document* doc) :
 
 void PermissionButtonElement::defaultEventHandler(Event* event)
 {
+    ExceptionCode ec;
 
+    if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
+        RefPtr<NodeList> list = m_navdsc->m_frame->document()->documentElement()->getElementsByTagName(AtomicString("body"));
+        Element* n = m_navdsc->m_frame->document()->getElementById(AtomicString("permissionDiv"));
+        if (n)
+            list->item(0)->removeChild(n->toNode(), ec);
+        list.release();
+    }
 }
 
 // ----------------------------
 
-PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document* doc)
+PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document* doc, NavDsc *navdsc)
 {
     RefPtr<PermissionCheckBoxElement> button = adoptRef(new PermissionCheckBoxElement(doc));
     button->setType(String("checkbox"));
+    button->setNavDsc(navdsc);
+
     return button.release();
 }
 
@@ -109,7 +170,20 @@ PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc) :
 
 void PermissionCheckBoxElement::defaultEventHandler(Event* event)
 {
+    if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
+        const AtomicString id = this->getIdAttribute();
+        AtomicString prefix("permissionchkbx");
+        int pos = prefix.length();
+        UChar c = id[pos++] - 48;
+        if (pos < id.length())
+            c = c*10 + id[pos] -48;
+        std::vector< NavServices* > srvs = m_navdsc->getNavServices(m_ed.type, m_ed.online);
 
+        // This default handler happens before the input handler, so the action hasn't been applied yet
+        srvs[0]->m_devs[c]->setPermission(!this->checked());
+
+        printf("CheckBox(%d) %s.\n", (int)c, this->checked() ? "UNChecked":"Checked");
+    }
 }
 
 // ----------------------------
@@ -436,33 +510,28 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 
 void NavDsc::createPermissionsDialog(EventData ed)
 {
-    const int divWidth = 640;
-    const int divHeight = 480;
-    const int titleHeight = 26;
-    const int divLeft = 0;
-    const int divTop = 0;
-    const int divZ = 1000;
     ExceptionCode ec;
 
     std::vector< NavServices* > srvs = getNavServices(ed.type, ed.online);
 
     RefPtr<HTMLDivElement> div = HTMLDivElement::create(m_frame->document());
+    div->setIdAttribute(AtomicString("permissionDiv"));
     div->setInlineStyleProperty(CSSPropertyBorder, String("2px solid black"));
     div->setInlineStyleProperty(CSSPropertyBoxShadow, String("10px 10px 5px #888888"));
     div->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#f0f0f0"));
-    div->setInlineStyleProperty(CSSPropertyWidth, String::number(divWidth) + "px");
-    div->setInlineStyleProperty(CSSPropertyHeight, String::number(divHeight) + "px");
+    div->setInlineStyleProperty(CSSPropertyWidth, String("480px"));
+    div->setInlineStyleProperty(CSSPropertyHeight, String("240px"));
     div->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
-    div->setInlineStyleProperty(CSSPropertyLeft, String::number(divLeft) + "px");
-    div->setInlineStyleProperty(CSSPropertyTop, String::number(divTop) + "px");
-    div->setInlineStyleProperty(CSSPropertyZIndex, String::number(divZ));
+    div->setInlineStyleProperty(CSSPropertyLeft, String("0px"));
+    div->setInlineStyleProperty(CSSPropertyTop, String("0px"));
+    div->setInlineStyleProperty(CSSPropertyZIndex, String("1000px"));
 
     RefPtr<HTMLDivElement> title = HTMLDivElement::create(m_frame->document());
     title->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#505050"));
-    title->setInlineStyleProperty(CSSPropertyWidth, String::number(divWidth) + "px");
-    title->setInlineStyleProperty(CSSPropertyHeight, String::number(titleHeight) + "px");
-    title->setInlineStyleProperty(CSSPropertyLeft, String::number(divLeft) + "px");
-    title->setInlineStyleProperty(CSSPropertyTop, String::number(divTop) + "px");
+    title->setInlineStyleProperty(CSSPropertyWidth, String("480px"));
+    title->setInlineStyleProperty(CSSPropertyHeight, String("26px"));
+    title->setInlineStyleProperty(CSSPropertyLeft, String("0px"));
+    title->setInlineStyleProperty(CSSPropertyTop, String("0px"));
 
     RefPtr<HTMLFontElement> titleFnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
     titleFnt->setInlineStyleProperty(CSSPropertyColor, String("#fff"));
@@ -482,7 +551,13 @@ void NavDsc::createPermissionsDialog(EventData ed)
         RefPtr<HTMLBRElement> br = HTMLBRElement::create(m_frame->document());
         div->appendChild(br.release());
 
-        RefPtr<PermissionCheckBoxElement> chk = PermissionCheckBoxElement::create(m_frame->document());
+        RefPtr<PermissionCheckBoxElement> chk = PermissionCheckBoxElement::create(m_frame->document(), this);
+        std::stringstream id;
+        id << "permissionchkbx" << k;
+
+        chk->setIdAttribute(AtomicString(id.str().c_str()));
+        chk->setEventData(ed);
+        chk->setChecked(srvs[0]->m_devs[k]->hasPermission(), DispatchNoEvent);
         div->appendChild(chk.release());
 
         RefPtr<HTMLFontElement> fnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
@@ -492,22 +567,22 @@ void NavDsc::createPermissionsDialog(EventData ed)
 
     RefPtr<HTMLDivElement> footer = HTMLDivElement::create(m_frame->document());
     footer->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
-    footer->setInlineStyleProperty(CSSPropertyTop, String("440px"));
+    footer->setInlineStyleProperty(CSSPropertyTop, String("200px"));
     footer->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
-    footer->setInlineStyleProperty(CSSPropertyMarginLeft, String("270px"));
+    footer->setInlineStyleProperty(CSSPropertyMarginLeft, String("190px"));
     footer->setInlineStyleProperty(CSSPropertyHeight, String("30px"));
 
-    RefPtr<PermissionButtonElement> ok = PermissionButtonElement::create(m_frame->document());
+    RefPtr<PermissionButtonElement> ok = PermissionButtonElement::create(m_frame->document(), this);
     ok->setType(String("button"));
     ok->setValue(String("OK"), ec, DispatchNoEvent);
     ok->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
-    //ok->setOnclick(this);
     footer->appendChild(ok.release());
 
     div->appendChild(footer.release());
 
-    //m_frame->document()->firstChild()->appendChild(div.release(), ec, AttachLazily);
-    m_frame->document()->documentElement()->ensureUserAgentShadowRoot()->appendChild(div.release(), ec, AttachLazily);
+    RefPtr<NodeList> list = m_frame->document()->documentElement()->getElementsByTagName(AtomicString("body"));
+    list->item(0)->appendChild(div.release(), ec, AttachLazily);
+    list.release();
 }
 
 void NavDsc::serviceOnlineInternal(void *ptr)

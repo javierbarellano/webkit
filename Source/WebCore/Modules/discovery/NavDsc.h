@@ -58,45 +58,6 @@ typedef struct _EventData
 	RefPtr<NavEvent> evnt;
 } EventData;
 
-// ----------------------------
-
-class PermissionInput FINAL : public HTMLInputElement {
-protected:
-    explicit PermissionInput(const QualifiedName &, Document*);
-};
-
-// ----------------------------
-
-class PermissionButtonElement FINAL : public PermissionInput {
-public:
-    static PassRefPtr<PermissionButtonElement> create(Document*);
-
-    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
-
-private:
-    explicit PermissionButtonElement(Document*);
-
-    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
-    virtual void defaultEventHandler(Event*) OVERRIDE;
-};
-
-// ----------------------------
-
-class PermissionCheckBoxElement FINAL : public PermissionInput {
-public:
-    static PassRefPtr<PermissionCheckBoxElement> create(Document*);
-
-    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
-
-private:
-    explicit PermissionCheckBoxElement(Document*);
-
-    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
-    virtual void defaultEventHandler(Event*) OVERRIDE;
-};
-
-// ----------------------------
-
 class NavDsc : public EventListener
 {
 public:
@@ -170,10 +131,11 @@ public:
     virtual bool operator==(const EventListener&);
     virtual void handleEvent(ScriptExecutionContext*, Event*);
 
-
-private:
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
+    Frame* m_frame;
+
+private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
 
     void addUPnPDev(std::string type, std::map<std::string, UPnPDevice> devs);
@@ -193,8 +155,6 @@ private:
 	static NavDsc *instance;
 
 	NavDsc(Frame * frame);
-
-	Frame* m_frame;
 
 	// map key:service type
 	std::map<std::string, IDiscoveryAPI *> m_UPnPnav;

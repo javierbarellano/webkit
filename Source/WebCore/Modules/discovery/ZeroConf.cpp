@@ -19,7 +19,6 @@
 #include "../../../../Source/WebCore/platform/network/soup/UDPSocketError.h"
 
 //#include "base/bind.h"
-#include "HTMLInputElement.h"
 
 #include "NavDsc.h"
 #include "ZeroConf.h"
