@@ -210,8 +210,7 @@ NavDsc *NavDsc::create(Frame * frame)
 }
 
 NavDsc::NavDsc(Frame * frame) :
-    EventListener(NativeEventListenerType)
-    , m_frame(frame)
+    m_frame(frame)
 {
 	m_resetSet = false;
 	m_main = new Mutex();
@@ -226,20 +225,6 @@ NavDsc::~NavDsc()
 	instance = NULL;
 }
 
-// --------
-
-void NavDsc::handleEvent(ScriptExecutionContext*, Event* event)
-{
-    if (event->type() == eventNames().clickEvent && event->isMouseEvent()) {
-        //MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
-        printf("NavDsc::handleEvent() ok clicked!\n");
-    }
-}
-
-bool NavDsc::operator==(const EventListener& listener)
-{
-    return false;
-}
 
 // --------
 
@@ -460,7 +445,6 @@ void NavDsc::serviceOnline(std::string type, UPnPDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s, id: %s\n",
 			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
-
 	m_main->lock();
 	EventData ed = {UPNP_PROTO, true, type, dev, ZCDevice(), NULL};
 	m_eventData.push(ed);
@@ -609,7 +593,6 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 
 	nd->m_main->lock();
 	EventData ed(nd->m_eventData.front());
-	//nd->m_eventData.pop();
 	nd->m_main->unlock();
 
 
@@ -813,7 +796,6 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
 
 		for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
 			UPnPSearch::getInstance()->eventServer(type, (*it).second.eventURL, (*it).second.uuid, (*it).second.host, (*it).second.port);
-
 
 		std::string strType(type);
 		std::map<std::string, ZCDevice> zcdevs;

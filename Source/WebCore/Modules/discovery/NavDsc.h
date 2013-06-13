@@ -13,8 +13,6 @@
 #include "wtf/ExportMacros.h"
 #include "wtf/Platform.h"
 
-#include "EventListener.h"
-
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"
@@ -38,7 +36,6 @@ namespace WebCore {
 class Nav;
 class IDiscoveryAPI;
 class Frame;
-class HTMLInputElement;
 
 enum ProtocolType
 {
@@ -58,7 +55,7 @@ typedef struct _EventData
 	RefPtr<NavEvent> evnt;
 } EventData;
 
-class NavDsc : public EventListener
+class NavDsc
 {
 public:
 	static FILE *HN_FD_; // Used for logging
@@ -127,10 +124,6 @@ public:
 	void sendEvent(std::string uuid, std::string stype, std::string body);
     static void sendEventInternal(void *ptr);
 
-
-    // EventListener interface
-    virtual bool operator==(const EventListener&);
-    virtual void handleEvent(ScriptExecutionContext*, Event*);
 
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
