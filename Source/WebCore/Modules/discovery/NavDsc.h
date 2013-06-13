@@ -134,6 +134,8 @@ public:
 
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
+    void disablePermissions() {m_permissionsEnabled = false;}
+
     Frame* m_frame;
     static bool m_permissionsEnabled;
 

@@ -597,6 +597,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
     NavDsc *nd = (NavDsc*)ptr;
 
 	if (!nd->m_permissionsEnabled) {
+	    NAV_LOG("NavDsc::serviceOnlineInternal() m_permissionsEnabled=false\n");
 	    NavDsc::dispatchServiceOnline(ptr);
 	    return;
 	}

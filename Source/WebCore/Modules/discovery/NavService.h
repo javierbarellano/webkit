@@ -77,7 +77,7 @@ public:
     String config() const {return m_config;}
     String type() const {return m_type;}
     bool   online() const {return m_online;}
-    bool   hasPermission() const {return m_hasPermission;}
+    bool   hasPermission() const;
 
     ProtocolType pType() const {return m_protocol;}
 
