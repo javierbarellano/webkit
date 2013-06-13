@@ -47,7 +47,7 @@
 
 #include "Modules/discovery/Nav.h"
 
-//#define LOGGING_NAV 1
+// #define LOGGING_NAV 1
 
 #ifdef LOGGING_NAV
 #define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
@@ -148,6 +148,7 @@ void PermissionButtonElement::defaultEventHandler(Event* event)
         if (n)
             list->item(0)->removeChild(n->toNode(), ec);
         list.release();
+        callOnMainThread(NavDsc::dispatchServiceOnline, m_navdsc);
     }
 }
 
@@ -190,6 +191,11 @@ void PermissionCheckBoxElement::defaultEventHandler(Event* event)
 
 FILE *NavDsc::HN_FD_; // Used for logging
 NavDsc *NavDsc::instance = 0;
+#if ENABLE(DISCOVERY_PERMISSIONS)
+bool NavDsc::m_permissionsEnabled = true;
+#else
+bool NavDsc::m_permissionsEnabled = false;
+#endif
 
 // Static
 NavDsc *NavDsc::create(Frame * frame)
@@ -588,7 +594,12 @@ void NavDsc::createPermissionsDialog(EventData ed)
 void NavDsc::serviceOnlineInternal(void *ptr)
 {
 	NAV_LOG("NavDsc::serviceOnlineInternal()\n");
-	NavDsc *nd = (NavDsc*)ptr;
+    NavDsc *nd = (NavDsc*)ptr;
+
+	if (!nd->m_permissionsEnabled) {
+	    NavDsc::dispatchServiceOnline(ptr);
+	    return;
+	}
 
 	if (nd->m_eventData.size() == 0) {
 		NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
@@ -597,7 +608,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 
 	nd->m_main->lock();
 	EventData ed(nd->m_eventData.front());
-	nd->m_eventData.pop();
+	//nd->m_eventData.pop();
 	nd->m_main->unlock();
 
 
@@ -628,26 +639,70 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 
 	nd->createPermissionsDialog(ed);
 
-	bool sendSevicesEvent = false;
-	NAV_LOG("serviceOnlineInternal: service: %s, devs: %d\n", srvs[0]->m_serviceType.c_str(), srvs[0]->m_devs.size());
-	for (int k=0; k<srvs[0]->m_devs.size(); k++)
-	{
+}
 
-		NAV_LOG("serviceOnlineInternal: service uuid: %s, dev uuid: %s\n",
-				srvs[0]->m_devs[k]->m_id.ascii().data(), uuid.c_str());
+void NavDsc::dispatchServiceOnline(void *ptr)
+{
+    NAV_LOG("NavDsc::serviceOnlineInternal()\n");
+    NavDsc *nd = (NavDsc*)ptr;
 
-		if (srvs[0]->m_devs[k]->m_id.contains(String(uuid.c_str()),true)) {
-			NAV_LOG("serviceOnlineInternal: Send online to: %s\n", srvs[0]->m_devs[k]->name().ascii().data());
-			//srvs[i]->m_devs[k]->dispatchEvent(Event::create(eventNames().serviceonlineEvent, false, false));
+    if (nd->m_eventData.size() == 0) {
+        NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
+        return;
+    }
 
-			if (!sendSevicesEvent) {
-				NAV_LOG("serviceOnlineInternal: Send available to: %s\n", srvs[0]->m_serviceType.c_str());
-				srvs[0]->dispatchEvent(Event::create(eventNames().serviceavailableEvent, false, false));
-				sendSevicesEvent = true;
-			}
-		}
-	}
-	//NAV_LOG("UPnPDevAddedInternal(): Add dev. %s\n", type.c_str());
+    nd->m_main->lock();
+    EventData ed(nd->m_eventData.front());
+    nd->m_eventData.pop();
+    nd->m_main->unlock();
+
+
+    std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
+    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+
+    if (!srvs.size() || !srvs[0]->find(uuid)) {
+        if (ed.proto == ZC_PROTO) {
+            ZCDevMap *devs = ZeroConf::getDevs(ed.type.c_str());
+            if (!devs)
+                return;
+
+            nd->addZCDev(ed.type, devs->devMap);
+        } else {
+            UPnPDevMap *devs = UPnPSearch::getDevs(ed.type.c_str());
+            if (!devs)
+                return;
+
+            nd->addUPnPDev(ed.type, devs->devMap);
+        }
+    }
+
+    srvs = nd->getNavServices(ed.type, ed.online);
+    if (srvs.size() == 0) {
+        ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
+        return;
+    }
+
+    bool sendSevicesEvent = false;
+    NAV_LOG("serviceOnlineInternal: service: %s, devs: %d\n", srvs[0]->m_serviceType.c_str(), srvs[0]->m_devs.size());
+    for (int k=0; k<srvs[0]->m_devs.size(); k++)
+    {
+
+        NAV_LOG("serviceOnlineInternal: service uuid: %s, dev uuid: %s, hasPermission: %s\n",
+                srvs[0]->m_devs[k]->m_id.ascii().data(), uuid.c_str(), srvs[0]->m_devs[k]->hasPermission() ? "Ok":"NO");
+
+        if (!srvs[0]->m_devs[k]->hasPermission() && nd->m_permissionsEnabled)
+            continue;
+
+        if (srvs[0]->m_devs[k]->m_id.contains(String(uuid.c_str()),true)) {
+            NAV_LOG("serviceOnlineInternal: Send online to: %s\n", srvs[0]->m_devs[k]->name().ascii().data());
+
+            if (!sendSevicesEvent) {
+                NAV_LOG("serviceOnlineInternal: Send available to: %s\n", srvs[0]->m_serviceType.c_str());
+                srvs[0]->dispatchEvent(Event::create(eventNames().serviceavailableEvent, false, false));
+                sendSevicesEvent = true;
+            }
+        }
+    }
 }
 
 void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)

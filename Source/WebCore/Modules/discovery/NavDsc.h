@@ -119,6 +119,7 @@ public:
     static void serviceOfflineInternal(void *ptr);
 	void serviceOnline(std::string type, UPnPDevice &dev);
     static void serviceOnlineInternal(void *ptr);
+    static void dispatchServiceOnline(void *ptr);
 
 	void zcServiceOffline(std::string type, ZCDevice &dev);
 	void zcServiceOnline(std::string type, ZCDevice &dev);
@@ -134,6 +135,7 @@ public:
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
     Frame* m_frame;
+    static bool m_permissionsEnabled;
 
 private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
