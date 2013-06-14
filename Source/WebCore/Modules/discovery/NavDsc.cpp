@@ -88,7 +88,6 @@ public:
 private:
     explicit PermissionButtonElement(Document*);
 
-    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
     virtual void defaultEventHandler(Event*) OVERRIDE;
 
 };
@@ -101,13 +100,14 @@ public:
 
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     void setEventData(EventData ed) { m_ed = ed; }
+    void setId(int id) { m_id = id; }
 
 private:
     explicit PermissionCheckBoxElement(Document*);
 
-    //virtual const AtomicString& shadowPseudoId() const OVERRIDE;
     virtual void defaultEventHandler(Event*) OVERRIDE;
     EventData m_ed;
+    int m_id;
 };
 
 
@@ -132,21 +132,18 @@ PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* do
 }
 
 
-PermissionButtonElement::PermissionButtonElement(Document* doc) :
-        PermissionInput(HTMLNames::inputTag, doc)
+PermissionButtonElement::PermissionButtonElement(Document* doc)
+    : PermissionInput(HTMLNames::inputTag, doc)
 {
-
 }
 
 void PermissionButtonElement::defaultEventHandler(Event* event)
 {
-    ExceptionCode ec;
-
     if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
-        RefPtr<NodeList> list = m_navdsc->m_frame->document()->documentElement()->getElementsByTagName(AtomicString("body"));
-        Element* n = m_navdsc->m_frame->document()->getElementById(AtomicString("permissionDiv"));
+        RefPtr<NodeList> list = m_navdsc->getFrame()->document()->documentElement()->getElementsByTagName(AtomicString("body"));
+        Element* n = this->parentElement()->parentElement();
         if (n)
-            list->item(0)->removeChild(n->toNode(), ec);
+            list->item(0)->removeChild(n->toNode(), IGNORE_EXCEPTION);
         list.release();
         callOnMainThread(NavDsc::dispatchServiceOnline, m_navdsc);
     }
@@ -166,24 +163,17 @@ PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document
 PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc) :
         PermissionInput(HTMLNames::inputTag, doc)
 {
-
+    m_id = -1;
 }
 
 void PermissionCheckBoxElement::defaultEventHandler(Event* event)
 {
     if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
-        const AtomicString id = this->getIdAttribute();
-        AtomicString prefix("permissionchkbx");
-        int pos = prefix.length();
-        UChar c = id[pos++] - 48;
-        if (pos < id.length())
-            c = c*10 + id[pos] -48;
         std::vector< NavServices* > srvs = m_navdsc->getNavServices(m_ed.type, m_ed.online);
 
         // This default handler happens before the input handler, so the action hasn't been applied yet
-        srvs[0]->m_devs[c]->setPermission(!this->checked());
-
-        printf("CheckBox(%d) %s.\n", (int)c, this->checked() ? "UNChecked":"Checked");
+        // srvs is a one element vector, when getNavServices() is called with 'all' for a type, it returns all services
+        srvs[0]->m_devs[m_id]->setPermission(!this->checked());
     }
 }
 
@@ -213,7 +203,6 @@ NavDsc::NavDsc(Frame * frame) :
     m_frame(frame)
 {
 	m_resetSet = false;
-	m_main = new Mutex();
 }
 
 NavDsc::~NavDsc()
@@ -221,7 +210,6 @@ NavDsc::~NavDsc()
 	if (UPnPSearch::getInstance())
 		delete UPnPSearch::getInstance();
 
-	delete m_main;
 	instance = NULL;
 }
 
@@ -412,44 +400,40 @@ void NavDsc::zcServiceOffline(std::string type, ZCDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s\n",
 			dev.url.c_str(), dev.friendlyName.c_str());
-	m_main->lock();
+	MutexLocker lock(m_main);
 	EventData ed = {ZC_PROTO, false, type, UPnPDevice(), dev, NULL};
 	m_eventData.push(ed);
 	callOnMainThread(NavDsc::serviceOfflineInternal,this);
-	m_main->unlock();
 }
 
 void NavDsc::zcServiceOnline(std::string type, ZCDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s\n",
 			dev.url.c_str(), dev.friendlyName.c_str());
-	m_main->lock();
+	MutexLocker lock(m_main);
 	EventData ed = {ZC_PROTO, true, type, UPnPDevice(), dev, NULL};
 	m_eventData.push(ed);
 	callOnMainThread(NavDsc::serviceOnlineInternal,this);
-	m_main->unlock();
 }
 
 void NavDsc::serviceOffline(std::string type, UPnPDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s, id: %s\n",
 			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
-	m_main->lock();
+	MutexLocker lock(m_main);
 	EventData ed = {UPNP_PROTO, false, type, dev, ZCDevice(), NULL};
 	m_eventData.push(ed);
 	callOnMainThread(NavDsc::serviceOfflineInternal,this);
-	m_main->unlock();
 }
 
 void NavDsc::serviceOnline(std::string type, UPnPDevice &dev)
 {
 	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s, id: %s\n",
 			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
-	m_main->lock();
+	MutexLocker lock(m_main);
 	EventData ed = {UPNP_PROTO, true, type, dev, ZCDevice(), NULL};
 	m_eventData.push(ed);
 	callOnMainThread(NavDsc::serviceOnlineInternal,this);
-	m_main->unlock();
 }
 
 void NavDsc::serviceOfflineInternal(void *ptr)
@@ -457,20 +441,19 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 	NAV_LOG("NavDsc::serviceOfflineInternal()\n");
 	NavDsc *nd = (NavDsc*)ptr;
 
-	if (nd->m_eventData.size() == 0) {
+	if (nd->m_eventData.empty()) {
 		NAV_LOG("serviceOfflineInternal: No Types, so cannot add dev\n");
 		return;
 	}
 
-	nd->m_main->lock();
+	MutexLocker lock(nd->m_main);
 	EventData ed(nd->m_eventData.front());
 	nd->m_eventData.pop();
-	nd->m_main->unlock();
 
 
 	std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
 	std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
-	if (srvs.size() == 0) {
+	if (srvs.empty()) {
 		NAV_LOG("serviceOfflineInternal: No Devs, so cannot add dev\n");
 		return;
 	}
@@ -500,39 +483,36 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 
 void NavDsc::createPermissionsDialog(EventData ed)
 {
-    ExceptionCode ec;
-
     std::vector< NavServices* > srvs = getNavServices(ed.type, ed.online);
 
     RefPtr<HTMLDivElement> div = HTMLDivElement::create(m_frame->document());
-    div->setIdAttribute(AtomicString("permissionDiv"));
-    div->setInlineStyleProperty(CSSPropertyBorder, String("2px solid black"));
-    div->setInlineStyleProperty(CSSPropertyBoxShadow, String("10px 10px 5px #888888"));
-    div->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#f0f0f0"));
-    div->setInlineStyleProperty(CSSPropertyWidth, String("480px"));
-    div->setInlineStyleProperty(CSSPropertyHeight, String("240px"));
-    div->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
-    div->setInlineStyleProperty(CSSPropertyLeft, String("0px"));
-    div->setInlineStyleProperty(CSSPropertyTop, String("0px"));
-    div->setInlineStyleProperty(CSSPropertyZIndex, String("1000px"));
+    div->setInlineStyleProperty(CSSPropertyBorder, ASCIILiteral("2px solid black"));
+    div->setInlineStyleProperty(CSSPropertyBoxShadow, ASCIILiteral("10px 10px 5px #888888"));
+    div->setInlineStyleProperty(CSSPropertyBackgroundColor, ASCIILiteral("#f0f0f0"));
+    div->setInlineStyleProperty(CSSPropertyWidth, ASCIILiteral("480px"));
+    div->setInlineStyleProperty(CSSPropertyHeight, ASCIILiteral("240px"));
+    div->setInlineStyleProperty(CSSPropertyPosition, ASCIILiteral("absolute"));
+    div->setInlineStyleProperty(CSSPropertyLeft, ASCIILiteral("0px"));
+    div->setInlineStyleProperty(CSSPropertyTop, ASCIILiteral("0px"));
+    div->setInlineStyleProperty(CSSPropertyZIndex, ASCIILiteral("1000px"));
 
     RefPtr<HTMLDivElement> title = HTMLDivElement::create(m_frame->document());
-    title->setInlineStyleProperty(CSSPropertyBackgroundColor, String("#505050"));
-    title->setInlineStyleProperty(CSSPropertyWidth, String("480px"));
-    title->setInlineStyleProperty(CSSPropertyHeight, String("26px"));
-    title->setInlineStyleProperty(CSSPropertyLeft, String("0px"));
-    title->setInlineStyleProperty(CSSPropertyTop, String("0px"));
+    title->setInlineStyleProperty(CSSPropertyBackgroundColor, ASCIILiteral("#505050"));
+    title->setInlineStyleProperty(CSSPropertyWidth, ASCIILiteral("480px"));
+    title->setInlineStyleProperty(CSSPropertyHeight, ASCIILiteral("26px"));
+    title->setInlineStyleProperty(CSSPropertyLeft, ASCIILiteral("0px"));
+    title->setInlineStyleProperty(CSSPropertyTop, ASCIILiteral("0px"));
 
     RefPtr<HTMLFontElement> titleFnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
-    titleFnt->setInlineStyleProperty(CSSPropertyColor, String("#fff"));
-    titleFnt->setInlineStyleProperty(CSSPropertyMarginLeft, String("3px"));
-    titleFnt->setInnerText(String("Permissions"), ec);
+    titleFnt->setInlineStyleProperty(CSSPropertyColor, ASCIILiteral("#fff"));
+    titleFnt->setInlineStyleProperty(CSSPropertyMarginLeft, ASCIILiteral("3px"));
+    titleFnt->setInnerText(ASCIILiteral("Permissions"), IGNORE_EXCEPTION);
     title->appendChild(titleFnt.release());
 
     div->appendChild(title.release());
 
     RefPtr<HTMLFontElement> msgFnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
-    msgFnt->setInnerText(String("Please check all devices you would like this page to use."), ec);
+    msgFnt->setInnerText(ASCIILiteral("Please check all devices you would like this page to use."), IGNORE_EXCEPTION);
     div->appendChild(msgFnt.release());
 
     for (int k=0; k<srvs[0]->m_devs.size(); k++)
@@ -542,37 +522,33 @@ void NavDsc::createPermissionsDialog(EventData ed)
         div->appendChild(br.release());
 
         RefPtr<PermissionCheckBoxElement> chk = PermissionCheckBoxElement::create(m_frame->document(), this);
-        std::stringstream id;
-        id << "permissionchkbx" << k;
-
-        chk->setIdAttribute(AtomicString(id.str().c_str()));
+        chk->setId(k);
         chk->setEventData(ed);
         chk->setChecked(srvs[0]->m_devs[k]->hasPermission(), DispatchNoEvent);
         div->appendChild(chk.release());
 
         RefPtr<HTMLFontElement> fnt = HTMLFontElement::create(HTMLNames::fontTag, m_frame->document());
-        fnt->setInnerText(String(srvs[0]->m_devs[k]->name()), ec);
+        fnt->setInnerText(String(srvs[0]->m_devs[k]->name()), IGNORE_EXCEPTION);
         div->appendChild(fnt.release());
     }
 
     RefPtr<HTMLDivElement> footer = HTMLDivElement::create(m_frame->document());
-    footer->setInlineStyleProperty(CSSPropertyPosition, String("absolute"));
-    footer->setInlineStyleProperty(CSSPropertyTop, String("200px"));
-    footer->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
-    footer->setInlineStyleProperty(CSSPropertyMarginLeft, String("190px"));
-    footer->setInlineStyleProperty(CSSPropertyHeight, String("30px"));
+    footer->setInlineStyleProperty(CSSPropertyPosition, ASCIILiteral("absolute"));
+    footer->setInlineStyleProperty(CSSPropertyTop, ASCIILiteral("200px"));
+    footer->setInlineStyleProperty(CSSPropertyWidth, ASCIILiteral("100px"));
+    footer->setInlineStyleProperty(CSSPropertyMarginLeft, ASCIILiteral("190px"));
+    footer->setInlineStyleProperty(CSSPropertyHeight, ASCIILiteral("30px"));
 
     RefPtr<PermissionButtonElement> ok = PermissionButtonElement::create(m_frame->document(), this);
-    ok->setType(String("button"));
-    ok->setValue(String("OK"), ec, DispatchNoEvent);
-    ok->setInlineStyleProperty(CSSPropertyWidth, String("100px"));
+    ok->setType(ASCIILiteral("button"));
+    ok->setValue(ASCIILiteral("OK"), IGNORE_EXCEPTION, DispatchNoEvent);
+    ok->setInlineStyleProperty(CSSPropertyWidth, ASCIILiteral("100px"));
     footer->appendChild(ok.release());
 
     div->appendChild(footer.release());
 
     RefPtr<NodeList> list = m_frame->document()->documentElement()->getElementsByTagName(AtomicString("body"));
-    list->item(0)->appendChild(div.release(), ec, AttachLazily);
-    list.release();
+    list->item(0)->appendChild(div.release(), IGNORE_EXCEPTION, AttachLazily);
 }
 
 void NavDsc::serviceOnlineInternal(void *ptr)
@@ -586,20 +562,19 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 	    return;
 	}
 
-	if (nd->m_eventData.size() == 0) {
+	if (nd->m_eventData.empty()) {
 		NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
 		return;
 	}
 
-	nd->m_main->lock();
+	MutexLocker lock(nd->m_main);
 	EventData ed(nd->m_eventData.front());
-	nd->m_main->unlock();
 
 
 	std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
 	std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
 
-	if (!srvs.size() || !srvs[0]->find(uuid)) {
+	if (srvs.empty() || !srvs[0]->find(uuid)) {
 		if (ed.proto == ZC_PROTO) {
 			ZCDevMap *devs = ZeroConf::getDevs(ed.type.c_str());
 			if (!devs)
@@ -616,7 +591,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 	}
 
 	srvs = nd->getNavServices(ed.type, ed.online);
-	if (srvs.size() == 0) {
+	if (srvs.empty()) {
 		ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
 		return;
 	}
@@ -630,15 +605,14 @@ void NavDsc::dispatchServiceOnline(void *ptr)
     NAV_LOG("NavDsc::serviceOnlineInternal()\n");
     NavDsc *nd = (NavDsc*)ptr;
 
-    if (nd->m_eventData.size() == 0) {
+    if (nd->m_eventData.empty()) {
         NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
         return;
     }
 
-    nd->m_main->lock();
+    MutexLocker lock(nd->m_main);
     EventData ed(nd->m_eventData.front());
     nd->m_eventData.pop();
-    nd->m_main->unlock();
 
 
     std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
@@ -661,7 +635,7 @@ void NavDsc::dispatchServiceOnline(void *ptr)
     }
 
     srvs = nd->getNavServices(ed.type, ed.online);
-    if (srvs.size() == 0) {
+    if (srvs.empty()) {
         ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
         return;
     }
@@ -702,11 +676,10 @@ void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
 	evnt->setServiceType(WTF::String(stype.c_str()));
 	evnt->setFriendlyName(WTF::String(name.c_str()));
 
-	m_main->lock();
+	MutexLocker lock(m_main);
 	EventData ed = {EVENT_PROTO, true, stype, UPnPDevice(), ZCDevice(), evnt};
 	m_eventData.push(ed);
 	callOnMainThread(NavDsc::sendEventInternal,this);
-	m_main->unlock();
 }
 
 
@@ -715,10 +688,9 @@ void NavDsc::sendEventInternal(void *ptr)
 	NAV_LOG("NavDsc::sendEventInternal()\n");
 	NavDsc *nv = (NavDsc*)ptr;
 
-	nv->m_main->lock();
+	MutexLocker lock(nv->m_main);
 	EventData ed = nv->m_eventData.front();
 	nv->m_eventData.pop();
-	nv->m_main->unlock();
 
 	RefPtr<NavEvent> evnt = ed.evnt;
 	std::vector<NavServices*> srvs = nv->getNavServices(ed.type);

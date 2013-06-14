@@ -65,7 +65,7 @@ EventTargetData* NavService::ensureEventTargetData()
 
 bool   NavService::hasPermission() const
 {
-    return m_hasPermission || !NavDsc::m_permissionsEnabled;
+    return m_hasPermission || !NavDsc::permissionsEnabled();
 }
 
 } // namespace WebCore

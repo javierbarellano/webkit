@@ -85,7 +85,7 @@ void Nav::getNetworkServices(
 	std::string strType(sType);
 
 	if (reset)
-	    NavDsc::m_permissionsEnabled = false;
+	    NavDsc::disablePermissions();
 
 	if (protoType != UPNP_PROTO && protoType != ZC_PROTO) {
 		if (errorcb)

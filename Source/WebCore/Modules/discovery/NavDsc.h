@@ -127,10 +127,11 @@ public:
 
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
-    void disablePermissions() {m_permissionsEnabled = false;}
+    static void disablePermissions() {m_permissionsEnabled = false;}
 
-    Frame* m_frame;
-    static bool m_permissionsEnabled;
+    Frame* getFrame() {return m_frame;}
+
+    static bool permissionsEnabled() {return m_permissionsEnabled;}
 
 private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
@@ -162,12 +163,15 @@ private:
 
     // Events
 	std::queue<EventData> m_eventData;
-    Mutex *m_main;
+    Mutex m_main;
 
     bool m_resetSet;
 
     // Map by type
     std::map<std::string, RefPtr<NavServices> > m_services;
+
+    Frame* m_frame;
+    static bool m_permissionsEnabled;
 
 };
 } // namespace WebCore

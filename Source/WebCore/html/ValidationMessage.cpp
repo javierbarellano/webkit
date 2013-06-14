@@ -71,7 +71,6 @@ ValidationMessage::~ValidationMessage()
 
 PassOwnPtr<ValidationMessage> ValidationMessage::create(HTMLFormControlElement* element)
 {
-    printf("ValidationMessage::create()\n");
     return adoptPtr(new ValidationMessage(element));
 }
 

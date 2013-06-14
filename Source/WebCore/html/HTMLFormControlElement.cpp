@@ -416,7 +416,6 @@ bool HTMLFormControlElement::checkValidity(Vector<RefPtr<FormAssociatedElement> 
 {
     if (!willValidate() || isValidFormControlElement())
         return true;
-    printf("HTMLFormControlElement::checkValidity()\n");
     // An event handler can deref this object.
     RefPtr<HTMLFormControlElement> protector(this);
     RefPtr<Document> originalDocument(document());
