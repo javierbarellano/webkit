@@ -140,11 +140,11 @@ PermissionButtonElement::PermissionButtonElement(Document* doc)
 void PermissionButtonElement::defaultEventHandler(Event* event)
 {
     if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
-        RefPtr<NodeList> list = m_navdsc->getFrame()->document()->documentElement()->getElementsByTagName(AtomicString("body"));
-        Element* n = this->parentElement()->parentElement();
-        if (n)
-            list->item(0)->removeChild(n->toNode(), IGNORE_EXCEPTION);
-        list.release();
+        Element* child = this->parentElement()->parentElement();
+
+        if (child && child->parentElement())
+            child->parentElement()->removeChild(child->toNode(), IGNORE_EXCEPTION);
+
         callOnMainThread(NavDsc::dispatchServiceOnline, m_navdsc);
     }
 }
