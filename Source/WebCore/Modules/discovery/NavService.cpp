@@ -7,6 +7,7 @@
 
 #if ENABLE(DISCOVERY)
 
+#include "NavDsc.h"
 #include "NavService.h"
 
 
@@ -60,6 +61,11 @@ EventTargetData* NavService::eventTargetData()
 EventTargetData* NavService::ensureEventTargetData()
 {
     return &m_eventTargetData;
+}
+
+bool   NavService::hasPermission() const
+{
+    return m_hasPermission || !NavDsc::permissionsEnabled();
 }
 
 } // namespace WebCore

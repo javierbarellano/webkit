@@ -84,6 +84,9 @@ void Nav::getNetworkServices(
 	ProtocolType protoType = nv->readRemoveTypePrefix(cType, sType, &reset);
 	std::string strType(sType);
 
+	if (reset)
+	    NavDsc::disablePermissions();
+
 	if (protoType != UPNP_PROTO && protoType != ZC_PROTO) {
 		if (errorcb)
 		{
@@ -103,15 +106,15 @@ void Nav::getNetworkServices(
 	std::map<std::string, ZCDevice> zcdevs;
 
 	if (protoType == UPNP_PROTO) {
-		if (reset) {
+		if (reset)
 			nd->upnpReset();
-		}
+
 		devs = nd->startUPnPDiscovery(sType, successcb, errorcb);
 
 	} else if (protoType == ZC_PROTO) {
-		if (reset) {
+		if (reset)
 			nd->zcReset();
-		}
+
 		zcdevs = nd->startZeroConfDiscovery(sType, successcb, errorcb);
 	} else if (errorcb) {
 		RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UNKNOWN_TYPE);

@@ -46,6 +46,7 @@ public:
     , m_url("")
     , m_config("")
     , m_type("")
+    , m_hasPermission(false)
     , m_online(true)
     , m_protocol(UPNP_TYPE)
     {}
@@ -76,6 +77,7 @@ public:
     String config() const {return m_config;}
     String type() const {return m_type;}
     bool   online() const {return m_online;}
+    bool   hasPermission() const;
 
     ProtocolType pType() const {return m_protocol;}
 
@@ -85,6 +87,7 @@ public:
     void setConfig(String config) {m_config = config;}
     void setType(String type) {m_type = type;}
     void setOnline(bool online) {m_online = online;}
+    void setPermission(bool hasPermission) {m_hasPermission = hasPermission;}
 
     void setPType(ProtocolType type) {m_protocol = type;}
 
@@ -109,6 +112,8 @@ private:
     String m_url;
      String m_config;
     String m_type;
+
+    bool m_hasPermission;
 
     bool m_online;
 

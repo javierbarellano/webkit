@@ -116,6 +116,7 @@ public:
     static void serviceOfflineInternal(void *ptr);
 	void serviceOnline(std::string type, UPnPDevice &dev);
     static void serviceOnlineInternal(void *ptr);
+    static void dispatchServiceOnline(void *ptr);
 
 	void zcServiceOffline(std::string type, ZCDevice &dev);
 	void zcServiceOnline(std::string type, ZCDevice &dev);
@@ -123,9 +124,16 @@ public:
 	void sendEvent(std::string uuid, std::string stype, std::string body);
     static void sendEventInternal(void *ptr);
 
-private:
+
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
 
+    static void disablePermissions() {m_permissionsEnabled = false;}
+
+    Frame* getFrame() {return m_frame;}
+
+    static bool permissionsEnabled() {return m_permissionsEnabled;}
+
+private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
 
     void addUPnPDev(std::string type, std::map<std::string, UPnPDevice> devs);
@@ -139,12 +147,12 @@ private:
     		ProtocolType protoType
     		);
 
+    void createPermissionsDialog(EventData ed);
+
 	pthread_t threadHandle;
 	static NavDsc *instance;
 
 	NavDsc(Frame * frame);
-
-	Frame* m_frame;
 
 	// map key:service type
 	std::map<std::string, IDiscoveryAPI *> m_UPnPnav;
@@ -155,12 +163,15 @@ private:
 
     // Events
 	std::queue<EventData> m_eventData;
-    Mutex *m_main;
+    Mutex m_main;
 
     bool m_resetSet;
 
     // Map by type
     std::map<std::string, RefPtr<NavServices> > m_services;
+
+    Frame* m_frame;
+    static bool m_permissionsEnabled;
 
 };
 } // namespace WebCore
