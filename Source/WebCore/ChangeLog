@@ -1,3 +1,76 @@
+2013-07-16  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] support in-band text tracks
+        https://bugs.webkit.org/show_bug.cgi?id=103771
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests (OOPS!).
+
+        * GNUmakefile.list.am: Add InbandTextTrackPrivateGStreamer and TextCombinerGStreamer files.
+        * PlatformEfl.cmake: Same.
+        * Target.pri: Same.
+        * html/track/InbandTextTrack.cpp: Add label and language changed callbacks.
+        (WebCore::InbandTextTrack::inbandTextTrackPrivateLabelChanged): Added.
+        (WebCore::InbandTextTrack::inbandTextTrackPrivateLanguageChanged): Added.
+        * html/track/InbandTextTrack.h: Add label and language changed callbacks.
+        * platform/graphics/InbandTextTrackPrivateClient.h: Same.
+        * platform/graphics/gstreamer/GRefPtrGStreamer.cpp: Add GRefPtr specializations for GstSample and GstEvent.
+        (WTF::adoptGRef):
+        (WTF::GstSample):
+        (WTF::GstEvent):
+        * platform/graphics/gstreamer/GRefPtrGStreamer.h: Same.
+        * platform/graphics/gstreamer/GStreamerUtilities.h: Add WARN_MEDIA_MESSAGE.
+        * platform/graphics/gstreamer/GStreamerVersioning.h: Add a function to check GStreamer version at runtime.
+        (webkitGstCheckVersion):
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp: Added.
+        (WebCore::textTrackPrivateEventCallback): Watches for tag and stream start events.
+        (WebCore::textTrackPrivateSampleTimeoutCallback):
+        (WebCore::textTrackPrivateStreamTimeoutCallback):
+        (WebCore::textTrackPrivateTagsChangeTimeoutCallback):
+        (WebCore::InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer): Initializes tags and stream and sets up event callback.
+        (WebCore::InbandTextTrackPrivateGStreamer::~InbandTextTrackPrivateGStreamer): Calls disconnect:
+        (WebCore::InbandTextTrackPrivateGStreamer::disconnect): Removes signal handlers and frees some memory.
+        (WebCore::InbandTextTrackPrivateGStreamer::clearCues): Removes all cues (useful when seeking).
+        (WebCore::InbandTextTrackPrivateGStreamer::handleSample): Adds samples to a list and sets up callback.
+        (WebCore::InbandTextTrackPrivateGStreamer::streamChanged): Sets up callback.
+        (WebCore::InbandTextTrackPrivateGStreamer::tagsChanged): Same.
+        (WebCore::InbandTextTrackPrivateGStreamer::notifyTrackOfSample): Parses all queued samples with WebVTTParser.
+        (WebCore::InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged): Keeps track of current stream.
+        (WebCore::InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged): Sets label and language from tags.
+        (WebCore::InbandTextTrackPrivateGStreamer::newCuesParsed): Adds new cues to our InbandTextTrack.
+        (WebCore::InbandTextTrackPrivateGStreamer::fileFailedToParse): Prints a warning message.
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h: Added.
+        (WebCore::InbandTextTrackPrivateGStreamer::create): Basic RefPtr create function.
+        (WebCore::InbandTextTrackPrivateGStreamer::pad): Returns the pad this track is associated with (used
+        to determine if a playbin text stream has already been associated with a text track).
+        (WebCore::InbandTextTrackPrivateGStreamer::setIndex): Sets the track index (used for sorting).
+        (WebCore::InbandTextTrackPrivateGStreamer::streamId): Returns the stream ID (used to handle new samples).
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        (WebCore::mediaPlayerPrivateTextChangedCallback): Called for playbin "text-changed" event. See textChanged().
+        (WebCore::mediaPlayerPrivateTextChangeTimeoutCallback): See notifyPlayerOfText().
+        (WebCore::mediaPlayerPrivateNewTextSampleCallback): See newTextSample().
+        (WebCore::MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer): Initialize m_textTimerHandler.
+        (WebCore::MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer): Disconnect text tracks (they don't necessarily
+        get freed here, since a script could hold a reference).
+        (WebCore::MediaPlayerPrivateGStreamer::seek): Remove cues so we don't get duplicates.
+        (WebCore::MediaPlayerPrivateGStreamer::textChanged): Setup callback for notifyPlayerOfText.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfText): Create text tracks.
+        (WebCore::MediaPlayerPrivateGStreamer::newTextSample): Handle new samples by giving them to a text track
+        with a matching stream. This method is syncryonous because we need to get the stream start sticky event
+        immediately.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h:
+        * platform/graphics/gstreamer/TextCombinerGStreamer.cpp: Added. This element forwards buffers from all
+        of its input pads, but also converts plain text to WebVTT as needed.
+        (webkit_text_combiner_init): Setup internal funnel.
+        (webkitTextCombinerPadEvent): If the caps are plain text make sure we have a webvttenv, otherwise connect
+        directly to the funnel.
+        (webkitTextCombinerRequestNewPad): Setup ghostpad and event callback.
+        (webkitTextCombinerReleasePad): Release pad and optional associated webvttenc.
+        (webkit_text_combiner_class_init): Setup pad templates and request/release pad functions.
+        (webkitTextCombinerNew): Returns a new WebKitTextCombiner.
+        * platform/graphics/gstreamer/TextCombinerGStreamer.h: Added.
+
 2013-06-24  Brendan Long  <b.long@cablelabs.com>
 
         [GStreamer] Support audio and video tracks

@@ -93,6 +93,9 @@ private:
     virtual void removeCue(TextTrackCue*, ExceptionCode&) OVERRIDE;
     virtual void willRemoveTextTrackPrivate(InbandTextTrackPrivate*) OVERRIDE;
 
+    virtual void inbandTextTrackPrivateLabelChanged(InbandTextTrackPrivate*) OVERRIDE;
+    virtual void inbandTextTrackPrivateLanguageChanged(InbandTextTrackPrivate*) OVERRIDE;
+
     PassRefPtr<TextTrackCueGeneric> createCue(PassRefPtr<GenericCueData>);
     void updateCueFromCueData(TextTrackCueGeneric*, GenericCueData*);
 

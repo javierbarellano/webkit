@@ -41,6 +41,7 @@ typedef struct _GstElement GstElement;
 namespace WebCore {
 
 class AudioTrackPrivateGStreamer;
+class InbandTextTrackPrivateGStreamer;
 class VideoTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
@@ -96,6 +97,14 @@ public:
     void notifyPlayerOfVideoCaps();
     void notifyPlayerOfAudio();
 
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    void textChanged();
+    void notifyPlayerOfText();
+
+    void newTextSample();
+    void notifyPlayerOfNewTextSample();
+#endif
+
     void sourceChanged();
     GstElement* audioSink() const;
 
@@ -142,6 +151,10 @@ private:
 #endif
     GRefPtr<GstElement> m_playBin;
     GRefPtr<GstElement> m_source;
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    GRefPtr<GstElement> m_textAppSink;
+    GRefPtr<GstPad> m_textAppSinkPad;
+#endif
     float m_seekTime;
     bool m_changingRate;
     float m_endTime;
@@ -171,6 +184,7 @@ private:
     bool m_hasVideo;
     bool m_hasAudio;
     guint m_audioTimerHandler;
+    guint m_textTimerHandler;
     guint m_videoTimerHandler;
     guint m_videoCapsTimerHandler;
     GRefPtr<GstElement> m_webkitAudioSink;
@@ -180,8 +194,9 @@ private:
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
+    Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
     Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
     RefPtr<AudioTrackPrivateGStreamer> m_defaultAudioTrack;
 #endif

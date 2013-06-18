@@ -142,6 +142,9 @@ public:
     virtual void addWebVTTCue(InbandTextTrackPrivate*, PassRefPtr<WebVTTCueData>) = 0;
     virtual void removeWebVTTCue(InbandTextTrackPrivate*, WebVTTCueData*) = 0;
 
+    virtual void inbandTextTrackPrivateLabelChanged(InbandTextTrackPrivate*) = 0;
+    virtual void inbandTextTrackPrivateLanguageChanged(InbandTextTrackPrivate*) = 0;
+
     virtual void willRemoveTextTrackPrivate(InbandTextTrackPrivate*) = 0;
 };
 

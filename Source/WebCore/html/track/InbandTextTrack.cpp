@@ -403,6 +403,20 @@ void InbandTextTrack::removeCue(TextTrackCue* cue, ExceptionCode& ec)
     TextTrack::removeCue(cue, ec);
 }
 
+void InbandTextTrack::inbandTextTrackPrivateLabelChanged(InbandTextTrackPrivate* trackPrivate)
+{
+    UNUSED_PARAM(trackPrivate);
+    ASSERT(trackPrivate == m_private);
+    setLabel(m_private->label());
+}
+
+void InbandTextTrack::inbandTextTrackPrivateLanguageChanged(InbandTextTrackPrivate* trackPrivate)
+{
+    UNUSED_PARAM(trackPrivate);
+    ASSERT(trackPrivate == m_private);
+    setLanguage(m_private->language());
+}
+
 void InbandTextTrack::willRemoveTextTrackPrivate(InbandTextTrackPrivate* trackPrivate)
 {
     if (!mediaElement())

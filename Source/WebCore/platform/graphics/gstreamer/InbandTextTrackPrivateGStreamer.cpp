@@ -1,147 +1,98 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "InbandTextTrackPrivateGStreamer.h"
 
 #include "GStreamerUtilities.h"
-#include "InbandTextTrackPrivateClient.h"
 #include "Logging.h"
+#include <glib-object.h>
 #include <gst/gst.h>
+
+GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
+#define GST_CAT_DEFAULT webkit_media_player_debug
 
 namespace WebCore {
 
-#ifdef GST_API_VERSION_1
-static const char* gSampleSignal = "new-sample";
-#else
-static const char* gSampleSignal = "new-buffer";
-#endif
-
-#ifdef GST_API_VERSION_1
-static GstFlowReturn inbandTextTrackPrivateNewSampleCallback(GstPad*, InbandTextTrackPrivateGStreamer* track)
-{
-    track->newSample();
-    return GST_FLOW_OK;
-}
-
-static GstPadProbeReturn inbandTextTrackPrivateEventCallback(GstPad*, GstPadProbeInfo* info, InbandTextTrackPrivateGStreamer* track)
+static GstPadProbeReturn textTrackPrivateEventCallback(GstPad*, GstPadProbeInfo* info, InbandTextTrackPrivateGStreamer* track)
 {
     GstEvent* event = gst_pad_probe_info_get_event(info);
     switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_TAG:
-        track->handleTag(event);
+        track->tagsChanged();
         break;
-    case GST_EVENT_SEEK:
-        /* Seek events get sent to all sinks, including appsink added here.
-         * This appsink should drop seek event to prevent duplicate processing
-         * and also to ensure proper processing from playsink */
-        return GST_PAD_PROBE_DROP;
+    case GST_EVENT_STREAM_START:
+        track->streamChanged();
+        break;
+    default:
+        break;
     }
     return GST_PAD_PROBE_OK;
 }
-#else
-static void inbandTextTrackPrivateNewSampleCallback(GstPad*, InbandTextTrackPrivateGStreamer* track)
-{
-    track->newSample();
-}
 
-static gboolean inbandTextTrackPrivateEventCallback(GstPad*, GstEvent* event, InbandTextTrackPrivateGStreamer* track)
+static gboolean textTrackPrivateSampleTimeoutCallback(InbandTextTrackPrivateGStreamer* track)
 {
-    switch (GST_EVENT_TYPE(event)) {
-    case GST_EVENT_TAG:
-        track->handleTag(event);
-        break;
-    case GST_EVENT_SEEK:
-        return false;
-    }
-    return true;
-}
-#endif
-
-static gboolean inbandTextTrackPrivateBufferTimeoutCallback(InbandTextTrackPrivateGStreamer* track)
-{
-    track->notifyPlayerOfSample();
+    track->notifyTrackOfSample();
     return FALSE;
 }
 
-static gboolean inbandTextTrackPrivateTagTimeoutCallback(InbandTextTrackPrivateGStreamer* track)
+static gboolean textTrackPrivateStreamTimeoutCallback(InbandTextTrackPrivateGStreamer* track)
 {
-    track->notifyPlayerOfTag();
+    track->notifyTrackOfStreamChanged();
     return FALSE;
 }
 
-InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElement> pipeline, GstPad* pad, Format format)
-    : m_pad(pad)
-    , m_pipeline(pipeline)
-    , m_queue(gst_element_factory_make("queue", NULL))
-    , m_sink(gst_element_factory_make("appsink", NULL))
-    , m_sampleTimerHandler(0)
-    , m_tagTimerHandler(0)
-#ifndef GST_API_VERSION_1
-    , m_tags(0)
-#endif
-    , m_hasBeenReported(false)
+static gboolean textTrackPrivateTagsChangeTimeoutCallback(InbandTextTrackPrivateGStreamer* track)
+{
+    track->notifyTrackOfTagsChanged();
+    return FALSE;
+}
+
+InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
+    : m_index(index)
+    , m_pad(pad)
     , m_isDisconnected(false)
-    , m_format(format)
-    , m_vttParser(WebVTTParser::create(this, 0))
+    , m_sampleTimerHandler(0)
+    , m_streamTimerHandler(0)
+    , m_tagTimerHandler(0)
+    , m_webVTTParser(WebVTTParser::create(this, 0))
 {
-    gst_bin_add_many(GST_BIN(m_pipeline.get()), m_queue.get(), m_sink.get(), NULL);
-    gst_element_sync_state_with_parent(m_queue.get());
-    gst_element_sync_state_with_parent(m_sink.get());
+    m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+        reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);
 
-    GstPad* queuePad = gst_element_get_static_pad(m_queue.get(), "sink");
-    bool ret = gst_pad_link(pad, queuePad) == GST_PAD_LINK_OK;
-    UNUSED_PARAM(ret);
-    ASSERT(ret);
-    ret = gst_element_link(m_queue.get(), m_sink.get());
-    ASSERT(ret);
-
-    g_object_set(m_sink.get(), "emit-signals", true, "async", false, NULL);
-    g_signal_connect(m_sink.get(), gSampleSignal, G_CALLBACK(inbandTextTrackPrivateNewSampleCallback), this);
-
-    GstPad* sinkPad = gst_element_get_static_pad(m_sink.get(), "sink");
-    ASSERT(sinkPad);
-#ifdef GST_API_VERSION_1
-    m_tagProbe = gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_EVENT_BOTH,
-        reinterpret_cast<GstPadProbeCallback>(inbandTextTrackPrivateEventCallback), this, 0);
-#else
-    m_tagProbe = gst_pad_add_event_probe(sinkPad, G_CALLBACK(inbandTextTrackPrivateEventCallback), this);
-#endif
+    /* We want to check these in case we got events before the track was created */
+    streamChanged();
+    tagsChanged();
 }
 
 InbandTextTrackPrivateGStreamer::~InbandTextTrackPrivateGStreamer()
 {
     disconnect();
-#ifndef GST_API_VERSION_1
-    MutexLocker lock(m_tagMutex);
-    if (m_tags)
-        gst_tag_list_free(m_tags);
-#endif
 }
 
 void InbandTextTrackPrivateGStreamer::disconnect()
@@ -151,166 +102,141 @@ void InbandTextTrackPrivateGStreamer::disconnect()
 
     m_isDisconnected = true;
 
-    GstPad* sinkPad = gst_element_get_static_pad(m_sink.get(), "sink");
-    ASSERT(sinkPad);
+    gst_pad_remove_probe(m_pad.get(), m_eventProbe);
+    g_signal_handlers_disconnect_by_func(m_pad.get(),
+        reinterpret_cast<gpointer>(textTrackPrivateEventCallback), this);
 
-#ifdef GST_API_VERSION_1
-    gst_pad_remove_probe(sinkPad, m_tagProbe);
-#else
-    gst_pad_remove_event_probe(sinkPad, m_tagProbe);
-#endif
-    m_tagProbe = 0;
-
-    gst_element_set_state(m_queue.get(), GST_STATE_NULL);
-    gst_element_set_state(m_sink.get(), GST_STATE_NULL);
-
-    gst_bin_remove_many(GST_BIN(m_pipeline.get()), m_queue.get(), m_sink.get(), NULL);
-
-    m_pipeline.clear();
-    m_queue.clear();
-    m_sink.clear();
-
-    m_pad = 0;
-
-    if (m_sampleTimerHandler)
-        g_source_remove(m_sampleTimerHandler);
     if (m_tagTimerHandler)
         g_source_remove(m_tagTimerHandler);
-    m_index = 0;
+
+    m_pad.clear();
 }
 
-GstTagList* InbandTextTrackPrivateGStreamer::tags() const
+void InbandTextTrackPrivateGStreamer::clearCues()
 {
-#ifdef GST_API_VERSION_1
-    return m_tags.get();
-#else
-    return m_tags;
-#endif
-}
-
-void InbandTextTrackPrivateGStreamer::newSample()
-{
-    if (m_sampleTimerHandler)
-        g_source_remove(m_sampleTimerHandler);
-
-    RefPtr<GenericCueData> data = GenericCueData::create();
-    GstBuffer* buffer;
-#ifdef GST_API_VERSION_1
-    GstSample* sample;
-    g_signal_emit_by_name(m_sink.get(), "pull-sample", &sample, NULL);
-    if (!sample)
-        return; // EOS
-    buffer = gst_sample_get_buffer(sample);
-    GstMapInfo mapInfo;
-    if (!gst_buffer_map(buffer, &mapInfo, GST_MAP_READ)) {
-        LOG_MEDIA_MESSAGE("Unable to memory map cue data.\n");
-        return;
-    }
-    data->setContent(String::fromUTF8(mapInfo.data, mapInfo.size));
-    gst_buffer_unmap(buffer, &mapInfo);
-    data->setStartTime(((double)buffer->pts) / GST_SECOND);
-    data->setEndTime(data->startTime() + ((double)buffer->duration) / GST_SECOND);
-    gst_sample_unref(sample);
-#else
-    g_signal_emit_by_name(m_sink.get(), "pull-buffer", &buffer, NULL);
-    if (!buffer)
-        return; // EOS
-    data->setContent(String::fromUTF8(buffer->data, buffer->size));
-    data->setStartTime(((double)buffer->timestamp) / GST_SECOND);
-    data->setEndTime(data->startTime() + ((double)buffer->duration) / GST_SECOND);
-    gst_buffer_unref(buffer);
-#endif
-    data->setStatus(GenericCueData::Complete);
-    MutexLocker lock(m_cueMutex);
-    m_cues.append(data.release());
-    m_sampleTimerHandler = g_timeout_add(0,
-        reinterpret_cast<GSourceFunc>(inbandTextTrackPrivateBufferTimeoutCallback), this);
-}
-
-void InbandTextTrackPrivateGStreamer::notifyPlayerOfSample()
-{
-    m_sampleTimerHandler = 0;
-
-    MutexLocker lock(m_cueMutex);
-    for (size_t i = 0; i < m_cues.size() && client(); ++i) {
-        if (m_format == WebVTT) {
-            // FIXME: Pass WebVTT content in a better data structure..
-            String content = m_cues[i]->content();
-            m_vttParser->parseBytes(reinterpret_cast<const char*>(content.characters8()), content.length());
-        } else
-            client()->addGenericCue(this, m_cues[i].release());
-    }
+    // FIXME: It would be better to only clear cues after the time we seek to,
+    // but it's not obvious how we would do that.
+    for (size_t i = 0; i < m_cues.size(); ++i)
+        client()->removeWebVTTCue(this, m_cues[i].get());
     m_cues.clear();
 }
 
-void InbandTextTrackPrivateGStreamer::handleTag(GstEvent* event)
+void InbandTextTrackPrivateGStreamer::handleSample(GRefPtr<GstSample> sample)
 {
-    ASSERT(event->type == GST_EVENT_TAG);
-
-    if (m_tagTimerHandler)
-        g_source_remove(m_tagTimerHandler);
-
-    GstTagList* newTags = 0;
-    gst_event_parse_tag(event, &newTags);
+    if (m_sampleTimerHandler)
+        g_source_remove(m_sampleTimerHandler);
     {
-        MutexLocker lock(m_tagMutex);
-        if (m_isDisconnected)
-            return;
-        newTags = gst_tag_list_merge(tags(), newTags, GST_TAG_MERGE_REPLACE_ALL);
-#ifdef GST_API_VERSION_1
-        m_tags = adoptGRef(newTags);
-#else
-        if (m_tags)
-            gst_tag_list_free(m_tags);
-        m_tags = newTags;
-#endif
+        MutexLocker lock(m_sampleMutex);
+        m_pendingSamples.append(sample);
     }
-    m_tagTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(inbandTextTrackPrivateTagTimeoutCallback), this);
+    m_sampleTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(textTrackPrivateSampleTimeoutCallback), this);
 }
 
-void InbandTextTrackPrivateGStreamer::notifyPlayerOfTag()
+void InbandTextTrackPrivateGStreamer::streamChanged()
+{
+    if (m_streamTimerHandler)
+        g_source_remove(m_streamTimerHandler);
+    m_streamTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(textTrackPrivateStreamTimeoutCallback), this);
+}
+
+void InbandTextTrackPrivateGStreamer::tagsChanged()
+{
+    if (m_tagTimerHandler)
+        g_source_remove(m_tagTimerHandler);
+    m_tagTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(textTrackPrivateTagsChangeTimeoutCallback), this);
+}
+
+void InbandTextTrackPrivateGStreamer::notifyTrackOfSample()
+{
+    m_sampleTimerHandler = 0;
+
+    Vector<GRefPtr<GstSample> > samples;
+    {
+        MutexLocker lock(m_sampleMutex);
+        m_pendingSamples.swap(samples);
+    }
+
+    for (size_t i = 0; i < samples.size(); ++i) {
+        GRefPtr<GstSample> sample = samples[i];
+        GstBuffer* buffer = gst_sample_get_buffer(sample.get());
+        if (!buffer) {
+            INFO_MEDIA_MESSAGE("Track %d got sample with no buffer.", m_index);
+            continue;
+        }
+        GstMapInfo info;
+        gboolean ret = gst_buffer_map(buffer, &info, GST_MAP_READ);
+        ASSERT_UNUSED(ret, ret);
+
+        INFO_MEDIA_MESSAGE("Track %d parsing sample: %.*s", m_index, static_cast<int>(info.size),
+            reinterpret_cast<char*>(info.data));
+        m_webVTTParser->parseBytes(reinterpret_cast<char*>(info.data), info.size);
+    }
+}
+
+void InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged()
+{
+    m_streamTimerHandler = 0;
+
+    GRefPtr<GstEvent> event = gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_STREAM_START, 0);
+    if (!event)
+        return;
+
+    const gchar* streamId;
+    gst_event_parse_stream_start(event.get(), &streamId);
+    INFO_MEDIA_MESSAGE("Track %d got stream start for stream %s.", m_index, streamId);
+    m_streamId = streamId;
+}
+
+void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 {
     m_tagTimerHandler = 0;
 
-    String language;
-    String label;
-    MutexLocker lock(m_tagMutex);
-    if (!client())
+    GRefPtr<GstEvent> event = gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, 0);
+    GstTagList* tags = 0;
+    if (event)
+        gst_event_parse_tag(event.get(), &tags);
+
+    if (!tags) {
+        m_label = emptyAtom;
+        m_language = emptyAtom;
         return;
-    /*
-    gchar* str;
-    if (gst_tag_list_get_string(tags(), GST_TAG_LANGUAGE_CODE, &str)) {
-        m_language = str;
-        client()->setLanguage(str);
-        g_free(str);
     }
-    if (gst_tag_list_get_string(tags(), GST_TAG_TITLE, &str)) {
-        m_label = str;
-        client()->setLabel(str);
-        g_free(str);
-    }*/
+
+    gchar* tagValue;
+    if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
+        INFO_MEDIA_MESSAGE("Track %d got title %s.", m_index, tagValue);
+        m_label = tagValue;
+        g_free(tagValue);
+        client()->inbandTextTrackPrivateLabelChanged(this);
+    } else
+        m_label = emptyAtom;
+
+    if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
+        INFO_MEDIA_MESSAGE("Track %d got language %s.", m_index, tagValue);
+        m_language = tagValue;
+        g_free(tagValue);
+        client()->inbandTextTrackPrivateLanguageChanged(this);
+    } else
+        m_language = emptyAtom;
 }
 
 void InbandTextTrackPrivateGStreamer::newCuesParsed()
 {
     Vector<RefPtr<WebVTTCueData> > cues;
-    m_vttParser->getNewCues(cues);
+    m_webVTTParser->getNewCues(cues);
+    m_cues.appendVector(cues);
     for (size_t i = 0; i < cues.size(); ++i)
         client()->addWebVTTCue(this, cues[i]);
 }
 
-#if ENABLE(WEBVTT_REGIONS)
-void InbandTextTrackPrivateGStreamer::newRegionsParsed()
-{
-
-}
-#endif
-
 void InbandTextTrackPrivateGStreamer::fileFailedToParse()
 {
-    g_warning("Failed to parse in-band WebVTT input.\n");
+    WARN_MEDIA_MESSAGE("Unable to parse WebVTT stream.");
 }
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(AVFOUNDATION) && HAVE(AVFOUNDATION_TEXT_TRACK_SUPPORT)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
