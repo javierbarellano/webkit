@@ -413,7 +413,6 @@ void NavDsc::ZCDevDropped(std::string type, ZCDevice &dev)
 	NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s\n",
 			dev.url.c_str(), dev.friendlyName.c_str());
 
-    // Mutex lock to release after the push
     {
         MutexLocker lock(m_main);
         EventData ed = {ZC_PROTO, false, type, UPnPDevice(), dev, NULL};
@@ -428,7 +427,6 @@ void NavDsc::ZCDevAdded(std::string type, ZCDevice &dev)
 	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s\n",
 			dev.url.c_str(), dev.friendlyName.c_str());
 
-    // Mutex lock to release after the push
     {
         MutexLocker lock(m_main);
         EventData ed = {ZC_PROTO, true, type, UPnPDevice(), dev, NULL};
@@ -449,7 +447,6 @@ void NavDsc::UPnPDevDropped(std::string type, UPnPDevice &dev)
 	UPnPDevMap dm;
 
 	if (m_frame) {
-        // Mutex lock to release after the push
         {
             MutexLocker lock(m_main);
             EventData ed = {UPNP_PROTO, false, type, dev, ZCDevice(), NULL};
@@ -470,7 +467,6 @@ void NavDsc::UPnPDevAdded(std::string type, UPnPDevice &dev)
 			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
 
 	if (m_frame) {
-        // Mutex lock to release after the push
         {
             MutexLocker lock(m_main);
             EventData ed = {UPNP_PROTO, true, type, dev, ZCDevice(), NULL};
@@ -482,6 +478,7 @@ void NavDsc::UPnPDevAdded(std::string type, UPnPDevice &dev)
             callOnMainThread(NavDsc::serviceOnlineInternal,this);
         else
             callOnMainThread(NavDsc::dispatchServiceOnline,this);
+
 	} else {
         UPnPDevMap dm = UPnPSearch::getDevs(type);
         NAV_LOG("UPnPDevAdded(): call serverListUpdate() Size: %d\n", dm.devMap.size());
@@ -501,7 +498,6 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 		return;
 	}
 
-    // Mutex lock to release after the pop
     {
         MutexLocker lock(nd->m_main);
         ed = nd->m_eventData.front();
@@ -619,7 +615,6 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 		return;
 	}
 
-    // Mutex lock to release after the pop
     {
         MutexLocker lock(nd->m_main);
         ed = nd->m_eventData.front();
@@ -637,7 +632,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 			nd->updateZCServices(ed.type, devs->devMap);
 		} else {
 			UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
-			if (!devs.devMap.size())
+			if (devs.devMap.empty())
 				return;
 
 			nd->updateServices(ed.type, devs.devMap);
@@ -665,7 +660,6 @@ void NavDsc::dispatchServiceOnline(void *ptr)
         return;
     }
 
-    // Mutex lock to release after the pop
     {
         MutexLocker lock(nd->m_main);
         ed = nd->m_eventData.front();
@@ -684,7 +678,7 @@ void NavDsc::dispatchServiceOnline(void *ptr)
             nd->updateZCServices(ed.type, devs->devMap);
         } else {
             UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
-            if (!devs.devMap.size())
+            if (devs.devMap.empty())
                 return;
 
             nd->updateServices(ed.type, devs.devMap);
@@ -733,7 +727,6 @@ void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
 	evnt->setServiceType(WTF::String(stype.c_str()));
 	evnt->setFriendlyName(WTF::String(name.c_str()));
 
-    // Mutex lock to release after the push
     {
         MutexLocker lock(m_main);
         EventData ed = {EVENT_PROTO, true, stype, UPnPDevice(), ZCDevice(), evnt};
@@ -750,7 +743,6 @@ void NavDsc::sendEventInternal(void *ptr)
 	NavDsc *nv = (NavDsc*)ptr;
 	EventData ed;
 
-    // Mutex lock to release after the pop
     {
         MutexLocker lock(nv->m_main);
         ed = nv->m_eventData.front();
@@ -781,8 +773,12 @@ void NavDsc::sendEventInternal(void *ptr)
 
 void NavDsc::serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs)
 {
-    if (m_UPnPnav.size() && m_UPnPnav.find(type) != m_UPnPnav.end() && m_UPnPnav.find(type)->second)
-        m_UPnPnav.find(type)->second->serverListUpdate(type, devs);
+    if (m_UPnPnav.size()) {
+        std::map<std::string, IDiscoveryAPI*>::iterator pair = m_UPnPnav.find(type);
+        if (pair != m_UPnPnav.end() && pair->second)
+            pair->second->serverListUpdate(type, devs);
+    }
+
 }
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
@@ -812,7 +808,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
 
         m_services.clear();
         if (successcb) {
-            std::vector<NavServices *> srvs = getNavServices(type);
+            std::vector<NavServices*> srvs = getNavServices(type);
             successcb->handleEvent(srvs.at(0));
         }
 
@@ -836,7 +832,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
 
 
 	if (successcb) {
-        std::vector<NavServices *> srvs = getNavServices(type);
+        std::vector<NavServices*> srvs = getNavServices(type);
         successcb->handleEvent(srvs.at(0));
 	}
 
@@ -845,7 +841,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
 }
 
 std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(
-		const char *type,
+		const char* type,
 		PassRefPtr<NavServiceOkCB> successcb,
 		PassRefPtr<NavServiceErrorCB> errorcb)
 {
