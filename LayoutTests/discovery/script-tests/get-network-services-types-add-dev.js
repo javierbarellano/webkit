@@ -42,7 +42,6 @@ function okCDS(services) {
 function okCnn(services) {
 	testPassed("navigator.getNetworkServices() called ok Cnn callback.");
 	srvsCnn = services;
-	shouldBe("srvsCnn.length==0", "true");
 	srvsCnn.onserviceavailable = CnnAddDev;
 	//window.console.log("okCnn() called...");
 }

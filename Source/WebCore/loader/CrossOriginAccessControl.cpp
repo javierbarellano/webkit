@@ -28,6 +28,7 @@
 #include "CrossOriginAccessControl.h"
 
 #if ENABLE(DISCOVERY)
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/ZeroConf.h"
 #endif
@@ -84,7 +85,7 @@ bool isSimpleCrossOriginAccessRequest(const String& method, const HTTPHeaderMap&
 static PassOwnPtr<HTTPHeaderSet> createAllowedCrossOriginResponseHeadersSet()
 {
     OwnPtr<HTTPHeaderSet> headerSet = adoptPtr(new HashSet<String, CaseFoldingHash>);
-    
+
     headerSet->add("cache-control");
     headerSet->add("content-language");
     headerSet->add("content-type");

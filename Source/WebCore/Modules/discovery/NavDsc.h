@@ -56,6 +56,7 @@ typedef struct _EventData
 } EventData;
 
 class NavDsc
+    : public IDiscoveryAPI
 {
 public:
 	static FILE *HN_FD_; // Used for logging
@@ -72,9 +73,6 @@ public:
 
 	virtual ~NavDsc();
 
-    void startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
-
-
 	std::map<std::string, UPnPDevice> startUPnPDiscovery(
 			const char *type,
 			PassRefPtr<NavServiceOkCB> successcb,
@@ -88,7 +86,8 @@ public:
 	void onUPnPDiscovery(const char *type, IDiscoveryAPI *nav)
 	{
 		//printf("onUPnPDiscovery(): Setting m_UPnPnav...\n");
-		m_UPnPnav[std::string(type)] = nav;
+	    if (m_UPnPnav.find(std::string(type)) == m_UPnPnav.end())
+	        m_UPnPnav[std::string(type)] = nav;
 		//m_UPnPnav = nav;
 		// Tell UPnPSearch to callback on dev change
 	}
@@ -103,26 +102,31 @@ public:
 	void onUPnPEvent(const char *type, IDiscoveryAPI *nav)
 	{
 		//printf("onUPnPEvent(): Setting m_UPnPnav...\n");
-		m_UPnPnav[std::string(type)] = nav;
+        if (m_UPnPnav.find(std::string(type)) == m_UPnPnav.end())
+            m_UPnPnav[std::string(type)] = nav;
 	}
 
 	void upnpReset() {m_resetSet = true; }
 	void zcReset() {m_resetSet = true;  }
 
-	void onUPnPError(int error);
+	void onError(int error);
 	void onZCError(int error);
 
-	void serviceOffline(std::string type, UPnPDevice &dev);
+	void UPnPDevDropped(std::string type, UPnPDevice &dev);
     static void serviceOfflineInternal(void *ptr);
-	void serviceOnline(std::string type, UPnPDevice &dev);
+	void UPnPDevAdded(std::string type, UPnPDevice &dev);
     static void serviceOnlineInternal(void *ptr);
+
     static void dispatchServiceOnline(void *ptr);
 
-	void zcServiceOffline(std::string type, ZCDevice &dev);
-	void zcServiceOnline(std::string type, ZCDevice &dev);
+	void ZCDevDropped(std::string type, ZCDevice &dev);
+	void ZCDevAdded(std::string type, ZCDevice &dev);
 
 	void sendEvent(std::string uuid, std::string stype, std::string body);
     static void sendEventInternal(void *ptr);
+
+    virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs);
+    virtual void receiveID(long idFromHN){}
 
 
     std::vector<NavServices*> getNavServices(std::string type, bool isUp=true);
@@ -136,8 +140,8 @@ public:
 private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
 
-    void addUPnPDev(std::string type, std::map<std::string, UPnPDevice> devs);
-    void addZCDev(std::string type, std::map<std::string, ZCDevice> devs);
+    void updateServices(std::string type, std::map<std::string, UPnPDevice> devs);
+    void updateZCServices(std::string type, std::map<std::string, ZCDevice> devs);
 
     void setServices(
     		std::string strType,
@@ -167,6 +171,7 @@ private:
 
     bool m_resetSet;
 
+    Mutex m_lockServices;
     // Map by type
     std::map<std::string, RefPtr<NavServices> > m_services;
 

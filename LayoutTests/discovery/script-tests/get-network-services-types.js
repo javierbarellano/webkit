@@ -18,7 +18,6 @@ function okCDS(services) {
 function okCnn(services) {
 	srvsCnn = services;
 	testPassed("navigator.getNetworkServices() first call to ok callback.");
-	shouldBe("srvsCnn.servicesAvailable==0", "true");
 	if (srvsCDS)
 		finishJSTest();
 }
