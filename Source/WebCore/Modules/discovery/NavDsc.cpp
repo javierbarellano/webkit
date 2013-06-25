@@ -458,8 +458,7 @@ void NavDsc::UPnPDevDropped(std::string type, UPnPDevice &dev)
 
         callOnMainThread(NavDsc::serviceOfflineInternal,this);
 	} else {
-        UPnPDevMap dm;
-        UPnPSearch::getDevs(type.c_str(), &dm);
+        UPnPDevMap dm = UPnPSearch::getDevs(type);
         if (dm.devMap.size())
             serverListUpdate(type, &dm.devMap);
 	}
@@ -484,8 +483,7 @@ void NavDsc::UPnPDevAdded(std::string type, UPnPDevice &dev)
         else
             callOnMainThread(NavDsc::dispatchServiceOnline,this);
 	} else {
-        UPnPDevMap dm;
-        UPnPSearch::getDevs(type.c_str(), &dm);
+        UPnPDevMap dm = UPnPSearch::getDevs(type);
         NAV_LOG("UPnPDevAdded(): call serverListUpdate() Size: %d\n", dm.devMap.size());
         if (dm.devMap.size())
             serverListUpdate(type, &dm.devMap);
@@ -638,8 +636,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
 
 			nd->updateZCServices(ed.type, devs->devMap);
 		} else {
-			UPnPDevMap devs;
-			UPnPSearch::getDevs(ed.type.c_str(), &devs);
+			UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
 			if (!devs.devMap.size())
 				return;
 
@@ -686,8 +683,7 @@ void NavDsc::dispatchServiceOnline(void *ptr)
 
             nd->updateZCServices(ed.type, devs->devMap);
         } else {
-            UPnPDevMap devs;
-            UPnPSearch::getDevs(ed.type.c_str(), &devs);
+            UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
             if (!devs.devMap.size())
                 return;
 

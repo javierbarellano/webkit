@@ -104,21 +104,17 @@ public:
 
     std::string m_sendData;
 
-    static void getDevs(const char *type, UPnPDevMap* pdm)
+    static UPnPDevMap getDevs(const std::string &type)
     {
-        std::map<std::string, UPnPDevice>::iterator i;
+        UPnPDevMap pdm;
 
         if (!m_instance)
-            return;
+            return pdm;
 
-        if (m_instance->m_devs.find(type) == m_instance->m_devs.end())
-            return;
-
-        //MutexLocker lock(m_instance->m_devLock);
-        UPnPDevMap dm = m_instance->m_devs[type];
-        for (i = dm.devMap.begin(); i != dm.devMap.end(); i++)
-            pdm->devMap[i->first] = i->second;
-
+        std::map<std::string, UPnPDevMap>::iterator i = m_instance->m_devs.find(type);
+        if(i != m_instance->m_devs.end())
+            pdm.devMap = i->second.devMap;
+        return pdm;
     }
 
 protected:
