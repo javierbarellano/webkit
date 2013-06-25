@@ -21,7 +21,7 @@
 namespace WebCore
 {
 
-class NavDsc;
+class IDicoveryAPI;
 
 class DiscoveryBase : public UDPSocketHandleClient
 {
@@ -65,7 +65,7 @@ public:
 
     char m_url[1024];
 
-    NavDsc *m_navDsc;
+    IDiscoveryAPI *m_navDsc;
     bool m_netIsUp;
 
 protected:

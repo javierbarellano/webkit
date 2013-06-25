@@ -34,6 +34,7 @@
 #include "FrameLoaderClientQt.h"
 
 #if ENABLE(DISCOVERY)
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/ZeroConf.h"
 #endif
@@ -256,7 +257,7 @@ bool FrameLoaderClientQt::hasWebView() const
     return true;
 }
 
-void FrameLoaderClientQt::savePlatformDataToCachedFrame(CachedFrame*) 
+void FrameLoaderClientQt::savePlatformDataToCachedFrame(CachedFrame*)
 {
     notImplemented();
 }
@@ -628,7 +629,7 @@ bool FrameLoaderClientQt::canShowMIMETypeAsHTML(const String& MIMEType) const
     notImplemented();
     return false;
 }
-    
+
 bool FrameLoaderClientQt::canShowMIMEType(const String& MIMEType) const
 {
     String type = MIMEType;
@@ -1379,10 +1380,10 @@ ObjectContentType FrameLoaderClientQt::objectContentType(const KURL& url, const 
         plugInType = ObjectContentNetscapePlugin;
     else if (m_frame->page() && m_frame->page()->pluginData() && m_frame->page()->pluginData()->supportsMimeType(mimeType))
         plugInType = ObjectContentOtherPlugin;
-        
+
     if (MIMETypeRegistry::isSupportedImageMIMEType(mimeType))
         return shouldPreferPlugInsForImages && plugInType != ObjectContentNone ? plugInType : ObjectContentImage;
-    
+
     if (plugInType != ObjectContentNone)
         return plugInType;
 
@@ -1425,7 +1426,7 @@ public:
     }
 
     virtual void invalidateRect(const IntRect& r)
-    { 
+    {
         if (platformWidget())
             widgetAdapter()->update(r);
     }

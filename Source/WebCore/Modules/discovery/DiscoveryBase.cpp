@@ -18,6 +18,7 @@
 #include "../../../../Source/WebCore/platform/network/soup/UDPSocketError.h"
 
 #include "NavDsc.h"
+#include "IDiscoveryAPI.h"
 #include "DiscoveryBase.h"
 
 #include <errno.h>

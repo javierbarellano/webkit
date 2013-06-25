@@ -32,6 +32,7 @@
 #include "DocumentThreadableLoader.h"
 
 #if ENABLE(DISCOVERY)
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPSearch.h"
 #endif
 
@@ -325,7 +326,7 @@ void DocumentThreadableLoader::notifyFinished(CachedResource* resource)
 {
     ASSERT(m_client);
     ASSERT_UNUSED(resource, resource == m_resource);
-        
+
     if (m_resource->errorOccurred())
         didFail(m_resource->identifier(), m_resource->resourceError());
     else
@@ -415,7 +416,7 @@ void DocumentThreadableLoader::loadRequest(const ResourceRequest& request, Secur
         }
         return;
     }
-    
+
     // FIXME: ThreadableLoaderOptions.sniffContent is not supported for synchronous requests.
     Vector<char> data;
     ResourceError error;

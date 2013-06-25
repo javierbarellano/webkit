@@ -32,8 +32,6 @@
 namespace WebCore
 {
 
-class NavDsc;
-
 struct UPnPDevMap
 {
     // key == UUID
@@ -45,16 +43,13 @@ class UPnPSearch : public DiscoveryBase
 {
 
 public:
-    static std::map<std::string, UPnPDevice> discoverInternalDevs(const char *type, IDiscoveryAPI *);
-    static std::map<std::string, UPnPDevice> discoverDevs(const char *type, NavDsc *);
+    static std::map<std::string, UPnPDevice> discoverDevs(const char *type, IDiscoveryAPI *);
 
     static UPnPSearch* getInstance();
 
     static UPnPSearch* create();
 
     void getUPnPFriendlyName(std::string uuid, std::string type, std::string& name);
-
-    void checkForDroppedInternalDevs();
 
     //
     // UDPSocketHandleClient support
@@ -105,19 +100,25 @@ public:
 
     void checkForDroppedDevs();
 
-    void reset() { MutexLocker lock(m_devLock); m_devs.clear(); m_internalDevs.clear(); }
+    void reset() {MutexLocker lock(m_devLock); m_devs.clear();}
 
     std::string m_sendData;
 
-    static UPnPDevMap *getDevs(const char *type)
+    static void getDevs(const char *type, UPnPDevMap* pdm)
     {
+        std::map<std::string, UPnPDevice>::iterator i;
+
         if (!m_instance)
-            return 0;
+            return;
 
-        if (m_instance->m_devs.find(type) != m_instance->m_devs.end())
-            return &(m_instance->m_devs.find(type)->second);
+        if (m_instance->m_devs.find(type) == m_instance->m_devs.end())
+            return;
 
-        return 0;
+        //MutexLocker lock(m_instance->m_devLock);
+        UPnPDevMap dm = m_instance->m_devs[type];
+        for (i = dm.devMap.begin(); i != dm.devMap.end(); i++)
+            pdm->devMap[i->first] = i->second;
+
     }
 
 protected:
@@ -134,7 +135,6 @@ private:
     bool notInBadList(std::string sUUid);
 
     bool isRegisteredType(const char* type, std::vector<std::string> &regType);
-    bool isInternalType(const char* type);
     bool removeDevice(std::map<std::string, UPnPDevMap>* devices, std::string uuid);
     static UPnPSearch* m_instance;
 
@@ -150,11 +150,6 @@ private:
     long m_lastSend;
 
     bool m_sendPending;
-
-    // Private API support
-    IDiscoveryAPI *m_api;
-    std::map<std::string, UPnPDevMap> m_internalDevs;
-    std::string m_internalType;
 };
 
 } // namespace WebCore

@@ -69,10 +69,11 @@ public:
 
     // Implement IDiscoveryAPI interface
     virtual void onError(int error){}
-    virtual void UPnPDevAdded(std::string type){}
-    virtual void ZCDevAdded(std::string type){}
-    virtual void UPnPDevDropped(std::string type){}
-    virtual void ZCDevDropped(std::string type){}
+    virtual void onZCError(int error){}
+    virtual void UPnPDevAdded(std::string type, UPnPDevice &dev){}
+    virtual void ZCDevAdded(std::string type, ZCDevice &dev){}
+    virtual void UPnPDevDropped(std::string type, UPnPDevice &dev){}
+    virtual void ZCDevDropped(std::string type, ZCDevice &dev){}
     virtual void sendEvent(std::string uuid, std::string stype, std::string body){}
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs){}
     virtual void receiveID(long idFromHN) { m_hn_id = idFromHN; }

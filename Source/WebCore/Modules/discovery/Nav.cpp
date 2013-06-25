@@ -9,6 +9,7 @@
 
 #include "Frame.h"
 #include "Navigator.h"
+#include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/UPnPSearch.h"
 #include "Modules/discovery/NavDsc.h"
@@ -68,9 +69,6 @@ void Nav::getNetworkServices(
 	//printf("Nav::getNetworkServices() Start\n");
 
 	Nav *nv = from(n);
-	IDiscoveryAPI *disAPI = nv;
-
-	//long id = m_reqID++;
 
 	if (!nv->m_frame)
 		return;
@@ -97,10 +95,10 @@ void Nav::getNetworkServices(
 	}
 
 	if (protoType == UPNP_PROTO)
-		nd->onUPnPDiscovery(sType, disAPI);
+		nd->onUPnPDiscovery(sType, NULL);
 
 	else if (protoType == ZC_PROTO)
-		nd->onZCDiscovery(sType, disAPI);
+		nd->onZCDiscovery(sType, NULL);
 
 	std::map<std::string, UPnPDevice> devs;
 	std::map<std::string, ZCDevice> zcdevs;
@@ -123,12 +121,6 @@ void Nav::getNetworkServices(
 	}
 	else
 		return; // Error found and no error callback
-
-	//nv->setServices(id, strType, sType, devs, zcdevs, protoType);
-
-	//successcb->handleEvent(nv->getNavServices(id));
-
-	//printf("Nav::getNetworkServices() Done.\n");
 }
 
 

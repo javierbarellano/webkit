@@ -92,7 +92,6 @@ void droppedDevsThread(void *context)
         if (elapsedSeconds >= 5) {
             lastSendSeconds = now.tv_sec;
             upnp->checkForDroppedDevs();
-            upnp->checkForDroppedInternalDevs();
         }
 
         usleep(1000L*1000L); // 1000 ms
@@ -208,11 +207,9 @@ UPnPSearch* UPnPSearch::create()
 UPnPSearch::UPnPSearch(const char *type) :
 DiscoveryBase()
 {
-    m_internalType = "";
     if (type)
         m_regTypes.insert(std::string(type));
 
-    m_api = 0;
     m_navDsc = 0;
 
     m_sendData = "M-SEARCH * HTTP/1.1\r\nST: upnp:rootdevice\r\nMX: 5\r\nMAN: \"ssdp:discover\"\r\nHOST: 239.255.255.250:1900\r\n\r\n";
@@ -295,23 +292,7 @@ void UPnPSearch::createConnect(const char *type)
 }
 
 // static
-std::map<std::string, UPnPDevice> UPnPSearch::discoverInternalDevs(const char *type, IDiscoveryAPI *api)
-{
-
-    createConnect(type);
-    m_instance->m_api = api;
-    m_instance->m_internalType = type;
-
-    if (m_instance->m_internalDevs.find(std::string(type)) != m_instance->m_internalDevs.end()) {
-        UPnPDevMap dm = m_instance->m_internalDevs.find(std::string(type))->second;
-        return (dm.devMap);
-    }
-
-    return std::map<std::string, UPnPDevice>();
-}
-
-// static
-std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, NavDsc *navDsc)
+std::map<std::string, UPnPDevice> UPnPSearch::discoverDevs(const char *type, IDiscoveryAPI *navDsc)
 {
     std::map<std::string, UPnPDevice> empty;
     createConnect(type);
@@ -371,10 +352,7 @@ void UPnPSearch::UDPdidReceiveData(UDPSocketHandle* handle, const char *data, in
                     parseDev(data, dLen, 0);
                 } else if (st == "ssdp:byebye") {
                     NAV_LOG("Received NOTIFY:byebye: %s\n", uuid.c_str());
-                    // We don't know which list(s) the device is on, so check them both.
-                    MutexLocker lock(m_devLock);
                     removeDevice(&m_devs, uuid);
-                    removeDevice(&m_internalDevs, uuid);
                 }
             }
         } else if (location.size() > 0) {
@@ -393,9 +371,7 @@ void UPnPSearch::UDPdidFail(UDPSocketHandle* udpHandle, UDPSocketError& error)
 {
     ERR_LOG("UPnPSearch::didFail() UDPSocketHandle error: %d\n", error.getErr());
     if (m_navDsc)
-        m_navDsc->onUPnPError(error.getErr());
-    if (m_api)
-        m_api->onError(error.getErr());
+        m_navDsc->onError(error.getErr());
 }
 
 void UPnPSearch::checkForDroppedDevs()
@@ -434,7 +410,7 @@ void UPnPSearch::checkForDroppedDevs()
                     if (m_devs[type].devMap[dv.uuid].online) {
                         m_devs[type].devMap[dv.uuid].online = false;
                         if (m_navDsc)
-                            m_navDsc->serviceOffline(type, m_devs[type].devMap[dv.uuid]);
+                            m_navDsc->UPnPDevDropped(type, m_devs[type].devMap[dv.uuid]);
                     }
                 }
             } else {
@@ -443,7 +419,7 @@ void UPnPSearch::checkForDroppedDevs()
                     NAV_LOG("Device On line... Url: %s, navDsc: %p\n", dv.descURL.c_str(), m_navDsc);
                     m_devs[type].devMap[dv.uuid].online = true;
                     if (m_navDsc)
-                        m_navDsc->serviceOnline(type, m_devs[type].devMap[dv.uuid]);
+                        m_navDsc->UPnPDevAdded(type, m_devs[type].devMap[dv.uuid]);
                 }
             }
         }
@@ -454,63 +430,6 @@ void UPnPSearch::checkForDroppedDevs()
         }
     }
 }
-
-void UPnPSearch::checkForDroppedInternalDevs()
-{
-    // NAV_LOG("checkForDroppedInternalDevs() start\n");
-    for (std::map<std::string, UPnPDevMap>::iterator i = m_internalDevs.begin(); i != m_internalDevs.end(); i++) {
-        std::vector<std::string> dropMe;
-        dropMe.clear();
-        UPnPDevMap dm = (*i).second;
-        std::string type = (*i).first;
-        for (std::map<std::string, UPnPDevice>::iterator k = dm.devMap.begin(); k != dm.devMap.end(); k++) {
-            UPnPDevice dv = (*k).second;
-            char host[1024];
-            char path[1024];
-            int port;
-            getHostPort(dv.descURL.c_str(), host, &port);
-            getPath(dv.descURL.c_str(), path);
-            char bf[8000];
-            bf[0] = 0;
-            size_t len = sizeof(bf)-1;
-
-            // Get Description of service to insure the device is still working
-            HTTPget(host, port, bf, path, &len);
-
-            std::string reply = bf;
-            int pos = reply.find("HTTP/1.1 404");
-            if (!len || pos != std::string::npos) {
-
-                // Unresponsive. See note at top of file for reason for retries
-                dv.contactAttempts++;
-                // NAV_LOG("Timeout or 404 fetching device description. Attempt: %d  Url: %s, Reply: %s\n", dv.contactAttempts, dv.descURL.c_str(), bf );
-
-                if (dv.contactAttempts > MAX_CONTACT_ATTEMPTS) {
-                    // NAV_LOG("Dropping Device. Url: %s, Reply: %s\n", dv.descURL.c_str(), bf );
-                    dropMe.push_back((*k).first);
-                }
-            } else
-                dv.contactAttempts = 0;
-
-            // Update device record.
-            dm.devMap[dv.uuid] = dv;
-            m_internalDevs[type] = dm;
-        }
-
-        if (dropMe.size()) {
-            for (int d = 0; d < (int)dropMe.size(); d++) {
-                dm.devMap.erase(dm.devMap.find(dropMe.at(d)));
-                m_internalDevs[type] = dm;
-            }
-
-            m_internalDevs[type] = dm;
-            if (m_api)
-                m_api->serverListUpdate(type, &dm.devMap);
-        }
-    }
-}
-
-
 
 // Called by CrossOriginAccessControl.cpp
 // Check cross domain white list
@@ -532,6 +451,9 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 
             if (lport == port && !strcmp(host, lhost))
                 return true;
+            else {
+                NAV_LOG("hostPortOk(%s:%d) no match to: %s:%d\n", host,port, lhost, lport);
+            }
         }
     }
 
@@ -623,7 +545,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
     // Look for the service type that was given to us from JavaScript
     // Form is something like:
     //    urn:schemas-upnp-org:service:ContentDirectory:1
-    if (!isRegisteredType(bf, foundTypes) && !isInternalType(bf)) {
+    if (!isRegisteredType(bf, foundTypes)) {
         if (notInBadList(sUuid)) {
             m_badDevs.push_back(sUuid);
             // NAV_LOG("%s doesn't include a registered service.\n",host.c_str());
@@ -691,7 +613,7 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
                     // Check service type
                     std::string serviceType = getElementValue(service.c_str(), (char*)"serviceType");
-                    if (isRegisteredType(serviceType.c_str(), foundTypes) || isInternalType(serviceType.c_str()))
+                    if (isRegisteredType(serviceType.c_str(), foundTypes))
                         eventUrl = getElementValue(service.c_str(), "eventSubURL");
 
                     j++;
@@ -734,32 +656,8 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
                 NAV_LOG("device: %s : %s, %s.\n", host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
                 if (m_navDsc)
-                    m_navDsc->serviceOnline(foundType, m_devs[foundType].devMap[sUuid]);
+                    m_navDsc->UPnPDevAdded(foundType, m_devs[foundType].devMap[sUuid]);
             }
-        }
-    }
-
-    if (isInternalType(bf)) {
-        dm = m_internalDevs[m_internalType];
-        char* action = (char*)"Adding";
-
-        std::map<std::string, UPnPDevice>::iterator it;
-        it = dm.devMap.find(sUuid);
-        if (it != dm.devMap.end()) {
-            action = (char*)"Updating";
-            if (!dm.devMap[sUuid].changed(d))
-                action = 0;
-        }
-
-        if (action) {
-
-            dm.devMap[sUuid] = d;
-            m_internalDevs[m_internalType] = dm; // By value, so copy in new contents.
-
-            // NAV_LOG("%s internal device: %s : %s, %s\n", action, host.c_str(), d.friendlyName.c_str(), sUuid.c_str());
-            fflush(stderr);
-            if (m_api)
-                m_api->serverListUpdate(m_internalType, &dm.devMap);
         }
     }
 
@@ -779,14 +677,6 @@ bool UPnPSearch::isRegisteredType(const char* type, std::vector<std::string> &re
         }
         return regType.size()>0;
     }
-
-    return false;
-}
-
-bool UPnPSearch::isInternalType(const char* type)
-{
-    if (m_internalType.length() > 0 && strstr(type, m_internalType.c_str()))
-        return true;
 
     return false;
 }
@@ -941,8 +831,7 @@ bool UPnPSearch::removeDevice(std::map<std::string, UPnPDevMap>* devices, std::s
                 found = true;
                 dm.devMap.erase((*k).first);
                 (*devices)[type] = dm;
-                if ((void*)devices == (void*)&m_internalDevs && m_api)
-                    m_api->serverListUpdate(type, &dm.devMap);
+                m_navDsc->serverListUpdate(type, &dm.devMap);
 
                 break;
             }

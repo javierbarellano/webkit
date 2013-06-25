@@ -42,7 +42,7 @@
 #define SKIP true
 #define GET_NAME false
 
-//#define LOGGING_NAV 1
+// #define LOGGING_NAV 1
 
 #ifdef LOGGING_NAV
 #define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
@@ -109,7 +109,7 @@ void zcDiscoveryThread(void *context)
         gettimeofday(&now, 0);
         long nowMs = (now.tv_sec * 1000L + now.tv_usec / 1000.0) + 0.5;
 
-        if (lastSend < 0L || (nowMs - lastSend) > 20000) {
+        if (lastSend < 0L || (nowMs - lastSend) > 5000) {
             if (!zc->m_udpSocket) {
                 KURL url(ParsedURLString, String(zc->m_url));
                 zc->m_udpSocket = UDPSocketHandle::create(url, true, zc);
@@ -268,7 +268,7 @@ void ZeroConf::checkForDroppedDevs()
                     dv.online = true;
                     NAV_LOG("Device ON line... Url: %s, navDsc: %p\n", dv.url.c_str(), m_navDsc);
                     if (m_navDsc)
-                        m_navDsc->zcServiceOnline(type, dv);
+                        m_navDsc->ZCDevAdded(type, dv);
                 }
                 continue;
             }
@@ -278,7 +278,7 @@ void ZeroConf::checkForDroppedDevs()
                 dv.online = false;
                 NAV_LOG("Device Off line... Url: %s, Reply: %s, navDsc: %p\n", dv.url.c_str(), bf, m_navDsc);
                 if (m_navDsc)
-                    m_navDsc->zcServiceOffline(type, dv);
+                    m_navDsc->ZCDevDropped(type, dv);
             }
         }
 
@@ -349,7 +349,7 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
 
         NAV_LOG("---Adding ZeroConf device: %s : %s, devs: %d\n", zcd.url.c_str(), zcd.friendlyName.c_str(), (int)dm.devMap.size());
         if (m_navDsc) {
-            m_navDsc->zcServiceOnline(m_daapType, zcd);
+            m_navDsc->ZCDevAdded(m_daapType, zcd);
         }
     }
     m_devLock->unlock();
