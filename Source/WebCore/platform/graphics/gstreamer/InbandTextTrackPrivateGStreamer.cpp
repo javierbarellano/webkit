@@ -51,8 +51,19 @@ static GstFlowReturn inbandTextTrackPrivateNewSampleCallback(GstPad*, InbandText
 
 static GstPadProbeReturn inbandTextTrackPrivateTextTagCallback(GstPad*, GstPadProbeInfo* info, InbandTextTrackPrivateGStreamer* track)
 {
-    track->handleTag(gst_pad_probe_info_get_event(info));
-    return GST_PAD_PROBE_OK;
+    GstEvent* event = gst_pad_probe_info_get_event(info);
+    if (GST_EVENT_TYPE(event) != GST_EVENT_SEEK)
+    {
+        track->handleTag(event);
+        return GST_PAD_PROBE_OK;
+    }
+    else
+    {
+        // Seek events get sent to all sinks, including appsink added here.
+        // This appsink should drop seek event to prevent duplicate processing
+        // and also to ensure proper processing from playsink
+        return GST_PAD_PROBE_DROP;
+    }
 }
 #else
 static void inbandTextTrackPrivateNewSampleCallback(GstPad*, InbandTextTrackPrivateGStreamer* track)
@@ -111,7 +122,7 @@ InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(GRefPtr<GstElem
     GstPad* sinkPad = gst_element_get_static_pad(m_sink.get(), "sink");
     ASSERT(sinkPad);
 #ifdef GST_API_VERSION_1
-    m_tagProbe = gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+    m_tagProbe = gst_pad_add_probe(sinkPad, GST_PAD_PROBE_TYPE_EVENT_BOTH,
         reinterpret_cast<GstPadProbeCallback>(inbandTextTrackPrivateTextTagCallback), this, 0);
 #else
     m_tagProbe = gst_pad_add_event_probe(sinkPad, G_CALLBACK(inbandTextTrackPrivateTextTagCallback), this);
