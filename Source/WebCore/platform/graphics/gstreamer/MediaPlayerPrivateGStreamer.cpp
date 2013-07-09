@@ -937,8 +937,10 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
                           GST_SEEK_TYPE_SET, start,
                           GST_SEEK_TYPE_SET, end))
         ERROR_MEDIA_MESSAGE("Set rate to %f failed", rate);
-    else
-        g_object_set(m_pipeline.get(), "mute", mute, NULL);
+    else {
+        g_object_set(m_sink.get(), "mute", mute, NULL);
+        INFO_MEDIA_MESSAGE("Set rate to %f", rate);
+    }
 }
 
 void MediaPlayerPrivateGStreamer::setPreservesPitch(bool preservesPitch)
