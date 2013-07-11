@@ -11,9 +11,8 @@
 #include <string>
 #include <map>
 
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/ZCDevice.h"
-
+#include "UPnPDevice.h"
+#include "ZCDevice.h"
 
 
 namespace WebCore {
