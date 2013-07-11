@@ -13,6 +13,7 @@
 #include "wtf/ExportMacros.h"
 #include "wtf/Platform.h"
 
+#include "DiscoveryWrapper.h"
 #include "Modules/discovery/IDiscoveryAPI.h"
 #include "Modules/discovery/UPnPDevice.h"
 #include "Modules/discovery/ZCDevice.h"
@@ -136,6 +137,14 @@ public:
     Frame* getFrame() {return m_frame;}
 
     static bool permissionsEnabled() {return m_permissionsEnabled;}
+
+    /* FIXME: This is a giant hack to keep WebKit from stripping DiscoveryWrapper
+     * from the final library. The real fix probably involves putting it in the
+     * public API.
+     * See BitBucket issue #31:
+     * https://bitbucket.org/ruihri/webkit/issue/31/discoverywrapper-is-in-the-private-api
+     */
+    void hack() { DiscoveryWrapper::startUPnPInternalDiscovery(NULL, NULL); }
 
 private:
     bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
