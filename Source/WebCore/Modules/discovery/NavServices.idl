@@ -28,14 +28,10 @@ interface [
     ActiveDOMObject,
     EventTarget
 ] NavServices {
-    // NavigatorNetworkService item(index)
     NavService item(in unsigned long index);
-
     readonly attribute unsigned long length;
-
     readonly attribute unsigned short servicesAvailable;
-
-    readonly attribute boolean  online;
+    readonly attribute boolean online;
     
     attribute EventListener onserviceavailable;
     attribute EventListener onserviceunavailable;
@@ -49,5 +45,4 @@ interface [
                              in boolean useCapture);
     boolean dispatchEvent(in Event evt)
         raises(EventException);
-
 };

@@ -24,31 +24,24 @@
  */
 
 #include "config.h"
-
 #if ENABLE(DISCOVERY)
 
 #include "NavServices.h"
 
-
 namespace WebCore {
 
-// Copy Constructor
-NavServices::NavServices(const NavServices &that) :
-		RefCounted()
-		, ActiveDOMObject(that.scriptExecutionContext())
+NavServices::NavServices(const NavServices &that)
+    : RefCounted()
+    , ActiveDOMObject(that.scriptExecutionContext())
 {
-	clearSrvs();
-	for (int i=0; i < (int)that.m_devs.size(); i++)
-		m_devs.append(that.m_devs.at(i));
+    m_devs.appendVector(that.m_devs);
 }
 
 NavServices& NavServices::operator= (const NavServices &that)
 {
-	clearSrvs();
-	for (int i=0; i < (int)that.m_devs.size(); i++)
-		m_devs.append(that.m_devs[i]);
-
-	return *this;
+    clearSrvs();
+    m_devs.appendVector(that.m_devs);
+    return *this;
 }
 
 const AtomicString& NavServices::interfaceName() const
@@ -74,4 +67,3 @@ EventTargetData* NavServices::ensureEventTargetData()
 } // namespace WebCore
 
 #endif // DISCOVERY
-

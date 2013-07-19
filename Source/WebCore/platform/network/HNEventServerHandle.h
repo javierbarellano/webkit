@@ -23,16 +23,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HNEVENTSERVERHANDLE_H_
-#define HNEVENTSERVERHANDLE_H_
-
-
+#ifndef HNEventServerHandle_h
+#define HNEventServerHandle_h
 
 namespace WebCore {
 
 class HNEventServerHandleClient;
-
-
 
 // Base class for UDPSocketHandleImpl
 // see webkit/glue/UDPsockethandle_impl.h
@@ -41,7 +37,7 @@ class HNEventServerHandle {
 public:
     virtual ~HNEventServerHandle() { }
 
-	virtual void set_client(HNEventServerHandleClient *client)=0;
+    virtual void setClient(HNEventServerHandleClient*) = 0;
 
     // Start Home Networking Event server.
     virtual void connect() = 0;
@@ -54,10 +50,8 @@ public:
 
     // Close the server.
     virtual void close() = 0;
-
 };
 
 } // namespace WebKit
 
-
-#endif /* HNEVENTSERVERHANDLE_H_ */
+#endif /* HNEventServerHandle_h */

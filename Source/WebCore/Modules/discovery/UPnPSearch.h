@@ -22,48 +22,37 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef UPNPSEARCH_H_
-#define UPNPSEARCH_H_
+#ifndef UPnPSearch_h
+#define UPnPSearch_h
 
 #if ENABLE(DISCOVERY)
+
+#include "DiscoveryBase.h"
+#include "HNEventServerHandle.h"
+#include "HNEventServerHandleClient.h"
+#include "IDiscoveryAPI.h"
+#include "KURL.h"
+#include "UPnPDevice.h"
+#include "soup/UDPSocketHandle.h"
+#include <iomanip>
 #include <map>
 #include <set>
-#include <vector>
-#include <string>
 #include <sstream>
-#include <iomanip>
-#include "../../platform/KURL.h"
+#include <string>
+#include <vector>
 
-#ifdef LOG
-#undef LOG
-#endif
+namespace WebCore {
 
-#include "../../../../Source/WebCore/platform/network/soup/UDPSocketHandle.h"
-#include "../../../../Source/WebCore/platform/network/HNEventServerHandle.h"
-#include "../../../../Source/WebCore/platform/network/HNEventServerHandleClient.h"
-
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/DiscoveryBase.h"
-#include "Modules/discovery/IDiscoveryAPI.h"
-
-namespace WebCore
-{
-
-struct UPnPDevMap
-{
+struct UPnPDevMap {
     // key == UUID
     std::map<std::string, UPnPDevice> devMap;
 };
 
-class UPnPSearch : public DiscoveryBase
-, public HNEventServerHandleClient
-{
+class UPnPSearch : public DiscoveryBase, public HNEventServerHandleClient {
 
 public:
-    static std::map<std::string, UPnPDevice> discoverDevs(const char *type, IDiscoveryAPI *);
-
+    static std::map<std::string, UPnPDevice> discoverDevs(const char *type, IDiscoveryAPI*);
     static UPnPSearch* getInstance();
-
     static UPnPSearch* create();
 
     void getUPnPFriendlyName(std::string uuid, std::string type, std::string& name);
@@ -73,39 +62,37 @@ public:
     //
 
     // Called when Socket Stream is opened.
-    virtual void UDPdidOpenStream(UDPSocketHandle*);
+    virtual void UDPdidOpenStream(UDPSocketHandle*) OVERRIDE;
 
     // Called when |amountSent| bytes are sent.
-    virtual void UDPdidSendData(UDPSocketHandle*, int /* amountSent */);
+    virtual void UDPdidSendData(UDPSocketHandle*, int bytesSent) OVERRIDE;
 
     // Called when data are received.
-    virtual void UDPdidReceiveData(UDPSocketHandle*, const char* data, int dLen, const char *hostPort, int hpLen);
+    virtual void UDPdidReceiveData(UDPSocketHandle*, const char* data, int dataLen, const char *hostPort, int hpLen) OVERRIDE;
 
     // Called when Socket Stream is closed.
-    virtual void UDPdidClose(UDPSocketHandle*);
+    virtual void UDPdidClose(UDPSocketHandle*) OVERRIDE;
 
     // Called when Socket Stream has an error.
-    virtual void UDPdidFail(UDPSocketHandle*, UDPSocketError&);
+    virtual void UDPdidFail(UDPSocketHandle*, UDPSocketError&) OVERRIDE;
 
     //
     // HNEventServer interface
     //
     // Called when Socket Stream is opened.
-    virtual void HNdidOpenStream(HNEventServerHandle* hServer) ;
+    virtual void HNdidOpenStream(HNEventServerHandle*) OVERRIDE;
 
     // Called when |amountSent| bytes are sent.
-    virtual void HNdidSendData(HNEventServerHandle* hServer, int /* amountSent */);
+    virtual void HNdidSendData(HNEventServerHandle*, int bytesSent) OVERRIDE;
 
     // Called when data are received.
-    virtual void HNdidReceiveData(HNEventServerHandle* hServer, const char *data, int dLen, const char *hostPort, int hpLen);
+    virtual void HNdidReceiveData(HNEventServerHandle*, const char *data, int dataLength, const char *hostPort, int hostPortLength);
 
     // Called when Socket Stream is closed.
-    virtual void HNdidClose(HNEventServerHandle* hServer);
+    virtual void HNdidClose(HNEventServerHandle*) OVERRIDE;
 
     // Called when Socket Stream has an error.
-    virtual void HNdidFail(HNEventServerHandle* hServer, HNEventError& err);
-
-
+    virtual void HNdidFail(HNEventServerHandle*, HNEventError&) OVERRIDE;
 
     virtual ~UPnPSearch();
 
@@ -129,13 +116,12 @@ public:
             return pdm;
 
         std::map<std::string, UPnPDevMap>::iterator i = m_instance->m_devs.find(type);
-        if(i != m_instance->m_devs.end())
+        if (i != m_instance->m_devs.end())
             pdm.devMap = i->second.devMap;
         return pdm;
     }
 
 protected:
-
     virtual bool parseDev(const char* resp, std::size_t respLen, const char* hostPort);
 
 private:
@@ -157,15 +143,12 @@ private:
     // dev key == UUID
     std::map<std::string, UPnPDevMap> m_devs;
     Mutex m_devLock;
-
     std::vector<std::string> m_badDevs;
-
     long m_lastSend;
-
     bool m_sendPending;
 };
 
 } // namespace WebCore
 #endif
 
-#endif /* UPNPSEARCH_H_ */
+#endif /* UPnPSearch_h */

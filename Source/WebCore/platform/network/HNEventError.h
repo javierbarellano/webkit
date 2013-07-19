@@ -23,23 +23,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HNEVENTERROR_H_
-#define HNEVENTERROR_H_
+#ifndef HNEventError_h
+#define HNEventError_h
 
 namespace WebCore {
 
-class HNEventError
-{
+class HNEventError {
 public:
-	HNEventError(int err) { err_ = err; }
+    HNEventError(int err) { m_error = err; }
 
-	int getErr() { return err_; }
+    int getErr() { return m_error; }
 
 private:
-	int err_;
-
+    int m_error;
 };
 
 } // namespace WebKit
 
-#endif /* HNEVENTERROR_H_ */
+#endif /* HNEventError_h */

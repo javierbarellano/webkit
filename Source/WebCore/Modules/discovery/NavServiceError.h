@@ -23,10 +23,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAVIGATORNETWORKSERVICEERROR_H_
-#define NAVIGATORNETWORKSERVICEERROR_H_
-#include <wtf/RefCounted.h>
+#ifndef NavServiceError_h
+#define NavServiceError_h
+
 #include <wtf/PassRefPtr.h>
+#include <wtf/RefCounted.h>
 
 namespace WebCore {
 
@@ -34,9 +35,9 @@ class NavServiceError : public RefCounted<NavServiceError> {
 public:
     // Should be kept in sync with the values in the idl file.
     enum ErrorCode {
-        PERMISSION_DENIED_ERR = 1,
-        UNKNOWN_TYPE = 2,			// Type must start with "upnp:" or "zeroconf:"
-        NETWORK_ERR = 3
+        PermissionDenied = 1,
+        UnknownType = 2, // Type must start with "upnp:" or "zeroconf:"
+        NetworkError = 3
     };
 
     static PassRefPtr<NavServiceError> create(ErrorCode code)
@@ -56,5 +57,4 @@ private:
 
 } // namespace WebCore
 
-
-#endif /* NAVIGATORNETWORKSERVICEERROR_H_ */
+#endif /* NavServiceError_h */

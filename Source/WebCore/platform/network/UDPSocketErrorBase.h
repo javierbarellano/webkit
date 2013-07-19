@@ -23,60 +23,58 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UDPSOCKETERRORBASE_H_
-#define UDPSOCKETERRORBASE_H_
+#ifndef UDPSocketErrorBase_h
+#define UDPSocketErrorBase_h
+
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-    class UDPSocketError;
+class UDPSocketError;
 
-    class UDPSocketErrorBase {
-    public:
-        // Makes a deep copy.  Useful for when you need to use a UDPSocketStreamError on another thread.
-    	UDPSocketError copy() const;
+class UDPSocketErrorBase {
+public:
+    // Makes a deep copy. Useful for when you need to use a UDPSocketStreamError on another thread.
+    UDPSocketError copy() const;
 
-        bool isNull() const { return m_isNull; }
+    bool isNull() const { return m_isNull; }
 
-        int errorCode() const { return m_errorCode; }
-        const String& failingURL() const { return m_failingURL; }
-        const String& localizedDescription() const { return m_localizedDescription; }
+    int errorCode() const { return m_errorCode; }
+    const String& failingURL() const { return m_failingURL; }
+    const String& localizedDescription() const { return m_localizedDescription; }
 
-        static bool compare(const UDPSocketError&, const UDPSocketError&);
+    static bool compare(const UDPSocketError&, const UDPSocketError&);
 
-    protected:
-        UDPSocketErrorBase()
-            : m_errorCode(0)
-            , m_isNull(true)
-        {
-        }
+protected:
+    UDPSocketErrorBase()
+        : m_errorCode(0)
+        , m_isNull(true)
+    {
+    }
 
-        explicit UDPSocketErrorBase(int errorCode)
-            : m_errorCode(errorCode)
-            , m_isNull(false)
-        {
-        }
+    explicit UDPSocketErrorBase(int errorCode)
+        : m_errorCode(errorCode)
+        , m_isNull(false)
+    {
+    }
 
-        UDPSocketErrorBase(int errorCode, const String& failingURL, const String& localizedDescription)
-            : m_errorCode(errorCode)
-            , m_failingURL(failingURL)
-            , m_localizedDescription(localizedDescription)
-            , m_isNull(false)
-        {
-        }
+    UDPSocketErrorBase(int errorCode, const String& failingURL, const String& localizedDescription)
+        : m_errorCode(errorCode)
+        , m_failingURL(failingURL)
+        , m_localizedDescription(localizedDescription)
+        , m_isNull(false)
+    {
+    }
 
-        int m_errorCode;
-        String m_failingURL;
-        String m_localizedDescription;
-        bool m_isNull;
-    };
+    int m_errorCode;
+    String m_failingURL;
+    String m_localizedDescription;
+    bool m_isNull;
+};
 
-    inline bool operator==(const UDPSocketError& a, const UDPSocketError& b) { return UDPSocketErrorBase::compare(a, b); }
-    inline bool operator!=(const UDPSocketError& a, const UDPSocketError& b) { return !(a == b); }
+inline bool operator==(const UDPSocketError& a, const UDPSocketError& b) { return UDPSocketErrorBase::compare(a, b); }
+inline bool operator!=(const UDPSocketError& a, const UDPSocketError& b) { return !(a == b); }
 
-}  // namespace WebCore
+} // namespace WebCore
 
-
-
-
-
-#endif /* UDPSOCKETERRORBASE_H_ */
+#endif /* UDPSocketErrorBase_h */

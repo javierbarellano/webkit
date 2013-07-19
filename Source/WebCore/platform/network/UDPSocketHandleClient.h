@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UDPSOCKETHANDLECLIENT_H_
-#define UDPSOCKETHANDLECLIENT_H_
+#ifndef UDPSocketHandleClient_h
+#define UDPSocketHandleClient_h
 
 namespace WebCore {
 
@@ -34,7 +34,7 @@ class UDPSocketHandle;
 class UDPSocketHandleClient {
 public:
 
-    virtual ~UDPSocketHandleClient(){}
+    virtual ~UDPSocketHandleClient() { }
 
     // Called when Socket Stream is opened.
     virtual void UDPdidOpenStream(UDPSocketHandle*) = 0;
@@ -55,4 +55,4 @@ public:
 
 } // namespace WebKit
 
-#endif /* UDPSOCKETHANDLECLIENT_H_ */
+#endif /* UDPSocketHandleClient_h */

@@ -23,16 +23,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ZCDEVICE_H_
-#define ZCDEVICE_H_
+#ifndef ZCDevice_h
+#define ZCDevice_h
 
 #include <string>
 
-typedef struct sZCDevice
-{
-	std::string url;
-	std::string friendlyName;
-	bool online;
+typedef struct {
+    std::string url;
+    std::string friendlyName;
+    bool online;
 } ZCDevice;
 
-#endif /* ZCDEVICE_H_ */
+#endif /* ZCDevice_h */

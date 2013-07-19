@@ -24,39 +24,36 @@
  */
 
 #include "config.h"
-
 #if ENABLE(DISCOVERY)
 
-#include "../../platform/network/HNEventError.h"
-#include "../../platform/network/HNEventServerHandleClient.h"
-#include "../../platform/network/HNEventServerHandle.h"
-#include "../../platform/network/soup/TCPSocketHandle.h"
-#include "../../platform/network/soup/UDPSocketError.h"
-#include "../../platform/network/soup/UDPSocketHandle.h"
-#include "../../platform/network/soup/HNEventHandle.h"
-#include "../../platform/network/UDPSocketHandleClient.h"
-#include "NavDsc.h"
 #include "UPnPSearch.h"
 
+#include "HNEventError.h"
+#include "HNEventServerHandle.h"
+#include "HNEventServerHandleClient.h"
+#include "NavDsc.h"
+#include "UDPSocketHandleClient.h"
+#include "soup/HNEventHandle.h"
+#include "soup/TCPSocketHandle.h"
+#include "soup/UDPSocketError.h"
+#include "soup/UDPSocketHandle.h"
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <ifaddrs.h>
-#include <arpa/inet.h>
+#include <map>
 #include <netinet/in.h>
-#include <sys/types.h>
+#include <sstream>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <sys/time.h>
-
-#include <sstream>
-#include <string>
-#include <map>
+#include <sys/types.h>
+#include <sys/un.h>
 #include <vector>
-
-#include <stdlib.h>
-#include <stdio.h>
 
 // #define LOGGING_NAV 1
 
@@ -150,10 +147,8 @@ void discoveryThread(void *context)
                     usleep(75L*1000L); // 75ms
                 }
             }
-
             lastSendSeconds = now.tv_sec;
         }
-
         upnp->m_udpSocket->receive();
         usleep(100L*1000L); // 100 ms
     }
@@ -457,9 +452,7 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 
             if (lport == port && !strcmp(host, lhost))
                 return true;
-            else {
-                NAV_LOG("hostPortOk(%s:%d) no match to: %s:%d\n", host,port, lhost, lport);
-            }
+            NAV_LOG("hostPortOk(%s:%d) no match to: %s:%d\n", host, port, lhost, lport);
         }
     }
 
@@ -569,29 +562,29 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
 
     // Now look for event url:
     /*
-     * 	<serviceList>
-			<service>
-				<serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>
-				<serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>
-				<controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ConnectionManager</controlURL>
-				<eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ConnectionManager</eventSubURL>
-				<SCPDURL>/upnphost/udhisapi.dll?content=uuid:ee998394-35df-45fd-9df5-d4a28a142e63</SCPDURL>
-			</service>
-			<service>
-				<serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType>
-				<serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId>
-				<controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ContentDirectory</controlURL>
-				<eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ContentDirectory</eventSubURL>
-				<SCPDURL>/upnphost/udhisapi.dll?content=uuid:d8e35e6b-5fe7-409a-b6fa-f48b9a92dae4</SCPDURL>
-			</service>
-			<service>
-				<serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>
-				<serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>
-				<controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</controlURL>
+     *     <serviceList>
+            <service>
+                <serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId>
+                <controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ConnectionManager</controlURL>
+                <eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ConnectionManager</eventSubURL>
+                <SCPDURL>/upnphost/udhisapi.dll?content=uuid:ee998394-35df-45fd-9df5-d4a28a142e63</SCPDURL>
+            </service>
+            <service>
+                <serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId>
+                <controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ContentDirectory</controlURL>
+                <eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:upnp-org:serviceId:ContentDirectory</eventSubURL>
+                <SCPDURL>/upnphost/udhisapi.dll?content=uuid:d8e35e6b-5fe7-409a-b6fa-f48b9a92dae4</SCPDURL>
+            </service>
+            <service>
+                <serviceType>urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1</serviceType>
+                <serviceId>urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</serviceId>
+                <controlURL>/upnphost/udhisapi.dll?control=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</controlURL>
                 <eventSubURL>/upnphost/udhisapi.dll?event=uuid:924738b0-a1c1-4713-9d8b-c9e70e73a1b4+urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar</eventSubURL>
-				<SCPDURL>/upnphost/udhisapi.dll?content=uuid:03bf5b96-fec6-41ab-8990-a5f7f2a17070</SCPDURL>
-			</service>
-		</serviceList>
+                <SCPDURL>/upnphost/udhisapi.dll?content=uuid:03bf5b96-fec6-41ab-8990-a5f7f2a17070</SCPDURL>
+            </service>
+        </serviceList>
      *
      */
 
@@ -652,9 +645,8 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
                 std::map<std::string, UPnPDevice>::iterator it;
                 it = dm.devMap.find(sUuid);
                 if (it != dm.devMap.end()) {
-                    if (!dm.devMap[sUuid].changed(d)) {
+                    if (!dm.devMap[sUuid].changed(d))
                         continue;
-                    }
                 }
 
                 dm.devMap[sUuid] = d;
@@ -709,12 +701,12 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
     }
 
     /*
-	SUBSCRIBE /upnphost/udhisapi.dll?event=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5+urn:upnp-org:serviceId:ConnectionManager HTTP/1.1
-	NT: upnp:event
-	CALLBACK: <http://10.36.0.189:50041/6a66eb21-7c9c-4699-a49d-f47752c5afd5/urn:upnp-org:serviceId:ConnectionManager>
-	TIMEOUT: Second-1800
-	User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
-	Host: 10.36.0.237:2869
+    SUBSCRIBE /upnphost/udhisapi.dll?event=uuid:6a66eb21-7c9c-4699-a49d-f47752c5afd5+urn:upnp-org:serviceId:ConnectionManager HTTP/1.1
+    NT: upnp:event
+    CALLBACK: <http://10.36.0.189:50041/6a66eb21-7c9c-4699-a49d-f47752c5afd5/urn:upnp-org:serviceId:ConnectionManager>
+    TIMEOUT: Second-1800
+    User-Agent: Platinum/0.5.3.0, DLNADOC/1.50
+    Host: 10.36.0.237:2869
      */
 
     std::stringstream ss;
@@ -757,29 +749,29 @@ void UPnPSearch::HNdidReceiveData(HNEventServerHandle* hServer, const char *data
     NAV_LOG("GOT Event:\n%s\n", bf);
 
     /*
-		NOTIFY /fd079abb-e638-46d4-bc74-5f62e453a95f/urn:schemas-upnp-org:service:ContentDirectory:1 HTTP/1.1
-		Cache-Control: no-cache
-		Connection: Close
-		Pragma: no-cache
-		Content-Type: text/xml; charset="utf-8"
-		User-Agent: Microsoft-Windows/6.1 UPnP/1.0
-		NT: upnp:event
-		NTS: upnp:propchange
-		SID: uuid:c0674b98-aea5-456c-8285-54c4ba0e1da1
-		SEQ: 0
-		Content-Length: 481
-		Host: 10.36.0.170:8483
+        NOTIFY /fd079abb-e638-46d4-bc74-5f62e453a95f/urn:schemas-upnp-org:service:ContentDirectory:1 HTTP/1.1
+        Cache-Control: no-cache
+        Connection: Close
+        Pragma: no-cache
+        Content-Type: text/xml; charset="utf-8"
+        User-Agent: Microsoft-Windows/6.1 UPnP/1.0
+        NT: upnp:event
+        NTS: upnp:propchange
+        SID: uuid:c0674b98-aea5-456c-8285-54c4ba0e1da1
+        SEQ: 0
+        Content-Length: 481
+        Host: 10.36.0.170:8483
 
-		<?xml version="1.0"?>
-		<e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">
-			<e:property>
-				<SystemUpdateID xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="ui4">0</SystemUpdateID>
-			</e:property>
-			<e:property>
-				<ContainerUpdateIDs xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="string"></ContainerUpdateIDs>
-			</e:property>
-			<e:property><X_RemoteSharingEnabled xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="boolean">0</X_RemoteSharingEnabled></e:property>
-		</e:propertyset>
+        <?xml version="1.0"?>
+        <e:propertyset xmlns:e="urn:schemas-upnp-org:event-1-0">
+            <e:property>
+                <SystemUpdateID xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="ui4">0</SystemUpdateID>
+            </e:property>
+            <e:property>
+                <ContainerUpdateIDs xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="string"></ContainerUpdateIDs>
+            </e:property>
+            <e:property><X_RemoteSharingEnabled xmlns:dt="urn:schemas-microsoft-com:datatypes" dt:dt="boolean">0</X_RemoteSharingEnabled></e:property>
+        </e:propertyset>
      */
 
     std::string resp(data);

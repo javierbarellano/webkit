@@ -23,45 +23,41 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UPNPDEVICE_H_
-#define UPNPDEVICE_H_
+#ifndef UPnPDevice_h
+#define UPnPDevice_h
 
 #include <string>
 
-struct UPnPDevice
-{
-	std::string descURL;
-	std::string friendlyName;
-	std::string eventURL;
-	std::string host;
-	std::string port;
-	std::string uuid;
-    int  contactAttempts;
-    bool online;
-
-    UPnPDevice() :
-    	  descURL("Bogus")
-		, friendlyName("Bogus")
-		, eventURL("Bogus")
-		, host("Bogus")
-		, port("Bogus")
-		, uuid("Bogus")
-		, contactAttempts(0)
-		, online(true)
+struct UPnPDevice {
+    UPnPDevice()
+        : descURL("Bogus")
+        , friendlyName("Bogus")
+        , eventURL("Bogus")
+        , host("Bogus")
+        , port("Bogus")
+        , uuid("Bogus")
+        , contactAttempts(0)
+        , online(true)
     {
     }
 
     bool changed(const UPnPDevice& other)
     {
-        bool changed = false;
-        changed = changed || descURL.compare(other.descURL) != 0;
-        changed = changed || friendlyName.compare(other.friendlyName) != 0;
-        changed = changed || eventURL.compare(other.eventURL) != 0;
-        changed = changed || host.compare(other.host) != 0;
-        changed = changed || uuid.compare(other.uuid) != 0;
-        return changed;
+        return descURL != other.descURL
+            || friendlyName != other.friendlyName
+            || eventURL != other.eventURL
+            || host != other.host
+            || uuid != other.uuid;
     }
 
+    std::string descURL;
+    std::string friendlyName;
+    std::string eventURL;
+    std::string host;
+    std::string port;
+    std::string uuid;
+    int contactAttempts;
+    bool online;
 };
 
-#endif /* UPNPDEVICE_H_ */
+#endif /* UPnPDevice_h */

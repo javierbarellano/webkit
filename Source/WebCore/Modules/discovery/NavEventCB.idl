@@ -25,6 +25,6 @@
 [
     Conditional=DISCOVERY,
 ] callback interface NavEventCB {
-    boolean handleEvent( in NavEvent event );
+    boolean handleEvent(in NavEvent event);
 };
 

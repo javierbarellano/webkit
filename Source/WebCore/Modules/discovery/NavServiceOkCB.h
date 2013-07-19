@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAVIGATORNETWORKSERVICESUCCESSCALLBACK_H_
-#define NAVIGATORNETWORKSERVICESUCCESSCALLBACK_H_
+#ifndef NavServiceOkCB_h
+#define NavServiceOkCB_h
 
 #include <wtf/RefCounted.h>
 
@@ -32,18 +32,12 @@ namespace WebCore {
 
 class NavServices;
 
-class NavServiceOkCB : public RefCounted<NavServiceOkCB>
-{
+class NavServiceOkCB : public RefCounted<NavServiceOkCB> {
 public:
     virtual ~NavServiceOkCB() { }
-    virtual bool handleEvent(NavServices* services) = 0;
-
-protected:
-
+    virtual bool handleEvent(NavServices*) = 0;
 };
 
 } // namespace WebCore
 
-
-
-#endif /* NAVIGATORNETWORKSERVICESUCCESSCALLBACK_H_ */
+#endif /* NavServiceOkCB_h */

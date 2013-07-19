@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAVIGATORNETWORKDISCOVERYCALLBACK_H_
-#define NAVIGATORNETWORKDISCOVERYCALLBACK_H_
+#ifndef NavDscCB_h
+#define NavDscCB_h
 
 #if ENABLE(DISCOVERY)
 
@@ -34,18 +34,13 @@ namespace WebCore {
 
 class NavService;
 
-class NavDscCB :
-	public RefCounted<NavDscCB>
-{
+class NavDscCB : public RefCounted<NavDscCB> {
 public:
     virtual ~NavDscCB() { }
-    virtual bool handleEvent(NavService* service) = 0;
-
-protected:
-
+    virtual bool handleEvent(NavService*) = 0;
 };
 
 } // namespace WebCore
 
 #endif
-#endif /* NAVIGATORNETWORKDISCOVERYCALLBACK_H_ */
+#endif /* NavDscCB_h */

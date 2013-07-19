@@ -26,7 +26,7 @@ interface [
     Conditional=DISCOVERY,
     ActiveDOMObject,
     EventTarget
-] NavService    {
+] NavService {
     readonly attribute DOMString id;
     readonly attribute DOMString name;
     readonly attribute DOMString type;
@@ -40,13 +40,10 @@ interface [
     attribute EventListener onnotify;
 
     // EventTarget interface
-    void addEventListener(in DOMString type,
-                          in EventListener listener,
-                          in boolean useCapture);
-    void removeEventListener(in DOMString type,
-                             in EventListener listener,
-                             in boolean useCapture);
+    void addEventListener(in DOMString type, in EventListener listener,
+        in boolean useCapture);
+    void removeEventListener(in DOMString type, in EventListener listener,
+        in boolean useCapture);
     boolean dispatchEvent(in Event evt)
         raises(EventException);
-
 };

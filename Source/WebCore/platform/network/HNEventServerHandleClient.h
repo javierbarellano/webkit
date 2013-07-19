@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HNEVENTSERVERHANDLECLIENT_H_
-#define HNEVENTSERVERHANDLECLIENT_H_
+#ifndef HNEventServerHandleClient_h
+#define HNEventServerHandleClient_h
 
 #include "HNEventError.h"
 #include "HNEventServerHandle.h"
@@ -33,6 +33,7 @@ namespace WebCore {
 
 class HNEventServerHandleClient {
 public:
+    virtual ~HNEventServerHandleClient() { }
 
     // Called when Socket Stream is opened.
     virtual void HNdidOpenStream(HNEventServerHandle*) = 0;
@@ -51,7 +52,6 @@ public:
 
 };
 
-}  // namespace WebKit
+} // namespace WebKit
 
-
-#endif /* HNEVENTSERVERHANDLECLIENT_H_ */
+#endif /* HNEventServerHandleClient_h */

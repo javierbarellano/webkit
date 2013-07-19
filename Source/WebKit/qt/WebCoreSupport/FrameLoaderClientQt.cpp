@@ -1067,9 +1067,7 @@ void FrameLoaderClientQt::dispatchWillSendRequest(WebCore::DocumentLoader*, unsi
         bool homeNetworkingOK = true;
 #endif
 
-        if (!isLocalhost(host)
-        	&& !homeNetworkingOK
-            && !hostIsUsedBySomeTestsToGenerateError(host)
+        if (!isLocalhost(host) && !homeNetworkingOK && !hostIsUsedBySomeTestsToGenerateError(host)
             && ((testURLScheme != QLatin1String("http") && testURLScheme != QLatin1String("https")) || isLocalhost(testHost))) {
             printf("Blocked access to external URL %s\n", qPrintable(drtDescriptionSuitableForTestResult(newRequest.url())));
             blockRequest(newRequest);

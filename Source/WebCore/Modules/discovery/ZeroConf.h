@@ -23,34 +23,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ZEROCONF_H_
-#define ZEROCONF_H_
+#ifndef ZeroConf_h
+#define ZeroConf_h
 
 #if ENABLE(DISCOVERY)
 
-#include <vector>
+#include "DiscoveryBase.h"
+#include "ZCDevice.h"
+#include "soup/UDPSocketHandle.h"
 #include <map>
-
-#ifdef LOG
-#undef LOG
-#endif
-
-#include "../../../../Source/WebCore/platform/network/soup/UDPSocketHandle.h"
-#include "Modules/discovery/ZCDevice.h"
-#include "Modules/discovery/DiscoveryBase.h"
+#include <vector>
 
 namespace WebCore {
 
 class NavDsc;
 
-typedef struct sZCDevMap
-{
+typedef struct sZCDevMap {
     std::map<std::string, ZCDevice> devMap;
-}ZCDevMap;
+} ZCDevMap;
 
-class ZeroConf : public DiscoveryBase
-//				 ,public base::SupportsWeakPtr<ZeroConf>
-{
+class ZeroConf : public DiscoveryBase {
 public:
     static std::map<std::string, ZCDevice> discoverDevs(const char *type, NavDsc *);
 
@@ -80,13 +72,12 @@ public:
 
     void checkForDroppedDevs();
 
-    void reset() {m_devLock->lock(); m_devs.clear(); m_devLock->unlock();}
+    void reset() { MutexLocker lock(m_devLock); m_devs.clear(); }
 
     char* m_query;
     int m_queryLen;
 
 protected:
-
     virtual bool parseDev(const char* resp, size_t respLen, const char* hostPort);
 
 private:
@@ -114,14 +105,12 @@ private:
     // key == service type
     // dev key == UUID
     std::map<std::string, ZCDevMap> m_devs;
-    Mutex *m_devLock;
-
+    Mutex m_devLock;
     long m_lastSend;
-
     bool m_sendPending;
 
 };
 
 }
 #endif
-#endif /* ZEROCONF_H_ */
+#endif /* ZeroConf_h */

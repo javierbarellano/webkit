@@ -23,31 +23,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UDPSOCKETERROR_H_
-#define UDPSOCKETERROR_H_
+#ifndef UDPSocketError_h
+#define UDPSocketError_h
 
 #include "UDPSocketErrorBase.h"
 
 namespace WebCore {
 
-class UDPSocketError : public UDPSocketErrorBase
-{
+class UDPSocketError : public UDPSocketErrorBase {
 public:
-	UDPSocketError() { }
-    //explicit UDPSocketError(int errorCode, const gchar* description)
+    UDPSocketError() { }
     explicit UDPSocketError(int errorCode, const char* description)
         : UDPSocketErrorBase(errorCode, String(), String(description))
     {
-      err_ = 0;
+        m_error = 0;
     }
     
-    int getErr() { return err_;}
+    int getErr() { return m_error; }
 
 private:
-	int err_;
-
+    int m_error;
 };
 
 } // namespace WebKit
 
-#endif /* UDPSOCKETERROR_H_ */
+#endif /* UDPSocketError_h */

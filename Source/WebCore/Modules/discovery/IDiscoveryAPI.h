@@ -23,39 +23,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef IDISCOVERYAPI_H_
-#define IDISCOVERYAPI_H_
-
-#include <string>
-#include <map>
+#ifndef IDiscoveryAPI_h
+#define IDiscoveryAPI_h
 
 #include "UPnPDevice.h"
 #include "ZCDevice.h"
-
+#include <map>
+#include <string>
 
 namespace WebCore {
 
-class IDiscoveryAPI
-{
+class IDiscoveryAPI {
 public:
-	virtual ~IDiscoveryAPI(){}
+    virtual ~IDiscoveryAPI() { }
 
-	virtual void UPnPDevAdded(std::string type, UPnPDevice &dev) = 0;
-	virtual void UPnPDevDropped(std::string type, UPnPDevice &dev) = 0;
+    virtual void UPnPDevAdded(std::string type, UPnPDevice&) = 0;
+    virtual void UPnPDevDropped(std::string type, UPnPDevice&) = 0;
 
-    virtual void ZCDevAdded(std::string type, ZCDevice &dev) = 0;
-    virtual void ZCDevDropped(std::string type, ZCDevice &dev) = 0;
+    virtual void ZCDevAdded(std::string type, ZCDevice&) = 0;
+    virtual void ZCDevDropped(std::string type, ZCDevice&) = 0;
 
-	virtual void sendEvent(std::string uuid, std::string stype, std::string body) = 0;
+    virtual void sendEvent(std::string uuid, std::string stype, std::string body) = 0;
     virtual void onError(int error) = 0;
     virtual void onZCError(int error) = 0;
 
-	virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs) = 0;
+    virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice>*) = 0;
 
-	virtual void receiveID(long idFromHN) = 0;
+    virtual void receiveID(long idFromHN) = 0;
 };
 
-};  // NameSpace WebCore
+}; // NameSpace WebCore
 
-
-#endif /* IDISCOVERYAPI_H_ */
+#endif /* IDiscoveryAPI_h */

@@ -23,10 +23,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAVIGATORNETWORKSERVICEERRORCALLBACK_H_
-#define NAVIGATORNETWORKSERVICEERRORCALLBACK_H_
+#ifndef NavServiceErrorCB_h
+#define NavServiceErrorCB_h
 
-//#include "CallbackTask.h"
 #include "NavServiceError.h"
 #include <wtf/RefCounted.h>
 
@@ -34,10 +33,7 @@ namespace WebCore {
 
 class NavServiceError;
 
-class NavServiceErrorCB :
-	public RefCounted<NavServiceErrorCB>
-//    public CallbackTask1<NavServiceErrorCB, NavServiceError>::Scheduler
-{
+class NavServiceErrorCB : public RefCounted<NavServiceErrorCB> {
 public:
     virtual ~NavServiceErrorCB() { }
     virtual bool handleEvent(NavServiceError*) = 0;
@@ -46,4 +42,4 @@ public:
 } // namespace WebCore
 
 
-#endif /* NAVIGATORNETWORKSERVICEERRORCALLBACK_H_ */
+#endif /* NavServiceErrorCB_h */

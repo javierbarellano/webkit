@@ -23,28 +23,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NAVIGATORNETWORKEVENTCALLBACK_H_
-#define NAVIGATORNETWORKEVENTCALLBACK_H_
+#ifndef NavEventCB_h
+#define NavEventCB_h
 
-//#include "CallbackTask.h"
 #include <wtf/RefCounted.h>
 
 namespace WebCore {
 
 class NavEvent;
 
-class NavEventCB :
-	public RefCounted<NavEventCB>
-//    public CallbackTask1<NavEventCB, NavEvent>::Scheduler
-{
+class NavEventCB : public RefCounted<NavEventCB> {
 public:
     virtual ~NavEventCB() { }
-    virtual bool handleEvent(NavEvent* event) = 0;
-
-protected:
-
+    virtual bool handleEvent(NavEvent*) = 0;
 };
 
 } // namespace WebCore
 
-#endif /* NAVIGATORNETWORKEVENTCALLBACK_H_ */
+#endif /* NavEventCB_h */

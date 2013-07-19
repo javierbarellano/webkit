@@ -23,22 +23,22 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DISCOVERYWRAPPER_H
-#define DISCOVERYWRAPPER_H
+#ifndef DiscoveryWrapper_h
+#define DiscoveryWrapper_h
 
-// This wrapper isolates the internal discovery client from all of the madness we need not know about
+// This wrapper isolates the internal discovery client from all of the madness
+// we need not know about
 
-#include "UPnPDevice.h"
 #include "IDiscoveryAPI.h"
+#include "UPnPDevice.h"
 
 namespace WebCore {
 
-class DiscoveryWrapper
-{
+class DiscoveryWrapper {
 public:
-    static void startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *api);
+    static void startUPnPInternalDiscovery(const char *type, IDiscoveryAPI *);
 };
 
 } // namespace
 
-#endif // DISCOVERYWRAPPER_H
+#endif // DiscoveryWrapper_h
