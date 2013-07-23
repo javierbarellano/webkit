@@ -2,49 +2,50 @@ description('Tests navigator.getNetworkServices() works in happy case as expecte
 
 function getNetworkServices(type, okCallback, errCallback) {
 
-	navigator.getNetworkServices(type, okCallback, errCallback);
+    navigator.getNetworkServices(type, okCallback, errCallback);
 }
 
 var srvs;
 var resp;
 var req;
 function okAddDev(services) {
-	testPassed("navigator.getNetworkServices() first call to ok callback.");
-	srvs = services;
-	shouldBe("srvs.servicesAvailable==0", "true");
-	srvs.onserviceavailable = addDevCB;
+    testPassed("navigator.getNetworkServices() first call to ok callback.");
+    srvs = services;
+    shouldBe("srvs.servicesAvailable==0", "true");
+    srvs.onserviceavailable = addDevCB;
 }
 
 function errShouldNotbeCalled(err) {
-	testFailed('GetNetworkServices() should have called ok Callback.');
+    testFailed('GetNetworkServices() should have called ok Callback.');
 }
 
 function okSecondCallCB(services) {
-	srvs = services;
-	shouldBe("srvs.servicesAvailable>=1", "true");
-	if (srvs.servicesAvailable) {
-		var srv = srvs[0];
+    srvs = services;
+    shouldBe("srvs.servicesAvailable>=1", "true");
+    if (srvs.servicesAvailable) {
+        var srv = srvs[0];
 
-		req = new XMLHttpRequest();
+        req = new XMLHttpRequest();
 
-		req.open("GET", srv.url, false);
-		req.send();
-		resp = req.responseText;
-
-		shouldBe("req.status==200", "true");
-		
-	}
-	testPassed("navigator.getNetworkServices() second call to ok callback.");
-	finishJSTest();
+        try {
+            req.open("GET", srv.url, false);
+            req.send();
+            shouldBe("req.status==200", "true");
+        } catch (e) {
+            testFailed("XMLHttpRequest threw exception: " + e);
+        }
+    }
+    testPassed("navigator.getNetworkServices() second call to ok callback.");
+    finishJSTest();
 }
 
 function addDevCB() {
-	if (srvs.onserviceavailable == null) {
-		testFailed('GetNetworkServices() should have called dummyCB.');
-	}
-	srvs.onserviceavailable = null;
-	
-	getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
+    if (srvs.onserviceavailable == null) {
+        testFailed('GetNetworkServices() should have called dummyCB.');
+    }
+    srvs.onserviceavailable = null;
+
+    getNetworkServices("upnp:urn:schemas-upnp-org:service:ContentDirectory:1", okSecondCallCB, errShouldNotbeCalled)
 }
 
 getNetworkServices("upnp:reset:urn:schemas-upnp-org:service:ContentDirectory:1", okAddDev, errShouldNotbeCalled);

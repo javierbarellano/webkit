@@ -1,43 +1,53 @@
-/*
- * ZeroConf.cpp
+/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
  *
- *  Created on: Dec 27, 2011
- *      Author: gar
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+ * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
-#include "config.h"
-
 #if ENABLE(DISCOVERY)
 
 #define WEBKIT_IMPLEMENTATION 1
 
-#include "../../../../Source/WebCore/platform/network/soup/TCPSocketHandle.h"
-
-#include "../../../../Source/WebCore/platform/network/UDPSocketHandleClient.h"
-#include "../../../../Source/WebCore/platform/network/soup/UDPSocketHandle.h"
-#include "../../../../Source/WebCore/platform/network/soup/UDPSocketError.h"
-
-//#include "base/bind.h"
-
-#include "NavDsc.h"
 #include "ZeroConf.h"
 
+#include "NavDsc.h"
+#include "UDPSocketHandleClient.h"
+#include "soup/TCPSocketHandle.h"
+#include "soup/UDPSocketError.h"
+#include "soup/UDPSocketHandle.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <map>
+#include <sstream>
 #include <stddef.h>
-#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <sys/time.h>
-
-#include <sstream>
-#include <string>
-#include <map>
-
-#include <stdlib.h>
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/un.h>
 
 #define SKIP true
 #define GET_NAME false
@@ -45,14 +55,13 @@
 // #define LOGGING_NAV 1
 
 #ifdef LOGGING_NAV
-#define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#define NAV_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define NAV_LOG(fmt,...)
+#define NAV_LOG(fmt, ...)
 #endif
-#define ERR_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#define ERR_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
-namespace WebCore
-{
+namespace WebCore {
 
 ZeroConf* ZeroConf::m_instance = 0;
 
@@ -74,8 +83,8 @@ char ZeroConf::m_postfix[] = {
     0x00, 0x0c, // Type: PTR (Domain name pointer)
     0x00, 0x01 // Class: IN, "QU" question: false (QM)
 };
-int ZeroConf::m_postfixLen = 16;
 
+int ZeroConf::m_postfixLen = 16;
 
 void zcDroppedDevsThread(void *context)
 {
@@ -122,9 +131,8 @@ void zcDiscoveryThread(void *context)
             if (zc->m_udpSocket) {
                 lastSend = nowMs;
                 bool netIdUp = zc->m_udpSocket->send(zc->m_query, zc->m_queryLen);
-                if (netIdUp != zc->m_netIsUp) {
+                if (netIdUp != zc->m_netIsUp)
                     zc->m_netIsUp = netIdUp;
-                }
             }
         }
 
@@ -158,15 +166,12 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
     }
     m_instance->m_navDsc = navDsc;
 
-
-    m_instance->m_devLock->lock();
+    MutexLocker lock(m_instance->m_devLock);
     if (m_instance->m_devs.find(std::string(type)) != m_instance->m_devs.end()) {
         ZCDevMap dm = m_instance->m_devs.find(std::string(type))->second;
         NAV_LOG("ZeroConf::discoverDevs(%s) Found one or more devs, size: %d\n", type, dm.devMap.size());
-        m_instance->m_devLock->unlock();
         return (dm.devMap);
     }
-    m_instance->m_devLock->unlock();
 
     return std::map<std::string, ZCDevice>();
 }
@@ -183,7 +188,6 @@ ZeroConf* ZeroConf::getInstance()
 ZeroConf::ZeroConf(const char *type) :
 DiscoveryBase()
 {
-    m_devLock = new Mutex();
     m_devs.clear();
 
     strcpy(m_url, "udp://224.0.0.251:5353");
@@ -198,7 +202,6 @@ ZeroConf::~ZeroConf()
 {
     m_devs.clear();
     delete[] m_query;
-    delete m_devLock;
 }
 
 
@@ -216,10 +219,8 @@ void ZeroConf::UDPdidSendData(UDPSocketHandle* handle, int amountSent)
 // Called when data are received.
 void ZeroConf::UDPdidReceiveData(UDPSocketHandle*, const char* data, int dLen, const char *hostPort, int hpLen)
 {
-    if (dLen > 0) {
-        // hexDump(data, dLen);
+    if (dLen > 0)
         parseDev(data, dLen, hostPort);
-    }
 }
 
 void ZeroConf::UDPdidClose(UDPSocketHandle* udpHandle)
@@ -228,7 +229,6 @@ void ZeroConf::UDPdidClose(UDPSocketHandle* udpHandle)
 
 void ZeroConf::UDPdidFail(UDPSocketHandle* handle, UDPSocketError& error)
 {
-    // NAV_LOG("ZeroConf::didFail() UDPSocketHandle error: %d\n", error.getErr());
     m_navDsc->onZCError(error.getErr());
 }
 
@@ -245,7 +245,7 @@ ZCDevMap* ZeroConf::getDevs(const char *type)
 
 void ZeroConf::checkForDroppedDevs()
 {
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     // NAV_LOG("checkForDroppedDevs() start\n");
     for (std::map<std::string, ZCDevMap>::iterator i = m_devs.begin(); i != m_devs.end(); i++) {
         ZCDevMap dm = (*i).second;
@@ -281,9 +281,7 @@ void ZeroConf::checkForDroppedDevs()
                     m_navDsc->ZCDevDropped(type, dv);
             }
         }
-
     }
-    m_devLock->unlock();
 
 }
 
@@ -338,7 +336,8 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
     NAV_LOG("ZC parseRec(): url: %s\n", zcd.url.c_str());
 
     ZCDevMap dm;
-    m_devLock->lock();
+
+    MutexLocker lock(m_devLock);
     if (m_devs.find(m_daapType) != m_devs.end())
         dm = m_devs.find(m_daapType)->second;
 
@@ -348,11 +347,9 @@ bool ZeroConf::parseDev(const char* resp, size_t respLen, const char* hostPort)
         m_devs[m_daapType] = dm;
 
         NAV_LOG("---Adding ZeroConf device: %s : %s, devs: %d\n", zcd.url.c_str(), zcd.friendlyName.c_str(), (int)dm.devMap.size());
-        if (m_navDsc) {
+        if (m_navDsc)
             m_navDsc->ZCDevAdded(m_daapType, zcd);
-        }
     }
-    m_devLock->unlock();
 
     return true;
 }
@@ -485,7 +482,7 @@ bool ZeroConf::hostPortOk(const char* host, int port)
     char lhost[1000];
     int lport;
 
-    m_devLock->lock();
+    MutexLocker lock(m_devLock);
     std::map<std::string, ZCDevMap>::iterator it =  m_devs.begin();
     for (; it != m_devs.end(); it++) {
         ZCDevMap dm = it->second;
@@ -499,18 +496,14 @@ bool ZeroConf::hostPortOk(const char* host, int port)
             NAV_LOG("ZeroConf::hostPortOk(%s, %d) lhost: '%s', lport: %d\n",
                 host, port, lhost, lport);
 
-            if (lport == port && !strcmp(host, lhost)) {
-                m_devLock->unlock();
+            if (lport == port && !strcmp(host, lhost))
                 return true;
-            }
         }
     }
-    m_devLock->unlock();
 
     return false;
 }
 
-}  // Namespace
+} // Namespace WebCore
 
 #endif // ENABLE_DISCOVERY
-

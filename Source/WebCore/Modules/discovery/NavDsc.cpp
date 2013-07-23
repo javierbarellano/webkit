@@ -1,67 +1,81 @@
+/* Copyright (C) 2013 Cable Television Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+ * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 
 #include "config.h"
-
 #if ENABLE(DISCOVERY)
 
-#include "Page.h"
+#include "NavDsc.h"
+
+#include "CSSValueKeywords.h"
 #include "Chrome.h"
-#include "Frame.h"
 #include "Document.h"
-#include "HTMLDivElement.h"
+#include "Frame.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoaderClient.h"
-#include "ResourceHandle.h"
-#include "CSSValueKeywords.h"
-#include "HTMLElement.h"
-#include "HTMLInputElement.h"
 #include "HTMLBRElement.h"
-#include "HTMLNames.h"
+#include "HTMLDivElement.h"
+#include "HTMLElement.h"
 #include "HTMLFontElement.h"
+#include "HTMLInputElement.h"
+#include "HTMLNames.h"
+#include "IDiscoveryAPI.h"
+#include "Nav.h"
 #include "NodeList.h"
+#include "Page.h"
+#include "ResourceHandle.h"
 #include "ShadowRoot.h"
-
-
-#include "Modules/discovery/IDiscoveryAPI.h"
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/ZCDevice.h"
-#include "Modules/discovery/UPnPDevice.h"
-#include "Modules/discovery/ZCDevice.h"
-
-#include "Modules/discovery/UPnPSearch.h"
-#include "Modules/discovery/ZeroConf.h"
-#include "Modules/discovery/UPnPEvent.h"
-
-#include <unistd.h>
+#include "UPnPDevice.h"
+#include "UPnPEvent.h"
+#include "UPnPSearch.h"
+#include "ZCDevice.h"
+#include "ZeroConf.h"
+#include <errno.h>
+#include <map>
+#include <math.h>
 #include <netdb.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <math.h>
-
-#include <pthread.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <vector>
-#include <map>
-
-#include "Modules/discovery/Nav.h"
 
 // #define LOGGING_NAV 1
 
 #ifdef LOGGING_NAV
-#define NAV_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
+#define NAV_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define NAV_LOG(fmt,...)
+#define NAV_LOG(fmt, ...)
 #endif
-#define ERR_LOG(fmt,...) printf(fmt, ##__VA_ARGS__)
-
-#include "NavDsc.h"
+#define ERR_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
 #ifndef IMAX
-#define IMAX(a,b) ((a) < (b)) ? (b):(a)
+#define IMAX(a, b) ((a) < (b)) ? (b) : (a)
 #endif
-
 
 namespace WebCore {
 
@@ -69,11 +83,11 @@ namespace WebCore {
 
 class PermissionInput FINAL : public HTMLInputElement {
 public:
-    void setNavDsc(NavDsc* nd) {m_navdsc = nd;}
-    NavDsc* getNavDsc() {return m_navdsc;}
+    void setNavDsc(NavDsc* nd) { m_navdsc = nd; }
+    NavDsc* getNavDsc() { return m_navdsc; }
 
 protected:
-    explicit PermissionInput(const QualifiedName &, Document*);
+    explicit PermissionInput(const QualifiedName&, Document*);
     NavDsc* m_navdsc;
 };
 
@@ -81,7 +95,7 @@ protected:
 
 class PermissionButtonElement FINAL : public PermissionInput {
 public:
-    static PassRefPtr<PermissionButtonElement> create(Document*, NavDsc *);
+    static PassRefPtr<PermissionButtonElement> create(Document*, NavDsc*);
 
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
 
@@ -96,7 +110,7 @@ private:
 
 class PermissionCheckBoxElement FINAL : public PermissionInput {
 public:
-    static PassRefPtr<PermissionCheckBoxElement> create(Document*, NavDsc *);
+    static PassRefPtr<PermissionCheckBoxElement> create(Document*, NavDsc*);
 
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
     void setEventData(EventData ed) { m_ed = ed; }
@@ -110,19 +124,17 @@ private:
     int m_id;
 };
 
-
 // ----------------------------
 
-PermissionInput::PermissionInput(const QualifiedName& tag, Document* doc) :
-    HTMLInputElement(tag, doc, 0, false)
+PermissionInput::PermissionInput(const QualifiedName& tag, Document* doc)
+    : HTMLInputElement(tag, doc, 0, false)
     , m_navdsc(0)
 {
-
 }
 
 // ----------------------------
 
-PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* doc, NavDsc *navdsc)
+PassRefPtr<PermissionButtonElement> PermissionButtonElement::create(Document* doc, NavDsc* navdsc)
 {
     RefPtr<PermissionButtonElement> button = adoptRef(new PermissionButtonElement(doc));
     button->setType(String("button"));
@@ -151,7 +163,7 @@ void PermissionButtonElement::defaultEventHandler(Event* event)
 
 // ----------------------------
 
-PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document* doc, NavDsc *navdsc)
+PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document* doc, NavDsc* navdsc)
 {
     RefPtr<PermissionCheckBoxElement> button = adoptRef(new PermissionCheckBoxElement(doc));
     button->setType(String("checkbox"));
@@ -160,8 +172,8 @@ PassRefPtr<PermissionCheckBoxElement> PermissionCheckBoxElement::create(Document
     return button.release();
 }
 
-PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc) :
-        PermissionInput((const QualifiedName)HTMLNames::inputTag, doc)
+PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc)
+    : PermissionInput((const QualifiedName)HTMLNames::inputTag, doc)
 {
     m_id = -1;
 }
@@ -179,8 +191,7 @@ void PermissionCheckBoxElement::defaultEventHandler(Event* event)
 
 // ----------------------------
 
-FILE *NavDsc::HN_FD_; // Used for logging
-NavDsc *NavDsc::instance = 0;
+NavDsc* NavDsc::instance = 0;
 #if ENABLE(DISCOVERY_PERMISSIONS)
 bool NavDsc::m_permissionsEnabled = true;
 #else
@@ -188,29 +199,29 @@ bool NavDsc::m_permissionsEnabled = false;
 #endif
 
 // Static
-NavDsc *NavDsc::create(Frame * frame)
+NavDsc* NavDsc::create(Frame* frame)
 {
-	if (!instance)
-		instance = new NavDsc(frame);
+    if (!instance)
+        instance = new NavDsc(frame);
 
-	if (frame)
-		instance->m_frame = frame;
+    if (frame)
+        instance->m_frame = frame;
 
-	return instance;
+    return instance;
 }
 
-NavDsc::NavDsc(Frame * frame) :
-    m_frame(frame)
+NavDsc::NavDsc(Frame* frame)
+    : m_frame(frame)
 {
-	m_resetSet = false;
+    m_resetSet = false;
 }
 
 NavDsc::~NavDsc()
 {
-	if (UPnPSearch::getInstance())
-		delete UPnPSearch::getInstance();
+    if (UPnPSearch::getInstance())
+        delete UPnPSearch::getInstance();
 
-	instance = NULL;
+    instance = 0;
 }
 
 
@@ -218,320 +229,305 @@ NavDsc::~NavDsc()
 
 void NavDsc::updateServices(std::string type, std::map<std::string, UPnPDevice> devs)
 {
-	NAV_LOG("updateServices(%s) devs.size: %d\n",type.c_str(), devs.size());
+    NAV_LOG("updateServices(%s) devs.size: %d\n", type.c_str(), devs.size());
 
-	MutexLocker lock(m_lockServices);
-	for (std::map<std::string, UPnPDevice>::iterator i=devs.begin(); i!= devs.end(); i++) {
-		UPnPDevice ns = i->second;
-		std::string uuid = i->first;
-		bool found = false;
+    MutexLocker lock(m_lockServices);
+    for (std::map<std::string, UPnPDevice>::iterator i = devs.begin(); i!= devs.end(); i++) {
+        UPnPDevice ns = i->second;
+        std::string uuid = i->first;
+        bool found = false;
 
-		if (!m_services[type]) {
-			m_services[type] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-			m_services[type]->suspendIfNeeded();
-		}
+        if (!m_services[type]) {
+            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type]->suspendIfNeeded();
+        }
 
-		NavServices *nss = m_services[type].get();
+        NavServices* nss = m_services[type].get();
 
-		for(int m=0; nss && m<nss->length() && !found; m++) {
-			if (strstr(nss->item(m)->id().ascii().data(),uuid.c_str()))
-				found = true;
-		}
+        for (int m = 0; nss && m < nss->length() && !found; m++) {
+            if (strstr(nss->item(m)->id().ascii().data(), uuid.c_str()))
+                found = true;
+        }
 
-		NAV_LOG("updateServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true":"false"));
+        NAV_LOG("updateServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true" : "false"));
 
-		if (!found) {
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
+        if (!found) {
+            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            srv->suspendIfNeeded();
 
-			srv->setType(WTF::String(type.c_str()));
-			srv->setPType(NavService::UPNP_TYPE);
-			srv->setUrl(WTF::String(ns.descURL.c_str()));
-			srv->setid(WTF::String(uuid.c_str())); // UUID
-			srv->setName(WTF::String(ns.friendlyName.c_str()));
-			m_services[type]->append(srv);
-			m_services[type]->m_serviceType = type;
+            srv->setType(WTF::String(type.c_str()));
+            srv->setProtocolType(NavService::UPnPType);
+            srv->setUrl(WTF::String(ns.descURL.c_str()));
+            srv->setid(WTF::String(uuid.c_str())); // UUID
+            srv->setName(WTF::String(ns.friendlyName.c_str()));
+            m_services[type]->append(srv);
+            m_services[type]->m_serviceType = type;
 
-			NAV_LOG("updateServices() uuid: %s, added\n", uuid.c_str());
-		}
-	}
+            NAV_LOG("updateServices() uuid: %s, added\n", uuid.c_str());
+        }
+    }
 }
 
 void NavDsc::updateZCServices(std::string type, std::map<std::string, ZCDevice> devs)
 {
-	NAV_LOG("updateZCServices(%s) devs.size: %d\n",type.c_str(), devs.size());
+    NAV_LOG("updateZCServices(%s) devs.size: %d\n", type.c_str(), devs.size());
     MutexLocker lock(m_lockServices);
-	for (std::map<std::string, ZCDevice>::iterator i=devs.begin(); i!= devs.end(); i++) {
-		ZCDevice ns = i->second;
-		std::string uuid = i->first;
-		bool found = false;
+    for (std::map<std::string, ZCDevice>::iterator i = devs.begin(); i != devs.end(); i++) {
+        ZCDevice ns = i->second;
+        std::string uuid = i->first;
+        bool found = false;
 
-		if (!m_services[type]) {
-			m_services[type] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-			m_services[type]->suspendIfNeeded();
-		}
+        if (!m_services[type]) {
+            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type]->suspendIfNeeded();
+        }
 
-		NavServices *nss = m_services[type].get();
+        NavServices* nss = m_services[type].get();
 
-		for(int m=0; nss && m<nss->length() && !found; m++) {
-			if (strstr(nss->item(m)->id().ascii().data(),uuid.c_str()))
-				found = true;
-		}
+        for (int m = 0; nss && m < nss->length() && !found; m++) {
+            if (strstr(nss->item(m)->id().ascii().data(), uuid.c_str()))
+                found = true;
+        }
 
-		NAV_LOG("updateZCServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true":"false"));
+        NAV_LOG("updateZCServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true" : "false"));
 
-		if (!found) {
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
+        if (!found) {
+            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            srv->suspendIfNeeded();
 
-			srv->setType(WTF::String(type.c_str()));
-			srv->setPType(NavService::UPNP_TYPE);
-			srv->setUrl(WTF::String(ns.url.c_str()));
-			srv->setid(WTF::String(uuid.c_str())); // UUID
-			srv->setName(WTF::String(ns.friendlyName.c_str()));
-			m_services[type]->append(srv);
-			m_services[type]->m_serviceType = type;
+            srv->setType(WTF::String(type.c_str()));
+            srv->setProtocolType(NavService::UPnPType);
+            srv->setUrl(WTF::String(ns.url.c_str()));
+            srv->setid(WTF::String(uuid.c_str())); // UUID
+            srv->setName(WTF::String(ns.friendlyName.c_str()));
+            m_services[type]->append(srv);
+            m_services[type]->m_serviceType = type;
 
-			NAV_LOG("updateZCServices() uuid: %s, added\n", uuid.c_str());
-		}
-	}
+            NAV_LOG("updateZCServices() uuid: %s, added\n", uuid.c_str());
+        }
+    }
 }
 
-void NavDsc::setServices(
-		std::string strType,
-		const char* type,
-		std::map<std::string, UPnPDevice> devs,
-		std::map<std::string, ZCDevice> zcdevs,
-		ProtocolType protoType
-		)
+void NavDsc::setServices(std::string strType, const char* type,
+    std::map<std::string, UPnPDevice> devs, std::map<std::string, ZCDevice> zcdevs,
+    ProtocolType protoType)
 {
+    NAV_LOG("setServices(%s)\n", strType.c_str());
 
-	NAV_LOG("setServices(%s)\n",strType.c_str());
+    // Just protect m_services
+    {
+        MutexLocker lock(m_lockServices);
+        m_services[strType] = NavServices::create(m_frame->document(), NavServices::Connected);
+        m_services[strType]->suspendIfNeeded();
+    }
 
-	// Just protect m_services
-	{
-	    MutexLocker lock(m_lockServices);
-	    m_services[strType] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-	    m_services[strType]->suspendIfNeeded();
-	}
+    Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
 
-	Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
+    if (protoType == UPnPProtocol) {
+        std::map<std::string, UPnPDevice>::iterator it;
+        for (it = devs.begin(); it != devs.end(); it++) {
+            UPnPDevice d((*it).second);
+            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            srv->suspendIfNeeded();
 
-	if (protoType == UPNP_PROTO)
-	{
-		std::map<std::string, UPnPDevice>::iterator it;
-		for (it=devs.begin(); it!=devs.end(); it++)
-		{
-			UPnPDevice d((*it).second);
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
+            srv->setType(WTF::String(type));
+            srv->setProtocolType(NavService::UPnPType);
+            srv->setUrl(WTF::String(d.descURL.c_str()));
+            srv->setid(WTF::String((*it).first.c_str())); // UUID
+            srv->setName(WTF::String(d.friendlyName.c_str()));
 
-			srv->setType(WTF::String(type));
-			srv->setPType(NavService::UPNP_TYPE);
-			srv->setUrl(WTF::String(d.descURL.c_str()));
-			srv->setid(WTF::String((*it).first.c_str())); // UUID
-			srv->setName(WTF::String(d.friendlyName.c_str()));
+            vDevs->append(srv);
+        }
 
-			vDevs->append(srv);
-		}
+    } else if (protoType == ZeroConfProtocol) {
+        std::map<std::string, ZCDevice>::iterator it;
+        for (it = zcdevs.begin(); it != zcdevs.end(); it++) {
+            ZCDevice d((*it).second);
+            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            srv->suspendIfNeeded();
 
-	}
-	else if (protoType == ZC_PROTO)
-	{
-		std::map<std::string, ZCDevice>::iterator it;
-		for (it=zcdevs.begin(); it!=zcdevs.end(); it++)
-		{
-			ZCDevice d((*it).second);
-			RefPtr<NavService> srv = NavService::create(m_frame->document());
-			srv->suspendIfNeeded();
+            srv->setType(WTF::String(type));
+            srv->setProtocolType(NavService::ZConfType);
+            srv->setUrl(WTF::String(d.url.c_str()));
+            srv->setid(WTF::String((*it).first.c_str())); // UUID
+            srv->setName(WTF::String(d.friendlyName.c_str()));
 
-			srv->setType(WTF::String(type));
-			srv->setPType(NavService::ZCONF_TYPE);
-			srv->setUrl(WTF::String(d.url.c_str()));
-			srv->setid(WTF::String((*it).first.c_str())); // UUID
-			srv->setName(WTF::String(d.friendlyName.c_str()));
+            vDevs->append(srv);
+        }
+    }
 
-			vDevs->append(srv);
-		}
-	}
-
-	// Write devices to service object
-	MutexLocker lock(m_lockServices);
-	m_services[strType]->setServices(vDevs);
-	m_services[strType]->m_serviceType = strType;
-
-	// NAV_LOG("NavDsc::setServices() DONE. %d services total\n", (int)vDevs->size());
+    // Write devices to service object
+    MutexLocker lock(m_lockServices);
+    m_services[strType]->setServices(vDevs);
+    m_services[strType]->m_serviceType = strType;
 }
 
 std::vector< NavServices* > NavDsc::getNavServices(std::string type, bool isUp)
 {
+    std::vector<NavServices*> pNS;
+    RefPtr<NavServices>  ns;
 
-	std::vector<NavServices*> pNS;
-	RefPtr<NavServices>  ns;
+    MutexLocker lock(m_lockServices);
+    if (type == "all") {
+        for (std::map<std::string, RefPtr<NavServices> >::iterator it = m_services.begin();
+            it != m_services.end(); it++) {
 
-	MutexLocker lock(m_lockServices);
-	if (type == "all")
-	{
-		for (std::map<std::string, RefPtr<NavServices> >::iterator it = m_services.begin();
-				it != m_services.end();
-				it++) {
+            RefPtr<NavServices> typeNS = it->second;
+            typeNS->setOnline(isUp);
+            pNS.push_back(typeNS.get());
+        }
+    } else {
+        if (!m_services[type]) {
+            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type]->suspendIfNeeded();
+        }
 
-			RefPtr<NavServices> typeNS = it->second;
-			typeNS->setOnline(isUp);
-			pNS.push_back(typeNS.get());
-		}
-	} else {
-		if (!m_services[type]) {
-			m_services[type] = NavServices::create(m_frame->document(), NavServices::CONNECTED);
-			m_services[type]->suspendIfNeeded();
-		}
+        pNS.push_back(m_services[type].get());
+    }
 
-		pNS.push_back(m_services[type].get());
-	}
+    NAV_LOG("getNavServices() number devs: %d for type: %s\n", pNS[0]->length(), type.c_str());
 
-	NAV_LOG("getNavServices() number devs: %d for type: %s\n", pNS[0]->length(), type.c_str());
-
-	return pNS;
+    return pNS;
 }
 
 bool NavDsc::has(std::vector<RefPtr<NavServices> > srvs, std::string uuid)
 {
-	String nsUUID(uuid.c_str());
+    String nsUUID(uuid.c_str());
 
-	for (int i=0; i<srvs.size(); i++) {
-		Vector<RefPtr<NavService> > ns = srvs.at(i)->m_devs;
-		for (int k = 0; k < ns.size(); k++) {
-			if (ns.at(k)->id() == nsUUID)
-				return true;
-		}
-	}
-	return false;
+    for (int i = 0; i < srvs.size(); i++) {
+        Vector<RefPtr<NavService> > ns = srvs.at(i)->m_devs;
+        for (int k = 0; k < ns.size(); k++) {
+            if (ns.at(k)->id() == nsUUID)
+                return true;
+        }
+    }
+    return false;
 }
 
 void NavDsc::ZCDevDropped(std::string type, ZCDevice &dev)
 {
-	NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s\n",
-			dev.url.c_str(), dev.friendlyName.c_str());
+    NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s\n", dev.url.c_str(),
+        dev.friendlyName.c_str());
 
+    EventData ed = { ZeroConfProtocol, false, type, UPnPDevice(), dev, 0 };
     {
-        MutexLocker lock(m_main);
-        EventData ed = {ZC_PROTO, false, type, UPnPDevice(), dev, NULL};
+        MutexLocker lock(m_mainMutex);
         m_eventData.push(ed);
     }
 
-	callOnMainThread(NavDsc::serviceOfflineInternal,this);
+    callOnMainThread(NavDsc::serviceOfflineInternal, this);
 }
 
 void NavDsc::ZCDevAdded(std::string type, ZCDevice &dev)
 {
-	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s\n",
-			dev.url.c_str(), dev.friendlyName.c_str());
+    NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s\n", dev.url.c_str(),
+        dev.friendlyName.c_str());
 
+    EventData ed = { ZeroConfProtocol, true, type, UPnPDevice(), dev, 0 };
     {
-        MutexLocker lock(m_main);
-        EventData ed = {ZC_PROTO, true, type, UPnPDevice(), dev, NULL};
+        MutexLocker lock(m_mainMutex);
         m_eventData.push(ed);
     }
 
     if (m_permissionsEnabled)
-        callOnMainThread(NavDsc::serviceOnlineInternal,this);
+        callOnMainThread(NavDsc::serviceOnlineInternal, this);
     else
-        callOnMainThread(NavDsc::dispatchServiceOnline,this);
+        callOnMainThread(NavDsc::dispatchServiceOnline, this);
 }
 
 void NavDsc::UPnPDevDropped(std::string type, UPnPDevice &dev)
 {
-	NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s, id: %s\n",
-			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
+    NAV_LOG("NavDsc::serviceOffline() url: %s, name: %s, id: %s\n",
+        dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
 
-	UPnPDevMap dm;
+    UPnPDevMap dm;
 
-	if (m_frame) {
+    if (m_frame) {
+        EventData ed = { UPnPProtocol, false, type, dev, ZCDevice(), 0 };
         {
-            MutexLocker lock(m_main);
-            EventData ed = {UPNP_PROTO, false, type, dev, ZCDevice(), NULL};
+            MutexLocker lock(m_mainMutex);
             m_eventData.push(ed);
         }
 
-        callOnMainThread(NavDsc::serviceOfflineInternal,this);
-	} else {
+        callOnMainThread(NavDsc::serviceOfflineInternal, this);
+    } else {
         UPnPDevMap dm = UPnPSearch::getDevs(type);
         if (dm.devMap.size())
             serverListUpdate(type, &dm.devMap);
-	}
+    }
 }
 
 void NavDsc::UPnPDevAdded(std::string type, UPnPDevice &dev)
 {
-	NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s, id: %s\n",
-			dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
+    NAV_LOG("NavDsc::serviceOnline() url: %s, name: %s, id: %s\n",
+        dev.descURL.c_str(), dev.friendlyName.c_str(), dev.uuid.c_str());
 
-	if (m_frame) {
+    if (m_frame) {
+        EventData ed = { UPnPProtocol, true, type, dev, ZCDevice(), 0 };
         {
-            MutexLocker lock(m_main);
-            EventData ed = {UPNP_PROTO, true, type, dev, ZCDevice(), NULL};
+            MutexLocker lock(m_mainMutex);
             m_eventData.push(ed);
         }
 
         NAV_LOG("NavDsc::serviceOnlineInternal() m_permissionsEnabled=%s\n", m_permissionsEnabled ? "true":"false");
         if (m_permissionsEnabled)
-            callOnMainThread(NavDsc::serviceOnlineInternal,this);
+            callOnMainThread(NavDsc::serviceOnlineInternal, this);
         else
-            callOnMainThread(NavDsc::dispatchServiceOnline,this);
+            callOnMainThread(NavDsc::dispatchServiceOnline, this);
 
-	} else {
+    } else {
         UPnPDevMap dm = UPnPSearch::getDevs(type);
         NAV_LOG("UPnPDevAdded(): call serverListUpdate() Size: %d\n", dm.devMap.size());
         if (dm.devMap.size())
             serverListUpdate(type, &dm.devMap);
-	}
+    }
 }
 
 void NavDsc::serviceOfflineInternal(void *ptr)
 {
-	NAV_LOG("NavDsc::serviceOfflineInternal()\n");
-	NavDsc *nd = (NavDsc*)ptr;
-	EventData ed;
+    NAV_LOG("NavDsc::serviceOfflineInternal()\n");
+    NavDsc* nd = (NavDsc*)ptr;
+    EventData ed;
 
-	if (nd->m_eventData.empty()) {
-		NAV_LOG("serviceOfflineInternal: No Types, so cannot add dev\n");
-		return;
-	}
+    if (nd->m_eventData.empty()) {
+        NAV_LOG("serviceOfflineInternal: No Types, so cannot add dev\n");
+        return;
+    }
 
     {
-        MutexLocker lock(nd->m_main);
+        MutexLocker lock(nd->m_mainMutex);
         ed = nd->m_eventData.front();
         nd->m_eventData.pop();
     }
 
-	std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
-	std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
-	if (srvs.empty()) {
-		NAV_LOG("serviceOfflineInternal: No Devs, so cannot add dev\n");
-		return;
-	}
+    std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
+    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+    if (srvs.empty()) {
+        NAV_LOG("serviceOfflineInternal: No Devs, so cannot add dev\n");
+        return;
+    }
 
-	for (int i=0; i<srvs.size(); i++) {
-		bool sendSevicesEvent = false;
-		NAV_LOG("serviceOfflineInternal: service: %s, devs: %d\n", srvs[i]->m_serviceType.c_str(), srvs[i]->m_devs.size());
-		for (int k=0; k<srvs[i]->m_devs.size(); k++)
-		{
+    for (int i = 0; i < srvs.size(); i++) {
+        bool sendSevicesEvent = false;
+        NAV_LOG("serviceOfflineInternal: service: %s, devs: %d\n",
+            srvs[i]->m_serviceType.c_str(), srvs[i]->m_devs.size());
+        for (int k = 0; k < srvs[i]->m_devs.size(); k++) {
+            NAV_LOG("serviceOfflineInternal: service uuid: %s, dev uuid: %s\n",
+                srvs[i]->m_devs[k]->m_id.ascii().data(), uuid.c_str());
 
-			NAV_LOG("serviceOfflineInternal: service uuid: %s, dev uuid: %s\n",
-					srvs[i]->m_devs[k]->m_id.ascii().data(), uuid.c_str());
+            if (srvs[i]->m_devs[k]->m_id == String(uuid.c_str())) {
+                NAV_LOG("serviceOfflineInternal: Send offline to: %s\n",
+                    srvs[i]->m_devs[k]->name().ascii().data());
+                srvs[i]->m_devs[k]->dispatchEvent(Event::create(eventNames().serviceofflineEvent, false, false));
 
-			if (srvs[i]->m_devs[k]->m_id == String(uuid.c_str())) {
-				NAV_LOG("serviceOfflineInternal: Send offline to: %s\n", srvs[i]->m_devs[k]->name().ascii().data());
-				srvs[i]->m_devs[k]->dispatchEvent(Event::create(eventNames().serviceofflineEvent, false, false));
-
-				if (!sendSevicesEvent) {
-					NAV_LOG("serviceOfflineInternal: Send unavailable to: %s\n", srvs[i]->m_serviceType.c_str());
-					srvs[i]->dispatchEvent(Event::create(eventNames().serviceunavailableEvent, false, false));
-					sendSevicesEvent = true;
-				}
-			}
-		}
-	}
+                if (!sendSevicesEvent) {
+                    NAV_LOG("serviceOfflineInternal: Send unavailable to: %s\n", srvs[i]->m_serviceType.c_str());
+                    srvs[i]->dispatchEvent(Event::create(eventNames().serviceunavailableEvent, false, false));
+                    sendSevicesEvent = true;
+                }
+            }
+        }
+    }
 }
 
 void NavDsc::createPermissionsDialog(EventData ed)
@@ -568,9 +564,7 @@ void NavDsc::createPermissionsDialog(EventData ed)
     msgFnt->setInnerText(ASCIILiteral("Please check all devices you would like this page to use."), IGNORE_EXCEPTION);
     div->appendChild(msgFnt.release());
 
-    for (int k=0; k<srvs[0]->m_devs.size(); k++)
-    {
-
+    for (int k = 0; k < srvs[0]->m_devs.size(); k++) {
         RefPtr<HTMLBRElement> br = HTMLBRElement::create(m_frame->document());
         div->appendChild(br.release());
 
@@ -606,53 +600,8 @@ void NavDsc::createPermissionsDialog(EventData ed)
 
 void NavDsc::serviceOnlineInternal(void *ptr)
 {
-	NAV_LOG("NavDsc::serviceOnlineInternal()\n");
-    NavDsc *nd = (NavDsc*)ptr;
-    EventData ed;
-
-	if (nd->m_eventData.empty()) {
-		NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
-		return;
-	}
-
-    {
-        MutexLocker lock(nd->m_main);
-        ed = nd->m_eventData.front();
-    }
-
-	std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
-	std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
-
-	if (srvs.empty() || !srvs[0]->find(uuid)) {
-		if (ed.proto == ZC_PROTO) {
-			ZCDevMap *devs = ZeroConf::getDevs(ed.type.c_str());
-			if (!devs)
-				return;
-
-			nd->updateZCServices(ed.type, devs->devMap);
-		} else {
-			UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
-			if (devs.devMap.empty())
-				return;
-
-			nd->updateServices(ed.type, devs.devMap);
-		}
-	}
-
-	srvs = nd->getNavServices(ed.type, ed.online);
-	if (srvs.empty()) {
-		ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
-		return;
-	}
-
-	nd->createPermissionsDialog(ed);
-
-}
-
-void NavDsc::dispatchServiceOnline(void *ptr)
-{
     NAV_LOG("NavDsc::serviceOnlineInternal()\n");
-    NavDsc *nd = (NavDsc*)ptr;
+    NavDsc* nd = (NavDsc*)ptr;
     EventData ed;
 
     if (nd->m_eventData.empty()) {
@@ -661,17 +610,62 @@ void NavDsc::dispatchServiceOnline(void *ptr)
     }
 
     {
-        MutexLocker lock(nd->m_main);
+        MutexLocker lock(nd->m_mainMutex);
+        ed = nd->m_eventData.front();
+    }
+
+    std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
+    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+
+    if (srvs.empty() || !srvs[0]->find(uuid)) {
+        if (ed.proto == ZeroConfProtocol) {
+            ZCDevMap* devs = ZeroConf::getDevs(ed.type.c_str());
+            if (!devs)
+                return;
+
+            nd->updateZCServices(ed.type, devs->devMap);
+        } else {
+            UPnPDevMap devs = UPnPSearch::getDevs(ed.type);
+            if (devs.devMap.empty())
+                return;
+
+            nd->updateServices(ed.type, devs.devMap);
+        }
+    }
+
+    srvs = nd->getNavServices(ed.type, ed.online);
+    if (srvs.empty()) {
+        ERR_LOG("NavDsc::serviceOnlineInternal(): No Services after add device!\n");
+        return;
+    }
+
+    nd->createPermissionsDialog(ed);
+
+}
+
+void NavDsc::dispatchServiceOnline(void *ptr)
+{
+    NAV_LOG("NavDsc::serviceOnlineInternal()\n");
+    NavDsc* nd = (NavDsc*)ptr;
+    EventData ed;
+
+    if (nd->m_eventData.empty()) {
+        NAV_LOG("serviceOnlineInternal: No Types, so cannot add dev\n");
+        return;
+    }
+
+    {
+        MutexLocker lock(nd->m_mainMutex);
         ed = nd->m_eventData.front();
         nd->m_eventData.pop();
     }
 
-    std::string uuid = (ed.proto==ZC_PROTO) ? ed.zcdev.friendlyName : ed.dev.uuid;
+    std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
     std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
 
     if (!srvs.size() || !srvs[0]->find(uuid)) {
-        if (ed.proto == ZC_PROTO) {
-            ZCDevMap *devs = ZeroConf::getDevs(ed.type.c_str());
+        if (ed.proto == ZeroConfProtocol) {
+            ZCDevMap* devs = ZeroConf::getDevs(ed.type.c_str());
             if (!devs)
                 return;
 
@@ -693,16 +687,14 @@ void NavDsc::dispatchServiceOnline(void *ptr)
 
     bool sendSevicesEvent = false;
     NAV_LOG("serviceOnlineInternal: service: %s, devs: %d\n", srvs[0]->m_serviceType.c_str(), srvs[0]->m_devs.size());
-    for (int k=0; k<srvs[0]->m_devs.size(); k++)
-    {
-
+    for (int k = 0; k < srvs[0]->m_devs.size(); k++) {
         NAV_LOG("serviceOnlineInternal: service uuid: %s, dev uuid: %s, hasPermission: %s\n",
-                srvs[0]->m_devs[k]->m_id.ascii().data(), uuid.c_str(), srvs[0]->m_devs[k]->hasPermission() ? "Ok":"NO");
+            srvs[0]->m_devs[k]->m_id.ascii().data(), uuid.c_str(), srvs[0]->m_devs[k]->hasPermission() ? "Ok":"NO");
 
         if (!srvs[0]->m_devs[k]->hasPermission() && nd->m_permissionsEnabled)
             continue;
 
-        if (srvs[0]->m_devs[k]->m_id.contains(String(uuid.c_str()),true)) {
+        if (srvs[0]->m_devs[k]->m_id.contains(String(uuid.c_str()), true)) {
             NAV_LOG("serviceOnlineInternal: Send online to: %s\n", srvs[0]->m_devs[k]->name().ascii().data());
 
             if (!sendSevicesEvent) {
@@ -716,93 +708,90 @@ void NavDsc::dispatchServiceOnline(void *ptr)
 
 void NavDsc::sendEvent(std::string uuid, std::string stype, std::string body)
 {
-	std::string name = "";
-	UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
+    std::string name = "";
+    UPnPSearch::getInstance()->getUPnPFriendlyName(uuid, stype, name);
 
-	// NAV_LOG("NavDsc::sendEvent(%s)\n",uuid.c_str());
-	RefPtr<NavEvent> evnt = NavEvent::create();
+    // NAV_LOG("NavDsc::sendEvent(%s)\n",uuid.c_str());
+    RefPtr<NavEvent> event = NavEvent::create();
 
-	evnt->setPropertyset(WTF::String(body.c_str()));
-	evnt->setUuid(WTF::String(uuid.c_str()));
-	evnt->setServiceType(WTF::String(stype.c_str()));
-	evnt->setFriendlyName(WTF::String(name.c_str()));
+    event->setPropertyset(WTF::String(body.c_str()));
+    event->setUuid(WTF::String(uuid.c_str()));
+    event->setServiceType(WTF::String(stype.c_str()));
+    event->setFriendlyName(WTF::String(name.c_str()));
 
+    EventData ed = { EventProtocol, true, stype, UPnPDevice(), ZCDevice(), event };
     {
-        MutexLocker lock(m_main);
-        EventData ed = {EVENT_PROTO, true, stype, UPnPDevice(), ZCDevice(), evnt};
+        MutexLocker lock(m_mainMutex);
         m_eventData.push(ed);
     }
 
-	callOnMainThread(NavDsc::sendEventInternal,this);
+    callOnMainThread(NavDsc::sendEventInternal, this);
 }
 
 
 void NavDsc::sendEventInternal(void *ptr)
 {
-	NAV_LOG("NavDsc::sendEventInternal()\n");
-	NavDsc *nv = (NavDsc*)ptr;
-	EventData ed;
+    NAV_LOG("NavDsc::sendEventInternal()\n");
+    NavDsc* nv = (NavDsc*)ptr;
+    EventData ed;
 
     {
-        MutexLocker lock(nv->m_main);
+        MutexLocker lock(nv->m_mainMutex);
         ed = nv->m_eventData.front();
         nv->m_eventData.pop();
     }
 
-	RefPtr<NavEvent> evnt = ed.evnt;
-	std::vector<NavServices*> srvs = nv->getNavServices(ed.type);
+    RefPtr<NavEvent> evnt = ed.evnt;
+    std::vector<NavServices*> srvs = nv->getNavServices(ed.type);
 
-	for (int i=0; i<srvs.size(); i++) {
-		NavService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
+    for (int i = 0; i < srvs.size(); i++) {
+        NavService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
 
-		if (srv) {
-			NAV_LOG("NavDsc::sendEventInternal(%s) SENDING... Name: %s\n",ed.type.c_str(), srv->name().ascii().data());
-			struct UPnPEventInit init;
-			init.friendlyName = evnt->friendlyName();
-			init.propertyset = evnt->propertyset();
-			init.serviceType = evnt->serviceType();
-			init.uuid = evnt->uuid();
-			srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
-		}
-		else
-			ERR_LOG("NavDsc::sendEventInternal() srv == NULL !!!!!!\n");
-	}
+        if (srv) {
+            NAV_LOG("NavDsc::sendEventInternal(%s) SENDING... Name: %s\n", ed.type.c_str(), srv->name().ascii().data());
+            struct UPnPEventInit init;
+            init.friendlyName = evnt->friendlyName();
+            init.propertyset = evnt->propertyset();
+            init.serviceType = evnt->serviceType();
+            init.uuid = evnt->uuid();
+            srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
+        } else
+            ERR_LOG("NavDsc::sendEventInternal() srv == NULL !!!!!!\n");
+    }
 
-	evnt.release();
+    evnt.release();
 }
 
 void NavDsc::serverListUpdate(std::string type, std::map<std::string, UPnPDevice> *devs)
 {
-    if (m_UPnPnav.size()) {
-        std::map<std::string, IDiscoveryAPI*>::iterator pair = m_UPnPnav.find(type);
-        if (pair != m_UPnPnav.end() && pair->second)
+    if (m_UPnPNav.size()) {
+        std::map<std::string, IDiscoveryAPI*>::iterator pair = m_UPnPNav.find(type);
+        if (pair != m_UPnPNav.end() && pair->second)
             pair->second->serverListUpdate(type, devs);
     }
 
 }
 
-std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
-		const char *type,
-		PassRefPtr<NavServiceOkCB> successcb,
-		PassRefPtr<NavServiceErrorCB> errorcb)
+std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
+    PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb)
 {
-	NAV_LOG("NavDsc::startUPnPDiscovery(%s).\n", type);
+    NAV_LOG("NavDsc::startUPnPDiscovery(%s).\n", type);
 
-	std::map<std::string, UPnPDevice> empty;
-	std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverDevs(type, this);
+    std::map<std::string, UPnPDevice> empty;
+    std::map<std::string, UPnPDevice> devs = UPnPSearch::discoverDevs(type, this);
 
     if (errorcb) {
         if (!UPnPSearch::getInstance()->m_udpSocket || !UPnPSearch::getInstance()->networkIsUp()) {
             ERR_LOG("NavDsc::startUPnPDiscovery() NETWORK_ERR\n");
-            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NETWORK_ERR);
+            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NetworkError);
             errorcb->handleEvent(err.get());
             return devs;
         }
     }
 
-	if (m_resetSet) {
-		NAV_LOG("NavDsc::startUPnPDiscovery() resetting...\n");
-		UPnPSearch::getInstance()->reset();
+    if (m_resetSet) {
+        NAV_LOG("NavDsc::startUPnPDiscovery() resetting...\n");
+        UPnPSearch::getInstance()->reset();
         devs.clear();
         m_resetSet = false;
 
@@ -813,94 +802,86 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(
         }
 
         return devs;
+    }
+    if (devs.size()) {
+        if (!m_frame)
+            return empty;
 
-	} else if (devs.size()) {
-		if (!m_frame)
-			return empty;
+        Page* page = m_frame->page();
+        if (!page)
+            return empty;
 
-		Page* page = m_frame->page();
-		if (!page)
-			return empty;
+        for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
+            UPnPSearch::getInstance()->eventServer(type, (*it).second.eventURL, (*it).second.uuid, (*it).second.host, (*it).second.port);
 
-		for (std::map<std::string, UPnPDevice>::iterator it = devs.begin(); it != devs.end(); it++)
-			UPnPSearch::getInstance()->eventServer(type, (*it).second.eventURL, (*it).second.uuid, (*it).second.host, (*it).second.port);
+        std::string strType(type);
+        std::map<std::string, ZCDevice> zcdevs;
+        updateServices(strType, devs);
+    }
 
-		std::string strType(type);
-		std::map<std::string, ZCDevice> zcdevs;
-		updateServices(strType, devs);
-	}
-
-
-	if (successcb) {
+    if (successcb) {
         std::vector<NavServices*> srvs = getNavServices(type);
         successcb->handleEvent(srvs.at(0));
-	}
+    }
 
-	return devs;
-
+    return devs;
 }
 
-std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(
-		const char* type,
-		PassRefPtr<NavServiceOkCB> successcb,
-		PassRefPtr<NavServiceErrorCB> errorcb)
+std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char* type,
+    PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb)
 {
-	std::map<std::string, ZCDevice> empty;
-	std::map<std::string, ZCDevice> zcdevs = ZeroConf::discoverDevs(type, this);
+    std::map<std::string, ZCDevice> empty;
+    std::map<std::string, ZCDevice> zcdevs = ZeroConf::discoverDevs(type, this);
 
-	if (errorcb) {
+    if (errorcb) {
         if (!ZeroConf::getInstance()->m_udpSocket) {
-            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NETWORK_ERR);
+            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NetworkError);
             errorcb->handleEvent(err.get());
             return zcdevs;
         }
-	}
+    }
 
-	// We have devices to look at
-	if (!m_frame)
-		return empty;
+    // We have devices to look at
+    if (!m_frame)
+        return empty;
 
-	Page* page = m_frame->page();
-	if (!page)
-		return empty;
+    Page* page = m_frame->page();
+    if (!page)
+        return empty;
 
-	std::string strType(type);
-	std::map<std::string, UPnPDevice> devs;
+    std::string strType(type);
+    std::map<std::string, UPnPDevice> devs;
 
-	if (m_resetSet) {
+    if (m_resetSet) {
         zcdevs.clear();
         m_resetSet = false;
-		ZeroConf::getInstance()->reset();
+        ZeroConf::getInstance()->reset();
         m_services.clear();
-	}
+    }
 
-	setServices(strType, type, devs, zcdevs, ZC_PROTO);
+    setServices(strType, type, devs, zcdevs, ZeroConfProtocol);
 
-	std::vector<NavServices *> srvs = getNavServices(type);
-	successcb->handleEvent(srvs.at(srvs.size()-1));
+    std::vector<NavServices *> srvs = getNavServices(type);
+    successcb->handleEvent(srvs.at(srvs.size()-1));
 
-	return zcdevs;
-
+    return zcdevs;
 }
 
 void NavDsc::onError(int error)
 {
-	if (m_UPnPnav.size())
-	{
-		NAV_LOG("NavDsc::onUPnPError() error: %d\n", error);
-		m_UPnPnav.begin()->second->onError(error);
-	}
+    if (m_UPnPNav.size()) {
+        NAV_LOG("NavDsc::onUPnPError() error: %d\n", error);
+        m_UPnPNav.begin()->second->onError(error);
+    }
 }
 
 void NavDsc::onZCError(int error)
 {
-	if (m_ZCnav.size())
-	{
-		NAV_LOG("NavDsc::onZCError() error: %d\n", error);
-		m_ZCnav.begin()->second->onError(error);
-	}
+    if (m_ZCNav.size()) {
+        NAV_LOG("NavDsc::onZCError() error: %d\n", error);
+        m_ZCNav.begin()->second->onError(error);
+    }
 }
-
 
 } // namespace WebCore
 

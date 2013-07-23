@@ -166,8 +166,8 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
 
 #if ENABLE(DISCOVERY)
         char host[1000];
-        for (int i=0; i<(int)response.url().host().length(); i++)
-        	host[i] = (char)response.url().host().characterStartingAt(i);
+        for (int i = 0; i < (int)response.url().host().length(); i++)
+            host[i] = (char)response.url().host().characterStartingAt(i);
 
         host[response.url().host().length()] = 0;
 
@@ -178,7 +178,7 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
             ZeroConf* zc = ZeroConf::getInstance();
             bool ok = zc->hostPortOk(host, (int)response.url().port());
             if (!ok)
-            	return false;
+                return false;
         }
 #endif
     }

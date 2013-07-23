@@ -74,7 +74,7 @@ namespace WebCore {
         };
 
         DocumentThreadableLoader(Document*, ThreadableLoaderClient*, BlockingBehavior, const ResourceRequest&, const ThreadableLoaderOptions&);
-        void makeRequest(const ResourceRequest& request);
+        void makeRequest(const ResourceRequest&);
         void clearResource();
 
         // CachedRawResourceClient
