@@ -101,7 +101,9 @@ public:
 
     virtual void setEncoding(const String&) { }
     virtual String encoding() const { return String(); }
-    virtual void data(PassRefPtr<ResourceBuffer> data, bool allDataReceived);
+    virtual void addDataBuffer(ResourceBuffer*);
+    virtual void addData(const char* data, unsigned length);
+    virtual void finishLoading(ResourceBuffer*);
     virtual void error(CachedResource::Status);
 
     void setResourceError(const ResourceError& error) { m_error = error; }
@@ -122,6 +124,7 @@ public:
     void addClient(CachedResourceClient*);
     void removeClient(CachedResourceClient*);
     bool hasClients() const { return !m_clients.isEmpty() || !m_clientsAwaitingCallback.isEmpty(); }
+    bool hasClient(CachedResourceClient* client) { return m_clients.contains(client) || m_clientsAwaitingCallback.contains(client); }
     bool deleteIfPossible();
 
     enum PreloadResult {
@@ -184,7 +187,7 @@ public:
     
     bool inLiveDecodedResourcesList() { return m_inLiveDecodedResourcesList; }
     
-    void stopLoading();
+    void clearLoader();
 
     ResourceBuffer* resourceBuffer() const { ASSERT(!m_purgeableData); return m_data.get(); }
 
@@ -203,6 +206,7 @@ public:
     String accept() const { return m_accept; }
     void setAccept(const String& accept) { m_accept = accept; }
 
+    void cancelLoad();
     bool wasCanceled() const { return m_error.isCancellation(); }
     bool errorOccurred() const { return m_status == LoadError || m_status == DecodeError; }
     bool loadFailedOrCanceled() { return !m_error.isNull(); }
@@ -251,6 +255,10 @@ public:
     void tryReplaceEncodedData(PassRefPtr<SharedBuffer>);
 #endif
 
+#if USE(SOUP)
+    virtual char* getOrCreateReadBuffer(size_t /* requestedSize */, size_t& /* actualSize */) { return 0; }
+#endif
+
 protected:
     virtual void checkNotify();
 
@@ -276,8 +284,6 @@ protected:
     };
     HashMap<CachedResourceClient*, OwnPtr<CachedResourceCallback> > m_clientsAwaitingCallback;
 
-    bool hasClient(CachedResourceClient* client) { return m_clients.contains(client) || m_clientsAwaitingCallback.contains(client); }
-
     ResourceRequest m_resourceRequest;
     String m_accept;
     RefPtr<SubresourceLoader> m_loader;
@@ -289,11 +295,12 @@ protected:
 
     RefPtr<ResourceBuffer> m_data;
     OwnPtr<PurgeableBuffer> m_purgeableData;
-    Timer<CachedResource> m_decodedDataDeletionTimer;
+    DeferrableOneShotTimer<CachedResource> m_decodedDataDeletionTimer;
 
 private:
     bool addClientToSet(CachedResourceClient*);
-    void decodedDataDeletionTimerFired(Timer<CachedResource>*);
+
+    void decodedDataDeletionTimerFired(DeferrableOneShotTimer<CachedResource>*);
 
     virtual PurgePriority purgePriority() const { return PurgeDefault; }
     virtual bool mayTryReplaceEncodedData() const { return false; }

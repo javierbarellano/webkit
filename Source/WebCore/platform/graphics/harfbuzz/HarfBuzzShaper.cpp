@@ -347,6 +347,22 @@ void HarfBuzzShaper::setFontFeatures()
         m_features.append(vrt2);
     }
 
+    hb_feature_t kerning = { HarfBuzzFace::kernTag, 0, 0, static_cast<unsigned>(-1) };
+    switch (description.kerning()) {
+    case FontDescription::NormalKerning:
+        kerning.value = 1;
+        m_features.append(kerning);
+        break;
+    case FontDescription::NoneKerning:
+        kerning.value = 0;
+        m_features.append(kerning);
+        break;
+    case FontDescription::AutoKerning:
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
     FontFeatureSettings* settings = description.featureSettings();
     if (!settings)
         return;
@@ -480,9 +496,9 @@ bool HarfBuzzShaper::shapeHarfBuzzRuns(bool shouldSetDirection)
             String upperText = String(m_normalizedBuffer.get() + currentRun->startIndex(), currentRun->numCharacters());
             upperText.makeUpper();
             currentFontData = m_font->glyphDataForCharacter(upperText[0], false, SmallCapsVariant).fontData;
-            hb_buffer_add_utf16(harfBuzzBuffer.get(), upperText.characters(), currentRun->numCharacters(), 0, currentRun->numCharacters());
+            hb_buffer_add_utf16(harfBuzzBuffer.get(), reinterpret_cast<const uint16_t*>(upperText.characters()), currentRun->numCharacters(), 0, currentRun->numCharacters());
         } else
-            hb_buffer_add_utf16(harfBuzzBuffer.get(), m_normalizedBuffer.get() + currentRun->startIndex(), currentRun->numCharacters(), 0, currentRun->numCharacters());
+            hb_buffer_add_utf16(harfBuzzBuffer.get(), reinterpret_cast<const uint16_t*>(m_normalizedBuffer.get() + currentRun->startIndex()), currentRun->numCharacters(), 0, currentRun->numCharacters());
 
         FontPlatformData* platformData = const_cast<FontPlatformData*>(&currentFontData->platformData());
         HarfBuzzFace* face = platformData->harfBuzzFace();

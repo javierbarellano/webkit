@@ -37,6 +37,9 @@ list(APPEND WebCore_SOURCES
 
     editing/atk/FrameSelectionAtk.cpp
 
+    loader/soup/CachedRawResourceSoup.cpp
+    loader/soup/SubresourceLoaderSoup.cpp
+
     page/efl/DragControllerEfl.cpp
     page/efl/EventHandlerEfl.cpp
 
@@ -53,8 +56,8 @@ list(APPEND WebCore_SOURCES
     platform/efl/AsyncFileSystemEfl.cpp
     platform/efl/BatteryProviderEfl.cpp
     platform/efl/ClipboardEfl.cpp
-    platform/efl/ContextMenuEfl.cpp
-    platform/efl/ContextMenuItemEfl.cpp
+    platform/ContextMenuNone.cpp
+    platform/ContextMenuItemNone.cpp
     platform/efl/CursorEfl.cpp
     platform/efl/DragDataEfl.cpp
     platform/efl/DragImageEfl.cpp
@@ -82,7 +85,6 @@ list(APPEND WebCore_SOURCES
     platform/efl/ScrollViewEfl.cpp
     platform/efl/SharedTimerEfl.cpp
     platform/efl/SoundEfl.cpp
-    platform/efl/SystemTimeEfl.cpp
     platform/efl/TemporaryLinkStubs.cpp
     platform/efl/WidgetEfl.cpp
 
@@ -158,8 +160,6 @@ list(APPEND WebCore_SOURCES
     platform/network/soup/ResourceResponseSoup.cpp
     platform/network/soup/SocketStreamHandleSoup.cpp
     platform/network/soup/SoupURIUtils.cpp
-
-    platform/PlatformStrategies.cpp
 
     platform/posix/FileSystemPOSIX.cpp
     platform/posix/SharedBufferPOSIX.cpp

@@ -40,25 +40,18 @@
 #include "CachedImage.h"
 #include "CanvasGradient.h"
 #include "CanvasPattern.h"
-#include "Console.h"
 #include "DOMPath.h"
 #include "ExceptionCode.h"
 #include "ExceptionCodePlaceholder.h"
-#include "FloatConversion.h"
 #include "FloatQuad.h"
 #include "FontCache.h"
 #include "GraphicsContext.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLMediaElement.h"
-#include "HTMLNames.h"
 #include "HTMLVideoElement.h"
 #include "ImageData.h"
-#include "KURL.h"
-#include "Page.h"
-#include "RenderHTMLCanvas.h"
 #include "SecurityOrigin.h"
-#include "Settings.h"
 #include "StrokeStyleApplier.h"
 #include "StylePropertySet.h"
 #include "StyleResolver.h"
@@ -1112,21 +1105,13 @@ void CanvasRenderingContext2D::strokeRect(float x, float y, float width, float h
 {
     if (!validateRectForCanvas(x, y, width, height))
         return;
-    strokeRect(x, y, width, height, state().m_lineWidth);
-}
-
-void CanvasRenderingContext2D::strokeRect(float x, float y, float width, float height, float lineWidth)
-{
-    if (!validateRectForCanvas(x, y, width, height))
-        return;
-
-    if (!(lineWidth >= 0))
-        return;
 
     GraphicsContext* c = drawingContext();
     if (!c)
         return;
     if (!state().m_invertibleCTM)
+        return;
+    if (!(state().m_lineWidth >= 0))
         return;
 
     // If gradient size is zero, then paint nothing.
@@ -1137,9 +1122,9 @@ void CanvasRenderingContext2D::strokeRect(float x, float y, float width, float h
     FloatRect rect(x, y, width, height);
 
     FloatRect boundingRect = rect;
-    boundingRect.inflate(lineWidth / 2);
+    boundingRect.inflate(state().m_lineWidth / 2);
 
-    c->strokeRect(rect, lineWidth);
+    c->strokeRect(rect, state().m_lineWidth);
     didDraw(boundingRect);
 }
 
@@ -1988,13 +1973,11 @@ String CanvasRenderingContext2D::font() const
     serializedFont.appendNumber(fontDescription.computedPixelSize());
     serializedFont.appendLiteral("px");
 
-    const FontFamily& firstFontFamily = fontDescription.family();
-    for (const FontFamily* fontFamily = &firstFontFamily; fontFamily; fontFamily = fontFamily->next()) {
-        if (fontFamily != &firstFontFamily)
+    for (unsigned i = 0; i < state().m_font.familyCount(); ++i) {
+        if (i)
             serializedFont.append(',');
-
         // FIXME: We should append family directly to serializedFont rather than building a temporary string.
-        String family = fontFamily->family();
+        String family = state().m_font.familyAt(i);
         if (family.startsWith("-webkit-"))
             family = family.substring(8);
         if (family.contains(' '))
@@ -2035,11 +2018,8 @@ void CanvasRenderingContext2D::setFont(const String& newFont)
     if (RenderStyle* computedStyle = canvas()->computedStyle())
         newStyle->setFontDescription(computedStyle->fontDescription());
     else {
-        FontFamily fontFamily;
-        fontFamily.setFamily(defaultFontFamily);
-
         FontDescription defaultFontDescription;
-        defaultFontDescription.setFamily(fontFamily);
+        defaultFontDescription.setOneFamily(defaultFontFamily);
         defaultFontDescription.setSpecifiedSize(defaultFontSize);
         defaultFontDescription.setComputedSize(defaultFontSize);
 
@@ -2133,7 +2113,7 @@ PassRefPtr<TextMetrics> CanvasRenderingContext2D::measureText(const String& text
     Font::setCodePath(Font::Complex);
 #endif
 
-    metrics->setWidth(accessFont().width(TextRun(text.characters(), text.length())));
+    metrics->setWidth(accessFont().width(TextRun(text)));
 
 #if PLATFORM(QT)
     Font::setCodePath(oldCodePath);

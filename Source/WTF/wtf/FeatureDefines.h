@@ -229,6 +229,10 @@
 #define ENABLE_WEB_ARCHIVE 1
 #endif
 
+#if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
+#define ENABLE_VIEW_MODE_CSS_MEDIA 0
+#endif
+
 #endif /* PLATFORM(WIN_CAIRO) */
 
 /* --------- EFL port (Unix) --------- */
@@ -300,10 +304,6 @@
 
 #if !defined(ENABLE_BLOB)
 #define ENABLE_BLOB 0
-#endif
-
-#if !defined(ENABLE_CALENDAR_PICKER)
-#define ENABLE_CALENDAR_PICKER 0
 #endif
 
 #if !defined(ENABLE_CANVAS_PATH)
@@ -498,10 +498,6 @@
 #define ENABLE_INDEXED_DATABASE 0
 #endif
 
-#if !defined(ENABLE_INPUT_MULTIPLE_FIELDS_UI)
-#define ENABLE_INPUT_MULTIPLE_FIELDS_UI 0
-#endif
-
 #if !defined(ENABLE_INPUT_SPEECH)
 #define ENABLE_INPUT_SPEECH 0
 #endif
@@ -570,10 +566,6 @@
 
 #if !defined(ENABLE_LINK_PREFETCH)
 #define ENABLE_LINK_PREFETCH 0
-#endif
-
-#if !defined(ENABLE_LINK_PRERENDER)
-#define ENABLE_LINK_PRERENDER 0
 #endif
 
 #if !defined(ENABLE_MATHML)
@@ -646,10 +638,6 @@
 
 #if !defined(ENABLE_ORIENTATION_EVENTS)
 #define ENABLE_ORIENTATION_EVENTS 0
-#endif
-
-#if !defined(ENABLE_PAGE_POPUP)
-#define ENABLE_PAGE_POPUP 0
 #endif
 
 #if !defined(ENABLE_PAGE_VISIBILITY_API)

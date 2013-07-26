@@ -62,7 +62,6 @@ typedef struct _cairo_rectangle cairo_rectangle_t;
 
 namespace WebCore {
 
-class LayoutRect;
 class IntRect;
 class IntPoint;
 
@@ -79,7 +78,6 @@ public:
     FloatRect(float x, float y, float width, float height)
         : m_location(FloatPoint(x, y)), m_size(FloatSize(width, height)) { }
     FloatRect(const IntRect&);
-    FloatRect(const LayoutRect&);
 
     static FloatRect narrowPrecision(double x, double y, double width, double height);
 
@@ -181,6 +179,7 @@ public:
 #if PLATFORM(BLACKBERRY)
     FloatRect(const BlackBerry::Platform::FloatRect&);
     operator BlackBerry::Platform::FloatRect() const;
+    FloatRect normalized() const;
 #endif
 
 #if USE(CG)

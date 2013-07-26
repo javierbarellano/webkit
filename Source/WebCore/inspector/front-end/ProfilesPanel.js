@@ -50,7 +50,7 @@ WebInspector.ProfileType.Events = {
 }
 
 WebInspector.ProfileType.prototype = {
-    get statusBarItems()
+    statusBarItems: function()
     {
         return [];
     },
@@ -392,7 +392,7 @@ WebInspector.ProfilesPanel = function(name, type)
     this._profileViewStatusBarItemsContainer = document.createElement("div");
     this._profileViewStatusBarItemsContainer.className = "status-bar-items";
 
-    this._profilerEnabled = !Capabilities.profilerCausesRecompilation;
+    this._profilerEnabled = !Capabilities.profilerCausesRecompilation || WebInspector.settings.profilerEnabled.get();
 
     if (singleProfileMode) {
         this._launcherView = this._createLauncherView();
@@ -461,7 +461,7 @@ WebInspector.ProfilesPanel.prototype = {
         this._createFileSelectorElement();
     },
 
-    get statusBarItems()
+    statusBarItems: function()
     {
         return this._statusBarButtons.select("element").concat(this._profileTypeStatusBarItemsContainer, this._profileViewStatusBarItemsContainer);
     },
@@ -522,7 +522,7 @@ WebInspector.ProfilesPanel.prototype = {
         this.recordButton.title = this._selectedProfileType.buttonTooltip;
 
         this._profileTypeStatusBarItemsContainer.removeChildren();
-        var statusBarItems = this._selectedProfileType.statusBarItems;
+        var statusBarItems = this._selectedProfileType.statusBarItems();
         if (statusBarItems) {
             for (var i = 0; i < statusBarItems.length; ++i)
                 this._profileTypeStatusBarItemsContainer.appendChild(statusBarItems[i]);
@@ -772,7 +772,7 @@ WebInspector.ProfilesPanel.prototype = {
 
         this._profileViewStatusBarItemsContainer.removeChildren();
 
-        var statusBarItems = view.statusBarItems;
+        var statusBarItems = view.statusBarItems();
         if (statusBarItems)
             for (var i = 0; i < statusBarItems.length; ++i)
                 this._profileViewStatusBarItemsContainer.appendChild(statusBarItems[i]);

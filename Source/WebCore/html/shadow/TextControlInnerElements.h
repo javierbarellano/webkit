@@ -52,7 +52,7 @@ protected:
     virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
 
 private:
-    virtual bool isMouseFocusable() const { return false; }
+    virtual bool isMouseFocusable() const OVERRIDE { return false; }
 };
 
 class TextControlInnerTextElement FINAL : public HTMLDivElement {
@@ -65,7 +65,7 @@ private:
     TextControlInnerTextElement(Document*);
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
     virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
-    virtual bool isMouseFocusable() const { return false; }
+    virtual bool isMouseFocusable() const OVERRIDE { return false; }
 };
 
 class SearchFieldResultsButtonElement FINAL : public HTMLDivElement {
@@ -78,7 +78,7 @@ public:
 private:
     SearchFieldResultsButtonElement(Document*);
     virtual const AtomicString& shadowPseudoId() const;
-    virtual bool isMouseFocusable() const { return false; }
+    virtual bool isMouseFocusable() const OVERRIDE { return false; }
 };
 
 class SearchFieldCancelButtonElement FINAL : public HTMLDivElement {
@@ -91,8 +91,8 @@ public:
 private:
     SearchFieldCancelButtonElement(Document*);
     virtual const AtomicString& shadowPseudoId() const;
-    virtual void detach();
-    virtual bool isMouseFocusable() const { return false; }
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual bool isMouseFocusable() const OVERRIDE { return false; }
 
     bool m_capturing;
 };
@@ -130,8 +130,8 @@ private:
     SpeechInput* speechInput();
     void setState(SpeechInputState state);
     virtual const AtomicString& shadowPseudoId() const;
-    virtual bool isMouseFocusable() const { return false; }
-    virtual void attach();
+    virtual bool isMouseFocusable() const OVERRIDE { return false; }
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
 
     bool m_capturing;
     SpeechInputState m_state;

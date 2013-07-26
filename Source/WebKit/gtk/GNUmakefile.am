@@ -47,15 +47,14 @@ libwebkitgtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@_la_CPPF
 	-I$(GENSOURCES_WEBKITDOM) \
 	-ISource/WebKit/gtk/webkit \
 	$(global_cppflags) \
-	$(platform_webcore_cppflags) \
+	$(platform_cppflags) \
 	$(platformgtk_cppflags) \
+	$(platform_webcore_cppflags) \
 	$(webcore_cppflags) \
 	$(webcoregtk_cppflags) \
 	$(javascriptcore_cppflags) \
 	$(webkitgtk_cppflags) \
 	-fno-strict-aliasing \
-	$(CLUTTER_CFLAGS) \
-	$(CLUTTER_GTK_CFLAGS) \
 	$(COVERAGE_CFLAGS) \
 	$(ENCHANT_CFLAGS) \
 	$(FREETYPE_CFLAGS) \
@@ -107,8 +106,6 @@ endif
 libwebkitgtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@_la_LIBADD += \
 	libjavascriptcoregtk-@WEBKITGTK_API_MAJOR_VERSION@.@WEBKITGTK_API_MINOR_VERSION@.la \
 	$(CAIRO_LIBS) \
-	$(CLUTTER_LIBS) \
-	$(CLUTTER_GTK_LIBS) \
 	$(COVERAGE_LDFLAGS) \
 	$(ENCHANT_LIBS) \
 	$(FREETYPE_LIBS) \
@@ -192,9 +189,7 @@ BUILT_SOURCES += $(webkitgtk_built_sources)
 
 webkitgtk_sources += \
 	Source/WebKit/gtk/WebCoreSupport/AcceleratedCompositingContext.h \
-	Source/WebKit/gtk/WebCoreSupport/AcceleratedCompositingContextClutter.cpp \
 	Source/WebKit/gtk/WebCoreSupport/AcceleratedCompositingContextGL.cpp \
-	Source/WebKit/gtk/WebCoreSupport/AcceleratedCompositingContextCairo.cpp \
 	Source/WebKit/gtk/WebCoreSupport/AssertMatchingEnums.cpp \
 	Source/WebKit/gtk/WebCoreSupport/ChromeClientGtk.cpp \
 	Source/WebKit/gtk/WebCoreSupport/ChromeClientGtk.h \

@@ -150,12 +150,13 @@ void WebPageProxy::windowAndViewFramesChanged(const FloatRect& viewFrameInWindow
     process()->send(Messages::WebPage::WindowAndViewFramesChanged(windowFrameInScreenCoordinates, windowFrameInUnflippedScreenCoordinates, viewFrameInWindowCoordinates, accessibilityViewCoordinates), m_pageID);
 }
 
-void WebPageProxy::viewExposedRectChanged(const FloatRect& exposedRect)
+void WebPageProxy::viewExposedRectChanged(const FloatRect& exposedRect, bool clipsToExposedRect)
 {
     if (!isValid())
         return;
 
     m_exposedRect = exposedRect;
+    m_clipsToExposedRect = clipsToExposedRect;
 
     if (!m_exposedRectChangedTimer.isActive())
         m_exposedRectChangedTimer.startOneShot(0);
@@ -166,11 +167,12 @@ void WebPageProxy::exposedRectChangedTimerFired(Timer<WebPageProxy>*)
     if (!isValid())
         return;
 
-    if (m_exposedRect == m_lastSentExposedRect)
+    if (m_exposedRect == m_lastSentExposedRect && m_clipsToExposedRect == m_lastSentClipsToExposedRect)
         return;
 
-    process()->send(Messages::WebPage::ViewExposedRectChanged(m_exposedRect), m_pageID);
+    process()->send(Messages::WebPage::ViewExposedRectChanged(m_exposedRect, m_clipsToExposedRect), m_pageID);
     m_lastSentExposedRect = m_exposedRect;
+    m_lastSentClipsToExposedRect = m_clipsToExposedRect;
 }
 
 void WebPageProxy::setMainFrameIsScrollable(bool isScrollable)
@@ -215,6 +217,8 @@ bool WebPageProxy::insertText(const String& text, uint64_t replacementRangeStart
 
     bool handled = true;
     process()->sendSync(Messages::WebPage::InsertText(text, replacementRangeStart, replacementRangeEnd), Messages::WebPage::InsertText::Reply(handled, m_editorState), m_pageID);
+    m_temporarilyClosedComposition = false;
+
     return handled;
 }
 

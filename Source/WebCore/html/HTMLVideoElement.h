@@ -78,7 +78,7 @@ private:
 #if !ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
 #endif
-    virtual void attach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
     virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
@@ -97,6 +97,12 @@ private:
 
     AtomicString m_defaultPosterURL;
 };
+
+inline HTMLVideoElement* toHTMLVideoElement(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(HTMLNames::videoTag));
+    return static_cast<HTMLVideoElement*>(node);
+}
 
 } //namespace
 

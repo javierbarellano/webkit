@@ -1,6 +1,6 @@
 /*
  * (C) 1999-2003 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2004, 2005, 2006, 2008, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2008, 2012, 2013 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,6 +25,7 @@
 #include "CSSPrimitiveValue.h"
 #include "CSSProperty.h"
 #include "CSSPropertyNames.h"
+#include "CSSValueKeywords.h"
 #include <wtf/ListHashSet.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
@@ -33,6 +34,7 @@ namespace WebCore {
 
 class CSSRule;
 class CSSStyleDeclaration;
+class ComputedStyleExtractor;
 class ImmutableStylePropertySet;
 class KURL;
 class MutableStylePropertySet;
@@ -105,7 +107,7 @@ public:
     String asText() const;
 
     bool isMutable() const { return m_isMutable; }
-    bool hasCSSOMWrapper() const { return m_ownsCSSOMWrapper; }
+    bool hasCSSOMWrapper() const;
 
     bool hasFailedOrCanceledSubresources() const;
 
@@ -120,14 +122,12 @@ public:
 protected:
     StylePropertySet(CSSParserMode cssParserMode)
         : m_cssParserMode(cssParserMode)
-        , m_ownsCSSOMWrapper(false)
         , m_isMutable(true)
         , m_arraySize(0)
     { }
 
     StylePropertySet(CSSParserMode cssParserMode, unsigned immutableArraySize)
         : m_cssParserMode(cssParserMode)
-        , m_ownsCSSOMWrapper(false)
         , m_isMutable(false)
         , m_arraySize(immutableArraySize)
     { }
@@ -135,9 +135,8 @@ protected:
     int findPropertyIndex(CSSPropertyID) const;
 
     unsigned m_cssParserMode : 2;
-    mutable unsigned m_ownsCSSOMWrapper : 1;
     mutable unsigned m_isMutable : 1;
-    unsigned m_arraySize : 28;
+    unsigned m_arraySize : 29;
     
 private:
     String getShorthandValue(const StylePropertyShorthand&) const;
@@ -181,12 +180,10 @@ inline const StylePropertyMetadata* ImmutableStylePropertySet::metadataArray() c
 
 class MutableStylePropertySet : public StylePropertySet {
 public:
-    ~MutableStylePropertySet();
-
     static PassRefPtr<MutableStylePropertySet> create(CSSParserMode = CSSQuirksMode);
     static PassRefPtr<MutableStylePropertySet> create(const CSSProperty* properties, unsigned count);
 
-    MutableStylePropertySet(const StylePropertySet&);
+    ~MutableStylePropertySet();
 
     unsigned propertyCount() const { return m_propertyVector.size(); }
 
@@ -200,7 +197,8 @@ public:
     void setProperty(CSSPropertyID, PassRefPtr<CSSValue>, bool important = false);
 
     // These do not. FIXME: This is too messy, we can do better.
-    bool setProperty(CSSPropertyID, int identifier, bool important = false);
+    bool setProperty(CSSPropertyID, CSSValueID identifier, bool important = false);
+    bool setProperty(CSSPropertyID, CSSPropertyID identifier, bool important = false);
     void appendPrefixingVariantProperty(const CSSProperty&);
     void setPrefixingVariantProperty(const CSSProperty&);
     void setProperty(const CSSProperty&, CSSProperty* slot = 0);
@@ -209,8 +207,10 @@ public:
     void removePrefixedOrUnprefixedProperty(CSSPropertyID);
     void removeBlockProperties();
     bool removePropertiesInSet(const CSSPropertyID* set, unsigned length);
+
+    // FIXME: These two can be moved to EditingStyle.cpp
     void removeEquivalentProperties(const StylePropertySet*);
-    void removeEquivalentProperties(const CSSStyleDeclaration*);
+    void removeEquivalentProperties(const ComputedStyleExtractor*);
 
     void mergeAndOverrideOnConflict(const StylePropertySet*);
 
@@ -223,14 +223,15 @@ public:
     Vector<CSSProperty, 4> m_propertyVector;
 
 private:
-    MutableStylePropertySet(CSSParserMode cssParserMode)
-        : StylePropertySet(cssParserMode)
-    { }
-
+    explicit MutableStylePropertySet(CSSParserMode);
+    explicit MutableStylePropertySet(const StylePropertySet&);
     MutableStylePropertySet(const CSSProperty* properties, unsigned count);
 
     bool removeShorthandProperty(CSSPropertyID);
     CSSProperty* findCSSPropertyWithID(CSSPropertyID);
+    OwnPtr<PropertySetCSSStyleDeclaration> m_cssomWrapper;
+
+    friend class StylePropertySet;
 };
 
 inline StylePropertyMetadata StylePropertySet::PropertyReference::propertyMetadata() const

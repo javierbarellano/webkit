@@ -45,12 +45,14 @@ using namespace WebCore;
 namespace WebKit {
 
 WebView::WebView(WebContext* context, WebPageGroup* pageGroup)
-    : m_page(context->createWebPage(this, pageGroup))
-    , m_focused(false)
+    : m_focused(false)
     , m_visible(false)
     , m_contentScaleFactor(1.0)
     , m_opacity(1.0)
 {
+    // Need to call createWebPage after other data members, specifically m_visible, are initialized.
+    m_page = context->createWebPage(this, pageGroup);
+
     m_page->pageGroup()->preferences()->setAcceleratedCompositingEnabled(true);
     m_page->pageGroup()->preferences()->setForceCompositingMode(true);
 
@@ -77,6 +79,9 @@ void WebView::initialize()
 
 void WebView::setSize(const WebCore::IntSize& size)
 {
+    if (m_size == size)
+        return;
+
     m_size = size;
 
     updateViewportSize();
@@ -107,7 +112,17 @@ void WebView::setUserViewportTranslation(double tx, double ty)
 
 IntPoint WebView::userViewportToContents(const IntPoint& point) const
 {
+    return transformFromScene().mapPoint(point);
+}
+
+IntPoint WebView::userViewportToScene(const WebCore::IntPoint& point) const
+{
     return m_userViewportTransform.mapPoint(point);
+}
+
+IntPoint WebView::contentsToUserViewport(const IntPoint& point) const
+{
+    return transformToScene().mapPoint(point);
 }
 
 void WebView::paintToCurrentGLContext()
@@ -183,7 +198,18 @@ void WebView::initializeClient(const WKViewClient* client)
 
 void WebView::didChangeContentsSize(const WebCore::IntSize& size)
 {
+    if (m_contentsSize == size)
+        return;
+
+    m_contentsSize = size;
     m_client.didChangeContentsSize(this, size);
+
+    updateViewportSize();
+}
+
+void WebView::didFindZoomableArea(const WebCore::IntPoint& target, const WebCore::IntRect& area)
+{
+    m_client.didFindZoomableArea(this, target, area);
 }
 
 AffineTransform WebView::transformFromScene() const
@@ -193,12 +219,13 @@ AffineTransform WebView::transformFromScene() const
 
 AffineTransform WebView::transformToScene() const
 {
-    TransformationMatrix transform = m_userViewportTransform;
+    FloatPoint position = -m_contentPosition;
+    float effectiveScale = m_contentScaleFactor * m_page->deviceScaleFactor();
+    position.scale(effectiveScale, effectiveScale);
 
-    const FloatPoint& position = contentPosition();
-    transform.scale(m_page->deviceScaleFactor());
-    transform.translate(-position.x(), -position.y());
-    transform.scale(contentScaleFactor());
+    TransformationMatrix transform = m_userViewportTransform;
+    transform.translate(position.x(), position.y());
+    transform.scale(effectiveScale);
 
     return transform.toAffineTransform();
 }
@@ -221,7 +248,9 @@ void WebView::updateViewportSize()
     if (DrawingAreaProxy* drawingArea = page()->drawingArea()) {
         // Web Process expects sizes in UI units, and not raw device units.
         drawingArea->setSize(roundedIntSize(dipSize()), IntSize(), IntSize());
-        drawingArea->setVisibleContentsRect(FloatRect(contentPosition(), dipSize()), FloatPoint());
+        FloatRect visibleContentsRect(contentPosition(), visibleContentsSize());
+        visibleContentsRect.intersect(FloatRect(FloatPoint(), contentsSize()));
+        drawingArea->setVisibleContentsRect(visibleContentsRect, FloatPoint());
     }
 }
 
@@ -231,6 +260,14 @@ inline WebCore::FloatSize WebView::dipSize() const
     dipSize.scale(1 / m_page->deviceScaleFactor());
 
     return dipSize;
+}
+
+WebCore::FloatSize WebView::visibleContentsSize() const
+{
+    FloatSize visibleContentsSize(dipSize());
+    visibleContentsSize.scale(1 / m_contentScaleFactor);
+
+    return visibleContentsSize;
 }
 
 // Page Client
@@ -298,6 +335,11 @@ void WebView::pageClosed()
     notImplemented();
 }
 
+void WebView::preferencesDidChange()
+{
+    notImplemented();
+}
+
 void WebView::toolTipChanged(const String&, const String& newToolTip)
 {
     m_client.didChangeTooltip(this, newToolTip);
@@ -351,13 +393,13 @@ void WebView::doneWithKeyEvent(const NativeWebKeyboardEvent&, bool)
 }
 
 #if ENABLE(TOUCH_EVENTS)
-void WebView::doneWithTouchEvent(const NativeWebTouchEvent&, bool /*wasEventHandled*/)
+void WebView::doneWithTouchEvent(const NativeWebTouchEvent& event, bool wasEventHandled)
 {
-    notImplemented();
+    m_client.doneWithTouchEvent(this, event, wasEventHandled);
 }
 #endif
 
-PassRefPtr<WebPopupMenuProxy> WebView::createPopupMenuProxy(WebPageProxy* page)
+PassRefPtr<WebPopupMenuProxy> WebView::createPopupMenuProxy(WebPageProxy*)
 {
     notImplemented();
     return 0;
@@ -370,7 +412,7 @@ PassRefPtr<WebContextMenuProxy> WebView::createContextMenuProxy(WebPageProxy*)
 }
 
 #if ENABLE(INPUT_TYPE_COLOR)
-PassRefPtr<WebColorChooserProxy> WebView::createColorChooserProxy(WebPageProxy*, const WebCore::Color&, const WebCore::IntRect&)
+PassRefPtr<WebColorPicker> WebView::createColorPicker(WebPageProxy*, const WebCore::Color&, const WebCore::IntRect&)
 {
     notImplemented();
     return 0;
@@ -399,38 +441,7 @@ void WebView::updateAcceleratedCompositingMode(const LayerTreeContext&)
     notImplemented();
 }
 
-void WebView::didCommitLoadForMainFrame(bool)
-{
-    notImplemented();
-}
-
-void WebView::didFinishLoadingDataForCustomRepresentation(const String&, const CoreIPC::DataReference&)
-{
-    notImplemented();
-}
-
-double WebView::customRepresentationZoomFactor()
-{
-    notImplemented();
-    return 0;
-}
-
-void WebView::setCustomRepresentationZoomFactor(double)
-{
-    notImplemented();
-}
-
 void WebView::flashBackingStoreUpdates(const Vector<IntRect>&)
-{
-    notImplemented();
-}
-
-void WebView::findStringInCustomRepresentation(const String&, FindOptions, unsigned)
-{
-    notImplemented();
-}
-
-void WebView::countStringMatchesInCustomRepresentation(const String&, FindOptions, unsigned)
 {
     notImplemented();
 }
@@ -491,6 +502,11 @@ void WebView::didRenderFrame(const WebCore::IntSize& contentsSize, const WebCore
 void WebView::pageTransitionViewportReady()
 {
     m_client.didCompletePageTransition(this);
+}
+
+void WebView::findZoomableAreaForPoint(const IntPoint& point, const IntSize& size)
+{
+    m_page->findZoomableAreaForPoint(transformFromScene().mapPoint(point), transformFromScene().mapSize(size));
 }
 
 } // namespace WebKit

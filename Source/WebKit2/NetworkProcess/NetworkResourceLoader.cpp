@@ -40,6 +40,7 @@
 #include "ShareableResource.h"
 #include "SharedMemory.h"
 #include "WebCoreArgumentCoders.h"
+#include "WebErrors.h"
 #include "WebResourceLoaderMessages.h"
 #include <WebCore/NotImplemented.h>
 #include <WebCore/ResourceBuffer.h>
@@ -65,16 +66,6 @@ NetworkResourceLoader::~NetworkResourceLoader()
     ASSERT(!m_handle);
 }
 
-CoreIPC::Connection* NetworkResourceLoader::connection() const
-{
-    return connectionToWebProcess()->connection();
-}
-
-uint64_t NetworkResourceLoader::destinationID() const
-{
-    return identifier();
-}
-
 void NetworkResourceLoader::start()
 {
     ASSERT(isMainThread());
@@ -95,6 +86,8 @@ void NetworkResourceLoader::cleanup()
 {
     ASSERT(isMainThread());
 
+    invalidateSandboxExtensions();
+
     if (FormData* formData = request().httpBody())
         formData->removeGeneratedFilesIfNeeded();
 
@@ -111,7 +104,7 @@ void NetworkResourceLoader::cleanup()
 
 template<typename U> bool NetworkResourceLoader::sendAbortingOnFailure(const U& message, unsigned messageSendFlags)
 {
-    bool result = connection()->send(message, destinationID(), messageSendFlags);
+    bool result = messageSenderConnection()->send(message, messageSenderDestinationID(), messageSendFlags);
     if (!result)
         abort();
     return result;
@@ -190,7 +183,6 @@ void NetworkResourceLoader::didFinishLoading(ResourceHandle* handle, double fini
 
     // FIXME (NetworkProcess): For the memory cache we'll need to update the finished status of the cached resource here.
     // Such bookkeeping will need to be thread safe, as this callback is happening on a background thread.
-    invalidateSandboxExtensions();
     send(Messages::WebResourceLoader::DidFinishResourceLoad(finishTime));
     
     cleanup();
@@ -202,7 +194,6 @@ void NetworkResourceLoader::didFail(ResourceHandle* handle, const ResourceError&
 
     // FIXME (NetworkProcess): For the memory cache we'll need to update the finished status of the cached resource here.
     // Such bookkeeping will need to be thread safe, as this callback is happening on a background thread.
-    invalidateSandboxExtensions();
     send(Messages::WebResourceLoader::DidFailResourceLoad(error));
     cleanup();
 }
@@ -249,17 +240,18 @@ void NetworkResourceLoader::didSendData(ResourceHandle* handle, unsigned long lo
     send(Messages::WebResourceLoader::DidSendData(bytesSent, totalBytesToBeSent));
 }
 
-// FIXME (NetworkProcess): Many of the following ResourceHandleClient methods definitely need implementations. A few will not.
-// Once we know what they are they can be removed.
-
-void NetworkResourceLoader::wasBlocked(ResourceHandle*)
+void NetworkResourceLoader::wasBlocked(ResourceHandle* handle)
 {
-    notImplemented();
+    ASSERT_UNUSED(handle, handle == m_handle);
+
+    didFail(handle, WebKit::blockedError(request()));
 }
 
-void NetworkResourceLoader::cannotShowURL(ResourceHandle*)
+void NetworkResourceLoader::cannotShowURL(ResourceHandle* handle)
 {
-    notImplemented();
+    ASSERT_UNUSED(handle, handle == m_handle);
+
+    didFail(handle, WebKit::cannotShowURLError(request()));
 }
 
 bool NetworkResourceLoader::shouldUseCredentialStorage(ResourceHandle* handle)
@@ -302,6 +294,16 @@ void NetworkResourceLoader::didCancelAuthenticationChallenge(ResourceHandle* han
 
     // This function is probably not needed (see <rdar://problem/8960124>).
     notImplemented();
+}
+
+CoreIPC::Connection* NetworkResourceLoader::messageSenderConnection()
+{
+    return connectionToWebProcess()->connection();
+}
+
+uint64_t NetworkResourceLoader::messageSenderDestinationID()
+{
+    return identifier();
 }
 
 #if USE(PROTECTION_SPACE_AUTH_CALLBACK)

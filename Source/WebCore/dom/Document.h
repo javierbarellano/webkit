@@ -31,14 +31,12 @@
 #include "CollectionType.h"
 #include "Color.h"
 #include "ContainerNode.h"
-#include "DOMTimeStamp.h"
 #include "DocumentEventQueue.h"
 #include "DocumentTiming.h"
 #include "FocusDirection.h"
 #include "HitTestRequest.h"
 #include "IconURL.h"
 #include "InspectorCounters.h"
-#include "IntRect.h"
 #include "MutationObserver.h"
 #include "PageVisibilityState.h"
 #include "PlatformScreen.h"
@@ -51,7 +49,6 @@
 #include "UserActionElementSet.h"
 #include "ViewportArguments.h"
 #include <wtf/Deque.h>
-#include <wtf/FixedArray.h>
 #include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
@@ -107,6 +104,7 @@ class HTMLHeadElement;
 class HTMLIFrameElement;
 class HTMLMapElement;
 class HTMLNameCollection;
+class HTMLScriptElement;
 class HitTestRequest;
 class HitTestResult;
 class IntPoint;
@@ -178,10 +176,6 @@ class ScriptedAnimationController;
 
 #if ENABLE(MICRODATA)
 class MicroDataItemList;
-#endif
-
-#if ENABLE(LINK_PRERENDER)
-class Prerenderer;
 #endif
 
 #if ENABLE(TEXT_AUTOSIZING)
@@ -321,7 +315,7 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitpointerlockerror);
 #endif
 #if ENABLE(PAGE_VISIBILITY_API)
-    DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitvisibilitychange);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(visibilitychange);
 #endif
 #if ENABLE(CSP_NEXT)
     DEFINE_ATTRIBUTE_EVENT_LISTENER(securitypolicyviolation);
@@ -414,8 +408,8 @@ public:
     virtual KURL baseURI() const;
 
 #if ENABLE(PAGE_VISIBILITY_API)
-    String webkitVisibilityState() const;
-    bool webkitHidden() const;
+    String visibilityState() const;
+    bool hidden() const;
     void dispatchVisibilityStateChangeEvent();
 #endif
 
@@ -495,8 +489,7 @@ public:
 
     void evaluateMediaQueryList();
 
-    // Never returns 0.
-    FormController* formController();
+    FormController& formController();
     Vector<String> formElementsState() const;
     void setStateForNewFormElements(const Vector<String>&);
 
@@ -537,13 +530,13 @@ public:
     static void updateStyleForAllDocuments(); // FIXME: Try to reduce the # of calls to this function.
     CachedResourceLoader* cachedResourceLoader() { return m_cachedResourceLoader.get(); }
 
-    virtual void attach();
-    virtual void detach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
     void prepareForDestruction();
 
     // Override ScriptExecutionContext methods to do additional work
     virtual void suspendActiveDOMObjects(ActiveDOMObject::ReasonForSuspension) OVERRIDE;
-    virtual void resumeActiveDOMObjects() OVERRIDE;
+    virtual void resumeActiveDOMObjects(ActiveDOMObject::ReasonForSuspension) OVERRIDE;
 
     RenderArena* renderArena() { return m_renderArena.get(); }
 
@@ -675,28 +668,22 @@ public:
     String selectedStylesheetSet() const;
     void setSelectedStylesheetSet(const String&);
 
-    bool setFocusedNode(PassRefPtr<Node>, FocusDirection = FocusDirectionNone);
-    Node* focusedNode() const { return m_focusedNode.get(); }
+    bool setFocusedElement(PassRefPtr<Element>, FocusDirection = FocusDirectionNone);
+    Element* focusedElement() const { return m_focusedElement.get(); }
     UserActionElementSet& userActionElements()  { return m_userActionElements; }
     const UserActionElementSet& userActionElements() const { return m_userActionElements; }
 
-    void getFocusableNodes(Vector<RefPtr<Node> >&);
-    
     // The m_ignoreAutofocus flag specifies whether or not the document has been changed by the user enough 
     // for WebCore to ignore the autofocus attribute on any form controls
     bool ignoreAutofocus() const { return m_ignoreAutofocus; };
     void setIgnoreAutofocus(bool shouldIgnore = true) { m_ignoreAutofocus = shouldIgnore; };
 
-    void setHoverNode(PassRefPtr<Node>);
-    Node* hoverNode() const { return m_hoverNode.get(); }
-
     void setActiveElement(PassRefPtr<Element>);
     Element* activeElement() const { return m_activeElement.get(); }
 
-    void focusedNodeRemoved();
     void removeFocusedNodeOfSubtree(Node*, bool amongChildrenOnly = false);
-    void hoveredNodeDetached(Node*);
-    void activeChainNodeDetached(Node*);
+    void hoveredElementDidDetach(Element*);
+    void elementInActiveChainDidDetach(Element*);
 
     void updateHoverActiveState(const HitTestRequest&, Element*, const PlatformMouseEvent* = 0);
 
@@ -780,9 +767,6 @@ public:
     void addMutationObserverTypes(MutationObserverOptions types) { m_mutationObserverTypes |= types; }
 
     CSSStyleDeclaration* getOverrideStyle(Element*, const String& pseudoElt);
-
-    int nodeAbsIndex(Node*);
-    Node* nodeWithAbsIndex(int absIndex);
 
     /**
      * Handles a HTTP header equivalent set by a meta tag using <meta http-equiv="..." content="...">. This is called
@@ -891,10 +875,12 @@ public:
 
     Document* parentDocument() const;
     Document* topDocument() const;
-
-    int docID() const { return m_docID; }
     
     ScriptRunner* scriptRunner() { return m_scriptRunner.get(); }
+
+    HTMLScriptElement* currentScript() const { return !m_currentScriptStack.isEmpty() ? m_currentScriptStack.last().get() : 0; }
+    void pushCurrentScript(PassRefPtr<HTMLScriptElement>);
+    void popCurrentScript();
 
 #if ENABLE(XSLT)
     void applyXSLTransform(ProcessingInstruction* pi);
@@ -947,6 +933,7 @@ public:
 
     void suspendScriptedAnimationControllerCallbacks();
     void resumeScriptedAnimationControllerCallbacks();
+    virtual void scriptedAnimationControllerSetThrottled(bool);
     
     void windowScreenDidChange(PlatformDisplayID);
 
@@ -1066,9 +1053,6 @@ public:
     RenderFullScreen* fullScreenRenderer() const { return m_fullScreenRenderer; }
     void fullScreenRendererDestroyed();
     
-    void setFullScreenRendererSize(const IntSize&);
-    void setFullScreenRendererBackgroundColor(Color);
-    
     void fullScreenChangeDelayTimerFired(Timer<Document>*);
     bool fullScreenIsAllowedForElement(Element*) const;
     void fullScreenElementRemoved();
@@ -1144,16 +1128,12 @@ public:
     bool isInDocumentWrite() { return m_writeRecursionDepth > 0; }
 
     void suspendScheduledTasks(ActiveDOMObject::ReasonForSuspension);
-    void resumeScheduledTasks();
+    void resumeScheduledTasks(ActiveDOMObject::ReasonForSuspension);
 
     IntSize viewportSize() const;
 
 #if ENABLE(CSS_DEVICE_ADAPTATION)
     IntSize initialViewportSize() const;
-#endif
-
-#if ENABLE(LINK_PRERENDER)
-    Prerenderer* prerenderer() { return m_prerenderer.get(); }
 #endif
 
 #if ENABLE(TEXT_AUTOSIZING)
@@ -1217,6 +1197,8 @@ public:
 
     void ensurePlugInsInjectedScript(DOMWrapperWorld*);
 
+    void setVisualUpdatesAllowedByClient(bool);
+
 protected:
     Document(Frame*, const KURL&, unsigned = DefaultDocumentClass);
 
@@ -1274,7 +1256,7 @@ private:
     void displayBufferModifiedByEncodingInternal(CharacterType*, unsigned) const;
 
 #if ENABLE(PAGE_VISIBILITY_API)
-    PageVisibilityState visibilityState() const;
+    PageVisibilityState pageVisibilityState() const;
 #endif
 
     PassRefPtr<HTMLCollection> ensureCachedCollection(CollectionType);
@@ -1300,7 +1282,6 @@ private:
 
     OwnPtr<StyleResolver> m_styleResolver;
     bool m_didCalculateStyleResolver;
-    bool m_hasDirtyStyleResolver;
     bool m_hasNodesWithPlaceholderStyle;
     bool m_needsNotifyRemoveAllPendingStylesheet;
     // But sometimes you need to ignore pending stylesheet count to
@@ -1356,8 +1337,8 @@ private:
 
     Color m_textColor;
 
-    RefPtr<Node> m_focusedNode;
-    RefPtr<Node> m_hoverNode;
+    RefPtr<Element> m_focusedElement;
+    RefPtr<Element> m_hoveredElement;
     RefPtr<Element> m_activeElement;
     RefPtr<Element> m_documentElement;
     UserActionElementSet m_userActionElements;
@@ -1382,7 +1363,6 @@ private:
     Color m_activeLinkColor;
     OwnPtr<VisitedLinkState> m_visitedLinkState;
 
-    bool m_loadingSheet;
     bool m_visuallyOrdered;
     ReadyState m_readyState;
     bool m_bParsing;
@@ -1429,12 +1409,12 @@ private:
     
     OwnPtr<ScriptRunner> m_scriptRunner;
 
+    Vector<RefPtr<HTMLScriptElement> > m_currentScriptStack;
+
 #if ENABLE(XSLT)
     OwnPtr<TransformSource> m_transformSource;
     RefPtr<Document> m_transformSourceDocument;
 #endif
-
-    int m_docID; // A unique document identifier used for things like document-specific mapped attributes.
 
     String m_xmlEncoding;
     String m_xmlVersion;
@@ -1543,10 +1523,6 @@ private:
 
     Timer<Document> m_pendingTasksTimer;
     Vector<OwnPtr<Task> > m_pendingTasks;
-
-#if ENABLE(LINK_PRERENDER)
-    OwnPtr<Prerenderer> m_prerenderer;
-#endif
 
 #if ENABLE(TEXT_AUTOSIZING)
     OwnPtr<TextAutosizer> m_textAutosizer;

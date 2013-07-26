@@ -83,8 +83,6 @@
 #include <wtf/text/Base64.h>
 #include <wtf/text/StringBuilder.h>
 
-using namespace std;
-
 namespace WebCore {
 
 namespace PageAgentState {
@@ -501,7 +499,7 @@ void InspectorPageAgent::reload(ErrorString*, const bool* const optionalIgnoreCa
 
 void InspectorPageAgent::navigate(ErrorString*, const String& url)
 {
-    UserGestureIndicator indicator(DefinitelyProcessingNewUserGesture);
+    UserGestureIndicator indicator(DefinitelyProcessingUserGesture);
     Frame* frame = m_page->mainFrame();
     frame->loader()->changeLocation(frame->document()->securityOrigin(), frame->document()->completeURL(url), "", false, false);
 }
@@ -545,12 +543,9 @@ static Vector<CachedResource*> cachedResourcesForFrame(Frame* frame)
         switch (cachedResource->type()) {
         case CachedResource::ImageResource:
             // Skip images that were not auto loaded (images disabled in the user agent).
-            if (static_cast<CachedImage*>(cachedResource)->stillNeedsLoad())
-                continue;
-            break;
         case CachedResource::FontResource:
             // Skip fonts that were referenced in CSS but never used/downloaded.
-            if (static_cast<CachedFont*>(cachedResource)->stillNeedsLoad())
+            if (cachedResource->stillNeedsLoad())
                 continue;
             break;
         default:

@@ -92,6 +92,11 @@ public:
     }
 
     CanvasRenderingContext* getContext(const String&, CanvasContextAttributes* attributes = 0);
+    bool supportsContext(const String&, CanvasContextAttributes* = 0);
+    static bool is2dType(const String&);
+#if ENABLE(WEBGL)
+    static bool is3dType(const String&);
+#endif
 
     static String toEncodingMimeType(const String& mimeType);
     String toDataURL(const String& mimeType, const double* quality, ExceptionCode&);
@@ -137,15 +142,16 @@ public:
 
     float deviceScaleFactor() const { return m_deviceScaleFactor; }
 
-    virtual bool canContainRangeEndPoint() const { return false; }
-
 private:
     HTMLCanvasElement(const QualifiedName&, Document*);
 
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
-    virtual void attach();
-    virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual bool areAuthorShadowsAllowed() const OVERRIDE;
+
+    virtual bool canContainRangeEndPoint() const OVERRIDE;
+    virtual bool canStartSelection() const OVERRIDE;
 
     void reset();
 

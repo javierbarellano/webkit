@@ -154,6 +154,8 @@ list(APPEND WebKit_SOURCES
 list(APPEND WebKit_LIBRARIES
     ${CAIRO_LIBRARIES}
     ${ECORE_LIBRARIES}
+    ${EDJE_LIBRARIES}
+    ${EINA_LIBRARIES}
     ${ECORE_EVAS_LIBRARIES}
     ${ECORE_INPUT_LIBRARIES}
     ${EFREET_LIBRARIES}
@@ -172,8 +174,14 @@ list(APPEND WebKit_LIBRARIES
     ${LIBSOUP_LIBRARIES}
 )
 
+if (ENABLE_ECORE_X)
+    list(APPEND WebKit_LIBRARIES
+        ${ECORE_X_LIBRARIES}
+    )
+endif ()
+
 if (SHARED_CORE)
-    set(LIBS_PRIVATE "-l${WTF_LIBRARY_NAME} -l${JavaScriptCore_LIBRARY_NAME} -l${WebCore_LIBRARY_NAME}")
+    set(LIBS_PRIVATE "-l${WTF_OUTPUT_NAME} -l${JavaScriptCore_OUTPUT_NAME} -l${WebCore_OUTPUT_NAME}")
 else ()
     set(LIBS_PRIVATE "")
 endif ()
@@ -207,15 +215,15 @@ set(EWebKit_HEADERS
 )
 
 install(FILES ${EWebKit_HEADERS}
-        DESTINATION include/${WebKit_LIBRARY_NAME}-${PROJECT_VERSION_MAJOR})
+        DESTINATION include/${WebKit_OUTPUT_NAME}-${PROJECT_VERSION_MAJOR})
 
 include_directories(${THIRDPARTY_DIR}/gtest/include)
 
 set(EWKUnitTests_LIBRARIES
-    ${WTF_LIBRARY_NAME}
-    ${JavaScriptCore_LIBRARY_NAME}
-    ${WebCore_LIBRARY_NAME}
-    ${WebKit_LIBRARY_NAME}
+    WTF
+    JavaScriptCore
+    WebCore
+    WebKit
     ${ECORE_LIBRARIES}
     ${ECORE_EVAS_LIBRARIES}
     ${EVAS_LIBRARIES}

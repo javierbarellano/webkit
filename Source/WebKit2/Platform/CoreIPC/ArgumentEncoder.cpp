@@ -29,9 +29,31 @@
 #include "DataReference.h"
 #include <algorithm>
 #include <stdio.h>
+
+#if OS(DARWIN)
 #include <sys/mman.h>
+#endif
 
 namespace CoreIPC {
+
+static inline void* allocBuffer(size_t size)
+{
+#if OS(DARWIN)
+    return mmap(0, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+#else
+    return fastMalloc(size);
+#endif
+}
+
+static inline void freeBuffer(void* addr, size_t size)
+{
+#if OS(DARWIN)
+    munmap(addr, size);
+#else
+    UNUSED_PARAM(size);
+    fastFree(addr);
+#endif
+}
 
 PassOwnPtr<ArgumentEncoder> ArgumentEncoder::create()
 {
@@ -49,7 +71,7 @@ ArgumentEncoder::ArgumentEncoder()
 ArgumentEncoder::~ArgumentEncoder()
 {
     if (m_buffer != m_inlineBuffer)
-        munmap(m_buffer, m_bufferCapacity);
+        freeBuffer(m_buffer, m_bufferCapacity);
 
 #if !USE(UNIX_DOMAIN_SOCKETS)
     // FIXME: We need to dispose of the attachments in cases of failure.
@@ -73,14 +95,14 @@ uint8_t* ArgumentEncoder::grow(unsigned alignment, size_t size)
         while (newCapacity < alignedSize + size)
             newCapacity *= 2;
 
-        uint8_t* newBuffer = static_cast<uint8_t*>(mmap(0, newCapacity, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
+        uint8_t* newBuffer = static_cast<uint8_t*>(allocBuffer(newCapacity));
         if (!newBuffer)
             CRASH();
 
         memcpy(newBuffer, m_buffer, m_bufferSize);
 
         if (m_buffer != m_inlineBuffer)
-            munmap(m_buffer, m_bufferCapacity);
+            freeBuffer(m_buffer, m_bufferCapacity);
 
         m_buffer = newBuffer;
         m_bufferCapacity = newCapacity;
@@ -124,49 +146,49 @@ void ArgumentEncoder::encode(uint16_t n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
 
-    *reinterpret_cast<uint16_t*>(buffer) = n;
+    *reinterpret_cast_ptr<uint16_t*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(uint32_t n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
     
-    *reinterpret_cast<uint32_t*>(buffer) = n;
+    *reinterpret_cast_ptr<uint32_t*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(uint64_t n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
     
-    *reinterpret_cast<uint64_t*>(buffer) = n;
+    *reinterpret_cast_ptr<uint64_t*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(int32_t n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
     
-    *reinterpret_cast<int32_t*>(buffer) = n;
+    *reinterpret_cast_ptr<int32_t*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(int64_t n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
     
-    *reinterpret_cast<int64_t*>(buffer) = n;
+    *reinterpret_cast_ptr<int64_t*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(float n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
 
-    *reinterpret_cast<float*>(buffer) = n;
+    *reinterpret_cast_ptr<float*>(buffer) = n;
 }
 
 void ArgumentEncoder::encode(double n)
 {
     uint8_t* buffer = grow(sizeof(n), sizeof(n));
 
-    *reinterpret_cast<double*>(buffer) = n;
+    *reinterpret_cast_ptr<double*>(buffer) = n;
 }
 
 void ArgumentEncoder::addAttachment(const Attachment& attachment)

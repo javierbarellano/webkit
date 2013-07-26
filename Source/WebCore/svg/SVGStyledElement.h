@@ -24,6 +24,7 @@
 #if ENABLE(SVG)
 #include "CSSPropertyNames.h"
 #include "SVGAnimatedString.h"
+#include "SVGElement.h"
 #include "SVGLocatable.h"
 #include <wtf/HashSet.h>
 #include <wtf/PassRefPtr.h>
@@ -80,8 +81,8 @@ protected:
 private:
     virtual bool isSVGStyledElement() const OVERRIDE FINAL { return true; }
 
-    virtual bool isKeyboardFocusable(KeyboardEvent*) const;
-    virtual bool isMouseFocusable() const;
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
+    virtual bool isMouseFocusable() const OVERRIDE;
 
     void buildPendingResourcesIfNeeded();
 

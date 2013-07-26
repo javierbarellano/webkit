@@ -85,7 +85,6 @@ WebFrameLoaderClient::WebFrameLoaderClient(WebFrame* frame)
     : m_frame(frame)
     , m_hasSentResponseToPluginView(false)
     , m_didCompletePageTransitionAlready(false)
-    , m_frameHasCustomRepresentation(false)
     , m_frameCameFromPageCache(false)
 {
 }
@@ -100,11 +99,6 @@ void WebFrameLoaderClient::frameLoaderDestroyed()
 
     // Balances explicit ref() in WebFrame::createMainFrame and WebFrame::createSubframe.
     m_frame->deref();
-}
-
-bool WebFrameLoaderClient::hasHTMLView() const
-{
-    return !m_frameHasCustomRepresentation;
 }
 
 bool WebFrameLoaderClient::hasWebView() const
@@ -375,7 +369,7 @@ void WebFrameLoaderClient::dispatchWillClose()
 
 void WebFrameLoaderClient::dispatchDidReceiveIcon()
 {
-    WebProcess::shared().connection()->send(Messages::WebIconDatabase::DidReceiveIconForPageURL(m_frame->url()), 0);
+    WebProcess::shared().parentProcessConnection()->send(Messages::WebIconDatabase::DidReceiveIconForPageURL(m_frame->url()), 0);
 }
 
 void WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
@@ -443,7 +437,7 @@ void WebFrameLoaderClient::dispatchDidCommitLoad()
 
     // Notify the UIProcess.
 
-    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), response.mimeType(), m_frameHasCustomRepresentation, m_frame->coreFrame()->loader()->loadType(), PlatformCertificateInfo(response), InjectedBundleUserMessageEncoder(userData.get())));
+    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), response.mimeType(), m_frame->coreFrame()->loader()->loadType(), PlatformCertificateInfo(response), InjectedBundleUserMessageEncoder(userData.get())));
 
     webPage->didCommitLoad(m_frame);
 }
@@ -524,6 +518,19 @@ void WebFrameLoaderClient::dispatchDidFinishLoad()
     webPage->didFinishLoad(m_frame);
 }
 
+void WebFrameLoaderClient::forcePageTransitionIfNeeded()
+{
+    if (m_didCompletePageTransitionAlready)
+        return;
+
+    WebPage* webPage = m_frame->page();
+    if (!webPage)
+        return;
+
+    webPage->didCompletePageTransition();
+    m_didCompletePageTransitionAlready = true;
+}
+
 void WebFrameLoaderClient::dispatchDidLayout(LayoutMilestones milestones)
 {
     WebPage* webPage = m_frame->page();
@@ -596,7 +603,7 @@ Frame* WebFrameLoaderClient::dispatchCreatePage(const NavigationAction& navigati
         return 0;
 
     // Just call through to the chrome client.
-    Page* newPage = webPage->corePage()->chrome()->createWindow(m_frame->coreFrame(), FrameLoadRequest(m_frame->coreFrame()->document()->securityOrigin()), WindowFeatures(), navigationAction);
+    Page* newPage = webPage->corePage()->chrome().createWindow(m_frame->coreFrame(), FrameLoadRequest(m_frame->coreFrame()->document()->securityOrigin()), WindowFeatures(), navigationAction);
     if (!newPage)
         return 0;
     
@@ -735,7 +742,10 @@ void WebFrameLoaderClient::dispatchWillSendSubmitEvent(PassRefPtr<FormState> prp
 
     RefPtr<FormState> formState = prpFormState;
     HTMLFormElement* form = formState->form();
-    WebFrame* sourceFrame = static_cast<WebFrameLoaderClient*>(formState->sourceDocument()->frame()->loader()->client())->webFrame();
+
+    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(formState->sourceDocument()->frame()->loader()->client());
+    WebFrame* sourceFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    ASSERT(sourceFrame);
 
     webPage->injectedBundleFormClient().willSendSubmitEvent(webPage, form, m_frame, sourceFrame, formState->textFieldValues());
 }
@@ -750,7 +760,11 @@ void WebFrameLoaderClient::dispatchWillSubmitForm(FramePolicyFunction function, 
     RefPtr<FormState> formState = prpFormState;
     
     HTMLFormElement* form = formState->form();
-    WebFrame* sourceFrame = static_cast<WebFrameLoaderClient*>(formState->sourceDocument()->frame()->loader()->client())->webFrame();
+
+    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(formState->sourceDocument()->frame()->loader()->client());
+    WebFrame* sourceFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    ASSERT(sourceFrame);
+
     const Vector<std::pair<String, String>>& values = formState->textFieldValues();
 
     RefPtr<APIObject> userData;
@@ -839,10 +853,6 @@ void WebFrameLoaderClient::didChangeTitle(DocumentLoader*)
 
 void WebFrameLoaderClient::committedLoad(DocumentLoader* loader, const char* data, int length)
 {
-    // If we're loading a custom representation, we don't want to hand off the data to WebCore.
-    if (m_frameHasCustomRepresentation)
-        return;
-
     if (!m_pluginView)
         loader->commitData(data, length);
 
@@ -869,34 +879,22 @@ void WebFrameLoaderClient::committedLoad(DocumentLoader* loader, const char* dat
 
 void WebFrameLoaderClient::finishedLoading(DocumentLoader* loader)
 {
-    if (!m_pluginView) {
-        if (m_frameHasCustomRepresentation) {
-            WebPage* webPage = m_frame->page();
-            if (!webPage)
-                return;
+    if (!m_pluginView)
+        return;
 
-            RefPtr<ResourceBuffer> mainResourceData = loader->mainResourceData();
-            CoreIPC::DataReference dataReference(reinterpret_cast<const uint8_t*>(mainResourceData ? mainResourceData->data() : 0), mainResourceData ? mainResourceData->size() : 0);
-            
-            webPage->send(Messages::WebPageProxy::DidFinishLoadingDataForCustomRepresentation(loader->response().suggestedFilename(), dataReference));
-        }
+    // If we just received an empty response without any data, we won't have sent a response to the plug-in view.
+    // Make sure to do this before calling manualLoadDidFinishLoading.
+    if (!m_hasSentResponseToPluginView) {
+        m_pluginView->manualLoadDidReceiveResponse(loader->response());
+
+        // Protect against the above call nulling out the plug-in (by trying to cancel the load for example).
+        if (!m_pluginView)
+            return;
     }
 
-    if (m_pluginView) {
-        // If we just received an empty response without any data, we won't have sent a response to the plug-in view.
-        // Make sure to do this before calling manualLoadDidFinishLoading.
-        if (!m_hasSentResponseToPluginView) {
-            m_pluginView->manualLoadDidReceiveResponse(loader->response());
-
-            // Protect against the above call nulling out the plug-in (by trying to cancel the load for example).
-            if (!m_pluginView)
-                return;
-        }
-
-        m_pluginView->manualLoadDidFinishLoading();
-        m_pluginView = 0;
-        m_hasSentResponseToPluginView = false;
-    }
+    m_pluginView->manualLoadDidFinishLoading();
+    m_pluginView = 0;
+    m_hasSentResponseToPluginView = false;
 }
 
 void WebFrameLoaderClient::updateGlobalHistory()
@@ -913,7 +911,7 @@ void WebFrameLoaderClient::updateGlobalHistory()
     data.title = loader->title().string();
     data.originalRequest = loader->originalRequestCopy();
 
-    WebProcess::shared().connection()->send(Messages::WebProcessProxy::DidNavigateWithNavigationData(webPage->pageID(), data, m_frame->frameID()), 0);
+    WebProcess::shared().parentProcessConnection()->send(Messages::WebProcessProxy::DidNavigateWithNavigationData(webPage->pageID(), data, m_frame->frameID()), 0);
 }
 
 void WebFrameLoaderClient::updateGlobalHistoryRedirectLinks()
@@ -927,13 +925,13 @@ void WebFrameLoaderClient::updateGlobalHistoryRedirectLinks()
 
     // Client redirect
     if (!loader->clientRedirectSourceForHistory().isNull()) {
-        WebProcess::shared().connection()->send(Messages::WebProcessProxy::DidPerformClientRedirect(webPage->pageID(),
+        WebProcess::shared().parentProcessConnection()->send(Messages::WebProcessProxy::DidPerformClientRedirect(webPage->pageID(),
             loader->clientRedirectSourceForHistory(), loader->clientRedirectDestinationForHistory(), m_frame->frameID()), 0);
     }
 
     // Server redirect
     if (!loader->serverRedirectSourceForHistory().isNull()) {
-        WebProcess::shared().connection()->send(Messages::WebProcessProxy::DidPerformServerRedirect(webPage->pageID(),
+        WebProcess::shared().parentProcessConnection()->send(Messages::WebProcessProxy::DidPerformServerRedirect(webPage->pageID(),
             loader->serverRedirectSourceForHistory(), loader->serverRedirectDestinationForHistory(), m_frame->frameID()), 0);
     }
 }
@@ -1168,7 +1166,7 @@ void WebFrameLoaderClient::setTitle(const StringWithDirection& title, const KURL
         return;
 
     // FIXME: use direction of title.
-    WebProcess::shared().connection()->send(Messages::WebProcessProxy::DidUpdateHistoryTitle(webPage->pageID(),
+    WebProcess::shared().parentProcessConnection()->send(Messages::WebProcessProxy::DidUpdateHistoryTitle(webPage->pageID(),
         title.string(), url.string(), m_frame->frameID()), 0);
 }
 
@@ -1187,11 +1185,6 @@ void WebFrameLoaderClient::savePlatformDataToCachedFrame(CachedFrame*)
 
 void WebFrameLoaderClient::transitionToCommittedFromCachedFrame(CachedFrame*)
 {
-    WebPage* webPage = m_frame->page();
-    bool isMainFrame = webPage->mainWebFrame() == m_frame;
-    
-    const ResourceResponse& response = m_frame->coreFrame()->loader()->documentLoader()->response();
-    m_frameHasCustomRepresentation = isMainFrame && webPage->shouldUseCustomRepresentationForResponse(response);
     m_frameCameFromPageCache = true;
 }
 
@@ -1207,8 +1200,6 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
     bool shouldHideScrollbars = shouldUseFixedLayout || shouldDisableScrolling;
     IntRect currentFixedVisibleContentRect = m_frame->coreFrame()->view() ? m_frame->coreFrame()->view()->fixedVisibleContentRect() : IntRect();
 
-    const ResourceResponse& response = m_frame->coreFrame()->loader()->documentLoader()->response();
-    m_frameHasCustomRepresentation = isMainFrame && webPage->shouldUseCustomRepresentationForResponse(response);
     m_frameCameFromPageCache = false;
 
     ScrollbarMode defaultScrollbarMode = shouldHideScrollbars ? ScrollbarAlwaysOff : ScrollbarAuto;
@@ -1217,12 +1208,17 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
         IntSize(), currentFixedVisibleContentRect, shouldUseFixedLayout,
         defaultScrollbarMode, /* lock */ shouldHideScrollbars, defaultScrollbarMode, /* lock */ shouldHideScrollbars);
 
-    int minimumLayoutWidth = webPage->minimumLayoutWidth();
-    int maximumSize = std::numeric_limits<int>::max();
-    if (minimumLayoutWidth)
-        m_frame->coreFrame()->view()->enableAutoSizeMode(true, IntSize(minimumLayoutWidth, 1), IntSize(maximumSize, maximumSize));
+    if (int minimumLayoutWidth = webPage->minimumLayoutSize().width()) {
+        int minimumLayoutHeight = std::max(webPage->minimumLayoutSize().height(), 1);
+        int maximumSize = std::numeric_limits<int>::max();
+        m_frame->coreFrame()->view()->enableAutoSizeMode(true, IntSize(minimumLayoutWidth, minimumLayoutHeight), IntSize(maximumSize, maximumSize));
+    }
 
     m_frame->coreFrame()->view()->setProhibitsScrolling(shouldDisableScrolling);
+    m_frame->coreFrame()->view()->setVisualUpdatesAllowedByClient(!webPage->shouldExtendIncrementalRenderingSuppression());
+    
+    if (webPage->scrollPinningBehavior() != DoNotPin)
+        m_frame->coreFrame()->view()->setScrollPinningBehavior(webPage->scrollPinningBehavior());
 
 #if USE(TILED_BACKING_STORE)
     if (shouldUseFixedLayout) {
@@ -1235,6 +1231,11 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
 
 void WebFrameLoaderClient::didSaveToPageCache()
 {
+    WebPage* webPage = m_frame->page();
+    if (!webPage)
+        return;
+
+    webPage->send(Messages::WebPageProxy::DidSaveToPageCache());
 }
 
 void WebFrameLoaderClient::didRestoreFromPageCache()
@@ -1248,13 +1249,6 @@ void WebFrameLoaderClient::dispatchDidBecomeFrameset(bool value)
         return;
 
     webPage->send(Messages::WebPageProxy::FrameDidBecomeFrameSet(m_frame->frameID(), value));
-}
-
-bool WebFrameLoaderClient::canCachePage() const
-{
-    // We cannot cache frames that have custom representations because they are
-    // rendered in the UIProcess. 
-    return !m_frameHasCustomRepresentation;
 }
 
 void WebFrameLoaderClient::convertMainResourceLoadToDownload(DocumentLoader *documentLoader, const ResourceRequest& request, const ResourceResponse& response)
@@ -1425,7 +1419,9 @@ ObjectContentType WebFrameLoaderClient::objectContentType(const KURL& url, const
     bool plugInSupportsMIMEType = false;
     if (WebPage* webPage = m_frame->page()) {
         if (PluginData* pluginData = webPage->corePage()->pluginData()) {
-            if (pluginData->supportsMimeType(mimeType))
+            if (pluginData->supportsMimeType(mimeType, PluginData::AllPlugins) && webFrame()->coreFrame()->loader()->subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin))
+                plugInSupportsMIMEType = true;
+            else if (pluginData->supportsMimeType(mimeType, PluginData::OnlyApplicationPlugins))
                 plugInSupportsMIMEType = true;
         }
     }

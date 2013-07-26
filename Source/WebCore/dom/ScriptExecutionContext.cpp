@@ -35,7 +35,7 @@
 #include "PublicURLManager.h"
 #include "ScriptCallStack.h"
 #include "Settings.h"
-#include "WorkerContext.h"
+#include "WorkerGlobalScope.h"
 #include "WorkerThread.h"
 #include <wtf/MainThread.h>
 
@@ -144,7 +144,7 @@ void ScriptExecutionContext::createdMessagePort(MessagePort* port)
     ASSERT(port);
 #if ENABLE(WORKERS)
     ASSERT((isDocument() && isMainThread())
-        || (isWorkerContext() && currentThread() == static_cast<WorkerContext*>(this)->thread()->threadID()));
+        || (isWorkerGlobalScope() && currentThread() == static_cast<WorkerGlobalScope*>(this)->thread()->threadID()));
 #endif
 
     m_messagePorts.add(port);
@@ -155,7 +155,7 @@ void ScriptExecutionContext::destroyedMessagePort(MessagePort* port)
     ASSERT(port);
 #if ENABLE(WORKERS)
     ASSERT((isDocument() && isMainThread())
-        || (isWorkerContext() && currentThread() == static_cast<WorkerContext*>(this)->thread()->threadID()));
+        || (isWorkerGlobalScope() && currentThread() == static_cast<WorkerGlobalScope*>(this)->thread()->threadID()));
 #endif
 
     m_messagePorts.remove(port);
@@ -193,8 +193,11 @@ void ScriptExecutionContext::suspendActiveDOMObjects(ActiveDOMObject::ReasonForS
     m_reasonForSuspendingActiveDOMObjects = why;
 }
 
-void ScriptExecutionContext::resumeActiveDOMObjects()
+void ScriptExecutionContext::resumeActiveDOMObjects(ActiveDOMObject::ReasonForSuspension why)
 {
+    if (m_reasonForSuspendingActiveDOMObjects != why)
+        return;
+
     m_activeDOMObjectsAreSuspended = false;
     // No protection against m_activeDOMObjects changing during iteration: resume() shouldn't execute arbitrary JS.
     m_iteratingActiveDOMObjects = true;
@@ -209,6 +212,8 @@ void ScriptExecutionContext::resumeActiveDOMObjects()
 
 void ScriptExecutionContext::stopActiveDOMObjects()
 {
+    if (m_activeDOMObjectsAreStopped)
+        return;
     m_activeDOMObjectsAreStopped = true;
     // No protection against m_activeDOMObjects changing during iteration: stop() shouldn't execute arbitrary JS.
     m_iteratingActiveDOMObjects = true;
@@ -230,6 +235,8 @@ void ScriptExecutionContext::suspendActiveDOMObjectIfNeeded(ActiveDOMObject* obj
     // Ensure all ActiveDOMObjects are suspended also newly created ones.
     if (m_activeDOMObjectsAreSuspended)
         object->suspend(m_reasonForSuspendingActiveDOMObjects);
+    if (m_activeDOMObjectsAreStopped)
+        object->stop();
 }
 
 void ScriptExecutionContext::didCreateActiveDOMObject(ActiveDOMObject* object)
@@ -388,8 +395,8 @@ JSC::VM* ScriptExecutionContext::vm()
         return JSDOMWindow::commonVM();
 
 #if ENABLE(WORKERS)
-    if (isWorkerContext())
-        return static_cast<WorkerContext*>(this)->script()->vm();
+    if (isWorkerGlobalScope())
+        return static_cast<WorkerGlobalScope*>(this)->script()->vm();
 #endif
 
     ASSERT_NOT_REACHED();

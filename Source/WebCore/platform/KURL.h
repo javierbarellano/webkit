@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2011, 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,13 +28,14 @@
 
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/text/WTFString.h>
 
 #if USE(CF)
 typedef const struct __CFURL* CFURLRef;
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC)
 OBJC_CLASS NSURL;
 #endif
 
@@ -88,11 +89,6 @@ public:
     bool isEmpty() const;
     bool isValid() const;
 
-    // Returns true if this URL has a path. Note that "http://foo.com/" has a
-    // path of "/", so this function will return true. Only invalid or
-    // non-hierarchical (like "javascript:") URLs will have no path.
-    bool hasPath() const;
-
     // Returns true if you can set the host and port for the URL.
     // Non-hierarchical URLs don't have a host and port.
     bool canSetHostOrPort() const { return isHierarchical(); }
@@ -102,7 +98,7 @@ public:
 
     const String& string() const { return m_string; }
 
-    String elidedString() const;
+    String stringCenterEllipsizedToLength(unsigned length = 1024) const;
 
     String protocol() const;
     String host() const;
@@ -167,10 +163,10 @@ public:
 
 #if USE(CF)
     KURL(CFURLRef);
-    CFURLRef createCFURL() const;
+    RetainPtr<CFURLRef> createCFURL() const;
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC)
     KURL(NSURL*);
     operator NSURL*() const;
 #endif
@@ -202,6 +198,8 @@ private:
     // it will use the passed-in string instead of allocating a new one.
     void parse(const String&);
     void parse(const char* url, const String* originalString = 0);
+
+    bool hasPath() const;
 
     String m_string;
     bool m_isValid : 1;

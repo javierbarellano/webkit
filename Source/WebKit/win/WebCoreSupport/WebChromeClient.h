@@ -43,8 +43,6 @@ public:
 
     virtual void chromeDestroyed();
 
-    virtual void* webView() const { return m_webView; }
-
     virtual void setWindowRect(const WebCore::FloatRect&);
     virtual WebCore::FloatRect windowRect();
     
@@ -173,6 +171,11 @@ public:
 
     virtual bool shouldRubberBandInDirection(WebCore::ScrollDirection) const { return true; }
     virtual void numWheelEventHandlersChanged(unsigned) { }
+
+    WebView* webView() { return m_webView; }
+
+    virtual void AXStartFrameLoad();
+    virtual void AXFinishFrameLoad();
 
 private:
     COMPtr<IWebUIDelegate> uiDelegate();

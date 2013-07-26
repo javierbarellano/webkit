@@ -501,7 +501,7 @@ void WebOverlayLayerCompositingThreadClient::uploadTexturesIfNeeded(LayerComposi
     m_texture->updateContents(textureContents);
 }
 
-void WebOverlayLayerCompositingThreadClient::drawTextures(LayerCompositingThread* layer, double scale, const GLES2Program&)
+void WebOverlayLayerCompositingThreadClient::drawTextures(LayerCompositingThread* layer, const GLES2Program&, double scale, const FloatRect& /*clipRect*/)
 {
     if (!m_texture || !m_texture->buffer())
         return;
@@ -633,7 +633,7 @@ void WebOverlayPrivateCompositingThread::removeAnimation(const String& name)
 Platform::IntRect WebOverlayPrivateCompositingThread::pixelViewportRect() const
 {
     if (LayerRenderer* renderer = m_layerCompositingThread->layerRenderer())
-        return renderer->toPixelViewportCoordinates(m_layerCompositingThread->getDrawRect());
+        return renderer->toPixelViewportCoordinates(m_layerCompositingThread->boundingBox());
 
     return Platform::IntRect();
 }

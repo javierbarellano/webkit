@@ -32,7 +32,6 @@
 #include "CanvasStyle.h"
 #include "Color.h"
 #include "ColorSpace.h"
-#include "DashArray.h"
 #include "FloatSize.h"
 #include "Font.h"
 #include "GraphicsTypes.h"
@@ -154,7 +153,6 @@ public:
     void clearRect(float x, float y, float width, float height);
     void fillRect(float x, float y, float width, float height);
     void strokeRect(float x, float y, float width, float height);
-    void strokeRect(float x, float y, float width, float height, float lineWidth);
 
     void setShadow(float width, float height, float blur);
     void setShadow(float width, float height, float blur, const String& color);

@@ -80,6 +80,7 @@ ScriptProcessorNode::ScriptProcessorNode(AudioContext* context, float sampleRate
     , m_numberOfInputChannels(numberOfInputChannels)
     , m_numberOfOutputChannels(numberOfOutputChannels)
     , m_internalInputBus(AudioBus::create(numberOfInputChannels, AudioNode::ProcessingSizeInFrames, false))
+    , m_hasAudioProcessListener(false)
 {
     // Regardless of the allowed buffer sizes, we still need to process at the granularity of the AudioNode.
     if (m_bufferSize < AudioNode::ProcessingSizeInFrames)
@@ -138,7 +139,11 @@ void ScriptProcessorNode::process(size_t framesToProcess)
     // Additionally, there is a double-buffering for input and output which is exposed directly to JavaScript (see inputBuffer and outputBuffer below).
     // This node is the producer for inputBuffer and the consumer for outputBuffer.
     // The JavaScript code is the consumer of inputBuffer and the producer for outputBuffer.
-    
+
+    // Check if audioprocess listener is set.
+    if (!m_hasAudioProcessListener)
+        return;
+
     // Get input and output busses.
     AudioBus* inputBus = this->input(0)->bus();
     AudioBus* outputBus = this->output(0)->bus();
@@ -214,6 +219,12 @@ void ScriptProcessorNode::process(size_t framesToProcess)
     }
 }
 
+void ScriptProcessorNode::setOnaudioprocess(PassRefPtr<EventListener> listener)
+{
+    m_hasAudioProcessListener = listener;
+    setAttributeEventListener(eventNames().audioprocessEvent, listener);
+}
+
 void ScriptProcessorNode::fireProcessEventDispatch(void* userData)
 {
     ScriptProcessorNode* jsAudioNode = static_cast<ScriptProcessorNode*>(userData);
@@ -261,16 +272,6 @@ void ScriptProcessorNode::reset()
         m_inputBuffers[i]->zero();
         m_outputBuffers[i]->zero();
     }
-}
-
-const AtomicString& ScriptProcessorNode::interfaceName() const
-{
-    return eventNames().interfaceForScriptProcessorNode;
-}
-
-ScriptExecutionContext* ScriptProcessorNode::scriptExecutionContext() const
-{
-    return const_cast<ScriptProcessorNode*>(this)->context()->scriptExecutionContext();
 }
 
 double ScriptProcessorNode::tailTime() const

@@ -77,7 +77,7 @@ void WebContextMenuClient::downloadURL(const KURL&)
 #if !PLATFORM(MAC)
 void WebContextMenuClient::searchWithGoogle(const Frame* frame)
 {
-    String searchString = frame->editor()->selectedText();
+    String searchString = frame->editor().selectedText();
     searchString.stripWhiteSpace();
     String encoded = encodeWithURLEscapeSequences(searchString);
     encoded.replace("%20", "+");
@@ -85,7 +85,7 @@ void WebContextMenuClient::searchWithGoogle(const Frame* frame)
     String url = "http://www.google.com/search?q=" + encoded + "&ie=UTF-8&oe=UTF-8";
 
     if (Page* page = frame->page()) {
-        UserGestureIndicator indicator(DefinitelyProcessingNewUserGesture);
+        UserGestureIndicator indicator(DefinitelyProcessingUserGesture);
         page->mainFrame()->loader()->urlSelected(KURL(ParsedURLString, url), String(), 0, false, false, MaybeSendReferrer);
     }
 }

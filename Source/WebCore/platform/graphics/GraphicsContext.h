@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2003, 2006, 2007, 2008, 2009, 2013 Apple Inc. All rights reserved.
  * Copyright (C) 2008-2009 Torch Mobile, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,17 @@ typedef WebCore::PlatformContextCairo PlatformGraphicsContext;
 #elif PLATFORM(QT)
 #include <QPainter>
 typedef QPainter PlatformGraphicsContext;
-#elif OS(WINCE)
+#elif USE(WINGDI)
 typedef struct HDC__ PlatformGraphicsContext;
+#elif PLATFORM(BLACKBERRY)
+namespace BlackBerry {
+namespace Platform {
+namespace Graphics {
+class PlatformGraphicsContext;
+}
+}
+}
+using BlackBerry::Platform::Graphics::PlatformGraphicsContext;
 #else
 typedef void PlatformGraphicsContext;
 #endif
@@ -70,7 +79,7 @@ typedef unsigned char UInt8;
 
 namespace WebCore {
 
-#if OS(WINCE) && !PLATFORM(QT)
+#if USE(WINGDI)
     class SharedBitmap;
     class SimpleFontData;
     class GlyphBuffer;
@@ -82,7 +91,7 @@ namespace WebCore {
 
     class AffineTransform;
     class DrawingBuffer;
-    class Generator;
+    class Gradient;
     class GraphicsContextPlatformPrivate;
     class ImageBuffer;
     class IntRect;
@@ -187,9 +196,7 @@ namespace WebCore {
         GraphicsContext(PlatformGraphicsContext*);
         ~GraphicsContext();
 
-#if !OS(WINCE) || PLATFORM(QT)
         PlatformGraphicsContext* platformContext() const;
-#endif
 
         float strokeThickness() const;
         void setStrokeThickness(float);
@@ -270,7 +277,7 @@ namespace WebCore {
 
         void fillRect(const FloatRect&);
         void fillRect(const FloatRect&, const Color&, ColorSpace);
-        void fillRect(const FloatRect&, Generator&);
+        void fillRect(const FloatRect&, Gradient&);
         void fillRect(const FloatRect&, const Color&, ColorSpace, CompositeOperator, BlendMode = BlendModeNormal);
         void fillRoundedRect(const IntRect&, const IntSize& topLeft, const IntSize& topRight, const IntSize& bottomLeft, const IntSize& bottomRight, const Color&, ColorSpace);
         void fillRoundedRect(const RoundedRect&, const Color&, ColorSpace, BlendMode = BlendModeNormal);
@@ -416,7 +423,7 @@ namespace WebCore {
         HDC getWindowsContext(const IntRect&, bool supportAlphaBlend, bool mayCreateBitmap); // The passed in rect is used to create a bitmap for compositing inside transparency layers.
         void releaseWindowsContext(HDC, const IntRect&, bool supportAlphaBlend, bool mayCreateBitmap); // The passed in HDC should be the one handed back by getWindowsContext.
 #if PLATFORM(WIN)
-#if OS(WINCE)
+#if USE(WINGDI)
         void setBitmap(PassRefPtr<SharedBitmap>);
         const AffineTransform& affineTransform() const;
         AffineTransform& affineTransform();
@@ -494,7 +501,7 @@ namespace WebCore {
         void platformInit(PlatformGraphicsContext*);
         void platformDestroy();
 
-#if PLATFORM(WIN) && !OS(WINCE)
+#if PLATFORM(WIN) && !USE(WINGDI)
         void platformInit(HDC, bool hasAlpha = false);
 #endif
 
@@ -502,7 +509,6 @@ namespace WebCore {
         void restorePlatformState();
 
         void setPlatformTextDrawingMode(TextDrawingModeFlags);
-        void setPlatformFont(const Font& font);
 
         void setPlatformStrokeColor(const Color&, ColorSpace);
         void setPlatformStrokeStyle(StrokeStyle);

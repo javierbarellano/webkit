@@ -76,6 +76,7 @@ public:
     bool sendComplexTextInput(uint64_t pluginComplexTextInputIdentifier, const String& textInput);
     void setLayerHostingMode(LayerHostingMode);
     RetainPtr<PDFDocument> pdfDocumentForPrinting() const { return m_plugin->pdfDocumentForPrinting(); }
+    NSObject *accessibilityObject() const;
 #endif
 
     WebCore::HTMLPlugInElement* pluginElement() const { return m_pluginElement.get(); }
@@ -152,6 +153,7 @@ private:
     virtual bool shouldAlwaysAutoStart() const OVERRIDE;
     virtual void beginSnapshottingRunningPlugin() OVERRIDE;
     virtual bool shouldAllowNavigationFromDrags() const OVERRIDE;
+    virtual bool shouldNotAddLayer() const OVERRIDE;
 
     // WebCore::Widget
     virtual void setFrameRect(const WebCore::IntRect&);
@@ -191,6 +193,7 @@ private:
     virtual void pluginFocusOrWindowFocusChanged(bool pluginHasFocusAndWindowHasFocus);
     virtual void setComplexTextInputState(PluginComplexTextInputState);
     virtual mach_port_t compositingRenderServerPort();
+    virtual void openPluginPreferencePane() OVERRIDE;
 #endif
     virtual float contentsScaleFactor();
     virtual String proxiesForURL(const String&);
@@ -227,6 +230,7 @@ private:
     bool m_isWaitingForSynchronousInitialization;
     bool m_isWaitingUntilMediaCanStart;
     bool m_isBeingDestroyed;
+    bool m_pluginProcessHasCrashed;
 
     // Pending URLRequests that the plug-in has made.
     Deque<RefPtr<URLRequest>> m_pendingURLRequests;

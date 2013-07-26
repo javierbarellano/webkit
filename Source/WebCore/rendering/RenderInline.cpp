@@ -32,6 +32,7 @@
 #include "RenderArena.h"
 #include "RenderBlock.h"
 #include "RenderFlowThread.h"
+#include "RenderFullScreen.h"
 #include "RenderGeometryMap.h"
 #include "RenderLayer.h"
 #include "RenderTheme.h"
@@ -346,6 +347,17 @@ void RenderInline::splitInlines(RenderBlock* fromBlock, RenderBlock* toBlock,
     // Create a clone of this inline.
     RenderInline* cloneInline = clone();
     cloneInline->setContinuation(oldCont);
+
+#if ENABLE(FULLSCREEN_API)
+    // If we're splitting the inline containing the fullscreened element,
+    // |beforeChild| may be the renderer for the fullscreened element. However,
+    // that renderer is wrapped in a RenderFullScreen, so |this| is not its
+    // parent. Since the splitting logic expects |this| to be the parent, set
+    // |beforeChild| to be the RenderFullScreen.
+    const Element* fullScreenElement = document()->webkitCurrentFullScreenElement();
+    if (fullScreenElement && beforeChild && beforeChild->node() == fullScreenElement)
+        beforeChild = document()->fullScreenRenderer();
+#endif
 
     // Now take all of the children from beforeChild to the end and remove
     // them from |this| and place them in the clone.
@@ -744,7 +756,7 @@ const char* RenderInline::renderName() const
         return "RenderInline (generated)";
     if (isAnonymous())
         return "RenderInline (generated)";
-    if (isRunIn())
+    if (style() && isRunIn())
         return "RenderInline (run-in)";
     return "RenderInline";
 }
@@ -791,7 +803,7 @@ bool RenderInline::hitTestCulledInline(const HitTestRequest& request, HitTestRes
         // We can not use addNodeToRectBasedTestResult to determine if we fully enclose the hit-test area
         // because it can only handle rectangular targets.
         result.addNodeToRectBasedTestResult(node(), request, locationInContainer);
-        return regionResult.contains(enclosingIntRect(tmpLocation.boundingBox()));
+        return regionResult.contains(tmpLocation.boundingBox());
     }
     return false;
 }
@@ -1012,7 +1024,7 @@ LayoutRect RenderInline::clippedOverflowRectForRepaint(const RenderLayerModelObj
             break;
         }
         if (inlineFlow->style()->hasInFlowPosition() && inlineFlow->hasLayer())
-            repaintRect.move(toRenderInline(inlineFlow)->layer()->paintOffset());
+            repaintRect.move(toRenderInline(inlineFlow)->layer()->offsetForInFlowPosition());
     }
 
     LayoutUnit outlineSize = style()->outlineSize();
@@ -1059,7 +1071,7 @@ void RenderInline::computeRectForRepaint(const RenderLayerModelObject* repaintCo
         if (v->layoutStateEnabled() && !repaintContainer) {
             LayoutState* layoutState = v->layoutState();
             if (style()->hasInFlowPosition() && layer())
-                rect.move(layer()->paintOffset());
+                rect.move(layer()->offsetForInFlowPosition());
             rect.move(layoutState->m_paintOffset);
             if (layoutState->m_clipped)
                 rect.intersect(layoutState->m_clipRect);
@@ -1092,7 +1104,7 @@ void RenderInline::computeRectForRepaint(const RenderLayerModelObject* repaintCo
         // is translated, but the render box isn't, so we need to do this to get the
         // right dirty rect. Since this is called from RenderObject::setStyle, the relative or sticky position
         // flag on the RenderObject has been cleared, so use the one on the style().
-        topLeft += layer()->paintOffset();
+        topLeft += layer()->offsetForInFlowPosition();
     }
     
     // FIXME: We ignore the lightweight clipping rect that controls use, since if |o| is in mid-layout,
@@ -1129,7 +1141,9 @@ LayoutSize RenderInline::offsetFromContainer(RenderObject* container, const Layo
         offset -= toRenderBox(container)->scrolledContentOffset();
 
     if (offsetDependsOnPoint)
-        *offsetDependsOnPoint = container->hasColumns() || (container->isBox() && container->style()->isFlippedBlocksWritingMode());
+        *offsetDependsOnPoint = container->hasColumns()
+            || (container->isBox() && container->style()->isFlippedBlocksWritingMode())
+            || container->isRenderFlowThread();
 
     return offset;
 }
@@ -1144,7 +1158,7 @@ void RenderInline::mapLocalToContainer(const RenderLayerModelObject* repaintCont
             LayoutState* layoutState = v->layoutState();
             LayoutSize offset = layoutState->m_paintOffset;
             if (style()->hasInFlowPosition() && layer())
-                offset += layer()->paintOffset();
+                offset += layer()->offsetForInFlowPosition();
             transformState.move(offset);
             return;
         }

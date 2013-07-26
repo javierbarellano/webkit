@@ -51,7 +51,7 @@ public:
     virtual void showPopup();
     virtual void hidePopup();
 
-    void setOptionsChanged(bool changed) { m_optionsChanged = changed; }
+    void setOptionsChanged(bool changed) { m_needsOptionsWidthUpdate = changed; }
 
     void didSetSelectedIndex(int listIndex);
 
@@ -137,7 +137,7 @@ protected:
     RenderText* m_buttonText;
     RenderBlock* m_innerBlock;
 
-    bool m_optionsChanged;
+    bool m_needsOptionsWidthUpdate;
     int m_optionsWidth;
 
     int m_lastActiveIndex;

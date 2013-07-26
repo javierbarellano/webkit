@@ -70,7 +70,6 @@ void RenderMathMLFraction::updateFromElement()
     if (!denominatorWrapper)
         return;
     
-    // FIXME: parse units
     String thickness = fraction->getAttribute(MathMLNames::linethicknessAttr);
     m_lineThickness = gLineMedium;
     if (equalIgnoringCase(thickness, "thin"))
@@ -79,8 +78,12 @@ void RenderMathMLFraction::updateFromElement()
         m_lineThickness = gLineMedium;
     else if (equalIgnoringCase(thickness, "thick"))
         m_lineThickness = gLineThick;
-    else if (equalIgnoringCase(thickness, "0"))
-        m_lineThickness = 0;
+    else {
+        // This function parses the thickness attribute using gLineMedium as
+        // the default value. If the parsing fails, m_lineThickness will not be
+        // modified i.e. the default value will be used.
+        parseMathMLLength(thickness, m_lineThickness, style(), false);
+    }
 
     // Update the style for the padding of the denominator for the line thickness
     lastChild()->style()->setPaddingTop(Length(static_cast<int>(m_lineThickness), Fixed));
@@ -140,7 +143,7 @@ void RenderMathMLFraction::layout()
 void RenderMathMLFraction::paint(PaintInfo& info, const LayoutPoint& paintOffset)
 {
     RenderMathMLBlock::paint(info, paintOffset);
-    if (info.context->paintingDisabled() || info.phase != PaintPhaseForeground)
+    if (info.context->paintingDisabled() || info.phase != PaintPhaseForeground || style()->visibility() != VISIBLE)
         return;
     
     RenderBox* denominatorWrapper = lastChildBox();

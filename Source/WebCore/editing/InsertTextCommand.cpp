@@ -34,7 +34,6 @@
 #include "Text.h"
 #include "VisibleUnits.h"
 #include "htmlediting.h"
-#include <wtf/unicode/CharacterNames.h>
 
 namespace WebCore {
 
@@ -147,7 +146,7 @@ void InsertTextCommand::doApply()
         // anything other than NoSelection. The rest of this function requires a real endingSelection, so bail out.
         if (endingSelection().isNone())
             return;
-    } else if (document()->frame()->editor()->isOverwriteModeEnabled()) {
+    } else if (document()->frame()->editor().isOverwriteModeEnabled()) {
         if (performOverwrite(m_text, m_selectInsertedText))
             return;
     }

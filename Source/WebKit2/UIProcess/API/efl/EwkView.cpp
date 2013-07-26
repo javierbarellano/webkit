@@ -29,6 +29,7 @@
 #include "NativeWebKeyboardEvent.h"
 #include "NativeWebMouseEvent.h"
 #include "NativeWebWheelEvent.h"
+#include "NotImplemented.h"
 #include "PageLoadClientEfl.h"
 #include "PagePolicyClientEfl.h"
 #include "PageUIClientEfl.h"
@@ -36,7 +37,9 @@
 #include "PageViewportControllerClientEfl.h"
 #include "SnapshotImageGL.h"
 #include "ViewClientEfl.h"
+#include "WKArray.h"
 #include "WKDictionary.h"
+#include "WKEventEfl.h"
 #include "WKGeometry.h"
 #include "WKNumber.h"
 #include "WKPageGroup.h"
@@ -51,6 +54,7 @@
 #include "WebPreferences.h"
 #include "ewk_back_forward_list_private.h"
 #include "ewk_color_picker_private.h"
+#include "ewk_context_menu_item_private.h"
 #include "ewk_context_menu_private.h"
 #include "ewk_context_private.h"
 #include "ewk_favicon_database_private.h"
@@ -70,6 +74,7 @@
 #endif
 #include <WebCore/CairoUtilitiesEfl.h>
 #include <WebCore/Cursor.h>
+#include <WebCore/NotImplemented.h>
 #include <WebCore/PlatformContextCairo.h>
 #include <WebKit2/WKImageCairo.h>
 #include <wtf/MathExtras.h>
@@ -480,7 +485,7 @@ void EwkView::setCursor(const Cursor& cursor)
 void EwkView::setDeviceScaleFactor(float scale)
 {
     const WKSize& deviceSize = WKViewGetSize(wkView());
-    page()->setIntrinsicDeviceScaleFactor(scale);
+    WKPageSetCustomBackingScaleFactor(wkPage(), scale);
 
     // Update internal viewport size after device-scale change.
     WKViewSetSize(wkView(), deviceSize);
@@ -670,21 +675,14 @@ void EwkView::setThemePath(const char* theme)
     }
 }
 
-const char* EwkView::customTextEncodingName() const
+void EwkView::setCustomTextEncodingName(const char* customEncoding)
 {
-    WKRetainPtr<WKStringRef> customEncoding = adoptWK(WKPageCopyCustomTextEncodingName(wkPage()));
-    if (WKStringIsEmpty(customEncoding.get()))
-        return 0;
+    if (m_customEncoding == customEncoding)
+        return;
 
-    m_customEncoding = WKEinaSharedString(customEncoding.get());
-
-    return m_customEncoding;
-}
-
-void EwkView::setCustomTextEncodingName(const String& encoding)
-{
-    WKRetainPtr<WKStringRef> wkEncoding = adoptWK(toCopiedAPI(encoding));
-    WKPageSetCustomTextEncodingName(wkPage(), wkEncoding.get());
+    m_customEncoding = customEncoding;
+    WKRetainPtr<WKStringRef> wkCustomEncoding = adoptWK(WKStringCreateWithUTF8CString(customEncoding));
+    WKPageSetCustomTextEncodingName(wkPage(), wkCustomEncoding.get());
 }
 
 void EwkView::setUserAgent(const char* userAgent)
@@ -718,9 +716,51 @@ void EwkView::setMouseEventsEnabled(bool enabled)
 }
 
 #if ENABLE(TOUCH_EVENTS)
+static WKTouchPointState toWKTouchPointState(Evas_Touch_Point_State state)
+{
+    switch (state) {
+    case EVAS_TOUCH_POINT_UP:
+        return kWKTouchPointStateTouchReleased;
+    case EVAS_TOUCH_POINT_MOVE:
+        return kWKTouchPointStateTouchMoved;
+    case EVAS_TOUCH_POINT_DOWN:
+        return kWKTouchPointStateTouchPressed;
+    case EVAS_TOUCH_POINT_STILL:
+        return kWKTouchPointStateTouchStationary;
+    case EVAS_TOUCH_POINT_CANCEL:
+    default:
+        return kWKTouchPointStateTouchCancelled;
+    }
+}
+
+static WKEventModifiers toWKEventModifiers(const Evas_Modifier* modifiers)
+{
+    WKEventModifiers wkModifiers = 0;
+    if (evas_key_modifier_is_set(modifiers, "Shift"))
+        wkModifiers |= kWKEventModifiersShiftKey;
+    if (evas_key_modifier_is_set(modifiers, "Control"))
+        wkModifiers |= kWKEventModifiersControlKey;
+    if (evas_key_modifier_is_set(modifiers, "Alt"))
+        wkModifiers |= kWKEventModifiersAltKey;
+    if (evas_key_modifier_is_set(modifiers, "Meta"))
+        wkModifiers |= kWKEventModifiersMetaKey;
+
+    return wkModifiers;
+}
+
 void EwkView::feedTouchEvent(Ewk_Touch_Event_Type type, const Eina_List* points, const Evas_Modifier* modifiers)
 {
-    page()->handleTouchEvent(NativeWebTouchEvent(type, points, modifiers, webView()->transformFromScene(), transformToScreen(), ecore_time_get()));
+    unsigned length = eina_list_count(points);
+    OwnArrayPtr<WKTypeRef> touchPoints = adoptArrayPtr(new WKTypeRef[length]);
+    for (unsigned i = 0; i < length; ++i) {
+        Ewk_Touch_Point* point = static_cast<Ewk_Touch_Point*>(eina_list_nth(points, i));
+        ASSERT(point);
+        IntPoint position(point->x, point->y);
+        touchPoints[i] = WKTouchPointCreate(point->id, toAPI(IntPoint(position)), toAPI(transformToScreen().mapPoint(position)), toWKTouchPointState(point->state), WKSizeMake(0, 0), 0, 1);
+    }
+    WKRetainPtr<WKArrayRef> wkTouchPoints(AdoptWK, WKArrayCreateAdoptingValues(touchPoints.get(), length));
+
+    WKViewSendTouchEvent(wkView(), adoptWK(WKTouchEventCreate(static_cast<WKEventType>(type), wkTouchPoints.get(), toWKEventModifiers(modifiers), ecore_time_get())).get());
 }
 
 void EwkView::setTouchEventsEnabled(bool enabled)
@@ -752,6 +792,11 @@ void EwkView::setTouchEventsEnabled(bool enabled)
         evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_MOVE, handleTouchMove);
     }
 }
+
+void EwkView::doneWithTouchEvent(WKTouchEventRef, bool /* wasEventHandled */)
+{
+    notImplemented();
+}
 #endif
 
 #if USE(ACCELERATED_COMPOSITING)
@@ -781,7 +826,7 @@ bool EwkView::createGLSurface()
 
     Evas_GL_API* gl = evas_gl_api_get(m_evasGL.get());
 
-    const WKPoint& boundsEnd = WKViewUserViewportToContents(wkView(), WKPointMake(deviceSize().width(), deviceSize().height()));
+    WKPoint boundsEnd = WKViewUserViewportToScene(wkView(), WKPointMake(deviceSize().width(), deviceSize().height()));
     gl->glViewport(0, 0, boundsEnd.x, boundsEnd.y);
     gl->glClearColor(1.0, 1.0, 1.0, 0);
     gl->glClear(GL_COLOR_BUFFER_BIT);
@@ -833,6 +878,19 @@ void EwkView::dismissColorPicker()
 COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_RIGHT_TO_LEFT, RTL);
 COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_LEFT_TO_RIGHT, LTR);
 
+void EwkView::customContextMenuItemSelected(WKContextMenuItemRef contextMenuItem)
+{
+    Ewk_View_Smart_Data* sd = smartData();
+    ASSERT(sd->api);
+
+    if (!sd->api->custom_item_selected)
+        return;
+
+    OwnPtr<EwkContextMenuItem> item = EwkContextMenuItem::create(contextMenuItem, 0);
+
+    sd->api->custom_item_selected(sd, item.get());
+}
+
 void EwkView::showContextMenu(WKPoint position, WKArrayRef items)
 {
     Ewk_View_Smart_Data* sd = smartData();
@@ -844,7 +902,9 @@ void EwkView::showContextMenu(WKPoint position, WKArrayRef items)
     if (m_contextMenu)
         hideContextMenu();
 
-    m_contextMenu = Ewk_Context_Menu::create(this, items);
+    m_contextMenu = EwkContextMenu::create(this, items);
+
+    position = WKViewContentsToUserViewport(wkView(), position);
 
     sd->api->context_menu_show(sd, position.x, position.y, m_contextMenu.get());
 }
@@ -881,8 +941,10 @@ void EwkView::requestPopupMenu(WKPopupMenuListenerRef popupMenuListener, const W
 
     m_popupMenu = EwkPopupMenu::create(this, popupMenuListener, items, selectedIndex);
 
+    WKPoint popupMenuPosition = WKViewContentsToUserViewport(wkView(), rect.origin);
+
     Eina_Rectangle einaRect;
-    EINA_RECTANGLE_SET(&einaRect, rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+    EINA_RECTANGLE_SET(&einaRect, popupMenuPosition.x, popupMenuPosition.y, rect.size.width, rect.size.height);
 
     sd->api->popup_menu_show(sd, einaRect, static_cast<Ewk_Text_Direction>(textDirection), pageScaleFactor, m_popupMenu.get());
 }
@@ -1249,24 +1311,22 @@ void EwkView::feedTouchEvents(Ewk_Touch_Event_Type type)
 {
     Ewk_View_Smart_Data* sd = smartData();
 
-    unsigned count = evas_touch_point_list_count(sd->base.evas);
-    if (!count)
+    unsigned length = evas_touch_point_list_count(sd->base.evas);
+    if (!length)
         return;
 
-    Eina_List* points = 0;
-    for (unsigned i = 0; i < count; ++i) {
-        Ewk_Touch_Point* point = new Ewk_Touch_Point;
-        point->id = evas_touch_point_list_nth_id_get(sd->base.evas, i);
-        evas_touch_point_list_nth_xy_get(sd->base.evas, i, &point->x, &point->y);
-        point->state = evas_touch_point_list_nth_state_get(sd->base.evas, i);
-        points = eina_list_append(points, point);
+    OwnArrayPtr<WKTypeRef> touchPoints = adoptArrayPtr(new WKTypeRef[length]);
+    for (unsigned i = 0; i < length; ++i) {
+        int x, y;
+        evas_touch_point_list_nth_xy_get(sd->base.evas, i, &x, &y);
+        IntPoint position(x, y);
+        Evas_Touch_Point_State state = evas_touch_point_list_nth_state_get(sd->base.evas, i);
+        int id = evas_touch_point_list_nth_id_get(sd->base.evas, i);
+        touchPoints[i] = WKTouchPointCreate(id, toAPI(IntPoint(position)), toAPI(transformToScreen().mapPoint(position)), toWKTouchPointState(state), WKSizeMake(0, 0), 0, 1);
     }
+    WKRetainPtr<WKArrayRef> wkTouchPoints(AdoptWK, WKArrayCreateAdoptingValues(touchPoints.get(), length));
 
-    feedTouchEvent(type, points, evas_key_modifier_get(sd->base.evas));
-
-    void* data;
-    EINA_LIST_FREE(points, data)
-        delete static_cast<Ewk_Touch_Point*>(data);
+    WKViewSendTouchEvent(wkView(), adoptWK(WKTouchEventCreate(static_cast<WKEventType>(type), wkTouchPoints.get(), toWKEventModifiers(evas_key_modifier_get(sd->base.evas)), ecore_time_get())).get());
 }
 
 void EwkView::handleTouchDown(void* /* data */, Evas* /* canvas */, Evas_Object* ewkView, void* /* eventInfo */)
@@ -1319,6 +1379,11 @@ PassRefPtr<cairo_surface_t> EwkView::takeSnapshot()
     WKViewResumeActiveDOMObjectsAndAnimations(wkView());
 
     return snapshot.release();
+}
+
+void EwkView::didFindZoomableArea(const WKPoint& point, const WKRect& area)
+{
+    notImplemented();
 }
 
 Evas_Smart_Class EwkView::parentSmartClass = EVAS_SMART_CLASS_INIT_NULL;

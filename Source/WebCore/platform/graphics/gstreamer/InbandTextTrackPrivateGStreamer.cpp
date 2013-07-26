@@ -277,6 +277,7 @@ void InbandTextTrackPrivateGStreamer::notifyPlayerOfTag()
     MutexLocker lock(m_tagMutex);
     if (!client())
         return;
+    /*
     gchar* str;
     if (gst_tag_list_get_string(tags(), GST_TAG_LANGUAGE_CODE, &str)) {
         m_language = str;
@@ -287,7 +288,7 @@ void InbandTextTrackPrivateGStreamer::notifyPlayerOfTag()
         m_label = str;
         client()->setLabel(str);
         g_free(str);
-    }
+    }*/
 }
 
 void InbandTextTrackPrivateGStreamer::newCuesParsed()

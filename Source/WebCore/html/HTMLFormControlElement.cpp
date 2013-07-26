@@ -36,6 +36,7 @@
 #include "HTMLFormElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLLegendElement.h"
+#include "HTMLTextAreaElement.h"
 #include "RenderBox.h"
 #include "RenderTheme.h"
 #include "ScriptEventListener.h"
@@ -188,15 +189,15 @@ static bool shouldAutofocus(HTMLFormControlElement* element)
 
     // FIXME: Should this set of hasTagName checks be replaced by a
     // virtual member function?
-    if (element->hasTagName(inputTag))
-        return !static_cast<HTMLInputElement*>(element)->isInputTypeHidden();
+    if (isHTMLInputElement(element))
+        return !toHTMLInputElement(element)->isInputTypeHidden();
     if (element->hasTagName(selectTag))
         return true;
     if (element->hasTagName(keygenTag))
         return true;
     if (element->hasTagName(buttonTag))
         return true;
-    if (element->hasTagName(textareaTag))
+    if (isHTMLTextAreaElement(element))
         return true;
 
     return false;
@@ -208,11 +209,11 @@ static void focusPostAttach(Node* element, unsigned)
     element->deref(); 
 }
 
-void HTMLFormControlElement::attach()
+void HTMLFormControlElement::attach(const AttachContext& context)
 {
     PostAttachCallbackDisabler disabler(this);
 
-    HTMLElement::attach();
+    HTMLElement::attach(context);
 
     // The call to updateFromElement() needs to go after the call through
     // to the base class's attach() because that can sometimes do a close
@@ -252,19 +253,19 @@ void HTMLFormControlElement::removedFrom(ContainerNode* insertionPoint)
     FormAssociatedElement::removedFrom(insertionPoint);
 }
 
-bool HTMLFormControlElement::wasChangedSinceLastFormControlChangeEvent() const
-{
-    return m_wasChangedSinceLastFormControlChangeEvent;
-}
-
 void HTMLFormControlElement::setChangedSinceLastFormControlChangeEvent(bool changed)
 {
     m_wasChangedSinceLastFormControlChangeEvent = changed;
 }
 
+void HTMLFormControlElement::dispatchChangeEvent()
+{
+    dispatchScopedEvent(Event::create(eventNames().changeEvent, true, false));
+}
+
 void HTMLFormControlElement::dispatchFormControlChangeEvent()
 {
-    HTMLElement::dispatchChangeEvent();
+    dispatchChangeEvent();
     setChangedSinceLastFormControlChangeEvent(false);
 }
 
@@ -461,9 +462,9 @@ bool HTMLFormControlElement::validationMessageShadowTreeContains(Node* node) con
     return m_validationMessage && m_validationMessage->shadowTreeContains(node);
 }
 
-void HTMLFormControlElement::dispatchBlurEvent(PassRefPtr<Node> newFocusedNode)
+void HTMLFormControlElement::dispatchBlurEvent(PassRefPtr<Element> newFocusedElement)
 {
-    HTMLElement::dispatchBlurEvent(newFocusedNode);
+    HTMLElement::dispatchBlurEvent(newFocusedElement);
     hideVisibleValidationMessage();
 }
 

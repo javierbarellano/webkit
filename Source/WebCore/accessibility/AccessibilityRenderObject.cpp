@@ -54,6 +54,7 @@
 #include "HTMLOptionElement.h"
 #include "HTMLOptionsCollection.h"
 #include "HTMLSelectElement.h"
+#include "HTMLTableElement.h"
 #include "HTMLTextAreaElement.h"
 #include "HitTestRequest.h"
 #include "HitTestResult.h"
@@ -74,6 +75,7 @@
 #include "RenderListBox.h"
 #include "RenderListMarker.h"
 #include "RenderMathMLBlock.h"
+#include "RenderMathMLFraction.h"
 #include "RenderMathMLOperator.h"
 #include "RenderMenuList.h"
 #include "RenderSVGShape.h"
@@ -516,8 +518,8 @@ bool AccessibilityRenderObject::isAttachment() const
 
 bool AccessibilityRenderObject::isFileUploadButton() const
 {
-    if (m_renderer && m_renderer->node() && m_renderer->node()->hasTagName(inputTag)) {
-        HTMLInputElement* input = static_cast<HTMLInputElement*>(m_renderer->node());
+    if (m_renderer && m_renderer->node() && isHTMLInputElement(m_renderer->node())) {
+        HTMLInputElement* input = toHTMLInputElement(m_renderer->node());
         return input->isFileUpload();
     }
     
@@ -578,7 +580,7 @@ Element* AccessibilityRenderObject::anchorElement() const
     // NOTE: this assumes that any non-image with an anchor is an HTMLAnchorElement
     Node* node = currRenderer->node();
     for ( ; node; node = node->parentNode()) {
-        if (node->hasTagName(aTag) || (node->renderer() && cache->getOrCreate(node->renderer())->isAnchor()))
+        if (isHTMLAnchorElement(node) || (node->renderer() && cache->getOrCreate(node->renderer())->isAnchor()))
             return toElement(node);
     }
     
@@ -624,7 +626,7 @@ String AccessibilityRenderObject::helpText() const
     return String();
 }
 
-String AccessibilityRenderObject::textUnderElement() const
+String AccessibilityRenderObject::textUnderElement(AccessibilityTextUnderElementMode mode) const
 {
     if (!m_renderer)
         return String();
@@ -643,23 +645,9 @@ String AccessibilityRenderObject::textUnderElement() const
     }
 #endif
 
-#if PLATFORM(GTK)
-    // On GTK, always use a text iterator in order to get embedded object characters.
-    // TODO: Add support for embedded object characters to the other codepaths that try
-    // to build the accessible text recursively, so this special case isn't needed.
-    // https://bugs.webkit.org/show_bug.cgi?id=105214
-    if (Node* node = this->node()) {
-        if (Frame* frame = node->document()->frame()) {
-            // catch stale WebCoreAXObject (see <rdar://problem/3960196>)
-            if (frame->document() != node->document())
-                return String();
-
-            return plainText(rangeOfContents(node).get(), textIteratorBehaviorForTextRange());
-        }
-    }
-#endif
-
-    if (m_renderer->isText()) {
+    // We use a text iterator for text objects AND for those cases where we are
+    // explicitly asking for the full text under a given element.
+    if (m_renderer->isText() || mode == TextUnderElementModeIncludeAllChildren) {
         // If possible, use a text iterator to get the text, so that whitespace
         // is handled consistently.
         if (Node* node = this->node()) {
@@ -674,14 +662,16 @@ String AccessibilityRenderObject::textUnderElement() const
     
         // Sometimes text fragments don't have Nodes associated with them (like when
         // CSS content is used to insert text or when a RenderCounter is used.)
-        RenderText* renderTextObject = toRenderText(m_renderer);
-        if (renderTextObject->isTextFragment())
-            return String(static_cast<RenderTextFragment*>(m_renderer)->contentString());
-        else
+        if (m_renderer->isText()) {
+            RenderText* renderTextObject = toRenderText(m_renderer);
+            if (renderTextObject->isTextFragment())
+                return String(static_cast<RenderTextFragment*>(m_renderer)->contentString());
+
             return String(renderTextObject->text());
+        }
     }
     
-    return AccessibilityNodeObject::textUnderElement();
+    return AccessibilityNodeObject::textUnderElement(mode);
 }
 
 Node* AccessibilityRenderObject::node() const
@@ -758,8 +748,8 @@ HTMLLabelElement* AccessibilityRenderObject::labelElementContainer() const
     
     // find if this has a parent that is a label
     for (Node* parentNode = m_renderer->node(); parentNode; parentNode = parentNode->parentNode()) {
-        if (parentNode->hasTagName(labelTag))
-            return static_cast<HTMLLabelElement*>(parentNode);
+        if (isHTMLLabelElement(parentNode))
+            return toHTMLLabelElement(parentNode);
     }
     
     return 0;
@@ -850,12 +840,24 @@ bool AccessibilityRenderObject::supportsPath() const
     
     return false;
 }
-    
+
 Path AccessibilityRenderObject::elementPath() const
 {
 #if ENABLE(SVG)
-    if (m_renderer && m_renderer->isSVGShape())
-        return toRenderSVGShape(m_renderer)->path();
+    if (m_renderer && m_renderer->isSVGShape() && toRenderSVGShape(m_renderer)->hasPath()) {
+        Path path = toRenderSVGShape(m_renderer)->path();
+        
+        // The SVG path is in terms of the parent's bounding box. The path needs to be offset to frame coordinates.
+        for (RenderObject* parent = m_renderer->parent(); parent; parent = parent->parent()) {
+            if (parent->isSVGRoot()) {
+                LayoutPoint parentOffset = axObjectCache()->getOrCreate(parent)->elementRect().location();
+                path.transform(AffineTransform().translate(parentOffset.x(), parentOffset.y()));
+                break;
+            }
+        }
+        
+        return path;
+    }
 #endif
     
     return Path();
@@ -887,9 +889,9 @@ AccessibilityObject* AccessibilityRenderObject::internalLinkElement() const
         return 0;
     
     // Right now, we do not support ARIA links as internal link elements
-    if (!element->hasTagName(aTag))
+    if (!isHTMLAnchorElement(element))
         return 0;
-    HTMLAnchorElement* anchor = static_cast<HTMLAnchorElement*>(element);
+    HTMLAnchorElement* anchor = toHTMLAnchorElement(element);
     
     KURL linkURL = anchor->href();
     String fragmentIdentifier = linkURL.fragmentIdentifier();
@@ -923,10 +925,10 @@ void AccessibilityRenderObject::addRadioButtonGroupMembers(AccessibilityChildren
         return;
     
     Node* node = m_renderer->node();
-    if (!node || !node->hasTagName(inputTag))
+    if (!node || !isHTMLInputElement(node))
         return;
     
-    HTMLInputElement* input = static_cast<HTMLInputElement*>(node);
+    HTMLInputElement* input = toHTMLInputElement(node);
     // if there's a form, then this is easy
     if (input->form()) {
         Vector<RefPtr<Node> > formElements;
@@ -942,8 +944,8 @@ void AccessibilityRenderObject::addRadioButtonGroupMembers(AccessibilityChildren
         RefPtr<NodeList> list = node->document()->getElementsByTagName("input");
         unsigned len = list->length();
         for (unsigned i = 0; i < len; ++i) {
-            if (list->item(i)->hasTagName(inputTag)) {
-                HTMLInputElement* associateElement = static_cast<HTMLInputElement*>(list->item(i));
+            if (isHTMLInputElement(list->item(i))) {
+                HTMLInputElement* associateElement = toHTMLInputElement(list->item(i));
                 if (associateElement->isRadioButton() && associateElement->name() == input->name()) {
                     if (AccessibilityObject* object = axObjectCache()->getOrCreate(associateElement))
                         linkedUIElements.append(object);
@@ -1197,7 +1199,7 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
 
     // don't ignore labels, because they serve as TitleUIElements
     Node* node = m_renderer->node();
-    if (node && node->hasTagName(labelTag))
+    if (node && isHTMLLabelElement(node))
         return false;
     
     // Anything that is content editable should not be ignored.
@@ -1458,19 +1460,19 @@ void AccessibilityRenderObject::setSelectedTextRange(const PlainTextRange& range
 
 KURL AccessibilityRenderObject::url() const
 {
-    if (isAnchor() && m_renderer->node()->hasTagName(aTag)) {
-        if (HTMLAnchorElement* anchor = static_cast<HTMLAnchorElement*>(anchorElement()))
+    if (isAnchor() && isHTMLAnchorElement(m_renderer->node())) {
+        if (HTMLAnchorElement* anchor = toHTMLAnchorElement(anchorElement()))
             return anchor->href();
     }
     
     if (isWebArea())
         return m_renderer->document()->url();
     
-    if (isImage() && m_renderer->node() && m_renderer->node()->hasTagName(imgTag))
-        return static_cast<HTMLImageElement*>(m_renderer->node())->src();
+    if (isImage() && m_renderer->node() && isHTMLImageElement(m_renderer->node()))
+        return toHTMLImageElement(m_renderer->node())->src();
     
     if (isInputImage())
-        return static_cast<HTMLInputElement*>(m_renderer->node())->src();
+        return toHTMLInputElement(m_renderer->node())->src();
     
     return KURL();
 }
@@ -1576,13 +1578,13 @@ bool AccessibilityRenderObject::isFocused() const
     if (!document)
         return false;
     
-    Node* focusedNode = document->focusedNode();
-    if (!focusedNode)
+    Element* focusedElement = document->focusedElement();
+    if (!focusedElement)
         return false;
     
     // A web area is represented by the Document node in the DOM tree, which isn't focusable.
     // Check instead if the frame's selection controller is focused
-    if (focusedNode == m_renderer->node()
+    if (focusedElement == m_renderer->node()
         || (roleValue() == WebAreaRole && document->frame()->selection()->isFocusedAndActive()))
         return true;
     
@@ -1595,21 +1597,20 @@ void AccessibilityRenderObject::setFocused(bool on)
         return;
     
     Document* document = this->document();
-    if (!on)
-        document->setFocusedNode(0);
-    else {
-        Node* node = this->node();
-        if (node && node->isElementNode()) {
-            // If this node is already the currently focused node, then calling focus() won't do anything.
-            // That is a problem when focus is removed from the webpage to chrome, and then returns.
-            // In these cases, we need to do what keyboard and mouse focus do, which is reset focus first.
-            if (document->focusedNode() == node)
-                document->setFocusedNode(0);
-            
-            toElement(node)->focus();
-        } else
-            document->setFocusedNode(node);
+    Node* node = this->node();
+
+    if (!on || !node || !node->isElementNode()) {
+        document->setFocusedElement(0);
+        return;
     }
+
+    // If this node is already the currently focused node, then calling focus() won't do anything.
+    // That is a problem when focus is removed from the webpage to chrome, and then returns.
+    // In these cases, we need to do what keyboard and mouse focus do, which is reset focus first.
+    if (document->focusedElement() == node)
+        document->setFocusedElement(0);
+
+    toElement(node)->focus();
 }
 
 void AccessibilityRenderObject::setSelectedRows(AccessibilityChildrenVector& selectedRows)
@@ -1641,10 +1642,10 @@ void AccessibilityRenderObject::setValue(const String& string)
     // FIXME: Do we want to do anything here for ARIA textboxes?
     if (renderer->isTextField()) {
         // FIXME: This is not safe!  Other elements could have a TextField renderer.
-        static_cast<HTMLInputElement*>(element)->setValue(string);
+        toHTMLInputElement(element)->setValue(string);
     } else if (renderer->isTextArea()) {
         // FIXME: This is not safe!  Other elements could have a TextArea renderer.
-        static_cast<HTMLTextAreaElement*>(element)->setValue(string);
+        toHTMLTextAreaElement(element)->setValue(string);
     }
 }
 
@@ -1735,11 +1736,12 @@ void AccessibilityRenderObject::getDocumentLinks(AccessibilityChildrenVector& re
                 result.append(axobj);
         } else {
             Node* parent = curr->parentNode();
-            if (parent && curr->hasTagName(areaTag) && parent->hasTagName(mapTag)) {
+            if (parent && isHTMLAreaElement(curr) && isHTMLMapElement(parent)) {
                 AccessibilityImageMapLink* areaObject = static_cast<AccessibilityImageMapLink*>(axObjectCache()->getOrCreate(ImageMapLinkRole));
-                areaObject->setHTMLAreaElement(static_cast<HTMLAreaElement*>(curr));
-                areaObject->setHTMLMapElement(static_cast<HTMLMapElement*>(parent));
-                areaObject->setParent(accessibilityParentForImageMap(static_cast<HTMLMapElement*>(parent)));
+                HTMLMapElement* map = toHTMLMapElement(parent);
+                areaObject->setHTMLAreaElement(toHTMLAreaElement(curr));
+                areaObject->setHTMLMapElement(map);
+                areaObject->setParent(accessibilityParentForImageMap(map));
 
                 result.append(areaObject);
             }
@@ -2151,9 +2153,14 @@ AccessibilityObject* AccessibilityRenderObject::accessibilityImageMapHitTest(HTM
 {
     if (!area)
         return 0;
-    
-    HTMLMapElement* map = static_cast<HTMLMapElement*>(area->parentNode());
-    AccessibilityObject* parent = accessibilityParentForImageMap(map);
+
+    AccessibilityObject* parent = 0;
+    for (Element* mapParent = area->parentElement(); mapParent; mapParent = mapParent->parentElement()) {
+        if (isHTMLMapElement(mapParent)) {
+            parent = accessibilityParentForImageMap(toHTMLMapElement(mapParent));
+            break;
+        }
+    }
     if (!parent)
         return 0;
     
@@ -2200,11 +2207,11 @@ AccessibilityObject* AccessibilityRenderObject::accessibilityHitTest(const IntPo
         return 0;
     Node* node = hitTestResult.innerNode()->deprecatedShadowAncestorNode();
 
-    if (node->hasTagName(areaTag)) 
-        return accessibilityImageMapHitTest(static_cast<HTMLAreaElement*>(node), point);
+    if (isHTMLAreaElement(node))
+        return accessibilityImageMapHitTest(toHTMLAreaElement(node), point);
     
-    if (node->hasTagName(optionTag))
-        node = static_cast<HTMLOptionElement*>(node)->ownerSelectElement();
+    if (isHTMLOptionElement(node))
+        node = toHTMLOptionElement(node)->ownerSelectElement();
     
     RenderObject* obj = node->renderer();
     if (!obj)
@@ -2330,7 +2337,7 @@ void AccessibilityRenderObject::handleActiveDescendantChanged()
     if (!element)
         return;
     Document* doc = renderer()->document();
-    if (!doc->frame()->selection()->isFocusedAndActive() || doc->focusedNode() != element)
+    if (!doc->frame()->selection()->isFocusedAndActive() || doc->focusedElement() != element)
         return; 
     AccessibilityRenderObject* activedescendant = static_cast<AccessibilityRenderObject*>(activeDescendant());
     
@@ -2432,7 +2439,7 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
             return ImageMapRole;
         return WebCoreLinkRole;
     }
-    if (cssBox && cssBox->isListItem())
+    if ((cssBox && cssBox->isListItem()) || (node && node->hasTagName(liTag)))
         return ListItemRole;
     if (m_renderer->isListMarker())
         return ListMarkerRole;
@@ -2443,7 +2450,7 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (m_renderer->isText())
         return StaticTextRole;
     if (cssBox && cssBox->isImage()) {
-        if (node && node->hasTagName(inputTag))
+        if (node && isHTMLInputElement(node))
             return ariaHasPopup() ? PopUpButtonRole : ButtonRole;
         if (isSVGImage())
             return SVGRootRole;
@@ -2466,8 +2473,8 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (cssBox && cssBox->isTextArea())
         return TextAreaRole;
 
-    if (node && node->hasTagName(inputTag)) {
-        HTMLInputElement* input = static_cast<HTMLInputElement*>(node);
+    if (node && isHTMLInputElement(node)) {
+        HTMLInputElement* input = toHTMLInputElement(node);
         if (input->isCheckbox())
             return CheckBoxRole;
         if (input->isRadioButton())
@@ -2529,7 +2536,7 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (node && node->hasTagName(trTag))
         return RowRole;
 
-    if (node && node->hasTagName(tableTag))
+    if (node && isHTMLTableElement(node))
         return TableRole;
 #endif
 
@@ -2543,7 +2550,7 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (node && node->hasTagName(pTag))
         return ParagraphRole;
 
-    if (node && node->hasTagName(labelTag))
+    if (node && isHTMLLabelElement(node))
         return LabelRole;
 
     if (node && node->hasTagName(dfnTag))
@@ -2552,7 +2559,7 @@ AccessibilityRole AccessibilityRenderObject::determineAccessibilityRole()
     if (node && node->hasTagName(divTag))
         return DivRole;
 
-    if (node && node->hasTagName(formTag))
+    if (node && isHTMLFormElement(node))
         return FormRole;
 
     if (node && node->hasTagName(articleTag))
@@ -2686,8 +2693,17 @@ bool AccessibilityRenderObject::canSetExpandedAttribute() const
 
 bool AccessibilityRenderObject::canSetValueAttribute() const
 {
+
+    // In the event of a (Boolean)@readonly and (True/False/Undefined)@aria-readonly
+    // value mismatch, the host language native attribute value wins.    
+    if (isNativeTextControl())
+        return !isReadOnly();
+
     if (equalIgnoringCase(getAttribute(aria_readonlyAttr), "true"))
         return false;
+    
+    if (equalIgnoringCase(getAttribute(aria_readonlyAttr), "false"))
+        return true;
 
     if (isProgressIndicator() || isSlider())
         return true;
@@ -2741,9 +2757,9 @@ void AccessibilityRenderObject::addImageMapChildren()
 
     for (Element* current = ElementTraversal::firstWithin(map); current; current = ElementTraversal::next(current, map)) {
         // add an <area> element for this child if it has a link
-        if (current->hasTagName(areaTag) && current->isLink()) {
+        if (isHTMLAreaElement(current) && current->isLink()) {
             AccessibilityImageMapLink* areaObject = static_cast<AccessibilityImageMapLink*>(axObjectCache()->getOrCreate(ImageMapLinkRole));
-            areaObject->setHTMLAreaElement(static_cast<HTMLAreaElement*>(current));
+            areaObject->setHTMLAreaElement(toHTMLAreaElement(current));
             areaObject->setHTMLMapElement(map);
             areaObject->setParent(this);
             if (!areaObject->accessibilityIsIgnored())
@@ -2765,10 +2781,10 @@ void AccessibilityRenderObject::updateChildrenIfNecessary()
 void AccessibilityRenderObject::addTextFieldChildren()
 {
     Node* node = this->node();
-    if (!node || !node->hasTagName(inputTag))
+    if (!node || !isHTMLInputElement(node))
         return;
     
-    HTMLInputElement* input = static_cast<HTMLInputElement*>(node);
+    HTMLInputElement* input = toHTMLInputElement(node);
     HTMLElement* spinButtonElement = input->innerSpinButtonElement();
     if (!spinButtonElement || !spinButtonElement->isSpinButtonElement())
         return;
@@ -3190,8 +3206,8 @@ String AccessibilityRenderObject::stringValueForMSAA() const
 {
     if (isLinkable(*this)) {
         Element* anchor = anchorElement();
-        if (anchor && anchor->hasTagName(aTag))
-            return static_cast<HTMLAnchorElement*>(anchor)->href();
+        if (anchor && isHTMLAnchorElement(anchor))
+            return toHTMLAnchorElement(anchor)->href();
     }
 
     return stringValue();
@@ -3203,10 +3219,10 @@ bool AccessibilityRenderObject::isLinked() const
         return false;
 
     Element* anchor = anchorElement();
-    if (!anchor || !anchor->hasTagName(aTag))
+    if (!anchor || !isHTMLAnchorElement(anchor))
         return false;
 
-    return !static_cast<HTMLAnchorElement*>(anchor)->href().isEmpty();
+    return !toHTMLAnchorElement(anchor)->href().isEmpty();
 }
 
 bool AccessibilityRenderObject::hasBoldFont() const
@@ -3234,7 +3250,7 @@ bool AccessibilityRenderObject::hasPlainText() const
     
     return style->fontDescription().weight() == FontWeightNormal
         && style->fontDescription().italic() == FontItalicOff
-        && style->textDecorationsInEffect() == TDNONE;
+        && style->textDecorationsInEffect() == TextDecorationNone;
 }
 
 bool AccessibilityRenderObject::hasSameFont(RenderObject* renderer) const
@@ -3242,7 +3258,7 @@ bool AccessibilityRenderObject::hasSameFont(RenderObject* renderer) const
     if (!m_renderer || !renderer)
         return false;
     
-    return m_renderer->style()->fontDescription().family() == renderer->style()->fontDescription().family();
+    return m_renderer->style()->fontDescription().families() == renderer->style()->fontDescription().families();
 }
 
 bool AccessibilityRenderObject::hasSameFontColor(RenderObject* renderer) const
@@ -3266,7 +3282,7 @@ bool AccessibilityRenderObject::hasUnderline() const
     if (!m_renderer)
         return false;
     
-    return m_renderer->style()->textDecorationsInEffect() & UNDERLINE;
+    return m_renderer->style()->textDecorationsInEffect() & TextDecorationUnderline;
 }
 
 String AccessibilityRenderObject::nameForMSAA() const
@@ -3529,6 +3545,11 @@ bool AccessibilityRenderObject::isMathIdentifier() const
     return node() && node()->hasTagName(MathMLNames::miTag);
 }
 
+bool AccessibilityRenderObject::isMathMultiscript() const
+{
+    return node() && node()->hasTagName(MathMLNames::mmultiscriptsTag);
+}
+    
 bool AccessibilityRenderObject::isMathTable() const
 {
     return node() && node()->hasTagName(MathMLNames::mtableTag);
@@ -3567,7 +3588,7 @@ bool AccessibilityRenderObject::isIgnoredElementWithinMathTree() const
         if (isMathFraction() || isMathFenced() || isMathSubscriptSuperscript() || isMathRow()
             || isMathUnderOver() || isMathRoot() || isMathText() || isMathNumber()
             || isMathOperator() || isMathFenceOperator() || isMathSeparatorOperator()
-            || isMathIdentifier() || isMathTable() || isMathTableRow() || isMathTableCell())
+            || isMathIdentifier() || isMathTable() || isMathTableRow() || isMathTableCell() || isMathMultiscript())
             return false;
         return true;
     }
@@ -3660,7 +3681,7 @@ AccessibilityObject* AccessibilityRenderObject::mathOverObject()
 
 AccessibilityObject* AccessibilityRenderObject::mathBaseObject()
 {
-    if (!isMathSubscriptSuperscript() && !isMathUnderOver())
+    if (!isMathSubscriptSuperscript() && !isMathUnderOver() && !isMathMultiscript())
         return 0;
     
     AccessibilityChildrenVector children = this->children();
@@ -3718,10 +3739,75 @@ String AccessibilityRenderObject::mathFencedCloseString() const
     
     return getAttribute(MathMLNames::closeAttr);
 }
+    
+void AccessibilityRenderObject::mathPrescripts(AccessibilityMathMultiscriptPairs& prescripts)
+{
+    if (!isMathMultiscript() || !node())
+        return;
+    
+    bool foundPrescript = false;
+    pair<AccessibilityObject*, AccessibilityObject*> prescriptPair;
+    for (Node* child = node()->firstChild(); child; child = child->nextSibling()) {
+        if (foundPrescript) {
+            AccessibilityObject* axChild = axObjectCache()->getOrCreate(child);
+            if (axChild && axChild->isMathElement()) {
+                if (!prescriptPair.first)
+                    prescriptPair.first = axChild;
+                else {
+                    prescriptPair.second = axChild;
+                    prescripts.append(prescriptPair);
+                    prescriptPair.first = 0;
+                    prescriptPair.second = 0;
+                }
+            }
+        } else if (child->hasTagName(MathMLNames::mprescriptsTag))
+            foundPrescript = true;
+    }
+    
+    // Handle the odd number of pre scripts case.
+    if (prescriptPair.first)
+        prescripts.append(prescriptPair);
+}
+
+void AccessibilityRenderObject::mathPostscripts(AccessibilityMathMultiscriptPairs& postscripts)
+{
+    if (!isMathMultiscript() || !node())
+        return;
+
+    // In Multiscripts, the post-script elements start after the first element (which is the base)
+    // and continue until a <mprescripts> tag is found
+    pair<AccessibilityObject*, AccessibilityObject*> postscriptPair;
+    bool foundBaseElement = false;
+    for (Node* child = node()->firstChild(); child; child = child->nextSibling()) {
+        if (child->hasTagName(MathMLNames::mprescriptsTag))
+            break;
+
+        AccessibilityObject* axChild = axObjectCache()->getOrCreate(child);
+        if (axChild && axChild->isMathElement()) {
+            if (!foundBaseElement)
+                foundBaseElement = true;
+            else if (!postscriptPair.first)
+                postscriptPair.first = axChild;
+            else {
+                postscriptPair.second = axChild;
+                postscripts.append(postscriptPair);
+                postscriptPair.first = 0;
+                postscriptPair.second = 0;
+            }
+        }
+    }
+
+    // Handle the odd number of post scripts case.
+    if (postscriptPair.first)
+        postscripts.append(postscriptPair);
+}
 
 int AccessibilityRenderObject::mathLineThickness() const
 {
-    return getAttribute(MathMLNames::linethicknessAttr).toInt();
+    if (!isMathFraction())
+        return -1;
+    
+    return toRenderMathMLFraction(m_renderer)->lineThickness();
 }
 
 #endif

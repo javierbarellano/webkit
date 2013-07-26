@@ -43,6 +43,8 @@ PageBanner::PageBanner(CALayer *layer, int height, Client* client)
     : m_type(NotSet)
     , m_client(client)
     , m_webPage(0)
+    , m_mouseDownInBanner(false)
+    , m_isHidden(false)
     , m_layer(layer)
     , m_height(height)
 {
@@ -57,51 +59,65 @@ void PageBanner::addToPage(Type type, WebPage* webPage)
     ASSERT(m_webPage);
 
     switch (m_type) {
-    case Header: {
-        FrameView* frameView = m_webPage->mainFrameView();
-        if (!frameView)
-            return;
-
-        frameView->setHeaderHeight(m_height);
-
-        GraphicsLayer* parentLayer = frameView->setWantsLayerForHeader(m_layer);
-        if (!parentLayer) {
-            m_webPage->corePage()->removeLayoutMilestones(DidFirstFlushForHeaderLayer);
-            return;
-        }
-
-        m_webPage->corePage()->addLayoutMilestones(DidFirstFlushForHeaderLayer);
-
-        m_layer.get().bounds = CGRectMake(0, 0, parentLayer->size().width(), parentLayer->size().height());
-        [parentLayer->platformLayer() addSublayer:m_layer.get()];
-
+    case Header:
+        m_webPage->corePage()->addHeaderWithHeight(m_height);
         break;
-    }
-    case Footer: {
-        FrameView* frameView = m_webPage->mainFrameView();
-        if (!frameView)
-            return;
-
-        frameView->setFooterHeight(m_height);
-
-        GraphicsLayer* parentLayer = frameView->setWantsLayerForFooter(m_layer);
-        if (!parentLayer)
-            return;
-
-        m_layer.get().bounds = CGRectMake(0, 0, parentLayer->size().width(), parentLayer->size().height());
-        [parentLayer->platformLayer() addSublayer:m_layer.get()];
-
+    case Footer:
+        m_webPage->corePage()->addFooterWithHeight(m_height);
         break;
-    }
     case NotSet:
         ASSERT_NOT_REACHED();
     }
 }
 
+void PageBanner::didAddParentLayer(GraphicsLayer* parentLayer)
+{
+    if (!parentLayer)
+        return;
+
+    m_layer.get().bounds = CGRectMake(0, 0, parentLayer->size().width(), parentLayer->size().height());
+    [parentLayer->platformLayer() addSublayer:m_layer.get()];
+}
+
 void PageBanner::detachFromPage()
 {
+    if (!m_webPage)
+        return;
+
+    // m_webPage->corePage() can be null when this is called from WebPage::~WebPage() after
+    // the web page has been closed.
+    if (m_webPage->corePage()) {
+        // We can hide the banner by removing the parent layer that hosts it.
+        if (m_type == Header)
+            m_webPage->corePage()->addHeaderWithHeight(0);
+        else if (m_type == Footer)
+            m_webPage->corePage()->addFooterWithHeight(0);
+    }
+
     m_type = NotSet;
     m_webPage = 0;
+}
+
+void PageBanner::hide()
+{
+    // We can hide the banner by removing the parent layer that hosts it.
+    if (m_type == Header)
+        m_webPage->corePage()->addHeaderWithHeight(0);
+    else if (m_type == Footer)
+        m_webPage->corePage()->addFooterWithHeight(0);
+
+    m_isHidden = true;
+}
+
+void PageBanner::showIfHidden()
+{
+    if (!m_isHidden)
+        return;
+    m_isHidden = false;
+
+    // This will re-create a parent layer in the WebCore layer tree, and we will re-add
+    // m_layer as a child of it. 
+    addToPage(m_type, m_webPage);
 }
 
 void PageBanner::didChangeDeviceScaleFactor(float scaleFactor)
@@ -112,6 +128,9 @@ void PageBanner::didChangeDeviceScaleFactor(float scaleFactor)
 
 bool PageBanner::mouseEvent(const WebMouseEvent& mouseEvent)
 {
+    if (m_isHidden)
+        return false;
+
     FrameView* frameView = m_webPage->mainFrameView();
     if (!frameView)
         return false;
@@ -131,8 +150,13 @@ bool PageBanner::mouseEvent(const WebMouseEvent& mouseEvent)
         ASSERT_NOT_REACHED();
     }
 
-    if (positionInBannerSpace.y() < 0 || positionInBannerSpace.y() > m_height)
+    if (!m_mouseDownInBanner && (positionInBannerSpace.y() < 0 || positionInBannerSpace.y() > m_height))
         return false;
+
+    if (mouseEvent.type() == WebEvent::MouseDown)
+        m_mouseDownInBanner = true;
+    else if (mouseEvent.type() == WebEvent::MouseUp)
+        m_mouseDownInBanner = false;
 
     return m_client->mouseEvent(this, mouseEvent.type(), mouseEvent.button(), positionInBannerSpace);
 }

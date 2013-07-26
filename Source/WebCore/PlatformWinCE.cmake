@@ -31,7 +31,6 @@ list(APPEND WebCore_SOURCES
 
     platform/Cursor.cpp
     platform/LocalizedStrings.cpp
-    platform/PlatformStrategies.cpp
     platform/ScrollAnimatorNone.cpp
 
     platform/win/BitmapInfo.cpp
@@ -44,6 +43,7 @@ list(APPEND WebCore_SOURCES
     platform/win/DragImageWin.cpp
     platform/win/EditorWin.cpp
     platform/win/EventLoopWin.cpp
+    platform/win/FileSystemWin.cpp
     platform/win/KeyEventWin.cpp
     platform/win/LanguageWin.cpp
     platform/win/LocalizedStringsWin.cpp
@@ -60,13 +60,10 @@ list(APPEND WebCore_SOURCES
     platform/win/SharedTimerWin.cpp
     platform/win/SoundWin.cpp
     platform/win/SystemInfo.cpp
-    platform/win/SystemTimeWin.cpp
     platform/win/WCDataObject.cpp
     platform/win/WebCoreInstanceHandle.cpp
     platform/win/WidgetWin.cpp
     platform/win/WheelEventWin.cpp
-
-    platform/wince/FileSystemWince.cpp
 
     platform/network/NetworkStorageSessionStub.cpp
 

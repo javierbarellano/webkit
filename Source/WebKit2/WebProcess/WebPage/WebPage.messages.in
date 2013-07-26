@@ -63,13 +63,17 @@ messages -> WebPage LegacyReceiver {
     GoForward(uint64_t backForwardItemID)
     GoToBackForwardItem(uint64_t backForwardItemID)
     TryRestoreScrollPosition()
-    LoadHTMLString(WTF::String htmlString, WTF::String baseURL)
-    LoadAlternateHTMLString(WTF::String htmlString, WTF::String baseURL, WTF::String unreachableURL)
-    LoadPlainTextString(WTF::String string)
-    LoadWebArchiveData(CoreIPC::DataReference webArchiveData)
-    LoadURL(WTF::String url, WebKit::SandboxExtension::Handle sandboxExtensionHandle)
-    LoadURLRequest(WebCore::ResourceRequest request, WebKit::SandboxExtension::Handle sandboxExtensionHandle)
+
+    LoadURL(WTF::String url, WebKit::SandboxExtension::Handle sandboxExtensionHandle, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadURLRequest(WebCore::ResourceRequest request, WebKit::SandboxExtension::Handle sandboxExtensionHandle, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadData(CoreIPC::DataReference data, WTF::String MIMEType, WTF::String encoding, WTF::String baseURL, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadHTMLString(WTF::String htmlString, WTF::String baseURL, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadAlternateHTMLString(WTF::String htmlString, WTF::String baseURL, WTF::String unreachableURL, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadPlainTextString(WTF::String string, WebKit::WebContextUserMessageEncoder userData) Variadic
+    LoadWebArchiveData(CoreIPC::DataReference webArchiveData, WebKit::WebContextUserMessageEncoder userData) Variadic
+
     LinkClicked(WTF::String url, WebKit::WebMouseEvent event)
+
     Reload(bool reloadFromOrigin, WebKit::SandboxExtension::Handle sandboxExtensionHandle)
     StopLoading()
 
@@ -261,7 +265,7 @@ messages -> WebPage LegacyReceiver {
 
     SetWindowIsVisible(bool windowIsVisible)
     WindowAndViewFramesChanged(WebCore::FloatRect windowFrameInScreenCoordinates, WebCore::FloatRect windowFrameInUnflippedScreenCoordinates, WebCore::FloatRect viewFrameInWindowCoordinates, WebCore::FloatPoint accessibilityViewCoordinates)
-    ViewExposedRectChanged(WebCore::FloatRect exposedRect)
+    ViewExposedRectChanged(WebCore::FloatRect exposedRect, bool clipsToExposedRect)
     SetMainFrameIsScrollable(bool isScrollable)
     RegisterUIProcessAccessibilityTokens(CoreIPC::DataReference elemenToken, CoreIPC::DataReference windowToken)
     GetStringSelectionForPasteboard() -> (WTF::String stringValue)
@@ -284,14 +288,14 @@ messages -> WebPage LegacyReceiver {
     InsertDictatedText(WTF::String text, uint64_t replacementRangeStart, uint64_t replacementRangeEnd, WTF::Vector<WebCore::DictationAlternative> dictationAlternatives) -> (bool handled, WebKit::EditorState newState)
 #endif
 
-    SetMinimumLayoutWidth(double minimumLayoutWidth)
+    SetMinimumLayoutSize(WebCore::IntSize minimumLayoutSize)
 
 #if PLATFORM(EFL)
     ConfirmComposition(WTF::String compositionString)
     SetComposition(WTF::String compositionString, WTF::Vector<WebCore::CompositionUnderline> underlines, uint64_t cursorPosition)
     CancelComposition()
 #endif
-#if PLATFORM(QT)
+#if USE(COORDINATED_GRAPHICS)
     FindZoomableAreaForPoint(WebCore::IntPoint point, WebCore::IntSize area)
 #endif
 
@@ -308,5 +312,6 @@ messages -> WebPage LegacyReceiver {
 #endif
 
     SetMainFrameInViewSourceMode(bool inViewSourceMode)
-    SetOverridePrivateBrowsingEnabled(bool overridePrivateBrowsingEnabled)
+    
+    SetScrollPinningBehavior(uint32_t pinning)
 }

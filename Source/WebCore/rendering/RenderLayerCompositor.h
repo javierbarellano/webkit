@@ -26,6 +26,8 @@
 #ifndef RenderLayerCompositor_h
 #define RenderLayerCompositor_h
 
+#if USE(ACCELERATED_COMPOSITING)
+
 #include "ChromeClient.h"
 #include "Frame.h"
 #include "GraphicsLayerClient.h"
@@ -185,6 +187,11 @@ public:
     GraphicsLayer* rootGraphicsLayer() const;
     GraphicsLayer* scrollLayer() const;
 
+#if ENABLE(RUBBER_BANDING)
+    GraphicsLayer* headerLayer() const;
+    GraphicsLayer* footerLayer() const;
+#endif
+
     enum RootLayerAttachment {
         RootLayerUnattached,
         RootLayerAttachedViaChromeClient,
@@ -274,6 +281,8 @@ public:
 
     void setLayerFlushThrottlingEnabled(bool);
     void disableLayerFlushThrottlingTemporarilyForInteraction();
+    
+    void didPaintBacking(RenderLayerBacking*);
 
 private:
     class OverlapMap;
@@ -465,5 +474,7 @@ private:
 
 
 } // namespace WebCore
+
+#endif // USE(ACCELERATED_COMPOSITING)
 
 #endif // RenderLayerCompositor_h

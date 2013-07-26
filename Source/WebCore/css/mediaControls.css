@@ -38,7 +38,6 @@ audio {
     height: inherit;
     position: relative;
     display: -webkit-flex;
-    direction: ltr;
     -webkit-align-items: flex-start;
     -webkit-justify-content: flex-end;
     -webkit-flex-direction: column;
@@ -187,6 +186,13 @@ audio::-webkit-media-controls-fullscreen-button, video::-webkit-media-controls-f
     color: inherit;
 }
 
+audio::-webkit-media-controls-rewind-button, video::-webkit-media-controls-rewind-button {
+    display: none;
+    background-color: initial;
+    border: initial;
+    color: inherit;
+}
+
 audio::-webkit-media-controls-return-to-realtime-button, video::-webkit-media-controls-return-to-realtime-button {
     display: none;
     background-color: initial;
@@ -238,7 +244,6 @@ video::-webkit-media-text-track-container {
     overflow: hidden;
     padding-bottom: 5px;
 
-    /*font: 22px sans-serif;*/
     text-align: center;
     color: rgba(255, 255, 255, 1);
 
@@ -257,20 +262,7 @@ video::-webkit-media-text-track-container {
 }
 
 video::cue {
-    display: inline;
-
     background-color: rgba(0, 0, 0, 0.8);
-    padding: 2px 2px;
-}
-
-video::-webkit-media-text-track-future-nodes {
-    visibility: hidden;
-    display: inline;
-
-    background-color: rgba(0, 0, 0, 0.8);
-
-    margin-left: -2px;
-    padding: 2px 2px 2px 0px;
 }
 
 video::-webkit-media-text-track-display {
@@ -278,6 +270,7 @@ video::-webkit-media-text-track-display {
     overflow: hidden;
     white-space: pre-wrap;
     -webkit-box-sizing: border-box;
+    font: 22px sans-serif;
 }
 
 video::-webkit-media-controls-video-track-sel-button {

@@ -29,6 +29,7 @@
 #include "AudioBus.h"
 #include "AudioParam.h"
 #include "AudioScheduledSourceNode.h"
+#include "ExceptionCode.h"
 #include "PannerNode.h"
 #include <wtf/OwnArrayPtr.h>
 #include <wtf/PassRefPtr.h>
@@ -62,11 +63,11 @@ public:
     unsigned numberOfChannels();
 
     // Play-state
-    void startGrain(double when, double grainOffset);
-    void startGrain(double when, double grainOffset, double grainDuration);
+    void startGrain(double when, double grainOffset, ExceptionCode&);
+    void startGrain(double when, double grainOffset, double grainDuration, ExceptionCode&);
 
 #if ENABLE(LEGACY_WEB_AUDIO)
-    void noteGrainOn(double when, double grainOffset, double grainDuration);
+    void noteGrainOn(double when, double grainOffset, double grainDuration, ExceptionCode&);
 #endif
 
     // Note: the attribute was originally exposed as .looping, but to be more consistent in naming with <audio>
@@ -100,6 +101,9 @@ public:
 
 private:
     AudioBufferSourceNode(AudioContext*, float sampleRate);
+
+    virtual double tailTime() const OVERRIDE { return 0; }
+    virtual double latencyTime() const OVERRIDE { return 0; }
 
     // Returns true on success.
     bool renderFromBuffer(AudioBus*, unsigned destinationFrameOffset, size_t numberOfFrames);

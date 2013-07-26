@@ -22,6 +22,7 @@
 #define CSSParserValues_h
 
 #include "CSSSelector.h"
+#include "CSSValueKeywords.h"
 #include "CSSValueList.h"
 #include <wtf/text/AtomicString.h>
 #include <wtf/text/WTFString.h>
@@ -49,11 +50,11 @@ struct CSSParserString {
     void init(const String& string)
     {
         m_length = string.length();
-        if (m_length && string.is8Bit()) {
+        if (!m_length || string.is8Bit()) {
             m_data.characters8 = const_cast<LChar*>(string.characters8());
             m_is8Bit = true;
         } else {
-            m_data.characters16 = const_cast<UChar*>(string.characters());
+            m_data.characters16 = const_cast<UChar*>(string.characters16());
             m_is8Bit = false;
         }
     }
@@ -62,7 +63,7 @@ struct CSSParserString {
     {
         m_data.characters8 = 0;
         m_length = 0;
-        m_is8Bit = false;
+        m_is8Bit = true;
     }
 
     bool is8Bit() const { return m_is8Bit; }
@@ -94,7 +95,9 @@ struct CSSParserString {
     operator String() const { return is8Bit() ? String(m_data.characters8, m_length) : String(m_data.characters16, m_length); }
     operator AtomicString() const { return is8Bit() ? AtomicString(m_data.characters8, m_length) : AtomicString(m_data.characters16, m_length); }
 
-    AtomicString lowerSubstring(unsigned position, unsigned length) const;
+#if ENABLE(CSS_VARIABLES)
+    AtomicString substring(unsigned position, unsigned length) const;
+#endif
 
     union {
         LChar* characters8;
@@ -107,7 +110,7 @@ struct CSSParserString {
 struct CSSParserFunction;
 
 struct CSSParserValue {
-    int id;
+    CSSValueID id;
     bool isInt;
     union {
         double fValue;
@@ -186,13 +189,6 @@ public:
 
     void adoptSelectorVector(Vector<OwnPtr<CSSParserSelector> >& selectorVector);
 
-#if ENABLE(SHADOW_DOM)
-    CSSParserSelector* functionArgumentSelector() const { return m_functionArgumentSelector; }
-    void setFunctionArgumentSelector(CSSParserSelector* selector) { m_functionArgumentSelector = selector; }
-    bool isDistributedPseudoElement() const { return m_selector->isDistributedPseudoElement(); }
-    CSSParserSelector* findDistributedPseudoElementSelector() const;
-#endif
-
     CSSSelector::PseudoType pseudoType() const { return m_selector->pseudoType(); }
     bool isCustomPseudoElement() const { return m_selector->isCustomPseudoElement(); }
 
@@ -209,9 +205,6 @@ public:
 private:
     OwnPtr<CSSSelector> m_selector;
     OwnPtr<CSSParserSelector> m_tagHistory;
-#if ENABLE(SHADOW_DOM)
-    CSSParserSelector* m_functionArgumentSelector;
-#endif
 };
 
 inline bool CSSParserSelector::hasShadowDescendant() const

@@ -372,6 +372,8 @@ using namespace std;
 #define NSAccessibilityMathFencedOpenAttribute @"AXMathFencedOpen"
 #define NSAccessibilityMathFencedCloseAttribute @"AXMathFencedClose"
 #define NSAccessibilityMathLineThicknessAttribute @"AXMathLineThickness"
+#define NSAccessibilityMathPrescriptsAttribute @"AXMathPrescripts"
+#define NSAccessibilityMathPostscriptsAttribute @"AXMathPostscripts"
 
 @implementation WebAccessibilityObjectWrapper
 
@@ -672,28 +674,28 @@ static void AXAttributeStringSetStyle(NSMutableAttributedString* attrString, Ren
     
     // set underline and strikethrough
     int decor = style->textDecorationsInEffect();
-    if ((decor & UNDERLINE) == 0) {
+    if ((decor & TextDecorationUnderline) == 0) {
         [attrString removeAttribute:NSAccessibilityUnderlineTextAttribute range:range];
         [attrString removeAttribute:NSAccessibilityUnderlineColorTextAttribute range:range];
     }
     
-    if ((decor & LINE_THROUGH) == 0) {
+    if ((decor & TextDecorationLineThrough) == 0) {
         [attrString removeAttribute:NSAccessibilityStrikethroughTextAttribute range:range];
         [attrString removeAttribute:NSAccessibilityStrikethroughColorTextAttribute range:range];
     }
     
-    if ((decor & (UNDERLINE | LINE_THROUGH)) != 0) {
+    if ((decor & (TextDecorationUnderline | TextDecorationLineThrough)) != 0) {
         // find colors using quirk mode approach (strict mode would use current
         // color for all but the root line box, which would use getTextDecorationColors)
         Color underline, overline, linethrough;
         renderer->getTextDecorationColors(decor, underline, overline, linethrough);
         
-        if ((decor & UNDERLINE) != 0) {
+        if ((decor & TextDecorationUnderline) != 0) {
             AXAttributeStringSetNumber(attrString, NSAccessibilityUnderlineTextAttribute, [NSNumber numberWithBool:YES], range);
             AXAttributeStringSetColor(attrString, NSAccessibilityUnderlineColorTextAttribute, nsColor(underline), range);
         }
         
-        if ((decor & LINE_THROUGH) != 0) {
+        if ((decor & TextDecorationLineThrough) != 0) {
             AXAttributeStringSetNumber(attrString, NSAccessibilityStrikethroughTextAttribute, [NSNumber numberWithBool:YES], range);
             AXAttributeStringSetColor(attrString, NSAccessibilityStrikethroughColorTextAttribute, nsColor(linethrough), range);
         }
@@ -724,7 +726,7 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
 {
     if (unifiedTextCheckerEnabled(node->document()->frame())) {
         // Check the spelling directly since document->markersForNode() does not store the misspelled marking when the cursor is in a word.
-        TextCheckerClient* checker = node->document()->frame()->editor()->textChecker();
+        TextCheckerClient* checker = node->document()->frame()->editor().textChecker();
         
         // checkTextOfParagraph is the only spelling/grammar checker implemented in WK1 and WK2
         Vector<TextCheckingResult> results;
@@ -735,6 +737,9 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
         for (unsigned i = 0; i < size; i++) {
             const TextCheckingResult& result = results[i];
             AXAttributeStringSetNumber(attrString, NSAccessibilityMisspelledTextAttribute, trueValue, NSMakeRange(result.location + range.location, result.length));
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+            AXAttributeStringSetNumber(attrString, NSAccessibilityMarkedMisspelledTextAttribute, trueValue, NSMakeRange(result.location + range.location, result.length));
+#endif
         }
         return;
     }
@@ -742,7 +747,7 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
     int currentPosition = 0;
     while (charLength > 0) {
         const UChar* charData = chars + currentPosition;
-        TextCheckerClient* checker = node->document()->frame()->editor()->textChecker();
+        TextCheckerClient* checker = node->document()->frame()->editor().textChecker();
         
         int misspellingLocation = -1;
         int misspellingLength = 0;
@@ -752,6 +757,9 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
         
         NSRange spellRange = NSMakeRange(range.location + currentPosition + misspellingLocation, misspellingLength);
         AXAttributeStringSetNumber(attrString, NSAccessibilityMisspelledTextAttribute, [NSNumber numberWithBool:YES], spellRange);
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+        AXAttributeStringSetNumber(attrString, NSAccessibilityMarkedMisspelledTextAttribute, [NSNumber numberWithBool:YES], spellRange);
+#endif
         charLength -= (misspellingLocation + misspellingLength);
         currentPosition += (misspellingLocation + misspellingLength);
     }
@@ -829,6 +837,9 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     
     // remove inherited attachment from prior AXAttributedStringAppendReplaced
     [attrString removeAttribute:NSAccessibilityAttachmentTextAttribute range:attrStringRange];
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    [attrString removeAttribute:NSAccessibilityMarkedMisspelledTextAttribute range:attrStringRange];
+#endif
     [attrString removeAttribute:NSAccessibilityMisspelledTextAttribute range:attrStringRange];
     
     // set new attributes
@@ -1013,9 +1024,12 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
     // All objects should expose the ARIA busy attribute (ARIA 1.1 with ISSUE-538).
     [additional addObject:NSAccessibilityARIABusyAttribute];
     
-    // Popup buttons on the Mac expose the required and value attributes.
+    // Popup buttons on the Mac expose the value attribute.
     if (m_object->isPopUpButton()) {
         [additional addObject:NSAccessibilityValueAttribute];
+    }
+
+    if (m_object->supportsRequiredAttribute()) {
         [additional addObject:NSAccessibilityRequiredAttribute];
     }
     
@@ -1042,6 +1056,10 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
     } else if (m_object->isMathFenced()) {
         [additional addObject:NSAccessibilityMathFencedOpenAttribute];
         [additional addObject:NSAccessibilityMathFencedCloseAttribute];
+    } else if (m_object->isMathMultiscript()) {
+        [additional addObject:NSAccessibilityMathBaseAttribute];
+        [additional addObject:NSAccessibilityMathPrescriptsAttribute];
+        [additional addObject:NSAccessibilityMathPostscriptsAttribute];
     }
     
     if (m_object->supportsPath())
@@ -1522,12 +1540,12 @@ static NSMutableArray* convertToNSArray(const AccessibilityObject::Accessibility
         
         // If we have an empty chrome client (like SVG) then we should use the page
         // of the scroll view parent to help us get to the screen rect.
-        if (parent && page && page->chrome()->client()->isEmptyChromeClient())
+        if (parent && page && page->chrome().client()->isEmptyChromeClient())
             page = parent->page();
         
         if (page) {
             IntRect rect = IntRect(intPoint, IntSize(0, 0));            
-            intPoint = page->chrome()->rootViewToScreen(rect).location();
+            intPoint = page->chrome().rootViewToScreen(rect).location();
         }
         
         return intPoint;
@@ -1855,6 +1873,8 @@ static NSString* roleValueToNSString(AccessibilityRole value)
             return @"AXMathSeparatorOperator";
         if (m_object->isMathOperator())
             return @"AXMathOperator";
+        if (m_object->isMathMultiscript())
+            return @"AXMathMultiscript";
     }
     
     if (m_object->isMediaTimeline())
@@ -2708,6 +2728,10 @@ static NSString* roleValueToNSString(AccessibilityRole value)
             return m_object->mathFencedCloseString();
         if ([attributeName isEqualToString:NSAccessibilityMathLineThicknessAttribute])
             return [NSNumber numberWithInteger:m_object->mathLineThickness()];
+        if ([attributeName isEqualToString:NSAccessibilityMathPostscriptsAttribute])
+            return [self accessibilityMathPostscriptPairs];
+        if ([attributeName isEqualToString:NSAccessibilityMathPrescriptsAttribute])
+            return [self accessibilityMathPrescriptPairs];
     }
     
     // this is used only by DumpRenderTree for testing
@@ -2739,6 +2763,16 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         return m_object->getAttribute(idAttr);
     
     return nil;
+}
+
+- (NSString *)accessibilityPlatformMathSubscriptKey
+{
+    return NSAccessibilityMathSubscriptAttribute;
+}
+
+- (NSString *)accessibilityPlatformMathSuperscriptKey
+{
+    return NSAccessibilityMathSuperscriptAttribute;
 }
 
 - (id)accessibilityFocusedUIElement
@@ -3047,7 +3081,24 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         m_object->setSelectedVisiblePositionRange([self visiblePositionRangeForTextMarkerRange:textMarkerRange]);
     } else if ([attributeName isEqualToString: NSAccessibilityFocusedAttribute]) {
         ASSERT(number);
-        m_object->setFocused([number intValue] != 0);
+        
+        bool focus = [number boolValue];
+        
+        // If focus is just set without making the view the first responder, then keyboard focus won't move to the right place.
+        if (focus && m_object->isWebArea() && !m_object->document()->frame()->selection()->isFocusedAndActive()) {
+            FrameView* frameView = m_object->documentFrameView();
+            Page* page = m_object->page();
+            if (page && frameView) {
+                ChromeClient* client = page->chrome().client();
+                client->focus();
+                if (frameView->platformWidget())
+                    client->makeFirstResponder(frameView->platformWidget());
+                else
+                    client->makeFirstResponder();
+            }
+        }
+        
+        m_object->setFocused(focus);
     } else if ([attributeName isEqualToString: NSAccessibilityValueAttribute]) {
         if (number && m_object->canSetNumericValue())
             m_object->setValue([number floatValue]);
@@ -3247,7 +3298,11 @@ static RenderObject* rendererForView(NSView* view)
         if ([[dictionary objectForKey:@"AXResultsLimit"] isKindOfClass:[NSNumber self]])
             resultsLimit = [(NSNumber*)[dictionary objectForKey:@"AXResultsLimit"] unsignedIntValue];
         
-        AccessibilitySearchCriteria criteria = AccessibilitySearchCriteria(startObject, searchDirection, &searchText, resultsLimit);
+        BOOL visibleOnly = NO;
+        if ([[dictionary objectForKey:@"AXVisibleOnly"] isKindOfClass:[NSNumber self]])
+            visibleOnly = [(NSNumber*)[dictionary objectForKey:@"AXVisibleOnly"] boolValue];
+        
+        AccessibilitySearchCriteria criteria = AccessibilitySearchCriteria(startObject, searchDirection, &searchText, resultsLimit, visibleOnly);
                 
         id searchKeyEntry = [dictionary objectForKey:@"AXSearchKey"];
         if ([searchKeyEntry isKindOfClass:[NSString class]])

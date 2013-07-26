@@ -109,7 +109,7 @@ static bool checkForPreferredPlugin(Vector<PluginModuleInfo>& alreadyLoadedPlugi
 
 static bool shouldBlockPlugin(const PluginModuleInfo& plugin)
 {
-    return PluginInfoStore::policyForPlugin(plugin) == PluginModuleBlocked;
+    return PluginInfoStore::defaultLoadPolicyForPlugin(plugin) == PluginModuleBlocked;
 }
 
 bool PluginInfoStore::shouldUsePlugin(Vector<PluginModuleInfo>& alreadyLoadedPlugins, const PluginModuleInfo& plugin)
@@ -132,33 +132,15 @@ bool PluginInfoStore::shouldUsePlugin(Vector<PluginModuleInfo>& alreadyLoadedPlu
     if (!checkForPreferredPlugin(alreadyLoadedPlugins, plugin, "com.apple.java.JavaAppletPlugin",  oracleJavaAppletPluginBundleIdentifier))
         return false;
 
-    if (plugin.bundleIdentifier == "com.apple.java.JavaAppletPlugin" && shouldBlockPlugin(plugin) && !WKIsJavaPlugInActive()) {
-        // If the Apple Java plug-in is blocked and there's no Java runtime installed, just pretend that the plug-in doesn't exist.
-        return false;
-    }
-
     return true;
 }
 
-PluginModuleLoadPolicy PluginInfoStore::policyForPlugin(const PluginModuleInfo& plugin)
+PluginModuleLoadPolicy PluginInfoStore::defaultLoadPolicyForPlugin(const PluginModuleInfo& plugin)
 {
     if (WKShouldBlockPlugin(plugin.bundleIdentifier, plugin.versionString))
         return PluginModuleBlocked;
 
-    if (plugin.bundleIdentifier == oracleJavaAppletPluginBundleIdentifier && !WKIsJavaPlugInActive())
-        return PluginModuleInactive;
-
     return PluginModuleLoadNormally;
-}
-
-bool PluginInfoStore::reactivateInactivePlugin(const PluginModuleInfo& plugin)
-{
-    if (plugin.bundleIdentifier == oracleJavaAppletPluginBundleIdentifier) {
-        WKActivateJavaPlugIn();
-        return true;
-    }
-
-    return false;
 }
 
 String PluginInfoStore::getMIMETypeForExtension(const String& extension)

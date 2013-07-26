@@ -1,6 +1,6 @@
 /*
  * (C) 1999-2003 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2004, 2005, 2006, 2008 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2008, 2013 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -63,14 +63,14 @@ StyleImage* CSSImageValue::cachedOrPendingImage()
     return m_image.get();
 }
 
-StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader)
+StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader, const ResourceLoaderOptions& options)
 {
     ASSERT(loader);
 
     if (!m_accessedImage) {
         m_accessedImage = true;
 
-        CachedResourceRequest request(ResourceRequest(loader->document()->completeURL(m_url)));
+        CachedResourceRequest request(ResourceRequest(loader->document()->completeURL(m_url)), options);
         if (m_initiatorName.isEmpty())
             request.setInitiator(cachedResourceRequestInitiators().css);
         else
@@ -80,6 +80,11 @@ StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader)
     }
 
     return (m_image && m_image->isCachedImage()) ? static_cast<StyleCachedImage*>(m_image.get()) : 0;
+}
+
+StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader)
+{
+    return cachedImage(loader, CachedResourceLoader::defaultCachedResourceOptions());
 }
 
 bool CSSImageValue::hasFailedOrCanceledSubresources() const
@@ -99,7 +104,7 @@ bool CSSImageValue::equals(const CSSImageValue& other) const
 
 String CSSImageValue::customCssText() const
 {
-    return "url(" + quoteCSSURLIfNeeded(m_url) + ")";
+    return "url(" + quoteCSSURLIfNeeded(m_url) + ')';
 }
 
 PassRefPtr<CSSValue> CSSImageValue::cloneForCSSOM() const

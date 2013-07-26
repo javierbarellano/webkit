@@ -128,6 +128,7 @@ public:
     virtual void setRubberBandsAtBottom(bool) { }
     virtual bool rubberBandsAtTop() const { return false; }
     virtual void setRubberBandsAtTop(bool) { }
+    virtual void setScrollPinningBehavior(ScrollPinningBehavior) { }
 
     // Generated a unique id for scroll layers.
     ScrollingNodeID uniqueScrollLayerID();
@@ -177,6 +178,8 @@ protected:
     unsigned computeCurrentWheelEventHandlerCount();
     GraphicsLayer* scrollLayerForFrameView(FrameView*);
     GraphicsLayer* counterScrollingLayerForFrameView(FrameView*);
+    GraphicsLayer* headerLayerForFrameView(FrameView*);
+    GraphicsLayer* footerLayerForFrameView(FrameView*);
 
     Page* m_page;
 

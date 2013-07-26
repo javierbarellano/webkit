@@ -1,3 +1,35 @@
+2013-06-26  Patrick Gansterer  <paroga@webkit.org>
+
+        Unreviewed WinCE build fix after r152065.
+
+        * WebCoreSupport/ChromeClientWinCE.cpp:
+        (WebKit::ChromeClientWinCE::AXStartFrameLoad):
+        (WebKit::ChromeClientWinCE::AXFinishFrameLoad):
+        * WebCoreSupport/ChromeClientWinCE.h:
+
+2013-05-19  Anders Carlsson  <andersca@apple.com>
+
+        Remove ChromeClient::webView()
+        https://bugs.webkit.org/show_bug.cgi?id=116054
+
+        Reviewed by Darin Adler.
+
+        This blatantly horrible layer violation was only used to know if a ChromeClient is an empty
+        client or not. We already have a (slightly less horrible) way to do that.
+
+        * WebCoreSupport/ChromeClientWinCE.h:
+        (ChromeClientWinCE):
+
+2013-05-13  Anders Carlsson  <andersca@apple.com>
+
+        Frame::editor() should return a reference
+        https://bugs.webkit.org/show_bug.cgi?id=116037
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/EditorClientWinCE.cpp:
+        (WebKit::EditorClientWinCE::handleEditingKeyboardEvent):
+
 2013-04-29  Patrick Gansterer  <paroga@webkit.org>
 
         Unreviewed build fix.

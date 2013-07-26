@@ -32,6 +32,7 @@
 
 #import "AccessibilityController.h"
 #import "CheckedMalloc.h"
+#import "DefaultPolicyDelegate.h"
 #import "DumpRenderTreeDraggingInfo.h"
 #import "DumpRenderTreePasteboard.h"
 #import "DumpRenderTreeWindow.h"
@@ -148,6 +149,7 @@ static EditingDelegate *editingDelegate;
 static ResourceLoadDelegate *resourceLoadDelegate;
 static HistoryDelegate *historyDelegate;
 PolicyDelegate *policyDelegate;
+DefaultPolicyDelegate *defaultPolicyDelegate;
 StorageTrackerDelegate *storageDelegate;
 
 static int dumpPixelsForAllTests = NO;
@@ -236,7 +238,7 @@ static bool shouldIgnoreWebCoreNodeLeaks(const string& URLString)
 
 static NSSet *allowedFontFamilySet()
 {
-    static NSSet *fontFamiliySet = [[NSSet setWithObjects:
+    static NSSet *fontFamilySet = [[NSSet setWithObjects:
         @"Ahem",
         @"Al Bayan",
         @"American Typewriter",
@@ -331,6 +333,8 @@ static NSSet *allowedFontFamilySet()
         @"Sathu",
         @"Silom",
         @"Skia",
+        @"Songti SC",
+        @"Songti TC",
         @"STFangsong",
         @"STHeiti",
         @"STIXGeneral",
@@ -353,7 +357,16 @@ static NSSet *allowedFontFamilySet()
         @"Zapfino",
         nil] retain];
     
-    return fontFamiliySet;
+    return fontFamilySet;
+}
+
+static NSSet *systemHiddenFontFamilySet()
+{
+    static NSSet *fontFamilySet = [[NSSet setWithObjects:
+        @".LucidaGrandeUI",
+        nil] retain];
+
+    return fontFamilySet;
 }
 
 static IMP appKitAvailableFontFamiliesIMP;
@@ -389,7 +402,11 @@ static NSArray *drt_NSFontManager_availableFonts(id self, SEL _cmd)
             [availableFontList addObject:[fontInfo objectAtIndex:0]];
         }
     }
-    
+
+    for (NSString *hiddenFontFamily in systemHiddenFontFamilySet()) {
+        [availableFontList addObject:hiddenFontFamily];
+    }
+
     availableFonts = availableFontList;
     return availableFonts;
 }
@@ -417,9 +434,6 @@ static void swizzleNSFontManagerMethods()
 
 static void activateTestingFonts()
 {
-    // Work around <rdar://problem/6698023> by activating fonts from disk
-    // FIXME: This code can be removed once <rdar://problem/6698023> is addressed.
-
     static const char* fontFileNames[] = {
         "AHEM____.TTF",
         "WebKitWeightWatcher100.ttf",
@@ -544,8 +558,9 @@ WebView *createWebViewAndOffscreenWindow()
     [webView setAutomaticDashSubstitutionEnabled:NO];
     [webView setAutomaticTextReplacementEnabled:NO];
     [webView setAutomaticSpellingCorrectionEnabled:YES];
-    [webView setDefersCallbacks:NO];
     [webView setGrammarCheckingEnabled:YES];
+
+    [webView setDefersCallbacks:NO];
     [webView setInteractiveFormValidationEnabled:YES];
     [webView setValidationMessageTimerMagnification:-1];
     
@@ -771,6 +786,7 @@ static void allocateGlobalControllers()
     policyDelegate = [[PolicyDelegate alloc] init];
     historyDelegate = [[HistoryDelegate alloc] init];
     storageDelegate = [[StorageTrackerDelegate alloc] init];
+    defaultPolicyDelegate = [[DefaultPolicyDelegate alloc] init];
 }
 
 // ObjC++ doens't seem to let me pass NSObject*& sadly.
@@ -859,8 +875,8 @@ static void prepareConsistentTestingEnvironment()
     makeLargeMallocFailSilently();
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-    static id assertion = [[[NSProcessInfo processInfo] beginSuspensionOfSystemBehaviors:NSSystemBehaviorCommonBehaviors
-        reason:@"DumpRenderTree should not be subject to process suppression"] retain];
+    NSActivityOptions options = (NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical) & ~(NSActivitySuddenTerminationDisabled | NSActivityAutomaticTerminationDisabled);
+    static id assertion = [[[NSProcessInfo processInfo] beginActivityWithOptions:options reason:@"DumpRenderTree should not be subject to process suppression"] retain];
     ASSERT_UNUSED(assertion, assertion);
 #endif
 }
@@ -1271,7 +1287,7 @@ static void resetWebViewToConsistentStateBeforeTesting()
     [webView _scaleWebView:1.0 atOrigin:NSZeroPoint];
     [webView _setCustomBackingScaleFactor:0];
     [webView setTabKeyCyclesThroughElements:YES];
-    [webView setPolicyDelegate:nil];
+    [webView setPolicyDelegate:defaultPolicyDelegate];
     [policyDelegate setPermissive:NO];
     [policyDelegate setControllerToNotifyDone:0];
     [frameLoadDelegate resetToConsistentState];
@@ -1289,6 +1305,14 @@ static void resetWebViewToConsistentStateBeforeTesting()
         // in the case that a test using the chrome input field failed, be sure to clean up for the next test
         gTestRunner->removeChromeInputField();
     }
+
+    [webView setContinuousSpellCheckingEnabled:YES];
+    [webView setAutomaticQuoteSubstitutionEnabled:NO];
+    [webView setAutomaticLinkDetectionEnabled:NO];
+    [webView setAutomaticDashSubstitutionEnabled:NO];
+    [webView setAutomaticTextReplacementEnabled:NO];
+    [webView setAutomaticSpellingCorrectionEnabled:YES];
+    [webView setGrammarCheckingEnabled:YES];
 
     [WebView _setUsesTestModeFocusRingColor:YES];
     [WebView _resetOriginAccessWhitelists];

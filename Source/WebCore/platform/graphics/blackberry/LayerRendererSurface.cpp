@@ -24,6 +24,7 @@
 
 #include "LayerCompositingThread.h"
 #include "LayerRenderer.h"
+#include "LayerUtilities.h"
 #include "TextureCacheCompositingThread.h"
 
 namespace WebCore {
@@ -45,37 +46,19 @@ void LayerRendererSurface::setContentRect(const IntRect& contentRect)
     m_size = contentRect.size();
 }
 
-FloatRect LayerRendererSurface::drawRect() const
+FloatRect LayerRendererSurface::boundingBox() const
 {
-    float bx = m_size.width() / 2.0;
-    float by = m_size.height() / 2.0;
+    FloatRect rect = WebCore::boundingBox(transformedBounds());
 
-    FloatRect rect = transformedBounds().boundingBox();
-
-    if (m_ownerLayer->replicaLayer()) {
-        FloatQuad bounds;
-        bounds.setP1(m_replicaDrawTransform.mapPoint(FloatPoint(-bx, -by)));
-        bounds.setP2(m_replicaDrawTransform.mapPoint(FloatPoint(-bx, by)));
-        bounds.setP3(m_replicaDrawTransform.mapPoint(FloatPoint(bx, by)));
-        bounds.setP4(m_replicaDrawTransform.mapPoint(FloatPoint(bx, -by)));
-        rect.unite(bounds.boundingBox());
-    }
+    if (m_ownerLayer->replicaLayer())
+        rect.unite(m_replicaDrawTransform.mapQuad(FloatRect(-origin(), size())).boundingBox());
 
     return rect;
 }
 
-FloatQuad LayerRendererSurface::transformedBounds() const
+Vector<FloatPoint, 4> LayerRendererSurface::transformedBounds() const
 {
-    float bx = m_size.width() / 2.0;
-    float by = m_size.height() / 2.0;
-
-    FloatQuad bounds;
-    bounds.setP1(m_drawTransform.mapPoint(FloatPoint(-bx, -by)));
-    bounds.setP2(m_drawTransform.mapPoint(FloatPoint(-bx, by)));
-    bounds.setP3(m_drawTransform.mapPoint(FloatPoint(bx, by)));
-    bounds.setP4(m_drawTransform.mapPoint(FloatPoint(bx, -by)));
-
-    return bounds;
+    return toVector<FloatPoint, 4>(m_drawTransform.mapQuad(FloatRect(-origin(), size())));
 }
 
 bool LayerRendererSurface::ensureTexture()

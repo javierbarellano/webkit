@@ -88,7 +88,7 @@ private:
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
     virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
 
-    virtual void attach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
 
     virtual bool canStartSelection() const;
@@ -111,6 +111,22 @@ private:
     HTMLFormElement* m_form;
     CompositeOperator m_compositeOperator;
 };
+
+inline bool isHTMLImageElement(Node* node)
+{
+    return node->hasTagName(HTMLNames::imgTag);
+}
+
+inline bool isHTMLImageElement(Element* element)
+{
+    return element->hasTagName(HTMLNames::imgTag);
+}
+
+inline HTMLImageElement* toHTMLImageElement(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLImageElement(node));
+    return static_cast<HTMLImageElement*>(node);
+}
 
 } //namespace
 

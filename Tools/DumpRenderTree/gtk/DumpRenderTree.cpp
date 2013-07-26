@@ -196,7 +196,7 @@ CString getTopLevelPath()
 
 CString getOutputDir()
 {
-    const char* webkitOutputDir = g_getenv("WEBKITOUTPUTDIR");
+    const char* webkitOutputDir = g_getenv("WEBKIT_OUTPUTDIR");
     if (webkitOutputDir)
         return webkitOutputDir;
 
@@ -439,40 +439,41 @@ static void resetDefaultsToConsistentValues()
     WebKitWebSettings* settings = webkit_web_view_get_settings(webView);
     GOwnPtr<gchar> localStoragePath(g_build_filename(g_get_user_data_dir(), "DumpRenderTreeGtk", "databases", NULL));
     g_object_set(G_OBJECT(settings),
-                 "enable-private-browsing", FALSE,
-                 "enable-developer-extras", FALSE,
-                 "enable-spell-checking", TRUE,
-                 "enable-html5-database", TRUE,
-                 "enable-html5-local-storage", TRUE,
-                 "html5-local-storage-database-path", localStoragePath.get(),
-                 "enable-xss-auditor", FALSE,
-                 "enable-spatial-navigation", FALSE,
-                 "javascript-can-access-clipboard", TRUE,
-                 "javascript-can-open-windows-automatically", TRUE,
-                 "enable-offline-web-application-cache", TRUE,
-                 "enable-universal-access-from-file-uris", TRUE,
-                 "enable-file-access-from-file-uris", TRUE,
-                 "enable-scripts", TRUE,
-                 "enable-dom-paste", TRUE,
-                 "default-font-family", "Times",
-                 "monospace-font-family", "Courier",
-                 "serif-font-family", "Times",
-                 "sans-serif-font-family", "Helvetica",
-                 "cursive-font-family", "cursive",
-                 "fantasy-font-family", "fantasy",
-                 "default-font-size", 12,
-                 "default-monospace-font-size", 10,
-                 "minimum-font-size", 0,
-                 "enable-caret-browsing", FALSE,
-                 "enable-page-cache", FALSE,
-                 "auto-resize-window", TRUE,
-                 "auto-load-images", TRUE,
-                 "enable-java-applet", FALSE,
-                 "enable-plugins", TRUE,
-                 "enable-hyperlink-auditing", FALSE,
-                 "editing-behavior", WEBKIT_EDITING_BEHAVIOR_UNIX,
-                 "enable-fullscreen", TRUE,
-                 NULL);
+        "enable-accelerated-compositing", FALSE,
+        "enable-private-browsing", FALSE,
+        "enable-developer-extras", FALSE,
+        "enable-spell-checking", TRUE,
+        "enable-html5-database", TRUE,
+        "enable-html5-local-storage", TRUE,
+        "html5-local-storage-database-path", localStoragePath.get(),
+        "enable-xss-auditor", FALSE,
+        "enable-spatial-navigation", FALSE,
+        "javascript-can-access-clipboard", TRUE,
+        "javascript-can-open-windows-automatically", TRUE,
+        "enable-offline-web-application-cache", TRUE,
+        "enable-universal-access-from-file-uris", TRUE,
+        "enable-file-access-from-file-uris", TRUE,
+        "enable-scripts", TRUE,
+        "enable-dom-paste", TRUE,
+        "default-font-family", "Times",
+        "monospace-font-family", "Courier",
+        "serif-font-family", "Times",
+        "sans-serif-font-family", "Helvetica",
+        "cursive-font-family", "cursive",
+        "fantasy-font-family", "fantasy",
+        "default-font-size", 12,
+        "default-monospace-font-size", 10,
+        "minimum-font-size", 0,
+        "enable-caret-browsing", FALSE,
+        "enable-page-cache", FALSE,
+        "auto-resize-window", TRUE,
+        "auto-load-images", TRUE,
+        "enable-java-applet", FALSE,
+        "enable-plugins", TRUE,
+        "enable-hyperlink-auditing", FALSE,
+        "editing-behavior", WEBKIT_EDITING_BEHAVIOR_UNIX,
+        "enable-fullscreen", TRUE,
+        NULL);
     webkit_web_view_set_settings(webView, settings);
     webkit_set_cache_model(WEBKIT_CACHE_MODEL_DOCUMENT_BROWSER);
 
@@ -1288,15 +1289,23 @@ static void willSendRequestCallback(WebKitWebView* webView, WebKitWebFrame* webF
     SoupMessage* soupMessage = webkit_network_request_get_message(request);
     SoupURI* uri = soup_uri_new(webkit_network_request_get_uri(request));
 
-    if (SOUP_URI_VALID_FOR_HTTP(uri) && g_strcmp0(uri->host, "127.0.0.1")
-        && g_strcmp0(uri->host, "255.255.255.255")
-        && g_ascii_strncasecmp(uri->host, "localhost", 9)) {
-        printf("Blocked access to external URL %s\n", soup_uri_to_string(uri, FALSE));
-        // Cancel load of blocked resource to avoid potential
-        // network-related timeouts in tests.
-        webkit_network_request_set_uri(request, "about:blank");
-        soup_uri_free(uri);
-        return;
+    if (SOUP_URI_IS_VALID(uri)) {
+        GOwnPtr<char> uriString(soup_uri_to_string(uri, FALSE));
+
+        if (SOUP_URI_VALID_FOR_HTTP(uri) && g_strcmp0(uri->host, "127.0.0.1")
+            && g_strcmp0(uri->host, "255.255.255.255")
+            && g_ascii_strncasecmp(uri->host, "localhost", 9)) {
+            printf("Blocked access to external URL %s\n", uriString.get());
+            // Cancel load of blocked resource to avoid potential
+            // network-related timeouts in tests.
+            webkit_network_request_set_uri(request, "about:blank");
+            soup_uri_free(uri);
+            return;
+        }
+
+        const string& destination = gTestRunner->redirectionDestinationForURL(uriString.get());
+        if (!destination.empty())
+            webkit_network_request_set_uri(request, destination.c_str());
     }
 
     if (uri)

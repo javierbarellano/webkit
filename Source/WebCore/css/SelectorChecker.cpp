@@ -34,10 +34,12 @@
 #include "FocusController.h"
 #include "Frame.h"
 #include "FrameSelection.h"
+#include "HTMLAnchorElement.h"
 #include "HTMLDocument.h"
 #include "HTMLFrameElementBase.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
+#include "HTMLOptGroupElement.h"
 #include "HTMLOptionElement.h"
 #include "HTMLProgressElement.h"
 #include "HTMLStyleElement.h"
@@ -283,24 +285,6 @@ SelectorChecker::Match SelectorChecker::match(const SelectorCheckingContext& con
             nextContext.elementStyle = 0;
             return match(nextContext, ignoreDynamicPseudo);
         }
-#if ENABLE(SHADOW_DOM)
-    case CSSSelector::ShadowDistributed:
-        {
-            Vector<InsertionPoint*, 8> insertionPoints;
-            for (Element* element = context.element; element; element = element->parentElement()) {
-                insertionPoints.clear();
-                collectInsertionPointsWhereNodeIsDistributed(element, insertionPoints);
-                for (size_t i = 0; i < insertionPoints.size(); ++i) {
-                    nextContext.element = insertionPoints[i];
-                    nextContext.isSubSelector = false;
-                    nextContext.elementStyle = 0;
-                    if (match(nextContext, ignoreDynamicPseudo) == SelectorMatches)
-                        return SelectorMatches;
-                }
-            }
-            return SelectorFailsCompletely;
-        }
-#endif
     }
 
     ASSERT_NOT_REACHED();
@@ -397,7 +381,7 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
         return SelectorChecker::tagMatches(element, selector->tagQName());
 
     if (selector->m_match == CSSSelector::Class)
-        return element->hasClass() && static_cast<StyledElement*>(element)->classNames().contains(selector->value());
+        return element->hasClass() && element->classNames().contains(selector->value());
 
     if (selector->m_match == CSSSelector::Id)
         return element->hasID() && element->idForStyleResolution() == selector->value();
@@ -620,7 +604,7 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
             }
             break;
         case CSSSelector::PseudoAutofill:
-            if (!element || !element->isFormControlElement())
+            if (!element->isFormControlElement())
                 break;
             if (HTMLInputElement* inputElement = element->toInputElement())
                 return inputElement->isAutofilled();
@@ -647,7 +631,7 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
         case CSSSelector::PseudoHover:
             // If we're in quirks mode, then hover should never match anchors with no
             // href and *:hover should not match anything. This is important for sites like wsj.com.
-            if (m_strictParsing || context.isSubSelector || (selector->m_match == CSSSelector::Tag && selector->tagQName() != anyQName() && !element->hasTagName(aTag)) || element->isLink()) {
+            if (m_strictParsing || context.isSubSelector || (selector->m_match == CSSSelector::Tag && selector->tagQName() != anyQName() && !isHTMLAnchorElement(element)) || element->isLink()) {
                 if (m_mode == ResolvingStyle) {
                     if (context.elementStyle)
                         context.elementStyle->setAffectedByHover();
@@ -661,7 +645,7 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
         case CSSSelector::PseudoActive:
             // If we're in quirks mode, then :active should never match anchors with no
             // href and *:active should not match anything.
-            if (m_strictParsing || context.isSubSelector || (selector->m_match == CSSSelector::Tag && selector->tagQName() != anyQName() && !element->hasTagName(aTag)) || element->isLink()) {
+            if (m_strictParsing || context.isSubSelector || (selector->m_match == CSSSelector::Tag && selector->tagQName() != anyQName() && !isHTMLAnchorElement(element)) || element->isLink()) {
                 if (m_mode == ResolvingStyle) {
                     if (context.elementStyle)
                         context.elementStyle->setAffectedByActive();
@@ -673,52 +657,46 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
             }
             break;
         case CSSSelector::PseudoEnabled:
-            if (element && (element->isFormControlElement() || element->hasTagName(optionTag) || element->hasTagName(optgroupTag)))
+            if (element->isFormControlElement() || isHTMLOptionElement(element) || isHTMLOptGroupElement(element))
                 return !element->isDisabledFormControl();
             break;
         case CSSSelector::PseudoFullPageMedia:
-            return element && element->document() && element->document()->isMediaDocument();
+            return element->document() && element->document()->isMediaDocument();
             break;
         case CSSSelector::PseudoDefault:
-            return element && element->isDefaultButtonForForm();
+            return element->isDefaultButtonForForm();
         case CSSSelector::PseudoDisabled:
-            if (element && (element->isFormControlElement() || element->hasTagName(optionTag) || element->hasTagName(optgroupTag)))
+            if (element->isFormControlElement() || isHTMLOptionElement(element) || isHTMLOptGroupElement(element))
                 return element->isDisabledFormControl();
             break;
         case CSSSelector::PseudoReadOnly:
-            return element && element->matchesReadOnlyPseudoClass();
+            return element->matchesReadOnlyPseudoClass();
         case CSSSelector::PseudoReadWrite:
-            return element && element->matchesReadWritePseudoClass();
+            return element->matchesReadWritePseudoClass();
         case CSSSelector::PseudoOptional:
-            return element && element->isOptionalFormControl();
+            return element->isOptionalFormControl();
         case CSSSelector::PseudoRequired:
-            return element && element->isRequiredFormControl();
+            return element->isRequiredFormControl();
         case CSSSelector::PseudoValid:
-            if (!element)
-                return false;
             element->document()->setContainsValidityStyleRules();
             return element->willValidate() && element->isValidFormControlElement();
         case CSSSelector::PseudoInvalid:
-            if (!element)
-                return false;
             element->document()->setContainsValidityStyleRules();
             return element->willValidate() && !element->isValidFormControlElement();
         case CSSSelector::PseudoChecked:
             {
-                if (!element)
-                    break;
                 // Even though WinIE allows checked and indeterminate to co-exist, the CSS selector spec says that
                 // you can't be both checked and indeterminate. We will behave like WinIE behind the scenes and just
                 // obey the CSS spec here in the test for matching the pseudo.
                 HTMLInputElement* inputElement = element->toInputElement();
                 if (inputElement && inputElement->shouldAppearChecked() && !inputElement->shouldAppearIndeterminate())
                     return true;
-                if (element->hasTagName(optionTag) && toHTMLOptionElement(element)->selected())
+                if (isHTMLOptionElement(element) && toHTMLOptionElement(element)->selected())
                     return true;
                 break;
             }
         case CSSSelector::PseudoIndeterminate:
-            return element && element->shouldAppearIndeterminate();
+            return element->shouldAppearIndeterminate();
         case CSSSelector::PseudoRoot:
             if (element == element->document()->documentElement())
                 return true;
@@ -745,7 +723,7 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
             // element is an element in the document, the 'full-screen' pseudoclass applies to
             // that element. Also, an <iframe>, <object> or <embed> element whose child browsing
             // context's Document is in the fullscreen state has the 'full-screen' pseudoclass applied.
-            if (element->isFrameElementBase() && static_cast<HTMLFrameElementBase*>(element)->containsFullScreenElement())
+            if (element->isFrameElementBase() && element->containsFullScreenElement())
                 return true;
             if (!element->document()->webkitIsFullScreen())
                 return false;
@@ -770,13 +748,9 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
             return element->document()->shouldDisplaySeamlesslyWithParent();
 #endif
         case CSSSelector::PseudoInRange:
-            if (!element)
-                return false;
             element->document()->setContainsValidityStyleRules();
             return element->isInRange();
         case CSSSelector::PseudoOutOfRange:
-            if (!element)
-                return false;
             element->document()->setContainsValidityStyleRules();
             return element->isOutOfRange();
 #if ENABLE(VIDEO_TRACK)

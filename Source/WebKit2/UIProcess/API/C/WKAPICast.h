@@ -30,9 +30,11 @@
 #include "CacheModel.h"
 #include "FontSmoothingLevel.h"
 #include "HTTPCookieAcceptPolicy.h"
+#include "InjectedBundleHitTestResultMediaType.h"
 #include "PluginModuleInfo.h"
 #include "ProcessModel.h"
 #include "ResourceCachesToClear.h"
+#include "WKBundleHitTestResult.h"
 #include "WKContext.h"
 #include "WKCookieManager.h"
 #include "WKCredentialTypes.h"
@@ -75,7 +77,7 @@ class WebGrammarDetail;
 class WebHitTestResult;
 class WebIconDatabase;
 class WebInspectorProxy;
-class WebKeyValueStorageManagerProxy;
+class WebKeyValueStorageManager;
 class WebMediaCacheManagerProxy;
 class WebNavigationData;
 class WebNetworkInfoManagerProxy;
@@ -103,6 +105,7 @@ WK_ADD_API_MAPPING(WKBackForwardListItemRef, WebBackForwardListItem)
 WK_ADD_API_MAPPING(WKBackForwardListRef, WebBackForwardList)
 WK_ADD_API_MAPPING(WKBatteryManagerRef, WebBatteryManagerProxy)
 WK_ADD_API_MAPPING(WKBatteryStatusRef, WebBatteryStatus)
+WK_ADD_API_MAPPING(WKBundleHitTestResultMediaType, BundleHitTestResultMediaType)
 WK_ADD_API_MAPPING(WKResourceCacheManagerRef, WebResourceCacheManagerProxy)
 WK_ADD_API_MAPPING(WKColorPickerResultListenerRef, WebColorPickerResultListenerProxy)
 WK_ADD_API_MAPPING(WKContextRef, WebContext)
@@ -119,7 +122,7 @@ WK_ADD_API_MAPPING(WKGeolocationPositionRef, WebGeolocationPosition)
 WK_ADD_API_MAPPING(WKGrammarDetailRef, WebGrammarDetail)
 WK_ADD_API_MAPPING(WKHitTestResultRef, WebHitTestResult)
 WK_ADD_API_MAPPING(WKIconDatabaseRef, WebIconDatabase)
-WK_ADD_API_MAPPING(WKKeyValueStorageManagerRef, WebKeyValueStorageManagerProxy)
+WK_ADD_API_MAPPING(WKKeyValueStorageManagerRef, WebKeyValueStorageManager)
 WK_ADD_API_MAPPING(WKMediaCacheManagerRef, WebMediaCacheManagerProxy)
 WK_ADD_API_MAPPING(WKNavigationDataRef, WebNavigationData)
 WK_ADD_API_MAPPING(WKNetworkInfoManagerRef, WebNetworkInfoManagerProxy)
@@ -143,6 +146,36 @@ WK_ADD_API_MAPPING(WKViewportAttributesRef, WebViewportAttributes)
 WK_ADD_API_MAPPING(WKInspectorRef, WebInspectorProxy)
 
 /* Enum conversions */
+
+inline BundleHitTestResultMediaType toBundleHitTestResultMediaType(WKBundleHitTestResultMediaType wkMediaType)
+{
+    switch (wkMediaType) {
+    case kWKBundleHitTestResultMediaTypeNone:
+        return BundleHitTestResultMediaTypeNone;
+    case kWKBundleHitTestResultMediaTypeAudio:
+        return BundleHitTestResultMediaTypeAudio;
+    case kWKBundleHitTestResultMediaTypeVideo:
+        return BundleHitTestResultMediaTypeVideo;
+    }
+    
+    ASSERT_NOT_REACHED();
+    return BundleHitTestResultMediaTypeNone;
+}
+    
+inline WKBundleHitTestResultMediaType toAPI(BundleHitTestResultMediaType mediaType)
+{
+    switch (mediaType) {
+    case BundleHitTestResultMediaTypeNone:
+        return kWKBundleHitTestResultMediaTypeNone;
+    case BundleHitTestResultMediaTypeAudio:
+        return kWKBundleHitTestResultMediaTypeAudio;
+    case BundleHitTestResultMediaTypeVideo:
+        return kWKBundleHitTestResultMediaTypeVideo;
+    }
+    
+    ASSERT_NOT_REACHED();
+    return kWKBundleHitTestResultMediaTypeNone;
+}
 
 inline CacheModel toCacheModel(WKCacheModel wkCacheModel)
 {
@@ -410,10 +443,10 @@ inline WKPluginLoadPolicy toWKPluginLoadPolicy(PluginModuleLoadPolicy pluginModu
     switch (pluginModuleLoadPolicy) {
     case PluginModuleLoadNormally:
         return kWKPluginLoadPolicyLoadNormally;
+    case PluginModuleLoadUnsandboxed:
+        return kWKPluginLoadPolicyLoadUnsandboxed;
     case PluginModuleBlocked:
         return kWKPluginLoadPolicyBlocked;
-    case PluginModuleInactive:
-        return kWKPluginLoadPolicyInactive;
     }
     
     ASSERT_NOT_REACHED();
@@ -427,8 +460,8 @@ inline PluginModuleLoadPolicy toPluginModuleLoadPolicy(WKPluginLoadPolicy plugin
         return PluginModuleLoadNormally;
     case kWKPluginLoadPolicyBlocked:
         return PluginModuleBlocked;
-    case kWKPluginLoadPolicyInactive:
-        return PluginModuleInactive;
+    case kWKPluginLoadPolicyLoadUnsandboxed:
+        return PluginModuleLoadUnsandboxed;
     }
     
     ASSERT_NOT_REACHED();

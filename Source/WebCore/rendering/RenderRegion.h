@@ -82,16 +82,9 @@ public:
 
     void clearObjectStyleInRegion(const RenderObject*);
 
-    enum RegionState {
-        RegionUndefined,
-        RegionEmpty,
-        RegionFit,
-        RegionOverset
-    };
+    RegionOversetState regionOversetState() const;
+    void setRegionOversetState(RegionOversetState);
 
-    RegionState regionState() const { return isValid() ? m_regionState : RegionUndefined; }
-    void setRegionState(RegionState regionState) { m_regionState = regionState; }
-    
     // These methods represent the width and height of a "page" and for a RenderRegion they are just the
     // content width and content height of a region. For RenderRegionSets, however, they will be the width and
     // height of a single column or page in the set.
@@ -112,6 +105,22 @@ public:
     virtual LayoutUnit logicalHeightOfAllFlowThreadContent() const;
 
     bool hasAutoLogicalHeight() const { return m_hasAutoLogicalHeight; }
+
+    LayoutUnit computedAutoHeight() const { return m_computedAutoHeight; }
+
+    void setComputedAutoHeight(LayoutUnit computedAutoHeight)
+    {
+        m_hasComputedAutoHeight = true;
+        m_computedAutoHeight = computedAutoHeight;
+    }
+
+    void clearComputedAutoHeight()
+    {
+        m_hasComputedAutoHeight = false;
+        m_computedAutoHeight = 0;
+    }
+
+    bool hasComputedAutoHeight() const { return m_hasComputedAutoHeight; }
 
     virtual void updateLogicalHeight() OVERRIDE;
 
@@ -136,7 +145,7 @@ protected:
     virtual void computePreferredLogicalWidths() OVERRIDE;
     virtual void computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const OVERRIDE;
 
-    LayoutRect overflowRectForFlowThreadPortion(LayoutRect flowThreadPortionRect, bool isFirstPortion, bool isLastPortion) const;
+    LayoutRect overflowRectForFlowThreadPortion(const LayoutRect& flowThreadPortionRect, bool isFirstPortion, bool isLastPortion) const;
     void repaintFlowThreadContentRectangle(const LayoutRect& repaintRect, bool immediate, const LayoutRect& flowThreadPortionRect,
         const LayoutRect& flowThreadPortionOverflowRect, const LayoutPoint& regionLocation) const;
 
@@ -146,7 +155,7 @@ private:
     virtual const char* renderName() const { return "RenderRegion"; }
 
     virtual bool canHaveChildren() const OVERRIDE { return false; }
-    virtual bool canDOMChildrenHaveRenderParent() const OVERRIDE { return true; }
+    virtual bool canHaveGeneratedChildren() const OVERRIDE { return true; }
 
     virtual void insertedIntoTree() OVERRIDE;
     virtual void willBeRemovedFromTree() OVERRIDE;
@@ -199,7 +208,9 @@ private:
     bool m_isValid : 1;
     bool m_hasCustomRegionStyle : 1;
     bool m_hasAutoLogicalHeight : 1;
-    RegionState m_regionState;
+    bool m_hasComputedAutoHeight : 1;
+
+    LayoutUnit m_computedAutoHeight;
 };
 
 inline RenderRegion* toRenderRegion(RenderObject* object)

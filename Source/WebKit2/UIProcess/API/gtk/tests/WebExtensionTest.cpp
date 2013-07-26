@@ -107,7 +107,7 @@ static void methodCallCallback(GDBusConnection* connection, const char* sender, 
         if (!page) {
             g_dbus_method_invocation_return_error(
                 invocation, G_DBUS_ERROR, G_DBUS_ERROR_INVALID_ARGS,
-                "Invalid page ID: %"G_GUINT64_FORMAT, pageID);
+                "Invalid page ID: %" G_GUINT64_FORMAT, pageID);
             return;
         }
         g_assert_cmpuint(webkit_web_page_get_id(page), ==, pageID);
@@ -121,7 +121,7 @@ static void methodCallCallback(GDBusConnection* connection, const char* sender, 
 }
 
 static const GDBusInterfaceVTable interfaceVirtualTable = {
-    methodCallCallback, 0, 0
+    methodCallCallback, 0, 0, { 0, }
 };
 
 static void busAcquiredCallback(GDBusConnection* connection, const char* name, gpointer userData)

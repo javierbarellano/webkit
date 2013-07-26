@@ -244,6 +244,27 @@ static void setUpFullyClippedStack(BitStack& stack, Node* node)
 
     ASSERT(stack.size() == 1 + depthCrossingShadowBoundaries(node));
 }
+    
+static bool isRendererReplacedElement(RenderObject* renderer)
+{
+    if (!renderer)
+        return false;
+    
+    if (renderer->isImage() || renderer->isWidget())
+        return true;
+    
+    if (renderer->node() && renderer->node()->isElementNode()) {
+        Element* element = toElement(renderer->node());
+        if (element->isFormControlElement() || element->hasTagName(legendTag)
+            || element->hasTagName(meterTag) || element->hasTagName(progressTag))
+            return true;
+        
+        if (equalIgnoringCase(element->getAttribute(roleAttr), "img"))
+            return true;
+    }
+    
+    return false;
+}
 
 // --------
 
@@ -384,12 +405,7 @@ void TextIterator::advance()
             if (!m_handledNode) {
                 if (renderer->isText() && m_node->nodeType() == Node::TEXT_NODE) // FIXME: What about CDATA_SECTION_NODE?
                     m_handledNode = handleTextNode();
-                else if (renderer && (renderer->isImage() || renderer->isWidget() ||
-                         (renderer->node() && renderer->node()->isElementNode() &&
-                          (toElement(renderer->node())->isFormControlElement()
-                          || toElement(renderer->node())->hasTagName(legendTag)
-                          || toElement(renderer->node())->hasTagName(meterTag)
-                          || toElement(renderer->node())->hasTagName(progressTag)))))
+                else if (isRendererReplacedElement(renderer))
                     m_handledNode = handleReplacedElement();
                 else
                     m_handledNode = handleNonTextNode();
@@ -1966,13 +1982,26 @@ inline SearchBuffer::SearchBuffer(const String& target, FindOptions options)
     UStringSearch* searcher = WebCore::searcher();
     UCollator* collator = usearch_getCollator(searcher);
 
-    UCollationStrength strength = m_options & CaseInsensitive ? UCOL_PRIMARY : UCOL_TERTIARY;
+    UCollationStrength strength;
+    USearchAttributeValue comparator;
+    if (m_options & CaseInsensitive) {
+        // Without loss of generality, have 'e' match {'e', 'E', 'é', 'É'} and 'é' match {'é', 'É'}.
+        strength = UCOL_SECONDARY;
+        comparator = USEARCH_PATTERN_BASE_WEIGHT_IS_WILDCARD;
+    } else {
+        // Without loss of generality, have 'e' match {'e'} and 'é' match {'é'}.
+        strength = UCOL_TERTIARY;
+        comparator = USEARCH_STANDARD_ELEMENT_COMPARISON;
+    }
     if (ucol_getStrength(collator) != strength) {
         ucol_setStrength(collator, strength);
         usearch_reset(searcher);
     }
 
     UErrorCode status = U_ZERO_ERROR;
+    usearch_setAttribute(searcher, USEARCH_ELEMENT_COMPARISON, comparator, &status);
+    ASSERT(status == U_ZERO_ERROR);
+
     usearch_setPattern(searcher, m_target.characters(), targetLength, &status);
     ASSERT(status == U_ZERO_ERROR);
 
@@ -2487,19 +2516,16 @@ bool TextIterator::getLocationAndLengthFromRange(Node* scope, const Range* range
 String plainText(const Range* r, TextIteratorBehavior defaultBehavior, bool isDisplayString)
 {
     // The initial buffer size can be critical for performance: https://bugs.webkit.org/show_bug.cgi?id=81192
-    static const unsigned cMaxSegmentSize = 1 << 15;
+    static const unsigned initialCapacity = 1 << 15;
 
     unsigned bufferLength = 0;
     StringBuilder builder;
-    builder.reserveCapacity(cMaxSegmentSize);
+    builder.reserveCapacity(initialCapacity);
     TextIteratorBehavior behavior = defaultBehavior;
     if (!isDisplayString)
         behavior = static_cast<TextIteratorBehavior>(behavior | TextIteratorEmitsTextsWithoutTranscoding);
     
     for (TextIterator it(r, behavior); !it.atEnd(); it.advance()) {
-        if (builder.capacity() < builder.length() + it.length())
-            builder.reserveCapacity(builder.capacity() + cMaxSegmentSize);
-
         it.appendTextToStringBuilder(builder);
         bufferLength += it.length();
     }

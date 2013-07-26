@@ -329,12 +329,12 @@ void DumpRenderTreeSupportQt::setAuthorAndUserStylesEnabled(QWebPageAdapter* ada
 
 void DumpRenderTreeSupportQt::executeCoreCommandByName(QWebPageAdapter* adapter, const QString& name, const QString& value)
 {
-    adapter->page->focusController()->focusedOrMainFrame()->editor()->command(name).execute(value);
+    adapter->page->focusController()->focusedOrMainFrame()->editor().command(name).execute(value);
 }
 
 bool DumpRenderTreeSupportQt::isCommandEnabled(QWebPageAdapter *adapter, const QString& name)
 {
-    return adapter->page->focusController()->focusedOrMainFrame()->editor()->command(name).isEnabled();
+    return adapter->page->focusController()->focusedOrMainFrame()->editor().command(name).isEnabled();
 }
 
 QVariantList DumpRenderTreeSupportQt::selectedRange(QWebPageAdapter *adapter)
@@ -374,7 +374,7 @@ QVariantList DumpRenderTreeSupportQt::firstRectForCharacterRange(QWebPageAdapter
     if (!range)
         return QVariantList();
 
-    QRect resultRect = frame->editor()->firstRectForRange(range.get());
+    QRect resultRect = frame->editor().firstRectForRange(range.get());
     rect << resultRect.x() << resultRect.y() << resultRect.width() << resultRect.height();
     return rect;
 }
@@ -720,7 +720,7 @@ QUrl DumpRenderTreeSupportQt::mediaContentUrlByElementId(QWebFrameAdapter* adapt
     if (!coreNode)
         return res;
 
-    HTMLVideoElement* videoElement = static_cast<HTMLVideoElement*>(coreNode);
+    HTMLVideoElement* videoElement = toHTMLVideoElement(coreNode);
     PlatformMedia platformMedia = videoElement->platformMedia();
     if (platformMedia.type != PlatformMedia::QtMediaPlayerType)
         return res;
@@ -751,17 +751,17 @@ void DumpRenderTreeSupportQt::confirmComposition(QWebPageAdapter *adapter, const
     if (!frame)
         return;
 
-    Editor* editor = frame->editor();
-    if (!editor || (!editor->hasComposition() && !text))
+    Editor& editor = frame->editor();
+    if (!editor.hasComposition() && !text)
         return;
 
-    if (editor->hasComposition()) {
+    if (editor.hasComposition()) {
         if (text)
-            editor->confirmComposition(String::fromUTF8(text));
+            editor.confirmComposition(String::fromUTF8(text));
         else
-            editor->confirmComposition();
+            editor.confirmComposition();
     } else
-        editor->insertText(String::fromUTF8(text), 0);
+        editor.insertText(String::fromUTF8(text), 0);
 }
 
 void DumpRenderTreeSupportQt::injectInternalsObject(QWebFrameAdapter* adapter)

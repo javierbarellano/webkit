@@ -39,14 +39,12 @@
 // FIXME: This is a temporary layering violation while we move more string code to WTF.
 namespace JSC {
 
-typedef HashMap<const char*, RefPtr<StringImpl>, PtrHash<const char*> > LiteralIdentifierTable;
-
 class IdentifierTable {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    ~IdentifierTable();
+    WTF_EXPORT_PRIVATE ~IdentifierTable();
 
-    HashSet<StringImpl*>::AddResult add(StringImpl* value);
+    WTF_EXPORT_PRIVATE HashSet<StringImpl*>::AddResult add(StringImpl* value);
     template<typename U, typename V>
     HashSet<StringImpl*>::AddResult add(U value);
 
@@ -59,11 +57,8 @@ public:
         return true;
     }
 
-    LiteralIdentifierTable& literalTable() { return m_literalTable; }
-
 private:
     HashSet<StringImpl*> m_table;
-    LiteralIdentifierTable m_literalTable;
 };
 
 }

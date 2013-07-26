@@ -29,6 +29,7 @@
 #if ENABLE(VIDEO)
 #include "MediaControlsApple.h"
 
+#include "CSSValueKeywords.h"
 #include "Chrome.h"
 #include "ExceptionCodePlaceholder.h"
 #include "HTMLMediaElement.h"
@@ -38,6 +39,7 @@
 #include "Page.h"
 #include "RenderTheme.h"
 #include "Text.h"
+#include "WheelEvent.h"
 
 #if ENABLE(VIDEO_TRACK)
 #include "TextTrackCue.h"
@@ -298,25 +300,13 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_closedCaptionsTrackList->setMediaController(controller);
     if (m_closedCaptionsContainer)
         m_closedCaptionsContainer->setMediaController(controller);
-
-#if ENABLE(VIDEO_TRACK)
-    if (m_videoTrackSelButton)
-        m_videoTrackSelButton->setMediaController(controller);
-    if (m_audioTrackSelButton)
-        m_audioTrackSelButton->setMediaController(controller);
-    if (m_textTrackSelButton)
-        m_textTrackSelButton->setMediaController(controller);
-
-    updateTrackControls();
-    updateTrickModeButtons();
-#endif
 }
 
 void MediaControlsApple::defaultEventHandler(Event* event)
 {
     if (event->type() == eventNames().clickEvent) {
         if (m_closedCaptionsContainer && m_closedCaptionsContainer->isShowing()) {
-            m_closedCaptionsContainer->hide();
+            hideClosedCaptionTrackList();
             event->setDefaultHandled();
         }
     }
@@ -329,7 +319,7 @@ void MediaControlsApple::hide()
     MediaControls::hide();
     m_volumeSliderContainer->hide();
     if (m_closedCaptionsContainer)
-        m_closedCaptionsContainer->hide();
+        hideClosedCaptionTrackList();
 }
 
 void MediaControlsApple::makeTransparent()
@@ -337,14 +327,14 @@ void MediaControlsApple::makeTransparent()
     MediaControls::makeTransparent();
     m_volumeSliderContainer->hide();
     if (m_closedCaptionsContainer)
-        m_closedCaptionsContainer->hide();
+        hideClosedCaptionTrackList();
 }
 
 void MediaControlsApple::changedClosedCaptionsVisibility()
 {
     MediaControls::changedClosedCaptionsVisibility();
     if (m_closedCaptionsContainer && m_closedCaptionsContainer->isShowing())
-        m_closedCaptionsContainer->hide();
+        hideClosedCaptionTrackList();
 
 }
 
@@ -585,7 +575,7 @@ void MediaControlsApple::reportedError()
     if (m_toggleClosedCaptionsButton && !page->theme()->hasOwnDisabledStateHandlingFor(MediaToggleClosedCaptionsButtonPart))
         m_toggleClosedCaptionsButton->hide();
     if (m_closedCaptionsContainer)
-        m_closedCaptionsContainer->hide();
+        hideClosedCaptionTrackList();
 }
 
 void MediaControlsApple::updateStatusDisplay()
@@ -596,7 +586,7 @@ void MediaControlsApple::updateStatusDisplay()
 
 void MediaControlsApple::loadedMetadata()
 {
-    if (m_statusDisplay && m_mediaController->isLiveStream())
+    if (m_statusDisplay && !m_mediaController->isLiveStream())
         m_statusDisplay->hide();
 
     MediaControls::loadedMetadata();
@@ -669,12 +659,76 @@ void MediaControlsApple::toggleClosedCaptionTrackList()
 
     if (m_closedCaptionsContainer) {
         if (m_closedCaptionsContainer->isShowing())
-            m_closedCaptionsContainer->hide();
+            hideClosedCaptionTrackList();
         else {
             if (m_closedCaptionsTrackList)
                 m_closedCaptionsTrackList->updateDisplay();
-            m_closedCaptionsContainer->show();
+            showClosedCaptionTrackList();
         }
+    }
+}
+
+void MediaControlsApple::showClosedCaptionTrackList()
+{
+    if (!m_closedCaptionsContainer || m_closedCaptionsContainer->isShowing())
+        return;
+
+    m_closedCaptionsContainer->show();
+
+    // Ensure the controls panel does not receive any events while the captions
+    // track list is visible as all events now need to be captured by the
+    // track list.
+    m_panel->setInlineStyleProperty(CSSPropertyPointerEvents, CSSValueNone);
+
+    RefPtr<EventListener> listener = eventListener();
+    m_closedCaptionsContainer->addEventListener(eventNames().mousewheelEvent, listener, true);
+
+    // Track click events in the capture phase at two levels, first at the document level
+    // such that a click outside of the <video> may dismiss the track list, second at the
+    // media controls level such that a click anywhere outside of the track list hides the
+    // track list. These two levels are necessary since it would not be possible to get a
+    // reference to the track list when handling the event outside of the shadow tree.
+    document()->addEventListener(eventNames().clickEvent, listener, true);
+    addEventListener(eventNames().clickEvent, listener, true);
+}
+
+void MediaControlsApple::hideClosedCaptionTrackList()
+{
+    if (!m_closedCaptionsContainer || !m_closedCaptionsContainer->isShowing())
+        return;
+
+    m_closedCaptionsContainer->hide();
+
+    // Buttons in the controls panel may now be interactive.
+    m_panel->removeInlineStyleProperty(CSSPropertyPointerEvents);
+
+    EventListener* listener = eventListener().get();
+    m_closedCaptionsContainer->removeEventListener(eventNames().mousewheelEvent, listener, true);
+    document()->removeEventListener(eventNames().clickEvent, listener, true);
+    removeEventListener(eventNames().clickEvent, listener, true);
+}
+
+bool MediaControlsApple::shouldClosedCaptionsContainerPreventPageScrolling(int wheelDeltaY)
+{
+    int scrollTop = m_closedCaptionsContainer->scrollTop();
+    // Scrolling down.
+    if (wheelDeltaY < 0 && (scrollTop + m_closedCaptionsContainer->offsetHeight()) >= m_closedCaptionsContainer->scrollHeight())
+        return true;
+    // Scrolling up.
+    if (wheelDeltaY > 0 && scrollTop <= 0)
+        return true;
+    return false;
+}
+
+void MediaControlsApple::handleClickEvent(Event* event)
+{
+    Node* currentTarget = event->currentTarget()->toNode();
+    Node* target = event->target()->toNode();
+
+    if ((currentTarget == document() && !shadowHost()->contains(target)) || (currentTarget == this && !m_closedCaptionsContainer->contains(target))) {
+        hideClosedCaptionTrackList();
+        event->stopImmediatePropagation();
+        event->setDefaultHandled();
     }
 }
 
@@ -686,6 +740,34 @@ void MediaControlsApple::closedCaptionTracksChanged()
         else
             m_toggleClosedCaptionsButton->hide();
     }
+}
+
+PassRefPtr<MediaControlsAppleEventListener> MediaControlsApple::eventListener()
+{
+    if (!m_eventListener)
+        m_eventListener = MediaControlsAppleEventListener::create(this);
+    return m_eventListener;
+}
+
+// --------
+
+void MediaControlsAppleEventListener::handleEvent(ScriptExecutionContext*, Event* event)
+{
+    if (event->type() == eventNames().clickEvent)
+        m_mediaControls->handleClickEvent(event);
+
+    else if (event->type() == eventNames().mousewheelEvent && event->hasInterface(eventNames().interfaceForWheelEvent)) {
+        WheelEvent* wheelEvent = static_cast<WheelEvent*>(event);
+        if (m_mediaControls->shouldClosedCaptionsContainerPreventPageScrolling(wheelEvent->wheelDeltaY()))
+            event->preventDefault();
+    }
+}
+
+bool MediaControlsAppleEventListener::operator==(const EventListener& listener)
+{
+    if (const MediaControlsAppleEventListener* mediaControlsAppleEventListener = MediaControlsAppleEventListener::cast(&listener))
+        return m_mediaControls == mediaControlsAppleEventListener->m_mediaControls;
+    return false;
 }
 
 void MediaControlsApple::updateTrickModeButtons()

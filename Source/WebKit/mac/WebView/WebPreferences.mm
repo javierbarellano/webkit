@@ -387,7 +387,6 @@ public:
         [NSNumber numberWithBool:NO],  WebKitDNSPrefetchingEnabledPreferenceKey,
         [NSNumber numberWithBool:NO],   WebKitFullScreenEnabledPreferenceKey,
         [NSNumber numberWithBool:NO],   WebKitAsynchronousSpellCheckingEnabledPreferenceKey,
-        [NSNumber numberWithBool:NO],   WebKitMemoryInfoEnabledPreferenceKey,
         [NSNumber numberWithBool:YES],  WebKitHyperlinkAuditingEnabledPreferenceKey,
         [NSNumber numberWithBool:NO],   WebKitUsePreHTML5ParserQuirksKey,
         [NSNumber numberWithBool:YES],  WebKitAVFoundationEnabledKey,
@@ -419,6 +418,7 @@ public:
         [NSNumber numberWithBool:YES],  WebKitQTKitEnabledPreferenceKey,
         [NSNumber numberWithBool:NO], WebKitHiddenPageDOMTimerThrottlingEnabledPreferenceKey,
         [NSNumber numberWithBool:NO], WebKitHiddenPageCSSAnimationSuspensionEnabledPreferenceKey,
+        [NSNumber numberWithBool:NO], WebKitLowPowerVideoAudioBufferSizeEnabledPreferenceKey,
         nil];
 
 
@@ -1492,16 +1492,6 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:flag forKey:WebKitPaginateDuringLayoutEnabledPreferenceKey];
 }
 
-- (BOOL)memoryInfoEnabled
-{
-    return [self _boolValueForKey:WebKitMemoryInfoEnabledPreferenceKey];
-}
-
-- (void)setMemoryInfoEnabled:(BOOL)flag
-{
-    [self _setBoolValue:flag forKey:WebKitMemoryInfoEnabledPreferenceKey];
-}
-
 - (BOOL)hyperlinkAuditingEnabled
 {
     return [self _boolValueForKey:WebKitHyperlinkAuditingEnabledPreferenceKey];
@@ -1777,8 +1767,21 @@ static NSString *classIBCreatorID = nil;
     [self _setBoolValue:enabled forKey:WebKitDiagnosticLoggingEnabledKey];
 }
 
+static bool needsScreenFontsEnabledQuirk()
+{
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    static bool is1PasswordNeedingScreenFontsQuirk = WKExecutableWasLinkedOnOrBeforeMountainLion()
+        && [[[NSBundle mainBundle] bundleIdentifier] isEqualToString:@"ws.agile.1Password"];
+    return is1PasswordNeedingScreenFontsQuirk;
+#else
+    return NO;
+#endif
+}
+
 - (BOOL)screenFontSubstitutionEnabled
 {
+    if (needsScreenFontsEnabledQuirk())
+        return YES;
     return [self _boolValueForKey:WebKitScreenFontSubstitutionEnabledKey];
 }
 
@@ -1825,6 +1828,16 @@ static NSString *classIBCreatorID = nil;
 - (void)setHiddenPageCSSAnimationSuspensionEnabled:(BOOL)enabled
 {
     [self _setBoolValue:enabled forKey:WebKitHiddenPageCSSAnimationSuspensionEnabledPreferenceKey];
+}
+
+- (BOOL)lowPowerVideoAudioBufferSizeEnabled
+{
+    return [self _boolValueForKey:WebKitLowPowerVideoAudioBufferSizeEnabledPreferenceKey];
+}
+
+- (void)setLowPowerVideoAudioBufferSizeEnabled:(BOOL)enabled
+{
+    [self _setBoolValue:enabled forKey:WebKitLowPowerVideoAudioBufferSizeEnabledPreferenceKey];
 }
 
 @end

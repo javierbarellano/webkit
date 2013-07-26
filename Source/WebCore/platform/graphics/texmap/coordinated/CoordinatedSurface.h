@@ -23,7 +23,6 @@
 
 #if USE(COORDINATED_GRAPHICS)
 #include "IntRect.h"
-#include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/ThreadSafeRefCounted.h>
 
@@ -39,6 +38,12 @@ public:
     };
     typedef unsigned Flags;
 
+    class Client {
+    public:
+        virtual ~Client() { }
+        virtual void paintToSurfaceContext(GraphicsContext*) = 0;
+    };
+
     typedef PassRefPtr<CoordinatedSurface> Factory(const IntSize&, Flags);
     static void setFactory(Factory);
     static PassRefPtr<CoordinatedSurface> create(const IntSize&, Flags);
@@ -46,17 +51,20 @@ public:
     virtual ~CoordinatedSurface() { }
 
     bool supportsAlpha() const { return flags() & SupportsAlpha; }
-    virtual IntSize size() const = 0;
+    IntSize size() const { return m_size; }
 
-    // Create a graphics context that can be used to paint into the backing store.
-    virtual PassOwnPtr<GraphicsContext> createGraphicsContext(const IntRect&) = 0;
+    virtual void paintToSurface(const IntRect&, Client*) = 0;
 
 #if USE(TEXTURE_MAPPER)
     virtual void copyToTexture(PassRefPtr<BitmapTexture>, const IntRect& target, const IntPoint& sourceOffset) = 0;
 #endif
 
 protected:
-    virtual Flags flags() const = 0;
+    CoordinatedSurface(const IntSize&, Flags);
+    Flags flags() const { return m_flags; }
+
+    IntSize m_size;
+    Flags m_flags;
 
 private:
     static CoordinatedSurface::Factory* s_factory;

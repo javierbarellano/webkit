@@ -312,7 +312,7 @@ CGImageRef ImageSource::createFrameAtIndex(size_t index)
     return maskedImage.leakRef();
 }
 
-bool ImageSource::frameIsCompleteAtIndex(size_t index)
+bool ImageSource::frameIsCompleteAtIndex(size_t index) const
 {
     ASSERT(frameCount());
 
@@ -332,7 +332,7 @@ bool ImageSource::frameIsCompleteAtIndex(size_t index)
     return frameStatus == kCGImageStatusComplete;
 }
 
-float ImageSource::frameDurationAtIndex(size_t index)
+float ImageSource::frameDurationAtIndex(size_t index) const
 {
     if (!initialized())
         return 0;
@@ -361,10 +361,13 @@ float ImageSource::frameDurationAtIndex(size_t index)
     return duration;
 }
 
-bool ImageSource::frameHasAlphaAtIndex(size_t)
+bool ImageSource::frameHasAlphaAtIndex(size_t index) const
 {
     if (!m_decoder)
-        return false;
+        return false; // FIXME: why doesn't this return true?
+
+    if (!frameIsCompleteAtIndex(index))
+        return true;
 
     CFStringRef imageType = CGImageSourceGetType(m_decoder);
 

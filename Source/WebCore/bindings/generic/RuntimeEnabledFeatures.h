@@ -79,6 +79,14 @@ public:
     static bool cssExclusionsEnabled() { return false; }
 #endif
 
+#if ENABLE(CSS_SHAPES)
+    static void setCSSShapesEnabled(bool isEnabled) { isCSSShapesEnabled = isEnabled; }
+    static bool cssShapesEnabled() { return isCSSShapesEnabled; }
+#else
+    static void setCSSShapesEnabled(bool) { }
+    static bool cssShapesEnabled() { return false; }
+#endif
+
 #if ENABLE(CSS_REGIONS)
     static void setCSSRegionsEnabled(bool isEnabled) { isCSSRegionsEnabled = isEnabled; }
     static bool cssRegionsEnabled() { return isCSSRegionsEnabled; }
@@ -87,13 +95,8 @@ public:
     static bool cssRegionsEnabled() { return false; }
 #endif
 
-#if ENABLE(CSS_COMPOSITING)
     static void setCSSCompositingEnabled(bool isEnabled) { isCSSCompositingEnabled = isEnabled; }
     static bool cssCompositingEnabled() { return isCSSCompositingEnabled; }
-#else
-    static void setCSSCompositingEnabled(bool) { }
-    static bool cssCompositingEnabled() { return false; }
-#endif
 
 #if ENABLE(FONT_LOAD_EVENTS)
     static void setFontLoadEventsEnabled(bool isEnabled) { isFontLoadEventsEnabled = isEnabled; }
@@ -142,12 +145,6 @@ public:
 #if ENABLE(SQL_DATABASE)
     static bool openDatabaseEnabled();
     static bool openDatabaseSyncEnabled();
-#endif
-
-#if ENABLE(WEB_AUDIO)
-    static void setWebkitAudioContextEnabled(bool isEnabled) { isWebAudioEnabled = isEnabled; }
-    static bool webkitAudioContextEnabled() { return isWebAudioEnabled; }
-    static bool webkitOfflineAudioContextEnabled() { return isWebAudioEnabled; }
 #endif
 
 #if ENABLE(TOUCH_EVENTS)
@@ -309,13 +306,13 @@ private:
     static bool isDataTransferItemsEnabled;
     static bool isGeolocationEnabled;
     static bool isIndexedDBEnabled;
-    static bool isWebAudioEnabled;
     static bool isTouchEnabled;
     static bool isDeviceMotionEnabled;
     static bool isDeviceOrientationEnabled;
     static bool isSpeechInputEnabled;
     static bool isCanvasPathEnabled;
     static bool isCSSExclusionsEnabled;
+    static bool isCSSShapesEnabled;
     static bool isCSSRegionsEnabled;
     static bool isCSSCompositingEnabled;
     WEBCORE_TESTING static bool isLangAttributeAwareFormControlUIEnabled;

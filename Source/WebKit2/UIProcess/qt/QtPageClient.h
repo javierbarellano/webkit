@@ -70,6 +70,7 @@ public:
     virtual void updateAcceleratedCompositingMode(const LayerTreeContext&);
 #endif // USE(ACCELERATED_COMPOSITING)
     virtual void pageClosed() { }
+    virtual void preferencesDidChange() { }
     virtual void startDrag(const WebCore::DragData&, PassRefPtr<ShareableBitmap> dragImage);
     virtual void setCursor(const WebCore::Cursor&);
     virtual void setCursorHiddenUntilMouseMoves(bool);
@@ -89,16 +90,10 @@ public:
     virtual PassRefPtr<WebPopupMenuProxy> createPopupMenuProxy(WebPageProxy*);
     virtual PassRefPtr<WebContextMenuProxy> createContextMenuProxy(WebPageProxy*);
 #if ENABLE(INPUT_TYPE_COLOR)
-    virtual PassRefPtr<WebColorChooserProxy> createColorChooserProxy(WebPageProxy*, const WebCore::Color& initialColor, const WebCore::IntRect&);
+    virtual PassRefPtr<WebColorPicker> createColorPicker(WebPageProxy*, const WebCore::Color& initialColor, const WebCore::IntRect&);
 #endif
     virtual void setFindIndicator(PassRefPtr<FindIndicator>, bool fadeOut, bool animate) { }
-    virtual void didCommitLoadForMainFrame(bool useCustomRepresentation) { }
-    virtual void didFinishLoadingDataForCustomRepresentation(const String& suggestedFilename, const CoreIPC::DataReference&) { }
-    virtual double customRepresentationZoomFactor() { return 1; }
-    virtual void setCustomRepresentationZoomFactor(double) { }
     virtual void flashBackingStoreUpdates(const Vector<WebCore::IntRect>& updateRects);
-    virtual void findStringInCustomRepresentation(const String&, WebKit::FindOptions, unsigned maxMatchCount) { }
-    virtual void countStringMatchesInCustomRepresentation(const String&, WebKit::FindOptions, unsigned maxMatchCount) { }
     virtual void pageTransitionViewportReady();
     virtual void didFindZoomableArea(const WebCore::IntPoint&, const WebCore::IntRect&);
     virtual void updateTextInputState();

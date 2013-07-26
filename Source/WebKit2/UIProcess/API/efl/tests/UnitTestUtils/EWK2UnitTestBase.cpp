@@ -50,9 +50,10 @@ void EWK2UnitTestBase::SetUp()
 #if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
     const char* engine = "opengl_x11";
     m_ecoreEvas = ecore_evas_new(engine, 0, 0, width, height, 0);
-#else
-    m_ecoreEvas = ecore_evas_new(0, 0, 0, width, height, 0);
+    // Graceful fallback to software rendering if evas_gl engine is not available.
+    if (!m_ecoreEvas)
 #endif
+    m_ecoreEvas = ecore_evas_new(0, 0, 0, width, height, 0);
 
     ecore_evas_show(m_ecoreEvas);
     Evas* evas = ecore_evas_get(m_ecoreEvas);
@@ -224,11 +225,29 @@ bool EWK2UnitTestBase::waitUntilURLChangedTo(const char* expectedURL, double tim
     return !data.didTimeOut();
 }
 
+bool EWK2UnitTestBase::waitUntilTrue(bool &flag, double timeoutSeconds)
+{
+    CallbackDataExpectedValue<bool> data(true, timeoutSeconds);
+
+    while (!data.isDone() && !flag)
+        ecore_main_loop_iterate();
+
+    return !data.didTimeOut();
+}
+
 void EWK2UnitTestBase::mouseClick(int x, int y, int button)
 {
     Evas* evas = evas_object_evas_get(m_webView);
     evas_event_feed_mouse_move(evas, x, y, 0, 0);
     evas_event_feed_mouse_down(evas, button, EVAS_BUTTON_NONE, 0, 0);
+    evas_event_feed_mouse_up(evas, button, EVAS_BUTTON_NONE, 0, 0);
+}
+
+void EWK2UnitTestBase::mouseDoubleClick(int x, int y, int button)
+{
+    Evas* evas = evas_object_evas_get(m_webView);
+    evas_event_feed_mouse_move(evas, x, y, 0, 0);
+    evas_event_feed_mouse_down(evas, button, EVAS_BUTTON_DOUBLE_CLICK, 0, 0);
     evas_event_feed_mouse_up(evas, button, EVAS_BUTTON_NONE, 0, 0);
 }
 

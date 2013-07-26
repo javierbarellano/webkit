@@ -305,8 +305,6 @@ SYMBOL_STRING(ctiTrampoline) ":" "\n"
     "mov.l r7, @-r15" "\n"
     "mov.l r6, @-r15" "\n"
     "mov.l r5, @-r15" "\n"
-    "mov.l r8, @-r15" "\n"
-    "mov #127, r8" "\n"
     "mov.l r14, @-r15" "\n"
     "sts.l pr, @-r15" "\n"
     "mov.l r13, @-r15" "\n"
@@ -322,7 +320,6 @@ SYMBOL_STRING(ctiTrampoline) ":" "\n"
     "mov.l @r15+,r13" "\n"
     "lds.l @r15+,pr" "\n"
     "mov.l @r15+,r14" "\n"
-    "mov.l @r15+,r8" "\n"
     "add #12, r15" "\n"
     "rts" "\n"
     "nop" "\n"
@@ -346,7 +343,6 @@ SYMBOL_STRING(ctiVMThrowTrampoline) ":" "\n"
     "mov.l @r15+,r13" "\n"
     "lds.l @r15+,pr" "\n"
     "mov.l @r15+,r14" "\n"
-    "mov.l @r15+,r8" "\n"
     "add #12, r15" "\n"
     "rts" "\n"
     "nop" "\n"
@@ -364,7 +360,6 @@ SYMBOL_STRING(ctiOpThrowNotCaught) ":" "\n"
     "mov.l @r15+,r13" "\n"
     "lds.l @r15+,pr" "\n"
     "mov.l @r15+,r14" "\n"
-    "mov.l @r15+,r8" "\n"
     "add #12, r15" "\n"
     "rts" "\n"
     "nop" "\n"
@@ -1154,23 +1149,81 @@ static NEVER_INLINE void returnToThrowTrampoline(VM* vm, ReturnAddressPtr except
         } \
     } while (0)
 
+class ErrorFunctor {
+public:
+    virtual ~ErrorFunctor() { }
+    virtual JSValue operator()(ExecState*) = 0;
+};
+
+class ErrorWithExecFunctor : public ErrorFunctor {
+public:
+    typedef JSObject* (*Factory)(ExecState* exec);
+    
+    ErrorWithExecFunctor(Factory factory)
+        : m_factory(factory)
+    {
+    }
+    JSValue operator()(ExecState* exec)
+    {
+        return m_factory(exec);
+    }
+
+private:
+    Factory m_factory;
+};
+
+class ErrorWithExecAndCalleeFunctor : public ErrorFunctor {
+public:
+    typedef JSObject* (*Factory)(ExecState* exec, JSValue callee);
+
+    ErrorWithExecAndCalleeFunctor(Factory factory, JSValue callee)
+        : m_factory(factory), m_callee(callee)
+    {
+    }
+    JSValue operator()(ExecState* exec)
+    {
+        return m_factory(exec, m_callee);
+    }
+private:
+    Factory m_factory;
+    JSValue m_callee;
+};
+
+class ErrorWithExceptionFunctor : public ErrorFunctor {
+    public:
+    ErrorWithExceptionFunctor(JSValue exception)
+        : m_exception(exception)
+    {
+    }
+    JSValue operator()(ExecState*)
+    {
+    return m_exception;
+    }
+
+private:
+    JSValue m_exception;
+};
+
 // Helper function for JIT stubs that may throw an exception in the middle of
 // processing a function call. This function rolls back the stack to
 // our caller, so exception processing can proceed from a valid state.
-template<typename T> static T throwExceptionFromOpCall(JITStackFrame& jitStackFrame, CallFrame* newCallFrame, ReturnAddressPtr& returnAddressSlot)
+template<typename T> static T throwExceptionFromOpCall(JITStackFrame& jitStackFrame, CallFrame* newCallFrame, ReturnAddressPtr& returnAddressSlot, ErrorFunctor& createError )
 {
     CallFrame* callFrame = newCallFrame->callerFrame();
-    ASSERT(callFrame->vm().exception);
     jitStackFrame.callFrame = callFrame;
     callFrame->vm().topCallFrame = callFrame;
+    callFrame->vm().exception = createError(callFrame);
+    ASSERT(callFrame->vm().exception);
     returnToThrowTrampoline(&callFrame->vm(), ReturnAddressPtr(newCallFrame->returnPC()), returnAddressSlot);
     return T();
 }
 
-template<typename T> static T throwExceptionFromOpCall(JITStackFrame& jitStackFrame, CallFrame* newCallFrame, ReturnAddressPtr& returnAddressSlot, JSValue exception)
+template<typename T> static T throwExceptionFromOpCall(JITStackFrame& jitStackFrame, CallFrame* newCallFrame, ReturnAddressPtr& returnAddressSlot)
 {
-    newCallFrame->callerFrame()->vm().exception = exception;
-    return throwExceptionFromOpCall<T>(jitStackFrame, newCallFrame, returnAddressSlot);
+    CallFrame* callFrame = newCallFrame->callerFrame();
+    ASSERT(callFrame->vm().exception);
+    ErrorWithExceptionFunctor functor = ErrorWithExceptionFunctor(callFrame->vm().exception);
+    return throwExceptionFromOpCall<T>(jitStackFrame, newCallFrame, returnAddressSlot, functor);
 }
 
 #if CPU(ARM_THUMB2) && COMPILER(GCC)
@@ -1465,8 +1518,10 @@ DEFINE_STUB_FUNCTION(void*, stack_check)
     STUB_INIT_STACK_FRAME(stackFrame);
     CallFrame* callFrame = stackFrame.callFrame;
 
-    if (UNLIKELY(!stackFrame.stack->grow(&callFrame->registers()[callFrame->codeBlock()->m_numCalleeRegisters])))
-        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, createStackOverflowError(callFrame->callerFrame()));
+    if (UNLIKELY(!stackFrame.stack->grow(&callFrame->registers()[callFrame->codeBlock()->m_numCalleeRegisters]))) {
+        ErrorWithExecFunctor functor = ErrorWithExecFunctor(createStackOverflowError);
+        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, functor);
+    }
 
     return callFrame;
 }
@@ -1894,7 +1949,7 @@ DEFINE_STUB_FUNCTION(EncodedJSValue, op_check_has_instance)
         }
     }
 
-    stackFrame.vm->exception = createInvalidParamError(callFrame, "instanceof", baseVal);
+    stackFrame.vm->exception = createInvalidParameterError(callFrame, "instanceof", baseVal);
     VM_THROW_EXCEPTION_AT_END();
     return JSValue::encode(JSValue());
 }
@@ -2164,9 +2219,10 @@ DEFINE_STUB_FUNCTION(void*, op_call_arityCheck)
     CallFrame* callFrame = stackFrame.callFrame;
 
     CallFrame* newCallFrame = CommonSlowPaths::arityCheckFor(callFrame, stackFrame.stack, CodeForCall);
-    if (!newCallFrame)
-        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, createStackOverflowError(callFrame->callerFrame()));
-
+    if (!newCallFrame) {
+        ErrorWithExecFunctor functor = ErrorWithExecFunctor(createStackOverflowError);
+        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, functor);
+    }
     return newCallFrame;
 }
 
@@ -2177,9 +2233,10 @@ DEFINE_STUB_FUNCTION(void*, op_construct_arityCheck)
     CallFrame* callFrame = stackFrame.callFrame;
 
     CallFrame* newCallFrame = CommonSlowPaths::arityCheckFor(callFrame, stackFrame.stack, CodeForConstruct);
-    if (!newCallFrame)
-        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, createStackOverflowError(callFrame->callerFrame()));
-
+    if (!newCallFrame) {
+        ErrorWithExecFunctor functor = ErrorWithExecFunctor(createStackOverflowError);
+        return throwExceptionFromOpCall<void*>(stackFrame, callFrame, STUB_RETURN_ADDRESS, functor);
+    }
     return newCallFrame;
 }
 
@@ -2343,7 +2400,8 @@ DEFINE_STUB_FUNCTION(EncodedJSValue, op_call_NotJSFunction)
     ASSERT(callType != CallTypeJS);
     if (callType != CallTypeHost) {
         ASSERT(callType == CallTypeNone);
-        return throwExceptionFromOpCall<EncodedJSValue>(stackFrame, callFrame, STUB_RETURN_ADDRESS, createNotAFunctionError(callFrame->callerFrame(), callee));
+        ErrorWithExecAndCalleeFunctor functor = ErrorWithExecAndCalleeFunctor(createNotAConstructorError, callee);
+        return throwExceptionFromOpCall<EncodedJSValue>(stackFrame, callFrame, STUB_RETURN_ADDRESS, functor);
     }
 
     EncodedJSValue returnValue;
@@ -2469,7 +2527,8 @@ DEFINE_STUB_FUNCTION(EncodedJSValue, op_construct_NotJSConstruct)
     ASSERT(constructType != ConstructTypeJS);
     if (constructType != ConstructTypeHost) {
         ASSERT(constructType == ConstructTypeNone);
-        return throwExceptionFromOpCall<EncodedJSValue>(stackFrame, callFrame, STUB_RETURN_ADDRESS, createNotAConstructorError(callFrame->callerFrame(), callee));
+        ErrorWithExecAndCalleeFunctor functor = ErrorWithExecAndCalleeFunctor(createNotAConstructorError, callee);
+        return throwExceptionFromOpCall<EncodedJSValue>(stackFrame, callFrame, STUB_RETURN_ADDRESS, functor);
     }
 
     EncodedJSValue returnValue;
@@ -3306,7 +3365,7 @@ DEFINE_STUB_FUNCTION(EncodedJSValue, op_in)
     JSValue baseVal = stackFrame.args[1].jsValue();
 
     if (!baseVal.isObject()) {
-        stackFrame.vm->exception = createInvalidParamError(stackFrame.callFrame, "in", baseVal);
+        stackFrame.vm->exception = createInvalidParameterError(stackFrame.callFrame, "in", baseVal);
         VM_THROW_EXCEPTION();
     }
 
@@ -3463,7 +3522,7 @@ DEFINE_STUB_FUNCTION(void, op_throw_static_error)
     STUB_INIT_STACK_FRAME(stackFrame);
 
     CallFrame* callFrame = stackFrame.callFrame;
-    String message = stackFrame.args[0].jsValue().toString(callFrame)->value(callFrame);
+    String message = errorDescriptionForValue(callFrame, stackFrame.args[0].jsValue())->value(callFrame);
     if (stackFrame.args[1].asInt32)
         stackFrame.vm->exception = createReferenceError(callFrame, message);
     else

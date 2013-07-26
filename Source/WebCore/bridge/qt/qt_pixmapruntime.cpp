@@ -137,7 +137,7 @@ static JSValueRef assignToHTMLImageElement(JSContextRef context, JSObjectRef fun
 
     // We now know that we have a valid <img> element as the argument, we can attach the pixmap to it.
     RefPtr<StillImage> stillImage = WebCore::StillImage::create(toPixmap(data));
-    HTMLImageElement* imageElement = static_cast<HTMLImageElement*>(static_cast<JSHTMLImageElement*>(jsObject)->impl());
+    HTMLImageElement* imageElement = toHTMLImageElement(static_cast<JSHTMLImageElement*>(jsObject)->impl());
     imageElement->setCachedImage(new CachedImage(stillImage.get()));
     return JSValueMakeUndefined(context);
 }
@@ -218,7 +218,7 @@ QVariant QtPixmapRuntime::toQt(JSContextRef context, JSObjectRef obj, QMetaType:
         return emptyVariantForHint(hint);
 
     JSHTMLImageElement* elementJSWrapper = static_cast<JSHTMLImageElement*>(jsObject);
-    HTMLImageElement* imageElement = static_cast<HTMLImageElement*>(elementJSWrapper->impl());
+    HTMLImageElement* imageElement = toHTMLImageElement(elementJSWrapper->impl());
 
     if (!imageElement)
         return emptyVariantForHint(hint);
@@ -249,14 +249,16 @@ JSClassRef QtPixmapRuntime::getClassRef()
 {
     static const JSStaticValue staticValues[] = {
         { "width", getPixmapWidth, 0, 0 },
-        { "height", getPixmapHeight, 0, 0 }
+        { "height", getPixmapHeight, 0, 0 },
+        { 0, 0, 0, 0}
     };
 
     static const JSStaticFunction staticFunctions[] = {
         { "assignToHTMLImageElement", assignToHTMLImageElement, 0 },
         { "toDataUrl", pixmapToDataUrl, 0 },
         { "toImageData", pixmapToImageData, 0 },
-        { "toString", pixmapToString, 0 }
+        { "toString", pixmapToString, 0 },
+        { 0, 0, 0 }
     };
 
     static const JSClassDefinition classDefinition = {

@@ -100,9 +100,16 @@ WK_EXPORT WKArrayRef WKPageCopyRelatedPages(WKPageRef page);
 typedef void (*WKPageInvalidMessageFunction)(uint32_t messageID);
 WK_EXPORT void WKPageSetInvalidMessageFunction(WKPageInvalidMessageFunction function);
 
-WK_EXPORT void WKPageSetOverridePrivateBrowsingEnabled(WKPageRef page, bool enabled);
-WK_EXPORT bool WKPageGetOverridePrivateBrowsingEnabled(WKPageRef page);
-    
+enum {
+    kWKScrollPinningBehaviorDoNotPin,
+    kWKScrollPinningBehaviorPinToTop,
+    kWKScrollPinningBehaviorPinToBottom
+};
+typedef uint32_t WKScrollPinningBehavior;
+
+WK_EXPORT WKScrollPinningBehavior WKPageGetScrollPinningBehavior(WKPageRef page);
+WK_EXPORT void WKPageSetScrollPinningBehavior(WKPageRef page, WKScrollPinningBehavior pinning);
+
 #ifdef __cplusplus
 }
 #endif

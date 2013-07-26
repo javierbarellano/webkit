@@ -197,6 +197,8 @@ public:
     virtual bool shouldRubberBandInDirection(ScrollDirection) const;
     virtual bool requestScrollPositionUpdate(const IntPoint&) OVERRIDE;
     virtual bool isRubberBandInProgress() const OVERRIDE;
+    virtual IntPoint minimumScrollPosition() const OVERRIDE;
+    virtual IntPoint maximumScrollPosition() const OVERRIDE;
 
     // This is different than visibleContentRect() in that it ignores negative (or overly positive)
     // offsets from rubber-banding, and it takes zooming into account. 
@@ -212,9 +214,10 @@ public:
     bool isOverlappedIncludingAncestors() const;
     void setContentIsOpaque(bool);
 
-    void addSlowRepaintObject();
-    void removeSlowRepaintObject();
-    bool hasSlowRepaintObjects() const { return m_slowRepaintObjectCount; }
+    void addSlowRepaintObject(RenderObject*);
+    void removeSlowRepaintObject(RenderObject*);
+    bool hasSlowRepaintObject(RenderObject* o) const { return m_slowRepaintObjects && m_slowRepaintObjects->contains(o); }
+    bool hasSlowRepaintObjects() const { return m_slowRepaintObjects && m_slowRepaintObjects->size(); }
 
     // Includes fixed- and sticky-position objects.
     typedef HashSet<RenderObject*> ViewportConstrainedObjectSet;
@@ -292,7 +295,7 @@ public:
 
     void incrementVisuallyNonEmptyCharacterCount(unsigned);
     void incrementVisuallyNonEmptyPixelCount(const IntSize&);
-    void setIsVisuallyNonEmpty();
+    void updateIsVisuallyNonEmpty();
     bool isVisuallyNonEmpty() const { return m_isVisuallyNonEmpty; }
     void enableAutoSizeMode(bool enable, const IntSize& minSize, const IntSize& maxSize);
 
@@ -409,8 +412,6 @@ public:
 #if ENABLE(RUBBER_BANDING)
     GraphicsLayer* setWantsLayerForTopOverHangArea(bool) const;
     GraphicsLayer* setWantsLayerForBottomOverHangArea(bool) const;
-    GraphicsLayer* setWantsLayerForHeader(bool) const;
-    GraphicsLayer* setWantsLayerForFooter(bool) const;
 #endif
 
     virtual int headerHeight() const OVERRIDE { return m_headerHeight; }
@@ -421,13 +422,26 @@ public:
     virtual void willStartLiveResize() OVERRIDE;
     virtual void willEndLiveResize() OVERRIDE;
 
+#if USE(ACCELERATED_COMPOSITING)
+    virtual bool scrollbarAnimationsAreSuppressed() const OVERRIDE;
+#endif
+
     void addPaintPendingMilestones(LayoutMilestones);
     void firePaintRelatedMilestones();
     LayoutMilestones milestonesPendingPaint() const { return m_milestonesPendingPaint; }
 
+    bool visualUpdatesAllowedByClient() const { return m_visualUpdatesAllowedByClient; }
+    void setVisualUpdatesAllowedByClient(bool);
+
+    void resumeAnimatingImages();
+    
+    void setScrollPinningBehavior(ScrollPinningBehavior);
+
 protected:
     virtual bool scrollContentsFastPath(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect);
     virtual void scrollContentsSlowPath(const IntRect& updateRect);
+    
+    void repaintSlowRepaintObjects();
 
     virtual bool isVerticalDocument() const;
     virtual bool isFlippedDocument() const;
@@ -520,6 +534,8 @@ private:
 
     bool doLayoutWithFrameFlattening(bool allowSubtree);
 
+    bool qualifiesAsVisuallyNonEmpty() const;
+
     virtual AXObjectCache* axObjectCache() const;
     void notifyWidgetsInAllFrames(WidgetNotification);
     void removeFromAXObjectCache();
@@ -533,13 +549,15 @@ private:
     OwnPtr<RenderObjectSet> m_widgetUpdateSet;
     RefPtr<Frame> m_frame;
 
+    OwnPtr<RenderObjectSet> m_slowRepaintObjects;
+
     bool m_doFullRepaint;
     
     bool m_canHaveScrollbars;
     bool m_cannotBlitToWindow;
     bool m_isOverlapped;
     bool m_contentIsOpaque;
-    unsigned m_slowRepaintObjectCount;
+
     int m_borderX;
     int m_borderY;
 
@@ -632,6 +650,9 @@ private:
     static double s_maxDeferredRepaintDelayDuringLoading;
     static double s_deferredRepaintDelayIncrementDuringLoading;
 
+    static const unsigned visualCharacterThreshold = 200;
+    static const unsigned visualPixelThreshold = 32 * 32;
+
 #if ENABLE(CSS_FILTERS)
     bool m_hasSoftwareFilters;
 #endif
@@ -640,6 +661,10 @@ private:
     // the viewport given by the window or viewing area of the UA.
     IntSize m_initialViewportSize;
 #endif
+
+    bool m_visualUpdatesAllowedByClient;
+    
+    ScrollPinningBehavior m_scrollPinningBehavior;
 };
 
 inline void FrameView::incrementVisuallyNonEmptyCharacterCount(unsigned count)
@@ -647,11 +672,9 @@ inline void FrameView::incrementVisuallyNonEmptyCharacterCount(unsigned count)
     if (m_isVisuallyNonEmpty)
         return;
     m_visuallyNonEmptyCharacterCount += count;
-    // Use a threshold value to prevent very small amounts of visible content from triggering didFirstVisuallyNonEmptyLayout.
-    // The first few hundred characters rarely contain the interesting content of the page.
-    static const unsigned visualCharacterThreshold = 200;
-    if (m_visuallyNonEmptyCharacterCount > visualCharacterThreshold)
-        setIsVisuallyNonEmpty();
+    if (m_visuallyNonEmptyCharacterCount <= visualCharacterThreshold)
+        return;
+    updateIsVisuallyNonEmpty();
 }
 
 inline void FrameView::incrementVisuallyNonEmptyPixelCount(const IntSize& size)
@@ -659,10 +682,9 @@ inline void FrameView::incrementVisuallyNonEmptyPixelCount(const IntSize& size)
     if (m_isVisuallyNonEmpty)
         return;
     m_visuallyNonEmptyPixelCount += size.width() * size.height();
-    // Use a threshold value to prevent very small amounts of visible content from triggering didFirstVisuallyNonEmptyLayout
-    static const unsigned visualPixelThreshold = 32 * 32;
-    if (m_visuallyNonEmptyPixelCount > visualPixelThreshold)
-        setIsVisuallyNonEmpty();
+    if (m_visuallyNonEmptyPixelCount <= visualPixelThreshold)
+        return;
+    updateIsVisuallyNonEmpty();
 }
 
 inline int FrameView::mapFromLayoutToCSSUnits(LayoutUnit value)

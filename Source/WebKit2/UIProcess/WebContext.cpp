@@ -45,11 +45,12 @@
 #include "WebDatabaseManagerProxy.h"
 #include "WebGeolocationManagerProxy.h"
 #include "WebIconDatabase.h"
-#include "WebKeyValueStorageManagerProxy.h"
+#include "WebKeyValueStorageManager.h"
 #include "WebMediaCacheManagerProxy.h"
 #include "WebNotificationManagerProxy.h"
 #include "WebPluginSiteDataManager.h"
 #include "WebPageGroup.h"
+#include "WebPreferences.h"
 #include "WebMemorySampler.h"
 #include "WebProcessCreationParameters.h"
 #include "WebProcessMessages.h"
@@ -97,8 +98,6 @@ namespace WebKit {
 
 static const double sharedSecondaryProcessShutdownTimeout = 60;
 
-unsigned WebContext::m_privateBrowsingEnterCount;
-
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, webContextCounter, ("WebContext"));
 
 PassRefPtr<WebContext> WebContext::create(const String& injectedBundlePath)
@@ -125,6 +124,7 @@ WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePa
     : m_processModel(processModel)
     , m_webProcessCountLimit(UINT_MAX)
     , m_haveInitialEmptyProcess(false)
+    , m_processWithPageCache(0)
     , m_defaultPageGroup(WebPageGroup::create())
     , m_injectedBundlePath(injectedBundlePath)
     , m_visitedLinkProvider(this)
@@ -163,7 +163,7 @@ WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePa
     addSupplement<WebApplicationCacheManagerProxy>();
     addSupplement<WebCookieManagerProxy>();
     addSupplement<WebGeolocationManagerProxy>();
-    addSupplement<WebKeyValueStorageManagerProxy>();
+    addSupplement<WebKeyValueStorageManager>();
     addSupplement<WebMediaCacheManagerProxy>();
     addSupplement<WebNotificationManagerProxy>();
     addSupplement<WebResourceCacheManagerProxy>();
@@ -372,6 +372,8 @@ void WebContext::ensureNetworkProcess()
     if (!parameters.diskCacheDirectory.isEmpty())
         SandboxExtension::createHandleForReadWriteDirectory(parameters.diskCacheDirectory, parameters.diskCacheDirectoryExtensionHandle);
 
+    parameters.privateBrowsingEnabled = WebPreferences::anyPageGroupsAreUsingPrivateBrowsing();
+
     parameters.cacheModel = m_cacheModel;
 
     // Add any platform specific parameters
@@ -410,9 +412,6 @@ void WebContext::getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProx
 
 void WebContext::willStartUsingPrivateBrowsing()
 {
-    if (m_privateBrowsingEnterCount++)
-        return;
-
     const Vector<WebContext*>& contexts = allContexts();
     for (size_t i = 0, count = contexts.size(); i < count; ++i) {
 #if ENABLE(NETWORK_PROCESS)
@@ -425,11 +424,6 @@ void WebContext::willStartUsingPrivateBrowsing()
 
 void WebContext::willStopUsingPrivateBrowsing()
 {
-    // If the client asks to disable private browsing without enabling it first, it may be resetting a persistent preference,
-    // so it is still necessary to destroy any existing private browsing session.
-    if (m_privateBrowsingEnterCount && --m_privateBrowsingEnterCount)
-        return;
-
     const Vector<WebContext*>& contexts = allContexts();
     for (size_t i = 0, count = contexts.size(); i < count; ++i) {
 #if ENABLE(NETWORK_PROCESS)
@@ -459,6 +453,13 @@ void WebContext::didReceiveInvalidMessage(const CoreIPC::StringReference& messag
     messageNameStringBuilder.append(messageName.data(), messageName.size());
 
     s_invalidMessageCallback(toAPI(WebString::create(messageNameStringBuilder.toString()).get()));
+}
+
+void WebContext::processDidCachePage(WebProcessProxy* process)
+{
+    if (m_processWithPageCache && m_processWithPageCache != process)
+        m_processWithPageCache->releasePageCache();
+    m_processWithPageCache = process;
 }
 
 WebProcessProxy* WebContext::ensureSharedWebProcess()
@@ -548,6 +549,9 @@ WebProcessProxy* WebContext::createNewWebProcess()
     if (!injectedBundleInitializationUserData)
         injectedBundleInitializationUserData = m_injectedBundleInitializationUserData;
     process->send(Messages::WebProcess::InitializeWebProcess(parameters, WebContextUserMessageEncoder(injectedBundleInitializationUserData.get())), 0);
+
+    if (WebPreferences::anyPageGroupsAreUsingPrivateBrowsing())
+        process->send(Messages::WebProcess::EnsurePrivateBrowsingSession(), 0);
 
     m_processes.append(process);
 
@@ -657,6 +661,8 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
     // Clearing everything causes assertion failures, so it's less trouble to skip that for now.
     if (m_processModel != ProcessModelSharedSecondaryProcess) {
         RefPtr<WebProcessProxy> protect(process);
+        if (m_processWithPageCache == process)
+            m_processWithPageCache = 0;
         m_processes.remove(m_processes.find(process));
         return;
     }
@@ -676,6 +682,8 @@ void WebContext::disconnectProcess(WebProcessProxy* process)
     // Since vector elements are destroyed in place, we would recurse into WebProcessProxy destructor
     // if it were invoked from Vector::remove(). RefPtr delays destruction until it's safe.
     RefPtr<WebProcessProxy> protect(process);
+    if (m_processWithPageCache == process)
+        m_processWithPageCache = 0;
     m_processes.remove(m_processes.find(process));
 }
 
@@ -997,6 +1005,14 @@ void WebContext::stopMemorySampler()
 #endif
 
     sendToAllProcesses(Messages::WebProcess::StopMemorySampler());
+}
+
+String WebContext::applicationCacheDirectory() const
+{
+    if (!m_overrideApplicationCacheDirectory.isEmpty())
+        return m_overrideApplicationCacheDirectory;
+
+    return platformDefaultApplicationCacheDirectory();
 }
 
 String WebContext::databaseDirectory() const

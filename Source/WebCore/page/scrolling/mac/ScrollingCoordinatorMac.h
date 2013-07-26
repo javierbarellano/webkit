@@ -77,6 +77,8 @@ public:
     virtual void setRubberBandsAtBottom(bool) OVERRIDE;
     virtual bool rubberBandsAtTop() const OVERRIDE;
     virtual void setRubberBandsAtTop(bool) OVERRIDE;
+    
+    virtual void setScrollPinningBehavior(ScrollPinningBehavior) OVERRIDE;
 
 private:
     // Return whether this scrolling coordinator can keep fixed position layers fixed to their
@@ -122,6 +124,8 @@ private:
     void setScrollParametersForNode(const ScrollParameters&, ScrollingStateScrollingNode*);
     void setScrollLayerForNode(GraphicsLayer*, ScrollingStateNode*);
     void setCounterScrollingLayerForNode(GraphicsLayer*, ScrollingStateScrollingNode*);
+    void setHeaderLayerForNode(GraphicsLayer*, ScrollingStateScrollingNode*);
+    void setFooterLayerForNode(GraphicsLayer*, ScrollingStateScrollingNode*);
     void setNonFastScrollableRegionForNode(const Region&, ScrollingStateScrollingNode*);
     void setWheelEventHandlerCountForNode(unsigned, ScrollingStateScrollingNode*);
 

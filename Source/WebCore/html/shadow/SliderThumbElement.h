@@ -32,11 +32,9 @@
 #ifndef SliderThumbElement_h
 #define SliderThumbElement_h
 
-#include "FloatPoint.h"
 #include "HTMLDivElement.h"
 #include "HTMLNames.h"
 #include "RenderBlock.h"
-#include "RenderStyleConstants.h"
 #include <wtf/Forward.h>
 
 namespace WebCore {
@@ -56,7 +54,7 @@ public:
     virtual void defaultEventHandler(Event*);
     virtual bool willRespondToMouseMoveEvents() OVERRIDE;
     virtual bool willRespondToMouseClickEvents() OVERRIDE;
-    virtual void detach();
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual const AtomicString& shadowPseudoId() const;
     HTMLInputElement* hostInput() const;
     void setPositionFromPoint(const LayoutPoint&);
@@ -68,7 +66,7 @@ private:
     virtual bool isDisabledFormControl() const OVERRIDE;
     virtual bool matchesReadOnlyPseudoClass() const OVERRIDE;
     virtual bool matchesReadWritePseudoClass() const OVERRIDE;
-    virtual Node* focusDelegate();
+    virtual Element* focusDelegate() OVERRIDE;
     void startDragging();
     void stopDragging();
 

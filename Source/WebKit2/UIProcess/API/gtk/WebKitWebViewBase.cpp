@@ -42,7 +42,6 @@
 #include "WebKitWebViewBasePrivate.h"
 #include "WebPageProxy.h"
 #include "WebViewBaseInputMethodFilter.h"
-#include <WebCore/ClipboardGtk.h>
 #include <WebCore/ClipboardUtilitiesGtk.h>
 #include <WebCore/DataObjectGtk.h>
 #include <WebCore/DragData.h>
@@ -436,6 +435,8 @@ static gboolean webkitWebViewBaseDraw(GtkWidget* widget, cairo_t* cr)
         cairo_paint(cr);
     }
 
+    GTK_WIDGET_CLASS(webkit_web_view_base_parent_class)->draw(widget, cr);
+
     return FALSE;
 }
 
@@ -506,7 +507,7 @@ static void webkitWebViewBaseSizeAllocate(GtkWidget* widget, GtkAllocation* allo
     GTK_WIDGET_CLASS(webkit_web_view_base_parent_class)->size_allocate(widget, allocation);
 
     WebKitWebViewBase* webViewBase = WEBKIT_WEB_VIEW_BASE(widget);
-    if (sizeChanged && !gtk_widget_get_mapped(widget) && !webViewBase->priv->pageProxy->drawingArea()->size().isEmpty()) {
+    if (sizeChanged && !gtk_widget_get_mapped(widget)) {
         webViewBase->priv->needsResizeOnMap = true;
         return;
     }

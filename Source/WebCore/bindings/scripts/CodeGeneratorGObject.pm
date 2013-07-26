@@ -45,6 +45,13 @@ my %baseTypeHash = ("Object" => 1, "Node" => 1, "NodeList" => 1, "NamedNodeMap" 
                     "NodeIterator" => 1, "TreeWalker" => 1, "AbstractView" => 1, "Blob" => 1, "DOMTokenList" => 1,
                     "HTMLCollection" => 1);
 
+# List of function parameters that are allowed to be NULL
+my $canBeNullParams = {
+    'webkit_dom_document_evaluate' => ['inResult', 'resolver'],
+    'webkit_dom_node_insert_before' => ['refChild'],
+    'webkit_dom_dom_window_get_computed_style' => ['pseudoElement']
+};
+
 # Default constructor
 sub new {
     my $object = shift;
@@ -80,15 +87,15 @@ EOF
 sub GetParentClassName {
     my $interface = shift;
 
-    return "WebKitDOMObject" if @{$interface->parents} eq 0;
-    return "WebKitDOM" . $interface->parents(0);
+    return "WebKitDOMObject" unless $interface->parent;
+    return "WebKitDOM" . $interface->parent;
 }
 
 sub GetParentImplClassName {
     my $interface = shift;
 
-    return "Object" if @{$interface->parents} eq 0;
-    return $interface->parents(0);
+    return "Object" unless $interface->parent;
+    return $interface->parent;
 }
 
 sub IsBaseType
@@ -127,18 +134,19 @@ sub decamelize
                 $t .= $p3 ? $p1 ? "${p1}_$p2$p3" : "$p2$p3" : "$p1$p2";
                 $t;
         }ge;
-        $s;
-}
 
-sub FixUpDecamelizedName {
-    my $classname = shift;
-
-    # FIXME: try to merge this somehow with the fixes in ClassNameToGobjectType
-    $classname =~ s/x_path/xpath/;
-    $classname =~ s/web_kit/webkit/;
-    $classname =~ s/htmli_frame/html_iframe/;
-
-    return $classname;
+        # Some strings are not correctly decamelized, apply fix ups
+        for ($s) {
+            s/domcss/dom_css/;
+            s/domhtml/dom_html/;
+            s/domdom/dom_dom/;
+            s/domcdata/dom_cdata/;
+            s/domui/dom_ui/;
+            s/x_path/xpath/;
+            s/web_kit/webkit/;
+            s/htmli_frame/html_iframe/;
+        }
+        return $s;
 }
 
 sub HumanReadableConditional {
@@ -156,28 +164,11 @@ sub HumanReadableConditional {
     return join(' ', @humanReadable);
 }
 
-sub ClassNameToGObjectType {
-    my $className = shift;
-    my $CLASS_NAME = uc(decamelize($className));
-    # Fixup: with our prefix being 'WebKitDOM' decamelize can't get
-    # WebKitDOMCSS and similar names right, so we have to fix it
-    # manually.
-    $CLASS_NAME =~ s/DOMCSS/DOM_CSS/;
-    $CLASS_NAME =~ s/DOMHTML/DOM_HTML/;
-    $CLASS_NAME =~ s/DOMDOM/DOM_DOM/;
-    $CLASS_NAME =~ s/DOMCDATA/DOM_CDATA/;
-    $CLASS_NAME =~ s/DOMX_PATH/DOM_XPATH/;
-    $CLASS_NAME =~ s/DOM_WEB_KIT/DOM_WEBKIT/;
-    $CLASS_NAME =~ s/DOMUI/DOM_UI/;
-    $CLASS_NAME =~ s/HTMLI_FRAME/HTML_IFRAME/;
-    return $CLASS_NAME;
-}
-
 sub GetParentGObjType {
     my $interface = shift;
 
-    return "WEBKIT_TYPE_DOM_OBJECT" if @{$interface->parents} eq 0;
-    return "WEBKIT_TYPE_DOM_" . ClassNameToGObjectType($interface->parents(0));
+    return "WEBKIT_TYPE_DOM_OBJECT" unless $interface->parent;
+    return "WEBKIT_TYPE_DOM_" . uc(decamelize(($interface->parent)));
 }
 
 sub GetClassName {
@@ -321,6 +312,8 @@ sub GetGValueTypeName {
                  "char", "char",
                  "long", "long",
                  "long long", "int64",
+                 "byte", "int8",
+                 "octet", "uint8",
                  "short", "int",
                  "uchar", "uchar",
                  "unsigned", "uint",
@@ -347,6 +340,8 @@ sub GetGlibTypeName {
                  "char", "gchar",
                  "long", "glong",
                  "long long", "gint64",
+                 "byte", "gint8",
+                 "octet", "guint8",
                  "short", "gshort",
                  "uchar", "guchar",
                  "unsigned", "guint",
@@ -389,8 +384,9 @@ sub GetWriteableProperties {
         my $gtype = GetGValueTypeName($property->signature->type);
         my $hasGtypeSignature = ($gtype eq "boolean" || $gtype eq "float" || $gtype eq "double" ||
                                  $gtype eq "uint64" || $gtype eq "ulong" || $gtype eq "long" || 
-                                 $gtype eq "uint" || $gtype eq "ushort" || $gtype eq "uchar" ||
-                                 $gtype eq "char" || $gtype eq "string");
+                                 $gtype eq "uint" || $gtype eq "ushort" || $gtype eq "int8" ||
+                                 $gtype eq "uint8" || $gtype eq "uchar" || $gtype eq "char" ||
+                                 $gtype eq "string");
         # FIXME: We are not generating setters for 'Replaceable'
         # attributes now, but we should somehow.
         my $replaceable = $property->signature->extendedAttributes->{"Replaceable"};
@@ -446,6 +442,8 @@ sub GenerateProperty {
     my $camelPropName = $attribute->signature->name;
     my $setPropNameFunction = $codeGenerator->WK_ucfirst($camelPropName);
     my $getPropNameFunction = $codeGenerator->WK_lcfirst($camelPropName);
+    my $hasGetterException = $attribute->signature->extendedAttributes->{"GetterRaisesException"};
+    my $hasSetterException = $attribute->signature->extendedAttributes->{"SetterRaisesException"};
 
     my $propName = decamelize($camelPropName);
     my $propNameCaps = uc($propName);
@@ -497,14 +495,14 @@ sub GenerateProperty {
         $setterFunctionName = "coreSelf->$setterFunctionName";
     }
     push(@getterArguments, "isNull") if $attribute->signature->isNullable;
-    push(@getterArguments, "ec") if @{$attribute->getterExceptions};
-    push(@setterArguments, "ec") if @{$attribute->setterExceptions};
+    push(@getterArguments, "ec") if $hasGetterException;
+    push(@setterArguments, "ec") if $hasSetterException;
 
     if (grep {$_ eq $attribute} @writeableProperties) {
         push(@txtSetProps, "    case ${propEnum}: {\n");
         push(@txtSetProps, "#if ${parentConditionalString}\n") if $parentConditionalString;
         push(@txtSetProps, "#if ${conditionalString}\n") if $conditionalString;
-        push(@txtSetProps, "        WebCore::ExceptionCode ec = 0;\n") if @{$attribute->setterExceptions};
+        push(@txtSetProps, "        WebCore::ExceptionCode ec = 0;\n") if $hasSetterException;
         push(@txtSetProps, "        ${setterFunctionName}(" . join(", ", @setterArguments) . ");\n");
         push(@txtSetProps, "#else\n") if $conditionalString;
         push(@txtSetProps, @conditionalWarn) if scalar(@conditionalWarn);
@@ -519,7 +517,7 @@ sub GenerateProperty {
     push(@txtGetProps, "#if ${parentConditionalString}\n") if $parentConditionalString;
     push(@txtGetProps, "#if ${conditionalString}\n") if $conditionalString;
     push(@txtGetProps, "        bool isNull = false;\n") if $attribute->signature->isNullable;
-    push(@txtGetProps, "        WebCore::ExceptionCode ec = 0;\n") if @{$attribute->getterExceptions};
+    push(@txtGetProps, "        WebCore::ExceptionCode ec = 0;\n") if $hasGetterException;
 
     # FIXME: Should we return a default value when isNull == true?
 
@@ -559,6 +557,7 @@ sub GenerateProperty {
     push(@txtGetProps, "        break;\n    }\n");
 
     my %param_spec_options = ("int", "G_MININT, /* min */\nG_MAXINT, /* max */\n0, /* default */",
+                              "int8", "G_MININT8, /* min */\nG_MAXINT8, /* max */\n0, /* default */",
                               "boolean", "FALSE, /* default */",
                               "float", "-G_MAXFLOAT, /* min */\nG_MAXFLOAT, /* max */\n0.0, /* default */",
                               "double", "-G_MAXDOUBLE, /* min */\nG_MAXDOUBLE, /* max */\n0.0, /* default */",
@@ -567,6 +566,7 @@ sub GenerateProperty {
                               "int64", "G_MININT64, /* min */\nG_MAXINT64, /* max */\n0, /* default */",
                               "ulong", "0, /* min */\nG_MAXULONG, /* max */\n0, /* default */",
                               "uint", "0, /* min */\nG_MAXUINT, /* max */\n0, /* default */",
+                              "uint8", "0, /* min */\nG_MAXUINT8, /* max */\n0, /* default */",
                               "ushort", "0, /* min */\nG_MAXUINT16, /* max */\n0, /* default */",
                               "uchar", "G_MININT8, /* min */\nG_MAXINT8, /* max */\n0, /* default */",
                               "char", "0, /* min */\nG_MAXUINT8, /* max */\n0, /* default */",
@@ -588,8 +588,9 @@ EOF
 sub GenerateProperties {
     my ($object, $interfaceName, $interface) = @_;
 
-    my $clsCaps = substr(ClassNameToGObjectType($className), 12);
-    my $lowerCaseIfaceName = "webkit_dom_" . (FixUpDecamelizedName(decamelize($interfaceName)));
+    my $decamelize = decamelize($interfaceName);
+    my $clsCaps = uc($decamelize);
+    my $lowerCaseIfaceName = "webkit_dom_$decamelize";
     my $parentImplClassName = GetParentImplClassName($interface);
 
     my $conditionGuardStart = "";
@@ -816,9 +817,9 @@ EOF
 
     push(@hBodyPre, $implContent);
 
-    my $decamelize = FixUpDecamelizedName(decamelize($interfaceName));
+    my $decamelize = decamelize($interfaceName);
     my $clsCaps = uc($decamelize);
-    my $lowerCaseIfaceName = "webkit_dom_" . ($decamelize);
+    my $lowerCaseIfaceName = "webkit_dom_$decamelize";
 
     $implContent = << "EOF";
 #define WEBKIT_TYPE_DOM_${clsCaps}            (${lowerCaseIfaceName}_get_type())
@@ -845,15 +846,21 @@ EOF
 }
 
 sub GetGReturnMacro {
-    my ($paramName, $paramIDLType, $returnType) = @_;
+    my ($paramName, $paramIDLType, $returnType, $functionName) = @_;
 
     my $condition;
     if ($paramIDLType eq "GError") {
         $condition = "!$paramName || !*$paramName";
     } elsif (IsGDOMClassType($paramIDLType)) {
-        my $paramTypeCaps = uc(FixUpDecamelizedName(decamelize($paramIDLType)));
+        my $paramTypeCaps = uc(decamelize($paramIDLType));
         $condition = "WEBKIT_DOM_IS_${paramTypeCaps}($paramName)";
+        if (ParamCanBeNull($functionName, $paramName)) {
+            $condition = "!$paramName || $condition";
+        }
     } else {
+        if (ParamCanBeNull($functionName, $paramName)) {
+            return;
+        }
         $condition = "$paramName";
     }
 
@@ -868,10 +875,19 @@ sub GetGReturnMacro {
     return $macro;
 }
 
+sub ParamCanBeNull {
+    my($functionName, $paramName) = @_;
+
+    if (defined($functionName)) {
+        return scalar(grep(/$paramName/, @{$canBeNullParams->{$functionName}}));
+    }
+    return 0;
+}
+
 sub GenerateFunction {
     my ($object, $interfaceName, $function, $prefix, $parentNode) = @_;
 
-    my $decamelize = FixUpDecamelizedName(decamelize($interfaceName));
+    my $decamelize = decamelize($interfaceName);
 
     if ($object eq "MediaQueryListListener") {
         return;
@@ -887,6 +903,7 @@ sub GenerateFunction {
     my $functionName = "webkit_dom_" . $decamelize . "_" . $prefix . decamelize($function->signature->name);
     my $returnType = GetGlibTypeName($functionSigType);
     my $returnValueIsGDOMType = IsGDOMClassType($functionSigType);
+    my $raisesException = $function->signature->extendedAttributes->{"RaisesException"};
 
     my $conditionalString = $codeGenerator->GenerateConditionalString($function->signature);
     my $parentConditionalString = $codeGenerator->GenerateConditionalString($parentNode);
@@ -926,9 +943,7 @@ sub GenerateFunction {
         $implIncludes{"WebKitDOM${functionSigType}Private.h"} = 1;
     }
 
-    if (@{$function->raisesExceptions}) {
-        $functionSig .= ", GError** error";
-    }
+    $functionSig .= ", GError** error" if $raisesException;
 
     # Insert introspection annotations
     push(@hBody, "/**\n");
@@ -942,9 +957,7 @@ sub GenerateFunction {
         my $paramName = $param->name;
         push(@hBody, " * \@${paramName}: A #${paramType}\n");
     }
-    if(@{$function->raisesExceptions}) {
-        push(@hBody, " * \@error: #GError\n");
-    }
+    push(@hBody, " * \@error: #GError\n") if $raisesException;
     push(@hBody, " *\n");
     if (IsGDOMClassType($function->signature->type)) {
         push(@hBody, " * Returns: (transfer none):\n");
@@ -973,16 +986,12 @@ sub GenerateFunction {
         my $paramTypeIsPrimitive = $codeGenerator->IsPrimitiveType($paramIDLType);
         my $paramIsGDOMType = IsGDOMClassType($paramIDLType);
         if (!$paramTypeIsPrimitive) {
-            # FIXME: Temporary hack for generating a proper implementation
-            #        of the webkit_dom_document_evaluate function (Bug-ID: 42115)
-            if (!(($functionName eq "webkit_dom_document_evaluate") && ($paramIDLType eq "XPathResult"))) {
-                $gReturnMacro = GetGReturnMacro($paramName, $paramIDLType, $returnType);
-                push(@cBody, $gReturnMacro);
-            }
+            $gReturnMacro = GetGReturnMacro($paramName, $paramIDLType, $returnType, $functionName);
+            push(@cBody, $gReturnMacro);
         }
     }
 
-    if (@{$function->raisesExceptions}) {
+    if ($raisesException) {
         $gReturnMacro = GetGReturnMacro("error", "GError", $returnType);
         push(@cBody, $gReturnMacro);
     }
@@ -1035,7 +1044,7 @@ sub GenerateFunction {
         push(@callImplParams, "isNull");
     }
 
-    if (@{$function->raisesExceptions}) {
+    if ($raisesException) {
         push(@cBody, "    WebCore::ExceptionCode ec = 0;\n");
         push(@callImplParams, "ec");
     }
@@ -1050,7 +1059,7 @@ sub GenerateFunction {
 EOF
         push(@cBody, $customNodeAppendChild);
     
-        if(@{$function->raisesExceptions}) {
+        if($raisesException) {
             my $exceptionHandling = << "EOF";
 
     WebCore::ExceptionCodeDescription ecdesc(ec);
@@ -1127,7 +1136,7 @@ EOF
         }
         push(@cBody, "    ${contentHead}");
         
-        if(@{$function->raisesExceptions}) {
+        if($raisesException) {
             my $exceptionHandling = << "EOF";
     if (ec) {
         WebCore::ExceptionCodeDescription ecdesc(ec);
@@ -1227,7 +1236,10 @@ sub GenerateFunctions {
         # "get_foo" which calls a DOM class method named foo().
         my $function = new domFunction();
         $function->signature($attribute->signature);
-        $function->raisesExceptions($attribute->getterExceptions);
+        $function->signature->extendedAttributes({%{$attribute->signature->extendedAttributes}});
+        if ($attribute->signature->extendedAttributes->{"GetterRaisesException"}) {
+            $function->signature->extendedAttributes->{"RaisesException"} = "VALUE_IS_MISSING";
+        }
         $object->GenerateFunction($interfaceName, $function, "get_", $interface);
 
         # FIXME: We are not generating setters for 'Replaceable'
@@ -1243,7 +1255,7 @@ sub GenerateFunctions {
         $function->signature(new domSignature());
         $function->signature->name($attribute->signature->name);
         $function->signature->type($attribute->signature->type);
-        $function->signature->extendedAttributes($attribute->signature->extendedAttributes);
+        $function->signature->extendedAttributes({%{$attribute->signature->extendedAttributes}});
         
         my $param = new domSignature();
         $param->name("value");
@@ -1253,7 +1265,11 @@ sub GenerateFunctions {
         my $arrayRef = $function->parameters;
         push(@$arrayRef, $param);
         
-        $function->raisesExceptions($attribute->setterExceptions);
+        if ($attribute->signature->extendedAttributes->{"SetterRaisesException"}) {
+            $function->signature->extendedAttributes->{"RaisesException"} = "VALUE_IS_MISSING";
+        } else {
+            delete $function->signature->extendedAttributes->{"RaisesException"};
+        }
         
         $object->GenerateFunction($interfaceName, $function, "set_", $interface);
     }
@@ -1268,8 +1284,9 @@ sub GenerateCFile {
 
     my $implContent = "";
 
-    my $clsCaps = uc(FixUpDecamelizedName(decamelize($interfaceName)));
-    my $lowerCaseIfaceName = "webkit_dom_" . FixUpDecamelizedName(decamelize($interfaceName));
+    my $decamelize = decamelize($interfaceName);
+    my $clsCaps = uc($decamelize);
+    my $lowerCaseIfaceName = "webkit_dom_$decamelize";
     my $parentImplClassName = GetParentImplClassName($interface);
     my $baseClassName = GetBaseClass($parentImplClassName);
 
@@ -1351,9 +1368,7 @@ sub GenerateEndHeader {
 sub IsPolymorphic {
     my $type = shift;
 
-    # FIXME: should we use ObjCPolymorphic attribute? or is it specific to ObjC bindings?
-    return 1 if $type eq "Node" or $type eq "Event" or $type eq "HTMLCollection" or $type eq "StyleSheet" or $type eq "Blob";
-    return 0;
+    return scalar(grep {$_ eq $type} qw(Blob Event HTMLCollection Node StyleSheet));
 }
 
 sub GenerateEventTargetIface {
@@ -1361,7 +1376,7 @@ sub GenerateEventTargetIface {
     my $interface = shift;
 
     my $interfaceName = $interface->name;
-    my $decamelize = FixUpDecamelizedName(decamelize($interfaceName));
+    my $decamelize = decamelize($interfaceName);
     my $conditionalString = $codeGenerator->GenerateConditionalString($interface);
     my @conditionalWarn = GenerateConditionalWarning($interface);
 

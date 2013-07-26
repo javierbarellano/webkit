@@ -59,7 +59,9 @@ list(APPEND bundle_harness_SOURCES
 
 set(test_webkit2_api_BINARIES
     AboutBlankLoad
+    CloseThenTerminate
     CookieManager
+    DidAssociateFormControls
     DOMWindowExtensionNoCache
     DocumentStartUserScriptAlertCrash
     EvaluateJavaScript
@@ -77,23 +79,28 @@ set(test_webkit2_api_BINARIES
     LoadCanceledNoServerRedirectCallback
     LoadPageOnCrash
     MouseMoveAfterCrash
-    ReloadPageAfterCrash
-    ResizeWindowAfterCrash
     NewFirstVisuallyNonEmptyLayout
     NewFirstVisuallyNonEmptyLayoutFails
     NewFirstVisuallyNonEmptyLayoutForImages
     PageLoadBasic
     PageLoadDidChangeLocationWithinPageForFrame
+    PageVisibilityState
     ParentFrame
     PreventEmptyUserAgent
     PrivateBrowsingPushStateNoHistoryCallback
+    ReloadPageAfterCrash
+    ResizeWindowAfterCrash
+    ResponsivenessTimerDoesntFireEarly
+    TerminateTwice
     UserMessage
     WKConnection
     WKPreferences
     WKString
     WKStringJSString
     WKURL
+    WillLoad
     WillSendSubmitEvent
+    CoordinatedGraphics/WKViewUserViewportToContents
     efl/WKViewClientWebProcessCallbacks
 )
 
@@ -111,12 +118,13 @@ set(test_webkit2_api_fail_BINARIES
     DOMWindowExtensionBasic
     DownloadDecideDestinationCrash
     NewFirstVisuallyNonEmptyLayoutFrames
+    ResizeReversePaginatedWebView
     RestoreSessionStateContainingFormData
+    ScrollPinningBehaviors
     ShouldGoToBackForwardListItem
     WKPageGetScaleFactorNotZero
 )
 
 # Tests disabled because of missing features on the test harness:
 #
-#   ResponsivenessTimerDoesntFireEarly
 #   SpacebarScrolling

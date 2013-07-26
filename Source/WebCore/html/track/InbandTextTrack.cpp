@@ -39,28 +39,104 @@
 #include "TextTrackCueList.h"
 #include "WebVTTParser.h"
 #include <math.h>
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
+TextTrackCueMap::TextTrackCueMap()
+    : m_genericCueToDataMap(0)
+    , m_genericDataToCueMap(0)
+    , m_webVTTCueToDataMap(0)
+    , m_webVTTDataToCueMap(0)
+{
+}
+
+TextTrackCueMap::~TextTrackCueMap()
+{
+    if (m_genericCueToDataMap) {
+        delete m_genericCueToDataMap;
+        ASSERT(m_genericDataToCueMap);
+        delete m_genericDataToCueMap;
+    } else
+        ASSERT(!m_genericDataToCueMap);
+
+    if (m_webVTTCueToDataMap) {
+        delete m_webVTTCueToDataMap;
+        ASSERT(m_webVTTDataToCueMap);
+        delete m_webVTTDataToCueMap;
+    } else
+        ASSERT(!m_webVTTDataToCueMap);
+}
+
 void TextTrackCueMap::add(GenericCueData* cueData, TextTrackCueGeneric* cue)
 {
-    m_dataToCueMap.add(cueData, cue);
-    m_cueToDataMap.add(cue, cueData);
+    if (!m_genericDataToCueMap) {
+        m_genericDataToCueMap = new GenericCueDataToCueMap;
+        ASSERT(!m_genericCueToDataMap);
+        m_genericCueToDataMap = new GenericCueToDataMap;
+    } else
+        ASSERT(m_genericCueToDataMap);
+
+    m_genericDataToCueMap->add(cueData, cue);
+    m_genericCueToDataMap->add(cue, cueData);
+}
+
+void TextTrackCueMap::add(WebVTTCueData* cueData, TextTrackCue* cue)
+{
+    if (!m_webVTTDataToCueMap) {
+        m_webVTTDataToCueMap = new WebVTTCueDataToCueMap;
+        ASSERT(!m_webVTTCueToDataMap);
+        m_webVTTCueToDataMap = new WebVTTCueToDataMap;
+    } else
+        ASSERT(m_webVTTCueToDataMap);
+
+    m_webVTTDataToCueMap->add(cueData, cue);
+    m_webVTTCueToDataMap->add(cue, cueData);
 }
 
 PassRefPtr<TextTrackCueGeneric> TextTrackCueMap::find(GenericCueData* cueData)
 {
-    GenericCueDataToCueMap::iterator iter = m_dataToCueMap.find(cueData);
-    if (iter == m_dataToCueMap.end())
+    if (!m_genericDataToCueMap)
         return 0;
-    
+
+    GenericCueDataToCueMap::iterator iter = m_genericDataToCueMap->find(cueData);
+    if (iter == m_genericDataToCueMap->end())
+        return 0;
+
     return iter->value;
 }
 
-PassRefPtr<GenericCueData> TextTrackCueMap::find(TextTrackCueGeneric* cue)
+PassRefPtr<TextTrackCue> TextTrackCueMap::find(WebVTTCueData* cueData)
 {
-    GenericCueToCueDataMap::iterator iter = m_cueToDataMap.find(cue);
-    if (iter == m_cueToDataMap.end())
+    if (!m_webVTTDataToCueMap)
+        return 0;
+
+    WebVTTCueDataToCueMap::iterator iter = m_webVTTDataToCueMap->find(cueData);
+    if (iter == m_webVTTDataToCueMap->end())
+        return 0;
+
+    return iter->value;
+}
+
+PassRefPtr<GenericCueData> TextTrackCueMap::findGenericData(TextTrackCue* cue)
+{
+    if (!m_genericCueToDataMap)
+        return 0;
+
+    GenericCueToDataMap::iterator iter = m_genericCueToDataMap->find(cue);
+    if (iter == m_genericCueToDataMap->end())
+        return 0;
+
+    return iter->value;
+}
+
+PassRefPtr<WebVTTCueData> TextTrackCueMap::findWebVTTData(TextTrackCue* cue)
+{
+    if (!m_webVTTCueToDataMap)
+        return 0;
+
+    WebVTTCueToDataMap::iterator iter = m_webVTTCueToDataMap->find(cue);
+    if (iter == m_webVTTCueToDataMap->end())
         return 0;
     
     return iter->value;
@@ -68,20 +144,46 @@ PassRefPtr<GenericCueData> TextTrackCueMap::find(TextTrackCueGeneric* cue)
 
 void TextTrackCueMap::remove(GenericCueData* cueData)
 {
+    if (!m_genericCueToDataMap)
+        return;
+
     RefPtr<TextTrackCueGeneric> cue = find(cueData);
 
     if (cue)
-        m_cueToDataMap.remove(cue);
-    m_dataToCueMap.remove(cueData);
+        m_genericCueToDataMap->remove(cue);
+    m_genericDataToCueMap->remove(cueData);
 }
 
-void TextTrackCueMap::remove(TextTrackCueGeneric* cue)
+void TextTrackCueMap::remove(TextTrackCue* cue)
 {
-    RefPtr<GenericCueData> cueData = find(cue);
+    if (m_genericCueToDataMap) {
+        RefPtr<GenericCueData> genericData = findGenericData(cue);
+        if (genericData) {
+            m_genericDataToCueMap->remove(genericData);
+            m_genericCueToDataMap->remove(cue);
+            return;
+        }
+    }
 
-    if (cueData)
-        m_dataToCueMap.remove(cueData);
-    m_cueToDataMap.remove(cue);
+    if (m_webVTTCueToDataMap) {
+        RefPtr<WebVTTCueData> webVTTData = findWebVTTData(cue);
+        if (webVTTData) {
+            m_webVTTDataToCueMap->remove(webVTTData);
+            m_webVTTCueToDataMap->remove(cue);
+        }
+    }
+}
+
+void TextTrackCueMap::remove(WebVTTCueData* cueData)
+{
+    if (!m_webVTTCueToDataMap)
+        return;
+
+    RefPtr<TextTrackCue> cue = find(cueData);
+
+    if (cue)
+        m_webVTTCueToDataMap->remove(cue);
+    m_webVTTDataToCueMap->remove(cueData);
 }
 
 
@@ -149,6 +251,14 @@ bool InbandTextTrack::isClosedCaptions() const
     return m_private->isClosedCaptions();
 }
 
+bool InbandTextTrack::isSDH() const
+{
+    if (!m_private)
+        return false;
+    
+    return m_private->isSDH();
+}
+
 bool InbandTextTrack::containsOnlyForcedSubtitles() const
 {
     if (!m_private)
@@ -204,6 +314,8 @@ void InbandTextTrack::updateCueFromCueData(TextTrackCueGeneric* cue, GenericCueD
         cue->setBackgroundColor(cueData->backgroundColor().rgb());
     if (cueData->foregroundColor().isValid())
         cue->setForegroundColor(cueData->foregroundColor().rgb());
+    if (cueData->highlightColor().isValid())
+        cue->setHighlightColor(cueData->highlightColor().rgb());
 
     if (cueData->align() == GenericCueData::Start)
         cue->setAlign(ASCIILiteral("start"), IGNORE_EXCEPTION);
@@ -218,8 +330,7 @@ void InbandTextTrack::updateCueFromCueData(TextTrackCueGeneric* cue, GenericCueD
     
 void InbandTextTrack::addGenericCue(InbandTextTrackPrivate* trackPrivate, PassRefPtr<GenericCueData> prpCueData)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
 
     RefPtr<GenericCueData> cueData = prpCueData;
     if (m_cueMap.find(cueData.get()))
@@ -262,35 +373,41 @@ void InbandTextTrack::removeGenericCue(InbandTextTrackPrivate*, GenericCueData* 
 
 void InbandTextTrack::addWebVTTCue(InbandTextTrackPrivate* trackPrivate, PassRefPtr<WebVTTCueData> prpCueData)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
 
     RefPtr<WebVTTCueData> cueData = prpCueData;
+    if (m_cueMap.find(cueData.get()))
+        return;
+
     RefPtr<TextTrackCue> cue = TextTrackCue::create(scriptExecutionContext(), cueData->startTime(), cueData->endTime(), cueData->content());
+    cue->setId(cueData->id());
     cue->setCueSettings(cueData->settings());
+
+    m_cueMap.add(cueData.get(), cue.get());
     addCue(cue.release());
+}
+
+void InbandTextTrack::removeWebVTTCue(InbandTextTrackPrivate*, WebVTTCueData* cueData)
+{
+    RefPtr<TextTrackCue> cue = m_cueMap.find(cueData);
+    if (cue) {
+        LOG(Media, "InbandTextTrack::removeWebVTTCue removing cue: start=%.2f, end=%.2f, content=\"%s\"\n", cueData->startTime(), cueData->endTime(), cueData->content().utf8().data());
+        removeCue(cue.get(), IGNORE_EXCEPTION);
+    } else
+        m_cueMap.remove(cueData);
 }
 
 void InbandTextTrack::removeCue(TextTrackCue* cue, ExceptionCode& ec)
 {
-    m_cueMap.remove(static_cast<TextTrackCueGeneric*>(cue));
+    m_cueMap.remove(cue);
     TextTrack::removeCue(cue, ec);
-}
-
-void InbandTextTrack::setLabel(const AtomicString& label)
-{
-    TrackBase::setLabel(label);
-}
-
-void InbandTextTrack::setLanguage(const AtomicString& language)
-{
-    TrackBase::setLanguage(language);
 }
 
 void InbandTextTrack::willRemoveTextTrackPrivate(InbandTextTrackPrivate* trackPrivate)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    if (!mediaElement())
+        return;
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     mediaElement()->removeTextTrack(this);
 }
 

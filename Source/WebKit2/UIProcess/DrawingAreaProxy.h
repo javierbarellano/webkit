@@ -67,11 +67,10 @@ public:
     // The timeout, in seconds, we use when waiting for a DidUpdateGeometry message.
     static const double didUpdateBackingStoreStateTimeout;
 
-    virtual void pageCustomRepresentationChanged() { }
     virtual void waitForPossibleGeometryUpdate(double = didUpdateBackingStoreStateTimeout) { }
 
     virtual void colorSpaceDidChange() { }
-    virtual void minimumLayoutWidthDidChange() { }
+    virtual void minimumLayoutSizeDidChange() { }
 
 #if USE(COORDINATED_GRAPHICS)
     virtual void updateViewport();
@@ -112,7 +111,7 @@ private:
     virtual void updateAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
 #endif
 #if PLATFORM(MAC)
-    virtual void didUpdateGeometry(const WebCore::IntSize& newIntrinsicContentSize) { }
+    virtual void didUpdateGeometry() { }
     virtual void intrinsicContentSizeDidChange(const WebCore::IntSize& newIntrinsicContentSize) { }
 #endif
 };

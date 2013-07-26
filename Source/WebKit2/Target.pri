@@ -74,6 +74,7 @@ HEADERS += \
     Shared/Authentication/AuthenticationManager.h \
     Shared/ShareableBitmap.h \
     Shared/CacheModel.h \
+    Shared/ActivityAssertion.h \
     Shared/ChildProcess.h \
     Shared/ChildProcessProxy.h \
     Shared/ConnectionStack.h \
@@ -241,7 +242,7 @@ HEADERS += \
     UIProcess/WebBackForwardList.h \
     UIProcess/WebBatteryManagerProxy.h \
     UIProcess/WebBatteryProvider.h \
-    UIProcess/WebColorChooserProxy.h \
+    UIProcess/WebColorPicker.h \
     UIProcess/WebColorPickerResultListenerProxy.h \
     UIProcess/WebConnectionToWebProcess.h \
     UIProcess/WebContext.h \
@@ -270,7 +271,7 @@ HEADERS += \
     UIProcess/WebIconDatabase.h \
     UIProcess/WebIconDatabaseClient.h \
     UIProcess/WebInspectorProxy.h \
-    UIProcess/WebKeyValueStorageManagerProxy.h \
+    UIProcess/WebKeyValueStorageManager.h \
     UIProcess/WebLoaderClient.h \
     UIProcess/WebMediaCacheManagerProxy.h \
     UIProcess/WebNavigationData.h \
@@ -309,6 +310,7 @@ HEADERS += \
     WebProcess/InjectedBundle/InjectedBundleClient.h \
     WebProcess/InjectedBundle/InjectedBundleDOMWindowExtension.h \
     WebProcess/InjectedBundle/InjectedBundleHitTestResult.h \
+    WebProcess/InjectedBundle/InjectedBundleHitTestResultMediaType.h \
     WebProcess/InjectedBundle/InjectedBundleNavigationAction.h \
     WebProcess/InjectedBundle/InjectedBundlePageContextMenuClient.h \
     WebProcess/InjectedBundle/InjectedBundlePageDiagnosticLoggingClient.h \
@@ -337,7 +339,6 @@ HEADERS += \
     WebProcess/Plugins/PluginProxy.h \
     WebProcess/Plugins/PluginProcessConnection.h \
     WebProcess/Plugins/PluginProcessConnectionManager.h \
-    WebProcess/Storage/WebKeyValueStorageManager.h \
     WebProcess/WebCoreSupport/WebBatteryClient.h \
     WebProcess/WebCoreSupport/WebChromeClient.h \
     WebProcess/WebCoreSupport/WebColorChooser.h \
@@ -391,6 +392,7 @@ SOURCES += \
     Platform/CoreIPC/MessageDecoder.cpp \
     Platform/CoreIPC/MessageEncoder.cpp \
     Platform/CoreIPC/MessageReceiverMap.cpp \
+    Platform/CoreIPC/MessageSender.cpp \
     Platform/CoreIPC/StringReference.cpp \
     Platform/Logging.cpp \
     Platform/Module.cpp \
@@ -431,6 +433,7 @@ SOURCES += \
     Shared/API/c/qt/WKImageQt.cpp \
     Shared/APIClientTraits.cpp \
     Shared/APIObject.cpp \
+    Shared/ActivityAssertion.cpp \
     Shared/Authentication/AuthenticationManager.cpp \
     Shared/Plugins/Netscape/PluginInformation.cpp \
     Shared/Plugins/Netscape/NetscapePluginModule.cpp \
@@ -562,6 +565,7 @@ SOURCES += \
     UIProcess/BackingStore.cpp \
     UIProcess/qt/BackingStoreQt.cpp \
     UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.cpp \
+    UIProcess/CoordinatedGraphics/WebPageProxyCoordinatedGraphics.cpp \
     UIProcess/DefaultUndoController.cpp \
     UIProcess/Downloads/DownloadProxy.cpp \
     UIProcess/Downloads/DownloadProxyMap.cpp \
@@ -596,7 +600,7 @@ SOURCES += \
     UIProcess/WebBackForwardList.cpp \
     UIProcess/WebBatteryManagerProxy.cpp \
     UIProcess/WebBatteryProvider.cpp \
-    UIProcess/WebColorChooserProxy.cpp \
+    UIProcess/WebColorPicker.cpp \
     UIProcess/WebColorPickerResultListenerProxy.cpp \
     UIProcess/WebConnectionToWebProcess.cpp \
     UIProcess/WebContext.cpp \
@@ -624,7 +628,7 @@ SOURCES += \
     UIProcess/WebIconDatabase.cpp \
     UIProcess/WebIconDatabaseClient.cpp \
     UIProcess/WebInspectorProxy.cpp \
-    UIProcess/WebKeyValueStorageManagerProxy.cpp \
+    UIProcess/WebKeyValueStorageManager.cpp \
     UIProcess/WebLoaderClient.cpp \
     UIProcess/WebMediaCacheManagerProxy.cpp \
     UIProcess/WebNavigationData.cpp \
@@ -715,7 +719,6 @@ SOURCES += \
     WebProcess/Storage/StorageAreaImpl.cpp \
     WebProcess/Storage/StorageAreaMap.cpp \
     WebProcess/Storage/StorageNamespaceImpl.cpp \
-    WebProcess/Storage/WebKeyValueStorageManager.cpp \
     WebProcess/WebCoreSupport/WebBatteryClient.cpp \
     WebProcess/WebCoreSupport/WebChromeClient.cpp \
     WebProcess/WebCoreSupport/WebColorChooser.cpp \
@@ -746,6 +749,7 @@ SOURCES += \
     WebProcess/WebPage/EventDispatcher.cpp \
     WebProcess/WebPage/FindController.cpp \
     WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp \
+    WebProcess/WebPage/CoordinatedGraphics/WebPageCoordinatedGraphics.cpp \
     WebProcess/WebPage/TapHighlightController.cpp \
     WebProcess/WebPage/LayerTreeHost.cpp \
     WebProcess/WebPage/PageBanner.cpp \
@@ -843,25 +847,13 @@ have?(QTQUICK) {
 
     enable?(INPUT_TYPE_COLOR) {
         HEADERS += \
-            UIProcess/qt/WebColorChooserProxyQt.h
+            UIProcess/qt/WebColorPickerQt.h
         SOURCES += \
-            UIProcess/qt/WebColorChooserProxyQt.cpp
+            UIProcess/qt/WebColorPickerQt.cpp
     }
 }
 
 mac: {
-    use?(QTKIT) {
-        DEFINES += NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES
-        isEqual(QT_ARCH, "i386") {
-            DEFINES+=NS_BUILD_32_LIKE_64
-        }
-        INCLUDEPATH += \
-            $$PWD/../../WebKitLibraries/
-        HEADERS += \
-            WebProcess/WebCoreSupport/qt/WebSystemInterface.h
-        OBJECTIVE_SOURCES += \
-            WebProcess/WebCoreSupport/qt/WebSystemInterface.mm
-    }
     INCLUDEPATH += \
         Platform/mac \
         Platform/CoreIPC/mac
@@ -915,6 +907,7 @@ enable?(SECCOMP_FILTERS) {
 
 enable?(INSPECTOR_SERVER) {
     HEADERS += \
+        UIProcess/InspectorServer/HTTPRequest.h \
         UIProcess/InspectorServer/WebInspectorServer.h \
         UIProcess/InspectorServer/WebSocketServer.h \
         UIProcess/InspectorServer/WebSocketServerClient.h \
@@ -922,6 +915,7 @@ enable?(INSPECTOR_SERVER) {
         UIProcess/InspectorServer/qt/WebSocketServerQt.h
 
     SOURCES += \
+        UIProcess/InspectorServer/HTTPRequest.cpp \
         UIProcess/InspectorServer/WebInspectorServer.cpp \
         UIProcess/InspectorServer/WebSocketServer.cpp \
         UIProcess/InspectorServer/WebSocketServerConnection.cpp \

@@ -381,7 +381,7 @@ bool SecurityOrigin::canDisplay(const KURL& url) const
     return true;
 }
 
-bool SecurityOrigin::canAccessStorage(const SecurityOrigin* topOrigin) const
+bool SecurityOrigin::canAccessStorage(const SecurityOrigin* topOrigin, ShouldAllowFromThirdParty shouldAllowFromThirdParty) const
 {
     if (isUnique())
         return false;
@@ -395,6 +395,9 @@ bool SecurityOrigin::canAccessStorage(const SecurityOrigin* topOrigin) const
 
     if (topOrigin->m_storageBlockingPolicy == BlockAllStorage)
         return false;
+
+    if (shouldAllowFromThirdParty == AlwaysAllowFromThirdParty)
+        return true;
 
     if ((m_storageBlockingPolicy == BlockThirdPartyStorage || topOrigin->m_storageBlockingPolicy == BlockThirdPartyStorage) && topOrigin->isThirdParty(this))
         return false;
@@ -536,7 +539,7 @@ PassRefPtr<SecurityOrigin> SecurityOrigin::createFromDatabaseIdentifier(const St
 PassRefPtr<SecurityOrigin> SecurityOrigin::create(const String& protocol, const String& host, int port)
 {
     if (port < 0 || port > MaxAllowedPort)
-        createUnique();
+        return createUnique();
     String decodedHost = decodeURLEscapeSequences(host);
     return create(KURL(KURL(), protocol + "://" + host + ":" + String::number(port) + "/"));
 }
