@@ -136,7 +136,6 @@ private:
     RefPtr<MediaControlsAppleEventListener> m_eventListener;
 
 #if ENABLE(VIDEO_TRACK)
-    MediaControlTextTrackContainerElement* m_textDisplayContainer;
     MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
     MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
     MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;

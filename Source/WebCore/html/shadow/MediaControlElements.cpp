@@ -1567,9 +1567,6 @@ void MediaControlVideoTrackSelButtonElement::updateDisplayType()
 
 void MediaControlVideoTrackSelButtonElement::display()
 {
-    if (!renderer())
-        return;
-
     int index = this->selectedIndex();
 
     Vector<AtomicString> names;
@@ -1669,9 +1666,6 @@ void MediaControlAudioTrackSelButtonElement::updateDisplayType()
 
 void MediaControlAudioTrackSelButtonElement::display()
 {
-    if (!renderer())
-        return;
-
     int index = this->selectedIndex();
     Vector<AtomicString> names;
     AudioTrackList* trackList = mediaController()->audioTracks();
@@ -1769,9 +1763,6 @@ void MediaControlTextTrackSelButtonElement::updateDisplayType()
 
 void MediaControlTextTrackSelButtonElement::display()
 {
-    if (renderer())
-        return;
-
     int trackIndex = -1;
     Vector<AtomicString> names;
     TextTrackList* trackList = mediaController()->textTracks();

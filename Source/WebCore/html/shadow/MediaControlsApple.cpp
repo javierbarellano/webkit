@@ -300,6 +300,15 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_closedCaptionsTrackList->setMediaController(controller);
     if (m_closedCaptionsContainer)
         m_closedCaptionsContainer->setMediaController(controller);
+
+#if ENABLE(VIDEO_TRACK)
+    if (m_videoTrackSelButton)
+        m_videoTrackSelButton->setMediaController(controller);
+    if (m_audioTrackSelButton)
+        m_audioTrackSelButton->setMediaController(controller);
+    if (m_textTrackSelButton)
+        m_textTrackSelButton->setMediaController(controller);
+#endif
 }
 
 void MediaControlsApple::defaultEventHandler(Event* event)
@@ -421,6 +430,7 @@ void MediaControlsApple::createVideoTrackDisplay()
         return;
 
     RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), this);
+    videoDisplayButton->setMediaController(m_mediaController);
     m_videoTrackSelButton = videoDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
@@ -433,6 +443,7 @@ void MediaControlsApple::createTextTrackSelDisplay()
         return;
 
     RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), this);
+    textTrackSelButton->setMediaController(m_mediaController);
     m_textTrackSelButton = textTrackSelButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
@@ -443,14 +454,6 @@ void MediaControlsApple::updateTextTrackSelDisplay()
 {
     if (!m_textTrackSelButton)
         createTextTrackSelDisplay();
-
-    // The control doesn't show up if it is hidden when the renderer is created
-    // So, fool the control if we don't have a renderer
-    if (!m_textTrackSelButton->renderer()) {
-        m_textTrackSelButton->show();
-        m_textTrackSelButton->display();
-        return;
-    }
 
     TextTrackList* tracks = m_textTrackSelButton->mediaController()->textTracks();
     if (tracks->length()) {
@@ -465,16 +468,8 @@ void MediaControlsApple::updateVideoTrackDisplay()
     if (!m_videoTrackSelButton)
         createVideoTrackDisplay();
 
-    // The control doesn't show up if it is hidden when the renderer is created
-    // So, fool the control if we don't have a renderer
-    if (!m_videoTrackSelButton->renderer()) {
-        m_videoTrackSelButton->show();
-        m_videoTrackSelButton->display();
-        return;
-    }
-
     VideoTrackList* tracks = m_videoTrackSelButton->mediaController()->videoTracks();
-    if (tracks->length()>1) {
+    if (tracks->length() > 1) {
         m_videoTrackSelButton->show();
         m_videoTrackSelButton->display();
     } else
@@ -495,16 +490,8 @@ void MediaControlsApple::updateAudioTrackDisplay()
     if (!m_audioTrackSelButton)
         createAudioTrackDisplay();
 
-    // The control doesn't show up if it is hidden when the renderer is created
-    // So, fool the control if we don't have a renderer
-    if (!m_audioTrackSelButton->renderer()) {
-        m_audioTrackSelButton->show();
-        m_audioTrackSelButton->display();
-        return;
-    }
-
     AudioTrackList* tracks = m_audioTrackSelButton->mediaController()->audioTracks();
-    if (tracks->length()>1) {
+    if (tracks->length() > 1) {
         m_audioTrackSelButton->show();
         m_audioTrackSelButton->display();
     } else
@@ -525,6 +512,7 @@ void MediaControlsApple::createAudioTrackDisplay()
         return;
 
     RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), this);
+    audioDisplayButton->setMediaController(m_mediaController);
     m_audioTrackSelButton = audioDisplayButton.get();
 
     // Insert it before the first controller element so it always displays behind the controls.
