@@ -173,6 +173,7 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfSample()
         INFO_MEDIA_MESSAGE("Track %d parsing sample: %.*s", m_index, static_cast<int>(info.size),
             reinterpret_cast<char*>(info.data));
         m_webVTTParser->parseBytes(reinterpret_cast<char*>(info.data), info.size);
+        gst_buffer_unmap(buffer, &info);
     }
 }
 
@@ -180,7 +181,8 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged()
 {
     m_streamTimerHandler = 0;
 
-    GRefPtr<GstEvent> event = gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_STREAM_START, 0);
+    GRefPtr<GstEvent> event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(),
+        GST_EVENT_STREAM_START, 0));
     if (!event)
         return;
 
@@ -194,7 +196,7 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 {
     m_tagTimerHandler = 0;
 
-    GRefPtr<GstEvent> event = gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, 0);
+    GRefPtr<GstEvent> event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, 0));
     GstTagList* tags = 0;
     if (event)
         gst_event_parse_tag(event.get(), &tags);

@@ -819,7 +819,8 @@ void MediaPlayerPrivateGStreamer::newTextSample()
     if (!m_textAppSink)
         return;
 
-    GstEvent* streamStartEvent = gst_pad_get_sticky_event(m_textAppSinkPad.get(), GST_EVENT_STREAM_START, 0);
+    GRefPtr<GstEvent> streamStartEvent = adoptGRef(
+        gst_pad_get_sticky_event(m_textAppSinkPad.get(), GST_EVENT_STREAM_START, 0));
 
     GstSample* sample;
     g_signal_emit_by_name(m_textAppSink.get(), "pull-sample", &sample, NULL);
@@ -828,7 +829,7 @@ void MediaPlayerPrivateGStreamer::newTextSample()
     if (streamStartEvent) {
         bool found = FALSE;
         const gchar* id;
-        gst_event_parse_stream_start(streamStartEvent, &id);
+        gst_event_parse_stream_start(streamStartEvent.get(), &id);
         for (size_t i = 0; i < m_textTracks.size(); ++i) {
             RefPtr<InbandTextTrackPrivateGStreamer> track = m_textTracks[i];
             if (track->streamId() == id) {
@@ -839,7 +840,6 @@ void MediaPlayerPrivateGStreamer::newTextSample()
         }
         if (!found)
             WARN_MEDIA_MESSAGE("Got sample with unknown stream ID.");
-        gst_event_unref(streamStartEvent);
     } else
         WARN_MEDIA_MESSAGE("Unable to handle sample with no stream start event.");
     gst_sample_unref(sample);
