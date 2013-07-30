@@ -34,7 +34,6 @@
 #include "MediaPlayer.h"
 #include "NotImplemented.h"
 #include "SecurityOrigin.h"
-#include "TextCombinerGStreamer.h"
 #include "TimeRanges.h"
 #include "WebKitWebSourceGStreamer.h"
 #include <gst/gst.h>
@@ -46,6 +45,8 @@
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 #include "AudioTrackPrivateGStreamer.h"
 #include "InbandTextTrackPrivateGStreamer.h"
+#include "TextCombinerGStreamer.h"
+#include "TextSinkGStreamer.h"
 #include "VideoTrackPrivateGStreamer.h"
 #endif
 
@@ -1869,10 +1870,10 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
         ASSERT(textCombiner);
         g_object_set(m_playBin.get(), "text-stream-combiner", textCombiner, NULL);
 
-        m_textAppSink = gst_element_factory_make("appsink", NULL);
+        m_textAppSink = webkitTextSinkNew();
         ASSERT(m_textAppSink);
 
-        m_textAppSinkPad = gst_element_get_static_pad(m_textAppSink.get(), "sink");
+        m_textAppSinkPad = adoptGRef(gst_element_get_static_pad(m_textAppSink.get(), "sink"));
         ASSERT(m_textAppSinkPad);
 
         g_object_set(m_textAppSink.get(), "emit-signals", true, "enable-last-sample", false, "caps", gst_caps_new_empty_simple("text/vtt"), NULL);
