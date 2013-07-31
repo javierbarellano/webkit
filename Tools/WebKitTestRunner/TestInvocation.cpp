@@ -43,6 +43,7 @@
 #include <wtf/text/CString.h>
 
 #if PLATFORM(MAC)
+#include <Carbon/Carbon.h>
 #include <WebKit2/WKPagePrivateMac.h>
 #endif
 
@@ -275,6 +276,11 @@ end:
 
 void TestInvocation::dumpWebProcessUnresponsiveness()
 {
+    dumpWebProcessUnresponsiveness(m_errorMessage.c_str());
+}
+
+void TestInvocation::dumpWebProcessUnresponsiveness(const char* errorMessage)
+{
     const char* errorMessageToStderr = 0;
 #if PLATFORM(MAC)
     char buffer[64];
@@ -285,7 +291,7 @@ void TestInvocation::dumpWebProcessUnresponsiveness()
     errorMessageToStderr = "#PROCESS UNRESPONSIVE - WebProcess";
 #endif
 
-    dump(m_errorMessage.c_str(), errorMessageToStderr, true);
+    dump(errorMessage, errorMessageToStderr, true);
 }
 
 void TestInvocation::dump(const char* textToStdout, const char* textToStderr, bool seenError)
@@ -645,6 +651,13 @@ void TestInvocation::didReceiveMessageFromInjectedBundle(WKStringRef messageName
         return;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "SetBlockAllPlugins")) {
+        ASSERT(WKGetTypeID(messageBody) == WKBooleanGetTypeID());
+        WKBooleanRef shouldBlock = static_cast<WKBooleanRef>(messageBody);
+        TestController::shared().setBlockAllPlugins(WKBooleanGetValue(shouldBlock));
+        return;
+    }
+
     ASSERT_NOT_REACHED();
 }
 
@@ -663,6 +676,14 @@ WKRetainPtr<WKTypeRef> TestInvocation::didReceiveSynchronousMessageFromInjectedB
         return result;
     }
 
+    if (WKStringIsEqualToUTF8CString(messageName, "SecureEventInputIsEnabled")) {
+#if PLATFORM(MAC)
+        WKRetainPtr<WKBooleanRef> result(AdoptWK, WKBooleanCreate(IsSecureEventInputEnabled()));
+#else
+        WKRetainPtr<WKBooleanRef> result(AdoptWK, WKBooleanCreate(false));
+#endif
+        return result;
+    }
     ASSERT_NOT_REACHED();
     return 0;
 }

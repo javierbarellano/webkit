@@ -23,9 +23,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-interface [
+[
     Conditional=DISCOVERY
-] NavServiceError {
+] interface NavServiceError {
     const unsigned short PermissionDenied = 1;
     readonly attribute unsigned short code;
 };

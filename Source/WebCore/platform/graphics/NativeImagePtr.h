@@ -38,8 +38,16 @@ class QPixmap;
 QT_END_NAMESPACE
 #elif USE(CAIRO)
 #include "RefPtrCairo.h"
-#elif OS(WINCE)
+#elif USE(WINGDI)
 #include "SharedBitmap.h"
+#elif PLATFORM(BLACKBERRY)
+namespace BlackBerry {
+namespace Platform {
+namespace Graphics {
+class TiledImage;
+}
+}
+}
 #endif
 
 namespace WebCore {
@@ -53,10 +61,10 @@ typedef QPixmap* NativeImagePtr;
 #elif USE(CAIRO)
 typedef RefPtr<cairo_surface_t> NativeImagePtr;
 typedef PassRefPtr<cairo_surface_t> PassNativeImagePtr;
-#elif OS(WINCE)
+#elif USE(WINGDI)
 typedef RefPtr<SharedBitmap> NativeImagePtr;
 #elif PLATFORM(BLACKBERRY)
-typedef void* NativeImagePtr;
+typedef BlackBerry::Platform::Graphics::TiledImage* NativeImagePtr;
 #endif
 
 #if !USE(CAIRO)

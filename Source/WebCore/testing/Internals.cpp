@@ -72,12 +72,13 @@
 #include "Language.h"
 #include "MallocStatistics.h"
 #include "MemoryCache.h"
-#include "MockPagePopupDriver.h"
+#include "MemoryInfo.h"
 #include "NodeRenderingContext.h"
 #include "Page.h"
 #include "PrintContext.h"
 #include "PseudoElement.h"
 #include "Range.h"
+#include "RenderEmbeddedObject.h"
 #include "RenderMenuList.h"
 #include "RenderObject.h"
 #include "RenderTreeAsText.h"
@@ -116,10 +117,6 @@
 #include "DeviceProximityController.h"
 #endif
 
-#if ENABLE(PAGE_POPUP)
-#include "PagePopupController.h"
-#endif
-
 #if ENABLE(TOUCH_ADJUSTMENT)
 #include "WebKitPoint.h"
 #endif
@@ -149,11 +146,11 @@
 #include "SpeechSynthesis.h"
 #endif
 
-namespace WebCore {
-
-#if ENABLE(PAGE_POPUP)
-static MockPagePopupDriver* s_pagePopupDriver = 0;
+#if ENABLE(VIBRATION)
+#include "Vibration.h"
 #endif
+
+namespace WebCore {
 
 using namespace HTMLNames;
 
@@ -175,6 +172,7 @@ public:
 protected:
     virtual void setAttachedWindowHeight(unsigned) OVERRIDE { }
     virtual void setAttachedWindowWidth(unsigned) OVERRIDE { }
+    virtual void setToolbarHeight(unsigned) OVERRIDE { }
 };
 
 InspectorFrontendClientDummy::InspectorFrontendClientDummy(InspectorController* controller, Page* page)
@@ -235,10 +233,10 @@ static bool markerTypesFrom(const String& markerType, DocumentMarker::MarkerType
 
 static SpellChecker* spellchecker(Document* document)
 {
-    if (!document || !document->frame() || !document->frame()->editor())
+    if (!document || !document->frame())
         return 0;
 
-    return document->frame()->editor()->spellChecker();
+    return document->frame()->editor().spellChecker();
 }
 
 const char* Internals::internalsId = "internals";
@@ -269,12 +267,6 @@ void Internals::resetToConsistentState(Page* page)
     TextRun::setAllowsRoundingHacks(false);
     WebCore::overrideUserPreferredLanguages(Vector<String>());
     WebCore::Settings::setUsesOverlayScrollbars(false);
-#if ENABLE(PAGE_POPUP)
-    delete s_pagePopupDriver;
-    s_pagePopupDriver = 0;
-    if (page->chrome())
-        page->chrome()->client()->resetPagePopupDriver();
-#endif
 #if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
     if (page->inspectorController())
         page->inspectorController()->setProfilerEnabled(false);
@@ -283,10 +275,10 @@ void Internals::resetToConsistentState(Page* page)
     page->group().captionPreferences()->setCaptionsStyleSheetOverride(emptyString());
     page->group().captionPreferences()->setTestingMode(false);
 #endif
-    if (!page->mainFrame()->editor()->isContinuousSpellCheckingEnabled())
-        page->mainFrame()->editor()->toggleContinuousSpellChecking();
-    if (page->mainFrame()->editor()->isOverwriteModeEnabled())
-        page->mainFrame()->editor()->toggleOverwriteModeEnabled();
+    if (!page->mainFrame()->editor().isContinuousSpellCheckingEnabled())
+        page->mainFrame()->editor().toggleContinuousSpellChecking();
+    if (page->mainFrame()->editor().isOverwriteModeEnabled())
+        page->mainFrame()->editor().toggleOverwriteModeEnabled();
 }
 
 Internals::Internals(Document* document)
@@ -712,7 +704,7 @@ String Internals::visiblePlaceholder(Element* element)
 #if ENABLE(INPUT_TYPE_COLOR)
 void Internals::selectColorInColorChooser(Element* element, const String& colorValue)
 {
-    if (!element->hasTagName(inputTag))
+    if (!isHTMLInputElement(element))
         return;
     HTMLInputElement* inputElement = element->toInputElement();
     if (!inputElement)
@@ -766,33 +758,6 @@ void Internals::enableMockSpeechSynthesizer()
 }
 #endif
     
-void Internals::setEnableMockPagePopup(bool enabled, ExceptionCode& ec)
-{
-#if ENABLE(PAGE_POPUP)
-    Document* document = contextDocument();
-    if (!document || !document->page() || !document->page()->chrome())
-        return;
-    Page* page = document->page();
-    if (!enabled) {
-        page->chrome()->client()->resetPagePopupDriver();
-        return;
-    }
-    if (!s_pagePopupDriver)
-        s_pagePopupDriver = MockPagePopupDriver::create(page->mainFrame()).leakPtr();
-    page->chrome()->client()->setPagePopupDriver(s_pagePopupDriver);
-#else
-    UNUSED_PARAM(enabled);
-    UNUSED_PARAM(ec);
-#endif
-}
-
-#if ENABLE(PAGE_POPUP)
-PassRefPtr<PagePopupController> Internals::pagePopupController()
-{
-    return s_pagePopupDriver ? s_pagePopupDriver->pagePopupController() : 0;
-}
-#endif
-
 PassRefPtr<ClientRect> Internals::absoluteCaretBounds(ExceptionCode& ec)
 {
     Document* document = contextDocument();
@@ -970,7 +935,7 @@ bool Internals::wasLastChangeUserEdit(Element* textField, ExceptionCode& ec)
 
     // FIXME: We should be using hasTagName instead but Windows port doesn't link QualifiedNames properly.
     if (textField->tagName() == "TEXTAREA")
-        return static_cast<HTMLTextAreaElement*>(textField)->lastChangeWasUserEdit();
+        return toHTMLTextAreaElement(textField)->lastChangeWasUserEdit();
 
     ec = INVALID_NODE_TYPE_ERR;
     return false;
@@ -1425,7 +1390,7 @@ bool Internals::hasSpellingMarker(Document* document, int from, int length, Exce
     if (!document || !document->frame())
         return 0;
 
-    return document->frame()->editor()->selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
+    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
 }
     
 bool Internals::hasAutocorrectedMarker(Document* document, int from, int length, ExceptionCode&)
@@ -1433,7 +1398,7 @@ bool Internals::hasAutocorrectedMarker(Document* document, int from, int length,
     if (!document || !document->frame())
         return 0;
     
-    return document->frame()->editor()->selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
+    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Autocorrected, from, length);
 }
 
 void Internals::setContinuousSpellCheckingEnabled(bool enabled, ExceptionCode&)
@@ -1441,8 +1406,8 @@ void Internals::setContinuousSpellCheckingEnabled(bool enabled, ExceptionCode&)
     if (!contextDocument() || !contextDocument()->frame())
         return;
 
-    if (enabled != contextDocument()->frame()->editor()->isContinuousSpellCheckingEnabled())
-        contextDocument()->frame()->editor()->toggleContinuousSpellChecking();
+    if (enabled != contextDocument()->frame()->editor().isContinuousSpellCheckingEnabled())
+        contextDocument()->frame()->editor().toggleContinuousSpellChecking();
 }
 
 void Internals::setAutomaticQuoteSubstitutionEnabled(bool enabled, ExceptionCode&)
@@ -1451,8 +1416,8 @@ void Internals::setAutomaticQuoteSubstitutionEnabled(bool enabled, ExceptionCode
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor()->isAutomaticQuoteSubstitutionEnabled())
-        contextDocument()->frame()->editor()->toggleAutomaticQuoteSubstitution();
+    if (enabled != contextDocument()->frame()->editor().isAutomaticQuoteSubstitutionEnabled())
+        contextDocument()->frame()->editor().toggleAutomaticQuoteSubstitution();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -1464,8 +1429,8 @@ void Internals::setAutomaticLinkDetectionEnabled(bool enabled, ExceptionCode&)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor()->isAutomaticLinkDetectionEnabled())
-        contextDocument()->frame()->editor()->toggleAutomaticLinkDetection();
+    if (enabled != contextDocument()->frame()->editor().isAutomaticLinkDetectionEnabled())
+        contextDocument()->frame()->editor().toggleAutomaticLinkDetection();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -1477,8 +1442,8 @@ void Internals::setAutomaticDashSubstitutionEnabled(bool enabled, ExceptionCode&
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor()->isAutomaticDashSubstitutionEnabled())
-        contextDocument()->frame()->editor()->toggleAutomaticDashSubstitution();
+    if (enabled != contextDocument()->frame()->editor().isAutomaticDashSubstitutionEnabled())
+        contextDocument()->frame()->editor().toggleAutomaticDashSubstitution();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -1490,8 +1455,8 @@ void Internals::setAutomaticTextReplacementEnabled(bool enabled, ExceptionCode&)
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor()->isAutomaticTextReplacementEnabled())
-        contextDocument()->frame()->editor()->toggleAutomaticTextReplacement();
+    if (enabled != contextDocument()->frame()->editor().isAutomaticTextReplacementEnabled())
+        contextDocument()->frame()->editor().toggleAutomaticTextReplacement();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -1503,8 +1468,8 @@ void Internals::setAutomaticSpellingCorrectionEnabled(bool enabled, ExceptionCod
         return;
 
 #if USE(AUTOMATIC_TEXT_REPLACEMENT)
-    if (enabled != contextDocument()->frame()->editor()->isAutomaticSpellingCorrectionEnabled())
-        contextDocument()->frame()->editor()->toggleAutomaticSpellingCorrection();
+    if (enabled != contextDocument()->frame()->editor().isAutomaticSpellingCorrectionEnabled())
+        contextDocument()->frame()->editor().toggleAutomaticSpellingCorrection();
 #else
     UNUSED_PARAM(enabled);
 #endif
@@ -1515,7 +1480,7 @@ bool Internals::isOverwriteModeEnabled(Document* document, ExceptionCode&)
     if (!document || !document->frame())
         return 0;
 
-    return document->frame()->editor()->isOverwriteModeEnabled();
+    return document->frame()->editor().isOverwriteModeEnabled();
 }
 
 void Internals::toggleOverwriteModeEnabled(Document* document, ExceptionCode&)
@@ -1523,7 +1488,7 @@ void Internals::toggleOverwriteModeEnabled(Document* document, ExceptionCode&)
     if (!document || !document->frame())
         return;
 
-    document->frame()->editor()->toggleOverwriteModeEnabled();
+    document->frame()->editor().toggleOverwriteModeEnabled();
 }
 
 #if ENABLE(INSPECTOR)
@@ -1618,7 +1583,7 @@ bool Internals::hasGrammarMarker(Document* document, int from, int length, Excep
     if (!document || !document->frame())
         return 0;
 
-    return document->frame()->editor()->selectionStartHasMarkerFor(DocumentMarker::Grammar, from, length);
+    return document->frame()->editor().selectionStartHasMarkerFor(DocumentMarker::Grammar, from, length);
 }
 
 unsigned Internals::numberOfScrollableAreas(Document* document, ExceptionCode&)
@@ -1904,6 +1869,11 @@ PassRefPtr<TypeConversions> Internals::typeConversions() const
     return TypeConversions::create();
 }
 
+PassRefPtr<MemoryInfo> Internals::memoryInfo() const
+{
+    return MemoryInfo::create();
+}
+
 Vector<String> Internals::getReferencedFilePaths() const
 {
     frame()->loader()->history()->saveDocumentAndScrollState();
@@ -2076,7 +2046,7 @@ String Internals::getImageSourceURL(Element* element, ExceptionCode& ec)
 void Internals::simulateAudioInterruption(Node* node)
 {
 #if USE(GSTREAMER)
-    HTMLMediaElement* element = toMediaElement(node);
+    HTMLMediaElement* element = toHTMLMediaElement(node);
     element->player()->simulateAudioInterruption();
 #else
     UNUSED_PARAM(node);
@@ -2086,7 +2056,7 @@ void Internals::simulateAudioInterruption(Node* node)
 
 bool Internals::isSelectPopupVisible(Node* node)
 {
-    if (!isHTMLSelectElement(node))
+    if (!node->hasTagName(HTMLNames::selectTag))
         return false;
 
     HTMLSelectElement* select = toHTMLSelectElement(node);
@@ -2194,6 +2164,33 @@ PassRefPtr<ClientRect> Internals::selectionBounds(ExceptionCode& ec)
     }
 
     return ClientRect::create(document->frame()->selection()->bounds());
+}
+
+#if ENABLE(VIBRATION)
+bool Internals::isVibrating()
+{
+    Page* page = contextDocument()->page();
+    ASSERT(page);
+
+    return Vibration::from(page)->isVibrating();
+}
+#endif
+
+bool Internals::isPluginUnavailabilityIndicatorObscured(Element* element, ExceptionCode& ec)
+{
+    if (!element) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    RenderObject* renderer = element->renderer();
+    if (!renderer || !renderer->isEmbeddedObject()) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+
+    RenderEmbeddedObject* embed = toRenderEmbeddedObject(renderer);
+    return embed->isReplacementObscured();
 }
 
 }

@@ -25,7 +25,6 @@
 
 #include "RenderStyle.h"
 #include <wtf/OwnPtr.h>
-#include <wtf/RefPtr.h>
 
 namespace WebCore {
 
@@ -77,6 +76,7 @@ public:
     void userDidClickSnapshot(PassRefPtr<MouseEvent>, bool forwardEvent);
     void checkSnapshotStatus();
     Image* snapshotImage() const { return m_snapshotImage.get(); }
+    void restartSnapshottedPlugIn();
 
     // Plug-in URL might not be the same as url() with overriding parameters.
     void subframeLoaderWillCreatePlugIn(const KURL& plugInURL);
@@ -93,7 +93,8 @@ public:
         SnapshotNotYetDecided,
         NeverSnapshot,
         Snapshotted,
-        MaySnapshotWhenResized
+        MaySnapshotWhenResized,
+        MaySnapshotWhenContentIsSet
     };
     SnapshotDecision snapshotDecision() const { return m_snapshotDecision; }
 
@@ -108,8 +109,8 @@ protected:
     KURL m_loadedUrl;
 
     static void updateWidgetCallback(Node*, unsigned = 0);
-    virtual void attach();
-    virtual void detach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
 
     bool allowedToLoadFrameURL(const String& url);
     bool wouldLoadAsNetscapePlugin(const String& url, const String& serviceType);
@@ -121,16 +122,15 @@ protected:
 
     virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
 
-    void restartSnapshottedPlugIn();
     virtual bool isRestartedPlugin() const OVERRIDE { return m_isRestartedPlugin; }
 
 private:
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
-    virtual bool willRecalcStyle(StyleChange);
+    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*) OVERRIDE;
+    virtual bool willRecalcStyle(StyleChange) OVERRIDE;
 
     void didAddUserAgentShadowRoot(ShadowRoot*) OVERRIDE;
 
-    virtual void finishParsingChildren();
+    virtual void finishParsingChildren() OVERRIDE;
 
     void updateWidgetIfNecessary();
 
@@ -145,6 +145,8 @@ private:
     virtual bool isPlugInImageElement() const OVERRIDE { return true; }
 
     void removeSnapshotTimerFired(Timer<HTMLPlugInImageElement>*);
+
+    virtual void defaultEventHandler(Event*) OVERRIDE;
 
     bool m_needsWidgetUpdate;
     bool m_shouldPreferPlugInsForImages;

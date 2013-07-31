@@ -172,9 +172,9 @@ bool HTMLImageElement::canStartSelection() const
     return false;
 }
 
-void HTMLImageElement::attach()
+void HTMLImageElement::attach(const AttachContext& context)
 {
-    HTMLElement::attach();
+    HTMLElement::attach(context);
 
     if (renderer() && renderer()->isImage() && !m_imageLoader.hasPendingBeforeLoadEvent()) {
         RenderImage* renderImage = toRenderImage(renderer());
@@ -195,8 +195,8 @@ Node::InsertionNotificationRequest HTMLImageElement::insertedInto(ContainerNode*
     if (!m_form) {
         // m_form can be non-null if it was set in constructor.
         for (ContainerNode* ancestor = parentNode(); ancestor; ancestor = ancestor->parentNode()) {
-            if (ancestor->hasTagName(formTag)) {
-                m_form = static_cast<HTMLFormElement*>(ancestor);
+            if (isHTMLFormElement(ancestor)) {
+                m_form = toHTMLFormElement(ancestor);
                 m_form->registerImgElement(this);
                 break;
             }

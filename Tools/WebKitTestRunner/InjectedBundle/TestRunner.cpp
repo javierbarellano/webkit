@@ -85,6 +85,7 @@ TestRunner::TestRunner()
     , m_waitToDump(false)
     , m_testRepaint(false)
     , m_testRepaintSweepHorizontally(false)
+    , m_isPrinting(false)
     , m_willSendRequestReturnsNull(false)
     , m_willSendRequestReturnsNullOnRedirect(false)
     , m_shouldStopProvisionalFrameLoads(false)
@@ -493,8 +494,8 @@ void TestRunner::setPageVisibility(JSStringRef state)
         visibilityState = kWKPageVisibilityStateHidden;
     else if (JSStringIsEqualToUTF8CString(state, "prerender"))
         visibilityState = kWKPageVisibilityStatePrerender;
-    else if (JSStringIsEqualToUTF8CString(state, "preview"))
-        visibilityState = kWKPageVisibilityStatePreview;
+    else if (JSStringIsEqualToUTF8CString(state, "unloaded"))
+        visibilityState = kWKPageVisibilityStateUnloaded;
 
     InjectedBundle::shared().setVisibilityState(visibilityState, false);
 }
@@ -799,6 +800,22 @@ void TestRunner::setAuthenticationPassword(JSStringRef password)
 {
     WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString("SetAuthenticationPassword"));
     WKRetainPtr<WKStringRef> messageBody(AdoptWK, WKStringCreateWithJSString(password));
+    WKBundlePostMessage(InjectedBundle::shared().bundle(), messageName.get(), messageBody.get());
+}
+
+bool TestRunner::secureEventInputIsEnabled() const
+{
+    WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString("SecureEventInputIsEnabled"));
+    WKTypeRef returnData = 0;
+
+    WKBundlePostSynchronousMessage(InjectedBundle::shared().bundle(), messageName.get(), 0, &returnData);
+    return WKBooleanGetValue(static_cast<WKBooleanRef>(returnData));
+}
+
+void TestRunner::setBlockAllPlugins(bool shouldBlock)
+{
+    WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString("SetBlockAllPlugins"));
+    WKRetainPtr<WKBooleanRef> messageBody(AdoptWK, WKBooleanCreate(shouldBlock));
     WKBundlePostMessage(InjectedBundle::shared().bundle(), messageName.get(), messageBody.get());
 }
 

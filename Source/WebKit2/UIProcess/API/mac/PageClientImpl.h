@@ -40,7 +40,7 @@ class AlternativeTextUIController;
 namespace WebKit {
 class FindIndicatorWindow;
 
-class PageClientImpl : public PageClient {
+class PageClientImpl FINAL : public PageClient {
 public:
     static PassOwnPtr<PageClientImpl> create(WKView*);
     virtual ~PageClientImpl();
@@ -68,6 +68,7 @@ private:
     virtual void processDidCrash();
     virtual void pageClosed();
     virtual void didRelaunchProcess();
+    virtual void preferencesDidChange() OVERRIDE;
     virtual void toolTipChanged(const String& oldToolTip, const String& newToolTip);
     virtual void setCursor(const WebCore::Cursor&);
     virtual void setCursorHiddenUntilMouseMoves(bool);
@@ -82,8 +83,9 @@ private:
     virtual void setDragImage(const WebCore::IntPoint& clientPosition, PassRefPtr<ShareableBitmap> dragImage, bool isLinkDrag);
     virtual void setPromisedData(const String& pasteboardName, PassRefPtr<WebCore::SharedBuffer> imageBuffer, const String& filename, const String& extension, const String& title,
                                  const String& url, const String& visibleUrl, PassRefPtr<WebCore::SharedBuffer> archiveBuffer);
-    virtual void updateTextInputState(bool updateSecureInputState);
-    virtual void resetTextInputState();
+    virtual void updateSecureInputState() OVERRIDE;
+    virtual void resetSecureInputState() OVERRIDE;
+    virtual void notifyInputContextAboutDiscardedComposition() OVERRIDE;
 
     virtual WebCore::FloatRect convertToDeviceSpace(const WebCore::FloatRect&);
     virtual WebCore::FloatRect convertToUserSpace(const WebCore::FloatRect&);
@@ -99,7 +101,7 @@ private:
     virtual PassRefPtr<WebContextMenuProxy> createContextMenuProxy(WebPageProxy*);
 
 #if ENABLE(INPUT_TYPE_COLOR)
-    virtual PassRefPtr<WebColorChooserProxy> createColorChooserProxy(WebPageProxy*, const WebCore::Color& initialColor, const WebCore::IntRect&);
+    virtual PassRefPtr<WebColorPicker> createColorPicker(WebPageProxy*, const WebCore::Color& initialColor, const WebCore::IntRect&);
 #endif
 
     void setFindIndicator(PassRefPtr<FindIndicator>, bool fadeOut, bool animate);
@@ -116,14 +118,6 @@ private:
     virtual void makeFirstResponder();
     
     virtual CGContextRef containingWindowGraphicsContext();
-
-    virtual void didCommitLoadForMainFrame(bool useCustomRepresentation);
-    virtual void didFinishLoadingDataForCustomRepresentation(const String& suggestedFilename, const CoreIPC::DataReference&);
-
-    virtual double customRepresentationZoomFactor();
-    virtual void setCustomRepresentationZoomFactor(double);
-    virtual void findStringInCustomRepresentation(const String&, FindOptions, unsigned maxMatchCount);
-    virtual void countStringMatchesInCustomRepresentation(const String&, FindOptions, unsigned maxMatchCount);
 
     virtual void flashBackingStoreUpdates(const Vector<WebCore::IntRect>& updateRects);
 

@@ -162,14 +162,11 @@ AccessibilityObject* AXObjectCache::focusedUIElementForPage(const Page* page)
 
     // get the focused node in the page
     Document* focusedDocument = page->focusController()->focusedOrMainFrame()->document();
-    Node* focusedNode = focusedDocument->focusedNode();
-    if (!focusedNode)
-        focusedNode = focusedDocument;
+    Element* focusedElement = focusedDocument->focusedElement();
+    if (focusedElement && isHTMLAreaElement(focusedElement))
+        return focusedImageMapUIElement(toHTMLAreaElement(focusedElement));
 
-    if (focusedNode->hasTagName(areaTag))
-        return focusedImageMapUIElement(static_cast<HTMLAreaElement*>(focusedNode));
-    
-    AccessibilityObject* obj = focusedNode->document()->axObjectCache()->getOrCreate(focusedNode);
+    AccessibilityObject* obj = focusedDocument->axObjectCache()->getOrCreate(focusedElement ? static_cast<Node*>(focusedElement) : focusedDocument);
     if (!obj)
         return 0;
 
@@ -812,7 +809,7 @@ void AXObjectCache::handleAttributeChanged(const QualifiedName& attrName, Elemen
         handleAriaRoleChanged(element);
     else if (attrName == altAttr || attrName == titleAttr)
         textChanged(element);
-    else if (attrName == forAttr && element->hasTagName(labelTag))
+    else if (attrName == forAttr && isHTMLLabelElement(element))
         labelChanged(element);
 
     if (!attrName.localName().string().startsWith("aria-"))
@@ -840,8 +837,8 @@ void AXObjectCache::handleAttributeChanged(const QualifiedName& attrName, Elemen
 
 void AXObjectCache::labelChanged(Element* element)
 {
-    ASSERT(element->hasTagName(labelTag));
-    HTMLElement* correspondingControl = static_cast<HTMLLabelElement*>(element)->control();
+    ASSERT(isHTMLLabelElement(element));
+    HTMLElement* correspondingControl = toHTMLLabelElement(element)->control();
     textChanged(correspondingControl);
 }
 
@@ -954,6 +951,19 @@ bool isNodeAriaVisible(Node* node)
     return equalIgnoringCase(toElement(node)->getAttribute(aria_hiddenAttr), "false");
 }
 
+AXAttributeCacheEnabler::AXAttributeCacheEnabler(AXObjectCache* cache)
+    : m_cache(cache)
+{
+    if (m_cache)
+        m_cache->startCachingComputedObjectAttributesUntilTreeMutates();
+}
+    
+AXAttributeCacheEnabler::~AXAttributeCacheEnabler()
+{
+    if (m_cache)
+        m_cache->stopCachingComputedObjectAttributes();
+}
+    
 } // namespace WebCore
 
 #endif // HAVE(ACCESSIBILITY)

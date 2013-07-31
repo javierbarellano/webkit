@@ -48,7 +48,8 @@ my $verbose = 0;
 my %numericTypeHash = ("int" => 1, "short" => 1, "long" => 1, "long long" => 1,
                        "unsigned int" => 1, "unsigned short" => 1,
                        "unsigned long" => 1, "unsigned long long" => 1,
-                       "float" => 1, "double" => 1);
+                       "float" => 1, "double" => 1, "byte" => 1,
+                       "octet" => 1);
 
 my %primitiveTypeHash = ( "boolean" => 1, "void" => 1, "Date" => 1);
 
@@ -65,14 +66,6 @@ my %enumTypeHash = ();
 
 my %nonPointerTypeHash = ("DOMTimeStamp" => 1, "CompareHow" => 1);
 
-my %svgAnimatedTypeHash = ("SVGAnimatedAngle" => 1, "SVGAnimatedBoolean" => 1,
-                           "SVGAnimatedEnumeration" => 1, "SVGAnimatedInteger" => 1,
-                           "SVGAnimatedLength" => 1, "SVGAnimatedLengthList" => 1,
-                           "SVGAnimatedNumber" => 1, "SVGAnimatedNumberList" => 1,
-                           "SVGAnimatedPreserveAspectRatio" => 1,
-                           "SVGAnimatedRect" => 1, "SVGAnimatedString" => 1,
-                           "SVGAnimatedTransformList" => 1);
-
 my %svgAttributesInHTMLHash = ("class" => 1, "id" => 1, "onabort" => 1, "onclick" => 1,
                                "onerror" => 1, "onload" => 1, "onmousedown" => 1,
                                "onmouseenter" => 1, "onmouseleave" => 1,
@@ -88,7 +81,7 @@ my %svgTypeNeedingTearOff = (
     "SVGNumber" => "SVGPropertyTearOff<float>",
     "SVGNumberList" => "SVGListPropertyTearOff<SVGNumberList>",
     "SVGPathSegList" => "SVGPathSegListPropertyTearOff",
-    "SVGPoint" => "SVGPropertyTearOff<FloatPoint>",
+    "SVGPoint" => "SVGPropertyTearOff<SVGPoint>",
     "SVGPointList" => "SVGListPropertyTearOff<SVGPointList>",
     "SVGPreserveAspectRatio" => "SVGPropertyTearOff<SVGPreserveAspectRatio>",
     "SVGRect" => "SVGPropertyTearOff<FloatRect>",
@@ -204,58 +197,6 @@ sub ForAllParents
     &$recurse($interface);
 }
 
-sub AddMethodsConstantsAndAttributesFromParentInterfaces
-{
-    # Add to $interface all of its inherited interface members, except for those
-    # inherited through $interface's first listed parent.  If an array reference
-    # is passed in as $parents, the names of all ancestor interfaces visited
-    # will be appended to the array.  If $collectDirectParents is true, then
-    # even the names of $interface's first listed parent and its ancestors will
-    # be appended to $parents.
-
-    my $object = shift;
-    my $interface = shift;
-    my $parents = shift;
-    my $collectDirectParents = shift;
-
-    my $first = 1;
-
-    $object->ForAllParents($interface, sub {
-        my $currentInterface = shift;
-
-        if ($first) {
-            # Ignore first parent class, already handled by the generation itself.
-            $first = 0;
-
-            if ($collectDirectParents) {
-                # Just collect the names of the direct ancestor interfaces,
-                # if necessary.
-                push(@$parents, $currentInterface->name);
-                $object->ForAllParents($currentInterface, sub {
-                    my $currentInterface = shift;
-                    push(@$parents, $currentInterface->name);
-                }, undef);
-            }
-
-            # Prune the recursion here.
-            return 'prune';
-        }
-
-        # Collect the name of this additional parent.
-        push(@$parents, $currentInterface->name) if $parents;
-
-        print "  |  |>  -> Inheriting "
-            . @{$currentInterface->constants} . " constants, "
-            . @{$currentInterface->functions} . " functions, "
-            . @{$currentInterface->attributes} . " attributes...\n  |  |>\n" if $verbose;
-
-        # Add this parent's members to $interface.
-        push(@{$interface->constants}, @{$currentInterface->constants});
-        push(@{$interface->functions}, @{$currentInterface->functions});
-        push(@{$interface->attributes}, @{$currentInterface->attributes});
-    });
-}
-
 sub FindSuperMethod
 {
     my ($object, $interface, $functionName) = @_;
@@ -332,12 +273,10 @@ sub SkipIncludeHeader
     my $object = shift;
     my $type = shift;
 
-    return 1 if $primitiveTypeHash{$type};
-    return 1 if $numericTypeHash{$type};
-    return 1 if $type eq "String";
+    return 1 if $object->IsPrimitiveType($type);
 
-    # Special case: SVGPoint.h / SVGNumber.h do not exist.
-    return 1 if $type eq "SVGPoint" or $type eq "SVGNumber";
+    # Special case: SVGNumber.h does not exist.
+    return 1 if $type eq "SVGNumber";
     return 0;
 }
 
@@ -348,6 +287,15 @@ sub IsConstructorTemplate
     my $template = shift;
 
     return $interface->extendedAttributes->{"ConstructorTemplate"} && $interface->extendedAttributes->{"ConstructorTemplate"} eq $template;
+}
+
+sub IsNumericType
+{
+    my $object = shift;
+    my $type = shift;
+
+    return 1 if $numericTypeHash{$type};
+    return 0;
 }
 
 sub IsPrimitiveType
@@ -474,8 +422,7 @@ sub IsSVGAnimatedType
     my $object = shift;
     my $type = shift;
 
-    return 1 if $svgAnimatedTypeHash{$type};
-    return 0;
+    return $type =~ /^SVGAnimated/;
 }
 
 sub GetSequenceType
@@ -510,6 +457,7 @@ sub WK_ucfirst
     my ($object, $param) = @_;
     my $ret = ucfirst($param);
     $ret =~ s/Xml/XML/ if $ret =~ /^Xml[^a-z]/;
+    $ret =~ s/Svg/SVG/ if $ret =~ /^Svg/;
 
     return $ret;
 }
@@ -569,13 +517,6 @@ sub AttributeNameForGetterAndSetter
     }
     my $attributeType = $attribute->signature->type;
 
-    # Avoid clash with C++ keyword.
-    $attributeName = "_operator" if $attributeName eq "operator";
-
-    # SVGAElement defines a non-virtual "String& target() const" method which clashes with "virtual String target() const" in Element.
-    # To solve this issue the SVGAElement method was renamed to "svgTarget", take care of that when calling this method.
-    $attributeName = "svgTarget" if $attributeName eq "target" and $attributeType eq "SVGAnimatedString";
-
     # SVG animated types need to use a special attribute name.
     # The rest of the special casing for SVG animated types is handled in the language-specific code generators.
     $attributeName .= "Animated" if $generator->IsSVGAnimatedType($attributeType);
@@ -598,16 +539,6 @@ sub ContentAttributeName
     return "WebCore::${namespace}::${contentAttributeName}Attr";
 }
 
-sub CanUseFastAttribute
-{
-    my ($generator, $attribute) = @_;
-    my $attributeType = $attribute->signature->type;
-    # HTMLNames::styleAttr cannot be used with fast{Get,Has}Attribute but we do not [Reflect] the
-    # style attribute.
-
-    return !$generator->IsSVGAnimatedType($attributeType);
-}
-
 sub GetterExpression
 {
     my ($generator, $implIncludes, $interfaceName, $attribute) = @_;
@@ -622,12 +553,7 @@ sub GetterExpression
     if ($attribute->signature->extendedAttributes->{"URL"}) {
         $functionName = "getURLAttribute";
     } elsif ($attribute->signature->type eq "boolean") {
-        my $namespace = $generator->NamespaceForAttributeName($interfaceName, $contentAttributeName);
-        if ($generator->CanUseFastAttribute($attribute)) {
-            $functionName = "fastHasAttribute";
-        } else {
-            $functionName = "hasAttribute";
-        }
+        $functionName = "fastHasAttribute";
     } elsif ($attribute->signature->type eq "long") {
         $functionName = "getIntegralAttribute";
     } elsif ($attribute->signature->type eq "unsigned long") {
@@ -639,10 +565,10 @@ sub GetterExpression
         } elsif ($contentAttributeName eq "WebCore::HTMLNames::nameAttr") {
             $functionName = "getNameAttribute";
             $contentAttributeName = "";
-        } elsif ($generator->CanUseFastAttribute($attribute)) {
-            $functionName = "fastGetAttribute";
-        } else {
+        } elsif ($generator->IsSVGAnimatedType($attribute)) {
             $functionName = "getAttribute";
+        } else {
+            $functionName = "fastGetAttribute";
         }
     }
 
@@ -790,7 +716,7 @@ sub ExtendedAttributeContains
     return 0 unless $callWith;
     my $keyword = shift;
 
-    my @callWithKeywords = split /\s*\|\s*/, $callWith;
+    my @callWithKeywords = split /\s*\&\s*/, $callWith;
     return grep { $_ eq $keyword } @callWithKeywords;
 }
 

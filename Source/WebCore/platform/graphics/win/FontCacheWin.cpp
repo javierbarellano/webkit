@@ -100,9 +100,9 @@ static const Vector<String>* getLinkedFonts(String& family)
         return result;
 
     DWORD linkedFontsBufferSize = 0;
-    RegQueryValueEx(fontLinkKey, family.charactersWithNullTermination(), 0, NULL, NULL, &linkedFontsBufferSize);
+    RegQueryValueEx(fontLinkKey, family.charactersWithNullTermination().data(), 0, NULL, NULL, &linkedFontsBufferSize);
     WCHAR* linkedFonts = reinterpret_cast<WCHAR*>(malloc(linkedFontsBufferSize));
-    if (SUCCEEDED(RegQueryValueEx(fontLinkKey, family.charactersWithNullTermination(), 0, NULL, reinterpret_cast<BYTE*>(linkedFonts), &linkedFontsBufferSize))) {
+    if (SUCCEEDED(RegQueryValueEx(fontLinkKey, family.charactersWithNullTermination().data(), 0, NULL, reinterpret_cast<BYTE*>(linkedFonts), &linkedFontsBufferSize))) {
         unsigned i = 0;
         unsigned length = linkedFontsBufferSize / sizeof(*linkedFonts);
         while (i < length) {
@@ -186,12 +186,12 @@ static HFONT createMLangFont(IMLangFontLinkType* langFontLink, HDC hdc, DWORD co
     return hfont;
 }
 
-PassRefPtr<SimpleFontData> FontCache::getFontDataForCharacters(const Font& font, const UChar* characters, int length)
+PassRefPtr<SimpleFontData> FontCache::systemFallbackForCharacters(const FontDescription& description, const SimpleFontData* originalFontData, bool, const UChar* characters, int length)
 {
     UChar character = characters[0];
     RefPtr<SimpleFontData> fontData;
     HWndDC hdc(0);
-    HFONT primaryFont = font.primaryFont()->fontDataForCharacter(character)->platformData().hfont();
+    HFONT primaryFont = originalFontData->platformData().hfont();
     HGDIOBJ oldFont = SelectObject(hdc, primaryFont);
     HFONT hfont = 0;
 
@@ -284,7 +284,7 @@ PassRefPtr<SimpleFontData> FontCache::getFontDataForCharacters(const Font& font,
 
     if (hfont) {
         if (!familyName.isEmpty()) {
-            FontPlatformData* result = getCachedFontPlatformData(font.fontDescription(), familyName);
+            FontPlatformData* result = getCachedFontPlatformData(description, familyName);
             if (result)
                 fontData = getCachedFontData(result, DoNotRetain);
         }
@@ -294,11 +294,6 @@ PassRefPtr<SimpleFontData> FontCache::getFontDataForCharacters(const Font& font,
     }
 
     return fontData.release();
-}
-
-PassRefPtr<SimpleFontData> FontCache::getSimilarFontPlatformData(const Font& font)
-{
-    return 0;
 }
 
 PassRefPtr<SimpleFontData> FontCache::fontDataFromDescriptionAndLogFont(const FontDescription& fontDescription, ShouldRetain shouldRetain, const LOGFONT& font, AtomicString& outFontFamilyName)

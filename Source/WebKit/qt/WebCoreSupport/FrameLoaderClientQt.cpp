@@ -66,6 +66,7 @@
 #include "PlatformMouseEvent.h"
 #include "PluginData.h"
 #include "PluginDatabase.h"
+#include "PolicyChecker.h"
 #include "ProgressTracker.h"
 #include "QNetworkReplyHandler.h"
 #include "QWebFrameAdapter.h"
@@ -257,7 +258,7 @@ bool FrameLoaderClientQt::hasWebView() const
     return true;
 }
 
-void FrameLoaderClientQt::savePlatformDataToCachedFrame(CachedFrame*)
+void FrameLoaderClientQt::savePlatformDataToCachedFrame(CachedFrame*) 
 {
     notImplemented();
 }
@@ -629,7 +630,7 @@ bool FrameLoaderClientQt::canShowMIMETypeAsHTML(const String& MIMEType) const
     notImplemented();
     return false;
 }
-
+    
 bool FrameLoaderClientQt::canShowMIMEType(const String& MIMEType) const
 {
     String type = MIMEType;
@@ -1049,6 +1050,7 @@ void FrameLoaderClientQt::dispatchWillSendRequest(WebCore::DocumentLoader*, unsi
     if (QWebPageAdapter::drtRun
         && !host.isEmpty()
         && (urlScheme == QLatin1String("http") || urlScheme == QLatin1String("https"))) {
+
         QUrl testURL = m_webFrame->pageAdapter->mainFrameAdapter()->frameLoaderClient->lastRequestedUrl();
         QString testHost = testURL.host();
         QString testURLScheme = testURL.scheme().toLower();
@@ -1376,12 +1378,16 @@ ObjectContentType FrameLoaderClientQt::objectContentType(const KURL& url, const 
     ObjectContentType plugInType = ObjectContentNone;
     if (arePluginsEnabled && PluginDatabase::installedPlugins()->isMIMETypeRegistered(mimeType))
         plugInType = ObjectContentNetscapePlugin;
-    else if (m_frame->page() && m_frame->page()->pluginData() && m_frame->page()->pluginData()->supportsMimeType(mimeType))
-        plugInType = ObjectContentOtherPlugin;
+    else if (m_frame->page() && m_frame->page()->pluginData()) {
+        bool allowPlugins = m_frame->loader()->subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin);
+        if ((m_frame->page()->pluginData()->supportsMimeType(mimeType, PluginData::AllPlugins) && allowPlugins)
+            || m_frame->page()->pluginData()->supportsMimeType(mimeType, PluginData::OnlyApplicationPlugins))
+                plugInType = ObjectContentOtherPlugin;
+    }
 
     if (MIMETypeRegistry::isSupportedImageMIMEType(mimeType))
         return shouldPreferPlugInsForImages && plugInType != ObjectContentNone ? plugInType : ObjectContentImage;
-
+    
     if (plugInType != ObjectContentNone)
         return plugInType;
 
@@ -1424,7 +1430,7 @@ public:
     }
 
     virtual void invalidateRect(const IntRect& r)
-    {
+    { 
         if (platformWidget())
             widgetAdapter()->update(r);
     }

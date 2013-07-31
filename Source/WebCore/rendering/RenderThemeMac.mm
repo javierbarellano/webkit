@@ -30,6 +30,7 @@
 #import "FileList.h"
 #import "FrameView.h"
 #import "GraphicsContextCG.h"
+#import "HTMLAudioElement.h"
 #import "HTMLInputElement.h"
 #import "HTMLMediaElement.h"
 #import "HTMLNames.h"
@@ -252,7 +253,7 @@ static unsigned getMediaUIPartStateFlags(Node* node)
 
     if (isDisabledFormControl(node))
         flags |= MediaUIPartDisabledFlag;
-    else if (node->active())
+    else if (node->isElementNode() && toElement(node)->active())
         flags |= MediaUIPartPressedFlag;
     return flags;
 }
@@ -289,7 +290,7 @@ bool RenderThemeMac::paintMediaMuteButton(RenderObject* o, const PaintInfo& pain
 {
     Node* node = o->node();
     Node* mediaNode = node ? node->shadowHost() : 0;
-    if (!mediaNode || (!mediaNode->hasTagName(videoTag) && !mediaNode->hasTagName(audioTag)))
+    if (!mediaNode || (!mediaNode->hasTagName(videoTag) && !isHTMLAudioElement(mediaNode)))
         return false;
 
     if (node->isMediaControlElement()) {
@@ -303,7 +304,7 @@ bool RenderThemeMac::paintMediaPlayButton(RenderObject* o, const PaintInfo& pain
 {
     Node* node = o->node();
     Node* mediaNode = node ? node->shadowHost() : 0;
-    if (!mediaNode || (!mediaNode->hasTagName(videoTag) && !mediaNode->hasTagName(audioTag)))
+    if (!mediaNode || (!mediaNode->hasTagName(videoTag) && !isHTMLAudioElement(mediaNode)))
         return false;
 
     if (node->isMediaControlElement()) {
@@ -342,7 +343,7 @@ bool RenderThemeMac::paintMediaSliderTrack(RenderObject* o, const PaintInfo& pai
     if (!mediaNode || !mediaNode->isMediaElement())
         return false;
 
-    HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);
+    HTMLMediaElement* mediaElement = toHTMLMediaElement(mediaNode);
     if (!mediaElement)
         return false;
 
@@ -598,7 +599,7 @@ static FontWeight toFontWeight(NSInteger appKitFontWeight)
     return fontWeights[appKitFontWeight - 1];
 }
 
-void RenderThemeMac::systemFont(int cssValueId, FontDescription& fontDescription) const
+void RenderThemeMac::systemFont(CSSValueID cssValueId, FontDescription& fontDescription) const
 {
     DEFINE_STATIC_LOCAL(FontDescription, systemFont, ());
     DEFINE_STATIC_LOCAL(FontDescription, smallSystemFont, ());
@@ -651,7 +652,7 @@ void RenderThemeMac::systemFont(int cssValueId, FontDescription& fontDescription
         NSFontManager *fontManager = [NSFontManager sharedFontManager];
         cachedDesc->setIsAbsoluteSize(true);
         cachedDesc->setGenericFamily(FontDescription::NoFamily);
-        cachedDesc->firstFamily().setFamily([font webCoreFamilyName]);
+        cachedDesc->setOneFamily([font webCoreFamilyName]);
         cachedDesc->setSpecifiedSize([font pointSize]);
         cachedDesc->setWeight(toFontWeight([fontManager weightOfFont:font]));
         cachedDesc->setItalic([fontManager traitsOfFont:font] & NSItalicFontMask);
@@ -733,7 +734,7 @@ void RenderThemeMac::platformColorsDidChange()
     RenderTheme::platformColorsDidChange();
 }
 
-Color RenderThemeMac::systemColor(int cssValueId) const
+Color RenderThemeMac::systemColor(CSSValueID cssValueId) const
 {
     {
         HashMap<int, RGBA32>::iterator it = m_systemColorCache.find(cssValueId);
@@ -743,101 +744,103 @@ Color RenderThemeMac::systemColor(int cssValueId) const
 
     Color color;
     switch (cssValueId) {
-        case CSSValueActiveborder:
-            color = convertNSColorToColor([NSColor keyboardFocusIndicatorColor]);
-            break;
-        case CSSValueActivecaption:
-            color = convertNSColorToColor([NSColor windowFrameTextColor]);
-            break;
-        case CSSValueAppworkspace:
-            color = convertNSColorToColor([NSColor headerColor]);
-            break;
-        case CSSValueBackground:
-            // Use theme independent default
-            break;
-        case CSSValueButtonface:
-            // We use this value instead of NSColor's controlColor to avoid website incompatibilities.
-            // We may want to change this to use the NSColor in future.
-            color = 0xFFC0C0C0;
-            break;
-        case CSSValueButtonhighlight:
-            color = convertNSColorToColor([NSColor controlHighlightColor]);
-            break;
-        case CSSValueButtonshadow:
-            color = convertNSColorToColor([NSColor controlShadowColor]);
-            break;
-        case CSSValueButtontext:
-            color = convertNSColorToColor([NSColor controlTextColor]);
-            break;
-        case CSSValueCaptiontext:
-            color = convertNSColorToColor([NSColor textColor]);
-            break;
-        case CSSValueGraytext:
-            color = convertNSColorToColor([NSColor disabledControlTextColor]);
-            break;
-        case CSSValueHighlight:
-            color = convertNSColorToColor([NSColor selectedTextBackgroundColor]);
-            break;
-        case CSSValueHighlighttext:
-            color = convertNSColorToColor([NSColor selectedTextColor]);
-            break;
-        case CSSValueInactiveborder:
-            color = convertNSColorToColor([NSColor controlBackgroundColor]);
-            break;
-        case CSSValueInactivecaption:
-            color = convertNSColorToColor([NSColor controlBackgroundColor]);
-            break;
-        case CSSValueInactivecaptiontext:
-            color = convertNSColorToColor([NSColor textColor]);
-            break;
-        case CSSValueInfobackground:
-            // There is no corresponding NSColor for this so we use a hard coded value.
-            color = 0xFFFBFCC5;
-            break;
-        case CSSValueInfotext:
-            color = convertNSColorToColor([NSColor textColor]);
-            break;
-        case CSSValueMenu:
-            color = menuBackgroundColor();
-            break;
-        case CSSValueMenutext:
-            color = convertNSColorToColor([NSColor selectedMenuItemTextColor]);
-            break;
-        case CSSValueScrollbar:
-            color = convertNSColorToColor([NSColor scrollBarColor]);
-            break;
-        case CSSValueText:
-            color = convertNSColorToColor([NSColor textColor]);
-            break;
-        case CSSValueThreeddarkshadow:
-            color = convertNSColorToColor([NSColor controlDarkShadowColor]);
-            break;
-        case CSSValueThreedshadow:
-            color = convertNSColorToColor([NSColor shadowColor]);
-            break;
-        case CSSValueThreedface:
-            // We use this value instead of NSColor's controlColor to avoid website incompatibilities.
-            // We may want to change this to use the NSColor in future.
-            color = 0xFFC0C0C0;
-            break;
-        case CSSValueThreedhighlight:
-            color = convertNSColorToColor([NSColor highlightColor]);
-            break;
-        case CSSValueThreedlightshadow:
-            color = convertNSColorToColor([NSColor controlLightHighlightColor]);
-            break;
-        case CSSValueWebkitFocusRingColor:
-            color = convertNSColorToColor([NSColor keyboardFocusIndicatorColor]);
-            break;
-        case CSSValueWindow:
-            color = convertNSColorToColor([NSColor windowBackgroundColor]);
-            break;
-        case CSSValueWindowframe:
-            color = convertNSColorToColor([NSColor windowFrameColor]);
-            break;
-        case CSSValueWindowtext:
-            color = convertNSColorToColor([NSColor windowFrameTextColor]);
-            break;
+    case CSSValueActiveborder:
+        color = convertNSColorToColor([NSColor keyboardFocusIndicatorColor]);
+        break;
+    case CSSValueActivecaption:
+        color = convertNSColorToColor([NSColor windowFrameTextColor]);
+        break;
+    case CSSValueAppworkspace:
+        color = convertNSColorToColor([NSColor headerColor]);
+        break;
+    case CSSValueBackground:
+        // Use theme independent default
+        break;
+    case CSSValueButtonface:
+        // We use this value instead of NSColor's controlColor to avoid website incompatibilities.
+        // We may want to change this to use the NSColor in future.
+        color = 0xFFC0C0C0;
+        break;
+    case CSSValueButtonhighlight:
+        color = convertNSColorToColor([NSColor controlHighlightColor]);
+        break;
+    case CSSValueButtonshadow:
+        color = convertNSColorToColor([NSColor controlShadowColor]);
+        break;
+    case CSSValueButtontext:
+        color = convertNSColorToColor([NSColor controlTextColor]);
+        break;
+    case CSSValueCaptiontext:
+        color = convertNSColorToColor([NSColor textColor]);
+        break;
+    case CSSValueGraytext:
+        color = convertNSColorToColor([NSColor disabledControlTextColor]);
+        break;
+    case CSSValueHighlight:
+        color = convertNSColorToColor([NSColor selectedTextBackgroundColor]);
+        break;
+    case CSSValueHighlighttext:
+        color = convertNSColorToColor([NSColor selectedTextColor]);
+        break;
+    case CSSValueInactiveborder:
+        color = convertNSColorToColor([NSColor controlBackgroundColor]);
+        break;
+    case CSSValueInactivecaption:
+        color = convertNSColorToColor([NSColor controlBackgroundColor]);
+        break;
+    case CSSValueInactivecaptiontext:
+        color = convertNSColorToColor([NSColor textColor]);
+        break;
+    case CSSValueInfobackground:
+        // There is no corresponding NSColor for this so we use a hard coded value.
+        color = 0xFFFBFCC5;
+        break;
+    case CSSValueInfotext:
+        color = convertNSColorToColor([NSColor textColor]);
+        break;
+    case CSSValueMenu:
+        color = menuBackgroundColor();
+        break;
+    case CSSValueMenutext:
+        color = convertNSColorToColor([NSColor selectedMenuItemTextColor]);
+        break;
+    case CSSValueScrollbar:
+        color = convertNSColorToColor([NSColor scrollBarColor]);
+        break;
+    case CSSValueText:
+        color = convertNSColorToColor([NSColor textColor]);
+        break;
+    case CSSValueThreeddarkshadow:
+        color = convertNSColorToColor([NSColor controlDarkShadowColor]);
+        break;
+    case CSSValueThreedshadow:
+        color = convertNSColorToColor([NSColor shadowColor]);
+        break;
+    case CSSValueThreedface:
+        // We use this value instead of NSColor's controlColor to avoid website incompatibilities.
+        // We may want to change this to use the NSColor in future.
+        color = 0xFFC0C0C0;
+        break;
+    case CSSValueThreedhighlight:
+        color = convertNSColorToColor([NSColor highlightColor]);
+        break;
+    case CSSValueThreedlightshadow:
+        color = convertNSColorToColor([NSColor controlLightHighlightColor]);
+        break;
+    case CSSValueWebkitFocusRingColor:
+        color = convertNSColorToColor([NSColor keyboardFocusIndicatorColor]);
+        break;
+    case CSSValueWindow:
+        color = convertNSColorToColor([NSColor windowBackgroundColor]);
+        break;
+    case CSSValueWindowframe:
+        color = convertNSColorToColor([NSColor windowFrameColor]);
+        break;
+    case CSSValueWindowtext:
+        color = convertNSColorToColor([NSColor windowFrameTextColor]);
+        break;
+    default:
+        break;
     }
 
     if (!color.isValid())
@@ -975,7 +978,7 @@ void RenderThemeMac::updateFocusedState(NSCell* cell, const RenderObject* o)
 void RenderThemeMac::updatePressedState(NSCell* cell, const RenderObject* o)
 {
     bool oldPressed = [cell isHighlighted];
-    bool pressed = (o->node() && o->node()->active());
+    bool pressed = o->node() && o->node()->isElementNode() && toElement(o->node())->active();
     if (pressed != oldPressed)
         [cell setHighlighted:pressed];
 }
@@ -1058,7 +1061,7 @@ void RenderThemeMac::setFontFromControlSize(StyleResolver*, RenderStyle* style, 
     fontDescription.setGenericFamily(FontDescription::SerifFamily);
 
     NSFont* font = [NSFont systemFontOfSize:[NSFont systemFontSizeForControlSize:controlSize]];
-    fontDescription.firstFamily().setFamily([font webCoreFamilyName]);
+    fontDescription.setOneFamily([font webCoreFamilyName]);
     fontDescription.setComputedSize([font pointSize] * style->effectiveZoom());
     fontDescription.setSpecifiedSize([font pointSize] * style->effectiveZoom());
 
@@ -1762,7 +1765,8 @@ bool RenderThemeMac::paintSliderThumb(RenderObject* o, const PaintInfo& paintInf
     // Update the various states we respond to.
     updateActiveState(sliderThumbCell, o);
     updateEnabledState(sliderThumbCell, o);
-    updateFocusedState(sliderThumbCell, (o->node() && o->node()->focusDelegate()->renderer()) ? o->node()->focusDelegate()->renderer() : o);
+    Element* focusDelegate = (o->node() && o->node()->isElementNode()) ? toElement(o->node())->focusDelegate() : 0;
+    updateFocusedState(sliderThumbCell, focusDelegate ? focusDelegate->renderer() : 0);
 
     // Update the pressed state using the NSCell tracking methods, since that's how NSSliderCell keeps track of it.
     bool oldPressed;

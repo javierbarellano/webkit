@@ -825,7 +825,7 @@ int MediaSelectElement::listToOptionIndex(int listIndex) const
     return optionIndex;
 }
 
-void MediaSelectElement::dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode)
+void MediaSelectElement::dispatchFocusEvent(PassRefPtr<Element> oldFocusedNode)
 {
     // Save the selection so it can be compared to the new selection when
     // dispatching change events during blur event dispatch.
@@ -834,7 +834,7 @@ void MediaSelectElement::dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode)
     HTMLFormControlElementWithState::dispatchFocusEvent(oldFocusedNode, FocusDirectionNone);
 }
 
-void MediaSelectElement::dispatchBlurEvent(PassRefPtr<Node> newFocusedNode)
+void MediaSelectElement::dispatchBlurEvent(PassRefPtr<Element> newFocusedNode)
 {
     // We only need to fire change events here for menu lists, because we fire
     // change events for list boxes whenever the selection change is actually made.

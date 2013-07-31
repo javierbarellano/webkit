@@ -63,6 +63,7 @@ class ImmutableArray;
 class ImmutableDictionary;
 class MutableArray;
 class MutableDictionary;
+class ObjCObjectGraph;
 class WebArchive;
 class WebArchiveResource;
 class WebCertificateInfo;
@@ -116,6 +117,7 @@ WK_ADD_API_MAPPING(WKUserContentURLPatternRef, WebUserContentURLPattern)
 #if PLATFORM(MAC)
 WK_ADD_API_MAPPING(WKWebArchiveRef, WebArchive)
 WK_ADD_API_MAPPING(WKWebArchiveResourceRef, WebArchiveResource)
+WK_ADD_API_MAPPING(WKObjCTypeWrapperRef, ObjCObjectGraph)
 #endif
 
 template<typename ImplType, typename APIType = typename ImplTypeInfo<ImplType*>::APIType>
@@ -460,12 +462,16 @@ inline WKContextMenuItemTag toAPI(WebCore::ContextMenuAction action)
         return kWKContextMenuItemTagTextDirectionRightToLeft;
     case WebCore::ContextMenuItemTagOpenMediaInNewWindow:
         return kWKContextMenuItemTagOpenMediaInNewWindow;
+    case WebCore::ContextMenuItemTagDownloadMediaToDisk:
+        return kWKContextMenuItemTagDownloadMediaToDisk;
     case WebCore::ContextMenuItemTagCopyMediaLinkToClipboard:
         return kWKContextMenuItemTagCopyMediaLinkToClipboard;
     case WebCore::ContextMenuItemTagToggleMediaControls:
         return kWKContextMenuItemTagToggleMediaControls;
     case WebCore::ContextMenuItemTagToggleMediaLoop:
         return kWKContextMenuItemTagToggleMediaLoop;
+    case WebCore::ContextMenuItemTagToggleVideoFullscreen:
+        return kWKContextMenuItemTagToggleVideoFullscreen;
     case WebCore::ContextMenuItemTagEnterVideoFullscreen:
         return kWKContextMenuItemTagEnterVideoFullscreen;
     case WebCore::ContextMenuItemTagMediaPlayPause:
@@ -650,12 +656,16 @@ inline WebCore::ContextMenuAction toImpl(WKContextMenuItemTag tag)
         return WebCore::ContextMenuItemTagTextDirectionRightToLeft;
     case kWKContextMenuItemTagOpenMediaInNewWindow:
         return WebCore::ContextMenuItemTagOpenMediaInNewWindow;
+    case kWKContextMenuItemTagDownloadMediaToDisk:
+        return WebCore::ContextMenuItemTagDownloadMediaToDisk;
     case kWKContextMenuItemTagCopyMediaLinkToClipboard:
         return WebCore::ContextMenuItemTagCopyMediaLinkToClipboard;
     case kWKContextMenuItemTagToggleMediaControls:
         return WebCore::ContextMenuItemTagToggleMediaControls;
     case kWKContextMenuItemTagToggleMediaLoop:
         return WebCore::ContextMenuItemTagToggleMediaLoop;
+    case kWKContextMenuItemTagToggleVideoFullscreen:
+        return WebCore::ContextMenuItemTagToggleVideoFullscreen;
     case kWKContextMenuItemTagEnterVideoFullscreen:
         return WebCore::ContextMenuItemTagEnterVideoFullscreen;
     case kWKContextMenuItemTagMediaPlayPause:
@@ -839,8 +849,8 @@ inline WebCore::PageVisibilityState toPageVisibilityState(WKPageVisibilityState 
         return WebCore::PageVisibilityStateHidden;
     case kWKPageVisibilityStatePrerender:
         return WebCore::PageVisibilityStatePrerender;
-    case kWKPageVisibilityStatePreview:
-        return WebCore::PageVisibilityStatePreview;
+    case kWKPageVisibilityStateUnloaded:
+        return WebCore::PageVisibilityStateUnloaded;
     }
 
     ASSERT_NOT_REACHED();

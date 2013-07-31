@@ -60,11 +60,12 @@
 #include "EventNames.h"
 #include "ExceptionCode.h"
 #include "ExceptionCodePlaceholder.h"
-#include "FocusEvent.h"
+#include "FlowThreadController.h"
 #include "Frame.h"
 #include "FrameView.h"
 #include "HTMLElement.h"
 #include "HTMLFrameOwnerElement.h"
+#include "HTMLImageElement.h"
 #include "HTMLNames.h"
 #include "HTMLStyleElement.h"
 #include "InsertionPoint.h"
@@ -106,7 +107,6 @@
 #include "TreeScopeAdopter.h"
 #include "UIEvent.h"
 #include "UIEventWithKeyState.h"
-#include "UserActionElementSet.h"
 #include "WheelEvent.h"
 #include "WindowEventContext.h"
 #include "XMLNames.h"
@@ -124,6 +124,10 @@
 
 #if ENABLE(GESTURE_EVENTS)
 #include "GestureEvent.h"
+#endif
+
+#if ENABLE(INDIE_UI)
+#include "UIRequestEvent.h"
 #endif
 
 #if ENABLE(INSPECTOR)
@@ -499,11 +503,6 @@ HTMLInputElement* Node::toInputElement()
     return 0;
 }
 
-short Node::tabIndex() const
-{
-    return 0;
-}
-
 String Node::nodeValue() const
 {
     return String();
@@ -691,7 +690,7 @@ bool Node::rendererIsEditable(EditableLevel editableLevel, UserSelectAllTreatmen
 
     // Ideally we'd call ASSERT(!needsStyleRecalc()) here, but
     // ContainerNode::setFocus() calls setNeedsStyleRecalc(), so the assertion
-    // would fire in the middle of Document::setFocusedNode().
+    // would fire in the middle of Document::setFocusedElement().
 
     for (const Node* node = this; node; node = node->parentNode()) {
         if ((node->isHTMLElement() || node->isDocumentNode()) && node->renderer()) {
@@ -740,11 +739,6 @@ bool Node::isEditableToAccessibility(EditableLevel editableLevel) const
     return false;
 }
 
-bool Node::shouldUseInputMethod()
-{
-    return isContentEditable(UserSelectAllIsAlwaysNonEditable);
-}
-
 RenderBox* Node::renderBox() const
 {
     RenderObject* renderer = this->renderer();
@@ -777,27 +771,6 @@ LayoutRect Node::renderRect(bool* isReplaced)
         renderer = renderer->parent();
     }
     return LayoutRect();    
-}
-
-bool Node::hasNonEmptyBoundingBox() const
-{
-    // Before calling absoluteRects, check for the common case where the renderer
-    // is non-empty, since this is a faster check and almost always returns true.
-    RenderBoxModelObject* box = renderBoxModelObject();
-    if (!box)
-        return false;
-    if (!box->borderBoundingBox().isEmpty())
-        return true;
-
-    Vector<IntRect> rects;
-    FloatPoint absPos = renderer()->localToAbsolute();
-    renderer()->absoluteRects(rects, flooredLayoutPoint(absPos));
-    size_t n = rects.size();
-    for (size_t i = 0; i < n; ++i)
-        if (!rects[i].isEmpty())
-            return true;
-
-    return false;
 }
 
 inline void Node::setStyleChange(StyleChangeType changeType)
@@ -848,56 +821,6 @@ void Node::lazyAttach(ShouldSetAttached shouldSetAttached)
             n->setAttached();
     }
     markAncestorsWithChildNeedsStyleRecalc();
-}
-
-bool Node::supportsFocus() const
-{
-    return false;
-}
-    
-bool Node::isFocusable() const
-{
-    if (!inDocument() || !supportsFocus())
-        return false;
-    
-    // Elements in canvas fallback content are not rendered, but they are allowed to be
-    // focusable as long as their canvas is displayed and visible.
-    if (isElementNode() && toElement(this)->isInCanvasSubtree()) {
-        const Element* e = toElement(this);
-        while (e && !e->hasLocalName(canvasTag))
-            e = e->parentElement();
-        ASSERT(e);
-        return e->renderer() && e->renderer()->style()->visibility() == VISIBLE;
-    }
-
-    if (renderer())
-        ASSERT(!renderer()->needsLayout());
-    else
-        // If the node is in a display:none tree it might say it needs style recalc but
-        // the whole document is actually up to date.
-        ASSERT(!document()->childNeedsStyleRecalc());
-
-    // FIXME: Even if we are not visible, we might have a child that is visible.
-    // Hyatt wants to fix that some day with a "has visible content" flag or the like.
-    if (!renderer() || renderer()->style()->visibility() != VISIBLE)
-        return false;
-
-    return true;
-}
-
-bool Node::isKeyboardFocusable(KeyboardEvent*) const
-{
-    return isFocusable() && tabIndex() >= 0;
-}
-
-bool Node::isMouseFocusable() const
-{
-    return isFocusable();
-}
-
-Node* Node::focusDelegate()
-{
-    return this;
 }
 
 unsigned Node::nodeIndex() const
@@ -1051,7 +974,7 @@ bool Node::containsIncludingHostElements(const Node* node) const
 #endif
 }
 
-void Node::attach()
+void Node::attach(const AttachContext&)
 {
     ASSERT(!attached());
     ASSERT(!renderer() || (renderer()->style() && renderer()->parent()));
@@ -1094,7 +1017,7 @@ bool Node::inDetach() const
 }
 #endif
 
-void Node::detach()
+void Node::detach(const AttachContext&)
 {
 #ifndef NDEBUG
     ASSERT(!detachingNode);
@@ -1104,15 +1027,6 @@ void Node::detach()
     if (renderer())
         renderer()->destroyAndCleanupAnonymousWrappers();
     setRenderer(0);
-
-    Document* doc = document();
-    if (isUserActionElement()) {
-        if (hovered())
-            doc->hoveredNodeDetached(this);
-        if (inActiveChain())
-            doc->activeChainNodeDetached(this);
-        doc->userActionElements().didDetach(this);
-    }
 
     clearFlag(IsAttachedFlag);
 
@@ -1177,59 +1091,6 @@ Node* Node::pseudoAwareLastChild() const
     return lastChild();
 }
 
-// FIXME: This code is used by editing.  Seems like it could move over there and not pollute Node.
-Node *Node::previousNodeConsideringAtomicNodes() const
-{
-    if (previousSibling()) {
-        Node *n = previousSibling();
-        while (!isAtomicNode(n) && n->lastChild())
-            n = n->lastChild();
-        return n;
-    }
-    else if (parentNode()) {
-        return parentNode();
-    }
-    else {
-        return 0;
-    }
-}
-
-Node *Node::nextNodeConsideringAtomicNodes() const
-{
-    if (!isAtomicNode(this) && firstChild())
-        return firstChild();
-    if (nextSibling())
-        return nextSibling();
-    const Node *n = this;
-    while (n && !n->nextSibling())
-        n = n->parentNode();
-    if (n)
-        return n->nextSibling();
-    return 0;
-}
-
-Node *Node::previousLeafNode() const
-{
-    Node *node = previousNodeConsideringAtomicNodes();
-    while (node) {
-        if (isAtomicNode(node))
-            return node;
-        node = node->previousNodeConsideringAtomicNodes();
-    }
-    return 0;
-}
-
-Node *Node::nextLeafNode() const
-{
-    Node *node = nextNodeConsideringAtomicNodes();
-    while (node) {
-        if (isAtomicNode(node))
-            return node;
-        node = node->nextNodeConsideringAtomicNodes();
-    }
-    return 0;
-}
-
 ContainerNode* Node::parentNodeForRenderingAndStyle()
 {
     return NodeRenderingContext(this).parentNodeForRenderingAndStyle();
@@ -1263,6 +1124,11 @@ bool Node::canStartSelection() const
     return parentOrShadowHostNode() ? parentOrShadowHostNode()->canStartSelection() : true;
 }
 
+bool Node::isRegisteredWithNamedFlow() const
+{
+    return document()->renderView()->flowThreadController()->isContentNodeRegisteredWithAnyNamedFlow(this);
+}
+
 Element* Node::shadowHost() const
 {
     if (ShadowRoot* root = containingShadowRoot())
@@ -1280,7 +1146,7 @@ Node* Node::deprecatedShadowAncestorNode() const
 
 ShadowRoot* Node::containingShadowRoot() const
 {
-    Node* root = treeScope()->rootNode();
+    ContainerNode* root = treeScope()->rootNode();
     return root && root->isShadowRoot() ? toShadowRoot(root) : 0;
 }
 
@@ -1330,27 +1196,6 @@ bool Node::needsShadowTreeWalkerSlow() const
     return (isShadowRoot() || (isElementNode() && (isInsertionPoint() || isPseudoElement() || toElement(this)->hasPseudoElements() || toElement(this)->shadow())));
 }
 
-bool Node::isBlockFlowElement() const
-{
-    return isElementNode() && renderer() && renderer()->isBlockFlow();
-}
-
-Element *Node::enclosingBlockFlowElement() const
-{
-    Node *n = const_cast<Node *>(this);
-    if (isBlockFlowElement())
-        return toElement(n);
-
-    while (1) {
-        n = n->parentNode();
-        if (!n)
-            break;
-        if (n->isBlockFlowElement() || n->hasTagName(bodyTag))
-            return toElement(n);
-    }
-    return 0;
-}
-
 bool Node::isRootEditableElement() const
 {
     return rendererIsEditable() && isElementNode() && (!parentNode() || !parentNode()->rendererIsEditable()
@@ -1377,11 +1222,6 @@ Element* Node::rootEditableElement() const
             break;
     }
     return result;
-}
-
-bool Node::inSameContainingBlockFlowElement(Node *n)
-{
-    return n ? enclosingBlockFlowElement() == n->enclosingBlockFlowElement() : false;
 }
 
 // FIXME: End of obviously misplaced HTML editing functions.  Try to move these out of Node.
@@ -2116,7 +1956,7 @@ Node* Node::enclosingLinkEventParentOrSelf()
         // For imagemaps, the enclosing link node is the associated area element not the image itself.
         // So we don't let images be the enclosingLinkNode, even though isLink sometimes returns true
         // for them.
-        if (node->isLink() && !node->hasTagName(imgTag))
+        if (node->isLink() && !isHTMLImageElement(node))
             return node;
     }
 
@@ -2410,20 +2250,6 @@ void Node::dispatchSubtreeModifiedEvent()
     dispatchScopedEvent(MutationEvent::create(eventNames().DOMSubtreeModifiedEvent, true));
 }
 
-void Node::dispatchFocusInEvent(const AtomicString& eventType, PassRefPtr<Node> oldFocusedNode)
-{
-    ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
-    ASSERT(eventType == eventNames().focusinEvent || eventType == eventNames().DOMFocusInEvent);
-    dispatchScopedEventDispatchMediator(FocusInEventDispatchMediator::create(FocusEvent::create(eventType, true, false, document()->defaultView(), 0, oldFocusedNode)));
-}
-
-void Node::dispatchFocusOutEvent(const AtomicString& eventType, PassRefPtr<Node> newFocusedNode)
-{
-    ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
-    ASSERT(eventType == eventNames().focusoutEvent || eventType == eventNames().DOMFocusOutEvent);
-    dispatchScopedEventDispatchMediator(FocusOutEventDispatchMediator::create(FocusEvent::create(eventType, true, false, document()->defaultView(), 0, newFocusedNode)));
-}
-
 bool Node::dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEvent)
 {
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
@@ -2461,11 +2287,13 @@ bool Node::dispatchTouchEvent(PassRefPtr<TouchEvent> event)
 }
 #endif
 
-void Node::dispatchSimulatedClick(Event* underlyingEvent, SimulatedClickMouseEventOptions eventOptions, SimulatedClickVisualOptions visualOptions)
+#if ENABLE(INDIE_UI)
+bool Node::dispatchUIRequestEvent(PassRefPtr<UIRequestEvent> event)
 {
-    EventDispatcher::dispatchSimulatedClick(this, underlyingEvent, eventOptions, visualOptions);
+    return EventDispatcher::dispatchEvent(this, UIRequestEventDispatchMediator::create(event));
 }
-
+#endif
+    
 bool Node::dispatchBeforeLoadEvent(const String& sourceURL)
 {
     if (!document()->hasListenerType(Document::BEFORELOAD_LISTENER))
@@ -2480,29 +2308,6 @@ bool Node::dispatchBeforeLoadEvent(const String& sourceURL)
 bool Node::dispatchWheelEvent(const PlatformWheelEvent& event)
 {
     return EventDispatcher::dispatchEvent(this, WheelEventDispatchMediator::create(event, document()->defaultView()));
-}
-
-void Node::dispatchFocusEvent(PassRefPtr<Node> oldFocusedNode, FocusDirection)
-{
-    if (document()->page())
-        document()->page()->chrome()->client()->elementDidFocus(this);
-
-    RefPtr<FocusEvent> event = FocusEvent::create(eventNames().focusEvent, false, false, document()->defaultView(), 0, oldFocusedNode);
-    EventDispatcher::dispatchEvent(this, FocusEventDispatchMediator::create(event.release()));
-}
-
-void Node::dispatchBlurEvent(PassRefPtr<Node> newFocusedNode)
-{
-    if (document()->page())
-        document()->page()->chrome()->client()->elementDidBlur(this);
-
-    RefPtr<FocusEvent> event = FocusEvent::create(eventNames().blurEvent, false, false, document()->defaultView(), 0, newFocusedNode);
-    EventDispatcher::dispatchEvent(this, BlurEventDispatchMediator::create(event.release()));
-}
-
-void Node::dispatchChangeEvent()
-{
-    dispatchScopedEvent(Event::create(eventNames().changeEvent, true, false));
 }
 
 void Node::dispatchInputEvent()
@@ -2731,54 +2536,11 @@ void Node::unregisterScopedHTMLStyleChild()
 size_t Node::numberOfScopedHTMLStyleChildren() const
 {
     size_t count = 0;
-    for (Node* child = firstChild(); child; child = child->nextSibling()) {
-        if (child->hasTagName(HTMLNames::styleTag) && static_cast<HTMLStyleElement*>(child)->isRegisteredAsScoped())
+    for (Element* element = ElementTraversal::firstWithin(this); element; element = ElementTraversal::next(element, this))
+        if (isHTMLStyleElement(element) && toHTMLStyleElement(element)->isRegisteredAsScoped())
             count++;
-    }
 
     return count;
-}
-
-void Node::setFocus(bool flag)
-{
-    if (Document* document = this->document())
-        document->userActionElements().setFocused(this, flag);
-}
-
-void Node::setActive(bool flag, bool)
-{
-    if (Document* document = this->document())
-        document->userActionElements().setActive(this, flag);
-}
-
-void Node::setHovered(bool flag)
-{
-    if (Document* document = this->document())
-        document->userActionElements().setHovered(this, flag);
-}
-
-bool Node::isUserActionElementActive() const
-{
-    ASSERT(isUserActionElement());
-    return document()->userActionElements().isActive(this);
-}
-
-bool Node::isUserActionElementInActiveChain() const
-{
-    ASSERT(isUserActionElement());
-    return document()->userActionElements().isInActiveChain(this);
-}
-
-bool Node::isUserActionElementHovered() const
-{
-    ASSERT(isUserActionElement());
-    return document()->userActionElements().isHovered(this);
-}
-
-bool Node::isUserActionElementFocused() const
-{
-    ASSERT(isUserActionElement());
-    return document()->userActionElements().isFocused(this);
 }
 
 } // namespace WebCore

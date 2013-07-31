@@ -65,6 +65,11 @@
 #define WTF_CPU_ALPHA 1
 #endif
 
+/* CPU(HPPA) - HP PA-RISC */
+#if defined(__hppa__) || defined(__hppa64__)
+#define WTF_CPU_HPPA 1
+#endif
+
 /* CPU(IA64) - Itanium / IA-64 */
 #if defined(__ia64__)
 #define WTF_CPU_IA64 1
@@ -409,7 +414,7 @@
 #define WTF_OS_MAC ERROR "USE MAC_OS_X WITH OS NOT MAC"
 
 /* OS(UNIX) - Any Unix-like system */
-#if   OS(AIX)              \
+#if    OS(AIX)              \
     || OS(DARWIN)           \
     || OS(FREEBSD)          \
     || OS(HURD)             \
@@ -462,7 +467,7 @@
 /* Graphics engines */
 
 /* USE(CG) and PLATFORM(CI) */
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if PLATFORM(MAC) || PLATFORM(IOS) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_CG 1
 #endif
 #if PLATFORM(MAC) || PLATFORM(IOS) || (PLATFORM(WIN) && USE(CG))
@@ -546,11 +551,11 @@
 #define WTF_USE_WEB_THREAD 1
 #endif /* PLATFORM(IOS) */
 
-#if PLATFORM(WIN) && !OS(WINCE)
+#if PLATFORM(WIN) && !USE(WINGDI)
 #define WTF_USE_CF 1
 #endif
 
-#if PLATFORM(WIN) && !OS(WINCE) && !PLATFORM(WIN_CAIRO)
+#if PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO)
 #define WTF_USE_CFNETWORK 1
 #endif
 
@@ -620,6 +625,11 @@
 #define HAVE_SYS_TIMEB_H 1
 #define HAVE_ALIGNED_MALLOC 1
 #define HAVE_ISDEBUGGERPRESENT 1
+
+#if !PLATFORM(QT)
+#include <WTF/WTFHeaderDetection.h>
+#endif
+
 #endif
 
 #if OS(WINDOWS)
@@ -856,7 +866,7 @@
 #endif
 
 /* Accelerated compositing */
-#if PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || (PLATFORM(WIN) && !OS(WINCE) && !PLATFORM(WIN_CAIRO))
+#if PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_ACCELERATED_COMPOSITING 1
 #endif
 
@@ -884,11 +894,6 @@
 
 /* Set up a define for a common error that is intended to cause a build error -- thus the space after Error. */
 #define WTF_PLATFORM_CFNETWORK Error USE_macro_should_be_used_with_CFNETWORK
-
-/* FIXME: Eventually we should enable this for all platforms and get rid of the define. */
-#if PLATFORM(IOS) || PLATFORM(MAC) || PLATFORM(WIN) || PLATFORM(QT) || PLATFORM(GTK) || PLATFORM(EFL)
-#define WTF_USE_PLATFORM_STRATEGIES 1
-#endif
 
 #if PLATFORM(WIN)
 #define WTF_USE_CROSS_PLATFORM_CONTEXT_MENUS 1
@@ -918,7 +923,7 @@
    since most ports try to support sub-project independence, adding new headers
    to WTF causes many ports to break, and so this way we can address the build
    breakages one port at a time. */
-#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT))
+#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT) || (PLATFORM(WIN) && (defined(_MSC_VER) && _MSC_VER >= 1600)))
 #define WTF_USE_EXPORT_MACROS 1
 #endif
 
@@ -940,11 +945,8 @@
 
 #define ENABLE_OBJECT_MARK_LOGGING 0
 
-#if !defined(ENABLE_PARALLEL_GC) && !ENABLE(OBJECT_MARK_LOGGING) && (PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(BLACKBERRY) || PLATFORM(GTK)) && ENABLE(COMPARE_AND_SWAP)
+#if !defined(ENABLE_PARALLEL_GC) && !ENABLE(OBJECT_MARK_LOGGING) && (PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || PLATFORM(BLACKBERRY) || PLATFORM(GTK)) && ENABLE(COMPARE_AND_SWAP)
 #define ENABLE_PARALLEL_GC 1
-#elif PLATFORM(QT)
-// Parallel GC is temporarily disabled on Qt because of regular crashes, see https://bugs.webkit.org/show_bug.cgi?id=90957 for details
-#define ENABLE_PARALLEL_GC 0
 #endif
 
 #if !defined(ENABLE_GC_VALIDATION) && !defined(NDEBUG)
@@ -963,23 +965,23 @@
 #define WTF_USE_COREMEDIA 1
 #endif
 
-#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 #define HAVE_AVFOUNDATION_MEDIA_SELECTION_GROUP 1
 #endif
 
-#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 #define HAVE_AVFOUNDATION_LEGIBLE_OUTPUT_SUPPORT 1
 #endif
 
-#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 #define HAVE_MEDIA_ACCESSIBILITY_FRAMEWORK 1
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || (PLATFORM(WIN) && !OS(WINCE) && !PLATFORM(WIN_CAIRO)) || PLATFORM(BLACKBERRY)
+#if PLATFORM(MAC) || PLATFORM(GTK) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_REQUEST_ANIMATION_FRAME_TIMER 1
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(BLACKBERRY)
+#if PLATFORM(MAC)
 #define WTF_USE_REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR 1
 #endif
 
@@ -1022,5 +1024,9 @@
 /* Some platforms use spelling and autocorrection markers to provide visual cue. On such platform, if word with marker is edited, we need to remove the marker. */
 #define WTF_USE_MARKER_REMOVAL_UPON_EDITING 1
 #endif /* #if PLATFORM(MAC) && (PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070) */
+
+#if PLATFORM(MAC) || PLATFORM(IOS)
+#define WTF_USE_AUDIO_SESSION 1
+#endif
 
 #endif /* WTF_Platform_h */

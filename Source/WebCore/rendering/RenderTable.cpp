@@ -33,6 +33,7 @@
 #include "FrameView.h"
 #include "HitTestResult.h"
 #include "HTMLNames.h"
+#include "HTMLTableElement.h"
 #include "LayoutRepainter.h"
 #include "RenderLayer.h"
 #include "RenderTableCaption.h"
@@ -266,7 +267,7 @@ void RenderTable::updateLogicalWidth()
         LayoutUnit availableContentLogicalWidth = max<LayoutUnit>(0, containerWidthInInlineDirection - marginTotal);
         if (shrinkToAvoidFloats() && cb->containsFloats() && !hasPerpendicularContainingBlock) {
             // FIXME: Work with regions someday.
-            availableContentLogicalWidth = shrinkLogicalWidthToAvoidFloats(marginStart, marginEnd, cb, 0, 0);
+            availableContentLogicalWidth = shrinkLogicalWidthToAvoidFloats(marginStart, marginEnd, cb, 0);
         }
 
         // Ensure we aren't bigger than our available width.
@@ -297,7 +298,7 @@ void RenderTable::updateLogicalWidth()
     if (!hasPerpendicularContainingBlock) {
         LayoutUnit containerLogicalWidthForAutoMargins = availableLogicalWidth;
         if (avoidsFloats() && cb->containsFloats())
-            containerLogicalWidthForAutoMargins = containingBlockAvailableLineWidthInRegion(0, 0); // FIXME: Work with regions someday.
+            containerLogicalWidthForAutoMargins = containingBlockAvailableLineWidthInRegion(0); // FIXME: Work with regions someday.
         ComputedMarginValues marginValues;
         bool hasInvertedDirection =  cb->style()->isLeftToRightDirection() == style()->isLeftToRightDirection();
         computeInlineDirectionMargins(cb, containerLogicalWidthForAutoMargins, logicalWidth(),
@@ -319,7 +320,7 @@ LayoutUnit RenderTable::convertStyleLogicalWidthToComputedWidth(const Length& st
 
     // HTML tables' width styles already include borders and paddings, but CSS tables' width styles do not.
     LayoutUnit borders = 0;
-    bool isCSSTable = !node() || !node()->hasTagName(tableTag);
+    bool isCSSTable = !node() || !isHTMLTableElement(node());
     if (isCSSTable && styleLogicalWidth.isSpecified() && styleLogicalWidth.isPositive() && style()->boxSizing() == CONTENT_BOX)
         borders = borderStart() + borderEnd() + (collapseBorders() ? LayoutUnit() : paddingStart() + paddingEnd());
 
@@ -333,7 +334,7 @@ LayoutUnit RenderTable::convertStyleLogicalHeightToComputedHeight(const Length& 
         // HTML tables size as though CSS height includes border/padding, CSS tables do not.
         LayoutUnit borders = LayoutUnit();
         // FIXME: We cannot apply box-sizing: content-box on <table> which other browsers allow.
-        if ((node() && node()->hasTagName(tableTag)) || style()->boxSizing() == BORDER_BOX) {
+        if ((node() && isHTMLTableElement(node())) || style()->boxSizing() == BORDER_BOX) {
             LayoutUnit borderAndPaddingBefore = borderBefore() + (collapseBorders() ? LayoutUnit() : paddingBefore());
             LayoutUnit borderAndPaddingAfter = borderAfter() + (collapseBorders() ? LayoutUnit() : paddingAfter());
             borders = borderAndPaddingBefore + borderAndPaddingAfter;
@@ -653,7 +654,7 @@ void RenderTable::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffs
 
     PaintInfo info(paintInfo);
     info.phase = paintPhase;
-    info.updatePaintingRootForChildren(this);
+    info.updateSubtreePaintRootForChildren(this);
 
     for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
         if (child->isBox() && !toRenderBox(child)->hasSelfPaintingLayer() && (child->isTableSection() || child->isTableCaption())) {
@@ -1354,9 +1355,16 @@ int RenderTable::firstLineBoxBaseline() const
     return -1;
 }
 
-LayoutRect RenderTable::overflowClipRect(const LayoutPoint& location, RenderRegion* region, OverlayScrollbarSizeRelevancy relevancy)
+LayoutRect RenderTable::overflowClipRect(const LayoutPoint& location, RenderRegion* region, OverlayScrollbarSizeRelevancy relevancy, PaintPhase phase)
 {
-    LayoutRect rect = RenderBlock::overflowClipRect(location, region, relevancy);
+    LayoutRect rect;
+    // Don't clip out the table's side of the collapsed borders if we're in the paint phase that will ask the sections to paint them.
+    // Likewise, if we're self-painting we avoid clipping them out as the clip rect that will be passed down to child layers from RenderLayer will do that instead.
+    if (phase == PaintPhaseChildBlockBackgrounds || layer()->isSelfPaintingLayer()) {
+        rect = borderBoxRectInRegion(region);
+        rect.setLocation(location + rect.location());
+    } else
+        rect = RenderBox::overflowClipRect(location, region, relevancy);
     
     // If we have a caption, expand the clip to include the caption.
     // FIXME: Technically this is wrong, but it's virtually impossible to fix this

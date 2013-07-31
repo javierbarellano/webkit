@@ -30,6 +30,7 @@
 #include "CSSProperty.h"
 #include "CSSPropertyNames.h"
 #include "CSSPropertySourceData.h"
+#include "CSSValueKeywords.h"
 #include "Color.h"
 #include "MediaQuery.h"
 #include <wtf/HashMap.h>
@@ -96,7 +97,7 @@ public:
     static bool parseColor(RGBA32& color, const String&, bool strict = false);
     static bool parseSystemColor(RGBA32& color, const String&, Document*);
     static PassRefPtr<CSSValueList> parseFontFaceValue(const AtomicString&);
-    PassRefPtr<CSSPrimitiveValue> parseValidPrimitive(int ident, CSSParserValue*);
+    PassRefPtr<CSSPrimitiveValue> parseValidPrimitive(CSSValueID ident, CSSParserValue*);
     bool parseDeclaration(MutableStylePropertySet*, const String&, PassRefPtr<CSSRuleSourceData>, StyleSheetContents* contextStyleSheet);
     static PassRefPtr<ImmutableStylePropertySet> parseInlineStyleDeclaration(const String&, Element*);
     PassOwnPtr<MediaQuery> parseMediaQuery(const String&);
@@ -177,6 +178,7 @@ public:
     PassRefPtr<CSSBasicShape> parseBasicShapeCircle(CSSParserValueList* args);
     PassRefPtr<CSSBasicShape> parseBasicShapeEllipse(CSSParserValueList* args);
     PassRefPtr<CSSBasicShape> parseBasicShapePolygon(CSSParserValueList* args);
+    PassRefPtr<CSSBasicShape> parseBasicShapeInsetRectangle(CSSParserValueList* args);
 
     bool parseFont(bool important);
     PassRefPtr<CSSValueList> parseFontFamily();
@@ -235,11 +237,11 @@ public:
     bool parseCrossfade(CSSParserValueList*, RefPtr<CSSValue>&);
 
 #if ENABLE(CSS_IMAGE_RESOLUTION)
-    PassRefPtr<CSSValue> parseImageResolution(CSSParserValueList*);
+    PassRefPtr<CSSValue> parseImageResolution();
 #endif
 
 #if ENABLE(CSS_IMAGE_SET)
-    PassRefPtr<CSSValue> parseImageSet(CSSParserValueList*);
+    PassRefPtr<CSSValue> parseImageSet();
 #endif
 
 #if ENABLE(CSS_FILTERS)
@@ -263,8 +265,8 @@ public:
 #endif
 #endif
 
-    static bool isBlendMode(int ident);
-    static bool isCompositeOperator(int ident);
+    static bool isBlendMode(CSSValueID);
+    static bool isCompositeOperator(CSSValueID);
 
     PassRefPtr<CSSValueList> parseTransform();
     PassRefPtr<CSSValue> parseTransformValue(CSSParserValue*);
@@ -356,9 +358,6 @@ public:
     CSSParserSelector* rewriteSpecifiersWithElementName(const AtomicString& namespacePrefix, const AtomicString& elementName, CSSParserSelector*, bool isNamespacePlaceholder = false);
     CSSParserSelector* rewriteSpecifiersWithNamespaceIfNeeded(CSSParserSelector*);
     CSSParserSelector* rewriteSpecifiers(CSSParserSelector*, CSSParserSelector*);
-#if ENABLE(SHADOW_DOM)
-    CSSParserSelector* rewriteSpecifiersForShadowDistributed(CSSParserSelector* specifiers, CSSParserSelector* distributedPseudoElementSelector);
-#endif
 
     void invalidBlockHit();
 
@@ -400,6 +399,7 @@ public:
     bool m_hasFontFaceOnlyValues;
     bool m_hadSyntacticallyValidCSSRule;
     bool m_logErrors;
+    bool m_ignoreErrorsInDeclaration;
 
 #if ENABLE(CSS_SHADERS)
     bool m_inFilterRule;
@@ -682,7 +682,7 @@ private:
 
 CSSPropertyID cssPropertyID(const CSSParserString&);
 CSSPropertyID cssPropertyID(const String&);
-int cssValueKeywordID(const CSSParserString&);
+CSSValueID cssValueKeywordID(const CSSParserString&);
 #if PLATFORM(IOS)
 void cssPropertyNameIOSAliasing(const char* propertyName, const char*& propertyNameAlias, unsigned& newLength);
 #endif

@@ -89,7 +89,9 @@ struct WebPageCreationParameters {
     float mediaVolume;
     bool mayStartMediaWhenInWindow;
 
-    bool overridePrivateBrowsingEnabled;
+    WebCore::IntSize minimumLayoutSize;
+    
+    WebCore::ScrollPinningBehavior scrollPinningBehavior;
 
 #if PLATFORM(MAC)
     LayerHostingMode layerHostingMode;

@@ -82,6 +82,7 @@ const AtomicString& AudioTrack::commentaryKeyword()
 AudioTrack::AudioTrack(AudioTrackClient* client, PassRefPtr<AudioTrackPrivate> trackPrivate)
     : TrackBase(TrackBase::AudioTrack, trackPrivate->label(), trackPrivate->language())
     , m_id(trackPrivate->id())
+    , m_enabled(trackPrivate->enabled())
     , m_client(client)
     , m_private(trackPrivate)
 {
@@ -140,9 +141,10 @@ bool AudioTrack::isValidKind(const AtomicString& value) const
 
 void AudioTrack::setEnabled(const bool enabled)
 {
-    if (m_private->enabled() == enabled)
+    if (m_enabled == enabled)
         return;
 
+    m_enabled = enabled;
     m_private->setEnabled(enabled);
 
     if (m_client)
@@ -155,14 +157,22 @@ size_t AudioTrack::inbandTrackIndex()
     return m_private->audioTrackIndex();
 }
 
-void AudioTrack::setLabel(const AtomicString& label)
+void AudioTrack::audioTrackPrivateEnabledChanged(AudioTrackPrivate* trackPrivate)
 {
-    TrackBase::setLabel(label);
+    ASSERT(trackPrivate == m_private);
+    setEnabled(trackPrivate->enabled());
 }
 
-void AudioTrack::setLanguage(const AtomicString& language)
+void AudioTrack::audioTrackPrivateLabelChanged(AudioTrackPrivate* trackPrivate)
 {
-    TrackBase::setLanguage(language);
+    ASSERT(trackPrivate == m_private);
+    setLabel(trackPrivate->label());
+}
+
+void AudioTrack::audioTrackPrivateLanguageChanged(AudioTrackPrivate* trackPrivate)
+{
+    ASSERT(trackPrivate == m_private);
+    setLanguage(trackPrivate->language());
 }
 
 void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)

@@ -161,7 +161,7 @@ CachedResourceHandle<CachedImage> CachedResourceLoader::requestImage(CachedResou
     if (Frame* f = frame()) {
         if (f->loader()->pageDismissalEventBeingDispatched() != FrameLoader::NoDismissal) {
             KURL requestURL = request.resourceRequest().url();
-            if (requestURL.isValid() && canRequest(CachedResource::ImageResource, requestURL))
+            if (requestURL.isValid() && canRequest(CachedResource::ImageResource, requestURL, request.options(), request.forPreload()))
                 PingLoader::loadImage(f, requestURL);
             return 0;
         }
@@ -215,7 +215,7 @@ CachedResourceHandle<CachedCSSStyleSheet> CachedResourceLoader::requestUserCSSSt
     memoryCache()->add(userSheet.get());
     // FIXME: loadResource calls setOwningCachedResourceLoader() if the resource couldn't be added to cache. Does this function need to call it, too?
 
-    userSheet->load(this, ResourceLoaderOptions(DoNotSendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, SkipSecurityCheck));
+    userSheet->load(this, ResourceLoaderOptions(DoNotSendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, SkipSecurityCheck, UseDefaultOriginRestrictionsForType));
     
     return userSheet;
 }
@@ -303,11 +303,11 @@ bool CachedResourceLoader::checkInsecureContent(CachedResource::Type type, const
     return true;
 }
 
-bool CachedResourceLoader::canRequest(CachedResource::Type type, const KURL& url, bool forPreload)
+bool CachedResourceLoader::canRequest(CachedResource::Type type, const KURL& url, const ResourceLoaderOptions& options, bool forPreload)
 {
     if (document() && !document()->securityOrigin()->canDisplay(url)) {
         if (!forPreload)
-            FrameLoader::reportLocalLoadFailed(frame(), url.elidedString());
+            FrameLoader::reportLocalLoadFailed(frame(), url.stringCenterEllipsizedToLength());
         LOG(ResourceLoading, "CachedResourceLoader::requestResource URL was not allowed by SecurityOrigin::canDisplay");
         return 0;
     }
@@ -335,8 +335,10 @@ bool CachedResourceLoader::canRequest(CachedResource::Type type, const KURL& url
 #if ENABLE(CSS_SHADERS)
     case CachedResource::ShaderResource:
 #endif
-        // These types of resources can be loaded from any origin.
-        // FIXME: Are we sure about CachedResource::FontResource?
+        if (options.requestOriginPolicy == RestrictToSameOrigin && !m_document->securityOrigin()->canRequest(url)) {
+            printAccessDeniedMessage(url);
+            return false;
+        }
         break;
 #if ENABLE(SVG)
     case CachedResource::SVGDocumentResource:
@@ -435,7 +437,7 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::requestResource(Cache
 {
     KURL url = request.resourceRequest().url();
     
-    LOG(ResourceLoading, "CachedResourceLoader::requestResource '%s', charset '%s', priority=%d, forPreload=%u", url.elidedString().latin1().data(), request.charset().latin1().data(), request.priority(), request.forPreload());
+    LOG(ResourceLoading, "CachedResourceLoader::requestResource '%s', charset '%s', priority=%d, forPreload=%u", url.stringCenterEllipsizedToLength().latin1().data(), request.charset().latin1().data(), request.priority(), request.forPreload());
     
     // If only the fragment identifiers differ, it is the same resource.
     url = MemoryCache::removeFragmentIdentifierIfNeeded(url);
@@ -443,7 +445,7 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::requestResource(Cache
     if (!url.isValid())
         return 0;
 
-    if (!canRequest(type, url, request.forPreload()))
+    if (!canRequest(type, url, request.options(), request.forPreload()))
         return 0;
 
     if (Frame* f = frame())
@@ -538,7 +540,7 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::loadResource(CachedRe
 {
     ASSERT(!memoryCache()->resourceForRequest(request.resourceRequest()));
 
-    LOG(ResourceLoading, "Loading CachedResource for '%s'.", request.resourceRequest().url().elidedString().latin1().data());
+    LOG(ResourceLoading, "Loading CachedResource for '%s'.", request.resourceRequest().url().stringCenterEllipsizedToLength().latin1().data());
 
     CachedResourceHandle<CachedResource> resource = createResource(type, request.mutableResourceRequest(), charset);
 
@@ -668,9 +670,9 @@ void CachedResourceLoader::printAccessDeniedMessage(const KURL& url) const
 
     String message;
     if (!m_document || m_document->url().isNull())
-        message = "Unsafe attempt to load URL " + url.elidedString() + '.';
+        message = "Unsafe attempt to load URL " + url.stringCenterEllipsizedToLength() + '.';
     else
-        message = "Unsafe attempt to load URL " + url.elidedString() + " from frame with URL " + m_document->url().elidedString() + ". Domains, protocols and ports must match.\n";
+        message = "Unsafe attempt to load URL " + url.stringCenterEllipsizedToLength() + " from frame with URL " + m_document->url().stringCenterEllipsizedToLength() + ". Domains, protocols and ports must match.\n";
 
     frame()->document()->addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, message);
 }
@@ -807,11 +809,7 @@ void CachedResourceLoader::performPostLoadActions()
 {
     checkForPendingPreloads();
 
-#if USE(PLATFORM_STRATEGIES)
     platformStrategies()->loaderStrategy()->resourceLoadScheduler()->servePendingRequests();
-#else
-    resourceLoadScheduler()->servePendingRequests();
-#endif
 }
 
 void CachedResourceLoader::incrementRequestCount(const CachedResource* res)
@@ -984,7 +982,7 @@ void CachedResourceLoader::printPreloadStats()
 
 const ResourceLoaderOptions& CachedResourceLoader::defaultCachedResourceOptions()
 {
-    static ResourceLoaderOptions options(SendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, DoSecurityCheck);
+    static ResourceLoaderOptions options(SendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, DoSecurityCheck, UseDefaultOriginRestrictionsForType);
     return options;
 }
 

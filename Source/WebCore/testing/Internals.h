@@ -49,9 +49,9 @@ class Element;
 class Frame;
 class InspectorFrontendChannelDummy;
 class InternalSettings;
+class MemoryInfo;
 class Node;
 class Page;
-class PagePopupController;
 class Range;
 class ScriptExecutionContext;
 class ShadowRoot;
@@ -130,10 +130,6 @@ public:
 #endif
     Vector<String> formControlStateOfPreviousHistoryItem(ExceptionCode&);
     void setFormControlStateOfPreviousHistoryItem(const Vector<String>&, ExceptionCode&);
-    void setEnableMockPagePopup(bool, ExceptionCode&);
-#if ENABLE(PAGE_POPUP)
-    PassRefPtr<PagePopupController> pagePopupController();
-#endif
 
     PassRefPtr<ClientRect> absoluteCaretBounds(ExceptionCode&);
 
@@ -279,6 +275,7 @@ public:
 
     PassRefPtr<MallocStatistics> mallocStatistics() const;
     PassRefPtr<TypeConversions> typeConversions() const;
+    PassRefPtr<MemoryInfo> memoryInfo() const;
 
     Vector<String> getReferencedFilePaths() const;
 
@@ -323,6 +320,12 @@ public:
 #endif
 
     PassRefPtr<ClientRect> selectionBounds(ExceptionCode&);
+
+#if ENABLE(VIBRATION)
+    bool isVibrating();
+#endif
+
+    bool isPluginUnavailabilityIndicatorObscured(Element*, ExceptionCode&);
 
 private:
     explicit Internals(Document*);

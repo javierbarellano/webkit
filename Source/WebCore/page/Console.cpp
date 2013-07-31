@@ -39,7 +39,6 @@
 #include "FrameTree.h"
 #include "InspectorConsoleInstrumentation.h"
 #include "InspectorController.h"
-#include "MemoryInfo.h"
 #include "Page.h"
 #include "PageConsole.h"
 #include "PageGroup.h"
@@ -88,7 +87,7 @@ static void internalAddMessage(Page* page, MessageType type, MessageLevel level,
         return;
 
     if (gotMessage)
-        page->chrome()->client()->addMessageToConsole(ConsoleAPIMessageSource, type, level, message, lastCaller.lineNumber(), lastCaller.columnNumber(), lastCaller.sourceURL());
+        page->chrome().client()->addMessageToConsole(ConsoleAPIMessageSource, type, level, message, lastCaller.lineNumber(), lastCaller.columnNumber(), lastCaller.sourceURL());
 
     if (!page->settings()->logsPageMessagesToSystemConsoleEnabled() && !PageConsole::shouldPrintExceptions())
         return;
@@ -175,11 +174,6 @@ void Console::count(ScriptState* state, PassRefPtr<ScriptArguments> arguments)
     InspectorInstrumentation::consoleCount(page(), state, arguments);
 }
 
-void Console::markTimeline(PassRefPtr<ScriptArguments> arguments)
-{
-    InspectorInstrumentation::consoleTimeStamp(m_frame, arguments);
-}
-
 #if ENABLE(JAVASCRIPT_DEBUGGER)
 
 void Console::profile(const String& title, ScriptState* state)
@@ -252,13 +246,6 @@ void Console::groupCollapsed(ScriptState* state, PassRefPtr<ScriptArguments> arg
 void Console::groupEnd()
 {
     InspectorInstrumentation::addMessageToConsole(page(), ConsoleAPIMessageSource, EndGroupMessageType, LogMessageLevel, String(), String(), 0, 0);
-}
-
-PassRefPtr<MemoryInfo> Console::memory() const
-{
-    // FIXME: Because we create a new object here each time,
-    // console.memory !== console.memory, which seems wrong.
-    return MemoryInfo::create(m_frame);
 }
 
 Page* Console::page() const

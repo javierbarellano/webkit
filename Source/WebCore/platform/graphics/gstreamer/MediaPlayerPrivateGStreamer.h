@@ -32,6 +32,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
+#include <wtf/Vector.h>
 
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
@@ -89,13 +90,20 @@ public:
     void durationChanged();
     void loadingFailed(MediaPlayer::NetworkState);
 
-    void padAdded(GstPad*);
-    void padRemoved(GstPad*);
+    void videoChanged();
     void videoCapsChanged();
-    void notifyPlayerOfAudio();
-    void notifyPlayerOfText();
+    void audioChanged();
     void notifyPlayerOfVideo();
     void notifyPlayerOfVideoCaps();
+    void notifyPlayerOfAudio();
+
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    void textChanged();
+    void notifyPlayerOfText();
+
+    void newTextSample();
+    void notifyPlayerOfNewTextSample();
+#endif
 
     void sourceChanged();
     GstElement* audioSink() const;
@@ -121,8 +129,9 @@ private:
 
     void cacheDuration();
     void updateStates();
+    void asyncStateChangeDone();
 
-    void createPipeline();
+    void createGSTPlayBin();
     bool changePipelineState(GstState);
 
     bool loadNextLocation();
@@ -136,15 +145,13 @@ private:
     virtual String engineDescription() const { return "GStreamer"; }
     virtual bool isLiveStream() const { return m_isStreaming; }
 
-#if ENABLE(VIDEO_TRACK)
-    void resizeTextTracks(int);
-#endif
-
 private:
-    GRefPtr<GstElement> m_pipeline;
-    GRefPtr<GstElement> m_decodebin;
-    GRefPtr<GstElement> m_sink;
+    GRefPtr<GstElement> m_playBin;
     GRefPtr<GstElement> m_source;
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+    GRefPtr<GstElement> m_textAppSink;
+    GRefPtr<GstPad> m_textAppSinkPad;
+#endif
     float m_seekTime;
     bool m_changingRate;
     float m_endTime;
@@ -155,11 +162,14 @@ private:
     bool m_resetPipeline;
     bool m_paused;
     bool m_seeking;
+    bool m_seekIsPending;
+    float m_timeOfOverlappingSeek;
+    bool m_canFallBackToLastFinishedSeekPositon;
     bool m_buffering;
     float m_playbackRate;
     bool m_errorOccured;
-    gfloat m_mediaDuration;
-    bool m_startedBuffering;
+    mutable gfloat m_mediaDuration;
+    bool m_downloadFinished;
     Timer<MediaPlayerPrivateGStreamer> m_fillTimer;
     float m_maxTimeLoaded;
     int m_bufferingPercentage;
@@ -170,7 +180,6 @@ private:
     bool m_volumeAndMuteInitialized;
     bool m_hasVideo;
     bool m_hasAudio;
-    bool m_hasText;
     guint m_audioTimerHandler;
     guint m_textTimerHandler;
     guint m_videoTimerHandler;
@@ -182,15 +191,11 @@ private:
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
-#if ENABLE(VIDEO_TRACK)
-    GRefPtr<GstElement> m_audioAdder;
-    GRefPtr<GstElement> m_videoSelector;
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
     Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
     Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
-    Mutex m_audioTrackMutex;
-    Mutex m_textTrackMutex;
-    Mutex m_videoTrackMutex;
+    RefPtr<AudioTrackPrivateGStreamer> m_defaultAudioTrack;
 #endif
 };
 }

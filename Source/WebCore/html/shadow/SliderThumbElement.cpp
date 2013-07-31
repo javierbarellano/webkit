@@ -46,7 +46,6 @@
 #include "RenderTheme.h"
 #include "ShadowRoot.h"
 #include "StepRange.h"
-#include <wtf/MathExtras.h>
 
 using namespace std;
 
@@ -237,7 +236,7 @@ bool SliderThumbElement::matchesReadWritePseudoClass() const
     return hostInput()->matchesReadWritePseudoClass();
 }
 
-Node* SliderThumbElement::focusDelegate()
+Element* SliderThumbElement::focusDelegate()
 {
     return hostInput();
 }
@@ -387,13 +386,13 @@ bool SliderThumbElement::willRespondToMouseClickEvents()
     return HTMLDivElement::willRespondToMouseClickEvents();
 }
 
-void SliderThumbElement::detach()
+void SliderThumbElement::detach(const AttachContext& context)
 {
     if (m_inDragMode) {
         if (Frame* frame = document()->frame())
             frame->eventHandler()->setCapturingMouseEventsNode(0);
     }
-    HTMLDivElement::detach();
+    HTMLDivElement::detach(context);
 }
 
 HTMLInputElement* SliderThumbElement::hostInput() const

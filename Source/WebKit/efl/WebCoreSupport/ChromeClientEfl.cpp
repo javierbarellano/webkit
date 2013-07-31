@@ -270,7 +270,7 @@ bool ChromeClientEfl::canRunBeforeUnloadConfirmPanel()
 
 bool ChromeClientEfl::runBeforeUnloadConfirmPanel(const String& message, Frame* frame)
 {
-    return runJavaScriptConfirm(frame, message);
+    return ewk_view_run_before_unload_confirm(m_view, kit(frame), message.utf8().data());
 }
 
 void ChromeClientEfl::addMessageToConsole(MessageSource, MessageLevel, const String& message,
@@ -558,7 +558,7 @@ void ChromeClientEfl::invalidateContentsForSlowScroll(const IntRect& updateRect,
 
 void ChromeClientEfl::scroll(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect)
 {
-    ewk_view_scroll(m_view, scrollDelta.width(), scrollDelta.height(), rectToScroll.x(), rectToScroll.y(), rectToScroll.width(), rectToScroll.height(), clipRect.x(), clipRect.y(), clipRect.width(), clipRect.height());
+    ewk_view_scroll(m_view, scrollDelta, rectToScroll, clipRect);
 }
 
 void ChromeClientEfl::cancelGeolocationPermissionRequestForFrame(Frame*)

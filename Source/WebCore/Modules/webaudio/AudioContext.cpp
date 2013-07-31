@@ -52,11 +52,13 @@
 #include "OfflineAudioCompletionEvent.h"
 #include "OfflineAudioDestinationNode.h"
 #include "OscillatorNode.h"
+#include "Page.h"
 #include "PannerNode.h"
+#include "PeriodicWave.h"
 #include "ScriptCallStack.h"
+#include "ScriptController.h"
 #include "ScriptProcessorNode.h"
 #include "WaveShaperNode.h"
-#include "WaveTable.h"
 
 #if ENABLE(MEDIA_STREAM)
 #include "MediaStream.h"
@@ -89,6 +91,7 @@
 const int UndefinedThreadIdentifier = 0xffffffff;
 
 const unsigned MaxNodesToDeletePerQuantum = 10;
+const unsigned MaxPeriodicWaveLength = 4096;
 
 namespace WebCore {
     
@@ -131,6 +134,7 @@ AudioContext::AudioContext(Document* document)
     , m_graphOwnerThread(UndefinedThreadIdentifier)
     , m_isOfflineContext(false)
     , m_activeSourceCount(0)
+    , m_restrictions(NoRestrictions)
 {
     constructCommon();
 
@@ -156,6 +160,7 @@ AudioContext::AudioContext(Document* document, unsigned numberOfChannels, size_t
     , m_graphOwnerThread(UndefinedThreadIdentifier)
     , m_isOfflineContext(true)
     , m_activeSourceCount(0)
+    , m_restrictions(NoRestrictions)
 {
     constructCommon();
 
@@ -180,6 +185,17 @@ void AudioContext::constructCommon()
     FFTFrame::initialize();
     
     m_listener = AudioListener::create();
+
+#if PLATFORM(IOS)
+    if (!document()->settings() || document()->settings()->mediaPlaybackRequiresUserGesture())
+        addBehaviorRestriction(RequireUserGestureForAudioStartRestriction);
+    else
+        m_restrictions = NoRestrictions;
+#endif
+
+#if PLATFORM(MAC)
+    addBehaviorRestriction(RequirePageConsentForAudioStartRestriction);
+#endif
 }
 
 AudioContext::~AudioContext()
@@ -213,7 +229,7 @@ void AudioContext::lazyInitialize()
                     // Each time provideInput() is called, a portion of the audio stream is rendered. Let's call this time period a "render quantum".
                     // NOTE: for now default AudioContext does not need an explicit startRendering() call from JavaScript.
                     // We may want to consider requiring it for symmetry with OfflineAudioContext.
-                    m_destinationNode->startRendering();                    
+                    startRendering();
                     ++s_hardwareContextCount;
                 }
 
@@ -303,11 +319,17 @@ void AudioContext::stop()
     callOnMainThread(stopDispatch, this);
 }
 
+Document* AudioContext::document() const
+{
+    ASSERT(m_scriptExecutionContext && m_scriptExecutionContext->isDocument());
+    return static_cast<Document*>(m_scriptExecutionContext);
+}
+
 PassRefPtr<AudioBuffer> AudioContext::createBuffer(unsigned numberOfChannels, size_t numberOfFrames, float sampleRate, ExceptionCode& ec)
 {
     RefPtr<AudioBuffer> audioBuffer = AudioBuffer::create(numberOfChannels, numberOfFrames, sampleRate);
     if (!audioBuffer.get()) {
-        ec = SYNTAX_ERR;
+        ec = NOT_SUPPORTED_ERR;
         return 0;
     }
 
@@ -443,7 +465,7 @@ PassRefPtr<ScriptProcessorNode> AudioContext::createScriptProcessor(size_t buffe
     RefPtr<ScriptProcessorNode> node = ScriptProcessorNode::create(this, m_destinationNode->sampleRate(), bufferSize, numberOfInputChannels, numberOfOutputChannels);
 
     if (!node.get()) {
-        ec = SYNTAX_ERR;
+        ec = INDEX_SIZE_ERR;
         return 0;
     }
 
@@ -572,17 +594,17 @@ PassRefPtr<OscillatorNode> AudioContext::createOscillator()
     return node;
 }
 
-PassRefPtr<WaveTable> AudioContext::createWaveTable(Float32Array* real, Float32Array* imag, ExceptionCode& ec)
+PassRefPtr<PeriodicWave> AudioContext::createPeriodicWave(Float32Array* real, Float32Array* imag, ExceptionCode& ec)
 {
     ASSERT(isMainThread());
     
-    if (!real || !imag || (real->length() != imag->length())) {
+    if (!real || !imag || (real->length() != imag->length() || (real->length() > MaxPeriodicWaveLength) || (real->length() <= 0))) {
         ec = SYNTAX_ERR;
         return 0;
     }
     
     lazyInitialize();
-    return WaveTable::create(sampleRate(), real, imag);
+    return PeriodicWave::create(sampleRate(), real, imag);
 }
 
 void AudioContext::notifyNodeFinishedProcessing(AudioNode* node)
@@ -943,7 +965,22 @@ ScriptExecutionContext* AudioContext::scriptExecutionContext() const
 
 void AudioContext::startRendering()
 {
+    if (ScriptController::processingUserGesture())
+        removeBehaviorRestriction(AudioContext::RequireUserGestureForAudioStartRestriction);
+
+    if (pageConsentRequiredForAudioStart()) {
+        Page* page = document()->page();
+        if (page && !page->canStartMedia())
+            document()->addMediaCanStartListener(this);
+        else
+            removeBehaviorRestriction(AudioContext::RequirePageConsentForAudioStartRestriction);
+    }
     destination()->startRendering();
+}
+
+void AudioContext::mediaCanStart()
+{
+    removeBehaviorRestriction(AudioContext::RequirePageConsentForAudioStartRestriction);
 }
 
 void AudioContext::fireCompletionEvent()

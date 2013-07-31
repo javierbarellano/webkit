@@ -215,6 +215,14 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node)
         else
             out.print(comma, "executable(not function: ", RawPointer(node->executable()), ")");
     }
+    if (node->hasFunctionDeclIndex()) {
+        FunctionExecutable* executable = m_codeBlock->functionDecl(node->functionDeclIndex());
+        out.print(comma, executable->inferredName().string(), "#", executable->hashFor(CodeForCall));
+    }
+    if (node->hasFunctionExprIndex()) {
+        FunctionExecutable* executable = m_codeBlock->functionExpr(node->functionExprIndex());
+        out.print(comma, executable->inferredName().string(), "#", executable->hashFor(CodeForCall));
+    }
     if (node->hasStorageAccessData()) {
         StorageAccessData& storageAccessData = m_storageAccessData[node->storageAccessDataIndex()];
         out.print(comma, "id", storageAccessData.identifierNumber, "{", m_codeBlock->identifier(storageAccessData.identifierNumber).string(), "}");
@@ -314,7 +322,14 @@ void Graph::dump(PrintStream& out)
 {
     dataLog("DFG for ", CodeBlockWithJITType(m_codeBlock, JITCode::DFGJIT), ":\n");
     dataLog("  Fixpoint state: ", m_fixpointState, "; Form: ", m_form, "; Unification state: ", m_unificationState, "; Ref count state: ", m_refCountState, "\n");
-    
+
+    out.print("  ArgumentPosition size: ", m_argumentPositions.size(), "\n");
+    for (size_t i = 0; i < m_argumentPositions.size(); ++i) {
+        out.print("    #", i, ": ");
+        ArgumentPosition& arguments = m_argumentPositions[i];
+        arguments.dump(out, this);
+    }
+
     Node* lastNode = 0;
     for (size_t b = 0; b < m_blocks.size(); ++b) {
         BasicBlock* block = m_blocks[b].get();

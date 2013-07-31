@@ -36,7 +36,6 @@
 class WebChromeClient : public WebCore::ChromeClient {
 public:
     WebChromeClient(WebView*);
-    virtual void* webView() const { return static_cast<void*>(m_webView); }
     
     virtual void chromeDestroyed() OVERRIDE;
     
@@ -135,8 +134,6 @@ public:
     virtual NSResponder *firstResponder() OVERRIDE;
     virtual void makeFirstResponder(NSResponder *) OVERRIDE;
 
-    virtual void willPopUpMenu(NSMenu *) OVERRIDE;
-
     virtual void enableSuddenTermination() OVERRIDE;
     virtual void disableSuddenTermination() OVERRIDE;
     
@@ -147,6 +144,8 @@ public:
 
     virtual void elementDidFocus(const WebCore::Node*) OVERRIDE;
     virtual void elementDidBlur(const WebCore::Node*) OVERRIDE;
+
+    virtual bool shouldPaintEntireContents() const OVERRIDE;
 
 #if USE(ACCELERATED_COMPOSITING)
     virtual void attachRootGraphicsLayer(WebCore::Frame*, WebCore::GraphicsLayer*) OVERRIDE;
@@ -185,6 +184,9 @@ public:
 
     virtual void numWheelEventHandlersChanged(unsigned) OVERRIDE { }
     virtual bool shouldRubberBandInDirection(WebCore::ScrollDirection) const OVERRIDE { return false; }
+
+    WebView* webView() { return m_webView; }
+
 private:
     WebView *m_webView;
 };

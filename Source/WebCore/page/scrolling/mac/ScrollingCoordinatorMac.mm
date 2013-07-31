@@ -112,6 +112,11 @@ void ScrollingCoordinatorMac::setRubberBandsAtTop(bool rubberBandsAtTop)
 {
     scrollingTree()->setRubberBandsAtTop(rubberBandsAtTop);
 }
+    
+void ScrollingCoordinatorMac::setScrollPinningBehavior(ScrollPinningBehavior pinning)
+{
+    scrollingTree()->setScrollPinningBehavior(pinning);
+}
 
 void ScrollingCoordinatorMac::commitTreeStateIfNeeded()
 {
@@ -190,6 +195,8 @@ void ScrollingCoordinatorMac::frameViewRootLayerDidChange(FrameView* frameView)
     ScrollingStateScrollingNode* node = toScrollingStateScrollingNode(m_scrollingStateTree->stateNodeForID(frameView->scrollLayerID()));
     setScrollLayerForNode(scrollLayerForFrameView(frameView), node);
     setCounterScrollingLayerForNode(counterScrollingLayerForFrameView(frameView), node);
+    setHeaderLayerForNode(headerLayerForFrameView(frameView), node);
+    setFooterLayerForNode(footerLayerForFrameView(frameView), node);
 }
 
 void ScrollingCoordinatorMac::scrollableAreaScrollbarLayerDidChange(ScrollableArea* scrollableArea, ScrollbarOrientation)
@@ -271,6 +278,24 @@ void ScrollingCoordinatorMac::setScrollLayerForNode(GraphicsLayer* scrollLayer, 
 void ScrollingCoordinatorMac::setCounterScrollingLayerForNode(GraphicsLayer* layer, ScrollingStateScrollingNode* node)
 {
     node->setCounterScrollingLayer(layer);
+    scheduleTreeStateCommit();
+}
+
+void ScrollingCoordinatorMac::setHeaderLayerForNode(GraphicsLayer* headerLayer, ScrollingStateScrollingNode* node)
+{
+    // Headers and footers are only supported on the root node.
+    ASSERT(node == m_scrollingStateTree->rootStateNode());
+
+    node->setHeaderLayer(headerLayer);
+    scheduleTreeStateCommit();
+}
+
+void ScrollingCoordinatorMac::setFooterLayerForNode(GraphicsLayer* footerLayer, ScrollingStateScrollingNode* node)
+{
+    // Headers and footers are only supported on the root node.
+    ASSERT(node == m_scrollingStateTree->rootStateNode());
+
+    node->setFooterLayer(footerLayer);
     scheduleTreeStateCommit();
 }
 
@@ -422,7 +447,7 @@ void ScrollingCoordinatorMac::commitTreeState()
     ScrollingModeIndication indicatorMode;
     if (shouldUpdateScrollLayerPositionOnMainThread())
         indicatorMode = MainThreadScrollingBecauseOfStyleIndication;
-    else if (scrollingTree() && scrollingTree()->hasWheelEventHandlers())
+    else if (m_scrollingStateTree->rootStateNode() && m_scrollingStateTree->rootStateNode()->wheelEventHandlerCount())
         indicatorMode =  MainThreadScrollingBecauseOfEventHandlersIndication;
     else
         indicatorMode = ThreadedScrollingIndication;

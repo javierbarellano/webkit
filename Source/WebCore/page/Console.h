@@ -40,7 +40,6 @@
 namespace WebCore {
 
 class Frame;
-class MemoryInfo;
 class Page;
 class ScriptArguments;
 
@@ -65,7 +64,6 @@ public:
     void trace(ScriptState*, PassRefPtr<ScriptArguments>);
     void assertCondition(ScriptState*, PassRefPtr<ScriptArguments>, bool condition);
     void count(ScriptState*, PassRefPtr<ScriptArguments>);
-    void markTimeline(PassRefPtr<ScriptArguments>);
 #if ENABLE(JAVASCRIPT_DEBUGGER)
     const ProfilesArray& profiles() const { return m_profiles; }
     void profile(const String&, ScriptState*);
@@ -77,8 +75,6 @@ public:
     void group(ScriptState*, PassRefPtr<ScriptArguments>);
     void groupCollapsed(ScriptState*, PassRefPtr<ScriptArguments>);
     void groupEnd();
-
-    PassRefPtr<MemoryInfo> memory() const;
 
 private:
     inline Page* page() const;

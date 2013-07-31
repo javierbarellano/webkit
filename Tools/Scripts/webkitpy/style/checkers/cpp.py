@@ -648,13 +648,16 @@ class FileInfo:
                 prefix = os.path.commonprefix([root_dir, project_dir])
                 return fullname[len(prefix) + 1:]
 
-            # Not SVN? Try to find a git top level directory by
+
+            # Not SVN <= 1.6? Try to find a git, or svn top level directory by
             # searching up from the current path.
             root_dir = os.path.dirname(fullname)
             while (root_dir != os.path.dirname(root_dir)
-                   and not os.path.exists(os.path.join(root_dir, ".git"))):
+                   and not os.path.exists(os.path.join(root_dir, ".git"))
+                   and not os.path.exists(os.path.join(root_dir, ".svn"))):
                 root_dir = os.path.dirname(root_dir)
-                if os.path.exists(os.path.join(root_dir, ".git")):
+                if (os.path.exists(os.path.join(root_dir, ".git")) or
+                   os.path.exists(os.path.join(root_dir, ".svn"))):
                     prefix = os.path.commonprefix([root_dir, project_dir])
                     return fullname[len(prefix) + 1:]
 
@@ -1111,19 +1114,6 @@ def check_invalid_increment(clean_lines, line_number, error):
     if _RE_PATTERN_INVALID_INCREMENT.match(line):
         error(line_number, 'runtime/invalid_increment', 5,
               'Changing pointer instead of value (or unused value of operator*).')
-
-
-def check_for_webcore_platform_layering_violation(filename, clean_lines, line_number, error):
-    """Checks for platform-specific code inside WebCore outside of the platform layer."""
-    directory = FileInfo(filename).split()[0]
-    if not match(r'Source/WebCore', directory):
-        return
-    if match(r'Source/WebCore/platform', directory):
-        return
-    line = clean_lines.elided[line_number]
-    if match(r'\s*#\s*if\s*PLATFORM\s*\(', line):
-        error(line_number, 'build/webcore_platform_layering_violation', 5,
-              'Do not add platform specific code in WebCore outside of platform.')
 
 
 class _ClassInfo(object):
@@ -2171,6 +2161,30 @@ def check_using_std(clean_lines, line_number, file_state, error):
           "Use 'using namespace std;' instead of 'using std::%s;'." % method_name)
 
 
+def check_using_namespace(clean_lines, line_number, file_extension, error):
+    """Looks for 'using namespace foo;' which should be removed.
+
+    Args:
+      clean_lines: A CleansedLines instance containing the file.
+      line_number: The number of the line to check.
+      file_extension: The extension (dot not included) of the file.
+      error: The function to call with any errors found.
+    """
+
+    # This check applies only to headers.
+    if file_extension != 'h':
+        return
+
+    line = clean_lines.elided[line_number]  # Get rid of comments and strings.
+
+    using_namespace_match = match(r'\s*using\s+namespace\s+(?P<method_name>\S+)\s*;\s*$', line)
+    if not using_namespace_match:
+        return
+
+    method_name = using_namespace_match.group('method_name')
+    error(line_number, 'build/using_namespace', 4,
+          "Do not use 'using namespace %s;'." % method_name)
+
 def check_max_min_macros(clean_lines, line_number, file_state, error):
     """Looks use of MAX() and MIN() macros that should be replaced with std::max() and std::min().
 
@@ -2655,6 +2669,7 @@ def check_style(clean_lines, line_number, file_extension, class_state, file_stat
     check_namespace_indentation(clean_lines, line_number, file_extension, file_state, error)
     check_directive_indentation(clean_lines, line_number, file_state, error)
     check_using_std(clean_lines, line_number, file_state, error)
+    check_using_namespace(clean_lines, line_number, file_extension, error)
     check_max_min_macros(clean_lines, line_number, file_state, error)
     check_ctype_functions(clean_lines, line_number, file_state, error)
     check_switch_indentation(clean_lines, line_number, error)
@@ -3574,7 +3589,6 @@ def process_line(filename, file_extension,
     check_for_non_standard_constructs(clean_lines, line, class_state, error)
     check_posix_threading(clean_lines, line, error)
     check_invalid_increment(clean_lines, line, error)
-    check_for_webcore_platform_layering_violation(filename, clean_lines, line, error)
 
 
 def _process_lines(filename, file_extension, lines, error, min_confidence):
@@ -3641,7 +3655,7 @@ class CppChecker(object):
         'build/printf_format',
         'build/storage_class',
         'build/using_std',
-        'build/webcore_platform_layering_violation',
+        'build/using_namespace',
         'legal/copyright',
         'readability/braces',
         'readability/casting',

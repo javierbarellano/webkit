@@ -44,6 +44,7 @@
 #include "HTMLInputElement.h"
 #include "HTMLInterchange.h"
 #include "HTMLNames.h"
+#include "HTMLTitleElement.h"
 #include "NodeList.h"
 #include "NodeRenderStyle.h"
 #include "NodeTraversal.h"
@@ -72,7 +73,7 @@ enum EFragmentType { EmptyFragment, SingleTextNodeFragment, TreeFragment };
 class ReplacementFragment {
     WTF_MAKE_NONCOPYABLE(ReplacementFragment);
 public:
-    ReplacementFragment(Document*, DocumentFragment*, bool matchStyle, const VisibleSelection&);
+    ReplacementFragment(Document*, DocumentFragment*, const VisibleSelection&);
 
     Node* firstChild() const;
     Node* lastChild() const;
@@ -139,7 +140,7 @@ static Position positionAvoidingPrecedingNodes(Position pos)
     return pos;
 }
 
-ReplacementFragment::ReplacementFragment(Document* document, DocumentFragment* fragment, bool, const VisibleSelection& selection)
+ReplacementFragment::ReplacementFragment(Document* document, DocumentFragment* fragment, const VisibleSelection& selection)
     : m_document(document),
       m_fragment(fragment),
       m_hasInterchangeNewlineAtStart(false), 
@@ -676,10 +677,9 @@ void ReplaceSelectionCommand::removeUnrenderedTextNodesAtEnds(InsertedNodes& ins
         removeNode(lastLeafInserted);
     }
 
-    // We don't have to make sure that firstNodeInserted isn't inside a select or script element, because
-    // it is a top level node in the fragment and the user can't insert into those elements.
+    // We don't have to make sure that firstNodeInserted isn't inside a select or script element
+    // because it is a top level node in the fragment and the user can't insert into those elements.
     Node* firstNodeInserted = insertedNodes.firstNodeInserted();
-    lastLeafInserted = insertedNodes.lastLeafInserted();
     if (firstNodeInserted && firstNodeInserted->isTextNode() && !nodeHasVisibleRenderText(toText(firstNodeInserted))) {
         insertedNodes.willRemoveNode(firstNodeInserted);
         removeNode(firstNodeInserted);
@@ -706,7 +706,7 @@ static void removeHeadContents(ReplacementFragment& fragment)
             || node->hasTagName(linkTag)
             || node->hasTagName(metaTag)
             || node->hasTagName(styleTag)
-            || node->hasTagName(titleTag)) {
+            || isHTMLTitleElement(node)) {
             next = NodeTraversal::nextSkippingChildren(node);
             fragment.removeNode(node);
         } else
@@ -842,11 +842,11 @@ void ReplaceSelectionCommand::mergeEndIfNeeded()
 static Node* enclosingInline(Node* node)
 {
     while (ContainerNode* parent = node->parentNode()) {
-        if (parent->isBlockFlowElement() || parent->hasTagName(bodyTag))
+        if (isBlockFlowElement(parent) || parent->hasTagName(bodyTag))
             return node;
         // Stop if any previous sibling is a block.
         for (Node* sibling = node->previousSibling(); sibling; sibling = sibling->previousSibling()) {
-            if (sibling->isBlockFlowElement())
+            if (isBlockFlowElement(sibling))
                 return node;
         }
         node = parent;
@@ -892,7 +892,7 @@ void ReplaceSelectionCommand::doApply()
     if (!selection.rootEditableElement())
         return;
 
-    ReplacementFragment fragment(document(), m_documentFragment.get(), m_matchStyle, selection);
+    ReplacementFragment fragment(document(), m_documentFragment.get(), selection);
     if (performTrivialReplace(fragment))
         return;
     
@@ -1250,7 +1250,7 @@ bool ReplaceSelectionCommand::shouldPerformSmartReplace() const
         return false;
 
     Element* textControl = enclosingTextFormControl(positionAtStartOfInsertedContent().deepEquivalent());
-    if (textControl && textControl->hasTagName(inputTag) && static_cast<HTMLInputElement*>(textControl)->isPasswordField())
+    if (textControl && isHTMLInputElement(textControl) && toHTMLInputElement(textControl)->isPasswordField())
         return false; // Disable smart replace for password fields.
 
     return true;
@@ -1335,6 +1335,7 @@ void ReplaceSelectionCommand::completeHTMLReplacement(const Position &lastPositi
             end = lastPositionToSelect;
 
         mergeTextNodesAroundPosition(start, end);
+        mergeTextNodesAroundPosition(end, start);
     } else if (lastPositionToSelect.isNotNull())
         start = end = lastPositionToSelect;
     else

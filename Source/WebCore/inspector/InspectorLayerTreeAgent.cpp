@@ -178,7 +178,7 @@ PassRefPtr<TypeBuilder::LayerTree::Layer> InspectorLayerTreeAgent::buildObjectFo
     RefPtr<TypeBuilder::LayerTree::Layer> layerObject = TypeBuilder::LayerTree::Layer::create()
         .setLayerId(bind(renderLayer))
         .setNodeId(idForNode(errorString, node))
-        .setBounds(buildObjectForIntRect(enclosingIntRect(renderer->absoluteBoundingBoxRect())))
+        .setBounds(buildObjectForIntRect(renderer->absoluteBoundingBoxRect()))
         .setMemory(backing->backingStoreMemoryEstimate())
         .setCompositedBounds(buildObjectForIntRect(backing->compositedBounds()))
         .setPaintCount(backing->graphicsLayer()->repaintCount());
@@ -253,14 +253,11 @@ void InspectorLayerTreeAgent::reasonsForCompositingLayer(ErrorString* errorStrin
 
     if (reasonsBitmask & CompositingReasonVideo)
         compositingReasons->setVideo(true);
-
-    if (reasonsBitmask & CompositingReasonCanvas)
+    else if (reasonsBitmask & CompositingReasonCanvas)
         compositingReasons->setCanvas(true);
-
-    if (reasonsBitmask & CompositingReasonPlugin)
+    else if (reasonsBitmask & CompositingReasonPlugin)
         compositingReasons->setPlugin(true);
-
-    if (reasonsBitmask & CompositingReasonIFrame)
+    else if (reasonsBitmask & CompositingReasonIFrame)
         compositingReasons->setIFrame(true);
     
     if (reasonsBitmask & CompositingReasonBackfaceVisibilityHidden)

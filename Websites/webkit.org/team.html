@@ -5,6 +5,13 @@ include("header.inc");
 
 <h2>WebKit Team</h2>
 
+<p>Here is the key for each item:</p>
+<ul>
+    <li><strong class="name">Name</strong> <span class="nick">(IRC nickname)</span> <em class="affiliation">Affiliation</em>
+        <ul><li class="expertise">Areas of knowledge</li></ul>
+    </li>
+</ul>
+
 <div id="container">
 <h2>Reviewers</h2>
 <ul id="reviewers"></ul>
@@ -24,6 +31,7 @@ var domainAffiliations = {
     'adobe.com': 'Adobe',
     'basyskom.com': 'basysKom GmbH',
     'collabora.co.uk': 'Collabora',
+    'company100.com': 'Company100',
     'google.com': 'Google',
     'igalia.com': 'Igalia',
     'intel.com' : 'Intel',
@@ -37,6 +45,7 @@ var domainAffiliations = {
     'sisa.samsung.com': 'Samsung Electronics',
     'torchmobile.com.cn': 'Torch Mobile (Beijing) Co. Ltd.',
     'digia.com': 'Digia',
+    'partner.samsung.com': 'Samsung Electronics',
 
     // Universities
     'inf.u-szeged.hu': 'University of Szeged',
@@ -58,7 +67,8 @@ function parseContributorsJSON(text) {
                 name: contributor,
                 kind: contributorType.replace(/s$/, "").toLowerCase(),
                 emails: contributorsJSON[contributorType][contributor].emails,
-                nicks: contributorsJSON[contributorType][contributor].nicks
+                nicks: contributorsJSON[contributorType][contributor].nicks,
+                expertise: contributorsJSON[contributorType][contributor].expertise
             });
         }
     }
@@ -104,6 +114,12 @@ function populateContributorListItem(listItem, contributor) {
     if (affiliation) {
         addText(listItem, ' ');
         addWrappedText(listItem, 'em', {'class': 'affiliation'}, affiliation);        
+    }
+
+    if (contributor.expertise) {
+        var expertiseList = document.createElement('ul');
+        addWrappedText(expertiseList, 'li', {'class': 'expertise'}, contributor.expertise);
+        listItem.appendChild(expertiseList);
     }
 }
 

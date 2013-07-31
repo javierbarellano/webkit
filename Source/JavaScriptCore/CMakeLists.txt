@@ -164,6 +164,7 @@ set(JavaScriptCore_SOURCES
 
     jit/ClosureCallStubRoutine.cpp
     jit/ExecutableAllocator.cpp
+    jit/ExecutableAllocatorFixedVMPool.cpp
     jit/HostCallReturnValue.cpp
     jit/GCAwareJITStubRoutine.cpp
     jit/JITArithmetic32_64.cpp
@@ -339,7 +340,7 @@ set(JavaScriptCore_LUT_FILES
 )
 
 set(JavaScriptCore_LIBRARIES
-    ${WTF_LIBRARY_NAME}
+    WTF
 )
 
 if (WTF_USE_ICU_UNICODE)
@@ -403,7 +404,7 @@ if (ENABLE_LLINT)
         ${JAVASCRIPTCORE_DIR}/llint/LLIntOffsetsExtractor.cpp
         ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/LLIntDesiredOffsets.h
     )
-    target_link_libraries(LLIntOffsetsExtractor ${WTF_LIBRARY_NAME})
+    target_link_libraries(LLIntOffsetsExtractor WTF)
 
     # The build system will execute asm.rb every time LLIntOffsetsExtractor's mtime is newer than
     # LLIntAssembly.h's mtime. The problem we have here is: asm.rb has some built-in optimization
@@ -518,9 +519,34 @@ if (WTF_CPU_ARM)
         assembler/ARMv7Assembler.cpp
         assembler/MacroAssemblerARM.cpp
     )
+    if (MSVC AND ENABLE_JIT)
+        add_custom_command(
+            OUTPUT ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.asm
+            MAIN_DEPENDENCY ${JAVASCRIPTCORE_DIR}/create_jit_stubs
+            DEPENDS ${JAVASCRIPTCORE_DIR}/jit/JITStubs.cpp
+            COMMAND ${PERL_EXECUTABLE} ${JAVASCRIPTCORE_DIR}/create_jit_stubs --prefix=MSVC ${JAVASCRIPTCORE_DIR}/jit/JITStubs.cpp > ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.asm
+            VERBATIM)
+
+        add_custom_command(
+            OUTPUT ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.obj
+            MAIN_DEPENDENCY ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.asm
+            COMMAND armasm -nologo ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.asm ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.obj
+            VERBATIM)
+
+        list(APPEND JavaScriptCore_SOURCES ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.obj)
+    endif ()
 elseif (WTF_CPU_MIPS)
 elseif (WTF_CPU_X86)
 elseif (WTF_CPU_X86_64)
+    if (MSVC AND ENABLE_JIT)
+        add_custom_command(
+            OUTPUT ${DERIVED_SOURCES_DIR}/JITStubsMSVC64.obj
+            MAIN_DEPENDENCY ${JAVASCRIPTCORE_DIR}/jit/JITStubsMSVC64.asm
+            COMMAND ml64 -nologo -c -Fo ${DERIVED_SOURCES_DIR}/JITStubsMSVC64.obj ${JAVASCRIPTCORE_DIR}/jit/JITStubsMSVC64.asm
+            VERBATIM)
+
+        list(APPEND JavaScriptCore_SOURCES ${DERIVED_SOURCES_DIR}/JITStubsMSVC64.obj)
+    endif ()
 else ()
     message(FATAL_ERROR "Unknown CPU")
 endif ()
@@ -535,13 +561,17 @@ add_subdirectory(shell)
 
 WEBKIT_WRAP_SOURCELIST(${JavaScriptCore_SOURCES})
 include_directories(${JavaScriptCore_INCLUDE_DIRECTORIES})
-add_definitions(-DBUILDING_JavaScriptCore)
-add_library(${JavaScriptCore_LIBRARY_NAME} ${JavaScriptCore_LIBRARY_TYPE} ${JavaScriptCore_HEADERS} ${JavaScriptCore_SOURCES})
-target_link_libraries(${JavaScriptCore_LIBRARY_NAME} ${JavaScriptCore_LIBRARIES})
-set_target_properties(${JavaScriptCore_LIBRARY_NAME} PROPERTIES FOLDER "JavaScriptCore")
-set_target_properties(${JavaScriptCore_LIBRARY_NAME} PROPERTIES LINK_INTERFACE_LIBRARIES "")
+add_definitions(-DBUILDING_JavaScriptCore -DSTATICALLY_LINKED_WITH_WTF)
+add_library(JavaScriptCore ${JavaScriptCore_LIBRARY_TYPE} ${JavaScriptCore_HEADERS} ${JavaScriptCore_SOURCES})
+target_link_libraries(JavaScriptCore ${JavaScriptCore_LIBRARIES})
+set_target_properties(JavaScriptCore PROPERTIES FOLDER "JavaScriptCore")
+set_target_properties(JavaScriptCore PROPERTIES LINK_INTERFACE_LIBRARIES "")
+
+if (JavaScriptCore_OUTPUT_NAME)
+    set_target_properties(JavaScriptCore PROPERTIES OUTPUT_NAME ${JavaScriptCore_OUTPUT_NAME})
+endif ()
 
 if (SHARED_CORE)
-    set_target_properties(${JavaScriptCore_LIBRARY_NAME} PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-    install(TARGETS ${JavaScriptCore_LIBRARY_NAME} DESTINATION "${LIB_INSTALL_DIR}")
+    set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+    install(TARGETS JavaScriptCore DESTINATION "${LIB_INSTALL_DIR}")
 endif ()

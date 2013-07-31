@@ -40,6 +40,9 @@ class VideoTrackPrivate;
 class VideoTrackPrivateClient {
 public:
     virtual ~VideoTrackPrivateClient() { }
+    virtual void videoTrackPrivateSelectedChanged(VideoTrackPrivate*) = 0;
+    virtual void videoTrackPrivateLabelChanged(VideoTrackPrivate*) = 0;
+    virtual void videoTrackPrivateLanguageChanged(VideoTrackPrivate*) = 0;
     virtual void willRemoveVideoTrackPrivate(VideoTrackPrivate*) = 0;
 };
 

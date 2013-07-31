@@ -106,12 +106,9 @@ public:
 
     void cloneChildNodes(ContainerNode* clone);
 
-    virtual void attach() OVERRIDE;
-    virtual void detach() OVERRIDE;
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual LayoutRect boundingBox() const OVERRIDE;
-    virtual void setFocus(bool) OVERRIDE;
-    virtual void setActive(bool active = true, bool pause = false) OVERRIDE;
-    virtual void setHovered(bool = true) OVERRIDE;
     virtual void scheduleSetNeedsStyleRecalc(StyleChangeType = FullStyleChange) OVERRIDE FINAL;
 
     // -----------------------------------------------------------------------------
@@ -120,11 +117,6 @@ public:
     // Notifies the node that it's list of children have changed (either by adding or removing child nodes), or a child
     // node that is of the type CDATA_SECTION_NODE, TEXT_NODE or COMMENT_NODE has changed its value.
     virtual void childrenChanged(bool createdByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
-
-    void attachChildren();
-    void attachChildrenLazily();
-    void detachChildren();
-    void detachChildrenIfNeeded();
 
     void disconnectDescendantFrames();
 
@@ -149,6 +141,9 @@ protected:
 private:
     void removeBetween(Node* previousChild, Node* nextChild, Node* oldChild);
     void insertBeforeCommon(Node* nextChild, Node* oldChild);
+
+    void attachChildren(const AttachContext& = AttachContext());
+    void detachChildren(const AttachContext& = AttachContext());
 
     static void dispatchPostAttachCallbacks();
     void suspendPostAttachCallbacks();
@@ -187,34 +182,25 @@ inline ContainerNode::ContainerNode(Document* document, ConstructionType type)
 {
 }
 
-inline void ContainerNode::attachChildren()
+inline void ContainerNode::attachChildren(const AttachContext& context)
 {
+    AttachContext childrenContext(context);
+    childrenContext.resolvedStyle = 0;
+
     for (Node* child = firstChild(); child; child = child->nextSibling()) {
         ASSERT(!child->attached() || childAttachedAllowedWhenAttachingChildren(this));
         if (!child->attached())
-            child->attach();
+            child->attach(childrenContext);
     }
 }
 
-inline void ContainerNode::attachChildrenLazily()
+inline void ContainerNode::detachChildren(const AttachContext& context)
 {
-    for (Node* child = firstChild(); child; child = child->nextSibling())
-        if (!child->attached())
-            child->lazyAttach();
-}
+    AttachContext childrenContext(context);
+    childrenContext.resolvedStyle = 0;
 
-inline void ContainerNode::detachChildrenIfNeeded()
-{
-    for (Node* child = firstChild(); child; child = child->nextSibling()) {
-        if (child->attached())
-            child->detach();
-    }
-}
-
-inline void ContainerNode::detachChildren()
-{
     for (Node* child = firstChild(); child; child = child->nextSibling())
-        child->detach();
+        child->detach(childrenContext);
 }
 
 inline unsigned Node::childNodeCount() const
@@ -260,6 +246,11 @@ inline bool Node::needsShadowTreeWalker() const
         return true;
     ContainerNode* parent = parentOrShadowHostNode();
     return parent && parent->getFlag(NeedsShadowTreeWalkerFlag);
+}
+
+inline bool Node::isTreeScope() const
+{
+    return treeScope()->rootNode() == this;
 }
 
 // This constant controls how much buffer is initially allocated

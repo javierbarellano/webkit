@@ -24,7 +24,6 @@
 #include "config.h"
 #include "CachedResource.h"
 
-#include "MemoryCache.h"
 #include "CachedResourceClient.h"
 #include "CachedResourceClientWalker.h"
 #include "CachedResourceHandle.h"
@@ -38,11 +37,13 @@
 #include "KURL.h"
 #include "LoaderStrategy.h"
 #include "Logging.h"
+#include "MemoryCache.h"
 #include "PlatformStrategies.h"
 #include "PurgeableBuffer.h"
 #include "ResourceBuffer.h"
 #include "ResourceHandle.h"
 #include "ResourceLoadScheduler.h"
+#include "SchemeRegistry.h"
 #include "SecurityOrigin.h"
 #include "SecurityPolicy.h"
 #include "SubresourceLoader.h"
@@ -181,13 +182,20 @@ static ResourceRequest::TargetType cachedResourceTypeToTargetType(CachedResource
 }
 #endif
 
+static double deadDecodedDataDeletionIntervalForResourceType(CachedResource::Type type)
+{
+    if (type == CachedResource::Script)
+        return 0;
+    return memoryCache()->deadDecodedDataDeletionInterval();
+}
+
 DEFINE_DEBUG_ONLY_GLOBAL(RefCountedLeakCounter, cachedResourceLeakCounter, ("CachedResource"));
 
 CachedResource::CachedResource(const ResourceRequest& request, Type type)
     : m_resourceRequest(request)
     , m_loadPriority(defaultPriorityForResourceType(type))
     , m_responseTimestamp(currentTime())
-    , m_decodedDataDeletionTimer(this, &CachedResource::decodedDataDeletionTimerFired)
+    , m_decodedDataDeletionTimer(this, &CachedResource::decodedDataDeletionTimerFired, deadDecodedDataDeletionIntervalForResourceType(type))
     , m_lastDecodedAccessTime(0)
     , m_loadFinishTime(0)
     , m_encodedSize(0)
@@ -342,12 +350,7 @@ void CachedResource::load(CachedResourceLoader* cachedResourceLoader, const Reso
         m_fragmentIdentifierForRequest = String();
     }
 
-#if USE(PLATFORM_STRATEGIES)
     m_loader = platformStrategies()->loaderStrategy()->resourceLoadScheduler()->scheduleSubresourceLoad(cachedResourceLoader->frame(), this, request, request.priority(), options);
-#else
-    m_loader = resourceLoadScheduler()->scheduleSubresourceLoad(cachedResourceLoader->frame(), this, request, request.priority(), options);
-#endif
-
     if (!m_loader) {
         failBeforeStarting();
         return;
@@ -366,11 +369,18 @@ void CachedResource::checkNotify()
         c->notifyFinished(this);
 }
 
-void CachedResource::data(PassRefPtr<ResourceBuffer>, bool allDataReceived)
+void CachedResource::addDataBuffer(ResourceBuffer*)
 {
-    if (!allDataReceived)
-        return;
-    
+    ASSERT(m_options.dataBufferingPolicy == BufferData);
+}
+
+void CachedResource::addData(const char*, unsigned)
+{
+    ASSERT(m_options.dataBufferingPolicy == DoNotBufferData);
+}
+
+void CachedResource::finishLoading(ResourceBuffer*)
+{
     setLoading(false);
     checkNotify();
 }
@@ -381,6 +391,16 @@ void CachedResource::error(CachedResource::Status status)
     ASSERT(errorOccurred());
     m_data.clear();
 
+    setLoading(false);
+    checkNotify();
+}
+    
+void CachedResource::cancelLoad()
+{
+    if (!isLoading())
+        return;
+
+    setStatus(LoadError);
     setLoading(false);
     checkNotify();
 }
@@ -404,7 +424,7 @@ bool CachedResource::isExpired() const
 
     return currentAge() > freshnessLifetime();
 }
-    
+
 double CachedResource::currentAge() const
 {
     // RFC2616 13.2.3
@@ -416,12 +436,18 @@ double CachedResource::currentAge() const
     double residentTime = currentTime() - m_responseTimestamp;
     return correctedReceivedAge + residentTime;
 }
-    
+
 double CachedResource::freshnessLifetime() const
 {
-    // Cache non-http resources liberally
-    if (!m_response.url().protocolIsInHTTPFamily())
+    if (!m_response.url().protocolIsInHTTPFamily()) {
+        // Don't cache non-HTTP main resources since we can't check for freshness.
+        // FIXME: We should not cache subresources either, but when we tried this
+        // it caused performance and flakiness issues in our test infrastructure.
+        if (m_type == MainResource && !SchemeRegistry::shouldCacheResponsesFromURLSchemeIndefinitely(m_response.url().protocol()))
+            return 0;
+
         return std::numeric_limits<double>::max();
+    }
 
     // RFC2616 13.2.4
     double maxAgeValue = m_response.cacheControlMaxAge();
@@ -448,21 +474,10 @@ void CachedResource::responseReceived(const ResourceResponse& response)
         setEncoding(encoding);
 }
 
-void CachedResource::stopLoading()
+void CachedResource::clearLoader()
 {
-    ASSERT(m_loader);            
+    ASSERT(m_loader);
     m_loader = 0;
-
-    CachedResourceHandle<CachedResource> protect(this);
-
-    // All loads finish with data(allDataReceived = true) or error(), except for
-    // canceled loads, which silently set our request to 0. Be sure to notify our
-    // client in that case, so we don't seem to continue loading forever.
-    if (isLoading()) {
-        setLoading(false);
-        setStatus(LoadError);
-        checkNotify();
-    }
 }
 
 void CachedResource::addClient(CachedResourceClient* client)
@@ -552,12 +567,12 @@ void CachedResource::destroyDecodedDataIfNeeded()
 {
     if (!m_decodedSize)
         return;
-
-    if (double interval = memoryCache()->deadDecodedDataDeletionInterval())
-        m_decodedDataDeletionTimer.startOneShot(interval);
+    if (!memoryCache()->deadDecodedDataDeletionInterval())
+        return;
+    m_decodedDataDeletionTimer.restart();
 }
 
-void CachedResource::decodedDataDeletionTimerFired(Timer<CachedResource>*)
+void CachedResource::decodedDataDeletionTimerFired(DeferrableOneShotTimer<CachedResource>*)
 {
     destroyDecodedData();
 }
@@ -879,7 +894,6 @@ void CachedResource::setLoadPriority(ResourceLoadPriority loadPriority)
     if (m_loader)
         m_loader->didChangePriority(loadPriority);
 }
-
 
 CachedResource::CachedResourceCallback::CachedResourceCallback(CachedResource* resource, CachedResourceClient* client)
     : m_resource(resource)

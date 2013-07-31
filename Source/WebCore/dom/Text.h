@@ -46,11 +46,11 @@ public:
     
     void recalcTextStyle(StyleChange);
     void createTextRendererIfNeeded();
-    bool textRendererIsNeeded(NodeRenderingContext&);
+    bool textRendererIsNeeded(const NodeRenderingContext&);
     RenderText* createTextRenderer(RenderArena*, RenderStyle*);
     void updateTextRenderer(unsigned offsetOfReplacedData, unsigned lengthOfReplacedData);
 
-    virtual void attach() OVERRIDE FINAL;
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE FINAL;
     
     virtual bool canContainRangeEndPoint() const OVERRIDE FINAL { return true; }
 

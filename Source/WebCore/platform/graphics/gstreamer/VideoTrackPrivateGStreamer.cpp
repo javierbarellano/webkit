@@ -1,26 +1,26 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -29,77 +29,52 @@
 
 #include "VideoTrackPrivateGStreamer.h"
 
-#include "GStreamerUtilities.h"
-#include "Logging.h"
-#include <gst/gst.h>
+#include <glib-object.h>
+#include <gst/gsttaglist.h>
 
 namespace WebCore {
 
-static void videoTrackPrivateActivePadChangedCallback(GObject*, GParamSpec*, VideoTrackPrivateGStreamer* track)
+static void videoTrackPrivateActiveChangedCallback(GObject*, GParamSpec*, VideoTrackPrivateGStreamer* track)
 {
-    track->activePadChanged();
+    track->activeChanged();
 }
 
-#ifdef GST_API_VERSION_1
-static GstPadProbeReturn videoTrackPrivateTextTagCallback(GstPad*, GstPadProbeInfo* info, VideoTrackPrivateGStreamer* track)
+static void videoTrackPrivateTagsChangedCallback(GObject*, GParamSpec*, VideoTrackPrivateGStreamer* track)
 {
-    track->handleTag(gst_pad_probe_info_get_event(info));
-    return GST_PAD_PROBE_OK;
+    track->tagsChanged();
 }
-#else
-static gboolean videoTrackPrivateTextTagCallback(GstPad*, GstEvent* event, VideoTrackPrivateGStreamer* track)
-{
-    track->handleTag(event);
-    return true;
-}
-#endif
 
-static gboolean videoTrackPrivateActivePadChangedTimeoutCallback(VideoTrackPrivateGStreamer* track)
+static gboolean videoTrackPrivateActiveChangeTimeoutCallback(VideoTrackPrivateGStreamer* track)
 {
-    track->notifyPlayerOfActivePad();
+    track->notifyTrackOfActiveChanged();
     return FALSE;
 }
 
-static gboolean videoTrackPrivateTagTimeoutCallback(VideoTrackPrivateGStreamer* track)
+static gboolean videoTrackPrivateTagsChangeTimeoutCallback(VideoTrackPrivateGStreamer* track)
 {
-    track->notifyPlayerOfTag();
+    track->notifyTrackOfTagsChanged();
     return FALSE;
 }
 
-VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> selector, GstPad* pad)
-    : m_srcPad(pad)
-    , m_selector(selector)
-    , m_tagTimerHandler(0)
-#ifndef GST_API_VERSION_1
-    , m_tags(0)
-#endif
-    , m_hasBeenReported(false)
+VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
+    : m_index(index)
+    , m_pad(pad)
+    , m_playbin(playbin)
     , m_isDisconnected(false)
+    , m_activeTimerHandler(0)
+    , m_tagTimerHandler(0)
 {
-    m_sinkPad = gst_element_get_request_pad(m_selector.get(), "sink_%u");
-    ASSERT(m_sinkPad.get());
-    GstPadLinkReturn ret = gst_pad_link(m_srcPad.get(), m_sinkPad.get());
-    UNUSED_PARAM(ret);
-    ASSERT(GST_PAD_LINK_SUCCESSFUL(ret));
+    g_signal_connect(m_playbin.get(), "notify::current-video", G_CALLBACK(videoTrackPrivateActiveChangedCallback), this);
+    g_signal_connect(m_pad.get(), "notify::tags", G_CALLBACK(videoTrackPrivateTagsChangedCallback), this);
 
-    g_signal_connect(m_selector.get(), "notify::active-pad", G_CALLBACK (videoTrackPrivateActivePadChangedCallback), this);
-
-#ifdef GST_API_VERSION_1
-    m_tagProbe = gst_pad_add_probe(m_sinkPad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-        reinterpret_cast<GstPadProbeCallback>(videoTrackPrivateTextTagCallback), this, 0);
-#else
-    m_tagProbe = gst_pad_add_event_probe(m_sinkPad.get(), G_CALLBACK(videoTrackPrivateTextTagCallback), this);
-#endif
+    gboolean active;
+    g_object_get(m_pad.get(), "active", &active, NULL);
+    VideoTrackPrivate::setSelected(active);
 }
 
 VideoTrackPrivateGStreamer::~VideoTrackPrivateGStreamer()
 {
     disconnect();
-#ifndef GST_API_VERSION_1
-    MutexLocker lock(m_tagMutex);
-    if (m_tags)
-        gst_tag_list_free(m_tags);
-#endif
 }
 
 void VideoTrackPrivateGStreamer::disconnect()
@@ -109,122 +84,92 @@ void VideoTrackPrivateGStreamer::disconnect()
 
     m_isDisconnected = true;
 
-#ifdef GST_API_VERSION_1
-    gst_pad_remove_probe(m_sinkPad.get(), m_tagProbe);
-#else
-    gst_pad_remove_event_probe(m_sinkPad.get(), m_tagProbe);
-#endif
-    m_tagProbe = 0;
+    g_signal_handlers_disconnect_by_func(m_pad.get(),
+        reinterpret_cast<gpointer>(videoTrackPrivateActiveChangedCallback), this);
+    g_signal_handlers_disconnect_by_func(m_pad.get(),
+        reinterpret_cast<gpointer>(videoTrackPrivateTagsChangedCallback), this);
 
-    g_signal_handlers_disconnect_by_func(m_sinkPad.get(),
-        reinterpret_cast<gpointer>(videoTrackPrivateActivePadChangedCallback), this);
-
-    if (m_activePadTimerHandler)
-        g_source_remove(m_activePadTimerHandler);
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
 
     if (m_tagTimerHandler)
         g_source_remove(m_tagTimerHandler);
 
-    gst_pad_unlink(m_srcPad.get(), m_sinkPad.get());
-    gst_element_release_request_pad(m_selector.get(), m_sinkPad.get());
-
-    m_selector.clear();
-    m_srcPad.clear();
-    m_sinkPad.clear();
+    m_pad.clear();
+    m_playbin.clear();
 }
 
-GstTagList* VideoTrackPrivateGStreamer::tags() const
+void VideoTrackPrivateGStreamer::activeChanged()
 {
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
+    m_activeTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(videoTrackPrivateActiveChangeTimeoutCallback), this);
+}
+
+void VideoTrackPrivateGStreamer::tagsChanged()
+{
+    if (m_tagTimerHandler)
+        g_source_remove(m_tagTimerHandler);
+    m_tagTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(videoTrackPrivateTagsChangeTimeoutCallback), this);
+}
+
+void VideoTrackPrivateGStreamer::notifyTrackOfActiveChanged()
+{
+    if (m_isDisconnected)
+        return;
+
+    gboolean active = false;
+    if (m_pad)
+        g_object_get(m_pad.get(), "active", &active, NULL);
+
+    if (active == selected())
+        return;
+
+    VideoTrackPrivate::setSelected(active);
+    client()->videoTrackPrivateSelectedChanged(this);
+}
+
+void VideoTrackPrivateGStreamer::notifyTrackOfTagsChanged()
+{
+    if (m_isDisconnected)
+        return;
+
+    GstTagList* tags = 0;
+    g_object_get(m_pad.get(), "tags", &tags, NULL);
+
+    if (!tags)
+        return;
+
+    gchar* tagValue;
+    if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
+        m_label = tagValue;
+        g_free(tagValue);
+        client()->videoTrackPrivateLabelChanged(this);
+    }
+    if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
+        m_language = tagValue;
+        g_free(tagValue);
+        client()->videoTrackPrivateLanguageChanged(this);
+    }
 #ifdef GST_API_VERSION_1
-    return m_tags.get();
+    gst_tag_list_unref(tags);
 #else
-    return m_tags;
+    gst_tag_list_free(tags);
 #endif
 }
 
 void VideoTrackPrivateGStreamer::setSelected(bool selected)
 {
-    if(selected == this->selected())
+    if (selected == this->selected())
         return;
     VideoTrackPrivate::setSelected(selected);
 
-    GstPad* oldSinkpad;
-    g_object_get(m_selector.get(), "active-pad", &oldSinkpad, NULL);
-
-    if (selected && oldSinkpad != m_sinkPad.get()) {
-        g_object_set(m_selector.get(), "active-pad", m_sinkPad.get(), NULL);
-    } else if (!selected && oldSinkpad == m_sinkPad.get()) {
-        g_object_set(m_selector.get(), "active-pad", NULL, NULL);
-    }
-}
-
-void VideoTrackPrivateGStreamer::activePadChanged()
-{
-    if (m_activePadTimerHandler)
-        g_source_remove(m_activePadTimerHandler);
-    m_activePadTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(videoTrackPrivateActivePadChangedTimeoutCallback), this);
-}
-
-void VideoTrackPrivateGStreamer::notifyPlayerOfActivePad()
-{
-    m_activePadTimerHandler = 0;
-
-    if(!m_sinkPad)
-        return;
-
-    gboolean active;
-    g_object_get(m_sinkPad.get(), "active", &active, NULL);
-    setSelected(active);
-}
-
-void VideoTrackPrivateGStreamer::handleTag(GstEvent* event)
-{
-    if (event->type != GST_EVENT_TAG)
-        return;
-
-    if (m_tagTimerHandler)
-        g_source_remove(m_tagTimerHandler);
-
-    GstTagList* newTags = 0;
-    gst_event_parse_tag(event, &newTags);
-    {
-        MutexLocker lock(m_tagMutex);
-        if (m_isDisconnected)
-            return;
-        newTags = gst_tag_list_merge(tags(), newTags, GST_TAG_MERGE_REPLACE_ALL);
-#ifdef GST_API_VERSION_1
-        m_tags = adoptGRef(newTags);
-#else
-        if (m_tags)
-            gst_tag_list_free(m_tags);
-        m_tags = newTags;
-#endif
-    }
-    m_tagTimerHandler = g_timeout_add(0, reinterpret_cast<GSourceFunc>(videoTrackPrivateTagTimeoutCallback), this);
-}
-
-void VideoTrackPrivateGStreamer::notifyPlayerOfTag()
-{
-    m_tagTimerHandler = 0;
-
-    String language;
-    String label;
-    MutexLocker lock(m_tagMutex);
-    if (!client())
-        return;
-    gchar* str;
-    if (gst_tag_list_get_string(tags(), GST_TAG_LANGUAGE_CODE, &str)) {
-        m_language = str;
-        //client()->setLanguage(str);
-        g_free(str);
-    }
-    if (gst_tag_list_get_string(tags(), GST_TAG_TITLE, &str)) {
-        m_label = str;
-        //client()->setLabel(str);
-        g_free(str);
-    }
+    if (selected && m_playbin)
+        g_object_set(m_playbin.get(), "current-video", m_index, NULL);
 }
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(AVFOUNDATION) && HAVE(AVFOUNDATION_TEXT_TRACK_SUPPORT)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)

@@ -377,7 +377,17 @@ bool NetscapePluginModule::getPluginInfo(const String& pluginPath, PluginModuleI
         if (CFGetTypeID(versionTypeRef) == CFStringGetTypeID())
             plugin.versionString = static_cast<CFStringRef>(versionTypeRef);
     }
-    
+
+    if (CFTypeRef shortVersionTypeRef = CFBundleGetValueForInfoDictionaryKey(bundle.get(), CFSTR("CFBundleShortVersionString"))) {
+        if (CFGetTypeID(shortVersionTypeRef) == CFStringGetTypeID())
+            plugin.shortVersionString = static_cast<CFStringRef>(shortVersionTypeRef);
+    }
+
+    if (CFTypeRef preferencePathTypeRef = CFBundleGetValueForInfoDictionaryKey(bundle.get(), CFSTR("WebPluginPreferencePanePath"))) {
+        if (CFGetTypeID(preferencePathTypeRef) == CFStringGetTypeID())
+            plugin.preferencePanePath = static_cast<CFStringRef>(preferencePathTypeRef);
+    }
+
     // Check that there's valid info for this plug-in.
     if (!getPluginInfoFromPropertyLists(bundle.get(), plugin) &&
         !getPluginInfoFromCarbonResources(bundle.get(), plugin))
@@ -390,6 +400,8 @@ bool NetscapePluginModule::getPluginInfo(const String& pluginPath, PluginModuleI
         plugin.info.name = plugin.info.file;
     if (plugin.info.desc.isNull())
         plugin.info.desc = plugin.info.file;
+
+    plugin.info.isApplicationPlugin = false;
     
     return true;
 }

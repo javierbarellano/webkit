@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc. All Rights Reserved.
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +32,6 @@
 #include "DOMWindow.h"
 #include "Document.h"
 #include "Element.h"
-#include "EventPathWalker.h"
 #include "FocusController.h"
 #include "Frame.h"
 #include "FrameView.h"
@@ -43,7 +42,6 @@
 #include "HTMLNames.h"
 #include "HitTestResult.h"
 #include "IdTargetObserverRegistry.h"
-#include "InsertionPoint.h"
 #include "NodeTraversal.h"
 #include "Page.h"
 #include "RenderView.h"
@@ -149,6 +147,15 @@ Element* TreeScope::getElementById(const AtomicString& elementId) const
     return m_elementsById->getElementById(elementId.impl(), this);
 }
 
+const Vector<Element*>* TreeScope::getAllElementsById(const AtomicString& elementId) const
+{
+    if (elementId.isEmpty())
+        return 0;
+    if (!m_elementsById)
+        return 0;
+    return m_elementsById->getAllElementsById(elementId.impl(), this);
+}
+
 void TreeScope::addElementById(const AtomicString& elementId, Element* element)
 {
     if (!m_elementsById)
@@ -231,8 +238,8 @@ HTMLMapElement* TreeScope::getImageMap(const String& url) const
     size_t hashPos = url.find('#');
     String name = (hashPos == notFound ? url : url.substring(hashPos + 1)).impl();
     if (rootNode()->document()->isHTMLDocument())
-        return static_cast<HTMLMapElement*>(m_imageMapsByName->getElementByLowercasedMapName(AtomicString(name.lower()).impl(), this));
-    return static_cast<HTMLMapElement*>(m_imageMapsByName->getElementByMapName(AtomicString(name).impl(), this));
+        return toHTMLMapElement(m_imageMapsByName->getElementByLowercasedMapName(AtomicString(name.lower()).impl(), this));
+    return toHTMLMapElement(m_imageMapsByName->getElementByMapName(AtomicString(name).impl(), this));
 }
 
 Node* nodeFromPoint(Document* document, int x, int y, LayoutPoint* localPoint)
@@ -292,8 +299,8 @@ HTMLLabelElement* TreeScope::labelElementForId(const AtomicString& forAttributeV
         // Populate the map on first access.
         m_labelsByForAttribute = adoptPtr(new DocumentOrderedMap);
         for (Element* element = ElementTraversal::firstWithin(rootNode()); element; element = ElementTraversal::next(element)) {
-            if (element->hasTagName(labelTag)) {
-                HTMLLabelElement* label = static_cast<HTMLLabelElement*>(element);
+            if (isHTMLLabelElement(element)) {
+                HTMLLabelElement* label = toHTMLLabelElement(element);
                 const AtomicString& forValue = label->fastGetAttribute(forAttr);
                 if (!forValue.isEmpty())
                     addLabel(forValue, label);
@@ -301,7 +308,7 @@ HTMLLabelElement* TreeScope::labelElementForId(const AtomicString& forAttributeV
         }
     }
 
-    return static_cast<HTMLLabelElement*>(m_labelsByForAttribute->getElementByLabelForAttribute(forAttributeValue.impl(), this));
+    return toHTMLLabelElement(m_labelsByForAttribute->getElementByLabelForAttribute(forAttributeValue.impl(), this));
 }
 
 DOMSelection* TreeScope::getSelection() const
@@ -336,8 +343,8 @@ Element* TreeScope::findAnchor(const String& name)
     if (Element* element = getElementById(name))
         return element;
     for (Element* element = ElementTraversal::firstWithin(rootNode()); element; element = ElementTraversal::next(element)) {
-        if (element->hasTagName(aTag)) {
-            HTMLAnchorElement* anchor = static_cast<HTMLAnchorElement*>(element);
+        if (isHTMLAnchorElement(element)) {
+            HTMLAnchorElement* anchor = toHTMLAnchorElement(element);
             if (rootNode()->document()->inQuirksMode()) {
                 // Quirks mode, case insensitive comparison of names.
                 if (equalIgnoringCase(anchor->name(), name))
@@ -373,7 +380,7 @@ void TreeScope::adoptIfNeeded(Node* node)
         adopter.execute();
 }
 
-static Node* focusedFrameOwnerElement(Frame* focusedFrame, Frame* currentFrame)
+static Element* focusedFrameOwnerElement(Frame* focusedFrame, Frame* currentFrame)
 {
     for (; focusedFrame; focusedFrame = focusedFrame->tree()->parent()) {
         if (focusedFrame->tree()->parent() == currentFrame)
@@ -382,29 +389,23 @@ static Node* focusedFrameOwnerElement(Frame* focusedFrame, Frame* currentFrame)
     return 0;
 }
 
-Node* TreeScope::focusedNode()
+Element* TreeScope::focusedElement()
 {
     Document* document = rootNode()->document();
-    Node* node = document->focusedNode();
-    if (!node && document->page())
-        node = focusedFrameOwnerElement(document->page()->focusController()->focusedFrame(), document->frame());
-    if (!node)
+    Element* element = document->focusedElement();
+
+    if (!element && document->page())
+        element = focusedFrameOwnerElement(document->page()->focusController()->focusedFrame(), document->frame());
+    if (!element)
         return 0;
-    Vector<Node*> targetStack;
-    for (EventPathWalker walker(node); walker.node(); walker.moveToParent()) {
-        Node* node = walker.node();
-        if (targetStack.isEmpty())
-            targetStack.append(node);
-        else if (walker.isVisitingInsertionPointInReprojection())
-            targetStack.append(targetStack.last());
-        if (node == rootNode())
-            return targetStack.last();
-        if (node->isShadowRoot()) {
-            ASSERT(!targetStack.isEmpty());
-            targetStack.removeLast();
-        }
+    TreeScope* treeScope = element->treeScope();
+    while (treeScope != this && treeScope != document) {
+        element = toShadowRoot(treeScope->rootNode())->host();
+        treeScope = element->treeScope();
     }
-    return 0;
+    if (this != treeScope)
+        return 0;
+    return element;
 }
 
 static void listTreeScopes(Node* node, Vector<TreeScope*, 5>& treeScopes)

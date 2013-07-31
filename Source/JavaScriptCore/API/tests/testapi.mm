@@ -802,6 +802,34 @@ void testObjectiveCAPI()
 
         [TinyDOMNode clearSharedVirtualMachine];
     }
+
+    @autoreleasepool {
+        JSContext *context = [[JSContext alloc] init];
+        JSValue *o = [JSValue valueWithNewObjectInContext:context];
+        o[@"foo"] = @"foo";
+        JSSynchronousGarbageCollectForDebugging([context JSGlobalContextRef]);
+
+        checkResult(@"JSValue correctly protected its internal value", [[o[@"foo"] toString] isEqualToString:@"foo"]);
+    }
+
+    @autoreleasepool {
+        JSContext *context = [[JSContext alloc] init];
+        TestObject *testObject = [TestObject testObject];
+        context[@"testObject"] = testObject;
+        [context evaluateScript:@"testObject.__lookupGetter__('variable').call({})"];
+        checkResult(@"Make sure we throw an exception when calling getter on incorrect |this|", context.exception);
+    }
+
+    @autoreleasepool {
+        TestObject *testObject = [TestObject testObject];
+        JSManagedValue *managedTestObject;
+        @autoreleasepool {
+            JSContext *context = [[JSContext alloc] init];
+            context[@"testObject"] = testObject;
+            managedTestObject = [JSManagedValue managedValueWithValue:context[@"testObject"]];
+            [context.virtualMachine addManagedReference:managedTestObject withOwner:testObject];
+        }
+    }
 }
 
 #else

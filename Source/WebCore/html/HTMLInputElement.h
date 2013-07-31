@@ -188,7 +188,7 @@ public:
 
     virtual bool rendererIsNeeded(const NodeRenderingContext&);
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
-    virtual void detach();
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
 
     // FIXME: For isActivatedSubmit and setActivatedSubmit, we should use the NVI-idiom here by making
     // it private virtual in all classes and expose a public method in HTMLFormControlElement to call
@@ -323,12 +323,12 @@ private:
     virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
 
     virtual bool hasCustomFocusLogic() const OVERRIDE;
-    virtual bool isKeyboardFocusable(KeyboardEvent*) const;
-    virtual bool isMouseFocusable() const;
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
+    virtual bool isMouseFocusable() const OVERRIDE;
     virtual bool isEnumeratable() const;
     virtual bool supportLabels() const OVERRIDE;
     virtual void updateFocusAppearance(bool restorePreviousSelection);
-    virtual bool shouldUseInputMethod();
+    virtual bool shouldUseInputMethod() OVERRIDE FINAL;
 
     virtual bool isTextFormControl() const { return isTextField(); }
 
@@ -351,7 +351,7 @@ private:
 
     virtual void copyNonAttributePropertiesFromElement(const Element&);
 
-    virtual void attach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
 
     virtual bool appendFormData(FormDataList&, bool);
 
@@ -404,9 +404,6 @@ private:
     CheckedRadioButtons* checkedRadioButtons() const;
     void addToRadioButtonGroup();
     void removeFromRadioButtonGroup();
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    virtual PassRefPtr<RenderStyle> customStyleForRenderer() OVERRIDE;
-#endif
 
     AtomicString m_name;
     String m_valueIfDirty;
@@ -441,6 +438,22 @@ private:
     OwnPtr<ListAttributeTargetObserver> m_listAttributeTargetObserver;
 #endif
 };
+
+inline bool isHTMLInputElement(Node* node)
+{
+    return node->hasTagName(HTMLNames::inputTag);
+}
+
+inline bool isHTMLInputElement(Element* element)
+{
+    return element->hasTagName(HTMLNames::inputTag);
+}
+
+inline HTMLInputElement* toHTMLInputElement(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLInputElement(node));
+    return static_cast<HTMLInputElement*>(node);
+}
 
 } //namespace
 #endif

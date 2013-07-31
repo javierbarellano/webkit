@@ -65,7 +65,7 @@ public:
     static const AtomicString& commentaryKeyword();
     virtual const AtomicString& defaultKindKeyword() const OVERRIDE { return emptyAtom; }
 
-    bool enabled() const { return m_private->enabled(); }
+    bool enabled() const { return m_enabled; }
     virtual void setEnabled(const bool);
 
     virtual void clearClient() OVERRIDE { m_client = 0; }
@@ -78,11 +78,13 @@ protected:
 
 private:
     virtual bool isValidKind(const AtomicString&) const OVERRIDE;
-    virtual void setLabel(const AtomicString&) OVERRIDE;
-    virtual void setLanguage(const AtomicString&) OVERRIDE;
+    virtual void audioTrackPrivateEnabledChanged(AudioTrackPrivate*) OVERRIDE;
+    virtual void audioTrackPrivateLabelChanged(AudioTrackPrivate*) OVERRIDE;
+    virtual void audioTrackPrivateLanguageChanged(AudioTrackPrivate*) OVERRIDE;
     virtual void willRemoveAudioTrackPrivate(AudioTrackPrivate*) OVERRIDE;
 
     AtomicString m_id;
+    bool m_enabled;
     AudioTrackClient* m_client;
 
     RefPtr<AudioTrackPrivate> m_private;

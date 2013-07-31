@@ -30,7 +30,7 @@
 """
 
 import lldb
-
+import struct
 
 def __lldb_init_module(debugger, dict):
     debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFString_SummaryProvider WTF::String')
@@ -40,7 +40,6 @@ def __lldb_init_module(debugger, dict):
     debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFHashTable_SummaryProvider -x "WTF::HashTable<.+>$"')
     debugger.HandleCommand('type synthetic add -x "WTF::Vector<.+>$" --python-class lldb_webkit.WTFVectorProvider')
     debugger.HandleCommand('type synthetic add -x "WTF::HashTable<.+>$" --python-class lldb_webkit.WTFHashTableProvider')
-
 
 def WTFString_SummaryProvider(valobj, dict):
     provider = WTFStringProvider(valobj, dict)
@@ -74,44 +73,55 @@ def WTFHashTable_SummaryProvider(valobj, dict):
 # def JSCJSString_SummaryProvider(valobj, dict):
 
 
-def guess_string_length(valobj, error):
+def guess_string_length(valobj, charSize, error):
     if not valobj.GetValue():
         return 0
 
-    for i in xrange(0, 2048):
-        if valobj.GetPointeeData(i, 1).GetUnsignedInt16(error, 0) == 0:
+    maxLength = 256
+
+    pointer = valobj.GetValueAsUnsigned()
+    contents = valobj.GetProcess().ReadMemory(pointer, maxLength * charSize, lldb.SBError())
+    format = 'B' if charSize == 1 else 'H'
+
+    for i in xrange(0, maxLength):
+        if not struct.unpack_from(format, contents, i * charSize)[0]:
             return i
 
-    return 256
-
+    return maxLength
 
 def ustring_to_string(valobj, error, length=None):
     if length is None:
-        length = guess_string_length(valobj, error)
+        length = guess_string_length(valobj, 2, error)
     else:
         length = int(length)
 
-    out_string = u""
-    for i in xrange(0, length):
-        char_value = valobj.GetPointeeData(i, 1).GetUnsignedInt16(error, 0)
-        out_string = out_string + unichr(char_value)
+    pointer = valobj.GetValueAsUnsigned()
+    contents = valobj.GetProcess().ReadMemory(pointer, length * 2, lldb.SBError())
 
-    return out_string.encode('utf-8')
-
+    # lldb does not (currently) support returning unicode from python summary providers,
+    # so potentially convert this to ascii by escaping
+    string = contents.decode('utf16')
+    try:
+        return str(string)
+    except:
+        return string.encode('unicode_escape')
 
 def lstring_to_string(valobj, error, length=None):
     if length is None:
-        length = guess_string_length(valobj, error)
+        length = guess_string_length(valobj, 1, error)
     else:
         length = int(length)
 
-    out_string = u""
-    for i in xrange(0, length):
-        char_value = valobj.GetPointeeData(i, 1).GetUnsignedInt8(error, 0)
-        out_string = out_string + unichr(char_value)
+    pointer = valobj.GetValueAsUnsigned()
+    contents = valobj.GetProcess().ReadMemory(pointer, length, lldb.SBError())
 
-    return out_string.encode('utf-8')
-
+    # lldb does not (currently) support returning unicode from python summary providers,
+    # so potentially convert this to ascii by escaping
+    string = contents.decode('utf8')
+    try:
+        return str(string)
+    except:
+        return string.encode('unicode_escape')
 
 class WTFStringImplProvider:
     def __init__(self, valobj, dict):
@@ -165,13 +175,15 @@ class WTFVectorProvider:
         self.update()
 
     def num_children(self):
-        return self.size + 2
+        return self.size + 3
 
     def get_child_index(self, name):
         if name == "m_size":
             return self.size
-        elif name == "m_buffer":
+        elif name == "m_capacity":
             return self.size + 1
+        elif name == "m_buffer":
+            return self.size + 2
         else:
             return int(name.lstrip('[').rstrip(']'))
 
@@ -179,7 +191,9 @@ class WTFVectorProvider:
         if index == self.size:
             return self.valobj.GetChildMemberWithName("m_size")
         elif index == self.size + 1:
-            return self.vector_buffer
+            return self.valobj.GetChildMemberWithName("m_capacity")
+        elif index == self.size + 2:
+            return self.buffer
         elif index < self.size:
             offset = index * self.data_size
             child = self.buffer.CreateChildAtOffset('[' + str(index) + ']', offset, self.data_type)
@@ -188,10 +202,9 @@ class WTFVectorProvider:
             return None
 
     def update(self):
-        self.vector_buffer = self.valobj.GetChildMemberWithName('m_buffer')
-        self.buffer = self.vector_buffer.GetChildMemberWithName('m_buffer')
+        self.buffer = self.valobj.GetChildMemberWithName('m_buffer')
         self.size = self.valobj.GetChildMemberWithName('m_size').GetValueAsUnsigned(0)
-        self.capacity = self.vector_buffer.GetChildMemberWithName('m_capacity').GetValueAsUnsigned(0)
+        self.capacity = self.buffer.GetChildMemberWithName('m_capacity').GetValueAsUnsigned(0)
         self.data_type = self.buffer.GetType().GetPointeeType()
         self.data_size = self.data_type.GetByteSize()
 

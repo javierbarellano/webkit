@@ -27,7 +27,6 @@
 #include "ImmutableDictionary.h"
 #include "RefPtrEfl.h"
 #include "WKEinaSharedString.h"
-#include "WKGeometry.h"
 #include "WKRetainPtr.h"
 #include "WebViewEfl.h"
 #include "ewk_url_request_private.h"
@@ -136,8 +135,8 @@ public:
 
     const char* themePath() const;
     void setThemePath(const char* theme);
-    const char* customTextEncodingName() const;
-    void setCustomTextEncodingName(const String& encoding);
+    const char* customTextEncodingName() const { return m_customEncoding; }
+    void setCustomTextEncodingName(const char* customEncoding);
     const char* userAgent() const { return m_userAgent; }
     void setUserAgent(const char* userAgent);
 
@@ -147,6 +146,7 @@ public:
     void feedTouchEvent(Ewk_Touch_Event_Type type, const Eina_List* points, const Evas_Modifier* modifiers);
     bool touchEventsEnabled() const { return m_touchEventsEnabled; }
     void setTouchEventsEnabled(bool enabled);
+    void doneWithTouchEvent(WKTouchEventRef, bool);
 #endif
 
     void setCursor(const WebCore::Cursor& cursor);
@@ -176,6 +176,7 @@ public:
     void requestPopupMenu(WKPopupMenuListenerRef, const WKRect&, WKPopupItemTextDirection, double pageScaleFactor, WKArrayRef items, int32_t selectedIndex);
     void closePopupMenu();
 
+    void customContextMenuItemSelected(WKContextMenuItemRef contextMenuItem);
     void showContextMenu(WKPoint position, WKArrayRef items);
     void hideContextMenu();
 
@@ -200,6 +201,8 @@ public:
     void informURLChange();
 
     PassRefPtr<cairo_surface_t> takeSnapshot();
+
+    void didFindZoomableArea(const WKPoint&, const WKRect&);
 
 private:
     EwkView(WKViewRef, Evas_Object*);
@@ -271,14 +274,14 @@ private:
     WKEinaSharedString m_url;
     mutable WKEinaSharedString m_title;
     WKEinaSharedString m_theme;
-    mutable WKEinaSharedString m_customEncoding;
+    WKEinaSharedString m_customEncoding;
     WKEinaSharedString m_userAgent;
     bool m_mouseEventsEnabled;
 #if ENABLE(TOUCH_EVENTS)
     bool m_touchEventsEnabled;
 #endif
     WebCore::Timer<EwkView> m_displayTimer;
-    OwnPtr<EwkContextMenu> m_contextMenu;
+    RefPtr<EwkContextMenu> m_contextMenu;
     OwnPtr<EwkPopupMenu> m_popupMenu;
     OwnPtr<WebKit::InputMethodContextEfl> m_inputMethodContext;
 #if ENABLE(INPUT_TYPE_COLOR)

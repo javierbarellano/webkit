@@ -26,9 +26,9 @@
 #import <wtf/Platform.h>
 #import "PluginProcessShim.h"
 
-#import "DYLDInterpose.h"
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
+#import <WebCore/DynamicLinkerInterposing.h>
 #import <WebKitSystemInterface.h>
 #import <stdio.h>
 #import <objc/message.h>
@@ -100,6 +100,16 @@ static void shimHideWindow(WindowRef window)
     HideWindow(window);
 }
 
+static OSStatus
+shimLSOpenCFURLRef(CFURLRef url, CFURLRef* launchedURL)
+{
+    int32_t returnValue;
+    if (pluginProcessShimCallbacks.openCFURLRef(url, returnValue, launchedURL))
+        return returnValue;
+
+    return LSOpenCFURLRef(url, launchedURL);
+}
+
 DYLD_INTERPOSE(shimDebugger, Debugger);
 DYLD_INTERPOSE(shimGetCurrentEventButtonState, GetCurrentEventButtonState);
 DYLD_INTERPOSE(shimIsWindowActive, IsWindowActive);
@@ -107,6 +117,7 @@ DYLD_INTERPOSE(shimModalDialog, ModalDialog);
 DYLD_INTERPOSE(shimAlert, Alert);
 DYLD_INTERPOSE(shimShowWindow, ShowWindow);
 DYLD_INTERPOSE(shimHideWindow, HideWindow);
+DYLD_INTERPOSE(shimLSOpenCFURLRef, LSOpenCFURLRef);
 
 #if COMPILER(CLANG)
 #pragma clang diagnostic pop
@@ -156,8 +167,29 @@ static FakeSharedMemoryDescriptor* findBySharedMemoryAddress(const void* mmapedA
     return descriptorPtr;
 }
 
+static Boolean shim_disabled(void)
+{
+    static Boolean isFakeSHMDisabled;
+
+    static dispatch_once_t once;
+    dispatch_once(&once, ^() {
+        Boolean keyExistsAndHasValidFormat = false;
+        Boolean prefValue = CFPreferencesGetAppBooleanValue(CFSTR("WebKitDisableFakeSYSVSHM"), kCFPreferencesCurrentApplication, &keyExistsAndHasValidFormat);
+
+        if (keyExistsAndHasValidFormat && prefValue)
+            isFakeSHMDisabled = true;
+        else
+            isFakeSHMDisabled = false;
+    });
+
+    return isFakeSHMDisabled;
+}
+
 static int shim_shmdt(const void* sharedAddress)
 {
+    if (shim_disabled())
+        return shmdt(sharedAddress);
+
     FakeSharedMemoryDescriptor* descriptorPtr = findBySharedMemoryAddress(sharedAddress);
     if (!descriptorPtr) {
         errno = EINVAL;
@@ -175,6 +207,9 @@ static int shim_shmdt(const void* sharedAddress)
 
 static void* shim_shmat(int sharedMemoryIdentifier, const void* requestedSharedAddress, int shmflg)
 {
+    if (shim_disabled())
+        return shmat(sharedMemoryIdentifier, requestedSharedAddress, shmflg);
+
     FakeSharedMemoryDescriptor* descriptorPtr = findBySharedMemoryIdentifier(sharedMemoryIdentifier);
     void* mappedAddress = (void*)-1;
 
@@ -200,6 +235,9 @@ static void* shim_shmat(int sharedMemoryIdentifier, const void* requestedSharedA
 
 static int shim_shmget(key_t key, size_t requestedSizeOfSharedMemory, int sharedMemoryFlags)
 {
+    if (shim_disabled())
+        return shmget(key, requestedSizeOfSharedMemory, sharedMemoryFlags);
+
     FakeSharedMemoryDescriptor* descriptorPtr = shmDescriptorList;
 
     while (descriptorPtr) {
@@ -232,6 +270,9 @@ static int shim_shmget(key_t key, size_t requestedSizeOfSharedMemory, int shared
 
 static int shim_shmctl(int sharedMemoryIdentifier, int cmd, struct shmid_ds* outputDescriptor)
 {
+    if (shim_disabled())
+        return shmctl(sharedMemoryIdentifier, cmd, outputDescriptor);
+
     FakeSharedMemoryDescriptor* descriptorPtr = findBySharedMemoryIdentifier(sharedMemoryIdentifier);
 
     if (!descriptorPtr) {

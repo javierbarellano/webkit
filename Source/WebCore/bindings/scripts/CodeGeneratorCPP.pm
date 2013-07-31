@@ -139,30 +139,25 @@ sub GetParentImplClassName
 {
     my $interface = shift;
 
-    if (@{$interface->parents} eq 0) {
+    unless ($interface->parent) {
         return "EventTarget" if $interface->extendedAttributes->{"EventTarget"};
         return "Object";
     }
 
-    return $interface->parents(0);
+    return $interface->parent;
 }
 
 sub GetParent
 {
     my $interface = shift;
-    my $numParents = @{$interface->parents};
 
-    my $parent = "";
-    if ($numParents eq 0) {
+    my $parent;
+    if (!$interface->parent) {
         $parent = "WebDOMObject";
         $parent = "WebDOMEventTarget" if $interface->extendedAttributes->{"EventTarget"};
-    } elsif ($numParents eq 1) {
-        my $parentName = $interface->parents(0);
-        $parent = "WebDOM" . $parentName;
     } else {
-        my @parents = @{$interface->parents};
-        my $firstParent = shift(@parents);
-        $parent = "WebDOM" . $firstParent;
+        my $parentName = $interface->parent;
+        $parent = "WebDOM" . $parentName;
     }
 
     return $parent;
@@ -236,6 +231,8 @@ sub GetCPPType
     my $useConstReference = shift;
     my $name = GetClassName($type);
 
+    return "char" if $type eq "byte";
+    return "unsigned char" if $type eq "octet";
     return "int" if $type eq "long";
     return "unsigned" if $name eq "unsigned long";
     return "unsigned short" if $type eq "CompareHow";
@@ -589,12 +586,6 @@ sub GenerateImplementation
     my $object = shift;
     my $interface = shift;
 
-    my @ancestorInterfaceNames = ();
-
-    if (@{$interface->parents} > 1) {
-        $codeGenerator->AddMethodsConstantsAndAttributesFromParentInterfaces($interface, \@ancestorInterfaceNames);
-    }
-
     my $interfaceName = $interface->name;
     my $className = GetClassName($interfaceName);
     my $implClassName = GetImplClassName($interfaceName);
@@ -701,7 +692,7 @@ sub GenerateImplementation
 
             # - GETTER
             my $getterSig = "$attributeType $className\:\:$attributeName() const\n";
-            my $hasGetterException = @{$attribute->getterExceptions};
+            my $hasGetterException = $attribute->signature->extendedAttributes->{"GetterRaisesException"};
             my ($functionName, @arguments) = $codeGenerator->GetterExpression(\%implIncludes, $interfaceName, $attribute);
             push(@arguments, "isNull") if $attributeIsNullable;
             push(@arguments, "ec") if $hasGetterException;
@@ -763,7 +754,7 @@ sub GenerateImplementation
             # - SETTER
             if (!$attribute->isReadOnly and !$attribute->signature->extendedAttributes->{"Replaceable"}) {
                 # Exception handling
-                my $hasSetterException = @{$attribute->setterExceptions};
+                my $hasSetterException = $attribute->signature->extendedAttributes->{"SetterRaisesException"};
 
                 my $coreSetterName = "set" . $codeGenerator->WK_ucfirst($attributeName);
                 my $setterName = "set" . ucfirst($attributeName);
@@ -808,7 +799,7 @@ sub GenerateImplementation
             my $functionName = $function->signature->name;
             my $returnType = GetCPPType($function->signature->type, 0);
             my $hasParameters = @{$function->parameters};
-            my $raisesExceptions = @{$function->raisesExceptions};
+            my $raisesExceptions = $function->signature->extendedAttributes->{"RaisesException"};
 
             my @parameterNames = ();
             my @needsAssert = ();

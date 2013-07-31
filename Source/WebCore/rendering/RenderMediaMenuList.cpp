@@ -95,9 +95,9 @@ void RenderMediaMenuList::styleDidChange(StyleDifference diff, const RenderStyle
 
 void RenderMediaMenuList::updateFromElement()
 {
-    if (m_optionsChanged) {
+    if (m_needsOptionsWidthUpdate) {
         updateOptionsWidth();
-        m_optionsChanged = false;
+        m_needsOptionsWidthUpdate = false;
     }
 
     if (m_popupIsVisible)
@@ -131,7 +131,7 @@ void RenderMediaMenuList::showPopup()
     if (m_popupIsVisible)
         return;
 
-    if (document()->page()->chrome()->hasOpenedPopup())
+    if (document()->page()->chrome().hasOpenedPopup())
         return;
 
     // Create m_innerBlock here so it ends up as the first child.
@@ -142,7 +142,7 @@ void RenderMediaMenuList::showPopup()
     m_popupIsVisible = true;
 
     if (!m_popup)
-        m_popup = document()->page()->chrome()->createPopupMenu(this);
+        m_popup = document()->page()->chrome().createPopupMenu(this);
 
     // Compute the top left taking transforms into account, but use
     // the actual width of the element to size the popup.

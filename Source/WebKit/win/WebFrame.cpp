@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009, 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2006-2009, 2011, 2013 Apple Inc. All rights reserved.
  * Copyright (C) Research In Motion Limited 2009. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -204,8 +204,8 @@ static HTMLFormElement *formElementFromDOMElement(IDOMElement *element)
         Element* ele;
         hr = elePriv->coreElement((void**)&ele);
         elePriv->Release();
-        if (SUCCEEDED(hr) && ele && ele->hasTagName(formTag))
-            return static_cast<HTMLFormElement*>(ele);
+        if (SUCCEEDED(hr) && ele && isHTMLFormElement(ele))
+            return toHTMLFormElement(ele);
     }
     return 0;
 }
@@ -221,8 +221,8 @@ static HTMLInputElement* inputElementFromDOMElement(IDOMElement* element)
         Element* ele;
         hr = elePriv->coreElement((void**)&ele);
         elePriv->Release();
-        if (SUCCEEDED(hr) && ele && ele->hasTagName(inputTag))
-            return static_cast<HTMLInputElement*>(ele);
+        if (SUCCEEDED(hr) && ele && isHTMLInputElement(ele))
+            return toHTMLInputElement(ele);
     }
     return 0;
 }
@@ -1005,7 +1005,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::hasSpellingMarker(
     Frame* coreFrame = core(this);
     if (!coreFrame)
         return E_FAIL;
-    *result = coreFrame->editor()->selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
+    *result = coreFrame->editor().selectionStartHasMarkerFor(DocumentMarker::Spelling, from, length);
     return S_OK;
 }
 
@@ -1021,16 +1021,16 @@ HRESULT STDMETHODCALLTYPE WebFrame::clearOpener()
 HRESULT WebFrame::setTextDirection(BSTR direction)
 {
     Frame* coreFrame = core(this);
-    if (!coreFrame || !coreFrame->editor())
+    if (!coreFrame)
         return E_FAIL;
 
     String directionString(direction, SysStringLen(direction));
     if (directionString == "auto")
-        coreFrame->editor()->setBaseWritingDirection(NaturalWritingDirection);
+        coreFrame->editor().setBaseWritingDirection(NaturalWritingDirection);
     else if (directionString == "ltr")
-        coreFrame->editor()->setBaseWritingDirection(LeftToRightWritingDirection);
+        coreFrame->editor().setBaseWritingDirection(LeftToRightWritingDirection);
     else if (directionString == "rtl")
-        coreFrame->editor()->setBaseWritingDirection(RightToLeftWritingDirection);
+        coreFrame->editor().setBaseWritingDirection(RightToLeftWritingDirection);
     return S_OK;
 }
 
@@ -1052,7 +1052,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::selectedString(
     if (!coreFrame)
         return E_FAIL;
 
-    String text = coreFrame->displayStringModifiedByEncoding(coreFrame->editor()->selectedText());
+    String text = coreFrame->displayStringModifiedByEncoding(coreFrame->editor().selectedText());
 
     *result = BString(text).release();
     return S_OK;
@@ -1064,7 +1064,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::selectAll()
     if (!coreFrame)
         return E_FAIL;
 
-    if (!coreFrame->editor()->command("SelectAll").execute())
+    if (!coreFrame->editor().command("SelectAll").execute())
         return E_FAIL;
 
     return S_OK;
@@ -2590,7 +2590,7 @@ COMPtr<IAccessible> WebFrame::accessible() const
         // the Document renderer was destroyed and its wrapper was detached, or
         // the previous Document is in the page cache, and the current document
         // needs to be wrapped.
-        m_accessible = new AccessibleDocument(currentDocument);
+        m_accessible = new AccessibleDocument(currentDocument, webView()->viewWindow());
     }
     return m_accessible.get();
 }

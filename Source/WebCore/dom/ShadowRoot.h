@@ -37,7 +37,6 @@
 namespace WebCore {
 
 class ElementShadow;
-class ScopeContentDistribution;
 
 class ShadowRoot FINAL : public DocumentFragment, public TreeScope {
 public:
@@ -72,14 +71,10 @@ public:
 
     Element* activeElement() const;
 
-    virtual void attach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
 
     virtual void registerScopedHTMLStyleChild() OVERRIDE;
     virtual void unregisterScopedHTMLStyleChild() OVERRIDE;
-
-    ScopeContentDistribution* scopeDistribution() { return m_scopeDistribution.get(); }
-    const ScopeContentDistribution* scopeDistribution() const { return m_scopeDistribution.get(); }
-    ScopeContentDistribution* ensureScopeDistribution();
 
     ShadowRootType type() const { return static_cast<ShadowRootType>(m_type); }
 
@@ -98,7 +93,6 @@ private:
     // FIXME: This shouldn't happen. https://bugs.webkit.org/show_bug.cgi?id=88834
     bool isOrphan() const { return !host(); }
 
-    OwnPtr<ScopeContentDistribution> m_scopeDistribution;
     unsigned m_numberOfStyles : 28;
     unsigned m_applyAuthorStyles : 1;
     unsigned m_resetStyleInheritance : 1;
@@ -107,9 +101,7 @@ private:
 
 inline Element* ShadowRoot::activeElement() const
 {
-    if (Node* node = treeScope()->focusedNode())
-        return node->isElementNode() ? toElement(node) : 0;
-    return 0;
+    return treeScope()->focusedElement();
 }
 
 inline const ShadowRoot* toShadowRoot(const Node* node)

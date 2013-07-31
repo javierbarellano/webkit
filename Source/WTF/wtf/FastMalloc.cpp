@@ -555,7 +555,7 @@ static ALWAYS_INLINE uintptr_t internalEntropyValue()
 
 #define HARDENING_ENTROPY internalEntropyValue()
 #define ROTATE_VALUE(value, amount) (((value) >> (amount)) | ((value) << (sizeof(value) * 8 - (amount))))
-#define XOR_MASK_PTR_WITH_KEY(ptr, key, entropy) (reinterpret_cast<typeof(ptr)>(reinterpret_cast<uintptr_t>(ptr)^(ROTATE_VALUE(reinterpret_cast<uintptr_t>(key), MaskKeyShift)^entropy)))
+#define XOR_MASK_PTR_WITH_KEY(ptr, key, entropy) (reinterpret_cast<__typeof__(ptr)>(reinterpret_cast<uintptr_t>(ptr)^(ROTATE_VALUE(reinterpret_cast<uintptr_t>(key), MaskKeyShift)^entropy)))
 
 
 static ALWAYS_INLINE uint32_t freedObjectStartPoison()
@@ -586,12 +586,12 @@ static ALWAYS_INLINE uint32_t freedObjectEndPoison()
 
 #define POISON_DEALLOCATION_EXPLICIT(allocation, allocationSize, startPoison, endPoison) do { \
     ASSERT((allocationSize) >= 2 * sizeof(uint32_t)); \
-    reinterpret_cast<uint32_t*>(allocation)[0] = 0xbadbeef9; \
-    reinterpret_cast<uint32_t*>(allocation)[1] = 0xbadbeefb; \
+    reinterpret_cast_ptr<uint32_t*>(allocation)[0] = 0xbadbeef9; \
+    reinterpret_cast_ptr<uint32_t*>(allocation)[1] = 0xbadbeefb; \
     if ((allocationSize) < 4 * sizeof(uint32_t)) \
         break; \
-    reinterpret_cast<uint32_t*>(allocation)[2] = (startPoison) ^ PTR_TO_UINT32(allocation); \
-    reinterpret_cast<uint32_t*>(allocation)[END_POISON_INDEX(allocationSize)] = (endPoison) ^ PTR_TO_UINT32(allocation); \
+    reinterpret_cast_ptr<uint32_t*>(allocation)[2] = (startPoison) ^ PTR_TO_UINT32(allocation); \
+    reinterpret_cast_ptr<uint32_t*>(allocation)[END_POISON_INDEX(allocationSize)] = (endPoison) ^ PTR_TO_UINT32(allocation); \
 } while (false)
 
 #define POISON_DEALLOCATION(allocation, allocationSize) \
@@ -3051,7 +3051,7 @@ void TCMalloc_Central_FreeList::InsertRange(HardenedSLL start, HardenedSLL end, 
   ReleaseListToSpans(start);
 }
 
-void TCMalloc_Central_FreeList::RemoveRange(HardenedSLL* start, HardenedSLL* end, int *N) {
+ALWAYS_INLINE void TCMalloc_Central_FreeList::RemoveRange(HardenedSLL* start, HardenedSLL* end, int *N) {
   int num = *N;
   ASSERT(num > 0);
 
@@ -3089,7 +3089,7 @@ void TCMalloc_Central_FreeList::RemoveRange(HardenedSLL* start, HardenedSLL* end
 }
 
 
-HardenedSLL TCMalloc_Central_FreeList::FetchFromSpansSafe() {
+ALWAYS_INLINE HardenedSLL TCMalloc_Central_FreeList::FetchFromSpansSafe() {
   HardenedSLL t = FetchFromSpans();
   if (!t) {
     Populate();
@@ -4861,9 +4861,8 @@ public:
         if (!span || !span->start)
             return 1;
 
-        if (m_seenPointers.contains(ptr))
+        if (!m_seenPointers.add(ptr).isNewEntry)
             return span->length;
-        m_seenPointers.add(ptr);
 
         if (!m_coalescedSpans.size()) {
             m_coalescedSpans.append(span);

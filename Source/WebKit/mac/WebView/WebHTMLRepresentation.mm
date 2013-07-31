@@ -220,7 +220,7 @@ static NSMutableArray *newArrayByConcatenatingArrays(NSArray *first, NSArray *se
         return;
     WebView *webView = [webFrame webView];
     if ([webView mainFrame] == webFrame && [webView isEditable])
-        core(webFrame)->editor()->applyEditingStyleToBodyElement();
+        core(webFrame)->editor().applyEditingStyleToBodyElement();
 }
 
 - (BOOL)canProvideDocumentSource
@@ -303,7 +303,7 @@ static HTMLFormElement* formElementFromDOMElement(DOMElement *element)
 static HTMLInputElement* inputElementFromDOMElement(DOMElement* element)
 {
     Element* node = core(element);
-    return node && node->hasTagName(inputTag) ? static_cast<HTMLInputElement*>(node) : 0;
+    return node && isHTMLInputElement(node) ? toHTMLInputElement(node) : 0;
 }
 
 - (BOOL)elementDoesAutoComplete:(DOMElement *)element

@@ -53,6 +53,7 @@ enum {
     kWKPluginLoadPolicyLoadNormally = 0,
     kWKPluginLoadPolicyBlocked,
     kWKPluginLoadPolicyInactive,
+    kWKPluginLoadPolicyLoadUnsandboxed,
 };
 typedef uint32_t WKPluginLoadPolicy;
 
@@ -81,12 +82,13 @@ typedef bool (*WKPageShouldGoToBackForwardListItemCallback)(WKPageRef page, WKBa
 typedef void (*WKPageDidNewFirstVisuallyNonEmptyLayoutCallback)(WKPageRef page, WKTypeRef userData, const void *clientInfo);
 typedef void (*WKPageWillGoToBackForwardListItemCallback)(WKPageRef page, WKBackForwardListItemRef item, WKTypeRef userData, const void *clientInfo);
 typedef void (*WKPageDidLayoutCallback)(WKPageRef page, WKLayoutMilestones milestones, WKTypeRef userData, const void *clientInfo);
-typedef WKPluginLoadPolicy (*WKPagePluginLoadPolicyCallback)(WKPageRef page, WKPluginLoadPolicy currentPluginLoadPolicy, WKDictionaryRef pluginInfoDictionary, const void* clientInfo);
+typedef WKPluginLoadPolicy (*WKPagePluginLoadPolicyCallback)(WKPageRef page, WKPluginLoadPolicy currentPluginLoadPolicy, WKDictionaryRef pluginInfoDictionary, WKStringRef* unavailabilityDescription, const void* clientInfo);
 typedef void (*WKPagePluginDidFailCallback)(WKPageRef page, WKErrorCode errorCode, WKDictionaryRef pluginInfoDictionary, const void* clientInfo);
 
 // Deprecated
 typedef void (*WKPageDidFailToInitializePluginCallback_deprecatedForUseWithV0)(WKPageRef page, WKStringRef mimeType, const void* clientInfo);
 typedef void (*WKPagePluginDidFailCallback_deprecatedForUseWithV1)(WKPageRef page, WKErrorCode errorCode, WKStringRef mimeType, WKStringRef pluginIdentifier, WKStringRef pluginVersion, const void* clientInfo);
+typedef WKPluginLoadPolicy (*WKPagePluginLoadPolicyCallback_deprecatedForUseWithV2)(WKPageRef page, WKPluginLoadPolicy currentPluginLoadPolicy, WKDictionaryRef pluginInfoDictionary, const void* clientInfo);
 
 struct WKPageLoaderClient {
     int                                                                 version;
@@ -138,12 +140,15 @@ struct WKPageLoaderClient {
     void                                                                (*registerIntentServiceForFrame_unavailable)(void);
 
     WKPageDidLayoutCallback                                             didLayout;
-    WKPagePluginLoadPolicyCallback                                      pluginLoadPolicy;
+    WKPagePluginLoadPolicyCallback_deprecatedForUseWithV2                                      pluginLoadPolicy_deprecatedForUseWithV2;
     WKPagePluginDidFailCallback                                         pluginDidFail;
+
+    // Version 3
+    WKPagePluginLoadPolicyCallback                                      pluginLoadPolicy;
 };
 typedef struct WKPageLoaderClient WKPageLoaderClient;
 
-enum { kWKPageLoaderClientCurrentVersion = 2 };
+enum { kWKPageLoaderClientCurrentVersion = 3 };
 
 // Policy Client.
 typedef void (*WKPageDecidePolicyForNavigationActionCallback)(WKPageRef page, WKFrameRef frame, WKFrameNavigationType navigationType, WKEventModifiers modifiers, WKEventMouseButton mouseButton, WKURLRequestRef request, WKFramePolicyListenerRef listener, WKTypeRef userData, const void* clientInfo);
@@ -356,13 +361,25 @@ WK_EXPORT WKTypeID WKPageGetTypeID();
 WK_EXPORT WKContextRef WKPageGetContext(WKPageRef page);
 WK_EXPORT WKPageGroupRef WKPageGetPageGroup(WKPageRef page);
 
+// URL Requests
 WK_EXPORT void WKPageLoadURL(WKPageRef page, WKURLRef url);
+WK_EXPORT void WKPageLoadURLWithUserData(WKPageRef page, WKURLRef url, WKTypeRef userData);
 WK_EXPORT void WKPageLoadURLRequest(WKPageRef page, WKURLRequestRef urlRequest);
-WK_EXPORT void WKPageLoadHTMLString(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL);
-WK_EXPORT void WKPageLoadAlternateHTMLString(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL, WKURLRef unreachableURL);
-WK_EXPORT void WKPageLoadPlainTextString(WKPageRef page, WKStringRef plainTextString);
-WK_EXPORT void WKPageLoadWebArchiveData(WKPageRef page, WKDataRef webArchiveData);
+WK_EXPORT void WKPageLoadURLRequestWithUserData(WKPageRef page, WKURLRequestRef urlRequest, WKTypeRef userData);
 WK_EXPORT void WKPageLoadFile(WKPageRef page, WKURLRef fileURL, WKURLRef resourceDirectoryURL);
+WK_EXPORT void WKPageLoadFileWithUserData(WKPageRef page, WKURLRef fileURL, WKURLRef resourceDirectoryURL, WKTypeRef userData);
+
+// Data Requests
+WK_EXPORT void WKPageLoadData(WKPageRef page, WKDataRef data, WKStringRef MIMEType, WKStringRef encoding, WKURLRef baseURL);
+WK_EXPORT void WKPageLoadDataWithUserData(WKPageRef page, WKDataRef data, WKStringRef MIMEType, WKStringRef encoding, WKURLRef baseURL, WKTypeRef userData);
+WK_EXPORT void WKPageLoadHTMLString(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL);
+WK_EXPORT void WKPageLoadHTMLStringWithUserData(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL, WKTypeRef userData);
+WK_EXPORT void WKPageLoadAlternateHTMLString(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL, WKURLRef unreachableURL);
+WK_EXPORT void WKPageLoadAlternateHTMLStringWithUserData(WKPageRef page, WKStringRef htmlString, WKURLRef baseURL, WKURLRef unreachableURL, WKTypeRef userData);
+WK_EXPORT void WKPageLoadPlainTextString(WKPageRef page, WKStringRef plainTextString);
+WK_EXPORT void WKPageLoadPlainTextStringWithUserData(WKPageRef page, WKStringRef plainTextString, WKTypeRef userData);
+WK_EXPORT void WKPageLoadWebArchiveData(WKPageRef page, WKDataRef webArchiveData);
+WK_EXPORT void WKPageLoadWebArchiveDataWithUserData(WKPageRef page, WKDataRef webArchiveData, WKTypeRef userData);
 
 WK_EXPORT void WKPageStopLoading(WKPageRef page);
 WK_EXPORT void WKPageReload(WKPageRef page);

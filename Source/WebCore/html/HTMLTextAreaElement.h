@@ -104,14 +104,14 @@ private:
     virtual bool appendFormData(FormDataList&, bool);
     virtual void reset();
     virtual bool hasCustomFocusLogic() const OVERRIDE;
-    virtual bool isMouseFocusable() const;
-    virtual bool isKeyboardFocusable(KeyboardEvent*) const;
+    virtual bool isMouseFocusable() const OVERRIDE;
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
     virtual void updateFocusAppearance(bool restorePreviousSelection);
 
     virtual void accessKeyAction(bool sendMouseEvents);
 
-    virtual bool shouldUseInputMethod();
-    virtual void attach() OVERRIDE;
+    virtual bool shouldUseInputMethod() OVERRIDE;
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual bool matchesReadOnlyPseudoClass() const OVERRIDE;
     virtual bool matchesReadWritePseudoClass() const OVERRIDE;
 
@@ -130,6 +130,17 @@ private:
 inline bool isHTMLTextAreaElement(Node* node)
 {
     return node->hasTagName(HTMLNames::textareaTag);
+}
+
+inline bool isHTMLTextAreaElement(Element* element)
+{
+    return element->hasTagName(HTMLNames::textareaTag);
+}
+
+inline HTMLTextAreaElement* toHTMLTextAreaElement(Node* node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLTextAreaElement(node));
+    return static_cast<HTMLTextAreaElement*>(node);
 }
 
 } //namespace

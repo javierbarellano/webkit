@@ -23,7 +23,6 @@
 
 #if USE(GSTREAMER)
 #include <gst/gstelement.h>
-#include <gst/gsttaglist.h>
 
 namespace WTF {
 
@@ -105,26 +104,6 @@ template <> void derefGPtr<GstCaps>(GstCaps* ptr)
         gst_caps_unref(ptr);
 }
 
-#ifdef GST_API_VERSION_1
-template <> GRefPtr<GstTagList> adoptGRef(GstTagList* ptr)
-{
-    return GRefPtr<GstTagList>(ptr, GRefPtrAdopt);
-}
-
-template <> GstTagList* refGPtr<GstTagList>(GstTagList* ptr)
-{
-    if (ptr)
-        gst_tag_list_ref(ptr);
-
-    return ptr;
-}
-
-template <> void derefGPtr<GstTagList>(GstTagList* ptr)
-{
-    if (ptr)
-        gst_tag_list_unref(ptr);
-}
-#endif
 
 template <> GRefPtr<GstTask> adoptGRef(GstTask* ptr)
 {
@@ -203,6 +182,46 @@ template<> void derefGPtr<GstBuffer>(GstBuffer* ptr)
 {
     if (ptr)
         gst_buffer_unref(ptr);
+}
+
+#ifdef GST_API_VERSION_1
+template<> GRefPtr<GstSample> adoptGRef(GstSample* ptr)
+{
+    return GRefPtr<GstSample>(ptr, GRefPtrAdopt);
+}
+
+template<> GstSample* refGPtr<GstSample>(GstSample* ptr)
+{
+    if (ptr)
+        gst_sample_ref(ptr);
+
+    return ptr;
+}
+
+template<> void derefGPtr<GstSample>(GstSample* ptr)
+{
+    if (ptr)
+        gst_sample_unref(ptr);
+}
+#endif
+
+template<> GRefPtr<GstEvent> adoptGRef(GstEvent* ptr)
+{
+    return GRefPtr<GstEvent>(ptr, GRefPtrAdopt);
+}
+
+template<> GstEvent* refGPtr<GstEvent>(GstEvent* ptr)
+{
+    if (ptr)
+        gst_event_ref(ptr);
+
+    return ptr;
+}
+
+template<> void derefGPtr<GstEvent>(GstEvent* ptr)
+{
+    if (ptr)
+        gst_event_unref(ptr);
 }
 }
 #endif // USE(GSTREAMER)

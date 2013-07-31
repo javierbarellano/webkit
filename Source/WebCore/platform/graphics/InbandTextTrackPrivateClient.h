@@ -86,7 +86,10 @@ public:
 
     Color backgroundColor() const { return m_backgroundColor; }
     void setBackgroundColor(RGBA32 color) { m_backgroundColor.setRGB(color); }
-
+    
+    Color highlightColor() const { return m_highlightColor; }
+    void setHighlightColor(RGBA32 color) { m_highlightColor.setRGB(color); }
+    
     enum Status {
         Uninitialized,
         Partial,
@@ -122,6 +125,7 @@ private:
     double m_relativeFontSize;
     Color m_foregroundColor;
     Color m_backgroundColor;
+    Color m_highlightColor;
     Status m_status;
 };
 
@@ -134,9 +138,12 @@ public:
     virtual void addGenericCue(InbandTextTrackPrivate*, PassRefPtr<GenericCueData>) = 0;
     virtual void updateGenericCue(InbandTextTrackPrivate*, GenericCueData*) = 0;
     virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) = 0;
+
     virtual void addWebVTTCue(InbandTextTrackPrivate*, PassRefPtr<WebVTTCueData>) = 0;
-    virtual void setLabel(const AtomicString&) = 0;
-    virtual void setLanguage(const AtomicString&) = 0;
+    virtual void removeWebVTTCue(InbandTextTrackPrivate*, WebVTTCueData*) = 0;
+
+    virtual void inbandTextTrackPrivateLabelChanged(InbandTextTrackPrivate*) = 0;
+    virtual void inbandTextTrackPrivateLanguageChanged(InbandTextTrackPrivate*) = 0;
 
     virtual void willRemoveTextTrackPrivate(InbandTextTrackPrivate*) = 0;
 };

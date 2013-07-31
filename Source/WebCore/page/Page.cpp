@@ -56,15 +56,18 @@
 #include "MediaCanStartListener.h"
 #include "Navigator.h"
 #include "NetworkStateNotifier.h"
+#include "PageActivityAssertionToken.h"
 #include "PageCache.h"
 #include "PageConsole.h"
 #include "PageGroup.h"
+#include "PageThrottler.h"
 #include "PlugInClient.h"
 #include "PluginData.h"
 #include "PluginView.h"
 #include "PointerLockController.h"
 #include "ProgressTracker.h"
 #include "RenderArena.h"
+#include "RenderLayerCompositor.h"
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
@@ -93,7 +96,7 @@ static HashSet<Page*>* allPages;
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, pageCounter, ("Page"));
 
-static void networkStateChanged()
+static void networkStateChanged(bool isOnLine)
 {
     Vector<RefPtr<Frame> > frames;
     
@@ -105,7 +108,7 @@ static void networkStateChanged()
         InspectorInstrumentation::networkStateChanged(*it);
     }
 
-    AtomicString eventName = networkStateNotifier().onLine() ? eventNames().onlineEvent : eventNames().offlineEvent;
+    AtomicString eventName = isOnLine ? eventNames().onlineEvent : eventNames().offlineEvent;
     for (unsigned i = 0; i < frames.size(); i++)
         frames[i]->document()->dispatchWindowEvent(Event::create(eventName, false, false));
 }
@@ -173,22 +176,25 @@ Page::Page(PageClients& pageClients)
 #if ENABLE(PAGE_VISIBILITY_API)
     , m_visibilityState(PageVisibilityStateVisible)
 #endif
-    , m_displayID(0)
     , m_requestedLayoutMilestones(0)
+    , m_headerHeight(0)
+    , m_footerHeight(0)
     , m_isCountingRelevantRepaintedObjects(false)
 #ifndef NDEBUG
     , m_isPainting(false)
 #endif
     , m_alternativeTextClient(pageClients.alternativeTextClient)
     , m_scriptedAnimationsSuspended(false)
+    , m_pageThrottler(PageThrottler::create(this))
     , m_console(PageConsole::create(this))
+    , m_framesHandlingBeforeUnloadEvent(0)
 {
     ASSERT(m_editorClient);
 
     if (!allPages) {
         allPages = new HashSet<Page*>;
         
-        networkStateNotifier().setNetworkStateChangedFunction(networkStateChanged);
+        networkStateNotifier().addNetworkStateChangeListener(networkStateChanged);
     }
 
     ASSERT(!allPages->contains(this));
@@ -229,6 +235,7 @@ Page::~Page()
     pageCounter.decrement();
 #endif
 
+    m_pageThrottler.clear();
 }
 
 ArenaSize Page::renderTreeSize() const
@@ -513,8 +520,6 @@ void Page::refreshPlugins(bool reload)
 
 PluginData* Page::pluginData() const
 {
-    if (!mainFrame()->loader()->subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin))
-        return 0;
     if (!m_pluginData)
         m_pluginData = PluginData::create(this);
     return m_pluginData.get();
@@ -565,7 +570,7 @@ bool Page::findString(const String& target, FindOptions options)
     Frame* frame = focusController()->focusedOrMainFrame();
     Frame* startFrame = frame;
     do {
-        if (frame->editor()->findString(target, (options & ~WrapAround) | StartInSelection)) {
+        if (frame->editor().findString(target, (options & ~WrapAround) | StartInSelection)) {
             if (frame != startFrame)
                 startFrame->selection()->clear();
             focusController()->setFocusedFrame(frame);
@@ -577,7 +582,7 @@ bool Page::findString(const String& target, FindOptions options)
     // Search contents of startFrame, on the other side of the selection that we did earlier.
     // We cheat a bit and just research with wrap on
     if (shouldWrap && !startFrame->selection()->isNone()) {
-        bool found = startFrame->editor()->findString(target, options | WrapAround | StartInSelection);
+        bool found = startFrame->editor().findString(target, options | WrapAround | StartInSelection);
         focusController()->setFocusedFrame(frame);
         return found;
     }
@@ -594,7 +599,7 @@ void Page::findStringMatchingRanges(const String& target, FindOptions options, i
     Frame* frame = mainFrame();
     Frame* frameWithSelection = 0;
     do {
-        frame->editor()->countMatchesForText(target, 0, options, limit ? (limit - matchRanges->size()) : 0, true, matchRanges);
+        frame->editor().countMatchesForText(target, 0, options, limit ? (limit - matchRanges->size()) : 0, true, matchRanges);
         if (frame->selection()->isRange())
             frameWithSelection = frame;
         frame = incrementFrame(frame, true, false);
@@ -604,14 +609,28 @@ void Page::findStringMatchingRanges(const String& target, FindOptions options, i
         return;
 
     if (frameWithSelection) {
-        indexForSelection = NoMatchBeforeUserSelection;
+        indexForSelection = NoMatchAfterUserSelection;
         RefPtr<Range> selectedRange = frameWithSelection->selection()->selection().firstRange();
-        for (size_t i = 0; i < matchRanges->size(); ++i) {
-            if (selectedRange->compareBoundaryPoints(Range::START_TO_END, matchRanges->at(i).get(), IGNORE_EXCEPTION) < 0) {
-                indexForSelection = i;
-                break;
+        if (options & Backwards) {
+            for (size_t i = matchRanges->size(); i > 0; --i) {
+                if (selectedRange->compareBoundaryPoints(Range::END_TO_START, matchRanges->at(i - 1).get(), IGNORE_EXCEPTION) > 0) {
+                    indexForSelection = i - 1;
+                    break;
+                }
+            }
+        } else {
+            for (size_t i = 0; i < matchRanges->size(); ++i) {
+                if (selectedRange->compareBoundaryPoints(Range::START_TO_END, matchRanges->at(i).get(), IGNORE_EXCEPTION) < 0) {
+                    indexForSelection = i;
+                    break;
+                }
             }
         }
+    } else {
+        if (options & Backwards)
+            indexForSelection = matchRanges->size() - 1;
+        else
+            indexForSelection = 0;
     }
 }
 
@@ -627,7 +646,7 @@ PassRefPtr<Range> Page::rangeOfString(const String& target, Range* referenceRang
     Frame* frame = referenceRange ? referenceRange->ownerDocument()->frame() : mainFrame();
     Frame* startFrame = frame;
     do {
-        if (RefPtr<Range> resultRange = frame->editor()->rangeOfString(target, frame == startFrame ? referenceRange : 0, options & ~WrapAround))
+        if (RefPtr<Range> resultRange = frame->editor().rangeOfString(target, frame == startFrame ? referenceRange : 0, options & ~WrapAround))
             return resultRange.release();
 
         frame = incrementFrame(frame, !(options & Backwards), shouldWrap);
@@ -636,33 +655,39 @@ PassRefPtr<Range> Page::rangeOfString(const String& target, Range* referenceRang
     // Search contents of startFrame, on the other side of the reference range that we did earlier.
     // We cheat a bit and just search again with wrap on.
     if (shouldWrap && referenceRange) {
-        if (RefPtr<Range> resultRange = startFrame->editor()->rangeOfString(target, referenceRange, options | WrapAround | StartInSelection))
+        if (RefPtr<Range> resultRange = startFrame->editor().rangeOfString(target, referenceRange, options | WrapAround | StartInSelection))
             return resultRange.release();
     }
 
     return 0;
 }
 
-unsigned int Page::markAllMatchesForText(const String& target, TextCaseSensitivity caseSensitivity, bool shouldHighlight, unsigned limit)
-{
-    return markAllMatchesForText(target, caseSensitivity == TextCaseInsensitive ? CaseInsensitive : 0, shouldHighlight, limit);
-}
-
-unsigned int Page::markAllMatchesForText(const String& target, FindOptions options, bool shouldHighlight, unsigned limit)
+unsigned Page::findMatchesForText(const String& target, FindOptions options, unsigned maxMatchCount, ShouldHighlightMatches shouldHighlightMatches, ShouldMarkMatches shouldMarkMatches)
 {
     if (target.isEmpty() || !mainFrame())
         return 0;
 
-    unsigned matches = 0;
+    unsigned matchCount = 0;
 
     Frame* frame = mainFrame();
     do {
-        frame->editor()->setMarkedTextMatchesAreHighlighted(shouldHighlight);
-        matches += frame->editor()->countMatchesForText(target, 0, options, limit ? (limit - matches) : 0, true, 0);
+        if (shouldMarkMatches == MarkMatches)
+            frame->editor().setMarkedTextMatchesAreHighlighted(shouldHighlightMatches == HighlightMatches);
+        matchCount += frame->editor().countMatchesForText(target, 0, options, maxMatchCount ? (maxMatchCount - matchCount) : 0, shouldMarkMatches == MarkMatches, 0);
         frame = incrementFrame(frame, true, false);
     } while (frame);
 
-    return matches;
+    return matchCount;
+}
+
+unsigned Page::markAllMatchesForText(const String& target, FindOptions options, bool shouldHighlight, unsigned maxMatchCount)
+{
+    return findMatchesForText(target, options, maxMatchCount, shouldHighlight ? HighlightMatches : DoNotHighlightMatches, MarkMatches);
+}
+
+unsigned Page::countFindMatches(const String& target, FindOptions options, unsigned maxMatchCount)
+{
+    return findMatchesForText(target, options, maxMatchCount, DoNotHighlightMatches, DoNotMarkMatches);
 }
 
 void Page::unmarkAllTextMatches()
@@ -785,10 +810,12 @@ void Page::setDeviceScaleFactor(float scaleFactor)
 #if USE(ACCELERATED_COMPOSITING)
     if (mainFrame())
         mainFrame()->deviceOrPageScaleFactorChanged();
+
+    pageCache()->markPagesForDeviceScaleChanged(this);
 #endif
 
     for (Frame* frame = mainFrame(); frame; frame = frame->tree()->traverseNext())
-        frame->editor()->deviceScaleFactorChanged();
+        frame->editor().deviceScaleFactorChanged();
 
     pageCache()->markPagesForFullStyleRecalc(this);
 }
@@ -922,16 +949,6 @@ void Page::setIsInWindow(bool isInWindow)
     }
 }
 
-void Page::windowScreenDidChange(PlatformDisplayID displayID)
-{
-    m_displayID = displayID;
-    
-    for (Frame* frame = mainFrame(); frame; frame = frame->tree()->traverseNext()) {
-        if (frame->document())
-            frame->document()->windowScreenDidChange(displayID);
-    }
-}
-
 void Page::suspendScriptedAnimations()
 {
     m_scriptedAnimationsSuspended = true;
@@ -948,6 +965,11 @@ void Page::resumeScriptedAnimations()
         if (frame->document())
             frame->document()->resumeScriptedAnimationControllerCallbacks();
     }
+}
+
+void Page::setThrottled(bool throttled)
+{
+    m_pageThrottler->setThrottled(throttled);
 }
 
 void Page::userStyleSheetLocationChanged()
@@ -1234,9 +1256,27 @@ void Page::checkSubframeCountConsistency() const
 }
 #endif
 
+void Page::throttleTimers()
+{
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+    if (m_settings->hiddenPageDOMTimerThrottlingEnabled())
+        setTimerAlignmentInterval(Settings::hiddenPageDOMTimerAlignmentInterval());
+#endif
+}
+
+void Page::unthrottleTimers()
+{
+#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+    if (m_settings->hiddenPageDOMTimerThrottlingEnabled())
+        setTimerAlignmentInterval(Settings::defaultDOMTimerAlignmentInterval());
+#endif
+}
+
 #if ENABLE(PAGE_VISIBILITY_API) || ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
 void Page::setVisibilityState(PageVisibilityState visibilityState, bool isInitialState)
 {
+    // FIXME: the visibility state needs to be stored on the top-level document
+    // https://bugs.webkit.org/show_bug.cgi?id=116769
 #if ENABLE(PAGE_VISIBILITY_API)
     if (m_visibilityState == visibilityState)
         return;
@@ -1247,17 +1287,12 @@ void Page::setVisibilityState(PageVisibilityState visibilityState, bool isInitia
 #endif
 
     if (visibilityState == WebCore::PageVisibilityStateHidden) {
-#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
-        if (m_settings->hiddenPageDOMTimerThrottlingEnabled())
-            setTimerAlignmentInterval(Settings::hiddenPageDOMTimerAlignmentInterval());
-#endif
+        if (m_pageThrottler->shouldThrottleTimers())
+            throttleTimers();
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
             mainFrame()->animation()->suspendAnimations();
     } else {
-#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
-        if (m_settings->hiddenPageDOMTimerThrottlingEnabled())
-            setTimerAlignmentInterval(Settings::defaultDOMTimerAlignmentInterval());
-#endif
+        unthrottleTimers();
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
             mainFrame()->animation()->resumeAnimations();
     }
@@ -1271,6 +1306,40 @@ void Page::setVisibilityState(PageVisibilityState visibilityState, bool isInitia
 PageVisibilityState Page::visibilityState() const
 {
     return m_visibilityState;
+}
+#endif
+
+#if ENABLE(RUBBER_BANDING)
+void Page::addHeaderWithHeight(int headerHeight)
+{
+    m_headerHeight = headerHeight;
+
+    FrameView* frameView = mainFrame() ? mainFrame()->view() : 0;
+    if (!frameView)
+        return;
+
+    RenderView* renderView = frameView->renderView();
+    if (!renderView)
+        return;
+
+    frameView->setHeaderHeight(m_headerHeight);
+    renderView->compositor()->updateLayerForHeader(m_headerHeight);
+}
+
+void Page::addFooterWithHeight(int footerHeight)
+{
+    m_footerHeight = footerHeight;
+
+    FrameView* frameView = mainFrame() ? mainFrame()->view() : 0;
+    if (!frameView)
+        return;
+
+    RenderView* renderView = frameView->renderView();
+    if (!renderView)
+        return;
+
+    frameView->setFooterHeight(m_footerHeight);
+    renderView->compositor()->updateLayerForFooter(m_footerHeight);
 }
 #endif
 
@@ -1463,12 +1532,17 @@ void Page::resetSeenMediaEngines()
     m_seenMediaEngines.clear();
 }
 
+PassOwnPtr<PageActivityAssertionToken> Page::createActivityToken()
+{
+    return adoptPtr(new PageActivityAssertionToken(m_pageThrottler.get()));
+}
+
 #if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
 void Page::hiddenPageDOMTimerThrottlingStateChanged()
 {
     if (m_settings->hiddenPageDOMTimerThrottlingEnabled()) {
 #if ENABLE(PAGE_VISIBILITY_API)
-        if (m_visibilityState == WebCore::PageVisibilityStateHidden)
+        if (m_pageThrottler->shouldThrottleTimers())
             setTimerAlignmentInterval(Settings::hiddenPageDOMTimerAlignmentInterval());
 #endif
     } else
@@ -1495,6 +1569,22 @@ void Page::captionPreferencesChanged()
         frame->document()->captionPreferencesChanged();
 }
 #endif
+
+void Page::incrementFrameHandlingBeforeUnloadEventCount()
+{
+    ++m_framesHandlingBeforeUnloadEvent;
+}
+
+void Page::decrementFrameHandlingBeforeUnloadEventCount()
+{
+    ASSERT(m_framesHandlingBeforeUnloadEvent);
+    --m_framesHandlingBeforeUnloadEvent;
+}
+
+bool Page::isAnyFrameHandlingBeforeUnloadEvent()
+{
+    return m_framesHandlingBeforeUnloadEvent;
+}
 
 Page::PageClients::PageClients()
     : alternativeTextClient(0)

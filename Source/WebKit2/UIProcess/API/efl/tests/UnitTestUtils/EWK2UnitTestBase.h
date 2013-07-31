@@ -50,8 +50,10 @@ protected:
     bool waitUntilLoadFinished(double timeoutSeconds = defaultTimeoutSeconds);
     bool waitUntilTitleChangedTo(const char* expectedTitle, double timeoutSeconds = defaultTimeoutSeconds);
     bool waitUntilURLChangedTo(const char* expectedURL, double timeoutSeconds = defaultTimeoutSeconds);
+    bool waitUntilTrue(bool &flag, double timeoutSeconds = defaultTimeoutSeconds);
 
     void mouseClick(int x, int y, int button = 1 /*Left*/);
+    void mouseDoubleClick(int x, int y, int button = 1 /*Left*/);
     void mouseDown(int x, int y, int button = 1 /*Left*/);
     void mouseUp(int x, int y, int button = 1 /*Left*/);
     void mouseMove(int x, int y);

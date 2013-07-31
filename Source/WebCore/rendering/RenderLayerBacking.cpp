@@ -58,7 +58,6 @@
 #include "Settings.h"
 #include "StyleResolver.h"
 #include "TiledBacking.h"
-#include <wtf/CurrentTime.h>
 #include <wtf/text/StringBuilder.h>
 
 #if ENABLE(CSS_FILTERS)
@@ -176,7 +175,7 @@ PassOwnPtr<GraphicsLayer> RenderLayerBacking::createGraphicsLayer(const String& 
 {
     GraphicsLayerFactory* graphicsLayerFactory = 0;
     if (Page* page = renderer()->frame()->page())
-        graphicsLayerFactory = page->chrome()->client()->graphicsLayerFactory();
+        graphicsLayerFactory = page->chrome().client()->graphicsLayerFactory();
 
     OwnPtr<GraphicsLayer> graphicsLayer = GraphicsLayer::create(graphicsLayerFactory, this);
 
@@ -566,11 +565,12 @@ bool RenderLayerBacking::updateGraphicsLayerConfiguration()
 
     if (renderer->isEmbeddedObject() && toRenderEmbeddedObject(renderer)->allowsAcceleratedCompositing()) {
         PluginViewBase* pluginViewBase = toPluginViewBase(toRenderWidget(renderer)->widget());
-        m_graphicsLayer->setContentsToMedia(pluginViewBase->platformLayer());
+        if (!pluginViewBase->shouldNotAddLayer())
+            m_graphicsLayer->setContentsToMedia(pluginViewBase->platformLayer());
     }
 #if ENABLE(VIDEO)
     else if (renderer->isVideo()) {
-        HTMLMediaElement* mediaElement = toMediaElement(renderer->node());
+        HTMLMediaElement* mediaElement = toHTMLMediaElement(renderer->node());
         m_graphicsLayer->setContentsToMedia(mediaElement->platformLayer());
     }
 #endif
@@ -862,7 +862,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
 
     bool didUpdateContentsRect = false;
     updateDirectlyCompositedContents(isSimpleContainer, didUpdateContentsRect);
-    if (!didUpdateContentsRect)
+    if (!didUpdateContentsRect && m_graphicsLayer->hasContentsLayer())
         resetContentsRect();
 
     updateDrawsContent(isSimpleContainer);
@@ -872,8 +872,13 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
 
 void RenderLayerBacking::updateDirectlyCompositedContents(bool isSimpleContainer, bool& didUpdateContentsRect)
 {
-    updateDirectlyCompositedBackgroundImage(isSimpleContainer, didUpdateContentsRect);
+    if (!m_owningLayer->hasVisibleContent())
+        return;
+
+    // The order of operations here matters, since the last valid type of contents needs
+    // to also update the contentsRect.
     updateDirectlyCompositedBackgroundColor(isSimpleContainer, didUpdateContentsRect);
+    updateDirectlyCompositedBackgroundImage(isSimpleContainer, didUpdateContentsRect);
 }
 
 void RenderLayerBacking::registerScrollingLayers()
@@ -975,7 +980,7 @@ void RenderLayerBacking::updateDrawsContent(bool isSimpleContainer)
         return;
     }
 
-    bool hasPaintedContent = !isSimpleContainer && containsPaintedContent();
+    bool hasPaintedContent = containsPaintedContent(isSimpleContainer);
 
     // FIXME: we could refine this to only allocate backing for one of these layers if possible.
     m_graphicsLayer->setDrawsContent(hasPaintedContent);
@@ -1165,8 +1170,10 @@ bool RenderLayerBacking::updateForegroundLayer(bool needsForegroundLayer)
         layerChanged = true;
     }
 
-    if (layerChanged)
+    if (layerChanged) {
+        m_graphicsLayer->setNeedsDisplay();
         m_graphicsLayer->setPaintingPhase(paintingPhaseForPrimaryLayer());
+    }
 
     return layerChanged;
 }
@@ -1214,6 +1221,7 @@ bool RenderLayerBacking::updateBackgroundLayer(bool needsBackgroundLayer)
     }
     
     if (layerChanged) {
+        m_graphicsLayer->setNeedsDisplay();
         // This assumes that the background layer is only used for fixed backgrounds, which is currently a correct assumption.
         if (renderer()->view())
             compositor()->fixedRootBackgroundLayerChanged();
@@ -1455,8 +1463,9 @@ void RenderLayerBacking::updateDirectlyCompositedBackgroundImage(bool isSimpleCo
     IntRect destRect = backgroundBox();
     IntPoint phase;
     IntSize tileSize;
+
     RefPtr<Image> image = style->backgroundLayers()->image()->cachedImage()->image();
-    toRenderBox(renderer())->getGeometryForBackgroundImage(destRect, phase, tileSize);
+    toRenderBox(renderer())->getGeometryForBackgroundImage(m_owningLayer->renderer(), destRect, phase, tileSize);
     m_graphicsLayer->setContentsTileSize(tileSize);
     m_graphicsLayer->setContentsTilePhase(phase);
     m_graphicsLayer->setContentsRect(destRect);
@@ -1520,7 +1529,7 @@ bool RenderLayerBacking::paintsChildren() const
 {
     if (m_owningLayer->hasVisibleContent() && m_owningLayer->hasNonEmptyChildRenderers())
         return true;
-        
+
     if (hasVisibleNonCompositingDescendantLayers())
         return true;
 
@@ -1644,9 +1653,9 @@ bool RenderLayerBacking::hasVisibleNonCompositingDescendantLayers() const
     return hasVisibleNonCompositingDescendant(m_owningLayer);
 }
 
-bool RenderLayerBacking::containsPaintedContent() const
+bool RenderLayerBacking::containsPaintedContent(bool isSimpleContainer) const
 {
-    if (isSimpleContainerCompositingLayer() || paintsIntoWindow() || paintsIntoCompositedAncestor() || m_artificiallyInflatedBounds || m_owningLayer->isReflection())
+    if (isSimpleContainer || paintsIntoWindow() || paintsIntoCompositedAncestor() || m_artificiallyInflatedBounds || m_owningLayer->isReflection())
         return false;
 
     if (isDirectlyCompositedImage())
@@ -1672,7 +1681,7 @@ bool RenderLayerBacking::containsPaintedContent() const
 bool RenderLayerBacking::isDirectlyCompositedImage() const
 {
     RenderObject* renderObject = renderer();
-    
+
     if (!renderObject->isImage() || m_owningLayer->hasBoxDecorationsOrBackground() || renderObject->hasClip())
         return false;
 
@@ -1733,6 +1742,7 @@ void RenderLayerBacking::updateImageContents()
         return;
 
     // This is a no-op if the layer doesn't have an inner layer for the image.
+    m_graphicsLayer->setContentsRect(contentsBox());
     m_graphicsLayer->setContentsToImage(image);
     bool isSimpleContainer = false;
     updateDrawsContent(isSimpleContainer);
@@ -1969,6 +1979,8 @@ void RenderLayerBacking::paintIntoLayer(const GraphicsLayer* graphicsLayer, Grap
     if (m_owningLayer->containsDirtyOverlayScrollbars())
         m_owningLayer->paintLayerContents(context, paintingInfo, paintFlags | RenderLayer::PaintLayerPaintingOverlayScrollbars);
 
+    compositor()->didPaintBacking(this);
+
     ASSERT(!m_owningLayer->m_usedTransparency);
 }
 
@@ -2008,9 +2020,6 @@ void RenderLayerBacking::paintContents(const GraphicsLayer* graphicsLayer, Graph
 
         // We have to use the same root as for hit testing, because both methods can compute and cache clipRects.
         paintIntoLayer(graphicsLayer, &context, dirtyRect, PaintBehaviorNormal, paintingPhase);
-
-        if (m_usingTiledCacheLayer)
-            renderer()->frame()->view()->setLastPaintTime(currentTime());
 
         InspectorInstrumentation::didPaint(renderer(), &context, clip);
     } else if (graphicsLayer == layerForHorizontalScrollbar()) {
@@ -2334,20 +2343,6 @@ double RenderLayerBacking::backingStoreMemoryEstimate() const
     
     return backingMemory;
 }
-
-#if PLATFORM(BLACKBERRY)
-bool RenderLayerBacking::contentsVisible(const GraphicsLayer*, const IntRect& localContentRect) const
-{
-    Frame* frame = renderer()->frame();
-    FrameView* view = frame ? frame->view() : 0;
-    if (!view)
-        return false;
-
-    IntRect visibleContentRect(view->visibleContentRect());
-    FloatQuad absoluteContentQuad = renderer()->localToAbsoluteQuad(FloatRect(localContentRect));
-    return absoluteContentQuad.enclosingBoundingBox().intersects(visibleContentRect);
-}
-#endif
 
 } // namespace WebCore
 

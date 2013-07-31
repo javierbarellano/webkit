@@ -104,7 +104,6 @@
 #import <runtime/JSCJSValue.h>
 #import <wtf/CurrentTime.h>
 
-using namespace std;
 using namespace WebCore;
 using namespace HTMLNames;
 
@@ -226,7 +225,14 @@ Frame* core(WebFrame *frame)
 
 WebFrame *kit(Frame* frame)
 {
-    return frame ? static_cast<WebFrameLoaderClient*>(frame->loader()->client())->webFrame() : nil;
+    if (!frame)
+        return nil;
+
+    FrameLoaderClient* frameLoaderClient = frame->loader()->client();
+    if (frameLoaderClient->isEmptyFrameLoaderClient())
+        return nil;
+
+    return static_cast<WebFrameLoaderClient*>(frameLoaderClient)->webFrame();
 }
 
 Page* core(WebView *webView)
@@ -236,7 +242,14 @@ Page* core(WebView *webView)
 
 WebView *kit(Page* page)
 {
-    return page ? static_cast<WebView*>(page->chrome()->client()->webView()) : nil;
+    if (!page)
+        return nil;
+
+    ChromeClient* chromeClient = page->chrome().client();
+    if (chromeClient->isEmptyChromeClient())
+        return nil;
+
+    return static_cast<WebChromeClient*>(chromeClient)->webView();
 }
 
 WebView *getWebView(WebFrame *webFrame)
@@ -493,7 +506,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
 - (NSString *)_selectedString
 {
-    return _private->coreFrame->displayStringModifiedByEncoding(_private->coreFrame->editor()->selectedText());
+    return _private->coreFrame->displayStringModifiedByEncoding(_private->coreFrame->editor().selectedText());
 }
 
 - (NSString *)_stringForRange:(DOMRange *)range
@@ -602,7 +615,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
 - (NSRect)_firstRectForDOMRange:(DOMRange *)range
 {
-   return _private->coreFrame->editor()->firstRectForRange(core(range));
+   return _private->coreFrame->editor().firstRectForRange(core(range));
 }
 
 - (void)_scrollDOMRangeToVisible:(DOMRange *)range
@@ -676,7 +689,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
 - (DOMRange *)_markDOMRange
 {
-    return kit(_private->coreFrame->editor()->mark().toNormalizedRange().get());
+    return kit(_private->coreFrame->editor().mark().toNormalizedRange().get());
 }
 
 // Given proposedRange, returns an extended range that includes adjacent whitespace that should
@@ -746,7 +759,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     if (_private->coreFrame->selection()->isNone())
         return;
 
-    _private->coreFrame->editor()->insertParagraphSeparatorInQuotedContent();
+    _private->coreFrame->editor().insertParagraphSeparatorInQuotedContent();
 }
 
 - (VisiblePosition)_visiblePositionForPoint:(NSPoint)point
@@ -775,7 +788,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     if (!_private->coreFrame || !style)
         return;
     // FIXME: We shouldn't have to create a copy here.
-    _private->coreFrame->editor()->computeAndSetTypingStyle(core(style)->copyProperties().get(), undoAction);
+    _private->coreFrame->editor().computeAndSetTypingStyle(core(style)->copyProperties().get(), undoAction);
 }
 
 #if ENABLE(DRAG_SUPPORT)
@@ -799,9 +812,10 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     String mimeType = frame->document()->loader()->writer()->mimeType();
     PluginData* pluginData = frame->page() ? frame->page()->pluginData() : 0;
 
-    if (WebCore::DOMImplementation::isTextMIMEType(mimeType) ||
-        Image::supportsType(mimeType) ||
-        (pluginData && pluginData->supportsMimeType(mimeType)))
+    if (WebCore::DOMImplementation::isTextMIMEType(mimeType)
+        || Image::supportsType(mimeType)
+        || (pluginData && pluginData->supportsMimeType(mimeType, PluginData::AllPlugins) && frame->loader()->subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin))
+        || (pluginData && pluginData->supportsMimeType(mimeType, PluginData::OnlyApplicationPlugins)))
         return NO;
 
     return YES;
@@ -928,7 +942,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 {
     if (_private->coreFrame->selection()->isNone() || !fragment)
         return;
-    _private->coreFrame->editor()->replaceSelectionWithFragment(core(fragment), selectReplacement, smartReplace, matchStyle);
+    _private->coreFrame->editor().replaceSelectionWithFragment(core(fragment), selectReplacement, smartReplace, matchStyle);
 }
 
 - (void)_replaceSelectionWithText:(NSString *)text selectReplacement:(BOOL)selectReplacement smartReplace:(BOOL)smartReplace
@@ -1225,6 +1239,11 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
     if (!coreFrame)
         return nil;
     return [[[WebElementDictionary alloc] initWithHitTestResult:coreFrame->eventHandler()->hitTestResultAtPoint(IntPoint(point), HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping | HitTestRequest::DisallowShadowContent)] autorelease];
+}
+
+- (NSURL *)_unreachableURL
+{
+    return [[self _dataSource] unreachableURL];
 }
 
 @end

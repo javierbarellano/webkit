@@ -57,6 +57,7 @@ CachedPage::CachedPage(Page* page)
     , m_needStyleRecalcForVisitedLinks(false)
     , m_needsFullStyleRecalc(false)
     , m_needsCaptionPreferencesChanged(false)
+    , m_needsDeviceScaleChanged(false)
 {
 #ifndef NDEBUG
     cachedPageCounter.increment();
@@ -84,15 +85,20 @@ void CachedPage::restore(Page* page)
     // Restore the focus appearance for the focused element.
     // FIXME: Right now we don't support pages w/ frames in the b/f cache.  This may need to be tweaked when we add support for that.
     Document* focusedDocument = page->focusController()->focusedOrMainFrame()->document();
-    if (Node* node = focusedDocument->focusedNode()) {
-        if (node->isElementNode())
-            toElement(node)->updateFocusAppearance(true);
-    }
+    if (Element* element = focusedDocument->focusedElement())
+        element->updateFocusAppearance(true);
 
     if (m_needStyleRecalcForVisitedLinks) {
         for (Frame* frame = page->mainFrame(); frame; frame = frame->tree()->traverseNext())
             frame->document()->visitedLinkState()->invalidateStyleForAllLinks();
     }
+
+#if USE(ACCELERATED_COMPOSITING)
+    if (m_needsDeviceScaleChanged) {
+        if (Frame* frame = page->mainFrame())
+            frame->deviceOrPageScaleFactorChanged();
+    }
+#endif
 
     if (m_needsFullStyleRecalc)
         page->setNeedsRecalcStyleInAllFrames();

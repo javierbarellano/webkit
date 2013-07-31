@@ -110,7 +110,6 @@
 #define WebKitDNSPrefetchingEnabledPreferenceKey @"WebKitDNSPrefetchingEnabled"
 #define WebKitFullScreenEnabledPreferenceKey @"WebKitFullScreenEnabled"
 #define WebKitAsynchronousSpellCheckingEnabledPreferenceKey @"WebKitAsynchronousSpellCheckingEnabled"
-#define WebKitMemoryInfoEnabledPreferenceKey @"WebKitMemoryInfoEnabled"
 #define WebKitHyperlinkAuditingEnabledPreferenceKey @"WebKitHyperlinkAuditingEnabled"
 #define WebKitAVFoundationEnabledKey @"WebKitAVFoundationEnabled"
 #define WebKitHixie76WebSocketProtocolEnabledKey @"WebKitHixie76WebSocketProtocolEnabled"
@@ -133,6 +132,7 @@
 #define WebKitQTKitEnabledPreferenceKey @"WebKitQTKitEnabled"
 #define WebKitHiddenPageDOMTimerThrottlingEnabledPreferenceKey @"WebKitHiddenPageDOMTimerThrottlingEnabled"
 #define WebKitHiddenPageCSSAnimationSuspensionEnabledPreferenceKey @"WebKitHiddenPageCSSAnimationSuspensionEnabled"
+#define WebKitLowPowerVideoAudioBufferSizeEnabledPreferenceKey @"WebKitLowPowerVideoAudioBufferSizeEnabled"
 
 // These are private both because callers should be using the cover methods and because the
 // cover methods themselves are private.

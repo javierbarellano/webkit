@@ -26,13 +26,35 @@
 #include "config.h"
 #include "Clipboard.h"
 
+#include "CachedImage.h"
+#include "CachedImageClient.h"
+#include "DragData.h"
+#include "Editor.h"
 #include "FileList.h"
 #include "Frame.h"
 #include "FrameLoader.h"
+#include "HTMLImageElement.h"
 #include "Image.h"
 #include "Pasteboard.h"
 
 namespace WebCore {
+
+#if ENABLE(DRAG_SUPPORT)
+
+class DragImageLoader FINAL : private CachedImageClient {
+    WTF_MAKE_FAST_ALLOCATED;
+public:
+    static PassOwnPtr<DragImageLoader> create(Clipboard*);
+    void startLoading(CachedResourceHandle<CachedImage>&);
+    void stopLoading(CachedResourceHandle<CachedImage>&);
+
+private:
+    DragImageLoader(Clipboard*);
+    virtual void imageChanged(CachedImage*, const IntRect*) OVERRIDE;
+    Clipboard* m_clipboard;
+};
+
+#endif
 
 Clipboard::Clipboard(ClipboardAccessPolicy policy, ClipboardType clipboardType
 #if !USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS)
@@ -53,6 +75,10 @@ Clipboard::Clipboard(ClipboardAccessPolicy policy, ClipboardType clipboardType
 
 Clipboard::~Clipboard()
 {
+#if !USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS) && ENABLE(DRAG_SUPPORT)
+    if (m_dragImageLoader && m_dragImage)
+        m_dragImageLoader->stopLoading(m_dragImage);
+#endif
 }
     
 void Clipboard::setAccessPolicy(ClipboardAccessPolicy policy)
@@ -79,7 +105,7 @@ bool Clipboard::canWriteData() const
 
 bool Clipboard::canSetDragImage() const
 {
-    return m_policy == ClipboardImageWritable || m_policy == ClipboardWritable;
+    return m_clipboardType == DragAndDrop && (m_policy == ClipboardImageWritable || m_policy == ClipboardWritable);
 }
 
 // These "conversion" methods are called by both WebCore and WebKit, and never make sense to JS, so we don't
@@ -252,7 +278,25 @@ bool Clipboard::hasDropZoneType(const String& keyword)
     return false;
 }
 
-#if !USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS)
+#if USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS)
+
+void Clipboard::setDragImage(Element* element, int x, int y)
+{
+    if (!canSetDragImage())
+        return;
+
+    if (element && isHTMLImageElement(element) && !element->inDocument())
+        setDragImage(toHTMLImageElement(element)->cachedImage(), IntPoint(x, y));
+    else
+        setDragImageElement(element, IntPoint(x, y));
+}
+
+#else // !USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS)
+
+PassRefPtr<Clipboard> Clipboard::createForCopyAndPaste(ClipboardAccessPolicy policy)
+{
+    return adoptRef(new Clipboard(policy, CopyAndPaste, policy == ClipboardWritable ? Pasteboard::createPrivate() : Pasteboard::createForCopyAndPaste()));
+}
 
 bool Clipboard::hasData()
 {
@@ -267,7 +311,7 @@ void Clipboard::clearData(const String& type)
     m_pasteboard->clear(type);
 }
 
-void Clipboard::clearAllData()
+void Clipboard::clearData()
 {
     if (!canWriteData())
         return;
@@ -314,6 +358,120 @@ PassRefPtr<FileList> Clipboard::files() const
     return fileList.release();
 }
 
-#endif
+#if !ENABLE(DRAG_SUPPORT)
+
+void Clipboard::setDragImage(Element*, int, int)
+{
+}
+
+#else
+
+// FIXME: Should be named createForDragAndDrop.
+// FIXME: Should take const DragData& instead of DragData*.
+// FIXME: Should not take Frame*.
+PassRefPtr<Clipboard> Clipboard::create(ClipboardAccessPolicy policy, DragData* dragData, Frame*)
+{
+    return adoptRef(new Clipboard(policy, DragAndDrop, Pasteboard::createForDragAndDrop(*dragData), dragData->containsFiles()));
+}
+
+PassRefPtr<Clipboard> Clipboard::createForDragAndDrop()
+{
+    return adoptRef(new Clipboard(ClipboardWritable, DragAndDrop, Pasteboard::createForDragAndDrop()));
+}
+
+void Clipboard::setDragImage(Element* element, int x, int y)
+{
+    if (!canSetDragImage())
+        return;
+
+    CachedImage* image;
+    if (element && isHTMLImageElement(element) && !element->inDocument())
+        image = toHTMLImageElement(element)->cachedImage();
+    else
+        image = 0;
+
+    m_dragLoc = IntPoint(x, y);
+
+    if (m_dragImageLoader && m_dragImage)
+        m_dragImageLoader->stopLoading(m_dragImage);
+    m_dragImage = image;
+    if (m_dragImage) {
+        if (!m_dragImageLoader)
+            m_dragImageLoader = DragImageLoader::create(this);
+        m_dragImageLoader->startLoading(m_dragImage);
+    }
+
+    m_dragImageElement = image ? 0 : element;
+
+    updateDragImage();
+}
+
+void Clipboard::updateDragImage()
+{
+    // Don't allow setting the image if we haven't started dragging yet; we'll rely on the dragging code
+    // to install this drag image as part of getting the drag kicked off.
+    if (!dragStarted())
+        return;
+
+    IntPoint computedHotSpot;
+    DragImageRef computedImage = createDragImage(computedHotSpot);
+    if (!computedImage)
+        return;
+
+    m_pasteboard->setDragImage(computedImage, computedHotSpot);
+}
+
+PassOwnPtr<DragImageLoader> DragImageLoader::create(Clipboard* clipboard)
+{
+    return adoptPtr(new DragImageLoader(clipboard));
+}
+
+DragImageLoader::DragImageLoader(Clipboard* clipboard)
+    : m_clipboard(clipboard)
+{
+}
+
+void DragImageLoader::startLoading(CachedResourceHandle<WebCore::CachedImage>& image)
+{
+    // FIXME: Does this really trigger a load? Does it need to?
+    image->addClient(this);
+}
+
+void DragImageLoader::stopLoading(CachedResourceHandle<WebCore::CachedImage>& image)
+{
+    image->removeClient(this);
+}
+
+void DragImageLoader::imageChanged(CachedImage*, const IntRect*)
+{
+    m_clipboard->updateDragImage();
+}
+
+void Clipboard::writeRange(Range* range, Frame* frame)
+{
+    ASSERT(range);
+    ASSERT(frame);
+    // FIXME: This is a design mistake, a layering violation that should be fixed.
+    // The code to write the range to a pasteboard should be an Editor function that takes a pasteboard argument.
+    // FIXME: The frame argument seems redundant, since a Range is in a particular document, which has a corresponding frame.
+    m_pasteboard->writeSelection(range, frame->editor().smartInsertDeleteEnabled() && frame->selection()->granularity() == WordGranularity, frame, IncludeImageAltTextForClipboard);
+}
+
+void Clipboard::writePlainText(const String& text)
+{
+    m_pasteboard->writePlainText(text, Pasteboard::CannotSmartReplace);
+}
+
+void Clipboard::writeURL(const KURL& url, const String& title, Frame* frame)
+{
+    ASSERT(frame);
+    // FIXME: This is a design mistake, a layering violation that should be fixed.
+    // The pasteboard writeURL function should not take a frame argument, nor does this function need a frame.
+    m_pasteboard->writeURL(url, title, frame);
+}
+
+#endif // ENABLE(DRAG_SUPPORT)
+
+#endif // !USE(LEGACY_STYLE_ABSTRACT_CLIPBOARD_CLASS)
 
 } // namespace WebCore

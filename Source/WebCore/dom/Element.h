@@ -29,6 +29,7 @@
 #include "CollectionType.h"
 #include "Document.h"
 #include "HTMLNames.h"
+#include "RegionOversetState.h"
 #include "ScrollTypes.h"
 #include "SpaceSplitString.h"
 
@@ -42,6 +43,7 @@ class DOMTokenList;
 class Element;
 class ElementRareData;
 class ElementShadow;
+class HTMLDocument;
 class ShareableElementData;
 class IntSize;
 class Locale;
@@ -78,9 +80,11 @@ public:
     const Attribute* getAttributeItem(const QualifiedName&) const;
     unsigned getAttributeItemIndex(const QualifiedName&) const;
     unsigned getAttributeItemIndex(const AtomicString& name, bool shouldIgnoreAttributeCase) const;
+    unsigned getAttributeItemIndexForAttributeNode(const Attr*) const;
 
     bool hasID() const { return !m_idForStyleResolution.isNull(); }
     bool hasClass() const { return !m_classNames.isNull(); }
+    bool hasName() const { return m_hasNameAttribute; }
 
     bool isEquivalent(const ElementData* other) const;
 
@@ -92,7 +96,8 @@ protected:
     ElementData(const ElementData&, bool isUnique);
 
     unsigned m_isUnique : 1;
-    unsigned m_arraySize : 28;
+    unsigned m_arraySize : 27;
+    mutable unsigned m_hasNameAttribute : 1;
     mutable unsigned m_presentationAttributeStyleIsDirty : 1;
     mutable unsigned m_styleAttributeIsDirty : 1;
 #if ENABLE(SVG)
@@ -405,8 +410,8 @@ public:
 
     virtual void copyNonAttributePropertiesFromElement(const Element&) { }
 
-    virtual void attach();
-    virtual void detach();
+    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual void detach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
     virtual bool rendererIsNeeded(const NodeRenderingContext&);
     void recalcStyle(StyleChange = NoChange);
@@ -423,6 +428,25 @@ public:
     ShadowRoot* ensureUserAgentShadowRoot();
 
     virtual const AtomicString& shadowPseudoId() const;
+
+    bool inActiveChain() const { return isUserActionElement() && isUserActionElementInActiveChain(); }
+    bool active() const { return isUserActionElement() && isUserActionElementActive(); }
+    bool hovered() const { return isUserActionElement() && isUserActionElementHovered(); }
+    bool focused() const { return isUserActionElement() && isUserActionElementFocused(); }
+
+    virtual void setActive(bool flag = true, bool pause = false);
+    virtual void setHovered(bool flag = true);
+    virtual void setFocus(bool flag);
+
+    virtual bool supportsFocus() const;
+    virtual bool isFocusable() const;
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const;
+    virtual bool isMouseFocusable() const;
+
+    virtual bool shouldUseInputMethod();
+
+    virtual short tabIndex() const;
+    virtual Element* focusDelegate();
 
     RenderStyle* computedStyle(PseudoId = NOPSEUDO);
 
@@ -454,6 +478,12 @@ public:
 
     void setIsInCanvasSubtree(bool);
     bool isInCanvasSubtree() const;
+
+    void setIsInsideRegion(bool);
+    bool isInsideRegion() const;
+
+    void setRegionOversetState(RegionOversetState);
+    RegionOversetState regionOversetState() const;
 
     AtomicString computeInheritedLanguage() const;
     Locale& locale() const;
@@ -540,9 +570,6 @@ public:
 #if ENABLE(INPUT_SPEECH)
     virtual bool isInputFieldSpeechButtonElement() const { return false; }
 #endif
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    virtual bool isDateTimeFieldElement() const;
-#endif
 
     virtual bool isFormControlElement() const { return false; }
     virtual bool isSpinButtonElement() const { return false; }
@@ -557,12 +584,6 @@ public:
     virtual bool isFrameElementBase() const { return false; }
 
     virtual bool canContainRangeEndPoint() const { return true; }
-
-    virtual const AtomicString& formControlType() const { return nullAtom; }
-
-    virtual bool wasChangedSinceLastFormControlChangeEvent() const;
-    virtual void setChangedSinceLastFormControlChangeEvent(bool);
-    virtual void dispatchFormControlChangeEvent() { }
 
     // Used for disabled form elements; if true, prevents mouse events from being dispatched
     // to event listeners, and prevents DOMActivate events from being sent at all.
@@ -604,23 +625,37 @@ public:
     void webkitRequestPointerLock();
 #endif
 
+#if ENABLE(INDIE_UI)
+    void setUIActions(const AtomicString&);
+    const AtomicString& UIActions() const;
+#endif
+    
     virtual bool isSpellCheckingEnabled() const;
 
     PassRefPtr<RenderStyle> styleForRenderer();
 
     RenderRegion* renderRegion() const;
-    virtual bool moveToFlowThreadIsNeeded(RefPtr<RenderStyle>& cachedStyle);
+
 #if ENABLE(CSS_REGIONS)
+    virtual bool shouldMoveToFlowThread(RenderStyle*) const;
+    
     const AtomicString& webkitRegionOverset() const;
     Vector<RefPtr<Range> > webkitGetRegionFlowRanges() const;
 #endif
 
     bool hasID() const;
     bool hasClass() const;
+    bool hasName() const;
     const SpaceSplitString& classNames() const;
 
     IntSize savedLayerScrollOffset() const;
     void setSavedLayerScrollOffset(const IntSize&);
+
+    void dispatchSimulatedClick(Event* underlyingEvent, SimulatedClickMouseEventOptions = SendNoEvents, SimulatedClickVisualOptions = ShowPressedLook);
+    void dispatchFocusInEvent(const AtomicString& eventType, PassRefPtr<Element> oldFocusedElement);
+    void dispatchFocusOutEvent(const AtomicString& eventType, PassRefPtr<Element> newFocusedElement);
+    virtual void dispatchFocusEvent(PassRefPtr<Element> oldFocusedElement, FocusDirection);
+    virtual void dispatchBlurEvent(PassRefPtr<Element> newFocusedElement);
 
 protected:
     Element(const QualifiedName& tagName, Document* document, ConstructionType type)
@@ -640,8 +675,6 @@ protected:
 
     void clearTabIndexExplicitlyIfNeeded();    
     void setTabIndexExplicitly(short);
-    virtual bool supportsFocus() const OVERRIDE;
-    virtual short tabIndex() const OVERRIDE;
 
     PassRefPtr<HTMLCollection> ensureCachedHTMLCollection(CollectionType);
     HTMLCollection* cachedHTMLCollection(CollectionType);
@@ -652,6 +685,13 @@ protected:
     void classAttributeChanged(const AtomicString& newClassString);
 
 private:
+    bool isTextNode() const;
+
+    bool isUserActionElementInActiveChain() const;
+    bool isUserActionElementActive() const;
+    bool isUserActionElementFocused() const;
+    bool isUserActionElementHovered() const;
+
     void updatePseudoElement(PseudoId, StyleChange = NoChange);
     PassRefPtr<PseudoElement> createPseudoElementIfNeeded(PseudoId);
     void setPseudoElement(PseudoId, PassRefPtr<PseudoElement>);
@@ -673,11 +713,13 @@ private:
     void synchronizeAttribute(const QualifiedName&) const;
     void synchronizeAttribute(const AtomicString& localName) const;
 
-    void updateId(const AtomicString& oldId, const AtomicString& newId);
-    enum HTMLDocumentNamedItemMapsUpdatingCondition { AlwaysUpdateHTMLDocumentNamedItemMaps, UpdateHTMLDocumentNamedItemMapsOnlyIfDiffersFromNameAttribute };
-    void updateId(TreeScope*, const AtomicString& oldId, const AtomicString& newId, HTMLDocumentNamedItemMapsUpdatingCondition);
     void updateName(const AtomicString& oldName, const AtomicString& newName);
-    void updateName(TreeScope*, const AtomicString& oldName, const AtomicString& newName);
+    void updateNameForTreeScope(TreeScope*, const AtomicString& oldName, const AtomicString& newName);
+    void updateNameForDocument(HTMLDocument*, const AtomicString& oldName, const AtomicString& newName);
+    void updateId(const AtomicString& oldId, const AtomicString& newId);
+    void updateIdForTreeScope(TreeScope*, const AtomicString& oldId, const AtomicString& newId);
+    enum HTMLDocumentNamedItemMapsUpdatingCondition { AlwaysUpdateHTMLDocumentNamedItemMaps, UpdateHTMLDocumentNamedItemMapsOnlyIfDiffersFromNameAttribute };
+    void updateIdForDocument(HTMLDocument*, const AtomicString& oldId, const AtomicString& newId, HTMLDocumentNamedItemMapsUpdatingCondition);
     void updateLabel(TreeScope*, const AtomicString& oldForAttributeValue, const AtomicString& newForAttributeValue);
 
     void scrollByUnits(int units, ScrollGranularity);
@@ -730,7 +772,7 @@ private:
     void detachAllAttrNodesFromElement();
     void detachAttrNodeFromElementWithValue(Attr*, const AtomicString& value);
 
-    void createRendererIfNeeded();
+    void createRendererIfNeeded(const AttachContext&);
 
     bool isJavaScriptURLAttribute(const Attribute&) const;
 
@@ -885,22 +927,16 @@ inline bool Element::hasClass() const
     return elementData() && elementData()->hasClass();
 }
 
+inline bool Element::hasName() const
+{
+    return elementData() && elementData()->hasName();
+}
+
 inline UniqueElementData* Element::ensureUniqueElementData()
 {
     if (!elementData() || !elementData()->isUnique())
         createUniqueElementData();
     return static_cast<UniqueElementData*>(m_elementData.get());
-}
-
-// Put here to make them inline.
-inline bool Node::hasID() const
-{
-    return isElementNode() && toElement(this)->hasID();
-}
-
-inline bool Node::hasClass() const
-{
-    return isElementNode() && toElement(this)->hasClass();
 }
 
 inline Node::InsertionNotificationRequest Node::insertedInto(ContainerNode* insertionPoint)

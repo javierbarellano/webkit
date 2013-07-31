@@ -26,6 +26,7 @@
 #import "WK1BrowserWindowController.h"
 
 #import <WebKit/WebKit.h>
+#import <WebKit/WebViewPrivate.h>
 #import "AppDelegate.h"
 
 @interface WK1BrowserWindowController ()
@@ -108,11 +109,6 @@
     [_webView goForward:sender];
 }
 
-- (BOOL)isPaginated
-{
-    return NO;
-}
-
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem
 {
     SEL action = [menuItem action];
@@ -132,6 +128,8 @@
         [menuItem setState:_zoomTextOnly ? NSOnState : NSOffState];
     else if ([menuItem action] == @selector(togglePaginationMode:))
         [menuItem setState:[self isPaginated] ? NSOnState : NSOffState];
+    else if ([menuItem action] == @selector(toggleTransparentWindow:))
+        [menuItem setState:[[self window] isOpaque] ? NSOffState : NSOnState];
 
     return YES;
 }
@@ -219,8 +217,36 @@
     _zoomTextOnly = !_zoomTextOnly;
 }
 
+- (BOOL)isPaginated
+{
+    return [_webView _paginationMode] != WebPaginationModeUnpaginated;
+}
+
 - (IBAction)togglePaginationMode:(id)sender
 {
+    if ([self isPaginated]) {
+        [_webView _setPaginationMode:WebPaginationModeUnpaginated];
+    } else {
+        [_webView _setPaginationMode:WebPaginationModeRightToLeft];
+        [_webView _setPageLength:_webView.bounds.size.width / 2];
+        [_webView _setGapBetweenPages:10];
+    }
+}
+
+- (IBAction)toggleTransparentWindow:(id)sender
+{
+    BOOL isTransparent = ![[self window] isOpaque];
+    isTransparent = !isTransparent;
+    
+    [[self window] setOpaque:!isTransparent];
+    [[self window] setHasShadow:!isTransparent];
+
+    if (isTransparent)
+        [_webView setBackgroundColor:[NSColor clearColor]];
+    else
+        [_webView setBackgroundColor:[NSColor whiteColor]];
+
+    [[self window] display];
 }
 
 - (IBAction)find:(id)sender

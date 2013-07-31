@@ -34,7 +34,6 @@
     JSCustomToNativeObject,
     CustomPutFunction,
     EventTarget,
-    ExtendsDOMGlobalObject,
     JSGenerateToNativeObject,
     ReplaceableConstructor,
     JSLegacyParent=JSDOMWindowBase,
@@ -43,23 +42,23 @@
     // DOM Level 0
     [Replaceable] readonly attribute Screen screen;
     [Replaceable, DoNotCheckSecurityOnGetter] readonly attribute History history;
-    [Replaceable] readonly attribute BarInfo locationbar;
-    [Replaceable] readonly attribute BarInfo menubar;
-    [Replaceable] readonly attribute BarInfo personalbar;
-    [Replaceable] readonly attribute BarInfo scrollbars;
-    [Replaceable] readonly attribute BarInfo statusbar;
-    [Replaceable] readonly attribute BarInfo toolbar;
+    [Replaceable] readonly attribute BarProp locationbar;
+    [Replaceable] readonly attribute BarProp menubar;
+    [Replaceable] readonly attribute BarProp personalbar;
+    [Replaceable] readonly attribute BarProp scrollbars;
+    [Replaceable] readonly attribute BarProp statusbar;
+    [Replaceable] readonly attribute BarProp toolbar;
     [Replaceable] readonly attribute Navigator navigator;
     [Replaceable] readonly attribute Navigator clientInformation;
     readonly attribute Crypto crypto;
 #if !defined(LANGUAGE_CPP) || !LANGUAGE_CPP
-    attribute [DoNotCheckSecurity, CustomSetter] Location location;
+    [DoNotCheckSecurity, CustomSetter] attribute Location location;
 #endif
     [Replaceable, CustomGetter] readonly attribute Event event;
 
     DOMSelection getSelection();
 
-    readonly attribute [CheckSecurityForNode] Element frameElement;
+    [CheckSecurityForNode] readonly attribute Element frameElement;
 
     [DoNotCheckSecurity, CallWith=ScriptExecutionContext] void focus();
     [DoNotCheckSecurity] void blur();
@@ -112,7 +111,7 @@
     void resizeBy([Default=Undefined] optional float x, [Default=Undefined] optional float y); // FIXME: this should take longs not floats.
     void resizeTo([Default=Undefined] optional float width, [Default=Undefined] optional float height); // FIXME: this should take longs not floats.
 
-    readonly attribute [DoNotCheckSecurity] boolean closed;
+    [DoNotCheckSecurity] readonly attribute boolean closed;
 
     [Replaceable, DoNotCheckSecurityOnGetter] readonly attribute unsigned long length;
 
@@ -162,10 +161,8 @@
 
     readonly attribute DOMApplicationCache applicationCache;
 
-    readonly attribute Storage sessionStorage
-        getter raises(DOMException);
-    readonly attribute Storage localStorage
-        getter raises(DOMException);
+    [GetterRaisesException] readonly attribute Storage sessionStorage;
+    [GetterRaisesException] readonly attribute Storage localStorage;
 
 #if defined(ENABLE_ORIENTATION_EVENTS) && ENABLE_ORIENTATION_EVENTS
     // This is the interface orientation in degrees. Some examples are:
@@ -178,23 +175,15 @@
 
     // cross-document messaging
 #if defined(LANGUAGE_JAVASCRIPT) && LANGUAGE_JAVASCRIPT
-    [DoNotCheckSecurity, Custom] void postMessage(SerializedScriptValue message, DOMString targetOrigin, optional Array messagePorts)
-        raises(DOMException);
+    [DoNotCheckSecurity, Custom, RaisesException] void postMessage(SerializedScriptValue message, DOMString targetOrigin, optional Array messagePorts);
 #else
     // There's no good way to expose an array via the ObjC bindings, so for now just allow passing in a single port.
-    [DoNotCheckSecurity, Custom] void postMessage(SerializedScriptValue message, optional MessagePort messagePort, DOMString targetOrigin)
-        raises(DOMException);
+    [DoNotCheckSecurity, Custom, RaisesException] void postMessage(SerializedScriptValue message, optional MessagePort messagePort, DOMString targetOrigin);
 #endif
 
 #if defined(ENABLE_WEB_TIMING) && ENABLE_WEB_TIMING
     [Replaceable] readonly attribute Performance performance;
 #endif
-
-    // Timers
-    [Custom] long setTimeout(any handler, [Default=Undefined] optional long timeout);
-    void clearTimeout([Default=Undefined] optional long handle);
-    [Custom] long setInterval(any handler, [Default=Undefined] optional long timeout);
-    void clearInterval([Default=Undefined] optional long handle);
 
 #if defined(ENABLE_REQUEST_ANIMATION_FRAME) && ENABLE_REQUEST_ANIMATION_FRAME
     long requestAnimationFrame(RequestAnimationFrameCallback callback);
@@ -204,13 +193,7 @@
     [ImplementedAs=cancelAnimationFrame] void webkitCancelRequestAnimationFrame(long id); // This is a deprecated alias for webkitCancelAnimationFrame(). Remove this when removing vendor prefix.
 #endif
 
-    // Base64
-    DOMString atob([TreatNullAs=NullString,Default=Undefined] optional DOMString string)
-        raises(DOMException);
-    DOMString btoa([TreatNullAs=NullString,Default=Undefined] optional DOMString string)
-        raises(DOMException);
-
-    readonly attribute [Replaceable,Conditional=CSS3_CONDITIONAL_RULES] DOMWindowCSS CSS;
+    [Replaceable,Conditional=CSS3_CONDITIONAL_RULES] readonly attribute DOMWindowCSS CSS;
 
     // Events
     attribute EventListener onabort;
@@ -296,15 +279,15 @@
 #if defined(ENABLE_ORIENTATION_EVENTS) && ENABLE_ORIENTATION_EVENTS
     attribute EventListener onorientationchange;
 #endif
-    attribute [Conditional=TOUCH_EVENTS] EventListener ontouchstart;
-    attribute [Conditional=TOUCH_EVENTS] EventListener ontouchmove;
-    attribute [Conditional=TOUCH_EVENTS] EventListener ontouchend;
-    attribute [Conditional=TOUCH_EVENTS] EventListener ontouchcancel;
+    [Conditional=TOUCH_EVENTS] attribute EventListener ontouchstart;
+    [Conditional=TOUCH_EVENTS] attribute EventListener ontouchmove;
+    [Conditional=TOUCH_EVENTS] attribute EventListener ontouchend;
+    [Conditional=TOUCH_EVENTS] attribute EventListener ontouchcancel;
 
-    attribute [Conditional=DEVICE_ORIENTATION] EventListener ondevicemotion;
-    attribute [Conditional=DEVICE_ORIENTATION] EventListener ondeviceorientation;
+    [Conditional=DEVICE_ORIENTATION] attribute EventListener ondevicemotion;
+    [Conditional=DEVICE_ORIENTATION] attribute EventListener ondeviceorientation;
 
-    attribute [Conditional=PROXIMITY_EVENTS] EventListener onwebkitdeviceproximity;
+    [Conditional=PROXIMITY_EVENTS] attribute EventListener onwebkitdeviceproximity;
 
     // EventTarget interface
     [Custom] void addEventListener(DOMString type,
@@ -313,21 +296,14 @@
     [Custom] void removeEventListener(DOMString type,
                                       EventListener listener,
                                       optional boolean useCapture);
-    boolean dispatchEvent(Event evt)
-        raises(EventException);
+    [RaisesException] boolean dispatchEvent(Event evt);
 
     void captureEvents(/*in long eventFlags*/);
     void releaseEvents(/*in long eventFlags*/);
 
 #if defined(LANGUAGE_JAVASCRIPT) && LANGUAGE_JAVASCRIPT
     // Additional constructors.
-    [CustomGetter, CustomConstructor] attribute HTMLImageElementConstructorConstructor Image; // Usable with new operator
-    [CustomGetter] attribute HTMLOptionElementConstructorConstructor Option; // Usable with new operator
-    attribute HTMLOptionElementConstructor HTMLOptionElement;
-    [CustomGetter, Conditional=VIDEO] attribute HTMLAudioElementConstructorConstructor Audio; // Usable with the new operator
-    [Conditional=VIDEO] attribute HTMLAudioElementConstructor HTMLAudioElement;
-    [Conditional=WEB_SOCKETS, CustomGetter] attribute WebSocketConstructor WebSocket;
-    [Conditional=SHARED_WORKERS, CustomGetter] attribute SharedWorkerConstructor SharedWorker; // Usable with the new operator
+    [CustomGetter, CustomConstructor] attribute HTMLImageElementNamedConstructor Image; // Usable with new operator
     // Mozilla has a separate XMLDocument object for XML documents.
     // We just use Document for this.
     attribute DocumentConstructor XMLDocument;
@@ -341,23 +317,8 @@
     [Conditional=INDEXED_DATABASE] attribute IDBObjectStoreConstructor webkitIDBObjectStore;
     [Conditional=INDEXED_DATABASE] attribute IDBRequestConstructor webkitIDBRequest;
     [Conditional=INDEXED_DATABASE] attribute IDBTransactionConstructor webkitIDBTransaction;
-
-    // Constructors whose name does not match the interface name.
-    // FIXME: Remove these once [ImplementedAs] is used and once constructor names match interface names.
-    [Conditional=SHADOW_DOM] attribute ShadowRootConstructor WebKitShadowRoot;
-    [Conditional=MEDIA_SOURCE] attribute MediaSourceConstructor WebKitMediaSource;
-    [Conditional=MEDIA_SOURCE] attribute SourceBufferConstructor WebKitSourceBuffer;
-    [Conditional=MEDIA_SOURCE] attribute SourceBufferListConstructor WebKitSourceBufferList;
-    [Conditional=WEB_AUDIO, CustomGetter] attribute AudioContextConstructor webkitAudioContext;
-    [Conditional=WEB_AUDIO] attribute OfflineAudioContextConstructor webkitOfflineAudioContext;
-    [Conditional=WEB_AUDIO] attribute PannerNodeConstructor webkitAudioPannerNode;
-    [Conditional=MEDIA_STREAM] attribute MediaStreamConstructor webkitMediaStream;
-    [Conditional=MEDIA_STREAM] attribute RTCPeerConnectionConstructor webkitRTCPeerConnection;
-    [Conditional=SCRIPTED_SPEECH] attribute SpeechGrammarConstructor webkitSpeechGrammar;
-    [Conditional=SCRIPTED_SPEECH] attribute SpeechGrammarListConstructor webkitSpeechGrammarList;
-    [Conditional=SCRIPTED_SPEECH] attribute SpeechRecognitionConstructor webkitSpeechRecognition;
-    [Conditional=SCRIPTED_SPEECH] attribute SpeechRecognitionErrorConstructor webkitSpeechRecognitionError;
-    [Conditional=SCRIPTED_SPEECH] attribute SpeechRecognitionEventConstructor webkitSpeechRecognitionEvent;
-
 #endif // defined(LANGUAGE_JAVASCRIPT)
 };
+
+DOMWindow implements WindowTimers;
+DOMWindow implements WindowBase64;

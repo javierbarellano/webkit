@@ -25,7 +25,7 @@
 
 #include "config.h"
 
-#if ENABLE(VIDEO) && ((USE(AVFOUNDATION) && !PLATFORM(WIN)) || PLATFORM(IOS))
+#if ENABLE(VIDEO) && (USE(AVFOUNDATION) || PLATFORM(IOS))
 
 #include "InbandTextTrackPrivateAVF.h"
 
@@ -38,26 +38,35 @@
 #include <wtf/text/WTFString.h>
 #include <wtf/unicode/CharacterNames.h>
 
-SOFT_LINK_FRAMEWORK_OPTIONAL(CoreMedia)
+#if !PLATFORM(WIN)
+#define SOFT_LINK_AVF_FRAMEWORK(Lib) SOFT_LINK_FRAMEWORK_OPTIONAL(Lib)
+#define SOFT_LINK_AVF_POINTER(Lib, Name, Type) SOFT_LINK_POINTER_OPTIONAL(Lib, Name, Type)
+#else
+#define SOFT_LINK_AVF_FRAMEWORK(Lib) SOFT_LINK_LIBRARY(Lib)
+#define SOFT_LINK_AVF_POINTER(Lib, Name, Type) SOFT_LINK_VARIABLE_DLL_IMPORT_OPTIONAL(Lib, Name, Type)
+#endif
 
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_Alignment, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAlignmentType_Start, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAlignmentType_Middle, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAlignmentType_End, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_BoldStyle, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_ItalicStyle, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_UnderlineStyle, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_TextPositionPercentageRelativeToWritingDirection, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_WritingDirectionSizePercentage, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_OrthogonalLinePositionPercentageRelativeToWritingDirection, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_VerticalLayout, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextVerticalLayout_LeftToRight, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextVerticalLayout_RightToLeft, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_BaseFontSizePercentageRelativeToVideoHeight, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_RelativeFontSize, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_FontFamilyName, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_ForegroundColorARGB, CFStringRef)
-SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_BackgroundColorARGB, CFStringRef)
+SOFT_LINK_AVF_FRAMEWORK(CoreMedia)
+
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_Alignment, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAlignmentType_Start, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAlignmentType_Middle, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAlignmentType_End, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_BoldStyle, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_ItalicStyle, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_UnderlineStyle, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_TextPositionPercentageRelativeToWritingDirection, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_WritingDirectionSizePercentage, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_OrthogonalLinePositionPercentageRelativeToWritingDirection, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_VerticalLayout, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextVerticalLayout_LeftToRight, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextVerticalLayout_RightToLeft, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_BaseFontSizePercentageRelativeToVideoHeight, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_RelativeFontSize, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_FontFamilyName, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_ForegroundColorARGB, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_BackgroundColorARGB, CFStringRef)
+SOFT_LINK_AVF_POINTER(CoreMedia, kCMTextMarkupAttribute_CharacterBackgroundColorARGB, CFStringRef)
 
 #define kCMTextMarkupAttribute_Alignment getkCMTextMarkupAttribute_Alignment()
 #define kCMTextMarkupAlignmentType_Start getkCMTextMarkupAlignmentType_Start()
@@ -77,6 +86,7 @@ SOFT_LINK_POINTER_OPTIONAL(CoreMedia, kCMTextMarkupAttribute_BackgroundColorARGB
 #define kCMTextMarkupAttribute_FontFamilyName getkCMTextMarkupAttribute_FontFamilyName()
 #define kCMTextMarkupAttribute_ForegroundColorARGB getkCMTextMarkupAttribute_ForegroundColorARGB()
 #define kCMTextMarkupAttribute_BackgroundColorARGB getkCMTextMarkupAttribute_BackgroundColorARGB()
+#define kCMTextMarkupAttribute_CharacterBackgroundColorARGB getkCMTextMarkupAttribute_CharacterBackgroundColorARGB()
 
 using namespace std;
 
@@ -261,7 +271,7 @@ void InbandTextTrackPrivateAVF::processCueAttributes(CFAttributedStringRef attri
                     tagStart.append(rightToLeftMark);
                 continue;
             }
-            
+
             if (CFStringCompare(key, kCMTextMarkupAttribute_BaseFontSizePercentageRelativeToVideoHeight, 0) == kCFCompareEqualTo) {
                 if (CFGetTypeID(value) != CFNumberGetTypeID())
                     continue;
@@ -272,7 +282,7 @@ void InbandTextTrackPrivateAVF::processCueAttributes(CFAttributedStringRef attri
                 cueData->setBaseFontSize(baseFontSize);
                 continue;
             }
-            
+
             if (CFStringCompare(key, kCMTextMarkupAttribute_RelativeFontSize, 0) == kCFCompareEqualTo) {
                 if (CFGetTypeID(value) != CFNumberGetTypeID())
                     continue;
@@ -295,7 +305,7 @@ void InbandTextTrackPrivateAVF::processCueAttributes(CFAttributedStringRef attri
                 cueData->setFontName(valueString);
                 continue;
             }
-            
+
             if (CFStringCompare(key, kCMTextMarkupAttribute_ForegroundColorARGB, 0) == kCFCompareEqualTo) {
                 CFArrayRef arrayValue = static_cast<CFArrayRef>(value);
                 if (CFGetTypeID(arrayValue) != CFArrayGetTypeID())
@@ -317,6 +327,17 @@ void InbandTextTrackPrivateAVF::processCueAttributes(CFAttributedStringRef attri
                     continue;
                 cueData->setBackgroundColor(color);
             }
+
+            if (CFStringCompare(key, kCMTextMarkupAttribute_CharacterBackgroundColorARGB, 0) == kCFCompareEqualTo) {
+                CFArrayRef arrayValue = static_cast<CFArrayRef>(value);
+                if (CFGetTypeID(arrayValue) != CFArrayGetTypeID())
+                    continue;
+                
+                RGBA32 color;
+                if (!makeRGBA32FromARGBCFArray(arrayValue, color))
+                    continue;
+                cueData->setHighlightColor(color);
+            }
         }
 
         content.append(tagStart);
@@ -333,7 +354,7 @@ void InbandTextTrackPrivateAVF::processCue(CFArrayRef attributedStrings, double 
     if (!client())
         return;
 
-    LOG(Media, "InbandTextTrackPrivateAVF::processCue - %li cues at time %.2f\n", CFArrayGetCount(attributedStrings), time);
+    LOG(Media, "InbandTextTrackPrivateAVF::processCue - %li cues at time %.2f\n", attributedStrings ? CFArrayGetCount(attributedStrings) : 0, time);
 
     if (m_pendingCueStatus != None) {
         // Cues do not have an explicit duration, they are displayed until the next "cue" (which might be empty) is emitted.
@@ -446,4 +467,4 @@ void InbandTextTrackPrivateAVF::setMode(InbandTextTrackPrivate::Mode newMode)
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && ((USE(AVFOUNDATION) && !PLATFORM(WIN)) || PLATFORM(IOS))
+#endif // ENABLE(VIDEO) && (USE(AVFOUNDATION) || PLATFORM(IOS))

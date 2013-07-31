@@ -37,7 +37,6 @@ public:
 
     virtual void chromeDestroyed();
 
-    virtual void* webView() const { return 0; }
     virtual void setWindowRect(const WebCore::FloatRect&);
     virtual WebCore::FloatRect windowRect();
 
@@ -155,6 +154,8 @@ public:
 #endif
 
     virtual void setLastSetCursorToCurrentCursor();
+    virtual void AXStartFrameLoad();
+    virtual void AXFinishFrameLoad();
 
 #if ENABLE(TOUCH_EVENTS)
     virtual void needTouchEvents(bool);

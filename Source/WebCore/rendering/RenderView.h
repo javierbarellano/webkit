@@ -74,6 +74,7 @@ public:
 
     FrameView* frameView() const { return m_frameView; }
 
+    virtual LayoutRect visualOverflowRect() const OVERRIDE;
     virtual void computeRectForRepaint(const RenderLayerModelObject* repaintContainer, LayoutRect&, bool fixed = false) const OVERRIDE;
     void repaintViewRectangle(const LayoutRect&, bool immediate = false) const;
     // Repaint the view, and all composited layers that intersect the given absolute rectangle.
@@ -167,6 +168,7 @@ public:
             m_pageLogicalHeightChanged = true;
         }
     }
+    LayoutUnit pageOrViewLogicalHeight() const;
 
     // FIXME: These functions are deprecated. No code should be added that uses these.
     int bestTruncatedAt() const { return m_legacyPrinting.m_bestTruncatedAt; }
@@ -248,11 +250,12 @@ private:
         // We push LayoutState even if layoutState is disabled because it stores layoutDelta too.
         if (!doingFullRepaint() || m_layoutState->isPaginated() || renderer->hasColumns() || renderer->flowThreadContainingBlock()
             || m_layoutState->lineGrid() || (renderer->style()->lineGrid() != RenderStyle::initialLineGrid() && renderer->isBlockFlow())
-#if ENABLE(CSS_EXCLUSIONS)
-            || (renderer->isRenderBlock() && toRenderBlock(renderer)->exclusionShapeInsideInfo())
-            || (m_layoutState->exclusionShapeInsideInfo() && renderer->isRenderBlock() && !toRenderBlock(renderer)->allowsExclusionShapeInsideInfoSharing())
+#if ENABLE(CSS_SHAPES)
+            || (renderer->isRenderBlock() && toRenderBlock(renderer)->shapeInsideInfo())
+            || (m_layoutState->shapeInsideInfo() && renderer->isRenderBlock() && !toRenderBlock(renderer)->allowsShapeInsideInfoSharing())
 #endif
             ) {
+            pushLayoutStateForCurrentFlowThread(renderer);
             m_layoutState = new (renderArena()) LayoutState(m_layoutState, renderer, offset, pageHeight, pageHeightChanged, colInfo);
             return true;
         }
@@ -264,6 +267,7 @@ private:
         LayoutState* state = m_layoutState;
         m_layoutState = state->m_next;
         state->destroy(renderArena());
+        popLayoutStateForCurrentFlowThread();
     }
 
     // Suspends the LayoutState optimization. Used under transforms that cannot be represented by
@@ -282,6 +286,9 @@ private:
 
     size_t getRetainedWidgets(Vector<RenderWidget*>&);
     void releaseWidgets(Vector<RenderWidget*>&);
+
+    void pushLayoutStateForCurrentFlowThread(const RenderObject*);
+    void popLayoutStateForCurrentFlowThread();
     
     friend class LayoutStateMaintainer;
     friend class LayoutStateDisabler;
@@ -335,6 +342,8 @@ private:
 
     RenderQuote* m_renderQuoteHead;
     unsigned m_renderCounterCount;
+
+    bool m_selectionWasCaret;
 };
 
 inline RenderView* toRenderView(RenderObject* object)

@@ -14,10 +14,10 @@ set(WebKitTestRunner_SOURCES
 )
 
 set(WebKitTestRunner_LIBRARIES
-    ${JavaScriptCore_LIBRARY_NAME}
-    ${WebCore_LIBRARY_NAME}
-    ${WebCoreTestSupport_LIBRARY_NAME}
-    ${WebKit2_LIBRARY_NAME}
+    JavaScriptCore
+    WebCore
+    WebCoreTestSupport
+    WebKit2
 )
 
 set(WebKitTestRunner_INCLUDE_DIRECTORIES
@@ -40,6 +40,8 @@ set(WebKitTestRunner_INCLUDE_DIRECTORIES
     ${WEBKIT2_DIR}/UIProcess
     ${WEBKIT2_DIR}/UIProcess/API/C/efl
     ${WEBKIT2_DIR}/UIProcess/API/C/soup
+    ${WEBKIT2_DIR}/WebProcess/InjectedBundle
+    ${WEBKIT2_DIR}/WebProcess/InjectedBundle/API/c
     ${WTF_DIR}
     ${DERIVED_SOURCES_WEBCORE_DIR}
     ${DERIVED_SOURCES_WEBCORE_DIR}/include
@@ -77,6 +79,16 @@ set(WebKitTestRunnerInjectedBundle_IDL_FILES
     "${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/Bindings/TextInputController.idl"
 )
 
+set(WebKitTestRunnerInjectedBundle_LIBRARIES
+    ${WebKitTestRunner_LIBRARIES}
+    ${ATK_LIBRARIES}
+    ${ECORE_LIBRARIES}
+    ${ECORE_FILE_LIBRARIES}
+    ${FONTCONFIG_LIBRARIES}
+    ${GLIB_LIBRARIES}
+    ${GLIB_GOBJECT_LIBRARIES}
+)
+
 GENERATE_BINDINGS(WebKitTestRunnerInjectedBundle_SOURCES
     "${WebKitTestRunnerInjectedBundle_IDL_FILES}"
     "${WEBKIT_TESTRUNNER_INJECTEDBUNDLE_DIR}/Bindings"
@@ -90,10 +102,10 @@ INCLUDE_IF_EXISTS(${WEBKIT_TESTRUNNER_DIR}/Platform${PORT}.cmake)
 include_directories(${WebKitTestRunner_INCLUDE_DIRECTORIES})
 
 add_library(TestRunnerInjectedBundle SHARED ${WebKitTestRunnerInjectedBundle_SOURCES})
-target_link_libraries(TestRunnerInjectedBundle ${WebKitTestRunner_LIBRARIES})
+target_link_libraries(TestRunnerInjectedBundle ${WebKitTestRunnerInjectedBundle_LIBRARIES})
 
 add_executable(WebKitTestRunner ${WebKitTestRunner_SOURCES})
 target_link_libraries(WebKitTestRunner ${WebKitTestRunner_LIBRARIES})
 
-add_dependencies(${WebKit2_LIBRARY_NAME} ${ForwardingHeadersForWebKitTestRunner_NAME})
-add_dependencies(${WebKit2_LIBRARY_NAME} ${ForwardingNetworkHeadersForWebKitTestRunner_NAME})
+add_dependencies(WebKit2 ${ForwardingHeadersForWebKitTestRunner_NAME})
+add_dependencies(WebKit2 ${ForwardingNetworkHeadersForWebKitTestRunner_NAME})

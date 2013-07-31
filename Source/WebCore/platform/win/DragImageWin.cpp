@@ -71,7 +71,7 @@ DragImageRef createDragImageIconForCachedImageFilename(const String& filename)
 {
     SHFILEINFO shfi = {0};
     String fname = filename;
-    if (FAILED(SHGetFileInfo(static_cast<LPCWSTR>(fname.charactersWithNullTermination()), FILE_ATTRIBUTE_NORMAL,
+    if (FAILED(SHGetFileInfo(static_cast<LPCWSTR>(fname.charactersWithNullTermination().data()), FILE_ATTRIBUTE_NORMAL,
         &shfi, sizeof(shfi), SHGFI_ICON | SHGFI_USEFILEATTRIBUTES)))
         return 0;
 
@@ -110,10 +110,7 @@ static Font dragLabelFont(int size, bool bold, FontRenderingMode renderingMode)
 
     FontDescription description;
     description.setWeight(bold ? FontWeightBold : FontWeightNormal);
-
-    FontFamily family;
-    family.setFamily(metrics.lfSmCaptionFont.lfFaceName);
-    description.setFamily(family);
+    description.setOneFamily(metrics.lfSmCaptionFont.lfFaceName);
     description.setSpecifiedSize((float)size);
     description.setComputedSize((float)size);
     description.setRenderingMode(renderingMode);

@@ -341,15 +341,6 @@ WKStringRef WKPreferencesCopyDefaultTextEncodingName(WKPreferencesRef preference
 
 void WKPreferencesSetPrivateBrowsingEnabled(WKPreferencesRef preferencesRef, bool enabled)
 {
-    if (toImpl(preferencesRef)->privateBrowsingEnabled() == enabled)
-        return;
-
-    // Regardless of whether there are any open pages, we should tell WebContext, so that it could track browsing sessions.
-    if (enabled)
-        WebContext::willStartUsingPrivateBrowsing();
-    else
-        WebContext::willStopUsingPrivateBrowsing();
-
     toImpl(preferencesRef)->setPrivateBrowsingEnabled(enabled);
 }
 
@@ -1104,6 +1095,16 @@ bool WKPreferencesGetSmartInsertDeleteEnabled(WKPreferencesRef preferencesRef)
     return toImpl(preferencesRef)->smartInsertDeleteEnabled();
 }
 
+void WKPreferencesSetSelectTrailingWhitespaceEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setSelectTrailingWhitespaceEnabled(enabled);
+}
+
+bool WKPreferencesGetSelectTrailingWhitespaceEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->selectTrailingWhitespaceEnabled();
+}
+
 void WKPreferencesSetShowsURLsInToolTipsEnabled(WKPreferencesRef preferencesRef, bool enabled)
 {
     toImpl(preferencesRef)->setShowsURLsInToolTipsEnabled(enabled);
@@ -1132,4 +1133,14 @@ void WKPreferencesSetHiddenPageCSSAnimationSuspensionEnabled(WKPreferencesRef pr
 bool WKPreferencesGetHiddenPageCSSAnimationSuspensionEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->hiddenPageCSSAnimationSuspensionEnabled();
+}
+
+void WKPreferencesSetIncrementalRenderingSuppressionTimeout(WKPreferencesRef preferencesRef, double timeout)
+{
+    toImpl(preferencesRef)->setIncrementalRenderingSuppressionTimeout(timeout);
+}
+
+double WKPreferencesGetIncrementalRenderingSuppressionTimeout(WKPreferencesRef preferencesRef)
+{
+    return toAPI(toImpl(preferencesRef)->incrementalRenderingSuppressionTimeout());
 }

@@ -41,7 +41,7 @@
 
 #if ENABLE(VIDEO_TRACK)
 #if (PLATFORM(MAC) && !PLATFORM(IOS)) || HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
-#include "CaptionUserPreferencesMac.h"
+#include "CaptionUserPreferencesMediaAF.h"
 #else
 #include "CaptionUserPreferences.h"
 #endif
@@ -195,7 +195,7 @@ bool PageGroup::isLinkVisited(LinkHash visitedLinkHash)
     if (!m_visitedLinksPopulated) {
         m_visitedLinksPopulated = true;
         ASSERT(!m_pages.isEmpty());
-        (*m_pages.begin())->chrome()->client()->populateVisitedLinks();
+        (*m_pages.begin())->chrome().client()->populateVisitedLinks();
     }
     return m_visitedLinkHashes.contains(visitedLinkHash);
 }
@@ -420,7 +420,7 @@ CaptionUserPreferences* PageGroup::captionPreferences()
 {
     if (!m_captionPreferences)
 #if (PLATFORM(MAC) && !PLATFORM(IOS)) || HAVE(MEDIA_ACCESSIBILITY_FRAMEWORK)
-        m_captionPreferences = CaptionUserPreferencesMac::create(this);
+        m_captionPreferences = CaptionUserPreferencesMediaAF::create(this);
 #else
         m_captionPreferences = CaptionUserPreferences::create(this);
 #endif

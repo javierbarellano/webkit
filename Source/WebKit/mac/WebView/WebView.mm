@@ -116,6 +116,7 @@
 #import <WebCore/ApplicationCacheStorage.h>
 #import <WebCore/BackForwardListImpl.h>
 #import <WebCore/MemoryCache.h>
+#import <WebCore/Chrome.h>
 #import <WebCore/ColorMac.h>
 #import <WebCore/Cursor.h>
 #import <WebCore/DatabaseManager.h>
@@ -421,12 +422,29 @@ static PageVisibilityState core(WebPageVisibilityState visibilityState)
         return PageVisibilityStateHidden;
     case WebPageVisibilityStatePrerender:
         return PageVisibilityStatePrerender;
-    case WebPageVisibilityStatePreview:
-        return PageVisibilityStatePreview;
+    case WebPageVisibilityStateUnloaded:
+        return PageVisibilityStateUnloaded;
     }
 
     ASSERT_NOT_REACHED();
     return PageVisibilityStateVisible;
+}
+
+static WebPageVisibilityState kit(PageVisibilityState visibilityState)
+{
+    switch (visibilityState) {
+    case PageVisibilityStateVisible:
+        return WebPageVisibilityStateVisible;
+    case PageVisibilityStateHidden:
+        return WebPageVisibilityStateHidden;
+    case PageVisibilityStatePrerender:
+        return WebPageVisibilityStatePrerender;
+    case PageVisibilityStateUnloaded:
+        return WebPageVisibilityStateUnloaded;
+    }
+
+    ASSERT_NOT_REACHED();
+    return WebPageVisibilityStateVisible;
 }
 
 @interface WebView (WebFileInternal)
@@ -620,6 +638,11 @@ static void WebKitInitializeApplicationCachePathIfNecessary()
 static bool shouldEnableLoadDeferring()
 {
     return !applicationIsAdobeInstaller();
+}
+
+static bool shouldRestrictWindowFocus()
+{
+    return !applicationIsHRBlock();
 }
 
 - (void)_dispatchPendingLoadRequests
@@ -1116,7 +1139,7 @@ static bool fastDocumentTeardownEnabled()
 
 #if USE(ACCELERATED_COMPOSITING)
     if (_private->layerFlushController) {
-        _private->layerFlushController->invalidateObserver();
+        _private->layerFlushController->invalidate();
         _private->layerFlushController = nullptr;
     }
 #endif
@@ -1495,10 +1518,10 @@ static bool needsSelfRetainWhileLoadingQuirk()
     settings->setCanvasUsesAcceleratedDrawing([preferences canvasUsesAcceleratedDrawing]);    
     settings->setShowDebugBorders([preferences showDebugBorders]);
     settings->setShowRepaintCounter([preferences showRepaintCounter]);
-    settings->setWebAudioEnabled([preferences webAudioEnabled]);
     settings->setWebGLEnabled([preferences webGLEnabled]);
     settings->setAccelerated2dCanvasEnabled([preferences accelerated2dCanvasEnabled]);
     settings->setLoadDeferringEnabled(shouldEnableLoadDeferring());
+    settings->setWindowFocusRestricted(shouldRestrictWindowFocus());
     settings->setFrameFlatteningEnabled([preferences isFrameFlatteningEnabled]);
     settings->setSpatialNavigationEnabled([preferences isSpatialNavigationEnabled]);
     settings->setPaginateDuringLayoutEnabled([preferences paginateDuringLayoutEnabled]);
@@ -1507,6 +1530,9 @@ static bool needsSelfRetainWhileLoadingQuirk()
 #endif
     RuntimeEnabledFeatures::setCSSRegionsEnabled([preferences cssRegionsEnabled]);
     RuntimeEnabledFeatures::setCSSCompositingEnabled([preferences cssCompositingEnabled]);
+#if ENABLE(WEB_AUDIO)
+    settings->setWebAudioEnabled([preferences webAudioEnabled]);
+#endif
 #if ENABLE(IFRAME_SEAMLESS)
     RuntimeEnabledFeatures::setSeamlessIFramesEnabled([preferences seamlessIFramesEnabled]);
 #endif
@@ -1515,20 +1541,15 @@ static bool needsSelfRetainWhileLoadingQuirk()
     settings->setFullScreenEnabled([preferences fullScreenEnabled]);
 #endif
     settings->setAsynchronousSpellCheckingEnabled([preferences asynchronousSpellCheckingEnabled]);
-    settings->setMemoryInfoEnabled([preferences memoryInfoEnabled]);
     settings->setHyperlinkAuditingEnabled([preferences hyperlinkAuditingEnabled]);
     settings->setUsePreHTML5ParserQuirks([self _needsPreHTML5ParserQuirks]);
     settings->setCrossOriginCheckInGetMatchedCSSRulesDisabled([self _needsUnrestrictedGetMatchedCSSRules]);
     settings->setInteractiveFormValidationEnabled([self interactiveFormValidationEnabled]);
     settings->setValidationMessageTimerMagnification([self validationMessageTimerMagnification]);
 #if USE(AVFOUNDATION)
-#if ENABLE(FULLSCREEN_API)
-    settings->setAVFoundationEnabled([preferences isAVFoundationEnabled] && [preferences fullScreenEnabled]);
-#else
-    settings->setAVFoundationEnabled(false);
+    settings->setAVFoundationEnabled([preferences isAVFoundationEnabled]);
 #endif
-#endif
-#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC)
     settings->setQTKitEnabled([preferences isQTKitEnabled]);
 #endif
     settings->setMediaPlaybackRequiresUserGesture([preferences mediaPlaybackRequiresUserGesture]);
@@ -1550,6 +1571,7 @@ static bool needsSelfRetainWhileLoadingQuirk()
     settings->setRequestAnimationFrameEnabled([preferences requestAnimationFrameEnabled]);
     settings->setNeedsDidFinishLoadOrderQuirk(needsDidFinishLoadOrderQuirk());
     settings->setDiagnosticLoggingEnabled([preferences diagnosticLoggingEnabled]);
+    settings->setLowPowerVideoAudioBufferSizeEnabled([preferences lowPowerVideoAudioBufferSizeEnabled]);
 
     switch ([preferences storageBlockingPolicy]) {
     case WebAllowAllStorage:
@@ -1720,7 +1742,8 @@ static inline IMP getMethod(id o, SEL s)
     cache->navigatedFunc = getMethod(delegate, @selector(webView:didNavigateWithNavigationData:inFrame:));
     cache->clientRedirectFunc = getMethod(delegate, @selector(webView:didPerformClientRedirectFromURL:toURL:inFrame:));
     cache->serverRedirectFunc = getMethod(delegate, @selector(webView:didPerformServerRedirectFromURL:toURL:inFrame:));
-    cache->setTitleFunc = getMethod(delegate, @selector(webView:updateHistoryTitle:forURL:));
+    cache->deprecatedSetTitleFunc = getMethod(delegate, @selector(webView:updateHistoryTitle:forURL:));
+    cache->setTitleFunc = getMethod(delegate, @selector(webView:updateHistoryTitle:forURL:inFrame:));
     cache->populateVisitedLinksFunc = getMethod(delegate, @selector(populateVisitedLinksForWebView:));
 }
 
@@ -2427,7 +2450,7 @@ static inline IMP getMethod(id o, SEL s)
     Frame* coreFrame = [self _mainCoreFrame];
     if (!coreFrame)
         return;
-    coreFrame->editor()->command(name).execute(value);
+    coreFrame->editor().command(name).execute(value);
 }
 
 - (void)_setCustomHTMLTokenizerTimeDelay:(double)timeDelay
@@ -2943,6 +2966,15 @@ static Vector<String> toStringVector(NSArray* patterns)
         return 0;
 
     return kitLayoutMilestones(page->requestedLayoutMilestones());
+}
+
+- (WebPageVisibilityState)_visibilityState
+{
+#if ENABLE(PAGE_VISIBILITY_API) || ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
+    if (_private->page)
+        return kit(_private->page->visibilityState());
+#endif
+    return WebPageVisibilityStateVisible;
 }
 
 - (void)_setVisibilityState:(WebPageVisibilityState)visibilityState isInitialState:(BOOL)isInitialState
@@ -3702,7 +3734,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 - (void)doWindowDidChangeScreen
 {
     if (_private && _private->page)
-        _private->page->windowScreenDidChange((PlatformDisplayID)[[[[[self window] screen] deviceDescription] objectForKey:@"NSScreenNumber"] intValue]);
+        _private->page->chrome().windowScreenDidChange((PlatformDisplayID)[[[[[self window] screen] deviceDescription] objectForKey:@"NSScreenNumber"] intValue]);
 }
 
 - (void)_windowChangedKeyState
@@ -5382,7 +5414,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
     Page* page = core(self);
     if (!page)
         return nil;
-    return kit(page->mainFrame()->editor()->rangeForPoint(IntPoint([self convertPoint:point toView:nil])).get());
+    return kit(page->mainFrame()->editor().rangeForPoint(IntPoint([self convertPoint:point toView:nil])).get());
 }
 
 - (BOOL)_shouldChangeSelectedDOMRange:(DOMRange *)currentRange toDOMRange:(DOMRange *)proposedRange affinity:(NSSelectionAffinity)selectionAffinity stillSelecting:(BOOL)flag
@@ -5443,7 +5475,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
         Frame* mainFrame = [self _mainCoreFrame];
         if (mainFrame) {
             if (flag) {
-                mainFrame->editor()->applyEditingStyleToBodyElement();
+                mainFrame->editor().applyEditingStyleToBodyElement();
                 // If the WebView is made editable and the selection is empty, set it to something.
                 if (![self selectedDOMRange])
                     mainFrame->selection()->setSelectionFromNone();
@@ -5730,7 +5762,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
     WebFrame *webFrame = [self _selectedOrMainFrame];
     Frame* coreFrame = core(webFrame);
     if (coreFrame)
-        coreFrame->editor()->deleteSelectionWithSmartDelete([(WebHTMLView *)[[webFrame frameView] documentView] _canSmartCopyOrDelete]);
+        coreFrame->editor().deleteSelectionWithSmartDelete([(WebHTMLView *)[[webFrame frameView] documentView] _canSmartCopyOrDelete]);
 }
     
 - (void)applyStyle:(DOMCSSStyleDeclaration *)style
@@ -5741,7 +5773,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
     Frame* coreFrame = core(webFrame);
     // FIXME: We shouldn't have to make a copy here.
     if (coreFrame)
-        coreFrame->editor()->applyStyle(core(style)->copyProperties().get());
+        coreFrame->editor().applyStyle(core(style)->copyProperties().get());
 }
 
 @end
@@ -5788,7 +5820,7 @@ FOR_EACH_RESPONDER_SELECTOR(FORWARD)
 {
     Frame* coreFrame = core([self _selectedOrMainFrame]);
     if (coreFrame)
-        return coreFrame->editor()->fontAttributesForSelectionStart();
+        return coreFrame->editor().fontAttributesForSelectionStart();
     
     return nil;
 }
@@ -5832,7 +5864,7 @@ FOR_EACH_RESPONDER_SELECTOR(FORWARD)
     Node* coreStartNode= core(startNode);
     if (coreStartNode->document() != coreFrame->document())
         return;
-    return coreFrame->editor()->simplifyMarkup(coreStartNode, core(endNode));    
+    return coreFrame->editor().simplifyMarkup(coreStartNode, core(endNode));    
 }
 
 @end
@@ -6472,7 +6504,7 @@ bool LayerFlushController::flushLayers()
 - (void)_enterFullscreenForNode:(WebCore::Node*)node
 {
     ASSERT(node->hasTagName(WebCore::HTMLNames::videoTag));
-    HTMLMediaElement* videoElement = toMediaElement(node);
+    HTMLMediaElement* videoElement = toHTMLMediaElement(node);
 
     if (_private->fullscreenController) {
         if ([_private->fullscreenController mediaElement] == videoElement) {
@@ -6567,7 +6599,7 @@ static void glibContextIterationCallback(CFRunLoopObserverRef, CFRunLoopActivity
     WebFrame *webFrame = [self _selectedOrMainFrame];
     Frame* coreFrame = core(webFrame);
     if (coreFrame)
-        coreFrame->editor()->handleAlternativeTextUIResult(text);
+        coreFrame->editor().handleAlternativeTextUIResult(text);
 }
 #endif
 

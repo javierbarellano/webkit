@@ -93,7 +93,7 @@ bool HTMLPlugInElement::willRespondToMouseClickEvents()
     return true;
 }
 
-void HTMLPlugInElement::detach()
+void HTMLPlugInElement::detach(const AttachContext& context)
 {
     m_instance.clear();
 
@@ -110,7 +110,7 @@ void HTMLPlugInElement::detach()
     }
 #endif
 
-    HTMLFrameOwnerElement::detach();
+    HTMLFrameOwnerElement::detach(context);
 }
 
 void HTMLPlugInElement::resetInstance()
@@ -200,7 +200,7 @@ void HTMLPlugInElement::defaultEventHandler(Event* event)
 
     RenderObject* r = renderer();
     if (r && r->isEmbeddedObject()) {
-        if (toRenderEmbeddedObject(r)->showsUnavailablePluginIndicator()) {
+        if (toRenderEmbeddedObject(r)->isPluginUnavailable()) {
             toRenderEmbeddedObject(r)->handleUnavailablePluginIndicatorEvent(event);
             return;
         }
@@ -251,7 +251,7 @@ bool HTMLPlugInElement::supportsFocus() const
 
     if (useFallbackContent() || !renderer() || !renderer()->isEmbeddedObject())
         return false;
-    return !toRenderEmbeddedObject(renderer())->showsUnavailablePluginIndicator();
+    return !toRenderEmbeddedObject(renderer())->isPluginUnavailable();
 }
 
 #if ENABLE(NETSCAPE_PLUGIN_API)

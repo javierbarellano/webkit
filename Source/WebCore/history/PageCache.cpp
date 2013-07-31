@@ -48,7 +48,6 @@
 #include "Page.h"
 #include "Settings.h"
 #include "SharedWorkerRepository.h"
-#include "SystemTime.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringConcatenate.h>
@@ -406,6 +405,20 @@ void PageCache::markPagesForFullStyleRecalc(Page* page)
             cachedPage->markForFullStyleRecalc();
     }
 }
+
+
+#if USE(ACCELERATED_COMPOSITING)
+void PageCache::markPagesForDeviceScaleChanged(Page* page)
+{
+    Frame* mainFrame = page->mainFrame();
+
+    for (HistoryItem* current = m_head; current; current = current->m_next) {
+        CachedPage* cachedPage = current->m_cachedPage.get();
+        if (cachedPage->cachedMainFrame()->view()->frame() == mainFrame)
+            cachedPage->markForDeviceScaleChanged();
+    }
+}
+#endif
 
 #if ENABLE(VIDEO_TRACK)
 void PageCache::markPagesForCaptionPreferencesChanged()

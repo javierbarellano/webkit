@@ -43,12 +43,14 @@
 #include "MessagePort.h"
 #include "NotImplemented.h"
 #include "PageGroup.h"
+#include "PlatformStrategies.h"
 #include "ScriptCallStack.h"
 #include "SecurityOrigin.h"
 #include "SecurityOriginHash.h"
 #include "SharedWorker.h"
-#include "SharedWorkerContext.h"
+#include "SharedWorkerGlobalScope.h"
 #include "SharedWorkerRepository.h"
+#include "SharedWorkerStrategy.h"
 #include "SharedWorkerThread.h"
 #include "WorkerLoaderProxy.h"
 #include "WorkerReportingProxy.h"
@@ -78,7 +80,7 @@ public:
 
     // WorkerLoaderProxy
     virtual void postTaskToLoader(PassOwnPtr<ScriptExecutionContext::Task>);
-    virtual bool postTaskForModeToWorkerContext(PassOwnPtr<ScriptExecutionContext::Task>, const String&);
+    virtual bool postTaskForModeToWorkerGlobalScope(PassOwnPtr<ScriptExecutionContext::Task>, const String&);
 
     // WorkerReportingProxy
     virtual void postExceptionToWorkerObject(const String& errorMessage, int lineNumber, int columnNumber, const String& sourceURL);
@@ -87,8 +89,8 @@ public:
     virtual void postMessageToPageInspector(const String&);
     virtual void updateInspectorStateCookie(const String&);
 #endif
-    virtual void workerContextClosed();
-    virtual void workerContextDestroyed();
+    virtual void workerGlobalScopeClosed();
+    virtual void workerGlobalScopeDestroyed();
 
     // Updates the list of the worker's documents, per section 4.5 of the WebWorkers spec.
     void addToWorkerDocuments(ScriptExecutionContext*);
@@ -107,7 +109,7 @@ private:
     bool m_closing;
     String m_name;
     KURL m_url;
-    // The thread is freed when the proxy is destroyed, so we need to make sure that the proxy stays around until the SharedWorkerContext exits.
+    // The thread is freed when the proxy is destroyed, so we need to make sure that the proxy stays around until the SharedWorkerGlobalScope exits.
     RefPtr<SharedWorkerThread> m_thread;
     RefPtr<SecurityOrigin> m_origin;
     HashSet<Document*> m_workerDocuments;
@@ -154,7 +156,7 @@ void SharedWorkerProxy::postTaskToLoader(PassOwnPtr<ScriptExecutionContext::Task
     document->postTask(task);
 }
 
-bool SharedWorkerProxy::postTaskForModeToWorkerContext(PassOwnPtr<ScriptExecutionContext::Task> task, const String& mode)
+bool SharedWorkerProxy::postTaskForModeToWorkerGlobalScope(PassOwnPtr<ScriptExecutionContext::Task> task, const String& mode)
 {
     if (isClosing())
         return false;
@@ -212,14 +214,14 @@ void SharedWorkerProxy::updateInspectorStateCookie(const String&)
 }
 #endif
 
-void SharedWorkerProxy::workerContextClosed()
+void SharedWorkerProxy::workerGlobalScopeClosed()
 {
     if (isClosing())
         return;
     close();
 }
 
-void SharedWorkerProxy::workerContextDestroyed()
+void SharedWorkerProxy::workerGlobalScopeDestroyed()
 {
     // The proxy may be freed by this call, so do not reference it any further.
     DefaultSharedWorkerRepository::instance().removeProxy(this);
@@ -272,12 +274,12 @@ private:
     {
         RefPtr<MessagePort> port = MessagePort::create(*scriptContext);
         port->entangle(m_channel.release());
-        ASSERT_WITH_SECURITY_IMPLICATION(scriptContext->isWorkerContext());
-        WorkerContext* workerContext = static_cast<WorkerContext*>(scriptContext);
+        ASSERT_WITH_SECURITY_IMPLICATION(scriptContext->isWorkerGlobalScope());
+        WorkerGlobalScope* workerGlobalScope = static_cast<WorkerGlobalScope*>(scriptContext);
         // Since close() stops the thread event loop, this should not ever get called while closing.
-        ASSERT(!workerContext->isClosing());
-        ASSERT_WITH_SECURITY_IMPLICATION(workerContext->isSharedWorkerContext());
-        workerContext->dispatchEvent(createConnectEvent(port));
+        ASSERT(!workerGlobalScope->isClosing());
+        ASSERT_WITH_SECURITY_IMPLICATION(workerGlobalScope->isSharedWorkerGlobalScope());
+        workerGlobalScope->dispatchEvent(createConnectEvent(port));
     }
 
     OwnPtr<MessagePortChannel> m_channel;
@@ -328,7 +330,7 @@ void SharedWorkerScriptLoader::didReceiveResponse(unsigned long identifier, cons
 
 void SharedWorkerScriptLoader::notifyFinished()
 {
-    // FIXME: This method is not guaranteed to be invoked if we are loading from WorkerContext (see comment for WorkerScriptLoaderClient::notifyFinished()).
+    // FIXME: This method is not guaranteed to be invoked if we are loading from WorkerGlobalScope (see comment for WorkerScriptLoaderClient::notifyFinished()).
     // We need to address this before supporting nested workers.
 
     // Hand off the just-loaded code to the repository to start up the worker thread.
@@ -351,6 +353,11 @@ DefaultSharedWorkerRepository& DefaultSharedWorkerRepository::instance()
     return *instance;
 }
 
+bool DefaultSharedWorkerRepository::isAvailable()
+{
+    return platformStrategies()->sharedWorkerStrategy()->isAvailable();
+}
+
 void DefaultSharedWorkerRepository::workerScriptLoaded(SharedWorkerProxy& proxy, const String& userAgent, const String& workerScript, PassOwnPtr<MessagePortChannel> port, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType contentSecurityPolicyType)
 {
     MutexLocker lock(m_lock);
@@ -359,7 +366,7 @@ void DefaultSharedWorkerRepository::workerScriptLoaded(SharedWorkerProxy& proxy,
 
     // Another loader may have already started up a thread for this proxy - if so, just send a connect to the pre-existing thread.
     if (!proxy.thread()) {
-        RefPtr<SharedWorkerThread> thread = SharedWorkerThread::create(proxy.name(), proxy.url(), userAgent, proxy.groupSettings(), workerScript, proxy, proxy, DontPauseWorkerContextOnStart, contentSecurityPolicy, contentSecurityPolicyType);
+        RefPtr<SharedWorkerThread> thread = SharedWorkerThread::create(proxy.name(), proxy.url(), userAgent, proxy.groupSettings(), workerScript, proxy, proxy, DontPauseWorkerGlobalScopeOnStart, contentSecurityPolicy, contentSecurityPolicyType);
         proxy.setThread(thread);
         thread->start();
     }

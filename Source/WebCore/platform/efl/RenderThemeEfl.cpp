@@ -866,6 +866,17 @@ bool RenderThemeEfl::paintMenuList(RenderObject* object, const PaintInfo& info, 
 
 void RenderThemeEfl::adjustMenuListButtonStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
+    // Height is locked to auto if height is not specified.
+    style->setHeight(Length(Auto));
+
+    // The <select> box must be at least 12px high for the button to render the text inside the box without clipping.
+    const int dropDownBoxMinHeight = 12;
+
+    // Calculate min-height of the <select> element.
+    int minHeight = style->fontMetrics().height();
+    minHeight = max(minHeight, dropDownBoxMinHeight);
+    style->setMinHeight(Length(minHeight, Fixed));
+
     adjustMenuListStyle(styleResolver, style, element);
 }
 
@@ -1011,14 +1022,14 @@ void RenderThemeEfl::setDefaultFontSize(int size)
     defaultFontSize = size;
 }
 
-void RenderThemeEfl::systemFont(int, FontDescription& fontDescription) const
+void RenderThemeEfl::systemFont(CSSValueID, FontDescription& fontDescription) const
 {
     // It was called by RenderEmbeddedObject::paintReplaced to render alternative string.
     // To avoid cairo_error while rendering, fontDescription should be passed.
     DEFINE_STATIC_LOCAL(String, fontFace, (ASCIILiteral("Sans")));
     float fontSize = defaultFontSize;
 
-    fontDescription.firstFamily().setFamily(fontFace);
+    fontDescription.setOneFamily(fontFace);
     fontDescription.setSpecifiedSize(fontSize);
     fontDescription.setIsAbsoluteSize(true);
     fontDescription.setGenericFamily(FontDescription::NoFamily);
@@ -1118,7 +1129,7 @@ bool RenderThemeEfl::paintMediaFullscreenButton(RenderObject* object, const Pain
     if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
         return false;
 
-    HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);
+    HTMLMediaElement* mediaElement = toHTMLMediaElement(mediaNode);
     if (!emitMediaButtonSignal(FullScreenButton, mediaElement->isFullscreen() ? MediaExitFullscreenButton : MediaEnterFullscreenButton, rect))
         return false;
 
@@ -1133,7 +1144,7 @@ bool RenderThemeEfl::paintMediaMuteButton(RenderObject* object, const PaintInfo&
     if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
         return false;
 
-    HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);
+    HTMLMediaElement* mediaElement = toHTMLMediaElement(mediaNode);
 
     if (!emitMediaButtonSignal(MuteUnMuteButton, mediaElement->muted() ? MediaMuteButton : MediaUnMuteButton, rect))
         return false;
@@ -1275,7 +1286,7 @@ bool RenderThemeEfl::paintMediaToggleClosedCaptionsButton(RenderObject* object, 
     if (!mediaNode || (!mediaNode->hasTagName(videoTag)))
         return false;
 
-    HTMLMediaElement* mediaElement = static_cast<HTMLMediaElement*>(mediaNode);
+    HTMLMediaElement* mediaElement = toHTMLMediaElement(mediaNode);
     if (!emitMediaButtonSignal(ToggleCaptionsButton, mediaElement->webkitClosedCaptionsVisible() ? MediaShowClosedCaptionsButton : MediaHideClosedCaptionsButton, rect))
         return false;
 

@@ -37,6 +37,9 @@ list(APPEND WebCore_SOURCES
 
     editing/atk/FrameSelectionAtk.cpp
 
+    loader/soup/CachedRawResourceSoup.cpp
+    loader/soup/SubresourceLoaderSoup.cpp
+
     page/efl/DragControllerEfl.cpp
     page/efl/EventHandlerEfl.cpp
 
@@ -53,8 +56,8 @@ list(APPEND WebCore_SOURCES
     platform/efl/AsyncFileSystemEfl.cpp
     platform/efl/BatteryProviderEfl.cpp
     platform/efl/ClipboardEfl.cpp
-    platform/efl/ContextMenuEfl.cpp
-    platform/efl/ContextMenuItemEfl.cpp
+    platform/ContextMenuNone.cpp
+    platform/ContextMenuItemNone.cpp
     platform/efl/CursorEfl.cpp
     platform/efl/DragDataEfl.cpp
     platform/efl/DragImageEfl.cpp
@@ -82,7 +85,6 @@ list(APPEND WebCore_SOURCES
     platform/efl/ScrollViewEfl.cpp
     platform/efl/SharedTimerEfl.cpp
     platform/efl/SoundEfl.cpp
-    platform/efl/SystemTimeEfl.cpp
     platform/efl/TemporaryLinkStubs.cpp
     platform/efl/WidgetEfl.cpp
 
@@ -117,6 +119,7 @@ list(APPEND WebCore_SOURCES
     platform/graphics/freetype/GlyphPageTreeNodeFreeType.cpp
     platform/graphics/freetype/SimpleFontDataFreeType.cpp
 
+    platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/GRefPtrGStreamer.cpp
     platform/graphics/gstreamer/GStreamerGWorld.cpp
     platform/graphics/gstreamer/GStreamerUtilities.cpp
@@ -126,7 +129,10 @@ list(APPEND WebCore_SOURCES
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp
     platform/graphics/gstreamer/PlatformVideoWindowEfl.cpp
+    platform/graphics/gstreamer/TextCombinerGStreamer.cpp
+    platform/graphics/gstreamer/TextSinkGStreamer.cpp
     platform/graphics/gstreamer/VideoSinkGStreamer.cpp
+    platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp
 
     platform/graphics/harfbuzz/HarfBuzzFaceCairo.cpp
@@ -158,8 +164,6 @@ list(APPEND WebCore_SOURCES
     platform/network/soup/ResourceResponseSoup.cpp
     platform/network/soup/SocketStreamHandleSoup.cpp
     platform/network/soup/SoupURIUtils.cpp
-
-    platform/PlatformStrategies.cpp
 
     platform/posix/FileSystemPOSIX.cpp
     platform/posix/SharedBufferPOSIX.cpp

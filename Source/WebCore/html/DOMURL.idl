@@ -25,6 +25,7 @@
  */
 
 [
+    GlobalContext=DOMWindow&WorkerGlobalScope,
     Conditional=BLOB,
     Constructor,
     JSGenerateToNativeObject,

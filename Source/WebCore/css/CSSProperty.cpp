@@ -516,6 +516,7 @@ bool CSSProperty::isInheritedProperty(CSSPropertyID propertyID)
     case CSSPropertyWebkitAnimationTimingFunction:
     case CSSPropertyWebkitAppearance:
     case CSSPropertyWebkitBackfaceVisibility:
+    case CSSPropertyWebkitBackgroundBlendMode:
     case CSSPropertyWebkitBackgroundClip:
     case CSSPropertyWebkitBackgroundComposite:
     case CSSPropertyWebkitBackgroundOrigin:
@@ -571,7 +572,6 @@ bool CSSProperty::isInheritedProperty(CSSPropertyID propertyID)
 #endif
 #if ENABLE(CSS_COMPOSITING)
     case CSSPropertyWebkitBlendMode:
-    case CSSPropertyWebkitBackgroundBlendMode:
 #endif
     case CSSPropertyWebkitAlignContent:
     case CSSPropertyWebkitAlignItems:
@@ -589,8 +589,8 @@ bool CSSProperty::isInheritedProperty(CSSPropertyID propertyID)
     case CSSPropertyWebkitGridAutoColumns:
     case CSSPropertyWebkitGridAutoFlow:
     case CSSPropertyWebkitGridAutoRows:
-    case CSSPropertyWebkitGridColumns:
-    case CSSPropertyWebkitGridRows:
+    case CSSPropertyWebkitGridDefinitionColumns:
+    case CSSPropertyWebkitGridDefinitionRows:
     case CSSPropertyWebkitGridStart:
     case CSSPropertyWebkitGridEnd:
     case CSSPropertyWebkitGridBefore:
@@ -664,18 +664,20 @@ bool CSSProperty::isInheritedProperty(CSSPropertyID propertyID)
 #if ENABLE(CSS_REGIONS)
     case CSSPropertyWebkitFlowInto:
     case CSSPropertyWebkitFlowFrom:
-    case CSSPropertyWebkitRegionOverflow:
     case CSSPropertyWebkitRegionBreakAfter:
     case CSSPropertyWebkitRegionBreakBefore:
     case CSSPropertyWebkitRegionBreakInside:
+    case CSSPropertyWebkitRegionFragment:
 #endif
 #if ENABLE(CSS_EXCLUSIONS)
     case CSSPropertyWebkitWrapFlow:
+    case CSSPropertyWebkitWrapThrough:
+#endif
+#if ENABLE(CSS_SHAPES)
     case CSSPropertyWebkitShapeMargin:
     case CSSPropertyWebkitShapePadding:
     case CSSPropertyWebkitShapeInside:
     case CSSPropertyWebkitShapeOutside:
-    case CSSPropertyWebkitWrapThrough:
 #endif
 #if ENABLE(CSS_SHADERS)
     case CSSPropertyMix:

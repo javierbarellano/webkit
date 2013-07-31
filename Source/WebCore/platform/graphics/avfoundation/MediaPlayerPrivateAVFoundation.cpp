@@ -74,9 +74,8 @@ MediaPlayerPrivateAVFoundation::MediaPlayerPrivateAVFoundation(MediaPlayer* play
     , m_ignoreLoadStateChanges(false)
     , m_haveReportedFirstVideoFrame(false)
     , m_playWhenFramesAvailable(false)
-#if !PLATFORM(WIN)
     , m_inbandTrackConfigurationPending(false)
-#endif
+    , m_seekCount(0)
 {
     LOG(Media, "MediaPlayerPrivateAVFoundation::MediaPlayerPrivateAVFoundation(%p)", this);
 }
@@ -266,14 +265,13 @@ void MediaPlayerPrivateAVFoundation::seek(float time)
     if (currentTime() == time)
         return;
 
-#if !PLATFORM(WIN)
     if (currentTrack())
         currentTrack()->beginSeeking();
-#endif
     
     LOG(Media, "MediaPlayerPrivateAVFoundation::seek(%p) - seeking to %f", this, time);
     m_seekTo = time;
 
+    ++m_seekCount;
     seekToTime(time);
 }
 
@@ -593,10 +591,12 @@ void MediaPlayerPrivateAVFoundation::seekCompleted(bool finished)
     LOG(Media, "MediaPlayerPrivateAVFoundation::seekCompleted(%p) - finished = %d", this, finished);
     UNUSED_PARAM(finished);
 
-#if !PLATFORM(WIN)
+    ASSERT(m_seekCount);
+    if (--m_seekCount)
+        return;
+
     if (currentTrack())
         currentTrack()->endSeeking();
-#endif
 
     m_seekTo = MediaPlayer::invalidTime();
     updateStates();
@@ -827,10 +827,8 @@ void MediaPlayerPrivateAVFoundation::dispatchNotification()
         contentsNeedsDisplay();
         break;
     case Notification::InbandTracksNeedConfiguration:
-#if !PLATFORM(WIN)
         m_inbandTrackConfigurationPending = false;
         configureInbandTracks();
-#endif
         break;
 
     case Notification::None:
@@ -839,7 +837,6 @@ void MediaPlayerPrivateAVFoundation::dispatchNotification()
     }
 }
 
-#if !PLATFORM(WIN)
 void MediaPlayerPrivateAVFoundation::configureInbandTracks()
 {
     RefPtr<InbandTextTrackPrivateAVF> trackToEnable;
@@ -866,7 +863,50 @@ void MediaPlayerPrivateAVFoundation::trackModeChanged()
     m_inbandTrackConfigurationPending = true;
     scheduleMainThreadNotification(Notification::InbandTracksNeedConfiguration);
 }
-#endif
+
+size_t MediaPlayerPrivateAVFoundation::extraMemoryCost() const
+{
+    double duration = this->duration();
+    if (!duration)
+        return 0;
+
+    return totalBytes() * buffered()->totalDuration() / duration;
+}
+
+void MediaPlayerPrivateAVFoundation::clearTextTracks()
+{
+    for (unsigned i = 0; i < m_textTracks.size(); ++i) {
+        RefPtr<InbandTextTrackPrivateAVF> track = m_textTracks[i];
+        player()->removeTextTrack(track);
+        track->disconnect();
+    }
+    m_textTracks.clear();
+}
+
+void MediaPlayerPrivateAVFoundation::processNewAndRemovedTextTracks(const Vector<RefPtr<InbandTextTrackPrivateAVF> >& removedTextTracks)
+{
+    if (removedTextTracks.size()) {
+        for (unsigned i = 0; i < m_textTracks.size(); ++i) {
+            if (!removedTextTracks.contains(m_textTracks[i]))
+                continue;
+            
+            player()->removeTextTrack(removedTextTracks[i].get());
+            m_textTracks.remove(i);
+        }
+    }
+    
+    for (unsigned i = 0; i < m_textTracks.size(); ++i) {
+        RefPtr<InbandTextTrackPrivateAVF> track = m_textTracks[i];
+        
+        track->setTextTrackIndex(i);
+        if (track->hasBeenReported())
+            continue;
+        
+        track->setHasBeenReported(true);
+        player()->addTextTrack(track.get());
+    }
+    LOG(Media, "MediaPlayerPrivateAVFoundation::processNewAndRemovedTextTracks(%p) - found %lu text tracks", this, m_textTracks.size());
+}
 
 } // namespace WebCore
 

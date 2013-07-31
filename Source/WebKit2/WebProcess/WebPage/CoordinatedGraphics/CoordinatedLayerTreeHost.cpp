@@ -40,17 +40,8 @@
 #include "WebPageProxyMessages.h"
 #include <WebCore/Frame.h>
 #include <WebCore/FrameView.h>
-#include <WebCore/GraphicsSurface.h>
-#include <WebCore/Page.h>
-#include <WebCore/RenderLayer.h>
-#include <WebCore/RenderLayerBacking.h>
-#include <WebCore/RenderLayerCompositor.h>
-#include <WebCore/RenderView.h>
 #include <WebCore/Settings.h>
-#include <WebCore/SurfaceUpdateInfo.h>
-#include <WebCore/TextureMapperPlatformLayer.h>
 #include <wtf/CurrentTime.h>
-#include <wtf/TemporaryChange.h>
 
 #if ENABLE(CSS_SHADERS)
 #include "CustomFilterValidatedProgram.h"
@@ -71,49 +62,26 @@ CoordinatedLayerTreeHost::~CoordinatedLayerTreeHost()
 #if ENABLE(CSS_SHADERS)
     disconnectCustomFilterPrograms();
 #endif
-    purgeBackingStores();
-
-    LayerMap::iterator end = m_registeredLayers.end();
-    for (LayerMap::iterator it = m_registeredLayers.begin(); it != end; ++it)
-        it->value->setCoordinator(0);
 }
 
 CoordinatedLayerTreeHost::CoordinatedLayerTreeHost(WebPage* webPage)
     : LayerTreeHost(webPage)
-    , m_rootCompositingLayer(0)
     , m_notifyAfterScheduledLayerFlush(false)
     , m_isValid(true)
-    , m_isPurging(false)
-    , m_isFlushingLayerChanges(false)
-    , m_waitingForUIProcess(true)
     , m_isSuspended(false)
-    , m_shouldSyncFrame(false)
-    , m_didInitializeRootCompositingLayer(false)
+    , m_isWaitingForRenderer(true)
     , m_layerFlushTimer(this, &CoordinatedLayerTreeHost::layerFlushTimerFired)
-    , m_releaseInactiveAtlasesTimer(this, &CoordinatedLayerTreeHost::releaseInactiveAtlasesTimerFired)
     , m_layerFlushSchedulingEnabled(true)
     , m_forceRepaintAsyncCallbackID(0)
-    , m_animationsLocked(false)
 {
-    m_webPage->corePage()->settings()->setScrollingCoordinatorEnabled(true);
-    m_webPage->corePage()->settings()->setApplyDeviceScaleFactorInCompositor(true);
+    m_coordinator = CompositingCoordinator::create(webPage->corePage(), this);
 
-    // Create a root layer.
-    m_rootLayer = GraphicsLayer::create(this, this);
-#ifndef NDEBUG
-    m_rootLayer->setName("CoordinatedLayerTreeHost root layer");
-#endif
-    m_rootLayer->setDrawsContent(false);
-    m_rootLayer->setSize(m_webPage->size());
-    m_layerTreeContext.coordinatedLayerID = toCoordinatedGraphicsLayer(m_rootLayer.get())->id();
+    m_coordinator->createRootLayer(webPage->size());
+    m_layerTreeContext.coordinatedLayerID = toCoordinatedGraphicsLayer(m_coordinator->rootLayer())->id();
 
     CoordinatedSurface::setFactory(createCoordinatedSurface);
 
-    // This is a temporary way to enable this only in the GL case, until TextureMapperImageBuffer is removed.
-    // See https://bugs.webkit.org/show_bug.cgi?id=114869
-    CoordinatedGraphicsLayer::setShouldSupportContentsTiling(true);
-
-    if (m_webPage->hasPageOverlay())
+    if (webPage->hasPageOverlay())
         createPageOverlayLayer();
 
     scheduleLayerFlush();
@@ -139,7 +107,7 @@ void CoordinatedLayerTreeHost::scheduleLayerFlush()
     if (!m_layerFlushSchedulingEnabled)
         return;
 
-    if (!m_layerFlushTimer.isActive())
+    if (!m_layerFlushTimer.isActive() || m_layerFlushTimer.nextFireInterval() > 0)
         m_layerFlushTimer.startOneShot(0);
 }
 
@@ -155,12 +123,7 @@ void CoordinatedLayerTreeHost::setShouldNotifyAfterNextScheduledLayerFlush(bool 
 
 void CoordinatedLayerTreeHost::setRootCompositingLayer(WebCore::GraphicsLayer* graphicsLayer)
 {
-    if (m_rootCompositingLayer)
-        m_rootCompositingLayer->removeFromParent();
-
-    m_rootCompositingLayer = graphicsLayer;
-    if (m_rootCompositingLayer)
-        m_rootLayer->addChildAtIndex(m_rootCompositingLayer, 0);
+    m_coordinator->setRootCompositingLayer(graphicsLayer);
 }
 
 void CoordinatedLayerTreeHost::invalidate()
@@ -168,7 +131,7 @@ void CoordinatedLayerTreeHost::invalidate()
     cancelPendingLayerFlush();
 
     ASSERT(m_isValid);
-    m_rootLayer = nullptr;
+    m_coordinator->clearRootLayer();
     m_isValid = false;
 }
 
@@ -176,12 +139,16 @@ void CoordinatedLayerTreeHost::forceRepaint()
 {
     // This is necessary for running layout tests. Since in this case we are not waiting for a UIProcess to reply nicely.
     // Instead we are just triggering forceRepaint. But we still want to have the scripted animation callbacks being executed.
-    syncDisplayState();
+    m_coordinator->syncDisplayState();
 
     // We need to schedule another flush, otherwise the forced paint might cancel a later expected flush.
     // This is aligned with LayerTreeHostCA.
     scheduleLayerFlush();
-    flushPendingLayerChanges();
+
+    if (m_isWaitingForRenderer)
+        return;
+
+    m_coordinator->flushPendingLayerChanges();
 }
 
 bool CoordinatedLayerTreeHost::forceRepaintAsync(uint64_t callbackID)
@@ -195,7 +162,7 @@ bool CoordinatedLayerTreeHost::forceRepaintAsync(uint64_t callbackID)
 
 void CoordinatedLayerTreeHost::sizeDidChange(const WebCore::IntSize& newSize)
 {
-    m_rootLayer->setSize(newSize);
+    m_coordinator->sizeDidChange(newSize);
     scheduleLayerFlush();
 }
 
@@ -230,126 +197,49 @@ void CoordinatedLayerTreeHost::setPageOverlayOpacity(PageOverlay*, float value)
     scheduleLayerFlush();
 }
 
-bool CoordinatedLayerTreeHost::flushPendingLayerChanges()
+void CoordinatedLayerTreeHost::setVisibleContentsRect(const FloatRect& rect, const FloatPoint& trajectoryVector)
 {
-    if (m_waitingForUIProcess)
-        return false;
-
-    TemporaryChange<bool> protector(m_isFlushingLayerChanges, true);
-
-    createCompositingLayers();
-    initializeRootCompositingLayerIfNeeded();
-
-    m_rootLayer->flushCompositingStateForThisLayerOnly();
-    if (m_pageOverlayLayer)
-        m_pageOverlayLayer->flushCompositingStateForThisLayerOnly();
-
-    bool didSync = m_webPage->corePage()->mainFrame()->view()->flushCompositingStateIncludingSubframes();
-
-    flushPendingImageBackingChanges();
-    deleteCompositingLayers();
-
-    if (m_shouldSyncFrame) {
-        didSync = true;
-
-        if (m_rootCompositingLayer) {
-            m_state.contentsSize = roundedIntSize(m_rootCompositingLayer->size());
-            if (CoordinatedGraphicsLayer* contentsLayer = mainContentsLayer())
-                m_state.coveredRect = contentsLayer->coverRect();
-        }
-
-        m_state.scrollPosition = m_visibleContentsRect.location();
-
-        m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CommitCoordinatedGraphicsState(m_state));
-
-        m_state.layersToUpdate.clear();
-        m_state.imagesToUpdate.clear();
-
-        m_waitingForUIProcess = true;
-        m_shouldSyncFrame = false;
-    }
-
-    if (m_forceRepaintAsyncCallbackID) {
-        m_webPage->send(Messages::WebPageProxy::VoidCallback(m_forceRepaintAsyncCallbackID));
-        m_forceRepaintAsyncCallbackID = 0;
-    }
-
-    return didSync;
+    m_coordinator->setVisibleContentsRect(rect, trajectoryVector);
+    scheduleLayerFlush();
 }
 
-void CoordinatedLayerTreeHost::createCompositingLayers()
+void CoordinatedLayerTreeHost::renderNextFrame()
 {
-    if (m_layersToCreate.isEmpty())
-        return;
-
-    // If a layer gets created and deleted in the same cycle, we can simply remove it from m_layersToCreate and m_layersToDelete.
-    for (int i = m_layersToCreate.size() - 1; i >= 0; --i) {
-        size_t index = m_layersToDelete.find(m_layersToCreate[i]);
-        if (index != notFound) {
-            m_layersToCreate.remove(i);
-            m_layersToDelete.remove(index);
-        }
-    }
-
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CreateCompositingLayers(m_layersToCreate));
-    m_layersToCreate.clear();
-    m_shouldSyncFrame = true;
+    m_isWaitingForRenderer = false;
+    scheduleLayerFlush();
+    m_coordinator->renderNextFrame();
 }
 
-void CoordinatedLayerTreeHost::deleteCompositingLayers()
+void CoordinatedLayerTreeHost::purgeBackingStores()
 {
-    if (m_layersToDelete.isEmpty())
-        return;
-
-    if (m_isPurging) {
-        m_layersToDelete.clear();
-        return;
-    }
-
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::DeleteCompositingLayers(m_layersToDelete));
-    m_layersToDelete.clear();
-    m_shouldSyncFrame = true;
+    m_coordinator->purgeBackingStores();
 }
 
-void CoordinatedLayerTreeHost::initializeRootCompositingLayerIfNeeded()
+void CoordinatedLayerTreeHost::willSyncLayerState(CoordinatedGraphicsLayerState& state)
 {
-    if (m_didInitializeRootCompositingLayer)
-        return;
-
-    m_state.rootCompositingLayer = toCoordinatedGraphicsLayer(m_rootLayer.get())->id();
-    m_didInitializeRootCompositingLayer = true;
-    m_shouldSyncFrame = true;
-}
-
-void CoordinatedLayerTreeHost::syncLayerState(CoordinatedLayerID id, CoordinatedGraphicsLayerState& state)
-{
-    m_shouldSyncFrame = true;
-
 #if ENABLE(CSS_SHADERS)
-    prepareCustomFilterProxiesIfNeeded(state);
-#endif
-
-    m_state.layersToUpdate.append(std::make_pair(id, state));
-}
-
-#if ENABLE(CSS_SHADERS)
-void CoordinatedLayerTreeHost::prepareCustomFilterProxiesIfNeeded(CoordinatedGraphicsLayerState& state)
-{
-    if (state.animationsChanged) {
-        GraphicsLayerAnimations& activeAnimations = state.animations;
-        for (size_t i = 0; i < activeAnimations.animations().size(); ++i) {
-            const KeyframeValueList& keyframes = activeAnimations.animations().at(i).keyframes();
-            if (keyframes.property() != AnimatedPropertyWebkitFilter)
-                continue;
-            for (size_t j = 0; j < keyframes.size(); ++j) {
-                const FilterAnimationValue& filterValue = static_cast<const FilterAnimationValue&>(keyframes.at(i));
-                checkCustomFilterProgramProxies(filterValue.value());
-            }
-        }
-    }
+    if (state.animationsChanged)
+        prepareCustomFilterProxiesForAnimations(state.animations);
 
     if (state.filtersChanged)
         checkCustomFilterProgramProxies(state.filters);
+#else
+    UNUSED_PARAM(state);
+#endif
+}
+
+#if ENABLE(CSS_SHADERS)
+void CoordinatedLayerTreeHost::prepareCustomFilterProxiesForAnimations(GraphicsLayerAnimations& activeAnimations)
+{
+    for (size_t i = 0; i < activeAnimations.animations().size(); ++i) {
+        const KeyframeValueList& keyframes = activeAnimations.animations().at(i).keyframes();
+        if (keyframes.property() != AnimatedPropertyWebkitFilter)
+            continue;
+        for (size_t j = 0; j < keyframes.size(); ++j) {
+            const FilterAnimationValue& filterValue = static_cast<const FilterAnimationValue&>(keyframes.at(j));
+            checkCustomFilterProgramProxies(filterValue.value());
+        }
+    }
 }
 
 void CoordinatedLayerTreeHost::checkCustomFilterProgramProxies(const FilterOperations& filters)
@@ -379,7 +269,7 @@ void CoordinatedLayerTreeHost::checkCustomFilterProgramProxies(const FilterOpera
         if (!customFilterProgramProxy->client()) {
             customFilterProgramProxy->setClient(this);
             m_customFilterPrograms.add(customFilterProgramProxy.get());
-            m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CreateCustomFilterProgram(customFilterProgramProxy->id(), customOperation->validatedProgram()->validatedProgramInfo()));
+            m_coordinator->state().customFiltersToCreate.append(std::make_pair(customFilterProgramProxy->id(), customOperation->validatedProgram()->validatedProgramInfo()));
         } else {
             // If the client was not disconnected then this coordinator must be the client for it.
             ASSERT(customFilterProgramProxy->client() == this);
@@ -392,7 +282,7 @@ void CoordinatedLayerTreeHost::removeCustomFilterProgramProxy(WebCustomFilterPro
     // At this time the shader is not needed anymore, so we remove it from our set and
     // send a message to the other process to delete it.
     m_customFilterPrograms.remove(customFilterProgramProxy);
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::RemoveCustomFilterProgram(customFilterProgramProxy->id()));
+    m_coordinator->state().customFiltersToRemove.append(customFilterProgramProxy->id());
 }
 
 void CoordinatedLayerTreeHost::disconnectCustomFilterPrograms()
@@ -404,40 +294,30 @@ void CoordinatedLayerTreeHost::disconnectCustomFilterPrograms()
 }
 #endif // ENABLE(CSS_SHADERS)
 
-void CoordinatedLayerTreeHost::detachLayer(CoordinatedGraphicsLayer* layer)
+void CoordinatedLayerTreeHost::didFlushRootLayer()
 {
-    m_registeredLayers.remove(layer->id());
-    m_layersToDelete.append(layer->id());
-    scheduleLayerFlush();
+    if (m_pageOverlayLayer)
+        m_pageOverlayLayer->flushCompositingStateForThisLayerOnly();
 }
 
 void CoordinatedLayerTreeHost::performScheduledLayerFlush()
 {
-    if (m_isSuspended || m_waitingForUIProcess)
+    if (m_isSuspended || m_isWaitingForRenderer)
         return;
 
-    syncDisplayState();
+    m_coordinator->syncDisplayState();
 
     if (!m_isValid)
         return;
 
-    if (flushPendingLayerChanges())
-        didPerformScheduledLayerFlush();
-}
+    bool didSync = m_coordinator->flushPendingLayerChanges();
 
-void CoordinatedLayerTreeHost::syncDisplayState()
-{
-#if ENABLE(REQUEST_ANIMATION_FRAME) && !USE(REQUEST_ANIMATION_FRAME_TIMER) && !USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
-    // Make sure that any previously registered animation callbacks are being executed before we flush the layers.
-    m_webPage->corePage()->mainFrame()->view()->serviceScriptedAnimations(currentTime());
-#endif
+    if (m_forceRepaintAsyncCallbackID) {
+        m_webPage->send(Messages::WebPageProxy::VoidCallback(m_forceRepaintAsyncCallbackID));
+        m_forceRepaintAsyncCallbackID = 0;
+    }
 
-    m_webPage->layoutIfNeeded();
-}
-
-void CoordinatedLayerTreeHost::didPerformScheduledLayerFlush()
-{
-    if (m_notifyAfterScheduledLayerFlush) {
+    if (m_notifyAfterScheduledLayerFlush && didSync) {
         static_cast<DrawingAreaImpl*>(m_webPage->drawingArea())->layerHostDidFlushLayers();
         m_notifyAfterScheduledLayerFlush = false;
     }
@@ -452,15 +332,15 @@ void CoordinatedLayerTreeHost::createPageOverlayLayer()
 {
     ASSERT(!m_pageOverlayLayer);
 
-    m_pageOverlayLayer = GraphicsLayer::create(this, this);
+    m_pageOverlayLayer = GraphicsLayer::create(graphicsLayerFactory(), m_coordinator.get());
 #ifndef NDEBUG
-    m_pageOverlayLayer->setName("CoordinatedLayerTreeHost page overlay content");
+    m_pageOverlayLayer->setName("CompositingCoordinator page overlay content");
 #endif
 
     m_pageOverlayLayer->setDrawsContent(true);
-    m_pageOverlayLayer->setSize(m_webPage->size());
+    m_pageOverlayLayer->setSize(m_coordinator->rootLayer()->size());
 
-    m_rootLayer->addChild(m_pageOverlayLayer.get());
+    m_coordinator->rootLayer()->addChild(m_pageOverlayLayer.get());
 }
 
 void CoordinatedLayerTreeHost::destroyPageOverlayLayer()
@@ -470,72 +350,7 @@ void CoordinatedLayerTreeHost::destroyPageOverlayLayer()
     m_pageOverlayLayer = nullptr;
 }
 
-PassRefPtr<CoordinatedImageBacking> CoordinatedLayerTreeHost::createImageBackingIfNeeded(Image* image)
-{
-    CoordinatedImageBackingID imageID = CoordinatedImageBacking::getCoordinatedImageBackingID(image);
-    ImageBackingMap::iterator it = m_imageBackings.find(imageID);
-    RefPtr<CoordinatedImageBacking> imageBacking;
-    if (it == m_imageBackings.end()) {
-        imageBacking = CoordinatedImageBacking::create(this, image);
-        m_imageBackings.add(imageID, imageBacking);
-    } else
-        imageBacking = it->value;
-
-    return imageBacking;
-}
-
-void CoordinatedLayerTreeHost::createImageBacking(CoordinatedImageBackingID imageID)
-{
-    m_shouldSyncFrame = true;
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CreateImageBacking(imageID));
-}
-
-bool CoordinatedLayerTreeHost::updateImageBacking(CoordinatedImageBackingID imageID, PassRefPtr<CoordinatedSurface> coordinatedSurface)
-{
-    m_shouldSyncFrame = true;
-    WebCoordinatedSurface* webCoordinatedSurface = static_cast<WebCoordinatedSurface*>(coordinatedSurface.get());
-    WebCoordinatedSurface::Handle handle;
-    if (!webCoordinatedSurface->createHandle(handle))
-        return false;
-
-    m_state.imagesToUpdate.append(std::make_pair(imageID, coordinatedSurface));
-    return true;
-}
-
-void CoordinatedLayerTreeHost::clearImageBackingContents(CoordinatedImageBackingID imageID)
-{
-    m_shouldSyncFrame = true;
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::ClearImageBackingContents(imageID));
-}
-
-void CoordinatedLayerTreeHost::removeImageBacking(CoordinatedImageBackingID imageID)
-{
-    if (m_isPurging)
-        return;
-
-    ASSERT(m_imageBackings.contains(imageID));
-    m_shouldSyncFrame = true;
-    m_imageBackings.remove(imageID);
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::RemoveImageBacking(imageID));
-}
-
-void CoordinatedLayerTreeHost::flushPendingImageBackingChanges()
-{
-    ImageBackingMap::iterator end = m_imageBackings.end();
-    for (ImageBackingMap::iterator iter = m_imageBackings.begin(); iter != end; ++iter)
-        iter->value->update();
-}
-
-void CoordinatedLayerTreeHost::notifyAnimationStarted(const WebCore::GraphicsLayer*, double /* time */)
-{
-}
-
-void CoordinatedLayerTreeHost::notifyFlushRequired(const WebCore::GraphicsLayer*)
-{
-    scheduleLayerFlush();
-}
-
-void CoordinatedLayerTreeHost::paintContents(const WebCore::GraphicsLayer* graphicsLayer, WebCore::GraphicsContext& graphicsContext, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect& clipRect)
+void CoordinatedLayerTreeHost::paintLayerContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, const IntRect& clipRect)
 {
     if (graphicsLayer == m_pageOverlayLayer) {
         // Overlays contain transparent contents and won't clear the context as part of their rendering, so we do it here.
@@ -545,15 +360,10 @@ void CoordinatedLayerTreeHost::paintContents(const WebCore::GraphicsLayer* graph
     }
 }
 
-PassOwnPtr<GraphicsLayer> CoordinatedLayerTreeHost::createGraphicsLayer(GraphicsLayerClient* client)
+void CoordinatedLayerTreeHost::commitSceneState(const WebCore::CoordinatedGraphicsState& state)
 {
-    CoordinatedGraphicsLayer* layer = new CoordinatedGraphicsLayer(client);
-    layer->setCoordinator(this);
-    m_registeredLayers.add(layer->id(), layer);
-    m_layersToCreate.append(layer->id());
-    layer->setNeedsVisibleRectAdjustment();
-    scheduleLayerFlush();
-    return adoptPtr(layer);
+    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CommitCoordinatedGraphicsState(state));
+    m_isWaitingForRenderer = true;
 }
 
 PassRefPtr<CoordinatedSurface> CoordinatedLayerTreeHost::createCoordinatedSurface(const IntSize& size, CoordinatedSurface::Flags flags)
@@ -561,78 +371,14 @@ PassRefPtr<CoordinatedSurface> CoordinatedLayerTreeHost::createCoordinatedSurfac
     return WebCoordinatedSurface::create(size, flags);
 }
 
-float CoordinatedLayerTreeHost::deviceScaleFactor() const
-{
-    return m_webPage->deviceScaleFactor();
-}
-
-float CoordinatedLayerTreeHost::pageScaleFactor() const
-{
-    return m_webPage->pageScaleFactor();
-}
-
 bool LayerTreeHost::supportsAcceleratedCompositing()
 {
     return true;
 }
 
-bool CoordinatedLayerTreeHost::createUpdateAtlas(uint32_t atlasID, PassRefPtr<CoordinatedSurface> coordinatedSurface)
-{
-    WebCoordinatedSurface* webCoordinatedSurface = static_cast<WebCoordinatedSurface*>(coordinatedSurface.get());
-    WebCoordinatedSurface::Handle handle;
-    if (!webCoordinatedSurface->createHandle(handle))
-        return false;
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::CreateUpdateAtlas(atlasID, handle));
-    return true;
-}
-
-void CoordinatedLayerTreeHost::removeUpdateAtlas(uint32_t atlasID)
-{
-    if (m_isPurging)
-        return;
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::RemoveUpdateAtlas(atlasID));
-}
-
-WebCore::FloatRect CoordinatedLayerTreeHost::visibleContentsRect() const
-{
-    return m_visibleContentsRect;
-}
-
-CoordinatedGraphicsLayer* CoordinatedLayerTreeHost::mainContentsLayer()
-{
-    if (!m_rootCompositingLayer)
-        return 0;
-
-    return toCoordinatedGraphicsLayer(m_rootCompositingLayer)->findFirstDescendantWithContentsRecursively();
-}
-
-void CoordinatedLayerTreeHost::setVisibleContentsRect(const FloatRect& rect, const FloatPoint& trajectoryVector)
-{
-    // A zero trajectoryVector indicates that tiles all around the viewport are requested.
-    if (CoordinatedGraphicsLayer* contentsLayer = mainContentsLayer())
-        contentsLayer->setVisibleContentRectTrajectoryVector(trajectoryVector);
-
-    bool contentsRectDidChange = rect != m_visibleContentsRect;
-    if (contentsRectDidChange) {
-        m_visibleContentsRect = rect;
-
-        LayerMap::iterator end = m_registeredLayers.end();
-        for (LayerMap::iterator it = m_registeredLayers.begin(); it != end; ++it) {
-            it->value->setNeedsVisibleRectAdjustment();
-        }
-    }
-
-    scheduleLayerFlush();
-    if (m_webPage->useFixedLayout()) {
-        // Round the rect instead of enclosing it to make sure that its size stays
-        // the same while panning. This can have nasty effects on layout.
-        m_webPage->setFixedVisibleContentRect(roundedIntRect(rect));
-    }
-}
-
 void CoordinatedLayerTreeHost::deviceOrPageScaleFactorChanged()
 {
-    m_rootLayer->deviceOrPageScaleFactorChanged();
+    m_coordinator->deviceOrPageScaleFactorChanged();
     if (m_pageOverlayLayer)
         m_pageOverlayLayer->deviceOrPageScaleFactorChanged();
 }
@@ -643,92 +389,22 @@ void CoordinatedLayerTreeHost::pageBackgroundTransparencyChanged()
 
 GraphicsLayerFactory* CoordinatedLayerTreeHost::graphicsLayerFactory()
 {
-    return this;
+    return m_coordinator.get();
 }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
 void CoordinatedLayerTreeHost::scheduleAnimation()
 {
-    m_webPage->send(Messages::CoordinatedLayerTreeHostProxy::RequestAnimationFrame());
-}
+    if (m_isWaitingForRenderer)
+        return;
 
-void CoordinatedLayerTreeHost::animationFrameReady()
-{
+    if (m_layerFlushTimer.isActive())
+        return;
+
+    m_layerFlushTimer.startOneShot(m_coordinator->nextAnimationServiceTime());
     scheduleLayerFlush();
 }
 #endif
-
-void CoordinatedLayerTreeHost::renderNextFrame()
-{
-    m_waitingForUIProcess = false;
-    scheduleLayerFlush();
-    for (unsigned i = 0; i < m_updateAtlases.size(); ++i)
-        m_updateAtlases[i]->didSwapBuffers();
-}
-
-void CoordinatedLayerTreeHost::purgeBackingStores()
-{
-    TemporaryChange<bool> purgingToggle(m_isPurging, true);
-
-    LayerMap::iterator end = m_registeredLayers.end();
-    for (LayerMap::iterator it = m_registeredLayers.begin(); it != end; ++it)
-        it->value->purgeBackingStores();
-
-    m_imageBackings.clear();
-    m_updateAtlases.clear();
-}
-
-PassOwnPtr<GraphicsContext> CoordinatedLayerTreeHost::beginContentUpdate(const IntSize& size, CoordinatedSurface::Flags flags, uint32_t& atlasID, IntPoint& offset)
-{
-    OwnPtr<GraphicsContext> graphicsContext;
-    for (unsigned i = 0; i < m_updateAtlases.size(); ++i) {
-        UpdateAtlas* atlas = m_updateAtlases[i].get();
-        if (atlas->supportsAlpha() == (flags & CoordinatedSurface::SupportsAlpha)) {
-            // This will return null if there is no available buffer space.
-            graphicsContext = atlas->beginPaintingOnAvailableBuffer(atlasID, size, offset);
-            if (graphicsContext)
-                return graphicsContext.release();
-        }
-    }
-
-    static const int ScratchBufferDimension = 1024; // Should be a power of two.
-    m_updateAtlases.append(adoptPtr(new UpdateAtlas(this, ScratchBufferDimension, flags)));
-    scheduleReleaseInactiveAtlases();
-    return m_updateAtlases.last()->beginPaintingOnAvailableBuffer(atlasID, size, offset);
-}
-
-const double ReleaseInactiveAtlasesTimerInterval = 0.5;
-
-void CoordinatedLayerTreeHost::scheduleReleaseInactiveAtlases()
-{
-    if (!m_releaseInactiveAtlasesTimer.isActive())
-        m_releaseInactiveAtlasesTimer.startRepeating(ReleaseInactiveAtlasesTimerInterval);
-}
-
-void CoordinatedLayerTreeHost::releaseInactiveAtlasesTimerFired(Timer<CoordinatedLayerTreeHost>*)
-{
-    // We always want to keep one atlas for non-composited content.
-    OwnPtr<UpdateAtlas> atlasToKeepAnyway;
-    bool foundActiveAtlasForNonCompositedContent = false;
-    for (int i = m_updateAtlases.size() - 1;  i >= 0; --i) {
-        UpdateAtlas* atlas = m_updateAtlases[i].get();
-        if (!atlas->isInUse())
-            atlas->addTimeInactive(ReleaseInactiveAtlasesTimerInterval);
-        bool usableForNonCompositedContent = !atlas->supportsAlpha();
-        if (atlas->isInactive()) {
-            if (!foundActiveAtlasForNonCompositedContent && !atlasToKeepAnyway && usableForNonCompositedContent)
-                atlasToKeepAnyway = m_updateAtlases[i].release();
-            m_updateAtlases.remove(i);
-        } else if (usableForNonCompositedContent)
-            foundActiveAtlasForNonCompositedContent = true;
-    }
-
-    if (!foundActiveAtlasForNonCompositedContent && atlasToKeepAnyway)
-        m_updateAtlases.append(atlasToKeepAnyway.release());
-
-    if (m_updateAtlases.size() <= 1)
-        m_releaseInactiveAtlasesTimer.stop();
-}
 
 void CoordinatedLayerTreeHost::setBackgroundColor(const WebCore::Color& color)
 {
@@ -737,11 +413,7 @@ void CoordinatedLayerTreeHost::setBackgroundColor(const WebCore::Color& color)
 
 void CoordinatedLayerTreeHost::commitScrollOffset(uint32_t layerID, const WebCore::IntSize& offset)
 {
-    LayerMap::iterator i = m_registeredLayers.find(layerID);
-    if (i == m_registeredLayers.end())
-        return;
-
-    i->value->commitScrollOffset(offset);
+    m_coordinator->commitScrollOffset(layerID, offset);
 }
 
 } // namespace WebKit

@@ -306,7 +306,7 @@ void Frame::setDocument(PassRefPtr<Document> newDoc)
         notifyChromeClientWheelEventHandlerCountChanged();
 #if ENABLE(TOUCH_EVENTS)
         if (m_doc && m_doc->hasTouchEventHandlers())
-            m_page->chrome()->client()->needTouchEvents(true);
+            m_page->chrome().client()->needTouchEvents(true);
 #endif
     }
 
@@ -414,12 +414,11 @@ String Frame::searchForLabelsBeforeElement(const Vector<String>& labels, Element
     int unsigned lengthSearched = 0;
     Node* n;
     for (n = NodeTraversal::previous(element); n && lengthSearched < charsSearchedThreshold; n = NodeTraversal::previous(n)) {
-        if (n->hasTagName(formTag)
-            || (n->isHTMLElement() && toElement(n)->isFormControlElement()))
-        {
-            // We hit another form element or the start of the form - bail out
+        // We hit another form element or the start of the form - bail out
+        if (isHTMLFormElement(n) || (n->isHTMLElement() && toElement(n)->isFormControlElement()))
             break;
-        } else if (n->hasTagName(tdTag) && !startingTableCell) {
+
+        if (n->hasTagName(tdTag) && !startingTableCell) {
             startingTableCell = static_cast<HTMLTableCellElement*>(n);
         } else if (n->hasTagName(trTag) && startingTableCell) {
             String result = searchForLabelsAboveCell(regExp.get(), startingTableCell, resultDistance);
@@ -744,14 +743,14 @@ PassRefPtr<Range> Frame::rangeForPoint(const IntPoint& framePoint)
     VisiblePosition previous = position.previous();
     if (previous.isNotNull()) {
         RefPtr<Range> previousCharacterRange = makeRange(previous, position);
-        LayoutRect rect = editor()->firstRectForRange(previousCharacterRange.get());
+        LayoutRect rect = editor().firstRectForRange(previousCharacterRange.get());
         if (rect.contains(framePoint))
             return previousCharacterRange.release();
     }
 
     VisiblePosition next = position.next();
     if (RefPtr<Range> nextCharacterRange = makeRange(position, next)) {
-        LayoutRect rect = editor()->firstRectForRange(nextCharacterRange.get());
+        LayoutRect rect = editor().firstRectForRange(nextCharacterRange.get());
         if (rect.contains(framePoint))
             return nextCharacterRange.release();
     }
@@ -837,7 +836,7 @@ void Frame::tiledBackingStorePaintEnd(const Vector<IntRect>& paintedArea)
     unsigned size = paintedArea.size();
     // Request repaint from the system
     for (unsigned n = 0; n < size; ++n)
-        m_page->chrome()->invalidateContentsAndRootView(m_view->contentsToRootView(paintedArea[n]), false);
+        m_page->chrome().invalidateContentsAndRootView(m_view->contentsToRootView(paintedArea[n]), false);
 }
 
 IntRect Frame::tiledBackingStoreContentsRect()
@@ -851,7 +850,7 @@ IntRect Frame::tiledBackingStoreVisibleRect()
 {
     if (!m_page)
         return IntRect();
-    return m_page->chrome()->client()->visibleRectForTiledBackingStore();
+    return m_page->chrome().client()->visibleRectForTiledBackingStore();
 }
 
 Color Frame::tiledBackingStoreBackgroundColor() const
@@ -981,7 +980,7 @@ void Frame::resumeActiveDOMObjectsAndAnimations()
         return;
 
     if (document()) {
-        document()->resumeActiveDOMObjects();
+        document()->resumeActiveDOMObjects(ActiveDOMObject::PageWillBeSuspended);
         animation()->resumeAnimationsForDocument(document());
         document()->resumeScriptedAnimationControllerCallbacks();
     }
@@ -996,8 +995,6 @@ void Frame::deviceOrPageScaleFactorChanged()
     RenderView* root = contentRenderer();
     if (root && root->compositor())
         root->compositor()->deviceOrPageScaleFactorChanged();
-
-    m_page->chrome()->client()->deviceOrPageScaleFactorChanged();
 }
 #endif
 void Frame::notifyChromeClientWheelEventHandlerCountChanged() const
@@ -1011,7 +1008,7 @@ void Frame::notifyChromeClientWheelEventHandlerCountChanged() const
             count += frame->document()->wheelEventHandlerCount();
     }
 
-    m_page->chrome()->client()->numWheelEventHandlersChanged(count);
+    m_page->chrome().client()->numWheelEventHandlersChanged(count);
 }
 
 bool Frame::isURLAllowed(const KURL& url) const

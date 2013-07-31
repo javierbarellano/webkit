@@ -27,11 +27,12 @@
 #import "Pasteboard.h"
 
 #import "CachedImage.h"
-#import "ClipboardMac.h"
+#import "Clipboard.h"
 #import "DOMRangeInternal.h"
 #import "Document.h"
 #import "DocumentFragment.h"
 #import "DocumentLoader.h"
+#import "DragData.h"
 #import "Editor.h"
 #import "EditorClient.h"
 #import "ExceptionCodePlaceholder.h"
@@ -49,6 +50,8 @@
 #import "LoaderNSURLExtras.h"
 #import "MIMETypeRegistry.h"
 #import "Page.h"
+#import "PasteboardStrategy.h"
+#import "PlatformStrategies.h"
 #import "RenderImage.h"
 #import "ResourceBuffer.h"
 #import "Text.h"
@@ -59,11 +62,6 @@
 #import <wtf/RetainPtr.h>
 #import <wtf/text/StringBuilder.h>
 #import <wtf/unicode/CharacterNames.h>
-
-#if USE(PLATFORM_STRATEGIES)
-#include "PasteboardStrategy.h"
-#include "PlatformStrategies.h"
-#endif
 
 namespace WebCore {
 
@@ -135,16 +133,29 @@ PassOwnPtr<Pasteboard> Pasteboard::create(const String& pasteboardName)
     return adoptPtr(new Pasteboard(pasteboardName));
 }
 
+PassOwnPtr<Pasteboard> Pasteboard::createForCopyAndPaste()
+{
+    return create(NSGeneralPboard);
+}
+
+PassOwnPtr<Pasteboard> Pasteboard::createPrivate()
+{
+    return create(platformStrategies()->pasteboardStrategy()->uniqueName());
+}
+
+PassOwnPtr<Pasteboard> Pasteboard::createForDragAndDrop()
+{
+    return create(NSDragPboard);
+}
+
+PassOwnPtr<Pasteboard> Pasteboard::createForDragAndDrop(const DragData& dragData)
+{
+    return create(dragData.pasteboardName());
+}
+
 void Pasteboard::clear()
 {
     platformStrategies()->pasteboardStrategy()->setTypes(Vector<String>(), m_pasteboardName);
-}
-
-String Pasteboard::getStringSelection(Frame* frame, ShouldSerializeSelectedTextForClipboard shouldSerializeSelectedTextForClipboard)
-{
-    String text = shouldSerializeSelectedTextForClipboard == IncludeImageAltTextForClipboard ? frame->editor()->selectedTextForClipboard() : frame->editor()->selectedText();
-    text.replace(noBreakSpace, ' ');
-    return text;
 }
 
 PassRefPtr<SharedBuffer> Pasteboard::getDataSelection(Frame* frame, const String& pasteboardType)
@@ -155,7 +166,7 @@ PassRefPtr<SharedBuffer> Pasteboard::getDataSelection(Frame* frame, const String
         return SharedBuffer::wrapNSData((NSData *)data.get());
     }
 
-    RefPtr<Range> range = frame->editor()->selectedRange();
+    RefPtr<Range> range = frame->editor().selectedRange();
     Node* commonAncestor = range->commonAncestorContainer(IGNORE_EXCEPTION);
     ASSERT(commonAncestor);
     Node* enclosingAnchor = enclosingNodeWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
@@ -183,7 +194,7 @@ PassRefPtr<SharedBuffer> Pasteboard::getDataSelection(Frame* frame, const String
 void Pasteboard::writeSelectionForTypes(const Vector<String>& pasteboardTypes, bool canSmartCopyOrDelete, Frame* frame, ShouldSerializeSelectedTextForClipboard shouldSerializeSelectedTextForClipboard)
 {
     NSAttributedString* attributedString = nil;
-    RetainPtr<WebHTMLConverter> converter = adoptNS([[WebHTMLConverter alloc] initWithDOMRange:kit(frame->editor()->selectedRange().get())]);
+    RetainPtr<WebHTMLConverter> converter = adoptNS([[WebHTMLConverter alloc] initWithDOMRange:kit(frame->editor().selectedRange().get())]);
     if (converter)
         attributedString = [converter.get() attributedString];
     
@@ -191,11 +202,11 @@ void Pasteboard::writeSelectionForTypes(const Vector<String>& pasteboardTypes, b
 
     Vector<String> clientTypes;
     Vector<RefPtr<SharedBuffer> > clientData;
-    frame->editor()->client()->getClientPasteboardDataForRange(frame->editor()->selectedRange().get(), clientTypes, clientData);
+    frame->editor().client()->getClientPasteboardDataForRange(frame->editor().selectedRange().get(), clientTypes, clientData);
     types.appendVector(clientTypes);
 
     platformStrategies()->pasteboardStrategy()->setTypes(types, m_pasteboardName);
-    frame->editor()->client()->didSetSelectionTypesForPasteboard();
+    frame->editor().client()->didSetSelectionTypesForPasteboard();
 
     for (size_t i = 0; i < clientTypes.size(); ++i)
         platformStrategies()->pasteboardStrategy()->setBufferForType(clientData[i], clientTypes[i], m_pasteboardName);
@@ -212,8 +223,12 @@ void Pasteboard::writeSelectionForTypes(const Vector<String>& pasteboardTypes, b
         platformStrategies()->pasteboardStrategy()->setBufferForType(getDataSelection(frame, NSRTFPboardType), NSRTFPboardType, m_pasteboardName);
     
     // Put plain string on the pasteboard.
-    if (types.contains(String(NSStringPboardType)))
-        platformStrategies()->pasteboardStrategy()->setStringForType(getStringSelection(frame, shouldSerializeSelectedTextForClipboard), NSStringPboardType, m_pasteboardName);
+    if (types.contains(String(NSStringPboardType))) {
+        String text = shouldSerializeSelectedTextForClipboard == IncludeImageAltTextForClipboard
+            ? frame->editor().stringSelectionForPasteboardWithImageAltText()
+            : frame->editor().stringSelectionForPasteboard();
+        platformStrategies()->pasteboardStrategy()->setStringForType(text, NSStringPboardType, m_pasteboardName);
+    }
     
     if (types.contains(WebSmartPastePboardType))
         platformStrategies()->pasteboardStrategy()->setBufferForType(0, WebSmartPastePboardType, m_pasteboardName);
@@ -244,7 +259,7 @@ static void writeURLForTypes(const Vector<String>& types, const String& pasteboa
     ASSERT(!url.isEmpty());
     
     NSURL *cocoaURL = url;
-    NSString *userVisibleString = frame->editor()->client()->userVisibleString(cocoaURL);
+    NSString *userVisibleString = frame->editor().client()->userVisibleString(cocoaURL);
     
     NSString *title = (NSString*)titleStr;
     if ([title length] == 0) {
@@ -329,9 +344,9 @@ void Pasteboard::writeImage(Node* node, const KURL& url, const String& title)
     writeFileWrapperAsRTFDAttachment(fileWrapperForImage(cachedImage, cocoaURL), m_pasteboardName);
 }
 
-void Pasteboard::writeClipboard(Clipboard* clipboard)
+void Pasteboard::writePasteboard(const Pasteboard& pasteboard)
 {
-    platformStrategies()->pasteboardStrategy()->copy(static_cast<ClipboardMac*>(clipboard)->pasteboardName(), m_pasteboardName);
+    platformStrategies()->pasteboardStrategy()->copy(pasteboard.m_pasteboardName, m_pasteboardName);
 }
 
 bool Pasteboard::canSmartReplace()
@@ -372,8 +387,11 @@ String Pasteboard::plainText(Frame* frame)
         Vector<String> pathnames;
         platformStrategies()->pasteboardStrategy()->getPathnamesForType(pathnames, NSFilenamesPboardType, m_pasteboardName);
         StringBuilder builder;
-        for (size_t i = 0; i < pathnames.size(); i++)
-            builder.append(i ? "\n" + pathnames[i] : pathnames[i]);
+        for (size_t i = 0; i < pathnames.size(); i++) {
+            if (i)
+                builder.append('\n');
+            builder.append(pathnames[i]);
+        }
         string = builder.toString();
         return [string precomposedStringWithCanonicalMapping];
     }
@@ -383,7 +401,7 @@ String Pasteboard::plainText(Frame* frame)
         // FIXME: using the editorClient to call into webkit, for now, since 
         // calling _web_userVisibleString from WebCore involves migrating a sizable web of 
         // helper code that should either be done in a separate patch or figured out in another way.
-        string = frame->editor()->client()->userVisibleString([NSURL URLWithString:string]);
+        string = frame->editor().client()->userVisibleString([NSURL URLWithString:string]);
         if ([string length] > 0)
             return [string precomposedStringWithCanonicalMapping];
     }
@@ -438,7 +456,7 @@ static PassRefPtr<DocumentFragment> documentFragmentWithRTF(Frame* frame, NSStri
         frame->page()->setDefersLoading(true);
 
     Vector<RefPtr<ArchiveResource> > resources;
-    RefPtr<DocumentFragment> fragment = frame->editor()->client()->documentFragmentFromAttributedString(string, resources);
+    RefPtr<DocumentFragment> fragment = frame->editor().client()->documentFragmentFromAttributedString(string, resources);
 
     size_t size = resources.size();
     if (size) {
@@ -516,7 +534,7 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame* frame, PassRefP
         for (size_t i = 0; i < paths.size(); i++) {
             // Non-image file types; _web_userVisibleString is appropriate here because this will
             // be pasted as visible text.
-            NSString *url = frame->editor()->client()->userVisibleString([NSURL fileURLWithPath:paths[i]]);
+            NSString *url = frame->editor().client()->userVisibleString([NSURL fileURLWithPath:paths[i]]);
             RefPtr<Node> textNode = frame->document()->createTextNode(url);
             refNodesVector.append(textNode.get());
             nodesVector.append(textNode.get());
@@ -536,7 +554,7 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame* frame, PassRefP
             }
         }
         if ([HTMLString length] != 0 &&
-            (fragment = createFragmentFromMarkup(frame->document(), HTMLString, "", DisallowScriptingAndPluginContent)))
+            (fragment = createFragmentFromMarkup(frame->document(), HTMLString, emptyString(), DisallowScriptingAndPluginContent)))
             return fragment.release();
     }
 
@@ -549,15 +567,15 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame* frame, PassRefP
         return fragment.release();
 
     if (types.contains(String(NSTIFFPboardType)) &&
-        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(NSTIFFPboardType, m_pasteboardName), uniqueURLWithRelativePart(@"image.tiff"), "image/tiff", "", ""))))
+        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(NSTIFFPboardType, m_pasteboardName), uniqueURLWithRelativePart(@"image.tiff"), ASCIILiteral("image/tiff"), emptyString(), emptyString()))))
         return fragment.release();
 
     if (types.contains(String(NSPDFPboardType)) &&
-        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(NSPDFPboardType, m_pasteboardName).get(), uniqueURLWithRelativePart(@"application.pdf"), "application/pdf", "", ""))))
+        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(NSPDFPboardType, m_pasteboardName).get(), uniqueURLWithRelativePart(@"application.pdf"), ASCIILiteral("application/pdf"), emptyString(), emptyString()))))
         return fragment.release();
 
     if (types.contains(String(kUTTypePNG)) &&
-        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(String(kUTTypePNG), m_pasteboardName), uniqueURLWithRelativePart(@"image.png"), "image/png", "", ""))))
+        (fragment = documentFragmentWithImageResource(frame, ArchiveResource::create(platformStrategies()->pasteboardStrategy()->bufferForType(String(kUTTypePNG), m_pasteboardName), uniqueURLWithRelativePart(@"image.png"), ASCIILiteral("image/png"), emptyString(), emptyString()))))
         return fragment.release();
 
     if (types.contains(String(NSURLPboardType))) {
@@ -602,9 +620,9 @@ static String cocoaTypeFromHTMLClipboardType(const String& type)
     String qType = type.lower();
 
     if (qType == "text")
-        qType = "text/plain";
+        qType = ASCIILiteral("text/plain");
     if (qType == "url")
-        qType = "text/uri-list";
+        qType = ASCIILiteral("text/uri-list");
 
     // Ignore any trailing charset - JS strings are Unicode, which encapsulates the charset issue
     if (qType == "text/plain" || qType.startsWith("text/plain;"))
@@ -632,8 +650,9 @@ static String cocoaTypeFromHTMLClipboardType(const String& type)
 void Pasteboard::clear(const String& type)
 {
     String cocoaType = cocoaTypeFromHTMLClipboardType(type);
-    if (!cocoaType.isEmpty())
-        platformStrategies()->pasteboardStrategy()->setStringForType("", cocoaType, m_pasteboardName);
+    if (cocoaType.isEmpty())
+        return;
+    platformStrategies()->pasteboardStrategy()->setStringForType(emptyString(), cocoaType, m_pasteboardName);
 }
 
 static Vector<String> absoluteURLsFromPasteboardFilenames(const String& pasteboardName, bool onlyFirstURL = false)
@@ -716,11 +735,11 @@ static void addHTMLClipboardTypesForCocoaType(ListHashSet<String>& resultTypes, 
 {
     // UTI may not do these right, so make sure we get the right, predictable result
     if (cocoaType == String(NSStringPboardType)) {
-        resultTypes.add("text/plain");
+        resultTypes.add(ASCIILiteral("text/plain"));
         return;
     }
     if (cocoaType == String(NSURLPboardType)) {
-        resultTypes.add("text/uri-list");
+        resultTypes.add(ASCIILiteral("text/uri-list"));
         return;
     }
     if (cocoaType == String(NSFilenamesPboardType)) {
@@ -732,8 +751,8 @@ static void addHTMLClipboardTypesForCocoaType(ListHashSet<String>& resultTypes, 
         if (!fileList.isEmpty()) {
             // It is unknown if NSFilenamesPboardType always implies NSURLPboardType in Cocoa,
             // but NSFilenamesPboardType should imply both 'text/uri-list' and 'Files'
-            resultTypes.add("text/uri-list");
-            resultTypes.add("Files");
+            resultTypes.add(ASCIILiteral("text/uri-list"));
+            resultTypes.add(ASCIILiteral("Files"));
         }
         return;
     }
@@ -811,6 +830,24 @@ Vector<String> Pasteboard::readFilenames()
         paths.uncheckedAppend([absoluteURL path]);
     }
     return paths;
+}
+
+void Pasteboard::setDragImage(DragImageRef image, const IntPoint& location)
+{
+    // Don't allow setting the drag image if someone kept a pasteboard and is trying to set the image too late.
+    if (m_changeCount != platformStrategies()->pasteboardStrategy()->changeCount(m_pasteboardName))
+        return;
+
+    // Dashboard wants to be able to set the drag image during dragging, but Cocoa does not allow this.
+    // Instead we must drop down to the CoreGraphics API.
+    wkSetDragImage(image.get(), location);
+
+    // Hack: We must post an event to wake up the NSDragManager, which is sitting in a nextEvent call
+    // up the stack from us because the CoreFoundation drag manager does not use the run loop by itself.
+    // This is the most innocuous event to use, per Kristen Forster.
+    NSEvent* event = [NSEvent mouseEventWithType:NSMouseMoved location:NSZeroPoint
+        modifierFlags:0 timestamp:0 windowNumber:0 context:nil eventNumber:0 clickCount:0 pressure:0];
+    [NSApp postEvent:event atStart:YES];
 }
 
 }

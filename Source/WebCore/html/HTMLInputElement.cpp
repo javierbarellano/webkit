@@ -32,7 +32,6 @@
 #include "AXObjectCache.h"
 #include "BeforeTextInsertedEvent.h"
 #include "CSSPropertyNames.h"
-#include "CSSValueKeywords.h"
 #include "DateTimeChooser.h"
 #include "Document.h"
 #include "Editor.h"
@@ -60,7 +59,6 @@
 #include "Language.h"
 #include "LocalizedStrings.h"
 #include "MouseEvent.h"
-#include "PlatformLocale.h"
 #include "PlatformMouseEvent.h"
 #include "RenderTextControlSingleLine.h"
 #include "RenderTheme.h"
@@ -71,7 +69,6 @@
 #include "ScriptEventListener.h"
 #include "StyleResolver.h"
 #include <wtf/MathExtras.h>
-#include <wtf/StdLibExtras.h>
 
 #if ENABLE(INPUT_TYPE_COLOR)
 #include "ColorInputType.h"
@@ -139,9 +136,6 @@ HTMLInputElement::HTMLInputElement(const QualifiedName& tagName, Document* docum
     , m_inputType(InputType::createText(this))
 {
     ASSERT(hasTagName(inputTag) || hasTagName(isindexTag));
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-    setHasCustomStyleCallbacks();
-#endif
 }
 
 PassRefPtr<HTMLInputElement> HTMLInputElement::create(const QualifiedName& tagName, Document* document, HTMLFormElement* form, bool createdByParser)
@@ -174,7 +168,7 @@ HTMLInputElement::~HTMLInputElement()
     // setForm(0) may register this to a document-level radio button group.
     // We should unregister it to avoid accessing a deleted object.
     if (isRadioButton())
-        document()->formController()->checkedRadioButtons().removeButton(this);
+        document()->formController().checkedRadioButtons().removeButton(this);
 #if ENABLE(TOUCH_EVENTS)
     if (m_hasTouchEventHandler)
         document()->didRemoveEventTargetNode(this);
@@ -430,7 +424,7 @@ void HTMLInputElement::endEditing()
         return;
 
     if (Frame* frame = document()->frame())
-        frame->editor()->textFieldDidEndEditing(this);
+        frame->editor().textFieldDidEndEditing(this);
 }
 
 bool HTMLInputElement::shouldUseInputMethod()
@@ -537,7 +531,7 @@ void HTMLInputElement::updateType()
 
     if (wasAttached) {
         attach();
-        if (document()->focusedNode() == this)
+        if (document()->focusedElement() == this)
             updateFocusAppearance(true);
     }
 
@@ -802,24 +796,24 @@ RenderObject* HTMLInputElement::createRenderer(RenderArena* arena, RenderStyle* 
     return m_inputType->createRenderer(arena, style);
 }
 
-void HTMLInputElement::attach()
+void HTMLInputElement::attach(const AttachContext& context)
 {
     PostAttachCallbackDisabler disabler(this);
 
     if (!m_hasType)
         updateType();
 
-    HTMLTextFormControlElement::attach();
+    HTMLTextFormControlElement::attach(context);
 
     m_inputType->attach();
 
-    if (document()->focusedNode() == this)
+    if (document()->focusedElement() == this)
         document()->updateFocusAppearanceSoon(true /* restore selection */);
 }
 
-void HTMLInputElement::detach()
+void HTMLInputElement::detach(const AttachContext& context)
 {
-    HTMLTextFormControlElement::detach();
+    HTMLTextFormControlElement::detach(context);
     setFormControlValueMatchesRenderer(false);
     m_inputType->detach();
 }
@@ -1536,7 +1530,7 @@ void HTMLInputElement::didMoveToNewDocument(Document* oldDocument)
         if (needsSuspensionCallback)
             oldDocument->unregisterForPageCacheSuspensionCallbacks(this);
         if (isRadioButton())
-            oldDocument->formController()->checkedRadioButtons().removeButton(this);
+            oldDocument->formController().checkedRadioButtons().removeButton(this);
 #if ENABLE(TOUCH_EVENTS)
         if (m_hasTouchEventHandler)
             oldDocument->didRemoveEventTargetNode(this);
@@ -1850,7 +1844,7 @@ CheckedRadioButtons* HTMLInputElement::checkedRadioButtons() const
     if (HTMLFormElement* formElement = form())
         return &formElement->checkedRadioButtons();
     if (inDocument())
-        return &document()->formController()->checkedRadioButtons();
+        return &document()->formController().checkedRadioButtons();
     return 0;
 }
 
@@ -1966,13 +1960,6 @@ bool HTMLInputElement::setupDateTimeChooserParameters(DateTimeChooserParameters&
     }
 #endif
     return true;
-}
-#endif
-
-#if ENABLE(INPUT_MULTIPLE_FIELDS_UI)
-PassRefPtr<RenderStyle> HTMLInputElement::customStyleForRenderer()
-{
-    return m_inputType->customStyleForRenderer(document()->ensureStyleResolver()->styleForElement(this));
 }
 #endif
 

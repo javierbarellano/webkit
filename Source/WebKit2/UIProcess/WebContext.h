@@ -170,7 +170,6 @@ public:
 
     PluginInfoStore& pluginInfoStore() { return m_pluginInfoStore; }
 #endif
-    String applicationCacheDirectory();
 
     void setAlwaysUsesComplexTextCodePath(bool);
     void setShouldUseFontSmoothing(bool);
@@ -222,6 +221,7 @@ public:
     };
     static Statistics& statistics();    
 
+    void setApplicationCacheDirectory(const String& dir) { m_overrideApplicationCacheDirectory = dir; }
     void setDatabaseDirectory(const String& dir) { m_overrideDatabaseDirectory = dir; }
     void setIconDatabasePath(const String&);
     String iconDatabasePath() const;
@@ -295,6 +295,11 @@ public:
     static void setInvalidMessageCallback(void (*)(WKStringRef));
     static void didReceiveInvalidMessage(const CoreIPC::StringReference& messageReceiverName, const CoreIPC::StringReference& messageName);
 
+    void processDidCachePage(WebProcessProxy*);
+
+    bool isURLKnownHSTSHost(const String& urlString, bool privateBrowsingEnabled) const;
+    void resetHSTSHosts();
+
 private:
     WebContext(ProcessModel, const String& injectedBundlePath);
     void platformInitialize();
@@ -343,6 +348,9 @@ private:
     static void languageChanged(void* context);
     void languageChanged();
 
+    String applicationCacheDirectory() const;
+    String platformDefaultApplicationCacheDirectory() const;
+
     String databaseDirectory() const;
     String platformDefaultDatabaseDirectory() const;
 
@@ -384,6 +392,8 @@ private:
     Vector<RefPtr<WebProcessProxy>> m_processes;
     bool m_haveInitialEmptyProcess;
 
+    WebProcessProxy* m_processWithPageCache;
+
     RefPtr<WebPageGroup> m_defaultPageGroup;
 
     RefPtr<APIObject> m_injectedBundleInitializationUserData;
@@ -411,10 +421,6 @@ private:
 
     bool m_alwaysUsesComplexTextCodePath;
     bool m_shouldUseFontSmoothing;
-
-    // How many times an API call was used to enable the preference.
-    // The variable can be 0 when private browsing is used if it's enabled due to a persistent preference.
-    static unsigned m_privateBrowsingEnterCount;
 
     // Messages that were posted before any pages were created.
     // The client should use initialization messages instead, so that a restarted process would get the same state.
@@ -452,6 +458,7 @@ private:
 #endif
 #endif
 
+    String m_overrideApplicationCacheDirectory;
     String m_overrideDatabaseDirectory;
     String m_overrideIconDatabasePath;
     String m_overrideLocalStorageDirectory;

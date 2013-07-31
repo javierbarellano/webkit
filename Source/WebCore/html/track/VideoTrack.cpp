@@ -82,6 +82,7 @@ const AtomicString& VideoTrack::commentaryKeyword()
 VideoTrack::VideoTrack(VideoTrackClient* client, PassRefPtr<VideoTrackPrivate> trackPrivate)
     : TrackBase(TrackBase::VideoTrack, trackPrivate->label(), trackPrivate->language())
     , m_id(trackPrivate->id())
+    , m_selected(trackPrivate->selected())
     , m_client(client)
     , m_private(trackPrivate)
 {
@@ -140,9 +141,10 @@ bool VideoTrack::isValidKind(const AtomicString& value) const
 
 void VideoTrack::setSelected(const bool selected)
 {
-    if (m_private->selected() == selected)
+    if (m_selected == selected)
         return;
 
+    m_selected = selected;
     m_private->setSelected(selected);
 
     if (m_client)
@@ -153,6 +155,24 @@ size_t VideoTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
     return m_private->videoTrackIndex();
+}
+
+void VideoTrack::videoTrackPrivateSelectedChanged(VideoTrackPrivate* trackPrivate)
+{
+    ASSERT(trackPrivate == m_private);
+    setSelected(trackPrivate->selected());
+}
+
+void VideoTrack::videoTrackPrivateLabelChanged(VideoTrackPrivate* trackPrivate)
+{
+    ASSERT(trackPrivate == m_private);
+    setLabel(trackPrivate->label());
+}
+
+void VideoTrack::videoTrackPrivateLanguageChanged(VideoTrackPrivate* trackPrivate)
+{
+    ASSERT(trackPrivate == m_private);
+    setLanguage(trackPrivate->language());
 }
 
 void VideoTrack::willRemoveVideoTrackPrivate(VideoTrackPrivate* trackPrivate)

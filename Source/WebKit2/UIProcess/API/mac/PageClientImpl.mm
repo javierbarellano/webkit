@@ -258,6 +258,11 @@ void PageClientImpl::didRelaunchProcess()
     [m_wkView _didRelaunchProcess];
 }
 
+void PageClientImpl::preferencesDidChange()
+{
+    [m_wkView _preferencesDidChange];
+}
+
 void PageClientImpl::toolTipChanged(const String& oldToolTip, const String& newToolTip)
 {
     [m_wkView _toolTipChangedFrom:nsStringFromWebCoreString(oldToolTip) to:nsStringFromWebCoreString(newToolTip)];
@@ -326,14 +331,19 @@ void PageClientImpl::setPromisedData(const String& pasteboardName, PassRefPtr<Sh
     [m_wkView _setPromisedData:image.get() withFileName:filename withExtension:extension withTitle:title withURL:url withVisibleURL:visibleUrl withArchive:archiveBuffer.get() forPasteboard:pasteboardName];
 }
 
-void PageClientImpl::updateTextInputState(bool updateSecureInputState)
+void PageClientImpl::updateSecureInputState()
 {
-    [m_wkView _updateTextInputStateIncludingSecureInputState:updateSecureInputState];
+    [m_wkView _updateSecureInputState];
 }
 
-void PageClientImpl::resetTextInputState()
+void PageClientImpl::resetSecureInputState()
 {
-    [m_wkView _resetTextInputState];
+    [m_wkView _resetSecureInputState];
+}
+
+void PageClientImpl::notifyInputContextAboutDiscardedComposition()
+{
+    [m_wkView _notifyInputContextAboutDiscardedComposition];
 }
 
 FloatRect PageClientImpl::convertToDeviceSpace(const FloatRect& rect)
@@ -383,7 +393,7 @@ PassRefPtr<WebContextMenuProxy> PageClientImpl::createContextMenuProxy(WebPagePr
 }
 
 #if ENABLE(INPUT_TYPE_COLOR)
-PassRefPtr<WebColorChooserProxy> PageClientImpl::createColorChooserProxy(WebPageProxy*, const WebCore::Color&,  const WebCore::IntRect&)
+PassRefPtr<WebColorPicker> PageClientImpl::createColorPicker(WebPageProxy*, const WebCore::Color&,  const WebCore::IntRect&)
 {
     notImplemented();
     return 0;
@@ -448,36 +458,6 @@ CGContextRef PageClientImpl::containingWindowGraphicsContext()
     return static_cast<CGContextRef>([[window graphicsContext] graphicsPort]);
 }
 
-void PageClientImpl::didCommitLoadForMainFrame(bool useCustomRepresentation)
-{
-    [m_wkView _setPageHasCustomRepresentation:useCustomRepresentation];
-}
-
-void PageClientImpl::didFinishLoadingDataForCustomRepresentation(const String& suggestedFilename, const CoreIPC::DataReference& dataReference)
-{
-    [m_wkView _didFinishLoadingDataForCustomRepresentationWithSuggestedFilename:suggestedFilename dataReference:dataReference];
-}
-
-double PageClientImpl::customRepresentationZoomFactor()
-{
-    return [m_wkView _customRepresentationZoomFactor];
-}
-
-void PageClientImpl::setCustomRepresentationZoomFactor(double zoomFactor)
-{
-    [m_wkView _setCustomRepresentationZoomFactor:zoomFactor];
-}
-
-void PageClientImpl::findStringInCustomRepresentation(const String& string, FindOptions options, unsigned maxMatchCount)
-{
-    [m_wkView _findStringInCustomRepresentation:string withFindOptions:options maxMatchCount:maxMatchCount];
-}
-
-void PageClientImpl::countStringMatchesInCustomRepresentation(const String& string, FindOptions options, unsigned maxMatchCount)
-{
-    [m_wkView _countStringMatchesInCustomRepresentation:string withFindOptions:options maxMatchCount:maxMatchCount];
-}
-
 void PageClientImpl::flashBackingStoreUpdates(const Vector<IntRect>&)
 {
     notImplemented();
@@ -497,6 +477,7 @@ void PageClientImpl::didPerformDictionaryLookup(const AttributedString& text, co
 
 void PageClientImpl::dismissDictionaryLookupPanel()
 {
+    // FIXME: We don't know which panel we are dismissing, it may not even be in the current page (see <rdar://problem/13875766>).
     WKHideWordDefinitionWindow();
 }
 

@@ -74,8 +74,8 @@ private:
     bool prepareGraphicsContextForTextPainting(GraphicsContext*&, float scalingFactor, TextRun&, RenderStyle*);
     void restoreGraphicsContextAfterTextPainting(GraphicsContext*&, TextRun&);
 
-    void paintDecoration(GraphicsContext*, ETextDecoration, const SVGTextFragment&);
-    void paintDecorationWithStyle(GraphicsContext*, ETextDecoration, const SVGTextFragment&, RenderObject* decorationRenderer);
+    void paintDecoration(GraphicsContext*, TextDecoration, const SVGTextFragment&);
+    void paintDecorationWithStyle(GraphicsContext*, TextDecoration, const SVGTextFragment&, RenderObject* decorationRenderer);
     void paintTextWithShadows(GraphicsContext*, RenderStyle*, TextRun&, const SVGTextFragment&, int startPosition, int endPosition);
     void paintText(GraphicsContext*, RenderStyle*, RenderStyle* selectionStyle, const SVGTextFragment&, bool hasSelection, bool paintSelectedTextOnly);
 
@@ -88,6 +88,12 @@ private:
     RenderSVGResource* m_paintingResource;
     Vector<SVGTextFragment> m_textFragments;
 };
+
+inline SVGInlineTextBox* toSVGInlineTextBox(InlineBox* box)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(!box || box->isSVGInlineTextBox());
+    return static_cast<SVGInlineTextBox*>(box);
+}
 
 } // namespace WebCore
 

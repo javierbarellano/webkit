@@ -41,6 +41,7 @@
 
 namespace WebCore {
 
+    class FontGenericFamilies;
     class Page;
 
     enum EditableLinkBehavior {
@@ -57,21 +58,12 @@ namespace WebCore {
         TextDirectionSubmenuAlwaysIncluded
     };
 
-    // UScriptCode uses -1 and 0 for UScriptInvalidCode and UScriptCommon.
-    // We need to use -2 and -3 for empty value and deleted value.
-    struct UScriptCodeHashTraits : WTF::GenericHashTraits<int> {
-        static const bool emptyValueIsZero = false;
-        static int emptyValue() { return -2; }
-        static void constructDeletedValue(int& slot) { slot = -3; }
-        static bool isDeletedValue(int value) { return value == -3; }
-    };
-
-    typedef HashMap<int, AtomicString, DefaultHash<int>::Hash, UScriptCodeHashTraits> ScriptFontFamilyMap;
-
     class Settings {
         WTF_MAKE_NONCOPYABLE(Settings); WTF_MAKE_FAST_ALLOCATED;
     public:
         static PassOwnPtr<Settings> create(Page*);
+
+        ~Settings();
 
         void setStandardFontFamily(const AtomicString&, UScriptCode = USCRIPT_COMMON);
         const AtomicString& standardFontFamily(UScriptCode = USCRIPT_COMMON) const;
@@ -222,7 +214,7 @@ namespace WebCore {
         static bool isAVFoundationEnabled() { return gAVFoundationEnabled; }
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC)
         static void setQTKitEnabled(bool flag);
         static bool isQTKitEnabled() { return gQTKitEnabled; }
 #endif
@@ -266,6 +258,9 @@ namespace WebCore {
         void setHiddenPageCSSAnimationSuspensionEnabled(bool);
 #endif
 
+        static bool lowPowerVideoAudioBufferSizeEnabled() { return gLowPowerVideoAudioBufferSizeEnabled; }
+        static void setLowPowerVideoAudioBufferSizeEnabled(bool);
+
     private:
         explicit Settings(Page*);
 
@@ -275,13 +270,7 @@ namespace WebCore {
 
         String m_mediaTypeOverride;
         KURL m_userStyleSheetLocation;
-        ScriptFontFamilyMap m_standardFontFamilyMap;
-        ScriptFontFamilyMap m_serifFontFamilyMap;
-        ScriptFontFamilyMap m_fixedFontFamilyMap;
-        ScriptFontFamilyMap m_sansSerifFontFamilyMap;
-        ScriptFontFamilyMap m_cursiveFontFamilyMap;
-        ScriptFontFamilyMap m_fantasyFontFamilyMap;
-        ScriptFontFamilyMap m_pictographFontFamilyMap;
+        RefPtr<FontGenericFamilies> m_fontGenericFamilies;
         SecurityOrigin::StorageBlockingPolicy m_storageBlockingPolicy;
 #if ENABLE(TEXT_AUTOSIZING)
         float m_textAutosizingFontScaleFactor;
@@ -329,7 +318,6 @@ namespace WebCore {
 #if ENABLE(PAGE_VISIBILITY_API)
         bool m_hiddenPageCSSAnimationSuspensionEnabled : 1;
 #endif
-
         static double gDefaultMinDOMTimerInterval;
         static double gDefaultDOMTimerAlignmentInterval;
 
@@ -337,7 +325,7 @@ namespace WebCore {
         static bool gAVFoundationEnabled;
 #endif
 
-#if PLATFORM(MAC) || (PLATFORM(QT) && USE(QTKIT))
+#if PLATFORM(MAC)
         static bool gQTKitEnabled;
 #endif
         
@@ -353,6 +341,8 @@ namespace WebCore {
         static bool gShouldRespectPriorityInCSSAttributeSetters;
 
         static double gHiddenPageDOMTimerAlignmentInterval;
+
+        static bool gLowPowerVideoAudioBufferSizeEnabled;
     };
 
 } // namespace WebCore

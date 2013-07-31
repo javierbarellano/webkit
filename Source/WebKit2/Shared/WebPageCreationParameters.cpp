@@ -59,7 +59,8 @@ void WebPageCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
     encoder << deviceScaleFactor;
     encoder << mediaVolume;
     encoder << mayStartMediaWhenInWindow;
-    encoder << overridePrivateBrowsingEnabled;
+    encoder << minimumLayoutSize;
+    encoder.encodeEnum(scrollPinningBehavior);
 
 #if PLATFORM(MAC)
     encoder.encodeEnum(layerHostingMode);
@@ -121,7 +122,9 @@ bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPag
         return false;
     if (!decoder.decode(parameters.mayStartMediaWhenInWindow))
         return false;
-    if (!decoder.decode(parameters.overridePrivateBrowsingEnabled))
+    if (!decoder.decode(parameters.minimumLayoutSize))
+        return false;
+    if (!decoder.decodeEnum(parameters.scrollPinningBehavior))
         return false;
     
 #if PLATFORM(MAC)
