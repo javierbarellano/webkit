@@ -146,9 +146,6 @@ private:
     virtual bool isLiveStream() const { return m_isStreaming; }
 
 private:
-#if ENABLE(VIDEO_TRACK)
-    GRefPtr<GstElement> m_audioAdder;
-#endif
     GRefPtr<GstElement> m_playBin;
     GRefPtr<GstElement> m_source;
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)

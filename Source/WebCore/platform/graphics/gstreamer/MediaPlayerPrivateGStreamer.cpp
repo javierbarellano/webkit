@@ -1880,11 +1880,6 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
         g_signal_connect(m_textAppSink.get(), "new-sample", G_CALLBACK(mediaPlayerPrivateNewTextSampleCallback), this);
 
         g_object_set(m_playBin.get(), "text-sink", m_textAppSink.get(), NULL);
-
-		m_audioAdder = gst_element_factory_make("adder", NULL);
-		ASSERT(m_audioAdder);
-
-		g_object_set(m_playBin.get(), "audio-stream-combiner", m_audioAdder.get(), NULL);
     }
 #endif
 

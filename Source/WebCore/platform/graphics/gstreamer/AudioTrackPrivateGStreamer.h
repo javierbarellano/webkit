@@ -55,10 +55,10 @@ public:
     void setIndex(int index) { m_index =  index; }
     virtual int audioTrackIndex() const OVERRIDE { return m_index; }
 
-    void muteChanged();
+    void activeChanged();
     void tagsChanged();
 
-    void notifyTrackOfMuteChanged();
+    void notifyTrackOfActiveChanged();
     void notifyTrackOfTagsChanged();
 
 private:
