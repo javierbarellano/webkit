@@ -30,6 +30,7 @@
 
 #include "ZeroConf.h"
 
+#include "KURL.h"
 #include "NavDsc.h"
 #include "UDPSocketHandleClient.h"
 #include "soup/TCPSocketHandle.h"
@@ -120,7 +121,7 @@ void zcDiscoveryThread(void *context)
 
         if (lastSend < 0L || (nowMs - lastSend) > 5000) {
             if (!zc->m_udpSocket) {
-                KURL url(ParsedURLString, String(zc->m_url));
+                KURL url(KURL(), String(zc->m_url));
                 zc->m_udpSocket = UDPSocketHandle::create(url, true, zc);
                 if (!zc->m_udpSocket->connected()) {
                     zc->m_udpSocket.release();
@@ -150,7 +151,7 @@ std::map<std::string, ZCDevice> ZeroConf::discoverDevs(const char *type, NavDsc 
         m_instance = new ZeroConf(type);
 
     if (!m_instance->m_udpSocket) {
-        KURL url(ParsedURLString, String(m_instance->m_url));
+        KURL url(KURL(), String(m_instance->m_url));
 
         m_instance->m_udpSocket = UDPSocketHandle::create(url, true, m_instance);
         if (!m_instance->m_udpSocket->connected()) {
