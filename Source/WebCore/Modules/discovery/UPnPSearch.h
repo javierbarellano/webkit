@@ -31,7 +31,6 @@
 #include "HNEventServerHandle.h"
 #include "HNEventServerHandleClient.h"
 #include "IDiscoveryAPI.h"
-#include "KURL.h"
 #include "UPnPDevice.h"
 #include "soup/UDPSocketHandle.h"
 #include <iomanip>
