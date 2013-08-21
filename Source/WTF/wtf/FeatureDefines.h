@@ -68,6 +68,10 @@
 #define ENABLE_CSS_IMAGE_SET 1
 #endif
 
+#if !defined(ENABLE_DISCOVERY)
+#define ENABLE_DISCOVERY 0
+#endif
+
 #if !defined(ENABLE_DISK_IMAGE_CACHE)
 #define ENABLE_DISK_IMAGE_CACHE 1
 #endif

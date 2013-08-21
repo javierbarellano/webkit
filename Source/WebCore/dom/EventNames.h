@@ -257,6 +257,12 @@ namespace WebCore {
     \
     macro(securitypolicyviolation) \
     \
+    macro(notify) \
+    macro(serviceavailable) \
+    macro(serviceoffline) \
+    macro(serviceonline) \
+    macro(serviceunavailable) \
+    \
 
 // end of DOM_EVENT_NAMES_FOR_EACH
 
