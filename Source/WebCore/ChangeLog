@@ -1,3 +1,68 @@
+2013-08-29  Brendan Long  <b.long@cablelabs.com>
+
+        Discovery API
+        https://bugs.webkit.org/show_bug.cgi?id=101162
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests (OOPS!).
+
+        * Configurations/FeatureDefines.xcconfig:
+        * DerivedSources.pri:
+        * Modules/discovery/NavigatorNetworkService.cpp: Added.
+        (WebCore::isValidServiceType):
+        (WebCore::NavigatorNetworkService::NavigatorNetworkService):
+        (WebCore::NavigatorNetworkService::~NavigatorNetworkService):
+        (WebCore::NavigatorNetworkService::supplementName):
+        (WebCore::NavigatorNetworkService::from):
+        (WebCore::NavigatorNetworkService::getNetworkServices):
+        * Modules/discovery/NavigatorNetworkService.h: Added.
+        * Modules/discovery/NavigatorNetworkService.idl: Added.
+        * Modules/discovery/NavigatorNetworkServiceError.cpp: Added.
+        (WebCore::NavigatorNetworkServiceError::NavigatorNetworkServiceError):
+        * Modules/discovery/NavigatorNetworkServiceError.h: Added.
+        (WebCore::NavigatorNetworkServiceError::create):
+        (WebCore::NavigatorNetworkServiceError::~NavigatorNetworkServiceError):
+        (WebCore::NavigatorNetworkServiceError::code):
+        * Modules/discovery/NavigatorNetworkServiceError.idl: Added.
+        * Modules/discovery/NavigatorNetworkServiceErrorCallback.h: Added.
+        (WebCore::NavigatorNetworkServiceErrorCallback::~NavigatorNetworkServiceErrorCallback):
+        * Modules/discovery/NavigatorNetworkServiceErrorCallback.idl: Added.
+        * Modules/discovery/NavigatorNetworkServiceSuccessCallback.h: Added.
+        (WebCore::NavigatorNetworkServiceSuccessCallback::~NavigatorNetworkServiceSuccessCallback):
+        * Modules/discovery/NavigatorNetworkServiceSuccessCallback.idl: Added.
+        * Modules/discovery/NetworkService.cpp: Added.
+        (WebCore::NetworkService::NetworkService):
+        (WebCore::NetworkService::~NetworkService):
+        (WebCore::NetworkService::interfaceName):
+        (WebCore::NetworkService::scriptExecutionContext):
+        * Modules/discovery/NetworkService.h: Added.
+        (WebCore::NetworkService::create):
+        (WebCore::NetworkService::id):
+        (WebCore::NetworkService::name):
+        (WebCore::NetworkService::type):
+        (WebCore::NetworkService::url):
+        (WebCore::NetworkService::config):
+        (WebCore::NetworkService::online):
+        (WebCore::NetworkService::setOnline):
+        * Modules/discovery/NetworkService.idl: Added.
+        * Modules/discovery/NetworkServices.cpp: Added.
+        (WebCore::NetworkServices::NetworkServices):
+        (WebCore::NetworkServices::~NetworkServices):
+        (WebCore::NetworkServices::interfaceName):
+        (WebCore::NetworkServices::scriptExecutionContext):
+        (WebCore::NetworkServices::item):
+        (WebCore::NetworkServices::getServiceById):
+        (WebCore::NetworkServices::servicesAvailable):
+        * Modules/discovery/NetworkServices.h: Added.
+        (WebCore::NetworkServices::length):
+        * Modules/discovery/NetworkServices.idl: Added.
+        * Target.pri:
+        * WebCore.pri:
+        * dom/EventNames.h:
+        * dom/EventTarget.h:
+        * dom/EventTargetFactory.in:
+
 2013-08-29  Pratik Solanki  <pratik.solanki@gmail.com>
 
         SharedBuffer m_segments and m_dataArray must be exclusive

@@ -1,3 +1,12 @@
+2013-08-29  Brendan Long  <b.long@cablelabs.com>
+
+        Discovery API
+        https://bugs.webkit.org/show_bug.cgi?id=101162
+
+        Reviewed by NOBODY (OOPS!).
+
+        * wtf/FeatureDefines.h:
+
 2013-08-28  Zan Dobersek  <zdobersek@igalia.com>
 
         [GTK] Add support for building JSC with FTL JIT enabled
