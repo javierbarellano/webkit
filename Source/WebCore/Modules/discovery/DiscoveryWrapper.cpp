@@ -37,6 +37,7 @@ void DiscoveryWrapper::startUPnPInternalDiscovery(const char *type, IDiscoveryAP
 {
     NavDsc::getInstance()->startUPnPDiscovery(type, 0, 0);
     NavDsc::getInstance()->onUPnPDiscovery(type, api);
+    NavDsc::getInstance()->onUPnPEvent(type, api);
     return;
 }
 
