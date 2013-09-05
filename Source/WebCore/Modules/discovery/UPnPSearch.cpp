@@ -662,13 +662,50 @@ bool UPnPSearch::parseDev(const char* resp, std::size_t respLen, const char* hos
     return true;
 }
 
+// This is a temporary solution to facilitate discovery of versioned services. A client looking for serviceXYZ:1 should discover
+// services with a higher version number, e.g. serviceXYZ:9 (but not vice versa).
+// This should be refactored to parse the document instead of searching buffers for strings
+bool serviceMatch(const char* buffer, const char* registeredType)
+{
+	// Sample service type: urn:schemas-upnp-org:device:RemoteUIServerDevice:1
+
+	bool match = false;
+
+	// Separate the service type from the version (registered type)
+	char *rootType = (char *) malloc(strlen(registeredType)+1);
+	strcpy(rootType, registeredType);
+	char* lastColon = strrchr(rootType,':');
+	if (lastColon) {
+		int registeredVersion = atoi(lastColon+1);
+		*lastColon = 0;
+		
+		// !! This only searches for the first occurance of a service in the buffer, and will not find subsequent matches if the first is not qualified.
+		char *deviceService = strstr((char*)buffer, rootType);
+		if (deviceService) {
+			// Check device service version. Must be greater or equal to our registered version.
+			int deviceVersion = atoi(deviceService+strlen(rootType)+1);
+
+			// printf(" - found root type: %s. registered version: %d, device version: %d\n", rootType, registeredVersion, deviceVersion);
+
+			if (deviceVersion >= registeredVersion) {
+				match = true;
+			}
+		}
+	}
+
+	free(rootType);
+
+	return match;
+}
+
 bool UPnPSearch::isRegisteredType(const char* type, std::vector<std::string> &regType)
 {
     MutexLocker lock(m_devLock);
     if (m_regTypes.size() > 0) {
         std::set<std::string>::iterator i = m_regTypes.begin();
         while (i != m_regTypes.end()) {
-            if (strstr(type, i->c_str()))
+            //if (strstr(type, i->c_str()))
+            if (serviceMatch(type, i->c_str()))
                 regType.push_back(*i);
 
             i++;
