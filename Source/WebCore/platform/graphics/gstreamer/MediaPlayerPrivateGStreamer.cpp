@@ -672,7 +672,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 
     m_hasVideo = numTracks > 0;
 
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO_TRACK) && GST_API_VERSION_1
     for (gint i = 0; i < numTracks; ++i) {
         GstPad* pad;
         g_signal_emit_by_name(m_playBin.get(), "get-video-pad", i, &pad, NULL);
@@ -727,7 +727,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 
     m_hasAudio = numTracks > 0;
 
-#if ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     for (gint i = 0; i < numTracks; ++i) {
         GstPad* pad;
         g_signal_emit_by_name(m_playBin.get(), "get-audio-pad", i, &pad, NULL);
