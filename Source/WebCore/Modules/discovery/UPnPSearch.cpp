@@ -56,7 +56,7 @@
 #include <sys/un.h>
 #include <vector>
 
-// #define LOGGING_NAV 1
+#define LOGGING_NAV 1
 
 #ifdef LOGGING_NAV
 #define NAV_LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -123,7 +123,7 @@ void discoveryThread(void *context)
         long elapsedSeconds = now.tv_sec - lastSendSeconds;
 
         // Even though not required to, send a M-SEARCH set once per minute
-        if (elapsedSeconds >= 20) {
+        if (elapsedSeconds >= 60) {
 
             if (!upnp->m_udpSocket) {
                 KURL url(KURL(), String(upnp->m_url));
@@ -454,7 +454,7 @@ bool UPnPSearch::hostPortOk(const char* host, int port)
 
             if (lport == port && !strcmp(host, lhost))
                 return true;
-            NAV_LOG("hostPortOk(%s:%d) no match to: %s:%d\n", host, port, lhost, lport);
+            //NAV_LOG("hostPortOk(%s:%d) no match to: %s:%d\n", host, port, lhost, lport);
         }
     }
 
@@ -766,7 +766,7 @@ void UPnPSearch::eventServer(const char *type, std::string eventUrl, std::string
     size_t len = sizeof(bf);
     DiscoveryBase::socketSend(host.c_str(), atoi(port.c_str()), ss.str().c_str(), ss.str().length(), bf, &len);
     bf[len] = 0;
-    NAV_LOG("eventServer() returned:\n%s\n", bf);
+    //NAV_LOG("eventServer() returned:\n%s\n", bf);
 }
 
 // Called when Socket Stream is opened.
