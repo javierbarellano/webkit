@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Cable Television Laboratories, Inc.
+/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,27 +22,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-[
-    Conditional=DISCOVERY,
-    ActiveDOMObject,
-    EventTarget
-] interface NavService {
-    readonly attribute DOMString id;
-    readonly attribute DOMString name;
-    readonly attribute DOMString type;
-    readonly attribute DOMString url;
-    readonly attribute DOMString config;
 
-    readonly attribute boolean  online;
+#ifndef NavigatorNetworkServiceErrorCallback_h
+#define NavigatorNetworkServiceErrorCallback_h
 
-    attribute EventListener onserviceonline;
-    attribute EventListener onserviceoffline;
-    attribute EventListener onnotify;
+#include "NavigatorNetworkServiceError.h"
+#include <wtf/RefCounted.h>
 
-    // EventTarget interface
-    void addEventListener(in DOMString type, in EventListener listener,
-        in boolean useCapture);
-    void removeEventListener(in DOMString type, in EventListener listener,
-        in boolean useCapture);
-    [RaisesException] boolean dispatchEvent(in Event evt);
+namespace WebCore {
+
+class NavigatorNetworkServiceError;
+
+class NavigatorNetworkServiceErrorCallback : public RefCounted<NavigatorNetworkServiceErrorCallback> {
+public:
+    virtual ~NavigatorNetworkServiceErrorCallback() { }
+    virtual bool handleEvent(NavigatorNetworkServiceError*) = 0;
 };
+
+} // namespace WebCore
+
+
+#endif /* NavigatorNetworkServiceErrorCallback_h */

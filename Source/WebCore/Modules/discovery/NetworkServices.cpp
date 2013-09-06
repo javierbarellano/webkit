@@ -1,4 +1,4 @@
-/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
+/* Copyright (C) 2012, 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +23,47 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NavServiceErrorCB_h
-#define NavServiceErrorCB_h
+#include "config.h"
+#if ENABLE(DISCOVERY)
 
-#include "NavServiceError.h"
-#include <wtf/RefCounted.h>
+#include "NetworkServices.h"
 
 namespace WebCore {
 
-class NavServiceError;
+NetworkServices::NetworkServices(const NetworkServices &that)
+    : RefCounted()
+    , ActiveDOMObject(that.scriptExecutionContext())
+{
+    m_devs.appendVector(that.m_devs);
+}
 
-class NavServiceErrorCB : public RefCounted<NavServiceErrorCB> {
-public:
-    virtual ~NavServiceErrorCB() { }
-    virtual bool handleEvent(NavServiceError*) = 0;
-};
+NetworkServices& NetworkServices::operator= (const NetworkServices &that)
+{
+    clearSrvs();
+    m_devs.appendVector(that.m_devs);
+    return *this;
+}
+
+const AtomicString& NetworkServices::interfaceName() const
+{
+    return eventNames().interfaceForNetworkServices;
+}
+
+ScriptExecutionContext* NetworkServices::scriptExecutionContext() const
+{
+    return ActiveDOMObject::scriptExecutionContext();
+}
+
+EventTargetData* NetworkServices::eventTargetData()
+{
+    return &m_eventTargetData;
+}
+
+EventTargetData* NetworkServices::ensureEventTargetData()
+{
+    return &m_eventTargetData;
+}
 
 } // namespace WebCore
 
-
-#endif /* NavServiceErrorCB_h */
+#endif // DISCOVERY

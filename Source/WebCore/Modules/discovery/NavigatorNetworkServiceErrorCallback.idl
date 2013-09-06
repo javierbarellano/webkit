@@ -24,7 +24,6 @@
  */
 [
     Conditional=DISCOVERY,
-] callback interface NavEventCB {
-    boolean handleEvent(in NavEvent event);
+] callback interface NavigatorNetworkServiceErrorCallback {
+    boolean handleEvent(in NavigatorNetworkServiceError error);
 };
-

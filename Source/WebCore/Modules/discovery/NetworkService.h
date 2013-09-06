@@ -23,8 +23,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NavService_h
-#define NavService_h
+#ifndef NetworkService_h
+#define NetworkService_h
 
 #include "ActiveDOMObject.h"
 #include "Event.h"
@@ -36,7 +36,7 @@
 
 namespace WebCore {
 
-class NavService : public RefCounted<NavService>, public EventTarget, public ActiveDOMObject {
+class NetworkService : public RefCounted<NetworkService>, public EventTarget, public ActiveDOMObject {
 public:
     // Should be kept in sync with the values in the idl file.
     enum ReadyState {
@@ -49,12 +49,12 @@ public:
         ZConfType = 2
     };
 
-    static PassRefPtr<NavService> create(ScriptExecutionContext* context)
+    static PassRefPtr<NetworkService> create(ScriptExecutionContext* context)
     {
-        return adoptRef(new NavService(context));
+        return adoptRef(new NetworkService(context));
     }
 
-    NavService(ScriptExecutionContext* context)
+    NetworkService(ScriptExecutionContext* context)
         : RefCounted()
         , ActiveDOMObject(context)
         , m_id("")
@@ -69,9 +69,9 @@ public:
     {
     }
 
-    NavService(const NavService &that);
-    NavService& operator= (const NavService &that);
-    virtual ~NavService();
+    NetworkService(const NetworkService &that);
+    NetworkService& operator= (const NetworkService &that);
+    virtual ~NetworkService();
 
     virtual const AtomicString& interfaceName() const;
     virtual ScriptExecutionContext* scriptExecutionContext() const;
@@ -80,8 +80,8 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceoffline);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(notify);
 
-    using RefCounted<NavService>::ref;
-    using RefCounted<NavService>::deref;
+    using RefCounted<NetworkService>::ref;
+    using RefCounted<NetworkService>::deref;
 
     ReadyState code() const { return m_code; }
 
@@ -133,6 +133,6 @@ private:
 
 }; // namespace WebCore
 
-#endif // NavService_h
+#endif // NetworkService_h
 
 

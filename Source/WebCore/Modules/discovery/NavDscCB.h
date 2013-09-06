@@ -32,12 +32,12 @@
 
 namespace WebCore {
 
-class NavService;
+class NetworkService;
 
 class NavDscCB : public RefCounted<NavDscCB> {
 public:
     virtual ~NavDscCB() { }
-    virtual bool handleEvent(NavService*) = 0;
+    virtual bool handleEvent(NetworkService*) = 0;
 };
 
 } // namespace WebCore

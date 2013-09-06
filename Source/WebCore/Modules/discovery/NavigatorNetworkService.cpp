@@ -26,7 +26,7 @@
 #include "config.h"
 #if ENABLE(DISCOVERY)
 
-#include "Nav.h"
+#include "NavigatorNetworkService.h"
 
 #include "Frame.h"
 #include "IDiscoveryAPI.h"
@@ -34,50 +34,48 @@
 #include "NavDscCB.h"
 #include "NavEvent.h"
 #include "NavEventCB.h"
-#include "NavServiceError.h"
-#include "NavServiceErrorCB.h"
-#include "NavServiceOkCB.h"
+#include "NavigatorNetworkServiceErrorCallback.h"
+#include "NavigatorNetworkServiceSuccessCallback.h"
 #include "Navigator.h"
 #include "UPnPDevice.h"
-#include "UPnPEvent.h"
 #include "UPnPSearch.h"
 #include <wtf/MainThread.h>
 #include <wtf/Threading.h>
 
 namespace WebCore {
 
-long Nav::m_reqID = 0L;
+long NavigatorNetworkService::m_reqID = 0L;
 
-Nav::Nav(Frame* frame)
+NavigatorNetworkService::NavigatorNetworkService(Frame* frame)
     : DOMWindowProperty(frame)
 {
 }
 
-Nav::~Nav()
+NavigatorNetworkService::~NavigatorNetworkService()
 {
 }
 
 // Static
-const char* Nav::supplementName()
+const char* NavigatorNetworkService::supplementName()
 {
     return "Nav";
 }
 
 // Static
-Nav* Nav::from(Navigator* navigator)
+NavigatorNetworkService* NavigatorNetworkService::from(Navigator* navigator)
 {
-    Nav* supplement = static_cast<Nav*>(Supplement<Navigator>::from(navigator, supplementName()));
+    NavigatorNetworkService* supplement = static_cast<NavigatorNetworkService*>(Supplement<Navigator>::from(navigator, supplementName()));
     if (!supplement) {
-        supplement = new Nav(navigator->frame());
+        supplement = new NavigatorNetworkService(navigator->frame());
         provideTo(navigator, supplementName(), adoptPtr(supplement));
     }
     return supplement;
 }
 
-void Nav::getNetworkServices(Navigator* navigator, const String& type,
-    PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb)
+void NavigatorNetworkService::getNetworkServices(Navigator* navigator, const String& type,
+    PassRefPtr<NavigatorNetworkServiceSuccessCallback> successcb, PassRefPtr<NavigatorNetworkServiceErrorCallback> errorcb)
 {
-    Nav* nav = from(navigator);
+    NavigatorNetworkService* nav = from(navigator);
 
     if (!nav->m_frame)
         return;
@@ -96,7 +94,7 @@ void Nav::getNetworkServices(Navigator* navigator, const String& type,
 
     if (protoType != UPnPProtocol && protoType != ZCProtocol) {
         if (errorcb) {
-            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UnknownType);
+            RefPtr<NavigatorNetworkServiceError> err = NavigatorNetworkServiceError::create(NavigatorNetworkServiceError::UNKNOWN_TYPE_PREFIX_ERR);
             errorcb->handleEvent(err.get());
             return;
         }
@@ -123,13 +121,13 @@ void Nav::getNetworkServices(Navigator* navigator, const String& type,
 
         zcdevs = nd->startZeroConfDiscovery(sType, successcb, errorcb);
     } else if (errorcb) {
-        RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::UnknownType);
+        RefPtr<NavigatorNetworkServiceError> err = NavigatorNetworkServiceError::create(NavigatorNetworkServiceError::UNKNOWN_TYPE_PREFIX_ERR);
         errorcb->handleEvent(err.get());
     }
     // Error found and no error callback
 }
 
-Nav::ProtocolType Nav::readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset)
+NavigatorNetworkService::ProtocolType NavigatorNetworkService::readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset)
 {
     *reset = false;
     ProtocolType protoType = BadProtocol;

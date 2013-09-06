@@ -26,13 +26,13 @@
 #include "config.h"
 #if ENABLE(DISCOVERY)
 
-#include "NavService.h"
+#include "NetworkService.h"
 
 #include "NavDsc.h"
 
 namespace WebCore {
 
-NavService::NavService(const NavService &that)
+NetworkService::NetworkService(const NetworkService &that)
     : RefCounted()
     , ActiveDOMObject(that.scriptExecutionContext())
     , m_id(that.m_id)
@@ -47,7 +47,7 @@ NavService::NavService(const NavService &that)
 {
 }
 
-NavService& NavService::operator= (const NavService &that)
+NetworkService& NetworkService::operator= (const NetworkService &that)
 {
     m_id = that.m_id;
     m_code = that.m_code;
@@ -61,29 +61,29 @@ NavService& NavService::operator= (const NavService &that)
     return *this;
 }
 
-NavService::~NavService() { }
+NetworkService::~NetworkService() { }
 
-const AtomicString& NavService::interfaceName() const
+const AtomicString& NetworkService::interfaceName() const
 {
-    return eventNames().interfaceForNavService;
+    return eventNames().interfaceForNetworkService;
 }
 
-ScriptExecutionContext* NavService::scriptExecutionContext() const
+ScriptExecutionContext* NetworkService::scriptExecutionContext() const
 {
     return ActiveDOMObject::scriptExecutionContext();
 }
 
-EventTargetData* NavService::eventTargetData()
+EventTargetData* NetworkService::eventTargetData()
 {
     return &m_eventTargetData;
 }
 
-EventTargetData* NavService::ensureEventTargetData()
+EventTargetData* NetworkService::ensureEventTargetData()
 {
     return &m_eventTargetData;
 }
 
-bool NavService::hasPermission() const
+bool NetworkService::hasPermission() const
 {
     return m_hasPermission || !NavDsc::permissionsEnabled();
 }

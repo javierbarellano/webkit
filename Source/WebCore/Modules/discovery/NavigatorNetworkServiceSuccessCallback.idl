@@ -1,4 +1,4 @@
-/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
+/* Copyright (C) 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,39 +22,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef NavServiceError_h
-#define NavServiceError_h
-
-#include <wtf/PassRefPtr.h>
-#include <wtf/RefCounted.h>
-
-namespace WebCore {
-
-class NavServiceError : public RefCounted<NavServiceError> {
-public:
-    // Should be kept in sync with the values in the idl file.
-    enum ErrorCode {
-        PermissionDenied = 1,
-        UnknownType = 2, // Type must start with "upnp:" or "zeroconf:"
-        NetworkError = 3
-    };
-
-    static PassRefPtr<NavServiceError> create(ErrorCode code)
-    {
-        return adoptRef(new NavServiceError(code));
-    }
-
-    virtual ~NavServiceError() { }
-
-    ErrorCode code() const { return m_code; }
-
-private:
-    NavServiceError(ErrorCode code) : m_code(code) { }
-
-    ErrorCode m_code;
+[
+    Conditional=DISCOVERY,
+] callback interface NavigatorNetworkServiceSuccessCallback {
+    boolean handleEvent(in NetworkServices services);
 };
-
-} // namespace WebCore
-
-#endif /* NavServiceError_h */

@@ -64,15 +64,12 @@ VPATH = \
 #
 
 BINDING_IDLS = \
-    $(WebCore)/Modules/discovery/NavServiceErrorCB.idl \
-    $(WebCore)/Modules/discovery/NavServiceOkCB.idl \
-    $(WebCore)/Modules/discovery/NavServices.idl \
-    $(WebCore)/Modules/discovery/NavService.idl \
-    $(WebCore)/Modules/discovery/NavEvent.idl \
-    $(WebCore)/Modules/discovery/NavEventCB.idl \
-    $(WebCore)/Modules/discovery/NavServiceError.idl \
-    $(WebCore)/Modules/discovery/NavDscCB.idl \
-    $(WebCore)/Modules/discovery/Nav.idl \
+    $(WebCore)/Modules/discovery/NavigatorNetworkService.idl \
+    $(WebCore)/Modules/discovery/NavigatorNetworkServiceError.idl \
+    $(WebCore)/Modules/discovery/NavigatorNetworkServiceErrorCallback.idl \
+    $(WebCore)/Modules/discovery/NavigatorNetworkServiceSuccessCallback.idl \
+    $(WebCore)/Modules/discovery/NetworkService.idl \
+    $(WebCore)/Modules/discovery/NetworkServices.idl \
     $(WebCore)/Modules/encryptedmedia/MediaKeyMessageEvent.idl \
     $(WebCore)/Modules/encryptedmedia/MediaKeyNeededEvent.idl \
     $(WebCore)/Modules/encryptedmedia/MediaKeySession.idl \

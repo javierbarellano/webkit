@@ -553,22 +553,18 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSNamedNodeMap.h \
 	DerivedSources/WebCore/JSNavigator.cpp \
 	DerivedSources/WebCore/JSNavigator.h \
-	DerivedSources/WebCore/JSNavServices.cpp \
-	DerivedSources/WebCore/JSNavServices.h \
-	DerivedSources/WebCore/JSNavService.cpp \
-	DerivedSources/WebCore/JSNavService.h \
-	DerivedSources/WebCore/JSNavEvent.cpp \
-	DerivedSources/WebCore/JSNavEvent.h \
-	DerivedSources/WebCore/JSNavEventCB.cpp \
-	DerivedSources/WebCore/JSNavEventCB.h \
-	DerivedSources/WebCore/JSNavServiceError.cpp \
-	DerivedSources/WebCore/JSNavServiceError.h \
-	DerivedSources/WebCore/JSNavServiceErrorCB.cpp \
-	DerivedSources/WebCore/JSNavServiceErrorCB.h \
-	DerivedSources/WebCore/JSNavServiceOkCB.cpp \
-	DerivedSources/WebCore/JSNavServiceOkCB.h \
-	DerivedSources/WebCore/JSNavDscCB.cpp \
-	DerivedSources/WebCore/JSNavDscCB.h \
+	DerivedSources/WebCore/JSNavigatorNetworkService.cpp \
+	DerivedSources/WebCore/JSNavigatorNetworkService.h \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceError.cpp \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceError.h \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceErrorCallback.cpp \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceErrorCallback.h \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceSuccessCallback.cpp \
+	DerivedSources/WebCore/JSNavigatorNetworkServiceSuccessCallback.h \
+	DerivedSources/WebCore/JSNetworkService.cpp \
+	DerivedSources/WebCore/JSNetworkService.h \
+	DerivedSources/WebCore/JSNetworkServices.cpp \
+	DerivedSources/WebCore/JSNetworkServices.h \
 	DerivedSources/WebCore/JSNavigatorUserMediaError.cpp \
 	DerivedSources/WebCore/JSNavigatorUserMediaError.h \
 	DerivedSources/WebCore/JSNavigatorUserMediaErrorCallback.cpp \
@@ -1230,16 +1226,12 @@ webcore_svg_built_sources += \
 dom_binding_idls += \
 	$(WebCore)/Modules/battery/BatteryManager.idl \
 	$(WebCore)/Modules/battery/NavigatorBattery.idl \
-	$(WebCore)/Modules/discovery/Nav.idl \
-	$(WebCore)/Modules/discovery/NavServiceErrorCB.idl \
-	$(WebCore)/Modules/discovery/NavServiceOkCB.idl \
-	$(WebCore)/Modules/discovery/NavServices.idl \
-	$(WebCore)/Modules/discovery/NavService.idl \
-	$(WebCore)/Modules/discovery/NavEvent.idl \
-	$(WebCore)/Modules/discovery/NavEventCB.idl \
-	$(WebCore)/Modules/discovery/NavServiceError.idl \
-	$(WebCore)/Modules/discovery/NavDscCB.idl \
-	$(WebCore)/Modules/discovery/UPnPEvent.idl \
+	$(WebCore)/Modules/discovery/NavigatorNetworkService.idl \
+	$(WebCore)/Modules/discovery/NavigatorNetworkServiceError.idl \
+	$(WebCore)/Modules/discovery/NavigatorNetworkServiceErrorCallback.idl \
+	$(WebCore)/Modules/discovery/NavigatorNetworkServiceSuccessCallback.idl \
+	$(WebCore)/Modules/discovery/NetworkService.idl \
+	$(WebCore)/Modules/discovery/NetworkServices.idl \
 	$(WebCore)/Modules/filesystem/DOMFileSystem.idl \
 	$(WebCore)/Modules/filesystem/DOMFileSystemSync.idl \
 	$(WebCore)/Modules/filesystem/DOMWindowFileSystem.idl \
@@ -1864,19 +1856,19 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/discovery/UPnPDevice.h \
 	Source/WebCore/Modules/discovery/ZCDevice.h \
  \
-	Source/WebCore/Modules/discovery/Nav.cpp \
-	Source/WebCore/Modules/discovery/Nav.h \
+	Source/WebCore/Modules/discovery/NavigatorNetworkService.cpp \
+	Source/WebCore/Modules/discovery/NavigatorNetworkService.h \
+	Source/WebCore/Modules/discovery/NavigatorNetworkServiceError.h \
+	Source/WebCore/Modules/discovery/NavigatorNetworkServiceErrorCallback.h \
+	Source/WebCore/Modules/discovery/NavigatorNetworkServiceSuccessCallback.h \
 	Source/WebCore/Modules/discovery/NavDscCB.h \
 	Source/WebCore/Modules/discovery/NavEvent.cpp \
 	Source/WebCore/Modules/discovery/NavEvent.h \
 	Source/WebCore/Modules/discovery/NavEventCB.h \
-	Source/WebCore/Modules/discovery/NavService.cpp \
-	Source/WebCore/Modules/discovery/NavService.h \
-	Source/WebCore/Modules/discovery/NavServiceError.h \
-	Source/WebCore/Modules/discovery/NavServiceErrorCB.h \
-	Source/WebCore/Modules/discovery/NavServiceOkCB.h \
-	Source/WebCore/Modules/discovery/NavServices.cpp \
-	Source/WebCore/Modules/discovery/NavServices.h \
+	Source/WebCore/Modules/discovery/NetworkService.cpp \
+	Source/WebCore/Modules/discovery/NetworkService.h \
+	Source/WebCore/Modules/discovery/NetworkServices.cpp \
+	Source/WebCore/Modules/discovery/NetworkServices.h \
 \
 	Source/WebCore/Modules/filesystem/AsyncFileWriter.h \
 	Source/WebCore/Modules/filesystem/AsyncFileWriterClient.h \
@@ -2511,7 +2503,6 @@ webcore_sources += \
 	Source/WebCore/bindings/js/JSMutationCallback.h \
 	Source/WebCore/bindings/js/JSMutationObserverCustom.cpp \
 	Source/WebCore/bindings/js/JSNamedNodeMapCustom.cpp \
-	Source/WebCore/bindings/js/JSNavServicesCustom.cpp \
 	Source/WebCore/bindings/js/JSNodeCustom.cpp \
 	Source/WebCore/bindings/js/JSNodeCustom.h \
 	Source/WebCore/bindings/js/JSNodeFilterCondition.cpp \
