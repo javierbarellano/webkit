@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="../../fast/js/resources/js-test-pre.js"></script>
+<script src="../../resources/js-test-pre.js"></script>
 <script src="resources/js-test-selection-shared.js"></script>
 </head>
 <body>
@@ -27,6 +27,9 @@ line 3</textarea>
 </div>
 
 <script>
+if (window.internals)
+    internals.setContinuousSpellCheckingEnabled(false); // For performance.
+
 description("This test ensures that programmatically set selections are directionless on mac, and that they are not on other platforms.");
 
 function selectLine(node) {
@@ -140,6 +143,6 @@ if (window.internals) {
 }
 
 </script>
-<script src="../../fast/js/resources/js-test-post.js"></script>
+<script src="../../resources/js-test-post.js"></script>
 </body>
 </html>

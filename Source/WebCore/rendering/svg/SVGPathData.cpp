@@ -37,8 +37,8 @@ namespace WebCore {
 
 static void updatePathFromCircleElement(SVGElement* element, Path& path)
 {
-    ASSERT(element->hasTagName(SVGNames::circleTag));
-    SVGCircleElement* circle = static_cast<SVGCircleElement*>(element);
+    ASSERT(isSVGCircleElement(element));
+    SVGCircleElement* circle = toSVGCircleElement(element);
 
     SVGLengthContext lengthContext(element);
     float r = circle->r().value(lengthContext);
@@ -112,8 +112,7 @@ static void updatePathFromPolylineElement(SVGElement* element, Path& path)
 
 static void updatePathFromRectElement(SVGElement* element, Path& path)
 {
-    ASSERT(element->hasTagName(SVGNames::rectTag));
-    SVGRectElement* rect = static_cast<SVGRectElement*>(element);
+    SVGRectElement* rect = toSVGRectElement(element);
 
     SVGLengthContext lengthContext(element);
     float width = rect->width().value(lengthContext);

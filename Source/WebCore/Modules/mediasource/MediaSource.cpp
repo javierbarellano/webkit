@@ -38,7 +38,7 @@
 #include "MIMETypeRegistry.h"
 #include "SourceBufferPrivate.h"
 #include "TimeRanges.h"
-#include <wtf/Uint8Array.h>
+#include <runtime/Uint8Array.h>
 
 namespace WebCore {
 
@@ -52,10 +52,10 @@ PassRefPtr<MediaSource> MediaSource::create(ScriptExecutionContext* context)
 MediaSource::MediaSource(ScriptExecutionContext* context)
     : ActiveDOMObject(context)
     , m_readyState(closedKeyword())
-    , m_asyncEventQueue(GenericEventQueue::create(this))
+    , m_asyncEventQueue(*this)
+    , m_sourceBuffers(SourceBufferList::create(scriptExecutionContext(), m_asyncEventQueue))
+    , m_activeSourceBuffers(SourceBufferList::create(scriptExecutionContext(), m_asyncEventQueue))
 {
-    m_sourceBuffers = SourceBufferList::create(scriptExecutionContext(), m_asyncEventQueue.get());
-    m_activeSourceBuffers = SourceBufferList::create(scriptExecutionContext(), m_asyncEventQueue.get());
 }
 
 const String& MediaSource::openKeyword()
@@ -302,14 +302,13 @@ ScriptExecutionContext* MediaSource::scriptExecutionContext() const
 
 bool MediaSource::hasPendingActivity() const
 {
-    return m_private || m_asyncEventQueue->hasPendingEvents()
-        || ActiveDOMObject::hasPendingActivity();
+    return m_private || m_asyncEventQueue.hasPendingEvents() || ActiveDOMObject::hasPendingActivity();
 }
 
 void MediaSource::stop()
 {
     m_private.clear();
-    m_asyncEventQueue->cancelAllEvents();
+    m_asyncEventQueue.cancelAllEvents();
 }
 
 EventTargetData* MediaSource::eventTargetData()
@@ -317,19 +316,16 @@ EventTargetData* MediaSource::eventTargetData()
     return &m_eventTargetData;
 }
 
-EventTargetData* MediaSource::ensureEventTargetData()
+EventTargetData& MediaSource::ensureEventTargetData()
 {
-    return &m_eventTargetData;
+    return m_eventTargetData;
 }
 
 void MediaSource::scheduleEvent(const AtomicString& eventName)
 {
-    ASSERT(m_asyncEventQueue);
-
     RefPtr<Event> event = Event::create(eventName, false, false);
     event->setTarget(this);
-
-    m_asyncEventQueue->enqueueEvent(event.release());
+    m_asyncEventQueue.enqueueEvent(event.release());
 }
 
 } // namespace WebCore

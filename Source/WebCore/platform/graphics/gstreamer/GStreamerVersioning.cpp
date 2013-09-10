@@ -29,6 +29,7 @@
 #include <gst/audio/audio.h>
 #else
 #include <gst/audio/multichannel.h>
+#include <string.h>
 #endif
 
 #ifdef GST_API_VERSION_1
@@ -88,8 +89,6 @@ GRefPtr<GstBus> webkitGstPipelineGetBus(GstPipeline* pipeline)
 #if ENABLE(VIDEO)
 bool getVideoSizeAndFormatFromCaps(GstCaps* caps, WebCore::IntSize& size, GstVideoFormat& format, int& pixelAspectRatioNumerator, int& pixelAspectRatioDenominator, int& stride)
 {
-    if (!GST_IS_CAPS(caps) || !gst_caps_is_fixed(caps))
-        return false;
 #ifdef GST_API_VERSION_1
     GstVideoInfo info;
 
@@ -104,7 +103,8 @@ bool getVideoSizeAndFormatFromCaps(GstCaps* caps, WebCore::IntSize& size, GstVid
     stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
 #else
     gint width, height;
-    if (!gst_video_format_parse_caps(caps, &format, &width, &height)
+    if (!GST_IS_CAPS(caps) || !gst_caps_is_fixed(caps)
+        || !gst_video_format_parse_caps(caps, &format, &width, &height)
         || !gst_video_parse_caps_pixel_aspect_ratio(caps, &pixelAspectRatioNumerator,
                                                     &pixelAspectRatioDenominator))
         return false;

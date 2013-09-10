@@ -356,7 +356,7 @@ void MediaControlsApple::changedClosedCaptionsVisibility()
 
 void MediaControlsApple::reset()
 {
-    Page* page = document()->page();
+    Page* page = document().page();
     if (!page)
         return;
 
@@ -382,7 +382,7 @@ void MediaControlsApple::reset()
         m_panelMuteButton->hide();
 
     if (m_volumeSlider)
-        m_volumeSlider->setVolume(m_mediaController->volume());
+        setSliderVolume();
 
     if (m_toggleClosedCaptionsButton) {
         if (m_mediaController->hasClosedCaptions())
@@ -396,7 +396,7 @@ void MediaControlsApple::reset()
 
 #if ENABLE(FULLSCREEN_API)
     if (m_fullScreenVolumeSlider)
-        m_fullScreenVolumeSlider->setVolume(m_mediaController->volume());
+        setFullscreenSliderVolume();
 
     if (m_isFullscreen) {
         if (m_mediaController->isLiveStream()) {
@@ -436,7 +436,7 @@ void MediaControlsApple::createVideoTrackDisplay()
     if (m_videoTrackSelButton)
         return;
 
-    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), this);
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(&document(), this);
     videoDisplayButton->setMediaController(m_mediaController);
     m_videoTrackSelButton = videoDisplayButton.get();
 
@@ -449,7 +449,7 @@ void MediaControlsApple::createTextTrackSelDisplay()
     if (m_textTrackSelButton)
         return;
 
-    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), this);
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(&document(), this);
     textTrackSelButton->setMediaController(m_mediaController);
     m_textTrackSelButton = textTrackSelButton.get();
 
@@ -518,7 +518,7 @@ void MediaControlsApple::createAudioTrackDisplay()
     if (m_audioTrackSelButton)
         return;
 
-    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), this);
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(&document(), this);
     audioDisplayButton->setMediaController(m_mediaController);
     m_audioTrackSelButton = audioDisplayButton.get();
 
@@ -540,7 +540,7 @@ void MediaControlsApple::updateCurrentTimeDisplay()
     double now = m_mediaController->currentTime();
     double duration = m_mediaController->duration();
 
-    Page* page = document()->page();
+    Page* page = document().page();
     if (!page)
         return;
 
@@ -553,7 +553,7 @@ void MediaControlsApple::updateCurrentTimeDisplay()
 
 void MediaControlsApple::reportedError()
 {
-    Page* page = document()->page();
+    Page* page = document().page();
     if (!page)
         return;
 
@@ -600,7 +600,7 @@ void MediaControlsApple::changedVolume()
     MediaControls::changedVolume();
 
     if (m_fullScreenVolumeSlider)
-        m_fullScreenVolumeSlider->setVolume(m_mediaController->volume());
+        setFullscreenSliderVolume();
 }
 
 void MediaControlsApple::enteredFullscreen()
@@ -676,14 +676,14 @@ void MediaControlsApple::showClosedCaptionTrackList()
     m_panel->setInlineStyleProperty(CSSPropertyPointerEvents, CSSValueNone);
 
     RefPtr<EventListener> listener = eventListener();
-    m_closedCaptionsContainer->addEventListener(eventNames().mousewheelEvent, listener, true);
+    m_closedCaptionsContainer->addEventListener(eventNames().wheelEvent, listener, true);
 
     // Track click events in the capture phase at two levels, first at the document level
     // such that a click outside of the <video> may dismiss the track list, second at the
     // media controls level such that a click anywhere outside of the track list hides the
     // track list. These two levels are necessary since it would not be possible to get a
     // reference to the track list when handling the event outside of the shadow tree.
-    document()->addEventListener(eventNames().clickEvent, listener, true);
+    document().addEventListener(eventNames().clickEvent, listener, true);
     addEventListener(eventNames().clickEvent, listener, true);
 }
 
@@ -698,9 +698,14 @@ void MediaControlsApple::hideClosedCaptionTrackList()
     m_panel->removeInlineStyleProperty(CSSPropertyPointerEvents);
 
     EventListener* listener = eventListener().get();
-    m_closedCaptionsContainer->removeEventListener(eventNames().mousewheelEvent, listener, true);
-    document()->removeEventListener(eventNames().clickEvent, listener, true);
+    m_closedCaptionsContainer->removeEventListener(eventNames().wheelEvent, listener, true);
+    document().removeEventListener(eventNames().clickEvent, listener, true);
     removeEventListener(eventNames().clickEvent, listener, true);
+}
+
+void MediaControlsApple::setFullscreenSliderVolume()
+{
+    m_fullScreenVolumeSlider->setVolume(m_mediaController->muted() ? 0.0 : m_mediaController->volume());
 }
 
 bool MediaControlsApple::shouldClosedCaptionsContainerPreventPageScrolling(int wheelDeltaY)
@@ -720,7 +725,7 @@ void MediaControlsApple::handleClickEvent(Event* event)
     Node* currentTarget = event->currentTarget()->toNode();
     Node* target = event->target()->toNode();
 
-    if ((currentTarget == document() && !shadowHost()->contains(target)) || (currentTarget == this && !m_closedCaptionsContainer->contains(target))) {
+    if ((currentTarget == &document() && !shadowHost()->contains(target)) || (currentTarget == this && !m_closedCaptionsContainer->contains(target))) {
         hideClosedCaptionTrackList();
         event->stopImmediatePropagation();
         event->setDefaultHandled();
@@ -751,7 +756,8 @@ void MediaControlsAppleEventListener::handleEvent(ScriptExecutionContext*, Event
     if (event->type() == eventNames().clickEvent)
         m_mediaControls->handleClickEvent(event);
 
-    else if (event->type() == eventNames().mousewheelEvent && event->hasInterface(eventNames().interfaceForWheelEvent)) {
+    else if ((event->type() == eventNames().wheelEvent || event->type() == eventNames().mousewheelEvent)
+        && event->hasInterface(eventNames().interfaceForWheelEvent)) {
         WheelEvent* wheelEvent = static_cast<WheelEvent*>(event);
         if (m_mediaControls->shouldClosedCaptionsContainerPreventPageScrolling(wheelEvent->wheelDeltaY()))
             event->preventDefault();

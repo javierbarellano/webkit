@@ -30,6 +30,7 @@
 #include "SVGGraphicsElement.h"
 #include "SVGNames.h"
 #include "SVGURIReference.h"
+#include "StyleResolveTree.h"
 
 namespace WebCore {
 
@@ -66,7 +67,7 @@ private:
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual void svgAttributeChanged(const QualifiedName&);
 
-    virtual bool willRecalcStyle(StyleChange);
+    virtual bool willRecalcStyle(Style::Change);
 
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
     virtual void toClipPath(Path&);
@@ -127,11 +128,7 @@ private:
     Timer<SVGElement> m_svgLoadEventTimer;
 };
 
-inline SVGUseElement* toSVGUseElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(SVGNames::useTag));
-    return static_cast<SVGUseElement*>(node);
-}
+ELEMENT_TYPE_CASTS(SVGUseElement)
 
 }
 

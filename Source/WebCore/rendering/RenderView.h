@@ -25,12 +25,13 @@
 #include "FrameView.h"
 #include "LayoutState.h"
 #include "PODFreeListArena.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include <wtf/OwnPtr.h>
 
 namespace WebCore {
 
 class FlowThreadController;
+class ImageQualityController;
 class RenderQuote;
 class RenderWidget;
 
@@ -42,7 +43,7 @@ class RenderLayerCompositor;
 class CustomFilterGlobalContext;
 #endif
 
-class RenderView : public RenderBlock {
+class RenderView FINAL : public RenderBlockFlow {
 public:
     explicit RenderView(Document*);
     virtual ~RenderView();
@@ -51,8 +52,6 @@ public:
     bool hitTest(const HitTestRequest&, const HitTestLocation&, HitTestResult&);
 
     virtual const char* renderName() const OVERRIDE { return "RenderView"; }
-
-    virtual bool isRenderView() const OVERRIDE { return true; }
 
     virtual bool requiresLayer() const OVERRIDE { return true; }
 
@@ -72,10 +71,11 @@ public:
 
     float zoomFactor() const;
 
-    FrameView* frameView() const { return m_frameView; }
+    FrameView& frameView() const { return m_frameView; }
 
     virtual LayoutRect visualOverflowRect() const OVERRIDE;
     virtual void computeRectForRepaint(const RenderLayerModelObject* repaintContainer, LayoutRect&, bool fixed = false) const OVERRIDE;
+    void repaintRootContents();
     void repaintViewRectangle(const LayoutRect&, bool immediate = false) const;
     // Repaint the view, and all composited layers that intersect the given absolute rectangle.
     // FIXME: ideally we'd never have to do this, if all repaints are container-relative.
@@ -146,7 +146,7 @@ public:
     }
 #endif
 
-    bool doingFullRepaint() const { return m_frameView->needsFullRepaint(); }
+    bool doingFullRepaint() const { return frameView().needsFullRepaint(); }
 
     // Subtree push/pop
     void pushLayoutState(RenderObject*);
@@ -189,7 +189,7 @@ public:
     void setIsInWindow(bool);
 
 #if USE(ACCELERATED_COMPOSITING)
-    RenderLayerCompositor* compositor();
+    RenderLayerCompositor& compositor();
     bool usesCompositing() const;
 #endif
 
@@ -207,13 +207,13 @@ public:
     
     bool hasRenderNamedFlowThreads() const;
     bool checkTwoPassLayoutForAutoHeightRegions() const;
-    FlowThreadController* flowThreadController();
+    FlowThreadController& flowThreadController();
 
     void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
 
     IntervalArena* intervalArena();
 
-    IntSize viewportSize() const { return document()->viewportSize(); }
+    IntSize viewportSize() const;
 
     void setRenderQuoteHead(RenderQuote* head) { m_renderQuoteHead = head; }
     RenderQuote* renderQuoteHead() const { return m_renderQuoteHead; }
@@ -229,6 +229,13 @@ public:
     virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0) OVERRIDE;
 
     IntRect pixelSnappedLayoutOverflowRect() const { return pixelSnappedIntRect(layoutOverflowRect()); }
+
+    ImageQualityController& imageQualityController();
+
+#if ENABLE(CSS_FILTERS)
+    void setHasSoftwareFilters(bool hasSoftwareFilters) { m_hasSoftwareFilters = hasSoftwareFilters; }
+    bool hasSoftwareFilters() const { return m_hasSoftwareFilters; }
+#endif
 
 protected:
     virtual void mapLocalToContainer(const RenderLayerModelObject* repaintContainer, TransformState&, MapCoordinatesFlags = ApplyContainerFlip, bool* wasFixed = 0) const OVERRIDE;
@@ -249,7 +256,7 @@ private:
     {
         // We push LayoutState even if layoutState is disabled because it stores layoutDelta too.
         if (!doingFullRepaint() || m_layoutState->isPaginated() || renderer->hasColumns() || renderer->flowThreadContainingBlock()
-            || m_layoutState->lineGrid() || (renderer->style()->lineGrid() != RenderStyle::initialLineGrid() && renderer->isBlockFlow())
+            || m_layoutState->lineGrid() || (renderer->style()->lineGrid() != RenderStyle::initialLineGrid() && renderer->isRenderBlockFlow())
 #if ENABLE(CSS_SHAPES)
             || (renderer->isRenderBlock() && toRenderBlock(renderer)->shapeInsideInfo())
             || (m_layoutState->shapeInsideInfo() && renderer->isRenderBlock() && !toRenderBlock(renderer)->allowsShapeInsideInfoSharing())
@@ -280,6 +287,7 @@ private:
 
     void layoutContent(const LayoutState&);
     void layoutContentInAutoLogicalHeightRegions(const LayoutState&);
+    void layoutContentToComputeOverflowInRegions(const LayoutState&);
 #ifndef NDEBUG
     void checkLayoutState(const LayoutState&);
 #endif
@@ -294,7 +302,7 @@ private:
     friend class LayoutStateDisabler;
 
 protected:
-    FrameView* m_frameView;
+    FrameView& m_frameView;
 
     RenderObject* m_selectionStart;
     RenderObject* m_selectionEnd;
@@ -327,6 +335,7 @@ protected:
 private:
     bool shouldUsePrintingLayout() const;
 
+    OwnPtr<ImageQualityController> m_imageQualityController;
     LayoutUnit m_pageLogicalHeight;
     bool m_pageLogicalHeightChanged;
     LayoutState* m_layoutState;
@@ -344,27 +353,24 @@ private:
     unsigned m_renderCounterCount;
 
     bool m_selectionWasCaret;
+#if ENABLE(CSS_FILTERS)
+    bool m_hasSoftwareFilters;
+#endif
 };
 
-inline RenderView* toRenderView(RenderObject* object)
+inline RenderView& toRenderView(RenderObject& object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderView());
-    return static_cast<RenderView*>(object);
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderView());
+    return static_cast<RenderView&>(object);
 }
 
-inline const RenderView* toRenderView(const RenderObject* object)
+inline const RenderView& toRenderView(const RenderObject& object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderView());
-    return static_cast<const RenderView*>(object);
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderView());
+    return static_cast<const RenderView&>(object);
 }
 
-// This will catch anyone doing an unnecessary cast.
-void toRenderView(const RenderView*);
-
-ALWAYS_INLINE RenderView* Document::renderView() const
-{
-    return toRenderView(renderer());
-}
+void toRenderView(const RenderView&);
 
 // Stack-based class to assist with LayoutState push/pop
 class LayoutStateMaintainer {
@@ -462,6 +468,11 @@ private:
     LayoutState* m_layoutState;
 #endif
 };
+
+inline Frame& RenderObject::frame() const
+{
+    return view().frameView().frame();
+}
 
 } // namespace WebCore
 

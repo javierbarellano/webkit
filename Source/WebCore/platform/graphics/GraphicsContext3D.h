@@ -34,9 +34,12 @@
 #include <wtf/ListHashSet.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/PassOwnArrayPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
+
+#if USE(CA)
+#include "PlatformCALayer.h"
+#endif
 
 // FIXME: Find a better way to avoid the name confliction for NO_ERROR.
 #if PLATFORM(WIN) || (PLATFORM(QT) && OS(WINDOWS))
@@ -46,7 +49,7 @@
 #undef VERSION
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(NIX)
 #include "ANGLEWebKitBridge.h"
 #endif
 
@@ -61,7 +64,7 @@ class QRect;
 class QOpenGLContext;
 class QSurface;
 QT_END_NAMESPACE
-#elif PLATFORM(GTK) || PLATFORM(EFL)
+#elif PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(NIX)
 typedef unsigned int GLuint;
 #endif
 
@@ -441,6 +444,7 @@ public:
             , noExtensions(false)
             , shareResources(true)
             , preferDiscreteGPU(false)
+            , multithreaded(false)
         {
         }
 
@@ -453,6 +457,7 @@ public:
         bool noExtensions;
         bool shareResources;
         bool preferDiscreteGPU;
+        bool multithreaded;
     };
 
     enum RenderStyle {
@@ -494,7 +499,7 @@ public:
 
     bool makeContextCurrent();
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(NIX)
     // With multisampling on, blit from multisampleFBO to regular FBO.
     void prepareTexture();
 #endif
@@ -603,16 +608,19 @@ public:
     // Check if the format is one of the formats from the ImageData or DOM elements.
     // The formats from ImageData is always RGBA8.
     // The formats from DOM elements vary with Graphics ports. It can only be RGBA8 or BGRA8 for non-CG port while a little more for CG port.
-    static ALWAYS_INLINE bool srcFormatComeFromDOMElementOrImageData(DataFormat SrcFormat)
+    static ALWAYS_INLINE bool srcFormatComesFromDOMElementOrImageData(DataFormat SrcFormat)
     {
 #if USE(CG)
 #if CPU(BIG_ENDIAN)
-    return SrcFormat == DataFormatRGBA8 || SrcFormat == DataFormatARGB8 || SrcFormat == DataFormatRGB8;
+    return SrcFormat == DataFormatRGBA8 || SrcFormat == DataFormatARGB8 || SrcFormat == DataFormatRGB8
+        || SrcFormat == DataFormatRA8 || SrcFormat == DataFormatAR8 || SrcFormat == DataFormatR8 || SrcFormat == DataFormatA8;
 #else
     // That LITTLE_ENDIAN case has more possible formats than BIG_ENDIAN case is because some decoded image data is actually big endian
     // even on little endian architectures.
     return SrcFormat == DataFormatBGRA8 || SrcFormat == DataFormatABGR8 || SrcFormat == DataFormatBGR8
-        || SrcFormat == DataFormatRGBA8 || SrcFormat == DataFormatARGB8 || SrcFormat == DataFormatRGB8;
+        || SrcFormat == DataFormatRGBA8 || SrcFormat == DataFormatARGB8 || SrcFormat == DataFormatRGB8
+        || SrcFormat == DataFormatR8 || SrcFormat == DataFormatA8
+        || SrcFormat == DataFormatRA8 || SrcFormat == DataFormatAR8;
 #endif
 #else
     return SrcFormat == DataFormatBGRA8 || SrcFormat == DataFormatRGBA8;
@@ -919,7 +927,7 @@ private:
     // Destination data will have no gaps between rows.
     static bool packPixels(const uint8_t* sourceData, DataFormat sourceDataFormat, unsigned width, unsigned height, unsigned sourceUnpackAlignment, unsigned destinationFormat, unsigned destinationType, AlphaOp, void* destinationData, bool flipY);
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(NIX)
     // Take into account the user's requested context creation attributes,
     // in particular stencil and antialias, and determine which could or
     // could not be honored based on the capabilities of the OpenGL
@@ -940,7 +948,7 @@ private:
 
     bool reshapeFBOs(const IntSize&);
     void resolveMultisamplingIfNecessary(const IntRect& = IntRect());
-#if (PLATFORM(QT) || PLATFORM(EFL)) && USE(GRAPHICS_SURFACE)
+#if (PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(NIX)) && USE(GRAPHICS_SURFACE)
     void createGraphicsSurfaces(const IntSize&);
 #endif
 
@@ -950,6 +958,8 @@ private:
 #if PLATFORM(MAC)
     CGLContextObj m_contextObj;
     RetainPtr<WebGLLayer> m_webGLLayer;
+#elif PLATFORM(WIN) && USE(CA)
+    RefPtr<PlatformCALayer> m_webGLLayer;
 #elif PLATFORM(BLACKBERRY)
 #if USE(ACCELERATED_COMPOSITING)
     RefPtr<PlatformLayer> m_compositingLayer;
@@ -957,7 +967,7 @@ private:
     void* m_context;
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(NIX)
     struct SymbolInfo {
         SymbolInfo()
             : type(0)

@@ -54,7 +54,7 @@ CFCachedURLResponseRef ResourceLoader::willCacheResponse(ResourceHandle*, CFCach
         return 0;
 
     RetainPtr<NSCachedURLResponse> nsCachedResponse = adoptNS([[NSCachedURLResponse alloc] _initWithCFCachedURLResponse:cachedResponse]);
-    return [frameLoader()->client()->willCacheResponse(documentLoader(), identifier(), nsCachedResponse.get()) _CFCachedURLResponse];
+    return [frameLoader()->client().willCacheResponse(documentLoader(), identifier(), nsCachedResponse.get()) _CFCachedURLResponse];
 }
 
 #else
@@ -63,7 +63,7 @@ NSCachedURLResponse* ResourceLoader::willCacheResponse(ResourceHandle*, NSCached
 {
     if (m_options.sendLoadCallbacks == DoNotSendCallbacks)
         return 0;
-    return frameLoader()->client()->willCacheResponse(documentLoader(), identifier(), response);
+    return frameLoader()->client().willCacheResponse(documentLoader(), identifier(), response);
 }
 
 #endif
@@ -74,7 +74,7 @@ void ResourceLoader::didReceiveDataArray(CFArrayRef dataArray)
 {
     // Protect this in this delegate method since the additional processing can do
     // anything including possibly derefing this; one example of this is Radar 3266216.
-    RefPtr<ResourceLoader> protector(this);
+    Ref<ResourceLoader> protect(*this);
 
     CFIndex arrayCount = CFArrayGetCount(dataArray);
     for (CFIndex i = 0; i < arrayCount; ++i) {

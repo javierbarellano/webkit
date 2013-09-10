@@ -59,9 +59,9 @@ EventTargetData* NetworkServices::eventTargetData()
     return &m_eventTargetData;
 }
 
-EventTargetData* NetworkServices::ensureEventTargetData()
+EventTargetData& NetworkServices::ensureEventTargetData()
 {
-    return &m_eventTargetData;
+    return m_eventTargetData;
 }
 
 } // namespace WebCore

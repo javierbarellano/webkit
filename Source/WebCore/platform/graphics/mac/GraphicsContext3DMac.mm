@@ -43,11 +43,11 @@
 #include <OpenGL/gl.h>
 #include "WebGLLayer.h"
 #include "WebGLObject.h"
-#include <wtf/ArrayBuffer.h>
-#include <wtf/ArrayBufferView.h>
-#include <wtf/Int32Array.h>
-#include <wtf/Float32Array.h>
-#include <wtf/Uint8Array.h>
+#include <runtime/ArrayBuffer.h>
+#include <runtime/ArrayBufferView.h>
+#include <runtime/Int32Array.h>
+#include <runtime/Float32Array.h>
+#include <runtime/Uint8Array.h>
 #include <wtf/text/CString.h>
 
 namespace WebCore {
@@ -160,6 +160,15 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attrs, HostWi
 
     // Set the current context to the one given to us.
     CGLSetCurrentContext(m_contextObj);
+
+    if (attrs.multithreaded) {
+        err = CGLEnable(m_contextObj, kCGLCEMPEngine);
+        if (err != kCGLNoError) {
+            // We could not create a multi-threaded context.
+            m_contextObj = 0;
+            return;
+        }
+    }
     
     validateAttributes();
 

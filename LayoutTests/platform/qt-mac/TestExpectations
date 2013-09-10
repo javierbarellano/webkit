@@ -5617,7 +5617,7 @@ fast/forms/textarea-setinnerhtml.html
 fast/html/details-marker-style.html
 fast/inline/inline-borders-with-bidi-override.html
 fast/invalid/016.html
-fast/js/stack-trace.html
+js/stack-trace.html
 fast/layers/scroll-rect-to-visible.html
 fast/overflow/image-selection-highlight.html
 fast/overflow/unreachable-overflow-rtl-bug.html
@@ -5655,7 +5655,6 @@ svg/as-image/image-respects-pageScaleFactor.html
 # new crashing tests
 canvas/philip/tests/2d.pattern.basic.zerocanvas.html
 fast/css-generated-content/reset-content-to-initial.html
-fast/css/giant-stylesheet-crash.html
 
 # new failing tests
 css1/box_properties/acid_test.html
@@ -5689,9 +5688,8 @@ webkit.org/b/64526 [ Debug ] svg/animations/svgtransform-animation-1.html [ Cras
 # FIXME: File bugs.
 Bug(_qt_slow) [ Debug ] editing/selection/empty-cell-right-click.html [ Pass Slow ]
 Bug(_qt_slow) [ Debug ] editing/selection/dump-as-markup.html [ Pass Slow ]
-Bug(_qt_slow) [ Debug ] fast/js/array-sort-modifying-tostring.html [ Pass Timeout ]
 Bug(_qt_slow) [ Debug ] fast/overflow/lots-of-sibling-inline-boxes.html [ Pass Slow ]
-Bug(_qt_slow) [ Debug ] fast/js/dfg-inline-function-dot-caller.html [ Pass Slow ]
+Bug(_qt_slow) [ Debug ] js/dfg-inline-function-dot-caller.html [ Pass Slow ]
 
 webkit.org/b/62662 [ Debug ] inspector/cookie-parser.html [ Crash Pass ]
 
@@ -5822,9 +5820,6 @@ webkit.org/b/88171 css1/formatting_model/floating_elements.html [ Failure ]
 
 # Text Autosizing is not enabled.
 webkit.org/b/84186 fast/text-autosizing
-
-# Dialog element is not yet enabled.
-webkit.org/b/84635 fast/dom/HTMLDialogElement [ Skip ]
 
 # Skip tests in fast/text/shaping
 webkit.org/b/90951 fast/text/shaping

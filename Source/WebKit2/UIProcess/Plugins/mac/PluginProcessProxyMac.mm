@@ -306,7 +306,7 @@ void PluginProcessProxy::beginModal()
 
     // The call to -[NSApp runModalForWindow:] below will run a nested run loop, and if the plug-in process
     // crashes the PluginProcessProxy object can be destroyed. Protect against this here.
-    RefPtr<PluginProcessProxy> protect(this);
+    Ref<PluginProcessProxy> protect(*this);
 
     [NSApp runModalForWindow:m_placeholderWindow.get()];
     
@@ -468,8 +468,27 @@ void PluginProcessProxy::openURL(const String& urlString, bool& result, int32_t&
         launchedURLString = KURL(launchedURL).string();
         CFRelease(launchedURL);
     }
+}
 
-    result = false;
+static bool shouldOpenFile(const PluginProcessAttributes& pluginProcessAttributes, const String& fullPath)
+{
+    if (pluginProcessAttributes.moduleInfo.bundleIdentifier == "com.macromedia.Flash Player.plugin") {
+        if (fullPath == "/Library/PreferencePanes/Flash Player.prefPane")
+            return true;
+    }
+
+    return false;
+}
+
+void PluginProcessProxy::openFile(const String& fullPath, bool& result)
+{
+    if (!shouldOpenFile(m_pluginProcessAttributes, fullPath)) {
+        result = false;
+        return;
+    }
+
+    result = true;
+    [[NSWorkspace sharedWorkspace] openFile:fullPath];
 }
 
 } // namespace WebKit

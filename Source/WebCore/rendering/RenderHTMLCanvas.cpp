@@ -45,7 +45,7 @@ RenderHTMLCanvas::RenderHTMLCanvas(HTMLCanvasElement* element)
     : RenderReplaced(element, element->size())
 {
     // Actual size is not known yet, report the default intrinsic size.
-    view()->frameView()->incrementVisuallyNonEmptyPixelCount(roundedIntSize(intrinsicSize()));
+    view().frameView().incrementVisuallyNonEmptyPixelCount(roundedIntSize(intrinsicSize()));
 }
 
 bool RenderHTMLCanvas::requiresLayer() const
@@ -53,29 +53,37 @@ bool RenderHTMLCanvas::requiresLayer() const
     if (RenderReplaced::requiresLayer())
         return true;
     
-    HTMLCanvasElement* canvas = static_cast<HTMLCanvasElement*>(node());
+    HTMLCanvasElement* canvas = static_cast<HTMLCanvasElement*>(element());
     return canvas && canvas->renderingContext() && canvas->renderingContext()->isAccelerated();
 }
 
 void RenderHTMLCanvas::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    LayoutRect rect = contentBoxRect();
-    rect.moveBy(paintOffset);
+    GraphicsContext* context = paintInfo.context;
 
-    if (Frame* frame = this->frame()) {
-        if (Page* page = frame->page()) {
-            if (paintInfo.phase == PaintPhaseForeground)
-                page->addRelevantRepaintedObject(this, rect);
-        }
+    LayoutRect contentRect = contentBoxRect();
+    contentRect.moveBy(paintOffset);
+    LayoutRect paintRect = replacedContentRect(intrinsicSize());
+    paintRect.moveBy(paintOffset);
+
+    // Not allowed to overflow the content box.
+    bool clip = !contentRect.contains(paintRect);
+    GraphicsContextStateSaver stateSaver(*paintInfo.context, clip);
+    if (clip)
+        paintInfo.context->clip(pixelSnappedIntRect(contentRect));
+
+    if (Page* page = frame().page()) {
+        if (paintInfo.phase == PaintPhaseForeground)
+            page->addRelevantRepaintedObject(this, intersection(paintRect, contentRect));
     }
 
     bool useLowQualityScale = style()->imageRendering() == ImageRenderingCrispEdges || style()->imageRendering() == ImageRenderingOptimizeSpeed;
-    static_cast<HTMLCanvasElement*>(node())->paint(paintInfo.context, rect, useLowQualityScale);
+    static_cast<HTMLCanvasElement*>(element())->paint(context, paintRect, useLowQualityScale);
 }
 
 void RenderHTMLCanvas::canvasSizeChanged()
 {
-    IntSize canvasSize = static_cast<HTMLCanvasElement*>(node())->size();
+    IntSize canvasSize = static_cast<HTMLCanvasElement*>(element())->size();
     LayoutSize zoomedSize(canvasSize.width() * style()->effectiveZoom(), canvasSize.height() * style()->effectiveZoom());
 
     if (zoomedSize == intrinsicSize())

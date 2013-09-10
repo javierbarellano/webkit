@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@
 #if ENABLE(DFG_JIT) && USE(JSVALUE32_64)
 
 #include "DFGOperations.h"
+#include "DFGOSRExitCompilerCommon.h"
 #include "Operations.h"
 #include <wtf/DataLog.h>
 
@@ -46,7 +47,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         dataLogF(" -> %p ", codeOrigin.inlineCallFrame->executable.get());
     }
     dataLogF(") at JIT offset 0x%x  ", m_jit.debugOffset());
-    dumpOperands(operands, WTF::dataFile());
+    dataLog(operands);
 #endif
     
     if (Options::printEachOSRExit()) {
@@ -198,9 +199,9 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         case DisplacedInJSStack:
         case Int32DisplacedInJSStack:
         case CellDisplacedInJSStack:
-        case BooleanDisplacedInJSStack:
+        case BooleanDisplacedInJSStack: {
             numberOfDisplacedVirtualRegisters++;
-            ASSERT((int)recovery.virtualRegister() >= 0);
+            ASSERT(operandIsLocal(recovery.virtualRegister()));
             
             // See if we might like to store to this virtual register before doing
             // virtual register shuffling. If so, we say that the virtual register
@@ -209,16 +210,17 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             // to ensure this happens efficiently. Note that we expect this case
             // to be rare, so the handling of it is optimized for the cases in
             // which it does not happen.
-            if (recovery.virtualRegister() < (int)operands.numberOfLocals()) {
-                switch (operands.local(recovery.virtualRegister()).technique()) {
+            int local = operandToLocal(recovery.virtualRegister());
+            if (local < (int)operands.numberOfLocals()) {
+                switch (operands.local(local).technique()) {
                 case InGPR:
                 case UnboxedInt32InGPR:
                 case UnboxedBooleanInGPR:
                 case UInt32InGPR:
                 case InPair:
                 case InFPR:
-                    if (!poisonedVirtualRegisters[recovery.virtualRegister()]) {
-                        poisonedVirtualRegisters[recovery.virtualRegister()] = true;
+                    if (!poisonedVirtualRegisters[local]) {
+                        poisonedVirtualRegisters[local] = true;
                         numberOfPoisonedVirtualRegisters++;
                     }
                     break;
@@ -227,7 +229,8 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                 }
             }
             break;
-            
+
+            }
         case UInt32InGPR:
             haveUInt32s = true;
             break;
@@ -542,7 +545,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             case UnboxedInt32InGPR:
             case UnboxedBooleanInGPR: {
                 m_jit.load32(reinterpret_cast<char*>(scratchDataBuffer + poisonIndex(virtualRegister)) + OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload), GPRInfo::regT0);
-                m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor((VirtualRegister)virtualRegister));
+                m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor(localToOperand(virtualRegister)));
                 uint32_t tag = JSValue::EmptyValueTag;
                 if (recovery.technique() == InGPR)
                     tag = JSValue::CellTag;
@@ -550,7 +553,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                     tag = JSValue::Int32Tag;
                 else
                     tag = JSValue::BooleanTag;
-                m_jit.store32(AssemblyHelpers::TrustedImm32(tag), AssemblyHelpers::tagFor((VirtualRegister)virtualRegister));
+                m_jit.store32(AssemblyHelpers::TrustedImm32(tag), AssemblyHelpers::tagFor(localToOperand(virtualRegister)));
                 break;
             }
 
@@ -559,8 +562,8 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             case UInt32InGPR:
                 m_jit.load32(reinterpret_cast<char*>(scratchDataBuffer + poisonIndex(virtualRegister)) + OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload), GPRInfo::regT0);
                 m_jit.load32(reinterpret_cast<char*>(scratchDataBuffer + poisonIndex(virtualRegister)) + OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag), GPRInfo::regT1);
-                m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor((VirtualRegister)virtualRegister));
-                m_jit.store32(GPRInfo::regT1, AssemblyHelpers::tagFor((VirtualRegister)virtualRegister));
+                m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor(localToOperand(virtualRegister)));
+                m_jit.store32(GPRInfo::regT1, AssemblyHelpers::tagFor(localToOperand(virtualRegister)));
                 break;
                 
             default:
@@ -628,45 +631,11 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     //     counter to 0; otherwise we set the counter to
     //     counterValueForOptimizeAfterWarmUp().
     
-    handleExitCounts(exit);
+    handleExitCounts(m_jit, exit);
     
     // 13) Reify inlined call frames.
     
-    ASSERT(m_jit.baselineCodeBlock()->getJITType() == JITCode::BaselineJIT);
-    m_jit.storePtr(AssemblyHelpers::TrustedImmPtr(m_jit.baselineCodeBlock()), AssemblyHelpers::addressFor((VirtualRegister)JSStack::CodeBlock));
-    
-    for (CodeOrigin codeOrigin = exit.m_codeOrigin; codeOrigin.inlineCallFrame; codeOrigin = codeOrigin.inlineCallFrame->caller) {
-        InlineCallFrame* inlineCallFrame = codeOrigin.inlineCallFrame;
-        CodeBlock* baselineCodeBlock = m_jit.baselineCodeBlockFor(codeOrigin);
-        CodeBlock* baselineCodeBlockForCaller = m_jit.baselineCodeBlockFor(inlineCallFrame->caller);
-        Vector<BytecodeAndMachineOffset>& decodedCodeMap = m_jit.decodedCodeMapFor(baselineCodeBlockForCaller);
-        unsigned returnBytecodeIndex = inlineCallFrame->caller.bytecodeIndex + OPCODE_LENGTH(op_call);
-        BytecodeAndMachineOffset* mapping = binarySearch<BytecodeAndMachineOffset, unsigned>(decodedCodeMap, decodedCodeMap.size(), returnBytecodeIndex, BytecodeAndMachineOffset::getBytecodeIndex);
-        
-        ASSERT(mapping);
-        ASSERT(mapping->m_bytecodeIndex == returnBytecodeIndex);
-        
-        void* jumpTarget = baselineCodeBlockForCaller->getJITCode().executableAddressAtOffset(mapping->m_machineCodeOffset);
-
-        GPRReg callerFrameGPR;
-        if (inlineCallFrame->caller.inlineCallFrame) {
-            m_jit.add32(AssemblyHelpers::TrustedImm32(inlineCallFrame->caller.inlineCallFrame->stackOffset * sizeof(EncodedJSValue)), GPRInfo::callFrameRegister, GPRInfo::regT3);
-            callerFrameGPR = GPRInfo::regT3;
-        } else
-            callerFrameGPR = GPRInfo::callFrameRegister;
-        
-        m_jit.storePtr(AssemblyHelpers::TrustedImmPtr(baselineCodeBlock), AssemblyHelpers::addressFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::CodeBlock)));
-        m_jit.store32(AssemblyHelpers::TrustedImm32(JSValue::CellTag), AssemblyHelpers::tagFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::ScopeChain)));
-        if (!inlineCallFrame->isClosureCall())
-            m_jit.storePtr(AssemblyHelpers::TrustedImmPtr(inlineCallFrame->callee->scope()), AssemblyHelpers::payloadFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::ScopeChain)));
-        m_jit.store32(AssemblyHelpers::TrustedImm32(JSValue::CellTag), AssemblyHelpers::tagFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::CallerFrame)));
-        m_jit.storePtr(callerFrameGPR, AssemblyHelpers::payloadFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::CallerFrame)));
-        m_jit.storePtr(AssemblyHelpers::TrustedImmPtr(jumpTarget), AssemblyHelpers::payloadFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::ReturnPC)));
-        m_jit.store32(AssemblyHelpers::TrustedImm32(inlineCallFrame->arguments.size()), AssemblyHelpers::payloadFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::ArgumentCount)));
-        m_jit.store32(AssemblyHelpers::TrustedImm32(JSValue::CellTag), AssemblyHelpers::tagFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::Callee)));
-        if (!inlineCallFrame->isClosureCall())
-            m_jit.storePtr(AssemblyHelpers::TrustedImmPtr(inlineCallFrame->callee.get()), AssemblyHelpers::payloadFor((VirtualRegister)(inlineCallFrame->stackOffset + JSStack::Callee)));
-    }
+    reifyInlinedCallFrames(m_jit, exit);
     
     // 14) Create arguments if necessary and place them into the appropriate aliased
     //     registers.
@@ -742,31 +711,9 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         m_jit.load32(AssemblyHelpers::tagFor((VirtualRegister)exit.m_lastSetOperand), GPRInfo::cachedResultRegister2);
     }
     
-    // 16) Adjust the call frame pointer.
+    // 16) And finish.
     
-    if (exit.m_codeOrigin.inlineCallFrame)
-        m_jit.addPtr(AssemblyHelpers::TrustedImm32(exit.m_codeOrigin.inlineCallFrame->stackOffset * sizeof(EncodedJSValue)), GPRInfo::callFrameRegister);
-
-    // 17) Jump into the corresponding baseline JIT code.
-    
-    CodeBlock* baselineCodeBlock = m_jit.baselineCodeBlockFor(exit.m_codeOrigin);
-    Vector<BytecodeAndMachineOffset>& decodedCodeMap = m_jit.decodedCodeMapFor(baselineCodeBlock);
-    
-    BytecodeAndMachineOffset* mapping = binarySearch<BytecodeAndMachineOffset, unsigned>(decodedCodeMap, decodedCodeMap.size(), exit.m_codeOrigin.bytecodeIndex, BytecodeAndMachineOffset::getBytecodeIndex);
-    
-    ASSERT(mapping);
-    ASSERT(mapping->m_bytecodeIndex == exit.m_codeOrigin.bytecodeIndex);
-    
-    void* jumpTarget = baselineCodeBlock->getJITCode().executableAddressAtOffset(mapping->m_machineCodeOffset);
-    
-    ASSERT(GPRInfo::regT2 != GPRInfo::cachedResultRegister && GPRInfo::regT2 != GPRInfo::cachedResultRegister2);
-    
-    m_jit.move(AssemblyHelpers::TrustedImmPtr(jumpTarget), GPRInfo::regT2);
-    m_jit.jump(GPRInfo::regT2);
-
-#if DFG_ENABLE(DEBUG_VERBOSE)
-    dataLogF("   -> %p\n", jumpTarget);
-#endif
+    adjustAndJumpToTarget(m_jit, exit);
 }
 
 } } // namespace JSC::DFG

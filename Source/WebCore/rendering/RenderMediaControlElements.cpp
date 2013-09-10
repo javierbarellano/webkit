@@ -36,13 +36,13 @@
 namespace WebCore {
 
 RenderMediaVolumeSliderContainer::RenderMediaVolumeSliderContainer(Element* element)
-    : RenderBlock(element)
+    : RenderBlockFlow(element)
 {
 }
 
 void RenderMediaVolumeSliderContainer::layout()
 {
-    RenderBlock::layout();
+    RenderBlockFlow::layout();
 
     if (style()->display() == NONE || !nextSibling() || !nextSibling()->isBox())
         return;
@@ -50,7 +50,7 @@ void RenderMediaVolumeSliderContainer::layout()
     RenderBox* buttonBox = toRenderBox(nextSibling());
     int absoluteOffsetTop = buttonBox->localToAbsolute(FloatPoint(0, -size().height())).y();
 
-    LayoutStateDisabler layoutStateDisabler(view());
+    LayoutStateDisabler layoutStateDisabler(&view());
 
     // If the slider would be rendered outside the page, it should be moved below the controls.
     if (UNLIKELY(absoluteOffsetTop < 0))
@@ -72,8 +72,8 @@ void RenderMediaControlTimelineContainer::layout()
 {
     RenderFlexibleBox::layout();
 
-    LayoutStateDisabler layoutStateDisabler(view());
-    MediaControlTimelineContainerElement* container = static_cast<MediaControlTimelineContainerElement*>(node());
+    LayoutStateDisabler layoutStateDisabler(&view());
+    MediaControlTimelineContainerElement* container = static_cast<MediaControlTimelineContainerElement*>(element());
     container->setTimeDisplaysHidden(width().toInt() < minWidthToDisplayTimeDisplays);
 }
 
@@ -82,20 +82,20 @@ void RenderMediaControlTimelineContainer::layout()
 #if ENABLE(VIDEO_TRACK)
 
 RenderTextTrackContainerElement::RenderTextTrackContainerElement(Element* element)
-    : RenderBlock(element)
+    : RenderBlockFlow(element)
 {
 }
 
 void RenderTextTrackContainerElement::layout()
 {
-    RenderBlock::layout();
+    RenderBlockFlow::layout();
     if (style()->display() == NONE)
         return;
 
-    ASSERT(mediaControlElementType(node()) == MediaTextTrackDisplayContainer);
+    ASSERT(mediaControlElementType(element()) == MediaTextTrackDisplayContainer);
 
-    LayoutStateDisabler layoutStateDisabler(view());
-    static_cast<MediaControlTextTrackContainerElement*>(node())->updateSizes();
+    LayoutStateDisabler layoutStateDisabler(&view());
+    static_cast<MediaControlTextTrackContainerElement*>(element())->updateSizes();
 }
 
 #endif // ENABLE(VIDEO_TRACK)

@@ -122,8 +122,8 @@ void RenderButton::setupInnerStyle(RenderStyle* innerStyle)
 void RenderButton::updateFromElement()
 {
     // If we're an input element, we may need to change our button text.
-    if (isHTMLInputElement(node())) {
-        HTMLInputElement* input = toHTMLInputElement(node());
+    if (isHTMLInputElement(element())) {
+        HTMLInputElement* input = toHTMLInputElement(element());
         String value = input->valueWithDefault();
         setText(value);
     }
@@ -140,7 +140,7 @@ void RenderButton::setText(const String& str)
         if (m_buttonText)
             m_buttonText->setText(str.impl());
         else {
-            m_buttonText = new (renderArena()) RenderTextFragment(document(), str.impl());
+            m_buttonText = new (renderArena()) RenderTextFragment(&document(), str.impl());
             m_buttonText->setStyle(style());
             addChild(m_buttonText);
         }
@@ -157,7 +157,7 @@ bool RenderButton::canHaveGeneratedChildren() const
     // Input elements can't have generated children, but button elements can. We'll
     // write the code assuming any other button types that might emerge in the future
     // can also have children.
-    return !isHTMLInputElement(node());
+    return !isHTMLInputElement(element());
 }
 
 LayoutRect RenderButton::controlClipRect(const LayoutPoint& additionalOffset) const
@@ -172,7 +172,7 @@ void RenderButton::timerFired(Timer<RenderButton>*)
     // enters the page cache. But we currently have no way of being notified
     // when that happens, so we'll just ignore the timer firing as long as
     // we're in the cache.
-    if (document()->inPageCache())
+    if (document().inPageCache())
         return;
 
     repaint();

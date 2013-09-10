@@ -80,7 +80,7 @@ namespace WebCore {
 
 // ----------------------------
 
-class PermissionInput FINAL : public HTMLInputElement {
+class PermissionInput : public HTMLInputElement {
 public:
     void setNavDsc(NavDsc* nd) { m_navdsc = nd; }
     NavDsc* getNavDsc() { return m_navdsc; }

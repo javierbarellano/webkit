@@ -35,7 +35,11 @@ public:
 
 private:
     SVGFontFaceNameElement(const QualifiedName&, Document*);
+
+    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE { return false; }
 };
+
+ELEMENT_TYPE_CASTS(SVGFontFaceNameElement)
 
 } // namespace WebCore
 

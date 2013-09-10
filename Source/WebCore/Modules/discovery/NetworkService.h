@@ -112,8 +112,8 @@ public:
     String m_id;
 
 protected:
-    virtual EventTargetData* eventTargetData();
-    virtual EventTargetData* ensureEventTargetData();
+    virtual EventTargetData* eventTargetData() OVERRIDE;
+    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
 
 private:
     virtual void refEventTarget() { ref(); }

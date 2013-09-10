@@ -91,6 +91,9 @@ public:
     void focusChanged(bool hasFocus);
     void windowFocusChanged(bool hasFocus);
     void windowFrameChanged(NSRect frame);
+
+    void setShouldHostLayersInWindowServer(bool);
+    void layerHostingModeChanged(bool hostsLayersInWindowServer, uint32_t renderContextID);
     
     void mouseEvent(NSView *pluginView, NSEvent *, NPCocoaEventType);
     void keyEvent(NSView *pluginView, NSEvent *, NPCocoaEventType);
@@ -254,7 +257,7 @@ public:
     template <typename T>
     std::auto_ptr<T> waitForReply(uint32_t requestID)
     {
-        RefPtr<NetscapePluginInstanceProxy> protect(this); // Plug-in host may crash while we are waiting for reply, releasing all instances to the instance proxy.
+        Ref<NetscapePluginInstanceProxy> protect(*this); // Plug-in host may crash while we are waiting for reply, releasing all instances to the instance proxy.
 
         willCallPluginFunction();
         m_waitingForReply = true;

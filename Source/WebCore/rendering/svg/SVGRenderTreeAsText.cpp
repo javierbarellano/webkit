@@ -59,6 +59,7 @@
 #include "RenderSVGText.h"
 #include "RenderTreeAsText.h"
 #include "SVGCircleElement.h"
+#include "SVGElement.h"
 #include "SVGEllipseElement.h"
 #include "SVGInlineTextBox.h"
 #include "SVGLineElement.h"
@@ -73,7 +74,6 @@
 #include "SVGRectElement.h"
 #include "SVGRootInlineBox.h"
 #include "SVGStopElement.h"
-#include "SVGStyledElement.h"
 
 #include <math.h>
 
@@ -251,9 +251,8 @@ static void writeSVGPaintingResource(TextStream& ts, RenderSVGResource* resource
 
     // All other resources derive from RenderSVGResourceContainer
     RenderSVGResourceContainer* container = static_cast<RenderSVGResourceContainer*>(resource);
-    Node* node = container->node();
-    ASSERT(node);
-    ASSERT(node->isSVGElement());
+    SVGElement* element = container->element();
+    ASSERT(element);
 
     if (resource->resourceType() == PatternResourceType)
         ts << "[type=PATTERN]";
@@ -262,7 +261,7 @@ static void writeSVGPaintingResource(TextStream& ts, RenderSVGResource* resource
     else if (resource->resourceType() == RadialGradientResourceType)
         ts << "[type=RADIAL-GRADIENT]";
 
-    ts << " [id=\"" << toSVGElement(node)->getIdAttribute() << "\"]";
+    ts << " [id=\"" << element->getIdAttribute() << "\"]";
 }
 
 static void writeStyle(TextStream& ts, const RenderObject& object)
@@ -276,8 +275,7 @@ static void writeStyle(TextStream& ts, const RenderObject& object)
     writeIfNotDefault(ts, "opacity", style->opacity(), RenderStyle::initialOpacity());
     if (object.isSVGShape()) {
         const RenderSVGShape& shape = static_cast<const RenderSVGShape&>(object);
-        ASSERT(shape.node());
-        ASSERT(shape.node()->isSVGElement());
+        ASSERT(shape.element());
 
         Color fallbackColor;
         if (RenderSVGResource* strokePaintingResource = RenderSVGResource::strokePaintingResource(const_cast<RenderSVGShape*>(&shape), shape.style(), fallbackColor)) {
@@ -285,7 +283,7 @@ static void writeStyle(TextStream& ts, const RenderObject& object)
             ts << " [stroke={" << s;
             writeSVGPaintingResource(ts, strokePaintingResource);
 
-            SVGLengthContext lengthContext(toSVGElement(shape.node()));
+            SVGLengthContext lengthContext(shape.element());
             double dashOffset = svgStyle->strokeDashOffset().value(lengthContext);
             double strokeWidth = svgStyle->strokeWidth().value(lengthContext);
             const Vector<SVGLength>& dashes = svgStyle->strokeDashArray();
@@ -335,37 +333,36 @@ static TextStream& operator<<(TextStream& ts, const RenderSVGShape& shape)
 {
     writePositionAndStyle(ts, shape);
 
-    ASSERT(shape.node()->isSVGElement());
-    SVGElement* svgElement = toSVGElement(shape.node());
+    SVGElement* svgElement = shape.element();
     SVGLengthContext lengthContext(svgElement);
 
-    if (svgElement->hasTagName(SVGNames::rectTag)) {
-        SVGRectElement* element = static_cast<SVGRectElement*>(svgElement);
+    if (isSVGRectElement(svgElement)) {
+        SVGRectElement* element = toSVGRectElement(svgElement);
         writeNameValuePair(ts, "x", element->x().value(lengthContext));
         writeNameValuePair(ts, "y", element->y().value(lengthContext));
         writeNameValuePair(ts, "width", element->width().value(lengthContext));
         writeNameValuePair(ts, "height", element->height().value(lengthContext));
-    } else if (svgElement->hasTagName(SVGNames::lineTag)) {
-        SVGLineElement* element = static_cast<SVGLineElement*>(svgElement);
+    } else if (isSVGLineElement(svgElement)) {
+        SVGLineElement* element = toSVGLineElement(svgElement);
         writeNameValuePair(ts, "x1", element->x1().value(lengthContext));
         writeNameValuePair(ts, "y1", element->y1().value(lengthContext));
         writeNameValuePair(ts, "x2", element->x2().value(lengthContext));
         writeNameValuePair(ts, "y2", element->y2().value(lengthContext));
-    } else if (svgElement->hasTagName(SVGNames::ellipseTag)) {
-        SVGEllipseElement* element = static_cast<SVGEllipseElement*>(svgElement);
+    } else if (isSVGEllipseElement(svgElement)) {
+        SVGEllipseElement* element = toSVGEllipseElement(svgElement);
         writeNameValuePair(ts, "cx", element->cx().value(lengthContext));
         writeNameValuePair(ts, "cy", element->cy().value(lengthContext));
         writeNameValuePair(ts, "rx", element->rx().value(lengthContext));
         writeNameValuePair(ts, "ry", element->ry().value(lengthContext));
-    } else if (svgElement->hasTagName(SVGNames::circleTag)) {
-        SVGCircleElement* element = static_cast<SVGCircleElement*>(svgElement);
+    } else if (isSVGCircleElement(svgElement)) {
+        SVGCircleElement* element = toSVGCircleElement(svgElement);
         writeNameValuePair(ts, "cx", element->cx().value(lengthContext));
         writeNameValuePair(ts, "cy", element->cy().value(lengthContext));
         writeNameValuePair(ts, "r", element->r().value(lengthContext));
     } else if (svgElement->hasTagName(SVGNames::polygonTag) || svgElement->hasTagName(SVGNames::polylineTag)) {
-        SVGPolyElement* element = static_cast<SVGPolyElement*>(svgElement);
+        SVGPolyElement* element = toSVGPolyElement(svgElement);
         writeNameAndQuotedValue(ts, "points", element->pointList().valueAsString());
-    } else if (svgElement->hasTagName(SVGNames::pathTag)) {
+    } else if (isSVGPathElement(svgElement)) {
         SVGPathElement* element = toSVGPathElement(svgElement);
         String pathString;
         // FIXME: We should switch to UnalteredParsing here - this will affect the path dumping output of dozens of tests.
@@ -402,11 +399,8 @@ static inline void writeSVGInlineTextBox(TextStream& ts, SVGInlineTextBox* textB
     if (fragments.isEmpty())
         return;
 
-    RenderSVGInlineText* textRenderer = toRenderSVGInlineText(textBox->textRenderer());
-    ASSERT(textRenderer);
-
-    const SVGRenderStyle* svgStyle = textRenderer->style()->svgStyle();
-    String text = textBox->textRenderer()->text();
+    const SVGRenderStyle* svgStyle = textBox->textRenderer().style()->svgStyle();
+    String text = textBox->textRenderer().text();
 
     unsigned fragmentsSize = fragments.size();
     for (unsigned i = 0; i < fragmentsSize; ++i) {
@@ -538,7 +532,7 @@ void writeSVGResourceContainer(TextStream& ts, const RenderObject& object, int i
         // Dump final results that are used for rendering. No use in asking SVGPatternElement for its patternUnits(), as it may
         // link to other patterns using xlink:href, we need to build the full inheritance chain, aka. collectPatternProperties()
         PatternAttributes attributes;
-        static_cast<SVGPatternElement*>(pattern->node())->collectPatternAttributes(attributes);
+        toSVGPatternElement(pattern->element())->collectPatternAttributes(attributes);
 
         writeNameValuePair(ts, "patternUnits", attributes.patternUnits());
         writeNameValuePair(ts, "patternContentUnits", attributes.patternContentUnits());
@@ -552,7 +546,7 @@ void writeSVGResourceContainer(TextStream& ts, const RenderObject& object, int i
 
         // Dump final results that are used for rendering. No use in asking SVGGradientElement for its gradientUnits(), as it may
         // link to other gradients using xlink:href, we need to build the full inheritance chain, aka. collectGradientProperties()
-        SVGLinearGradientElement* linearGradientElement = static_cast<SVGLinearGradientElement*>(gradient->node());
+        SVGLinearGradientElement* linearGradientElement = toSVGLinearGradientElement(gradient->element());
 
         LinearGradientAttributes attributes;
         linearGradientElement->collectGradientAttributes(attributes);
@@ -564,10 +558,8 @@ void writeSVGResourceContainer(TextStream& ts, const RenderObject& object, int i
 
         // Dump final results that are used for rendering. No use in asking SVGGradientElement for its gradientUnits(), as it may
         // link to other gradients using xlink:href, we need to build the full inheritance chain, aka. collectGradientProperties()
-        SVGRadialGradientElement* radialGradientElement = static_cast<SVGRadialGradientElement*>(gradient->node());
-
         RadialGradientAttributes attributes;
-        radialGradientElement->collectGradientAttributes(attributes);
+        toSVGRadialGradientElement(gradient->element())->collectGradientAttributes(attributes);
         writeCommonGradientProperties(ts, attributes.spreadMethod(), attributes.gradientTransform(), attributes.gradientUnits());
 
         FloatPoint focalPoint = gradient->focalPoint(attributes);
@@ -636,7 +628,7 @@ void writeSVGGradientStop(TextStream& ts, const RenderSVGGradientStop& stop, int
 {
     writeStandardPrefix(ts, stop, indent);
 
-    SVGStopElement* stopElement = static_cast<SVGStopElement*>(stop.node());
+    SVGStopElement* stopElement = toSVGStopElement(toSVGElement(stop.node()));
     ASSERT(stopElement);
 
     RenderStyle* style = stop.style();
@@ -655,7 +647,7 @@ void writeResources(TextStream& ts, const RenderObject& object, int indent)
     // For now leave the DRT output as is, but later on we should change this so cycles are properly ignored in the DRT output.
     RenderObject& renderer = const_cast<RenderObject&>(object);
     if (!svgStyle->maskerResource().isEmpty()) {
-        if (RenderSVGResourceMasker* masker = getRenderSVGResourceById<RenderSVGResourceMasker>(object.document(), svgStyle->maskerResource())) {
+        if (RenderSVGResourceMasker* masker = getRenderSVGResourceById<RenderSVGResourceMasker>(&object.document(), svgStyle->maskerResource())) {
             writeIndent(ts, indent);
             ts << " ";
             writeNameAndQuotedValue(ts, "masker", svgStyle->maskerResource());
@@ -665,7 +657,7 @@ void writeResources(TextStream& ts, const RenderObject& object, int indent)
         }
     }
     if (!svgStyle->clipperResource().isEmpty()) {
-        if (RenderSVGResourceClipper* clipper = getRenderSVGResourceById<RenderSVGResourceClipper>(object.document(), svgStyle->clipperResource())) {
+        if (RenderSVGResourceClipper* clipper = getRenderSVGResourceById<RenderSVGResourceClipper>(&object.document(), svgStyle->clipperResource())) {
             writeIndent(ts, indent);
             ts << " ";
             writeNameAndQuotedValue(ts, "clipPath", svgStyle->clipperResource());
@@ -676,7 +668,7 @@ void writeResources(TextStream& ts, const RenderObject& object, int indent)
     }
 #if ENABLE(FILTERS)
     if (!svgStyle->filterResource().isEmpty()) {
-        if (RenderSVGResourceFilter* filter = getRenderSVGResourceById<RenderSVGResourceFilter>(object.document(), svgStyle->filterResource())) {
+        if (RenderSVGResourceFilter* filter = getRenderSVGResourceById<RenderSVGResourceFilter>(&object.document(), svgStyle->filterResource())) {
             writeIndent(ts, indent);
             ts << " ";
             writeNameAndQuotedValue(ts, "filter", svgStyle->filterResource());

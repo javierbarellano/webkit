@@ -53,8 +53,8 @@ public:
 #if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
         bool needsNewLine = false;
 #endif
-        for (size_t blockIndex = 0; blockIndex < m_graph.m_blocks.size(); ++blockIndex) {
-            BasicBlock* block = m_graph.m_blocks[blockIndex].get();
+        for (size_t blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex) {
+            BasicBlock* block = m_graph.block(blockIndex);
             if (!block)
                 continue;
             if (!block->isReachable)
@@ -126,7 +126,7 @@ public:
         for (size_t i = 0; i < inlineCallFrameCount; i++) {
             InlineCallFrame& inlineCallFrame = codeBlock()->inlineCallFrames()[i];
             CodeBlock* codeBlock = baselineCodeBlockForInlineCallFrame(&inlineCallFrame);
-            unsigned requiredCalleeRegisters = inlineCallFrame.stackOffset + codeBlock->m_numCalleeRegisters;
+            unsigned requiredCalleeRegisters = operandToLocal(inlineCallFrame.stackOffset) + codeBlock->m_numCalleeRegisters;
             if (requiredCalleeRegisters > calleeRegisters)
                 calleeRegisters = requiredCalleeRegisters;
         }

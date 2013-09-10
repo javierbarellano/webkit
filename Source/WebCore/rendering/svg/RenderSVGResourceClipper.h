@@ -41,7 +41,7 @@ public:
     OwnPtr<ImageBuffer> clipMaskImage;
 };
 
-class RenderSVGResourceClipper : public RenderSVGResourceContainer {
+class RenderSVGResourceClipper FINAL : public RenderSVGResourceContainer {
 public:
     RenderSVGResourceClipper(SVGClipPathElement*);
     virtual ~RenderSVGResourceClipper();
@@ -62,7 +62,7 @@ public:
     
     bool hitTestClipContent(const FloatRect&, const FloatPoint&);
 
-    SVGUnitTypes::SVGUnitType clipPathUnits() const { return static_cast<SVGClipPathElement*>(node())->clipPathUnits(); }
+    SVGUnitTypes::SVGUnitType clipPathUnits() const { return toSVGClipPathElement(element())->clipPathUnits(); }
 
     static RenderSVGResourceType s_resourceType;
 private:

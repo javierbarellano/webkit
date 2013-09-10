@@ -64,6 +64,7 @@
 #include "ScriptValue.h"
 #include "SecurityOrigin.h"
 #include "Settings.h"
+#include "UserGestureIndicator.h"
 #include "WheelEvent.h"
 #include "c_instance.h"
 #include "npruntime_impl.h"
@@ -124,7 +125,7 @@ IntRect PluginView::windowClipRect() const
     IntRect clipRect(m_windowRect);
     
     // Take our element and get the clip rect from the enclosing layer and frame view.
-    FrameView* parentView = m_element->document()->view();
+    FrameView* parentView = m_element->document().view();
     clipRect.intersect(parentView->windowClipRectForFrameOwner(m_element, true));
 
     return clipRect;
@@ -132,7 +133,7 @@ IntRect PluginView::windowClipRect() const
 
 void PluginView::setFrameRect(const IntRect& rect)
 {
-    if (m_element->document()->printing())
+    if (m_element->document().printing())
         return;
 
     if (rect != frameRect())
@@ -173,7 +174,7 @@ void PluginView::handleEvent(Event* event)
     else if (event->isKeyboardEvent())
         handleKeyboardEvent(static_cast<KeyboardEvent*>(event));
 #if defined(XP_MACOSX)
-    else if (event->type() == eventNames().mousewheelEvent)
+    else if (event->type() == eventNames().wheelEvent || event->type() == eventNames().mousewheelEvent)
         handleWheelEvent(static_cast<WheelEvent*>(event));
 #endif
     else if (event->type() == eventNames().contextmenuEvent)
@@ -284,7 +285,7 @@ void PluginView::mediaCanStart()
 {
     ASSERT(!m_isStarted);
     if (!start())
-        parentFrame()->loader()->client()->dispatchDidFailToStartPlugin(this);
+        parentFrame()->loader().client().dispatchDidFailToStartPlugin(this);
 }
 
 PluginView::~PluginView()
@@ -308,7 +309,7 @@ PluginView::~PluginView()
 
     platformDestroy();
 
-    m_parentFrame->script()->cleanupScriptObjectsForPlugin(this);
+    m_parentFrame->script().cleanupScriptObjectsForPlugin(this);
 
     if (m_plugin && !(m_plugin->quirks().contains(PluginQuirkDontUnloadPlugin)))
         m_plugin->unload();
@@ -422,12 +423,13 @@ void PluginView::performRequest(PluginRequest* request)
     // don't let a plugin start any loads if it is no longer part of a document that is being 
     // displayed unless the loads are in the same frame as the plugin.
     const String& targetFrameName = request->frameLoadRequest().frameName();
-    if (m_parentFrame->loader()->documentLoader() != m_parentFrame->loader()->activeDocumentLoader() &&
-        (targetFrameName.isNull() || m_parentFrame->tree()->find(targetFrameName) != m_parentFrame))
+    if (m_parentFrame->loader().documentLoader() != m_parentFrame->loader().activeDocumentLoader() && (targetFrameName.isNull() || m_parentFrame->tree().find(targetFrameName) != m_parentFrame))
         return;
 
     KURL requestURL = request->frameLoadRequest().resourceRequest().url();
     String jsString = scriptStringIfJavaScriptURL(requestURL);
+
+    UserGestureIndicator gestureIndicator(request->shouldAllowPopups() ? DefinitelyProcessingUserGesture : PossiblyProcessingUserGesture);
 
     if (jsString.isNull()) {
         // if this is not a targeted request, create a stream for it. otherwise,
@@ -444,7 +446,7 @@ void PluginView::performRequest(PluginRequest* request)
             FrameLoadRequest frameRequest(m_parentFrame.get(), request->frameLoadRequest().resourceRequest());
             frameRequest.setFrameName(targetFrameName);
             frameRequest.setShouldCheckNewWindowPolicy(true);
-            m_parentFrame->loader()->load(frameRequest);
+            m_parentFrame->loader().load(frameRequest);
 
             // FIXME: <rdar://problem/4807469> This should be sent when the document has finished loading
             if (request->sendNotification()) {
@@ -461,16 +463,16 @@ void PluginView::performRequest(PluginRequest* request)
 
     // Targeted JavaScript requests are only allowed on the frame that contains the JavaScript plugin
     // and this has been made sure in ::load.
-    ASSERT(targetFrameName.isEmpty() || m_parentFrame->tree()->find(targetFrameName) == m_parentFrame);
+    ASSERT(targetFrameName.isEmpty() || m_parentFrame->tree().find(targetFrameName) == m_parentFrame);
     
     // Executing a script can cause the plugin view to be destroyed, so we keep a reference to it.
     RefPtr<PluginView> protector(this);
-    ScriptValue result = m_parentFrame->script()->executeScript(jsString, request->shouldAllowPopups());
+    ScriptValue result = m_parentFrame->script().executeScript(jsString, request->shouldAllowPopups());
 
     if (targetFrameName.isNull()) {
         String resultString;
 
-        ScriptState* scriptState = m_parentFrame->script()->globalObject(pluginWorld())->globalExec();
+        ScriptState* scriptState = m_parentFrame->script().globalObject(pluginWorld())->globalExec();
         CString cstr;
         if (result.getString(scriptState, resultString))
             cstr = resultString.utf8();
@@ -516,7 +518,7 @@ NPError PluginView::load(const FrameLoadRequest& frameLoadRequest, bool sendNoti
         return NPERR_INVALID_URL;
 
     // Don't allow requests to be made when the document loader is stopping all loaders.
-    DocumentLoader* loader = m_parentFrame->loader()->documentLoader();
+    DocumentLoader* loader = m_parentFrame->loader().documentLoader();
     if (!loader || loader->isStopping())
         return NPERR_GENERIC_ERROR;
 
@@ -525,11 +527,11 @@ NPError PluginView::load(const FrameLoadRequest& frameLoadRequest, bool sendNoti
 
     if (!jsString.isNull()) {
         // Return NPERR_GENERIC_ERROR if JS is disabled. This is what Mozilla does.
-        if (!m_parentFrame->script()->canExecuteScripts(NotAboutToExecuteScript))
+        if (!m_parentFrame->script().canExecuteScripts(NotAboutToExecuteScript))
             return NPERR_GENERIC_ERROR;
 
         // For security reasons, only allow JS requests to be made on the frame that contains the plug-in.
-        if (!targetFrameName.isNull() && m_parentFrame->tree()->find(targetFrameName) != m_parentFrame)
+        if (!targetFrameName.isNull() && m_parentFrame->tree().find(targetFrameName) != m_parentFrame)
             return NPERR_INVALID_PARAM;
     } else if (!m_parentFrame->document()->securityOrigin()->canDisplay(url))
         return NPERR_GENERIC_ERROR;
@@ -750,7 +752,7 @@ PassRefPtr<JSC::Bindings::Instance> PluginView::bindingInstance()
         return 0;
     }
 
-    RefPtr<JSC::Bindings::RootObject> root = m_parentFrame->script()->createRootObject(this);
+    RefPtr<JSC::Bindings::RootObject> root = m_parentFrame->script().createRootObject(this);
     RefPtr<JSC::Bindings::Instance> instance = JSC::Bindings::CInstance::create(object, root.release());
 
     _NPN_ReleaseObject(object);
@@ -831,7 +833,7 @@ PluginView::PluginView(Frame* parentFrame, const IntSize& size, PluginPackage* p
     , m_wmPrintHDC(0)
     , m_haveUpdatedPluginWidget(false)
 #endif
-#if (PLATFORM(QT) && OS(WINDOWS)) || PLATFORM(EFL)
+#if (PLATFORM(QT) && OS(WINDOWS)) || PLATFORM(EFL) || PLATFORM(NIX)
     , m_window(0)
 #endif
 #if defined(XP_MACOSX)
@@ -876,7 +878,7 @@ PluginView::PluginView(Frame* parentFrame, const IntSize& size, PluginPackage* p
 void PluginView::focusPluginElement()
 {
     if (Page* page = m_parentFrame->page())
-        page->focusController()->setFocusedElement(m_element, m_parentFrame);
+        page->focusController().setFocusedElement(m_element, m_parentFrame);
     else
         m_parentFrame->document()->setFocusedElement(m_element);
 }
@@ -889,7 +891,7 @@ void PluginView::didReceiveResponse(const ResourceResponse& response)
     ASSERT(m_loadManually);
     ASSERT(!m_manualStream);
 
-    m_manualStream = PluginStream::create(this, m_parentFrame.get(), m_parentFrame->loader()->activeDocumentLoader()->request(), false, 0, plugin()->pluginFuncs(), instance(), m_plugin->quirks());
+    m_manualStream = PluginStream::create(this, m_parentFrame.get(), m_parentFrame->loader().activeDocumentLoader()->request(), false, 0, plugin()->pluginFuncs(), instance(), m_plugin->quirks());
     m_manualStream->setLoadManually(true);
 
     m_manualStream->didReceiveResponse(0, response);
@@ -1256,7 +1258,7 @@ const char* PluginView::userAgent()
     else if (m_plugin->quirks().contains(PluginQuirkWantsChromeUserAgent))
         return ChromeUserAgent;
     if (m_userAgent.isNull())
-        m_userAgent = m_parentFrame->loader()->userAgent(m_url).utf8();
+        m_userAgent = m_parentFrame->loader().userAgent(m_url).utf8();
 
     return m_userAgent.data();
 }
@@ -1320,7 +1322,7 @@ NPError PluginView::getValue(NPNVariable variable, void* value)
         if (m_isJavaScriptPaused)
             return NPERR_GENERIC_ERROR;
 
-        NPObject* windowScriptObject = m_parentFrame->script()->windowScriptNPObject();
+        NPObject* windowScriptObject = m_parentFrame->script().windowScriptNPObject();
 
         // Return value is expected to be retained, as described here: <http://www.mozilla.org/projects/plugin/npruntime.html>
         if (windowScriptObject)
@@ -1355,7 +1357,7 @@ NPError PluginView::getValue(NPNVariable variable, void* value)
         Page* page = m_parentFrame->page();
         if (!page)
             return NPERR_GENERIC_ERROR;
-        *((NPBool*)value) = !page->settings() || page->settings()->privateBrowsingEnabled();
+        *((NPBool*)value) = page->settings().privateBrowsingEnabled();
         return NPERR_NO_ERROR;
     }
 
@@ -1369,13 +1371,7 @@ static Frame* getFrame(Frame* parentFrame, Element* element)
     if (parentFrame)
         return parentFrame;
     
-    Document* document = element->document();
-    if (!document)
-        document = element->ownerDocument();
-    if (document)
-        return document->frame();
-    
-    return 0;
+    return element->document().frame();
 }
 
 NPError PluginView::getValueForURL(NPNURLVariable variable, const char* url, char** value, uint32_t* len)
@@ -1411,7 +1407,7 @@ NPError PluginView::getValueForURL(NPNURLVariable variable, const char* url, cha
         KURL u(m_parentFrame->document()->baseURL(), url);
         if (u.isValid()) {
             Frame* frame = getFrame(parentFrame(), m_element);
-            const FrameLoader* frameLoader = frame ? frame->loader() : 0;
+            const FrameLoader* frameLoader = frame ? &frame->loader() : 0;
             const NetworkingContext* context = frameLoader ? frameLoader->networkingContext() : 0;
             const CString proxyStr = toString(proxyServersForURL(u, context)).utf8();
             if (!proxyStr.isNull()) {

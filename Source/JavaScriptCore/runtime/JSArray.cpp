@@ -44,14 +44,15 @@ using namespace WTF;
 
 namespace JSC {
 
-ASSERT_HAS_TRIVIAL_DESTRUCTOR(JSArray);
+STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSArray);
 
 const ClassInfo JSArray::s_info = {"Array", &JSNonFinalObject::s_info, 0, 0, CREATE_METHOD_TABLE(JSArray)};
 
-Butterfly* createArrayButterflyInDictionaryIndexingMode(VM& vm, unsigned initialLength)
+Butterfly* createArrayButterflyInDictionaryIndexingMode(
+    VM& vm, JSCell* intendedOwner, unsigned initialLength)
 {
     Butterfly* butterfly = Butterfly::create(
-        vm, 0, 0, true, IndexingHeader(), ArrayStorage::sizeFor(0));
+        vm, intendedOwner, 0, 0, true, IndexingHeader(), ArrayStorage::sizeFor(0));
     ArrayStorage* storage = butterfly->arrayStorage();
     storage->setLength(initialLength);
     storage->setVectorLength(0);
@@ -75,7 +76,7 @@ void JSArray::setLengthWritable(ExecState* exec, bool writable)
 }
 
 // Defined in ES5.1 15.4.5.1
-bool JSArray::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor, bool throwException)
+bool JSArray::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName propertyName, const PropertyDescriptor& descriptor, bool throwException)
 {
     JSArray* array = jsCast<JSArray*>(object);
 
@@ -108,7 +109,7 @@ bool JSArray::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName 
         unsigned newLen = descriptor.value().toUInt32(exec);
         // d. If newLen is not equal to ToNumber( Desc.[[Value]]), throw a RangeError exception.
         if (newLen != descriptor.value().toNumber(exec)) {
-            throwError(exec, createRangeError(exec, "Invalid array length"));
+            exec->vm().throwException(exec, createRangeError(exec, "Invalid array length"));
             return false;
         }
 
@@ -176,26 +177,16 @@ bool JSArray::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName 
     return array->JSObject::defineOwnNonIndexProperty(exec, propertyName, descriptor, throwException);
 }
 
-bool JSArray::getOwnPropertySlot(JSCell* cell, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
+bool JSArray::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
-    JSArray* thisObject = jsCast<JSArray*>(cell);
+    JSArray* thisObject = jsCast<JSArray*>(object);
     if (propertyName == exec->propertyNames().length) {
-        slot.setValue(jsNumber(thisObject->length()));
+        unsigned attributes = thisObject->isLengthWritable() ? DontDelete | DontEnum : DontDelete | DontEnum | ReadOnly;
+        slot.setValue(thisObject, attributes, jsNumber(thisObject->length()));
         return true;
     }
 
     return JSObject::getOwnPropertySlot(thisObject, exec, propertyName, slot);
-}
-
-bool JSArray::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    JSArray* thisObject = jsCast<JSArray*>(object);
-    if (propertyName == exec->propertyNames().length) {
-        descriptor.setDescriptor(jsNumber(thisObject->length()), thisObject->isLengthWritable() ? DontDelete | DontEnum : DontDelete | DontEnum | ReadOnly);
-        return true;
-    }
-
-    return JSObject::getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);
 }
 
 // ECMA 15.4.5.1
@@ -206,7 +197,7 @@ void JSArray::put(JSCell* cell, ExecState* exec, PropertyName propertyName, JSVa
     if (propertyName == exec->propertyNames().length) {
         unsigned newLength = value.toUInt32(exec);
         if (value.toNumber(exec) != static_cast<double>(newLength)) {
-            throwError(exec, createRangeError(exec, ASCIILiteral("Invalid array length")));
+            exec->vm().throwException(exec, createRangeError(exec, ASCIILiteral("Invalid array length")));
             return;
         }
         thisObject->setLength(exec, newLength, slot.isStrictMode());
@@ -278,6 +269,7 @@ bool JSArray::unshiftCountSlowCase(VM& vm, bool addToFront, unsigned count)
     // Step 2:
     // We're either going to choose to allocate a new ArrayStorage, or we're going to reuse the existing one.
 
+    DeferGC deferGC(vm.heap);
     void* newAllocBase = 0;
     unsigned newStorageCapacity;
     // If the current storage array is sufficiently large (but not too large!) then just keep using it.
@@ -286,7 +278,7 @@ bool JSArray::unshiftCountSlowCase(VM& vm, bool addToFront, unsigned count)
         newStorageCapacity = currentCapacity;
     } else {
         size_t newSize = Butterfly::totalSize(0, propertyCapacity, true, ArrayStorage::sizeFor(desiredCapacity));
-        if (!vm.heap.tryAllocateStorage(newSize, &newAllocBase))
+        if (!vm.heap.tryAllocateStorage(this, newSize, &newAllocBase))
             return false;
         newStorageCapacity = desiredCapacity;
     }
@@ -577,7 +569,7 @@ void JSArray::push(ExecState* exec, JSValue value)
         if (length > MAX_ARRAY_INDEX) {
             methodTable()->putByIndex(this, exec, length, value, true);
             if (!exec->hadException())
-                throwError(exec, createRangeError(exec, "Invalid array length"));
+                exec->vm().throwException(exec, createRangeError(exec, "Invalid array length"));
             return;
         }
         
@@ -597,7 +589,7 @@ void JSArray::push(ExecState* exec, JSValue value)
         if (length > MAX_ARRAY_INDEX) {
             methodTable()->putByIndex(this, exec, length, value, true);
             if (!exec->hadException())
-                throwError(exec, createRangeError(exec, "Invalid array length"));
+                exec->vm().throwException(exec, createRangeError(exec, "Invalid array length"));
             return;
         }
         
@@ -629,7 +621,7 @@ void JSArray::push(ExecState* exec, JSValue value)
         if (length > MAX_ARRAY_INDEX) {
             methodTable()->putByIndex(this, exec, length, value, true);
             if (!exec->hadException())
-                throwError(exec, createRangeError(exec, "Invalid array length"));
+                exec->vm().throwException(exec, createRangeError(exec, "Invalid array length"));
             return;
         }
         
@@ -664,7 +656,7 @@ void JSArray::push(ExecState* exec, JSValue value)
             methodTable()->putByIndex(this, exec, storage->length(), value, true);
             // Per ES5.1 15.4.4.7 step 6 & 15.4.5.1 step 3.d.
             if (!exec->hadException())
-                throwError(exec, createRangeError(exec, "Invalid array length"));
+                exec->vm().throwException(exec, createRangeError(exec, "Invalid array length"));
             return;
         }
 
@@ -708,29 +700,50 @@ bool JSArray::shiftCountWithArrayStorage(unsigned startIndex, unsigned count, Ar
     
     unsigned usedVectorLength = min(vectorLength, oldLength);
     
-    vectorLength -= count;
-    storage->setVectorLength(vectorLength);
-    
-    if (vectorLength) {
-        if (startIndex < usedVectorLength - (startIndex + count)) {
-            if (startIndex) {
-                memmove(
-                    storage->m_vector + count,
-                    storage->m_vector,
-                    sizeof(JSValue) * startIndex);
-            }
-            m_butterfly = m_butterfly->shift(structure(), count);
-            storage = m_butterfly->arrayStorage();
-            storage->m_indexBias += count;
-        } else {
+    unsigned numElementsBeforeShiftRegion = startIndex;
+    unsigned firstIndexAfterShiftRegion = startIndex + count;
+    unsigned numElementsAfterShiftRegion = usedVectorLength - firstIndexAfterShiftRegion;
+    ASSERT(numElementsBeforeShiftRegion + count + numElementsAfterShiftRegion == usedVectorLength);
+
+    // The point of this comparison seems to be to minimize the amount of elements that have to 
+    // be moved during a shift operation.
+    if (numElementsBeforeShiftRegion < numElementsAfterShiftRegion) {
+        // The number of elements before the shift region is less than the number of elements
+        // after the shift region, so we move the elements before to the right.
+        if (numElementsBeforeShiftRegion) {
+            RELEASE_ASSERT(count + startIndex <= vectorLength);
             memmove(
-                storage->m_vector + startIndex,
-                storage->m_vector + startIndex + count,
-                sizeof(JSValue) * (usedVectorLength - (startIndex + count)));
-            for (unsigned i = usedVectorLength - count; i < usedVectorLength; ++i)
-                storage->m_vector[i].clear();
+                storage->m_vector + count,
+                storage->m_vector,
+                sizeof(JSValue) * startIndex);
         }
+        // Adjust the Butterfly and the index bias. We only need to do this here because we're changing
+        // the start of the Butterfly, which needs to point at the first indexed property in the used
+        // portion of the vector.
+        m_butterfly = m_butterfly->shift(structure(), count);
+        storage = m_butterfly->arrayStorage();
+        storage->m_indexBias += count;
+
+        // Since we're consuming part of the vector by moving its beginning to the left,
+        // we need to modify the vector length appropriately.
+        storage->setVectorLength(vectorLength - count);
+    } else {
+        // The number of elements before the shift region is greater than or equal to the number 
+        // of elements after the shift region, so we move the elements after the shift region to the left.
+        memmove(
+            storage->m_vector + startIndex,
+            storage->m_vector + firstIndexAfterShiftRegion,
+            sizeof(JSValue) * numElementsAfterShiftRegion);
+        // Clear the slots of the elements we just moved.
+        unsigned startOfEmptyVectorTail = usedVectorLength - count;
+        for (unsigned i = startOfEmptyVectorTail; i < usedVectorLength; ++i)
+            storage->m_vector[i].clear();
+        // We don't modify the index bias or the Butterfly pointer in this case because we're not changing 
+        // the start of the Butterfly, which needs to point at the first indexed property in the used 
+        // portion of the vector. We also don't modify the vector length because we're not actually changing
+        // its length; we're just using less of it.
     }
+    
     return true;
 }
 

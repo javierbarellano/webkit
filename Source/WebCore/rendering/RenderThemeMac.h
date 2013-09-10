@@ -92,6 +92,7 @@ public:
     virtual double animationRepeatIntervalForProgressBar(RenderProgress*) const;
     // Returns the duration of the animation for the progress bar.
     virtual double animationDurationForProgressBar(RenderProgress*) const;
+    virtual IntRect progressBarRectForBounds(const RenderObject*, const IntRect&) const OVERRIDE;
 #endif
 
     virtual Color systemColor(CSSValueID) const;
@@ -130,9 +131,7 @@ protected:
     virtual String extraFullScreenStyleSheet();
 #endif
 
-    virtual bool hasOwnDisabledStateHandlingFor(ControlPart) const;
-    virtual bool usesMediaControlStatusDisplay();
-    virtual bool usesMediaControlVolumeSlider() const;
+    virtual bool usesMediaControlStatusDisplay() { return true; }
     virtual void adjustMediaSliderThumbSize(RenderStyle*) const;
     virtual IntPoint volumeSliderOffsetFromMuteButton(RenderBox*, const IntSize&) const OVERRIDE;
 #endif

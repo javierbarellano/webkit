@@ -30,6 +30,7 @@
 #define SpeculatedType_h
 
 #include "JSCJSValue.h"
+#include "TypedArrayType.h"
 #include <wtf/PrintStream.h>
 
 namespace JSC {
@@ -50,25 +51,30 @@ static const SpeculatedType SpecUint16Array       = 0x00000200; // It's definite
 static const SpeculatedType SpecUint32Array       = 0x00000400; // It's definitely an Uint32Array or one of its subclasses.
 static const SpeculatedType SpecFloat32Array      = 0x00000800; // It's definitely an Uint16Array or one of its subclasses.
 static const SpeculatedType SpecFloat64Array      = 0x00001000; // It's definitely an Uint16Array or one of its subclasses.
+static const SpeculatedType SpecTypedArrayView    = SpecInt8Array | SpecInt16Array | SpecInt32Array | SpecUint8Array | SpecUint8ClampedArray | SpecUint16Array | SpecUint32Array | SpecFloat32Array | SpecFloat64Array;
 static const SpeculatedType SpecArguments         = 0x00002000; // It's definitely an Arguments object.
 static const SpeculatedType SpecStringObject      = 0x00004000; // It's definitely a StringObject.
 static const SpeculatedType SpecObjectOther       = 0x00008000; // It's definitely an object but not JSFinalObject, JSArray, or JSFunction.
 static const SpeculatedType SpecObject            = 0x0000ffff; // Bitmask used for testing for any kind of object prediction.
-static const SpeculatedType SpecString            = 0x00010000; // It's definitely a JSString.
-static const SpeculatedType SpecCellOther         = 0x00020000; // It's definitely a JSCell but not a subclass of JSObject and definitely not a JSString.
-static const SpeculatedType SpecCell              = 0x0003ffff; // It's definitely a JSCell.
+static const SpeculatedType SpecStringIdent       = 0x00010000; // It's definitely a JSString, and it's an identifier.
+static const SpeculatedType SpecStringVar         = 0x00020000; // It's definitely a JSString, and it's not an identifier.
+static const SpeculatedType SpecString            = 0x00030000; // It's definitely a JSString.
+static const SpeculatedType SpecCellOther         = 0x00040000; // It's definitely a JSCell but not a subclass of JSObject and definitely not a JSString.
+static const SpeculatedType SpecCell              = 0x0007ffff; // It's definitely a JSCell.
 static const SpeculatedType SpecInt32             = 0x00800000; // It's definitely an Int32.
-static const SpeculatedType SpecDoubleReal        = 0x01000000; // It's definitely a non-NaN double.
-static const SpeculatedType SpecDoubleNaN         = 0x02000000; // It's definitely a NaN.
-static const SpeculatedType SpecDouble            = 0x03000000; // It's either a non-NaN or a NaN double.
-static const SpeculatedType SpecRealNumber        = 0x01800000; // It's either an Int32 or a DoubleReal.
-static const SpeculatedType SpecNumber            = 0x03800000; // It's either an Int32 or a Double.
-static const SpeculatedType SpecBoolean           = 0x04000000; // It's definitely a Boolean.
-static const SpeculatedType SpecOther             = 0x08000000; // It's definitely none of the above.
-static const SpeculatedType SpecTop               = 0x0fffffff; // It can be any of the above.
-static const SpeculatedType SpecEmpty             = 0x10000000; // It's definitely an empty value marker.
-static const SpeculatedType SpecEmptyOrTop        = 0x1fffffff; // It can be any of the above.
-static const SpeculatedType FixedIndexedStorageMask    = SpecInt8Array | SpecInt16Array | SpecInt32Array | SpecUint8Array | SpecUint8ClampedArray | SpecUint16Array | SpecUint32Array | SpecFloat32Array | SpecFloat64Array;
+static const SpeculatedType SpecInt48AsDouble     = 0x01000000; // It's definitely an Int48 and it's inside a double.
+static const SpeculatedType SpecInteger           = 0x01800000; // It's definitely some kind of integer.
+static const SpeculatedType SpecNonIntAsDouble    = 0x02000000; // It's definitely not an Int48 but it's a real number and it's a double.
+static const SpeculatedType SpecDoubleReal        = 0x03000000; // It's definitely a non-NaN double.
+static const SpeculatedType SpecDoubleNaN         = 0x04000000; // It's definitely a NaN.
+static const SpeculatedType SpecDouble            = 0x07000000; // It's either a non-NaN or a NaN double.
+static const SpeculatedType SpecRealNumber        = 0x03800000; // It's either an Int32 or a DoubleReal.
+static const SpeculatedType SpecNumber            = 0x07800000; // It's either an Int32 or a Double.
+static const SpeculatedType SpecBoolean           = 0x08000000; // It's definitely a Boolean.
+static const SpeculatedType SpecOther             = 0x10000000; // It's definitely none of the above.
+static const SpeculatedType SpecTop               = 0x1fffffff; // It can be any of the above.
+static const SpeculatedType SpecEmpty             = 0x20000000; // It's definitely an empty value marker.
+static const SpeculatedType SpecEmptyOrTop        = 0x3fffffff; // It can be any of the above.
 
 typedef bool (*SpeculatedTypeChecker)(SpeculatedType);
 
@@ -103,14 +109,14 @@ inline bool isFinalObjectOrOtherSpeculation(SpeculatedType value)
     return !!(value & (SpecFinalObject | SpecOther)) && !(value & ~(SpecFinalObject | SpecOther));
 }
 
-inline bool isFixedIndexedStorageObjectSpeculation(SpeculatedType value)
+inline bool isStringIdentSpeculation(SpeculatedType value)
 {
-    return !!value && (value & FixedIndexedStorageMask) == value;
+    return value == SpecStringIdent;
 }
 
 inline bool isStringSpeculation(SpeculatedType value)
 {
-    return value == SpecString;
+    return !!value && (value & SpecString) == value;
 }
 
 inline bool isArraySpeculation(SpeculatedType value)
@@ -239,9 +245,19 @@ inline bool isInt32SpeculationExpectingDefined(SpeculatedType value)
     return isInt32Speculation(value & ~SpecOther);
 }
 
+inline bool isInt48AsDoubleSpeculation(SpeculatedType value)
+{
+    return value == SpecInt48AsDouble;
+}
+
+inline bool isIntegerSpeculation(SpeculatedType value)
+{
+    return !!value && (value & SpecInteger) == value;
+}
+
 inline bool isDoubleRealSpeculation(SpeculatedType value)
 {
-    return value == SpecDoubleReal;
+    return !!value && (value & SpecDoubleReal) == value;
 }
 
 inline bool isDoubleSpeculation(SpeculatedType value)
@@ -322,6 +338,9 @@ SpeculatedType speculationFromClassInfo(const ClassInfo*);
 SpeculatedType speculationFromStructure(Structure*);
 SpeculatedType speculationFromCell(JSCell*);
 SpeculatedType speculationFromValue(JSValue);
+
+SpeculatedType speculationFromTypedArrayType(TypedArrayType); // only valid for typed views.
+TypedArrayType typedArrayTypeFromSpeculation(SpeculatedType);
 
 } // namespace JSC
 

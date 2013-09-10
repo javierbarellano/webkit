@@ -117,6 +117,7 @@ private:
 
     void showClosedCaptionTrackList();
     void hideClosedCaptionTrackList();
+    void setFullscreenSliderVolume();
 
     MediaControlRewindButtonElement* m_rewindButton;
     MediaControlFastForwardButtonElement* m_fastForwardButton;

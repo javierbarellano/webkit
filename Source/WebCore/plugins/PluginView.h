@@ -63,11 +63,6 @@ QT_BEGIN_NAMESPACE
 class QPainter;
 QT_END_NAMESPACE
 #endif
-#if PLATFORM(QT) && USE(ACCELERATED_COMPOSITING) && ENABLE(NETSCAPE_PLUGIN_API) && defined(XP_UNIX)
-#ifndef WTF_USE_ACCELERATED_COMPOSITING_PLUGIN_LAYER
-#define WTF_USE_ACCELERATED_COMPOSITING_PLUGIN_LAYER 1
-#endif
-#endif
 #if PLATFORM(GTK)
 typedef struct _GtkSocket GtkSocket;
 #endif
@@ -249,15 +244,6 @@ namespace WebCore {
 #endif
         void keepAlive();
 
-#if USE(ACCELERATED_COMPOSITING)
-#if USE(ACCELERATED_COMPOSITING_PLUGIN_LAYER)
-        virtual PlatformLayer* platformLayer() const;
-        bool shouldUseAcceleratedCompositing() const;
-#else
-        virtual PlatformLayer* platformLayer() const { return 0; }
-#endif
-#endif
-
 #if PLATFORM(QT) && ENABLE(NETSCAPE_PLUGIN_API) && defined(XP_UNIX)
         // PluginViewQt (X11) needs a few workarounds when running under DRT
         static void setIsRunningUnderDRT(bool flag) { s_isRunningUnderDRT = flag; }
@@ -383,7 +369,7 @@ namespace WebCore {
         bool m_haveUpdatedPluginWidget;
 #endif
 
-#if ((PLATFORM(GTK) || PLATFORM(QT)) && OS(WINDOWS)) || PLATFORM(EFL)
+#if ((PLATFORM(GTK) || PLATFORM(QT)) && OS(WINDOWS)) || PLATFORM(EFL) || PLATFORM(NIX)
         // On Mac OSX and Qt/Windows the plugin does not have its own native widget,
         // but is using the containing window as its reference for positioning/painting.
         PlatformPluginWidget m_window;
@@ -424,10 +410,6 @@ private:
         void paintUsingXPixmap(QPainter* painter, const QRect &exposedRect);
         QWebPageClient* platformPageClient() const;
 #endif
-#if USE(ACCELERATED_COMPOSITING_PLUGIN_LAYER)
-        OwnPtr<PlatformLayer> m_platformLayer;
-        friend class PluginGraphicsLayerQt;
-#endif // USE(ACCELERATED_COMPOSITING_PLUGIN_LAYER)
 #endif // PLATFORM(QT)
 
 #if PLATFORM(GTK)

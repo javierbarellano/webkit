@@ -10,23 +10,26 @@ set(WTF_HEADERS
     BoundsCheckedPointer.h
     BumpPointerAllocator.h
     ByteOrder.h
+    CompilationThread.h
     Compiler.h
+    Compression.h
     CryptographicallyRandomNumber.h
     CurrentTime.h
     DateMath.h
     DataLog.h
     DecimalNumber.h
     Decoder.h
+    DeferrableRefCounted.h
     Deque.h
     DisallowCType.h
     DoublyLinkedList.h
     DynamicAnnotations.h
     Encoder.h
-    FastAllocBase.h
     FastMalloc.h
     FeatureDefines.h
     FilePrintStream.h
     FixedArray.h
+    FlipBytes.h
     Forward.h
     FunctionDispatcher.h
     Functional.h
@@ -44,15 +47,15 @@ set(WTF_HEADERS
     Locker.h
     MD5.h
     MainThread.h
+    MallocPtr.h
     MathExtras.h
     MediaTime.h
     MessageQueue.h
     MetaAllocator.h
     MetaAllocatorHandle.h
-    NonCopyingSort.h
     ThreadRestrictionVerifier.h
+    Ref.h
     Noncopyable.h
-    NotFound.h
     NullPtr.h
     NumberOfCores.h
     RAMSize.h
@@ -65,7 +68,6 @@ set(WTF_HEADERS
     PageAllocationAligned.h
     PageBlock.h
     PageReservation.h
-    PassOwnArrayPtr.h
     PassOwnPtr.h
     PassRefPtr.h
     PassTraits.h
@@ -104,7 +106,6 @@ set(WTF_HEADERS
     ThreadSpecific.h
     Threading.h
     ThreadingPrimitives.h
-    TypeTraits.h
     VMTags.h
     ValueCheck.h
     Vector.h
@@ -144,11 +145,11 @@ set(WTF_HEADERS
 )
 
 set(WTF_SOURCES
-    ArrayBuffer.cpp
-    ArrayBufferView.cpp
     Assertions.cpp
     Atomics.cpp
     BitVector.cpp
+    CompilationThread.cpp
+    Compression.cpp
     CryptographicallyRandomNumber.cpp
     CurrentTime.cpp
     DateMath.cpp
@@ -175,11 +176,11 @@ set(WTF_SOURCES
     RandomNumber.cpp
     RefCountedLeakCounter.cpp
     SHA1.cpp
+    SixCharacterHash.cpp
     StackBounds.cpp
     StringPrintStream.cpp
     TCSystemAlloc.cpp
     Threading.cpp
-    TypeTraits.cpp
     WTFThreadData.cpp
     dtoa.cpp
 

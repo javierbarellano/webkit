@@ -40,9 +40,10 @@ private:
     HTMLParamElement(const QualifiedName&, Document*);
 
     virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
-
     virtual void addSubresourceAttributeURLs(ListHashSet<KURL>&) const;
 };
+
+ELEMENT_TYPE_CASTS(HTMLParamElement)
 
 } // namespace WebCore
 

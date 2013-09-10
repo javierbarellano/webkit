@@ -28,6 +28,7 @@
 #include "WebContextMenuItemData.h"
 #include "WebData.h"
 #include "WebKitAuthenticationDialog.h"
+#include "WebKitAuthenticationRequestPrivate.h"
 #include "WebKitBackForwardListPrivate.h"
 #include "WebKitContextMenuClient.h"
 #include "WebKitContextMenuItemPrivate.h"
@@ -119,6 +120,8 @@ enum {
 
     WEB_PROCESS_CRASHED,
 
+    AUTHENTICATE,
+
     LAST_SIGNAL
 };
 
@@ -187,6 +190,7 @@ struct _WebKitWebViewPrivate {
     unsigned long faviconChangedHandlerID;
 
     SnapshotResultsMap snapshotResultsMap;
+    GRefPtr<WebKitAuthenticationRequest> authenticationRequest;
 };
 
 static guint signals[LAST_SIGNAL] = { 0, };
@@ -376,6 +380,8 @@ static void webkitWebViewUpdateSettings(WebKitWebView* webView)
     page->setCanRunModal(webkit_settings_get_allow_modal_dialogs(settings));
     page->setCustomUserAgent(String::fromUTF8(webkit_settings_get_user_agent(settings)));
 
+    webkitWebViewBaseUpdatePreferences(WEBKIT_WEB_VIEW_BASE(webView));
+
     g_signal_connect(settings, "notify::allow-modal-dialogs", G_CALLBACK(allowModalDialogsChanged), webView);
     g_signal_connect(settings, "notify::zoom-text-only", G_CALLBACK(zoomTextOnlyChanged), webView);
     g_signal_connect(settings, "notify::user-agent", G_CALLBACK(userAgentChanged), webView);
@@ -427,6 +433,14 @@ static void webkitWebViewDisconnectFaviconDatabaseSignalHandlers(WebKitWebView* 
     if (priv->faviconChangedHandlerID)
         g_signal_handler_disconnect(webkit_web_context_get_favicon_database(priv->context), priv->faviconChangedHandlerID);
     priv->faviconChangedHandlerID = 0;
+}
+
+static gboolean webkitWebViewAuthenticate(WebKitWebView* webView, WebKitAuthenticationRequest* request)
+{
+    CredentialStorageMode credentialStorageMode = webkit_authentication_request_can_save_credentials(request) ? AllowPersistentStorage : DisallowPersistentStorage;
+    webkitWebViewBaseAddAuthenticationDialog(WEBKIT_WEB_VIEW_BASE(webView), webkitAuthenticationDialogNew(request, credentialStorageMode));
+
+    return TRUE;
 }
 
 static void fileChooserDialogResponseCallback(GtkDialog* dialog, gint responseID, WebKitFileChooserRequest* request)
@@ -605,6 +619,7 @@ static void webkit_web_view_class_init(WebKitWebViewClass* webViewClass)
     webViewClass->decide_policy = webkitWebViewDecidePolicy;
     webViewClass->permission_request = webkitWebViewPermissionRequest;
     webViewClass->run_file_chooser = webkitWebViewRunFileChooser;
+    webViewClass->authenticate = webkitWebViewAuthenticate;
 
     /**
      * WebKitWebView:web-context:
@@ -1366,6 +1381,39 @@ static void webkit_web_view_class_init(WebKitWebViewClass* webViewClass)
         0,
         webkit_marshal_BOOLEAN__VOID,
         G_TYPE_BOOLEAN, 0);
+
+    /**
+     * WebKitWebView::authenticate:
+     * @web_view: the #WebKitWebView on which the signal is emitted
+     * @request: a #WebKitAuthenticationRequest
+     *
+     * This signal is emitted when the user is challenged with HTTP
+     * authentication. To let the  application access or supply
+     * the credentials as well as to allow the client application
+     * to either cancel the request or perform the authentication,
+     * the signal will pass an instance of the
+     * #WebKitAuthenticationRequest in the @request argument.
+     * To handle this signal asynchronously you should keep a ref
+     * of the request and return %TRUE. To disable HTTP authentication
+     * entirely, connect to this signal and simply return %TRUE.
+     *
+     * The default signal handler will run a default authentication
+     * dialog asynchronously for the user to interact with.
+     *
+     * Returns: %TRUE to stop other handlers from being invoked for the event.
+     *   %FALSE to propagate the event further.
+     *
+     * Since: 2.2
+     */
+    signals[AUTHENTICATE] =
+        g_signal_new("authenticate",
+            G_TYPE_FROM_CLASS(webViewClass),
+            G_SIGNAL_RUN_LAST,
+            G_STRUCT_OFFSET(WebKitWebViewClass, authenticate),
+            g_signal_accumulator_true_handled, 0 /* accumulator data */,
+            webkit_marshal_BOOLEAN__OBJECT,
+            G_TYPE_BOOLEAN, 1, /* number of parameters */
+            WEBKIT_TYPE_AUTHENTICATION_REQUEST);
 }
 
 static void webkitWebViewSetIsLoading(WebKitWebView* webView, bool isLoading)
@@ -1383,15 +1431,24 @@ static void webkitWebViewSetIsLoading(WebKitWebView* webView, bool isLoading)
     g_object_thaw_notify(G_OBJECT(webView));
 }
 
+static void webkitWebViewCancelAuthenticationRequest(WebKitWebView* webView)
+{
+    if (!webView->priv->authenticationRequest)
+        return;
+
+    webkit_authentication_request_cancel(webView->priv->authenticationRequest.get());
+    webView->priv->authenticationRequest.clear();
+}
+
 static void webkitWebViewEmitLoadChanged(WebKitWebView* webView, WebKitLoadEvent loadEvent)
 {
     if (loadEvent == WEBKIT_LOAD_STARTED) {
         webkitWebViewSetIsLoading(webView, true);
         webkitWebViewWatchForChangesInFavicon(webView);
-        webkitWebViewBaseCancelAuthenticationDialog(WEBKIT_WEB_VIEW_BASE(webView));
+        webkitWebViewCancelAuthenticationRequest(webView);
     } else if (loadEvent == WEBKIT_LOAD_FINISHED) {
         webkitWebViewSetIsLoading(webView, false);
-        webView->priv->waitingForMainResource = false;
+        webkitWebViewCancelAuthenticationRequest(webView);
         webkitWebViewDisconnectMainResourceResponseChangedSignalHandler(webView);
     } else
         webkitWebViewUpdateURI(webView);
@@ -1445,6 +1502,8 @@ void webkitWebViewLoadChanged(WebKitWebView* webView, WebKitLoadEvent loadEvent)
 void webkitWebViewLoadFailed(WebKitWebView* webView, WebKitLoadEvent loadEvent, const char* failingURI, GError *error)
 {
     webkitWebViewSetIsLoading(webView, false);
+    webkitWebViewCancelAuthenticationRequest(webView);
+
     gboolean returnValue;
     g_signal_emit(webView, signals[LOAD_FAILED], 0, loadEvent, failingURI, error, &returnValue);
     g_signal_emit(webView, signals[LOAD_CHANGED], 0, WEBKIT_LOAD_FINISHED);
@@ -1453,6 +1512,7 @@ void webkitWebViewLoadFailed(WebKitWebView* webView, WebKitLoadEvent loadEvent, 
 void webkitWebViewLoadFailedWithTLSErrors(WebKitWebView* webView, const char* failingURI, GError *error, GTlsCertificateFlags tlsErrors, GTlsCertificate* certificate)
 {
     webkitWebViewSetIsLoading(webView, false);
+    webkitWebViewCancelAuthenticationRequest(webView);
 
     WebKitTLSErrorsPolicy tlsErrorsPolicy = webkit_web_context_get_tls_errors_policy(webView->priv->context);
     if (tlsErrorsPolicy == WEBKIT_TLS_ERRORS_POLICY_FAIL) {
@@ -1738,13 +1798,10 @@ void webkitWebViewSubmitFormRequest(WebKitWebView* webView, WebKitFormSubmission
 
 void webkitWebViewHandleAuthenticationChallenge(WebKitWebView* webView, AuthenticationChallengeProxy* authenticationChallenge)
 {
-    CredentialStorageMode credentialStorageMode;
-    if (webkit_settings_get_enable_private_browsing(webkit_web_view_get_settings(webView)))
-        credentialStorageMode = DisallowPersistentStorage;
-    else
-        credentialStorageMode = AllowPersistentStorage;
-
-    webkitWebViewBaseAddAuthenticationDialog(WEBKIT_WEB_VIEW_BASE(webView), webkitAuthenticationDialogNew(authenticationChallenge, credentialStorageMode));
+    gboolean privateBrowsingEnabled = webkit_settings_get_enable_private_browsing(webkit_web_view_get_settings(webView));
+    webView->priv->authenticationRequest = adoptGRef(webkitAuthenticationRequestCreate(authenticationChallenge, privateBrowsingEnabled));
+    gboolean returnValue;
+    g_signal_emit(webView, signals[AUTHENTICATE], 0, webView->priv->authenticationRequest.get(), &returnValue);
 }
 
 void webkitWebViewInsecureContentDetected(WebKitWebView* webView, WebKitInsecureContentEvent type)

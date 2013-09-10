@@ -38,8 +38,10 @@ private:
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void removedFrom(ContainerNode*) OVERRIDE;
 
-    virtual bool rendererIsNeeded(const NodeRenderingContext&) { return false; }
+    virtual bool rendererIsNeeded(const RenderStyle&) { return false; }
 };
+
+ELEMENT_TYPE_CASTS(SVGVKernElement)
 
 } // namespace WebCore
 

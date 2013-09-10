@@ -32,7 +32,6 @@
 #include <gst/gst.h>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
-#include <wtf/Vector.h>
 
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
@@ -112,6 +111,8 @@ public:
 
     void simulateAudioInterruption();
 
+    bool changePipelineState(GstState);
+
 private:
     MediaPlayerPrivateGStreamer(MediaPlayer*);
 
@@ -132,7 +133,6 @@ private:
     void asyncStateChangeDone();
 
     void createGSTPlayBin();
-    bool changePipelineState(GstState);
 
     bool loadNextLocation();
     void mediaLocationChanged(GstMessage*);
@@ -184,6 +184,7 @@ private:
     guint m_textTimerHandler;
     guint m_videoTimerHandler;
     guint m_videoCapsTimerHandler;
+    guint m_readyTimerHandler;
     GRefPtr<GstElement> m_webkitAudioSink;
     mutable long m_totalBytes;
     KURL m_url;

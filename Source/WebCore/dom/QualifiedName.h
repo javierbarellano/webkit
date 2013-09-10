@@ -66,7 +66,7 @@ public:
     };
 
     QualifiedName(const AtomicString& prefix, const AtomicString& localName, const AtomicString& namespaceURI);
-    QualifiedName(WTF::HashTableDeletedValueType) : m_impl(hashTableDeletedValue()) { }
+    explicit QualifiedName(WTF::HashTableDeletedValueType) : m_impl(hashTableDeletedValue()) { }
     bool isHashTableDeletedValue() const { return m_impl == hashTableDeletedValue(); }
     ~QualifiedName();
 #ifdef QNAME_DEFAULT_CONSTRUCTOR
@@ -80,6 +80,8 @@ public:
     bool operator!=(const QualifiedName& other) const { return !(*this == other); }
 
     bool matches(const QualifiedName& other) const { return m_impl == other.m_impl || (localName() == other.localName() && namespaceURI() == other.namespaceURI()); }
+
+    bool matchesIgnoringCaseForLocalName(const QualifiedName& other, bool shouldIgnoreCase) const { return m_impl == other.m_impl || (equalPossiblyIgnoringCase(localName(), other.localName(), shouldIgnoreCase) && namespaceURI() == other.namespaceURI()); }
 
     bool hasPrefix() const { return m_impl->m_prefix != nullAtom; }
     void setPrefix(const AtomicString& prefix) { *this = QualifiedName(prefix, localName(), namespaceURI()); }

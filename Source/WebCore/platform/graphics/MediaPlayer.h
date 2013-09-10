@@ -39,6 +39,7 @@
 #include "LayoutRect.h"
 #include "Timer.h"
 #include "VideoTrackPrivate.h"
+#include <runtime/Uint8Array.h>
 #include <wtf/Forward.h>
 #include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
@@ -216,6 +217,7 @@ public:
     virtual void mediaPlayerSetSize(const IntSize&) { }
     virtual void mediaPlayerPause() { }
     virtual void mediaPlayerPlay() { }
+    virtual bool mediaPlayerPlatformVolumeConfigurationRequired() const { return false; }
     virtual bool mediaPlayerIsPaused() const { return true; }
     virtual bool mediaPlayerIsLooping() const { return false; }
     virtual HostWindow* mediaPlayerHostWindow() { return 0; }
@@ -264,6 +266,7 @@ public:
     bool supportsFullscreen() const;
     bool supportsSave() const;
     bool supportsScanning() const;
+    bool requiresImmediateCompositing() const;
     PlatformMedia platformMedia() const;
 #if USE(ACCELERATED_COMPOSITING)
     PlatformLayer* platformLayer() const;
@@ -338,6 +341,7 @@ public:
 
     double volume() const;
     void setVolume(double);
+    bool platformVolumeConfigurationRequired() const { return m_mediaPlayerClient->mediaPlayerPlatformVolumeConfigurationRequired(); }
 
     bool muted() const;
     void setMuted(bool);
@@ -423,6 +427,9 @@ public:
     // called when the rendering system flips the into or out of accelerated rendering mode.
     void acceleratedRenderingStateChanged();
 #endif
+
+    bool shouldMaintainAspectRatio() const;
+    void setShouldMaintainAspectRatio(bool);
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
     GraphicsDeviceAdapter* graphicsDeviceAdapter() const;

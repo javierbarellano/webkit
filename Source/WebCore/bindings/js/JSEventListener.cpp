@@ -20,16 +20,19 @@
 #include "config.h"
 #include "JSEventListener.h"
 
+#include "BeforeUnloadEvent.h"
 #include "Event.h"
 #include "Frame.h"
 #include "InspectorCounters.h"
 #include "JSEvent.h"
 #include "JSEventTarget.h"
 #include "JSMainThreadExecState.h"
+#include "JSMainThreadExecStateInstrumentation.h"
 #include "ScriptController.h"
 #include "WorkerGlobalScope.h"
 #include <runtime/ExceptionHelpers.h>
 #include <runtime/JSLock.h>
+#include <wtf/Ref.h>
 #include <wtf/RefCountedLeakCounter.h>
 
 using namespace JSC;
@@ -94,8 +97,8 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
         if (!window->impl()->isCurrentlyDisplayedInFrame())
             return;
         // FIXME: Is this check needed for other contexts?
-        ScriptController* script = window->impl()->frame()->script();
-        if (!script->canExecuteScripts(AboutToExecuteScript) || script->isPaused())
+        ScriptController& script = window->impl()->frame()->script();
+        if (!script.canExecuteScripts(AboutToExecuteScript) || script.isPaused())
             return;
     }
 
@@ -111,7 +114,7 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
     }
 
     if (callType != CallTypeNone) {
-        RefPtr<JSEventListener> protect(this);
+        Ref<JSEventListener> protect(*this);
 
         MarkedArgumentBuffer args;
         args.append(toJS(exec, globalObject, event));
@@ -145,8 +148,8 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
             event->target()->uncaughtExceptionInEventHandler();
             reportCurrentException(exec);
         } else {
-            if (!retval.isUndefinedOrNull() && event->storesResultAsString())
-                event->storeResult(retval.toString(exec)->value(exec));
+            if (!retval.isUndefinedOrNull() && event->isBeforeUnloadEvent())
+                toBeforeUnloadEvent(event)->setReturnValue(retval.toString(exec)->value(exec));
             if (m_isAttribute) {
                 if (retval.isFalse())
                     event->preventDefault();

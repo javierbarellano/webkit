@@ -56,7 +56,7 @@
 #include "WebSocketChannelClient.h"
 #include "WebSocketHandshake.h"
 
-#include <wtf/ArrayBuffer.h>
+#include <runtime/ArrayBuffer.h>
 #include <wtf/Deque.h>
 #include <wtf/FastMalloc.h>
 #include <wtf/HashMap.h>
@@ -92,7 +92,7 @@ WebSocketChannel::WebSocketChannel(Document* document, WebSocketChannelClient* c
 #endif
 {
     if (Page* page = m_document->page())
-        m_identifier = page->progress()->createUniqueIdentifier();
+        m_identifier = page->progress().createUniqueIdentifier();
 }
 
 WebSocketChannel::~WebSocketChannel()
@@ -139,7 +139,7 @@ String WebSocketChannel::extensions()
 ThreadableWebSocketChannel::SendResult WebSocketChannel::send(const String& message)
 {
     LOG(Network, "WebSocketChannel %p send() Sending String '%s'", this, message.utf8().data());
-    CString utf8 = message.utf8(String::StrictConversionReplacingUnpairedSurrogatesWithFFFD);
+    CString utf8 = message.utf8(StrictConversionReplacingUnpairedSurrogatesWithFFFD);
     enqueueTextFrame(utf8);
     processOutgoingFrameQueue();
     // According to WebSocket API specification, WebSocket.send() should return void instead
@@ -205,7 +205,7 @@ void WebSocketChannel::fail(const String& reason)
 
     // Hybi-10 specification explicitly states we must not continue to handle incoming data
     // once the WebSocket connection is failed (section 7.1.7).
-    RefPtr<WebSocketChannel> protect(this); // The client can close the channel, potentially removing the last reference.
+    Ref<WebSocketChannel> protect(*this); // The client can close the channel, potentially removing the last reference.
     m_shouldDiscardReceivedData = true;
     if (!m_buffer.isEmpty())
         skipBuffer(m_buffer.size()); // Save memory.
@@ -248,7 +248,7 @@ void WebSocketChannel::willOpenSocketStream(SocketStreamHandle* handle)
     LOG(Network, "WebSocketChannel %p willOpenSocketStream()", this);
     ASSERT(handle);
     if (m_document->frame())
-        m_document->frame()->loader()->client()->dispatchWillOpenSocketStream(handle);
+        m_document->frame()->loader().client().dispatchWillOpenSocketStream(handle);
 }
 
 void WebSocketChannel::didOpenSocketStream(SocketStreamHandle* handle)
@@ -292,7 +292,7 @@ void WebSocketChannel::didCloseSocketStream(SocketStreamHandle* handle)
 void WebSocketChannel::didReceiveSocketStreamData(SocketStreamHandle* handle, const char* data, int len)
 {
     LOG(Network, "WebSocketChannel %p didReceiveSocketStreamData() Received %d bytes", this, len);
-    RefPtr<WebSocketChannel> protect(this); // The client can close the channel, potentially removing the last reference.
+    Ref<WebSocketChannel> protect(*this); // The client can close the channel, potentially removing the last reference.
     ASSERT(handle == m_handle);
     if (!m_document) {
         return;
@@ -421,7 +421,7 @@ bool WebSocketChannel::processBuffer()
         return false;
     }
 
-    RefPtr<WebSocketChannel> protect(this); // The client can close the channel, potentially removing the last reference.
+    Ref<WebSocketChannel> protect(*this); // The client can close the channel, potentially removing the last reference.
 
     if (m_handshake->mode() == WebSocketHandshake::Incomplete) {
         int headerLength = m_handshake->readServerHandshake(m_buffer.data(), m_buffer.size());
@@ -460,7 +460,7 @@ void WebSocketChannel::resumeTimerFired(Timer<WebSocketChannel>* timer)
 {
     ASSERT_UNUSED(timer, timer == &m_resumeTimer);
 
-    RefPtr<WebSocketChannel> protect(this); // The client can close the channel, potentially removing the last reference.
+    Ref<WebSocketChannel> protect(*this); // The client can close the channel, potentially removing the last reference.
     while (!m_suspended && m_client && !m_buffer.isEmpty())
         if (!processBuffer())
             break;

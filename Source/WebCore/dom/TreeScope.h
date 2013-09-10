@@ -94,7 +94,6 @@ public:
     Element* findAnchor(const String& name);
 
     virtual bool applyAuthorStyles() const;
-    virtual bool resetStyleInheritance() const;
 
     // Used by the basic DOM mutation methods (e.g., appendChild()).
     void adoptIfNeeded(Node*);
@@ -134,7 +133,7 @@ public:
 
 protected:
     TreeScope(ContainerNode*, Document*);
-    TreeScope(Document*);
+    explicit TreeScope(Document*);
     virtual ~TreeScope();
 
     void destroyTreeScopeData();

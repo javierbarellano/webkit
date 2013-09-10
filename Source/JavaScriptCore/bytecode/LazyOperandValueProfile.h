@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,9 @@
 
 #if ENABLE(VALUE_PROFILER)
 
+#include "ConcurrentJITLock.h"
 #include "ValueProfile.h"
+#include "VirtualRegister.h"
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/OwnPtr.h>
@@ -44,13 +46,13 @@ class LazyOperandValueProfileKey {
 public:
     LazyOperandValueProfileKey()
         : m_bytecodeOffset(0) // 0 = empty value
-        , m_operand(-1) // not a valid operand index in our current scheme
+        , m_operand(InvalidVirtualRegister) // not a valid operand index in our current scheme
     {
     }
     
     LazyOperandValueProfileKey(WTF::HashTableDeletedValueType)
         : m_bytecodeOffset(1) // 1 = deleted value
-        , m_operand(-1) // not a valid operand index in our current scheme
+        , m_operand(InvalidVirtualRegister) // not a valid operand index in our current scheme
     {
     }
     
@@ -58,12 +60,12 @@ public:
         : m_bytecodeOffset(bytecodeOffset)
         , m_operand(operand)
     {
-        ASSERT(operand != -1);
+        ASSERT(operand != InvalidVirtualRegister);
     }
     
     bool operator!() const
     {
-        return m_operand == -1;
+        return m_operand == InvalidVirtualRegister;
     }
     
     bool operator==(const LazyOperandValueProfileKey& other) const
@@ -90,7 +92,7 @@ public:
     
     bool isHashTableDeletedValue() const
     {
-        return m_operand == -1 && m_bytecodeOffset;
+        return m_operand == InvalidVirtualRegister && m_bytecodeOffset;
     }
 private: 
     unsigned m_bytecodeOffset;
@@ -127,7 +129,7 @@ namespace JSC {
 struct LazyOperandValueProfile : public MinimalValueProfile {
     LazyOperandValueProfile()
         : MinimalValueProfile()
-        , m_operand(-1)
+        , m_operand(InvalidVirtualRegister)
     {
     }
     
@@ -155,9 +157,10 @@ public:
     CompressedLazyOperandValueProfileHolder();
     ~CompressedLazyOperandValueProfileHolder();
     
-    void computeUpdatedPredictions(OperationInProgress);
+    void computeUpdatedPredictions(const ConcurrentJITLocker&, OperationInProgress);
     
-    LazyOperandValueProfile* add(const LazyOperandValueProfileKey& key);
+    LazyOperandValueProfile* add(
+        const ConcurrentJITLocker&, const LazyOperandValueProfileKey& key);
     
 private:
     friend class LazyOperandValueProfileParser;
@@ -167,16 +170,18 @@ private:
 class LazyOperandValueProfileParser {
     WTF_MAKE_NONCOPYABLE(LazyOperandValueProfileParser);
 public:
-    explicit LazyOperandValueProfileParser(
-        CompressedLazyOperandValueProfileHolder& holder);
+    explicit LazyOperandValueProfileParser();
     ~LazyOperandValueProfileParser();
+    
+    void initialize(
+        const ConcurrentJITLocker&, CompressedLazyOperandValueProfileHolder& holder);
     
     LazyOperandValueProfile* getIfPresent(
         const LazyOperandValueProfileKey& key) const;
     
-    SpeculatedType prediction(const LazyOperandValueProfileKey& key) const;
+    SpeculatedType prediction(
+        const ConcurrentJITLocker&, const LazyOperandValueProfileKey& key) const;
 private:
-    CompressedLazyOperandValueProfileHolder& m_holder;
     HashMap<LazyOperandValueProfileKey, LazyOperandValueProfile*> m_map;
 };
 

@@ -74,13 +74,12 @@ static gboolean textTrackPrivateTagsChangeTimeoutCallback(InbandTextTrackPrivate
 }
 
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
-    : m_index(index)
+    : InbandTextTrackPrivate(WebVTT)
+    , m_index(index)
     , m_pad(pad)
-    , m_isDisconnected(false)
     , m_sampleTimerHandler(0)
     , m_streamTimerHandler(0)
     , m_tagTimerHandler(0)
-    , m_webVTTParser(WebVTTParser::create(this, 0))
 {
     m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);
@@ -97,10 +96,8 @@ InbandTextTrackPrivateGStreamer::~InbandTextTrackPrivateGStreamer()
 
 void InbandTextTrackPrivateGStreamer::disconnect()
 {
-    if (m_isDisconnected)
+    if (!m_pad)
         return;
-
-    m_isDisconnected = true;
 
     gst_pad_remove_probe(m_pad.get(), m_eventProbe);
     g_signal_handlers_disconnect_by_func(m_pad.get(),
@@ -110,15 +107,6 @@ void InbandTextTrackPrivateGStreamer::disconnect()
         g_source_remove(m_tagTimerHandler);
 
     m_pad.clear();
-}
-
-void InbandTextTrackPrivateGStreamer::clearCues()
-{
-    // FIXME: It would be better to only clear cues after the time we seek to,
-    // but it's not obvious how we would do that.
-    for (size_t i = 0; i < m_cues.size(); ++i)
-        client()->removeWebVTTCue(this, m_cues[i].get());
-    m_cues.clear();
 }
 
 void InbandTextTrackPrivateGStreamer::handleSample(GRefPtr<GstSample> sample)
@@ -163,16 +151,20 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfSample()
         GRefPtr<GstSample> sample = samples[i];
         GstBuffer* buffer = gst_sample_get_buffer(sample.get());
         if (!buffer) {
-            INFO_MEDIA_MESSAGE("Track %d got sample with no buffer.", m_index);
+            WARN_MEDIA_MESSAGE("Track %d got sample with no buffer.", m_index);
             continue;
         }
         GstMapInfo info;
         gboolean ret = gst_buffer_map(buffer, &info, GST_MAP_READ);
-        ASSERT_UNUSED(ret, ret);
+        ASSERT(ret);
+        if (!ret) {
+            WARN_MEDIA_MESSAGE("Track %d unable to map buffer.", m_index);
+            continue;
+        }
 
         INFO_MEDIA_MESSAGE("Track %d parsing sample: %.*s", m_index, static_cast<int>(info.size),
             reinterpret_cast<char*>(info.data));
-        m_webVTTParser->parseBytes(reinterpret_cast<char*>(info.data), info.size);
+        client()->parseWebVTTCueData(this, reinterpret_cast<char*>(info.data), info.size);
         gst_buffer_unmap(buffer, &info);
     }
 }
@@ -201,42 +193,32 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
     if (event)
         gst_event_parse_tag(event.get(), &tags);
 
-    if (!tags) {
-        m_label = emptyAtom;
-        m_language = emptyAtom;
-        return;
+    String label;
+    String language;
+    if (tags) {
+        gchar* tagValue;
+        if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Track %d got title %s.", m_index, tagValue);
+            label = tagValue;
+            g_free(tagValue);
+        }
+
+        if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Track %d got language %s.", m_index, tagValue);
+            language = tagValue;
+            g_free(tagValue);
+        }
     }
 
-    gchar* tagValue;
-    if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
-        INFO_MEDIA_MESSAGE("Track %d got title %s.", m_index, tagValue);
-        m_label = tagValue;
-        g_free(tagValue);
-        client()->inbandTextTrackPrivateLabelChanged(this);
-    } else
-        m_label = emptyAtom;
+    if (m_label != label) {
+        m_label = label;
+        client()->labelChanged(this, m_label);
+    }
 
-    if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
-        INFO_MEDIA_MESSAGE("Track %d got language %s.", m_index, tagValue);
-        m_language = tagValue;
-        g_free(tagValue);
-        client()->inbandTextTrackPrivateLanguageChanged(this);
-    } else
-        m_language = emptyAtom;
-}
-
-void InbandTextTrackPrivateGStreamer::newCuesParsed()
-{
-    Vector<RefPtr<WebVTTCueData> > cues;
-    m_webVTTParser->getNewCues(cues);
-    m_cues.appendVector(cues);
-    for (size_t i = 0; i < cues.size(); ++i)
-        client()->addWebVTTCue(this, cues[i]);
-}
-
-void InbandTextTrackPrivateGStreamer::fileFailedToParse()
-{
-    WARN_MEDIA_MESSAGE("Unable to parse WebVTT stream.");
+    if (m_language != language) {
+        m_language = language;
+        client()->languageChanged(this, m_language);
+    }
 }
 
 } // namespace WebCore

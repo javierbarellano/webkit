@@ -68,14 +68,14 @@ public:
     virtual bool isContextThread() const { return true; }
     virtual bool isJSExecutionForbidden() const = 0;
 
-    const KURL& url() const { return virtualURL(); }
-    KURL completeURL(const String& url) const { return virtualCompleteURL(url); }
+    virtual const KURL& url() const = 0;
+    virtual KURL completeURL(const String& url) const = 0;
 
     virtual String userAgent(const KURL&) const = 0;
 
     virtual void disableEval(const String& errorMessage) = 0;
 
-    bool sanitizeScriptError(String& errorMessage, int& lineNumber, String& sourceURL, CachedScript* = 0);
+    bool sanitizeScriptError(String& errorMessage, int& lineNumber, int& columnNumber, String& sourceURL, CachedScript* = 0);
     // FIXME: <http://webkit.org/b/114315> ScriptExecutionContext log exception should include a column number
     void reportException(const String& errorMessage, int lineNumber, int columnNumber, const String& sourceURL, PassRefPtr<ScriptCallStack>, CachedScript* = 0);
 
@@ -150,7 +150,7 @@ public:
     void didChangeTimerAlignmentInterval();
     virtual double timerAlignmentInterval() const;
 
-    virtual EventQueue* eventQueue() const = 0;
+    virtual EventQueue& eventQueue() const = 0;
 
 #if ENABLE(SQL_DATABASE)
     void setDatabaseContext(DatabaseContext*);
@@ -179,13 +179,10 @@ protected:
     ActiveDOMObject::ReasonForSuspension reasonForSuspendingActiveDOMObjects() const { return m_reasonForSuspendingActiveDOMObjects; }
 
 private:
-    virtual const KURL& virtualURL() const = 0;
-    virtual KURL virtualCompleteURL(const String&) const = 0;
-
     virtual void addMessage(MessageSource, MessageLevel, const String& message, const String& sourceURL, unsigned lineNumber, unsigned columnNumber, PassRefPtr<ScriptCallStack>, ScriptState* = 0, unsigned long requestIdentifier = 0) = 0;
     virtual EventTarget* errorEventTarget() = 0;
     virtual void logExceptionToConsole(const String& errorMessage, const String& sourceURL, int lineNumber, int columnNumber, PassRefPtr<ScriptCallStack>) = 0;
-    bool dispatchErrorEvent(const String& errorMessage, int lineNumber, const String& sourceURL, CachedScript*);
+    bool dispatchErrorEvent(const String& errorMessage, int lineNumber, int columnNumber, const String& sourceURL, CachedScript*);
 
     void closeMessagePorts();
 

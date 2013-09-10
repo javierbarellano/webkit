@@ -33,7 +33,6 @@
 #include "RangeInputType.h"
 
 #include "AXObjectCache.h"
-#include "ElementShadow.h"
 #include "ExceptionCodePlaceholder.h"
 #include "HTMLDivElement.h"
 #include "HTMLInputElement.h"
@@ -61,7 +60,6 @@
 #if ENABLE(DATALIST_ELEMENT)
 #include "HTMLDataListElement.h"
 #include "HTMLOptionElement.h"
-#include <wtf/NonCopyingSort.h>
 #endif
 
 namespace WebCore {
@@ -158,7 +156,7 @@ void RangeInputType::handleMouseDownEvent(MouseEvent* event)
     Node* targetNode = event->target()->toNode();
     if (event->button() != LeftButton || !targetNode)
         return;
-    ASSERT(element()->shadow());
+    ASSERT(element()->shadowRoot());
     if (targetNode != element() && !targetNode->isDescendantOf(element()->userAgentShadowRoot()))
         return;
     SliderThumbElement* thumb = sliderThumbElementOf(element());
@@ -246,7 +244,7 @@ void RangeInputType::handleKeydownEvent(KeyboardEvent* event)
         TextFieldEventBehavior eventBehavior = DispatchChangeEvent;
         setValueAsDecimal(newValue, eventBehavior, IGNORE_EXCEPTION);
 
-        if (AXObjectCache* cache = element()->document()->existingAXObjectCache())
+        if (AXObjectCache* cache = element()->document().existingAXObjectCache())
             cache->postNotification(element(), AXObjectCache::AXValueChanged, true);
         element()->dispatchFormControlChangeEvent();
     }
@@ -256,13 +254,13 @@ void RangeInputType::handleKeydownEvent(KeyboardEvent* event)
 
 void RangeInputType::createShadowSubtree()
 {
-    ASSERT(element()->shadow());
+    ASSERT(element()->shadowRoot());
 
-    Document* document = element()->document();
-    RefPtr<HTMLDivElement> track = HTMLDivElement::create(document);
+    Document& document = element()->document();
+    RefPtr<HTMLDivElement> track = HTMLDivElement::create(&document);
     track->setPseudo(AtomicString("-webkit-slider-runnable-track", AtomicString::ConstructFromLiteral));
-    track->appendChild(SliderThumbElement::create(document), IGNORE_EXCEPTION);
-    RefPtr<HTMLElement> container = SliderContainerElement::create(document);
+    track->appendChild(SliderThumbElement::create(&document), IGNORE_EXCEPTION);
+    RefPtr<HTMLElement> container = SliderContainerElement::create(&document);
     container->appendChild(track.release(), IGNORE_EXCEPTION);
     element()->userAgentShadowRoot()->appendChild(container.release(), IGNORE_EXCEPTION);
 }
@@ -349,11 +347,6 @@ void RangeInputType::listAttributeTargetChanged()
         sliderTrackElement->renderer()->setNeedsLayout(true);
 }
 
-static bool decimalCompare(const Decimal& a, const Decimal& b)
-{
-    return a < b;
-}
-
 void RangeInputType::updateTickMarkValues()
 {
     if (!m_tickMarkValuesDirty)
@@ -374,7 +367,7 @@ void RangeInputType::updateTickMarkValues()
         m_tickMarkValues.append(parseToNumber(optionValue, Decimal::nan()));
     }
     m_tickMarkValues.shrinkToFit();
-    nonCopyingSort(m_tickMarkValues.begin(), m_tickMarkValues.end(), decimalCompare);
+    std::sort(m_tickMarkValues.begin(), m_tickMarkValues.end());
 }
 
 Decimal RangeInputType::findClosestTickMarkValue(const Decimal& value)

@@ -24,11 +24,10 @@
 
 #if ENABLE(SVG_FONTS)
 #include "SVGAnimatedBoolean.h"
+#include "SVGElement.h"
 #include "SVGExternalResourcesRequired.h"
 #include "SVGGlyphMap.h"
-#include "SVGNames.h"
 #include "SVGParserUtilities.h"
-#include "SVGStyledElement.h"
 
 namespace WebCore {
 
@@ -52,7 +51,7 @@ typedef Vector<SVGKerningPair> KerningPairVector;
 
 class SVGMissingGlyphElement;    
 
-class SVGFontElement FINAL : public SVGStyledElement
+class SVGFontElement FINAL : public SVGElement
                            , public SVGExternalResourcesRequired {
 public:
     static PassRefPtr<SVGFontElement> create(const QualifiedName&, Document*);
@@ -73,7 +72,7 @@ public:
 private:
     SVGFontElement(const QualifiedName&, Document*);
 
-    virtual bool rendererIsNeeded(const NodeRenderingContext&) { return false; }  
+    virtual bool rendererIsNeeded(const RenderStyle&) { return false; }  
 
     void ensureGlyphCache();
     void registerLigaturesInGlyphCache(Vector<String>&);
@@ -89,16 +88,7 @@ private:
     bool m_isGlyphCacheValid;
 };
 
-inline bool isSVGFontElement(const Node* node)
-{
-    return node->hasTagName(SVGNames::fontTag);
-}
-
-inline SVGFontElement* toSVGFontElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || isSVGFontElement(node));
-    return static_cast<SVGFontElement*>(node);
-}
+ELEMENT_TYPE_CASTS(SVGFontElement)
 
 } // namespace WebCore
 

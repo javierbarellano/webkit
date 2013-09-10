@@ -30,14 +30,13 @@
 
 #include "GRefPtrGStreamer.h"
 #include "InbandTextTrackPrivate.h"
-#include "WebVTTParser.h"
 
 namespace WebCore {
 
 class MediaPlayerPrivateGStreamer;
 typedef struct _GstSample GstSample;
 
-class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate, private WebVTTParserClient {
+class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
 public:
     static PassRefPtr<InbandTextTrackPrivateGStreamer> create(gint index, GRefPtr<GstPad> pad)
     {
@@ -57,8 +56,6 @@ public:
     virtual int textTrackIndex() const OVERRIDE { return m_index; }
     String streamId() const { return m_streamId; }
 
-    void clearCues();
-
     void handleSample(GRefPtr<GstSample>);
     void streamChanged();
     void tagsChanged();
@@ -69,23 +66,17 @@ public:
 private:
     InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad>);
 
-    void newCuesParsed() OVERRIDE;
-    void fileFailedToParse() OVERRIDE;
-
     gint m_index;
     GRefPtr<GstPad> m_pad;
     AtomicString m_label;
     AtomicString m_language;
-    bool m_isDisconnected;
     guint m_sampleTimerHandler;
     guint m_streamTimerHandler;
     guint m_tagTimerHandler;
     gulong m_eventProbe;
-    OwnPtr<WebVTTParser> m_webVTTParser;
     Vector<GRefPtr<GstSample> > m_pendingSamples;
     String m_streamId;
     Mutex m_sampleMutex;
-    Vector<RefPtr<WebVTTCueData> > m_cues;
 };
 
 } // namespace WebCore

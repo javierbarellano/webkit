@@ -34,6 +34,7 @@
 #include "AccessibilityTableColumn.h"
 #include "AccessibilityTableHeaderContainer.h"
 #include "AccessibilityTableRow.h"
+#include "ElementIterator.h"
 #include "HTMLNames.h"
 #include "HTMLTableCaptionElement.h"
 #include "HTMLTableCellElement.h"
@@ -110,12 +111,11 @@ bool AccessibilityTable::isDataTable() const
     // between a "layout" table and a "data" table.
     
     RenderTable* table = toRenderTable(m_renderer);
-    Node* tableNode = table->node();
-    if (!tableNode || !isHTMLTableElement(tableNode))
+    if (!table->element() || !isHTMLTableElement(table->element()))
         return false;
 
     // if there is a caption element, summary, THEAD, or TFOOT section, it's most certainly a data table
-    HTMLTableElement* tableElement = toHTMLTableElement(tableNode);
+    HTMLTableElement* tableElement = toHTMLTableElement(table->element());
     if (!tableElement->summary().isEmpty() || tableElement->tHead() || tableElement->tFoot() || tableElement->caption())
         return true;
     
@@ -124,7 +124,7 @@ bool AccessibilityTable::isDataTable() const
         return true;    
 
     // if there's a colgroup or col element, it's probably a data table.
-    for (Node* child = tableElement->firstChild(); child; child = child->nextSibling()) {
+    for (auto child = elementChildren(tableElement).begin(), end = elementChildren(tableElement).end(); child != end; ++child) {
         if (child->hasTagName(colTag) || child->hasTagName(colgroupTag))
             return true;
     }
@@ -177,8 +177,7 @@ bool AccessibilityTable::isDataTable() const
             RenderTableCell* cell = firstBody->primaryCellAt(row, col);
             if (!cell)
                 continue;
-            Node* cellNode = cell->node();
-            if (!cellNode)
+            if (!cell->element())
                 continue;
             
             if (cell->width() < 1 || cell->height() < 1)
@@ -186,7 +185,7 @@ bool AccessibilityTable::isDataTable() const
             
             validCellCount++;
             
-            HTMLTableCellElement* cellElement = static_cast<HTMLTableCellElement*>(cellNode);
+            HTMLTableCellElement* cellElement = static_cast<HTMLTableCellElement*>(cell->element());
             
             bool isTHCell = cellElement->hasTagName(thTag);
             // If the first row is comprised of all <th> tags, assume it is a data table.
@@ -309,7 +308,7 @@ bool AccessibilityTable::isTableExposableThroughAccessibility() const
 
     // Gtk+ ATs expect all tables to be exposed as tables.
 #if PLATFORM(GTK)
-    Node* tableNode = toRenderTable(m_renderer)->node();
+    Element* tableNode = toRenderTable(m_renderer)->element();
     return tableNode && isHTMLTableElement(tableNode);
 #endif
 
@@ -342,7 +341,7 @@ void AccessibilityTable::addChildren()
         return;
     
     RenderTable* table = toRenderTable(m_renderer);
-    AXObjectCache* axCache = m_renderer->document()->axObjectCache();
+    AXObjectCache* axCache = m_renderer->document().axObjectCache();
 
     // Go through all the available sections to pull out the rows and add them as children.
     table->recalcSectionsIfNeeded();

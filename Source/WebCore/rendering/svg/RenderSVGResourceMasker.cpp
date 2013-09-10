@@ -34,7 +34,6 @@
 #include "SVGElement.h"
 #include "SVGMaskElement.h"
 #include "SVGRenderingContext.h"
-#include "SVGStyledElement.h"
 #include "SVGUnitTypes.h"
 #include <wtf/Vector.h>
 
@@ -95,7 +94,7 @@ bool RenderSVGResourceMasker::applyResource(RenderObject* object, RenderStyle*, 
     FloatRect repaintRect = object->repaintRectInLocalCoordinates();
 
     if (!maskerData->maskImage && !repaintRect.isEmpty()) {
-        SVGMaskElement* maskElement = static_cast<SVGMaskElement*>(node());
+        SVGMaskElement* maskElement = toSVGMaskElement(element());
         if (!maskElement)
             return false;
 
@@ -135,7 +134,7 @@ bool RenderSVGResourceMasker::drawContentIntoMaskImage(MaskerData* maskerData, C
     // Draw the content into the ImageBuffer.
     for (Node* node = maskElement->firstChild(); node; node = node->nextSibling()) {
         RenderObject* renderer = node->renderer();
-        if (!node->isSVGElement() || !toSVGElement(node)->isSVGStyledElement() || !renderer)
+        if (!node->isSVGElement() || !renderer)
             continue;
         if (renderer->needsLayout())
             return false;
@@ -162,9 +161,9 @@ bool RenderSVGResourceMasker::drawContentIntoMaskImage(MaskerData* maskerData, C
 
 void RenderSVGResourceMasker::calculateMaskContentRepaintRect()
 {
-    for (Node* childNode = node()->firstChild(); childNode; childNode = childNode->nextSibling()) {
+    for (Node* childNode = element()->firstChild(); childNode; childNode = childNode->nextSibling()) {
         RenderObject* renderer = childNode->renderer();
-        if (!childNode->isSVGElement() || !toSVGElement(childNode)->isSVGStyledElement() || !renderer)
+        if (!childNode->isSVGElement() || !renderer)
             continue;
         RenderStyle* style = renderer->style();
         if (!style || style->display() == NONE || style->visibility() != VISIBLE)
@@ -175,7 +174,7 @@ void RenderSVGResourceMasker::calculateMaskContentRepaintRect()
 
 FloatRect RenderSVGResourceMasker::resourceBoundingBox(RenderObject* object)
 {
-    SVGMaskElement* maskElement = static_cast<SVGMaskElement*>(node());
+    SVGMaskElement* maskElement = toSVGMaskElement(element());
     ASSERT(maskElement);
 
     FloatRect objectBoundingBox = object->objectBoundingBox();

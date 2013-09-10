@@ -25,7 +25,6 @@
 #include "EventNames.h"
 #include "ExceptionCode.h"
 #include "FrameView.h"
-#include "NodeRenderingContext.h"
 #include "RenderView.h"
 #include "SVGElement.h"
 #include "SVGNames.h"
@@ -89,15 +88,15 @@ void SVGDocument::updatePan(const FloatPoint& pos) const
 {
     if (rootElement()) {
         rootElement()->setCurrentTranslate(FloatPoint(pos.x() - m_translate.x(), pos.y() - m_translate.y()));
-        if (renderer())
-            renderer()->repaint();
+        if (renderView())
+            renderView()->repaint();
     }
 }
 
-bool SVGDocument::childShouldCreateRenderer(const NodeRenderingContext& childContext) const
+bool SVGDocument::childShouldCreateRenderer(const Node* child) const
 {
-    if (childContext.node()->hasTagName(SVGNames::svgTag))
-        return toSVGSVGElement(childContext.node())->isValid();
+    if (isSVGSVGElement(child))
+        return toSVGSVGElement(child)->isValid();
     return true;
 }
 

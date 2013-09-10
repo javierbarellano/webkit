@@ -339,10 +339,10 @@ static inline void updateFontInAllDescendants(RenderObject* start, SVGTextLayout
     for (RenderObject* descendant = start; descendant; descendant = descendant->nextInPreOrder(start)) {
         if (!descendant->isSVGInlineText())
             continue;
-        RenderSVGInlineText* text = toRenderSVGInlineText(descendant);
-        text->updateScaledFont();
+        RenderSVGInlineText& text = toRenderSVGInlineText(*descendant);
+        text.updateScaledFont();
         if (builder)
-            builder->rebuildMetricsForTextRenderer(text);
+            builder->rebuildMetricsForTextRenderer(&text);
     }
 }
 
@@ -354,7 +354,7 @@ void RenderSVGText::layout()
 
     bool updateCachedBoundariesInParents = false;
     if (m_needsTransformUpdate) {
-        SVGTextElement* text = static_cast<SVGTextElement*>(node());
+        SVGTextElement* text = toSVGTextElement(element());
         m_localTransform = text->animatedLocalTransform();
         m_needsTransformUpdate = false;
         updateCachedBoundariesInParents = true;
@@ -414,7 +414,10 @@ void RenderSVGText::layout()
     // FIXME: We need to find a way to only layout the child boxes, if needed.
     FloatRect oldBoundaries = objectBoundingBox();
     ASSERT(childrenInline());
-    forceLayoutInlineChildren();
+    LayoutUnit repaintLogicalTop = 0;
+    LayoutUnit repaintLogicalBottom = 0;
+    clearFloats();
+    layoutInlineChildren(true, repaintLogicalTop, repaintLogicalBottom);
 
     if (m_needsReordering)
         m_needsReordering = false;
@@ -436,7 +439,7 @@ void RenderSVGText::layout()
 
 RootInlineBox* RenderSVGText::createRootInlineBox() 
 {
-    RootInlineBox* box = new (renderArena()) SVGRootInlineBox(this);
+    RootInlineBox* box = new (renderArena()) SVGRootInlineBox(*this);
     box->setHasVirtualLogicalHeight();
     return box;
 }
@@ -481,7 +484,7 @@ VisiblePosition RenderSVGText::positionForPoint(const LayoutPoint& pointInConten
     if (!closestBox)
         return createVisiblePosition(0, DOWNSTREAM);
 
-    return closestBox->renderer()->positionForPoint(LayoutPoint(pointInContents.x(), closestBox->y()));
+    return closestBox->renderer().positionForPoint(LayoutPoint(pointInContents.x(), closestBox->y()));
 }
 
 void RenderSVGText::absoluteQuads(Vector<FloatQuad>& quads, bool* wasFixed) const
@@ -512,9 +515,9 @@ FloatRect RenderSVGText::strokeBoundingBox() const
     if (!svgStyle->hasStroke())
         return strokeBoundaries;
 
-    ASSERT(node());
-    ASSERT(node()->isSVGElement());
-    SVGLengthContext lengthContext(toSVGElement(node()));
+    ASSERT(element());
+    ASSERT(element()->isSVGElement());
+    SVGLengthContext lengthContext(toSVGElement(element()));
     strokeBoundaries.inflate(svgStyle->strokeWidth().value(lengthContext));
     return strokeBoundaries;
 }

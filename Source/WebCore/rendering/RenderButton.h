@@ -32,7 +32,7 @@ class RenderTextFragment;
 // RenderButtons are just like normal flexboxes except that they will generate an anonymous block child.
 // For inputs, they will also generate an anonymous RenderText and keep its style and content up
 // to date as the button changes.
-class RenderButton : public RenderFlexibleBox {
+class RenderButton FINAL : public RenderFlexibleBox {
 public:
     explicit RenderButton(Element*);
     virtual ~RenderButton();
@@ -40,7 +40,7 @@ public:
     virtual const char* renderName() const { return "RenderButton"; }
     virtual bool isRenderButton() const { return true; }
 
-    virtual bool canBeSelectionLeaf() const OVERRIDE { return node() && node()->rendererIsEditable(); }
+    virtual bool canBeSelectionLeaf() const OVERRIDE { return element() && element()->rendererIsEditable(); }
 
     virtual void addChild(RenderObject* newChild, RenderObject *beforeChild = 0);
     virtual void removeChild(RenderObject*);
@@ -61,7 +61,7 @@ private:
     virtual void styleWillChange(StyleDifference, const RenderStyle* newStyle);
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
 
-    virtual bool hasLineIfEmpty() const { return node() && node()->toInputElement(); }
+    virtual bool hasLineIfEmpty() const { return element() && element()->toInputElement(); }
 
     virtual bool requiresForcedStyleRecalcPropagation() const { return true; }
 

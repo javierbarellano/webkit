@@ -21,6 +21,9 @@ AXLinkedUIElements: <array of size 3>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test1
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -50,6 +53,9 @@ AXLinkedUIElements: <array of size 3>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test1
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -79,6 +85,9 @@ AXLinkedUIElements: <array of size 3>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test1
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -112,6 +121,9 @@ AXLinkedUIElements: <array of size 2>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test2
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -141,6 +153,9 @@ AXLinkedUIElements: <array of size 2>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test2
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -174,6 +189,9 @@ AXLinkedUIElements: <array of size 2>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton: 'Yes'>
+AXLanguage: 
+AXDOMIdentifier: test3
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -203,6 +221,9 @@ AXLinkedUIElements: <array of size 2>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton: 'No'>
+AXLanguage: 
+AXDOMIdentifier: test3_1
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0
@@ -236,6 +257,9 @@ AXLinkedUIElements: <array of size 1>
 AXSelected: 0
 AXBlockQuoteLevel: 0
 AXTopLevelUIElement: <AXRadioButton>
+AXLanguage: 
+AXDOMIdentifier: test4
+AXDOMClassList: <array of size 0>
 AXTitleUIElement: (null)
 AXAccessKey: (null)
 AXRequired: 0

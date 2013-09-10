@@ -174,7 +174,7 @@ namespace JSC {
         }
 
 #if USE(JSVALUE32_64)
-        void addArgument(unsigned srcVirtualRegister)
+        void addArgument(int srcVirtualRegister)
         {
             if (m_jit->m_codeBlock->isConstantRegisterIndex(srcVirtualRegister)) {
                 addArgument(m_jit->getConstantOperand(srcVirtualRegister));
@@ -192,7 +192,7 @@ namespace JSC {
             m_jit->peek(tag, stackIndex + 1);
         }
 #else
-        void addArgument(unsigned src, JIT::RegisterID scratchRegister) // src is a virtual register.
+        void addArgument(int src, JIT::RegisterID scratchRegister) // src is a virtual register.
         {
             if (m_jit->m_codeBlock->isConstantRegisterIndex(src))
                 addArgument(JIT::Imm64(JSValue::encode(m_jit->m_codeBlock->getConstant(src))));
@@ -230,7 +230,7 @@ namespace JSC {
         }
 
 #if USE(JSVALUE32_64)
-        JIT::Call call(unsigned dst) // dst is a virtual register.
+        JIT::Call call(int dst) // dst is a virtual register.
         {
             ASSERT(m_returnType == Value || m_returnType == Cell);
             JIT::Call call = this->call();
@@ -241,14 +241,14 @@ namespace JSC {
             return call;
         }
         
-        JIT::Call callWithValueProfiling(unsigned dst)
+        JIT::Call callWithValueProfiling(int dst)
         {
             ASSERT(m_returnType == Value || m_returnType == Cell);
             JIT::Call call = this->call();
             ASSERT(JIT::returnValueRegister == JIT::regT0);
             if (m_returnType == Cell)
                 m_jit->move(JIT::TrustedImm32(JSValue::CellTag), JIT::regT1);
-            m_jit->emitValueProfilingSite();
+            m_jit->emitValueProfilingSite(JIT::regT4);
             if (m_returnType == Value)
                 m_jit->emitStore(dst, JIT::regT1, JIT::regT0);
             else
@@ -256,7 +256,7 @@ namespace JSC {
             return call;
         }
 #else
-        JIT::Call call(unsigned dst) // dst is a virtual register.
+        JIT::Call call(int dst) // dst is a virtual register.
         {
             ASSERT(m_returnType == Value || m_returnType == Cell);
             JIT::Call call = this->call();
@@ -264,12 +264,12 @@ namespace JSC {
             return call;
         }
         
-        JIT::Call callWithValueProfiling(unsigned dst)
+        JIT::Call callWithValueProfiling(int dst)
         {
             ASSERT(m_returnType == Value || m_returnType == Cell);
             JIT::Call call = this->call();
             ASSERT(JIT::returnValueRegister == JIT::regT0);
-            m_jit->emitValueProfilingSite();
+            m_jit->emitValueProfilingSite(JIT::regT4);
             m_jit->emitPutVirtualRegister(dst);
             return call;
         }

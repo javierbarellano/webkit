@@ -295,14 +295,14 @@ bool SVGLengthContext::determineViewport(float& width, float& height) const
 
     // SVGLengthContext should NEVER be used to resolve width/height values for <svg> elements,
     // as they require special treatment, due the relationship with the CSS width/height properties.
-    ASSERT(m_context->document()->documentElement() != m_context);
+    ASSERT(m_context->document().documentElement() != m_context);
 
     // Take size from nearest viewport element.
     SVGElement* viewportElement = m_context->viewportElement();
-    if (!viewportElement || !viewportElement->isSVGSVGElement())
+    if (!viewportElement || !isSVGSVGElement(viewportElement))
         return false;
     
-    const SVGSVGElement* svg = static_cast<const SVGSVGElement*>(viewportElement);
+    const SVGSVGElement* svg = toSVGSVGElement(viewportElement);
     FloatSize viewportSize = svg->currentViewBoxRect().size();
     if (viewportSize.isEmpty())
         viewportSize = svg->currentViewportSize();
