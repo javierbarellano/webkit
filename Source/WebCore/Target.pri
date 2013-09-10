@@ -1196,7 +1196,6 @@ SOURCES += \
     rendering/RenderListMarker.cpp \
     rendering/RenderMarquee.cpp \
     rendering/RenderMenuList.cpp \
-    rendering/RenderMediaMenuList.cpp \
     rendering/RenderMeter.cpp \
     rendering/RenderMultiColumnBlock.cpp \
     rendering/RenderMultiColumnFlowThread.cpp \
@@ -1930,7 +1929,6 @@ HEADERS += \
     html/shadow/HTMLContentElement.h \
     html/shadow/MediaControlElementTypes.h \
     html/shadow/MediaControlElements.h \
-    html/shadow/MediaSelControlElements.h \
     html/shadow/MediaControls.h \
     html/shadow/MediaControlsApple.h \
     html/shadow/DetailsMarkerControl.h \
@@ -2465,7 +2463,6 @@ HEADERS += \
     rendering/RenderMediaControls.h \
     rendering/RenderMedia.h \
     rendering/RenderMenuList.h \
-    rendering/RenderMediaMenuList.h \
     rendering/RenderMeter.h \
     rendering/RenderMultiColumnBlock.h \
     rendering/RenderObjectChildList.h \
@@ -3343,7 +3340,6 @@ enable?(VIDEO) {
         html/MediaFragmentURIParser.cpp \
         html/shadow/MediaControlElementTypes.cpp \
         html/shadow/MediaControlElements.cpp \
-        html/shadow/MediaSelControlElements.cpp \
         html/TimeRanges.cpp \
         platform/graphics/MediaPlayer.cpp \
         rendering/RenderVideo.cpp \

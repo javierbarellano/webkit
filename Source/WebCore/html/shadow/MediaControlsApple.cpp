@@ -42,7 +42,10 @@
 #include "WheelEvent.h"
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
 #include "TextTrackCue.h"
+#include "TextTrackList.h"
+#include "VideoTrackList.h"
 #endif
 
 using namespace std;
@@ -52,6 +55,7 @@ namespace WebCore {
 MediaControlsApple::MediaControlsApple(Document* document)
     : MediaControls(document)
     , m_rewindButton(0)
+    , m_fastForwardButton(0)
     , m_returnToRealTimeButton(0)
     , m_statusDisplay(0)
     , m_timeRemainingDisplay(0)
@@ -65,6 +69,9 @@ MediaControlsApple::MediaControlsApple(Document* document)
     , m_fullScreenMinVolumeButton(0)
     , m_fullScreenVolumeSlider(0)
     , m_fullScreenMaxVolumeButton(0)
+    , m_audioTrackSelButton(0)
+    , m_textTrackSelButton(0)
+    , m_videoTrackSelButton(0)
 {
 }
 

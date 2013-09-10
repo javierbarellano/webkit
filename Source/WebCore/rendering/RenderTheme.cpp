@@ -1086,6 +1086,10 @@ void RenderTheme::adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Elemen
 {
 }
 
+void RenderTheme::adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const
+{
+}
+
 void RenderTheme::adjustSliderTrackStyle(StyleResolver*, RenderStyle*, Element*) const
 {
 }

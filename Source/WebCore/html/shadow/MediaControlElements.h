@@ -30,12 +30,6 @@
 #ifndef MediaControlElements_h
 #define MediaControlElements_h
 
-#if ENABLE(VIDEO_TRACK)
-#include "AudioTrackList.h"
-#include "TextTrackList.h"
-#include "VideoTrackList.h"
-#endif
-
 #if ENABLE(VIDEO)
 #include "MediaControlElementTypes.h"
 #include "TextTrackRepresentation.h"
@@ -246,15 +240,13 @@ class MediaControlFastForwardButtonElement : public MediaControlInputElement {
 public:
     static PassRefPtr<MediaControlFastForwardButtonElement> create(Document*);
 
-    virtual void defaultEventHandler(Event*);
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
-    MediaControlElementType displayType();
-    virtual void updateDisplayType();
 
 private:
-    MediaControlFastForwardButtonElement(Document*);
+    explicit MediaControlFastForwardButtonElement(Document*);
 
-    virtual const AtomicString& shadowPseudoId() const;
+    virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual void defaultEventHandler(Event*) OVERRIDE;
 };
 
 // ----------------------------
@@ -263,13 +255,13 @@ class MediaControlRewindButtonElement : public MediaControlInputElement {
 public:
     static PassRefPtr<MediaControlRewindButtonElement> create(Document*);
 
-    virtual void defaultEventHandler(Event*) OVERRIDE;
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
 
 private:
     explicit MediaControlRewindButtonElement(Document*);
 
     virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual void defaultEventHandler(Event*) OVERRIDE;
 };
 
 // ----------------------------
@@ -489,6 +481,57 @@ private:
     IntRect m_videoDisplaySize;
     int m_fontSize;
     bool m_fontSizeIsImportant;
+};
+
+// ----------------------------
+
+class MediaControlVideoTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlVideoTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlVideoTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
+};
+
+// ----------------------------
+
+class MediaControlAudioTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlAudioTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlAudioTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
+};
+
+// ----------------------------
+
+class MediaControlTextTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlTextTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlTextTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
 };
 
 #endif

@@ -127,6 +127,15 @@ MediaControlInputElement::MediaControlInputElement(Document* document, MediaCont
 
 // ----------------------------
 
+MediaSelectElement::MediaSelectElement(Document* document, MediaControlElementType displayType, MediaControls* controls)
+    : HTMLSelectElement(selectTag, document, NULL)
+    , MediaControlElement(displayType, this)
+    , m_controls(controls)
+{
+}
+
+// ----------------------------
+
 MediaControlTimeDisplayElement::MediaControlTimeDisplayElement(Document* document, MediaControlElementType displayType)
     : MediaControlDivElement(document, displayType)
     , m_currentValue(0)

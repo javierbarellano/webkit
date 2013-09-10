@@ -238,8 +238,6 @@ public:
     virtual bool shouldOpenPickerWithF4Key() const;
 
 protected:
-    virtual void adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const {}
-
     // The platform selection color.
     virtual Color platformActiveSelectionBackgroundColor() const;
     virtual Color platformInactiveSelectionBackgroundColor() const;
@@ -320,6 +318,7 @@ protected:
     virtual void adjustSearchFieldResultsButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchFieldResultsButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
+    virtual void adjustMediaControlStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
     virtual bool paintMediaFastForwardButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
