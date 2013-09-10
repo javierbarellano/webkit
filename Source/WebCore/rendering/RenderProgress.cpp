@@ -34,7 +34,7 @@ using namespace std;
 namespace WebCore {
 
 RenderProgress::RenderProgress(HTMLElement* element)
-    : RenderBlock(element)
+    : RenderBlockFlow(element)
     , m_position(HTMLProgressElement::InvalidPosition)
     , m_animationStartTime(0)
     , m_animationRepeatInterval(0)
@@ -60,6 +60,19 @@ void RenderProgress::updateFromElement()
     RenderBlock::updateFromElement();
 }
 
+void RenderProgress::computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues& computedValues) const
+{
+    RenderBox::computeLogicalHeight(logicalHeight, logicalTop, computedValues);
+
+    LayoutRect frame = frameRect();
+    if (isHorizontalWritingMode())
+        frame.setHeight(computedValues.m_extent);
+    else
+        frame.setWidth(computedValues.m_extent);
+    IntSize frameSize = theme()->progressBarRectForBounds(this, pixelSnappedIntRect(frame)).size();
+    computedValues.m_extent = isHorizontalWritingMode() ? frameSize.height() : frameSize.width();
+}
+
 bool RenderProgress::canBeReplacedWithInlineRunIn() const
 {
     return false;
@@ -67,7 +80,7 @@ bool RenderProgress::canBeReplacedWithInlineRunIn() const
 
 double RenderProgress::animationProgress() const
 {
-    return m_animating ? (fmod((currentTime() - m_animationStartTime), m_animationDuration) / m_animationDuration) : 0;
+    return m_animating ? (fmod((monotonicallyIncreasingTime() - m_animationStartTime), m_animationDuration) / m_animationDuration) : 0;
 }
 
 bool RenderProgress::isDeterminate() const
@@ -94,7 +107,7 @@ void RenderProgress::updateAnimationState()
 
     m_animating = animating;
     if (m_animating) {
-        m_animationStartTime = currentTime();
+        m_animationStartTime = monotonicallyIncreasingTime();
         m_animationTimer.startOneShot(m_animationRepeatInterval);
     } else
         m_animationTimer.stop();
@@ -102,14 +115,14 @@ void RenderProgress::updateAnimationState()
 
 HTMLProgressElement* RenderProgress::progressElement() const
 {
-    if (!node())
+    if (!element())
         return 0;
 
-    if (isHTMLProgressElement(node()))
-        return toHTMLProgressElement(node());
+    if (isHTMLProgressElement(element()))
+        return toHTMLProgressElement(element());
 
-    ASSERT(node()->shadowHost());
-    return toHTMLProgressElement(node()->shadowHost());
+    ASSERT(element()->shadowHost());
+    return toHTMLProgressElement(element()->shadowHost());
 }    
 
 } // namespace WebCore

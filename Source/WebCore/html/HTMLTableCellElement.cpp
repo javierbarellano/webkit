@@ -163,7 +163,7 @@ void HTMLTableCellElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) 
 {
     HTMLTablePartElement::addSubresourceAttributeURLs(urls);
 
-    addSubresourceURL(urls, document()->completeURL(getAttribute(backgroundAttr)));
+    addSubresourceURL(urls, document().completeURL(getAttribute(backgroundAttr)));
 }
 
 HTMLTableCellElement* HTMLTableCellElement::cellAbove() const
@@ -179,7 +179,7 @@ HTMLTableCellElement* HTMLTableCellElement::cellAbove() const
     if (!cellAboveRenderer)
         return 0;
 
-    return static_cast<HTMLTableCellElement*>(cellAboveRenderer->node());
+    return static_cast<HTMLTableCellElement*>(cellAboveRenderer->element());
 }
 
 #ifndef NDEBUG

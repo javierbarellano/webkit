@@ -36,8 +36,11 @@ public:
 private:
     SVGFontFaceSrcElement(const QualifiedName&, Document*);
     
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE { return false; }
 };
+
+ELEMENT_TYPE_CASTS(SVGFontFaceSrcElement)
 
 } // namespace WebCore
 

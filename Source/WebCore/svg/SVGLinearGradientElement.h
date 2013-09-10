@@ -24,6 +24,7 @@
 #if ENABLE(SVG)
 #include "SVGAnimatedLength.h"
 #include "SVGGradientElement.h"
+#include "SVGNames.h"
 
 namespace WebCore {
 
@@ -53,6 +54,8 @@ private:
         DECLARE_ANIMATED_LENGTH(Y2, y2)
     END_DECLARE_ANIMATED_PROPERTIES
 };
+
+ELEMENT_TYPE_CASTS(SVGLinearGradientElement)
 
 } // namespace WebCore
 

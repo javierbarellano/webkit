@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +26,7 @@
 #ifndef SlotVisitor_h
 #define SlotVisitor_h
 
+#include "CopyToken.h"
 #include "HandleTypes.h"
 #include "MarkStackInlines.h"
 
@@ -71,6 +72,8 @@ public:
     void setup();
     void reset();
 
+    size_t bytesVisited() const { return m_bytesVisited; }
+    size_t bytesCopied() const { return m_bytesCopied; }
     size_t visitCount() const { return m_visitCount; }
 
     void donate();
@@ -83,7 +86,9 @@ public:
     void harvestWeakReferences();
     void finalizeUnconditionalFinalizers();
 
-    void copyLater(JSCell*, void*, size_t);
+    void copyLater(JSCell*, CopyToken, void*, size_t);
+    
+    void reportExtraMemoryUsage(size_t size);
     
 #if ENABLE(SIMPLE_HEAP_PROFILING)
     VTableSpectrum m_visitedTypeCounts;
@@ -106,10 +111,10 @@ private:
     void append(JSValue*);
     void append(JSValue*, size_t count);
     void append(JSCell**);
-
-    void internalAppend(JSCell*);
-    void internalAppend(JSValue);
-    void internalAppend(JSValue*);
+    
+    void internalAppend(void* from, JSCell*);
+    void internalAppend(void* from, JSValue);
+    void internalAppend(void* from, JSValue*);
     
     JS_EXPORT_PRIVATE void mergeOpaqueRoots();
     void mergeOpaqueRootsIfNecessary();
@@ -120,6 +125,8 @@ private:
     MarkStackArray m_stack;
     HashSet<void*> m_opaqueRoots; // Handle-owning data structures not visible to the garbage collector.
     
+    size_t m_bytesVisited;
+    size_t m_bytesCopied;
     size_t m_visitCount;
     bool m_isInParallelMode;
     

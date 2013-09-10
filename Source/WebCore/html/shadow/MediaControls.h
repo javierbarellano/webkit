@@ -134,6 +134,8 @@ protected:
 
     virtual bool containsRelatedTarget(Event*);
 
+    void setSliderVolume();
+
     MediaControllerInterface* m_mediaController;
 
     // Container for the media control elements.

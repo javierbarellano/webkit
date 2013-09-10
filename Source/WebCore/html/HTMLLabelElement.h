@@ -55,21 +55,7 @@ private:
     virtual void focus(bool restorePreviousSelection, FocusDirection) OVERRIDE;
 };
 
-inline bool isHTMLLabelElement(Node* node)
-{
-    return node->hasTagName(HTMLNames::labelTag);
-}
-
-inline bool isHTMLLabelElement(Element* element)
-{
-    return element->hasTagName(HTMLNames::labelTag);
-}
-
-inline HTMLLabelElement* toHTMLLabelElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLLabelElement(node));
-    return static_cast<HTMLLabelElement*>(node);
-}
+ELEMENT_TYPE_CASTS(HTMLLabelElement)
 
 } //namespace
 

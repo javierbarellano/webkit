@@ -41,7 +41,8 @@
 #ifdef __OBJC__ 
 #import <Foundation/Foundation.h>
 #import <AppKit/NSDragging.h>
-typedef id <NSDraggingInfo> DragDataRef;
+// Use id instead of id <NSDraggingInfo> here due to clang ABI change. See <rdar://problem/14764114>.
+typedef id DragDataRef;
 #else
 typedef void* DragDataRef;
 #endif
@@ -59,7 +60,7 @@ namespace WebCore {
 class DataObjectGtk;
 }
 typedef WebCore::DataObjectGtk* DragDataRef;
-#elif PLATFORM(EFL) || PLATFORM(BLACKBERRY)
+#elif PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(NIX)
 typedef void* DragDataRef;
 #endif
 

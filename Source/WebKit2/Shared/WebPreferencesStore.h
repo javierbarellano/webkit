@@ -57,9 +57,11 @@ namespace WebKit {
 #if PLATFORM(MAC)
 #define DEFAULT_HIDDEN_PAGE_DOM_TIMER_THROTTLING_ENABLED true
 #define DEFAULT_HIDDEN_PAGE_CSS_ANIMATION_SUSPENSION_ENABLED true
+#define DEFAULT_PDFPLUGIN_ENABLED true
 #else
 #define DEFAULT_HIDDEN_PAGE_DOM_TIMER_THROTTLING_ENABLED false
 #define DEFAULT_HIDDEN_PAGE_CSS_ANIMATION_SUSPENSION_ENABLED false
+#define DEFAULT_PDFPLUGIN_ENABLED false
 #endif
 
 #define FOR_EACH_WEBKIT_BOOL_PREFERENCE(macro) \
@@ -90,7 +92,8 @@ namespace WebKit {
     macro(CompositingRepaintCountersVisible, compositingRepaintCountersVisible, Bool, bool, false) \
     macro(TiledScrollingIndicatorVisible, tiledScrollingIndicatorVisible, Bool, bool, false) \
     macro(CSSCustomFilterEnabled, cssCustomFilterEnabled, Bool, bool, true) \
-    macro(WebGLEnabled, webGLEnabled, Bool, bool, false) \
+    macro(WebGLEnabled, webGLEnabled, Bool, bool, true) \
+    macro(MultithreadedWebGLEnabled, multithreadedWebGLEnabled, Bool, bool, false) \
     macro(Accelerated2dCanvasEnabled, accelerated2dCanvasEnabled, Bool, bool, false) \
     macro(CSSRegionsEnabled, cssRegionsEnabled, Bool, bool, true) \
     macro(CSSCompositingEnabled, cssCompositingEnabled, Bool, bool, true) \
@@ -147,7 +150,7 @@ namespace WebKit {
     macro(SnapshotAllPlugIns, snapshotAllPlugIns, Bool, bool, false) \
     macro(AutostartOriginPlugInSnapshottingEnabled, autostartOriginPlugInSnapshottingEnabled, Bool, bool, true) \
     macro(PrimaryPlugInSnapshotDetectionEnabled, primaryPlugInSnapshotDetectionEnabled, Bool, bool, true) \
-    macro(PDFPluginEnabled, pdfPluginEnabled, Bool, bool, false) \
+    macro(PDFPluginEnabled, pdfPluginEnabled, Bool, bool, DEFAULT_PDFPLUGIN_ENABLED) \
     macro(UsesEncodingDetector, usesEncodingDetector, Bool, bool, false) \
     macro(TextAutosizingEnabled, textAutosizingEnabled, Bool, bool, false) \
     macro(AggressiveTileRetentionEnabled, aggressiveTileRetentionEnabled, Bool, bool, false) \

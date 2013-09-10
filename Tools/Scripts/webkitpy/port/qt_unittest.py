@@ -34,6 +34,7 @@ from webkitpy.common.system.executive_mock import MockExecutive, MockExecutive2
 from webkitpy.common.system.outputcapture import OutputCapture
 from webkitpy.common.system.systemhost_mock import MockSystemHost
 from webkitpy.port import port_testcase
+from webkitpy.port.base import Port
 from webkitpy.port.qt import QtPort
 from webkitpy.tool.mocktool import MockOptions
 
@@ -42,13 +43,14 @@ class QtPortTest(port_testcase.PortTestCase):
     port_name = 'qt-mac'
     port_maker = QtPort
     search_paths_cases = [
-        {'search_paths':['qt-5.0-mac-wk2', 'qt-5.0-wk2', 'qt-5.0', 'qt-mac', 'qt'], 'os_name':'mac', 'use_webkit2':True, 'qt_version':'5.0'},
-        {'search_paths':['qt-5.0-wk2', 'qt-5.0', 'qt-win', 'qt'], 'os_name':'win', 'use_webkit2':True, 'qt_version':'5.0'},
-        {'search_paths':['qt-5.0-wk2', 'qt-5.0', 'qt-linux', 'qt'], 'os_name':'linux', 'use_webkit2':True, 'qt_version':'5.0'},
+        {'search_paths':['qt-mac-wk2', 'qt-wk2', 'qt-5.0', 'qt-mac', 'qt'], 'os_name':'mac', 'use_webkit2':True, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk2', 'qt-5.0', 'qt-win', 'qt'], 'os_name':'win', 'use_webkit2':True, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk2', 'qt-5.0', 'qt-linux', 'qt'], 'os_name':'linux', 'use_webkit2':True, 'qt_version':'5.0'},
 
-        {'search_paths':['qt-5.0-wk1', 'qt-5.0', 'qt-mac', 'qt'], 'os_name':'mac', 'use_webkit2':False, 'qt_version':'5.0'},
-        {'search_paths':['qt-5.0-wk1', 'qt-5.0', 'qt-win', 'qt'], 'os_name':'win', 'use_webkit2':False, 'qt_version':'5.0'},
-        {'search_paths':['qt-5.0-wk1', 'qt-5.0', 'qt-linux', 'qt'], 'os_name':'linux', 'use_webkit2':False, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk1', 'qt-5.0', 'qt-mac', 'qt'], 'os_name':'mac', 'use_webkit2':False, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk1', 'qt-5.0', 'qt-win', 'qt'], 'os_name':'win', 'use_webkit2':False, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk1', 'qt-5.0', 'qt-linux', 'qt'], 'os_name':'linux', 'use_webkit2':False, 'qt_version':'5.0'},
+        {'search_paths':['qt-wk1', 'qt-5.1', 'qt-linux', 'qt'], 'os_name':'linux', 'use_webkit2':False, 'qt_version':'5.1'},
     ]
 
     def _assert_search_path(self, search_paths, os_name, use_webkit2=False, qt_version='5.0'):
@@ -77,6 +79,8 @@ class QtPortTest(port_testcase.PortTestCase):
     def _qt_version(self, qt_version):
         if qt_version in '5.0':
             return 'QMake version 2.01a\nUsing Qt version 5.0.0 in /usr/local/Trolltech/Qt-5.0.0/lib'
+        if qt_version in '5.1':
+            return 'QMake version 3.0\nUsing Qt version 5.1.1 in /usr/local/Qt-5.1/lib'
 
     def test_baseline_search_path(self):
         for case in self.search_paths_cases:
@@ -121,3 +125,30 @@ class QtPortTest(port_testcase.PortTestCase):
         port._executive = MockExecutive2(exit_code=1,
             output='testing output failure')
         self.assertFalse(port.check_sys_deps(needs_http=False))
+
+    def test_commands(self):
+        port = self.make_port(port_name="qt")
+        self.assertEqual(port.tooling_flag(), "--port=qt")
+        self.assertEqual(port.update_webkit_command(), Port.script_shell_command("update-webkit"))
+        self.assertEqual(port.check_webkit_style_command(), Port.script_shell_command("check-webkit-style"))
+        self.assertEqual(port.prepare_changelog_command(), Port.script_shell_command("prepare-ChangeLog"))
+        self.assertEqual(port.build_webkit_command(), Port.script_shell_command("build-webkit") + ["--qt", "--no-webkit2", port.make_args()])
+        self.assertEqual(port.run_javascriptcore_tests_command(), Port.script_shell_command("run-javascriptcore-tests"))
+        self.assertEqual(port.run_webkit_unit_tests_command(), None)
+        self.assertEqual(port.run_webkit_tests_command(), Port.script_shell_command("run-webkit-tests") + ["--qt"])
+        self.assertEqual(port.run_python_unittests_command(), Port.script_shell_command("test-webkitpy"))
+        self.assertEqual(port.run_perl_unittests_command(), Port.script_shell_command("test-webkitperl"))
+        self.assertEqual(port.run_bindings_tests_command(), Port.script_shell_command("run-bindings-tests"))
+
+        port = self.make_port(port_name="qt", options=MockOptions(webkit_test_runner=True))
+        self.assertEqual(port.tooling_flag(), "--port=qt-wk2")
+        self.assertEqual(port.update_webkit_command(), Port.script_shell_command("update-webkit"))
+        self.assertEqual(port.check_webkit_style_command(), Port.script_shell_command("check-webkit-style"))
+        self.assertEqual(port.prepare_changelog_command(), Port.script_shell_command("prepare-ChangeLog"))
+        self.assertEqual(port.build_webkit_command(), Port.script_shell_command("build-webkit") + ["--qt", port.make_args()])
+        self.assertEqual(port.run_javascriptcore_tests_command(), Port.script_shell_command("run-javascriptcore-tests"))
+        self.assertEqual(port.run_webkit_unit_tests_command(), None)
+        self.assertEqual(port.run_webkit_tests_command(), Port.script_shell_command("run-webkit-tests") + ["--qt", "-2"])
+        self.assertEqual(port.run_python_unittests_command(), Port.script_shell_command("test-webkitpy"))
+        self.assertEqual(port.run_perl_unittests_command(), Port.script_shell_command("test-webkitperl"))
+        self.assertEqual(port.run_bindings_tests_command(), Port.script_shell_command("run-bindings-tests"))

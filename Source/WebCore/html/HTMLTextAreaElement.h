@@ -96,7 +96,7 @@ private:
 
     virtual bool isTextFormControl() const { return true; }
 
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
     virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
@@ -111,7 +111,6 @@ private:
     virtual void accessKeyAction(bool sendMouseEvents);
 
     virtual bool shouldUseInputMethod() OVERRIDE;
-    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
     virtual bool matchesReadOnlyPseudoClass() const OVERRIDE;
     virtual bool matchesReadWritePseudoClass() const OVERRIDE;
 
@@ -127,21 +126,7 @@ private:
     mutable bool m_wasModifiedByUser;
 };
 
-inline bool isHTMLTextAreaElement(Node* node)
-{
-    return node->hasTagName(HTMLNames::textareaTag);
-}
-
-inline bool isHTMLTextAreaElement(Element* element)
-{
-    return element->hasTagName(HTMLNames::textareaTag);
-}
-
-inline HTMLTextAreaElement* toHTMLTextAreaElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLTextAreaElement(node));
-    return static_cast<HTMLTextAreaElement*>(node);
-}
+ELEMENT_TYPE_CASTS(HTMLTextAreaElement)
 
 } //namespace
 

@@ -94,7 +94,7 @@ WorkerGlobalScope::WorkerGlobalScope(const KURL& url, const String& userAgent, P
     , m_workerInspectorController(adoptPtr(new WorkerInspectorController(this)))
 #endif
     , m_closing(false)
-    , m_eventQueue(WorkerEventQueue::create(this))
+    , m_eventQueue(*this)
     , m_topOrigin(topOrigin)
 {
     setSecurityOrigin(SecurityOrigin::create(url));
@@ -120,16 +120,6 @@ void WorkerGlobalScope::applyContentSecurityPolicyFromString(const String& polic
 ScriptExecutionContext* WorkerGlobalScope::scriptExecutionContext() const
 {
     return const_cast<WorkerGlobalScope*>(this);
-}
-
-const KURL& WorkerGlobalScope::virtualURL() const
-{
-    return m_url;
-}
-
-KURL WorkerGlobalScope::virtualCompleteURL(const String& url) const
-{
-    return completeURL(url);
 }
 
 KURL WorkerGlobalScope::completeURL(const String& url) const
@@ -323,9 +313,9 @@ EventTargetData* WorkerGlobalScope::eventTargetData()
     return &m_eventTargetData;
 }
 
-EventTargetData* WorkerGlobalScope::ensureEventTargetData()
+EventTargetData& WorkerGlobalScope::ensureEventTargetData()
 {
-    return &m_eventTargetData;
+    return m_eventTargetData;
 }
 
 WorkerGlobalScope::Observer::Observer(WorkerGlobalScope* context)
@@ -375,9 +365,9 @@ void WorkerGlobalScope::notifyObserversOfStop()
     }
 }
 
-WorkerEventQueue* WorkerGlobalScope::eventQueue() const
+WorkerEventQueue& WorkerGlobalScope::eventQueue() const
 {
-    return m_eventQueue.get();
+    return m_eventQueue;
 }
 
 } // namespace WebCore

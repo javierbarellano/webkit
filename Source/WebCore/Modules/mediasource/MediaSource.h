@@ -71,7 +71,6 @@ public:
 
     // ActiveDOMObject interface
     virtual bool hasPendingActivity() const OVERRIDE;
-    virtual void stop() OVERRIDE;
 
     using RefCounted<MediaSource>::ref;
     using RefCounted<MediaSource>::deref;
@@ -79,8 +78,11 @@ public:
 private:
     explicit MediaSource(ScriptExecutionContext*);
 
+    // ActiveDOMObject interface
+    virtual void stop() OVERRIDE;
+
     virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData* ensureEventTargetData() OVERRIDE;
+    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
 
     virtual void refEventTarget() OVERRIDE { ref(); }
     virtual void derefEventTarget() OVERRIDE { deref(); }
@@ -92,9 +94,9 @@ private:
     String m_readyState;
     OwnPtr<MediaSourcePrivate> m_private;
 
+    GenericEventQueue m_asyncEventQueue;
     RefPtr<SourceBufferList> m_sourceBuffers;
     RefPtr<SourceBufferList> m_activeSourceBuffers;
-    OwnPtr<GenericEventQueue> m_asyncEventQueue;
 };
 
 } // namespace WebCore

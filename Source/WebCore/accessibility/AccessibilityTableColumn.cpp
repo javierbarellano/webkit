@@ -136,11 +136,10 @@ AccessibilityObject* AccessibilityTableColumn::headerObjectForSection(RenderTabl
         if ((testCell->col() + (testCell->colSpan()-1)) < m_columnIndex)
             break;
         
-        Node* node = testCell->node();
-        if (!node)
+        if (!testCell->element())
             continue;
         
-        if (thTagRequired && !node->hasTagName(thTag))
+        if (thTagRequired && !testCell->element()->hasTagName(thTag))
             continue;
         
         cell = testCell;
@@ -157,7 +156,7 @@ bool AccessibilityTableColumn::computeAccessibilityIsIgnored() const
     if (!m_parent)
         return true;
     
-#if PLATFORM(GTK)
+#if PLATFORM(IOS) || PLATFORM(GTK)
     return true;
 #endif
     

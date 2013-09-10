@@ -93,7 +93,7 @@ PassRefPtr<RTCConfiguration> RTCPeerConnection::parseConfiguration(const Diction
             return 0;
         }
 
-        String urlString, credential;
+        String urlString, credential, username;
         ok = iceServer.get("url", urlString);
         if (!ok) {
             ec = TYPE_MISMATCH_ERR;
@@ -106,8 +106,9 @@ PassRefPtr<RTCConfiguration> RTCPeerConnection::parseConfiguration(const Diction
         }
 
         iceServer.get("credential", credential);
+        iceServer.get("username", username);
 
-        rtcConfiguration->appendServer(RTCIceServer::create(url, credential));
+        rtcConfiguration->appendServer(RTCIceServer::create(url, credential, username));
     }
 
     return rtcConfiguration.release();
@@ -152,7 +153,7 @@ RTCPeerConnection::RTCPeerConnection(ScriptExecutionContext* context, PassRefPtr
         return;
     }
 
-    document->frame()->loader()->client()->dispatchWillStartUsingPeerConnectionHandler(m_peerHandler.get());
+    document->frame()->loader().client().dispatchWillStartUsingPeerConnectionHandler(m_peerHandler.get());
 
     if (!m_peerHandler->initialize(configuration, constraints)) {
         ec = NOT_SUPPORTED_ERR;
@@ -225,8 +226,10 @@ void RTCPeerConnection::setLocalDescription(PassRefPtr<RTCSessionDescription> pr
 PassRefPtr<RTCSessionDescription> RTCPeerConnection::localDescription(ExceptionCode& ec)
 {
     RefPtr<RTCSessionDescriptionDescriptor> descriptor = m_peerHandler->localDescription();
-    if (!descriptor)
+    if (!descriptor) {
+        ec = INVALID_STATE_ERR;
         return 0;
+    }
 
     RefPtr<RTCSessionDescription> sessionDescription = RTCSessionDescription::create(descriptor.release());
     return sessionDescription.release();
@@ -252,8 +255,10 @@ void RTCPeerConnection::setRemoteDescription(PassRefPtr<RTCSessionDescription> p
 PassRefPtr<RTCSessionDescription> RTCPeerConnection::remoteDescription(ExceptionCode& ec)
 {
     RefPtr<RTCSessionDescriptionDescriptor> descriptor = m_peerHandler->remoteDescription();
-    if (!descriptor)
+    if (!descriptor) {
+        ec = INVALID_STATE_ERR;
         return 0;
+    }
 
     RefPtr<RTCSessionDescription> desc = RTCSessionDescription::create(descriptor.release());
     return desc.release();
@@ -608,9 +613,9 @@ EventTargetData* RTCPeerConnection::eventTargetData()
     return &m_eventTargetData;
 }
 
-EventTargetData* RTCPeerConnection::ensureEventTargetData()
+EventTargetData& RTCPeerConnection::ensureEventTargetData()
 {
-    return &m_eventTargetData;
+    return m_eventTargetData;
 }
 
 void RTCPeerConnection::changeSignalingState(SignalingState signalingState)

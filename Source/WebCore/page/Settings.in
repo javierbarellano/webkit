@@ -55,7 +55,6 @@ javaScriptCanAccessClipboard initial=false
 shouldPrintBackgrounds initial=false
 usesDashboardBackwardCompatibilityMode initial=false, conditional=DASHBOARD_SUPPORT
 
-screenFontSubstitutionEnabled initial=true, setNeedsStyleRecalcInAllFrames=1
 textAreasAreResizable initial=false, setNeedsStyleRecalcInAllFrames=1
 authorAndUserStylesEnabled initial=true, setNeedsStyleRecalcInAllFrames=1
 acceleratedCompositingEnabled initial=true, setNeedsStyleRecalcInAllFrames=1
@@ -106,6 +105,7 @@ experimentalNotificationsEnabled initial=false
 webGLEnabled initial=false
 webGLErrorsToConsoleEnabled initial=true
 openGLMultisamplingEnabled initial=true
+multithreadedWebGLEnabled initial=false
 privilegedWebGLExtensionsEnabled initial=false
 accelerated2dCanvasEnabled initial=false
 antialiased2dCanvasEnabled initial=true
@@ -154,7 +154,6 @@ deviceSupportsMouse initial=true
 # support for touch adjustment.
 touchAdjustmentEnabled initial=true
 
-needsDidFinishLoadOrderQuirk initial=false
 fixedPositionCreatesStackingContext initial=false
 syncXHRInDocumentsEnabled initial=true
 cookieEnabled initial=true

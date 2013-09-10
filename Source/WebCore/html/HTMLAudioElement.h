@@ -43,21 +43,7 @@ private:
     HTMLAudioElement(const QualifiedName&, Document*, bool);
 };
 
-inline bool isHTMLAudioElement(Node* node)
-{
-    return node->hasTagName(HTMLNames::audioTag);
-}
-
-inline bool isHTMLAudioElement(Element* element)
-{
-    return element->hasTagName(HTMLNames::audioTag);
-}
-
-inline HTMLAudioElement* toHTMLAudioElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLAudioElement(node));
-    return static_cast<HTMLAudioElement*>(node);
-}
+ELEMENT_TYPE_CASTS(HTMLAudioElement)
 
 } //namespace
 

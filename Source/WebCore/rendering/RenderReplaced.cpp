@@ -90,7 +90,7 @@ void RenderReplaced::layout()
     updateLogicalWidth();
     updateLogicalHeight();
 
-    m_overflow.clear();
+    clearOverflow();
     addVisualEffectOverflow();
     updateLayerTransform();
     invalidateBackgroundObscurationStatus();
@@ -132,7 +132,7 @@ void RenderReplaced::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
     if (!paintInfo.shouldPaintWithinRoot(this))
         return;
     
-    bool drawSelectionTint = selectionState() != SelectionNone && !document()->printing();
+    bool drawSelectionTint = selectionState() != SelectionNone && !document().printing();
     if (paintInfo.phase == PaintPhaseSelection) {
         if (selectionState() == SelectionNone)
             return;
@@ -189,8 +189,9 @@ bool RenderReplaced::shouldPaint(PaintInfo& paintInfo, const LayoutPoint& paintO
     LayoutUnit top = adjustedPaintOffset.y() + visualOverflowRect().y();
     LayoutUnit bottom = adjustedPaintOffset.y() + visualOverflowRect().maxY();
     if (isSelected() && m_inlineBoxWrapper) {
-        LayoutUnit selTop = paintOffset.y() + m_inlineBoxWrapper->root()->selectionTop();
-        LayoutUnit selBottom = paintOffset.y() + selTop + m_inlineBoxWrapper->root()->selectionHeight();
+        const RootInlineBox& rootBox = m_inlineBoxWrapper->root();
+        LayoutUnit selTop = paintOffset.y() + rootBox.selectionTop();
+        LayoutUnit selBottom = paintOffset.y() + selTop + rootBox.selectionHeight();
         top = min(selTop, top);
         bottom = max(selBottom, bottom);
     }
@@ -296,6 +297,41 @@ void RenderReplaced::computeAspectRatioInformationForRenderBox(RenderBox* conten
         constrainedSize.setWidth(RenderBox::computeReplacedLogicalHeight() * intrinsicSize.width() / intrinsicSize.height());
         constrainedSize.setHeight(RenderBox::computeReplacedLogicalWidth() * intrinsicSize.height() / intrinsicSize.width());
     }
+}
+
+LayoutRect RenderReplaced::replacedContentRect(const LayoutSize& intrinsicSize) const
+{
+    LayoutRect contentRect = contentBoxRect();
+    ObjectFit objectFit = style()->objectFit();
+    if (objectFit == ObjectFitFill)
+        return contentRect;
+
+    if (!intrinsicSize.width() || !intrinsicSize.height())
+        return contentRect;
+
+    LayoutRect finalRect = contentRect;
+    switch (objectFit) {
+    case ObjectFitContain:
+    case ObjectFitScaleDown:
+    case ObjectFitCover:
+        finalRect.setSize(finalRect.size().fitToAspectRatio(intrinsicSize, objectFit == ObjectFitCover ? AspectRatioFitGrow : AspectRatioFitShrink));
+        if (objectFit != ObjectFitScaleDown || finalRect.width() <= intrinsicSize.width())
+            break;
+        // fall through
+    case ObjectFitNone:
+        finalRect.setSize(intrinsicSize);
+        break;
+    case ObjectFitFill:
+        ASSERT_NOT_REACHED();
+    }
+
+    // FIXME: This is where object-position should be taken into account, but since it's not
+    // implemented yet, assume the initial value of "50% 50%".
+    LayoutUnit xOffset = (contentRect.width() - finalRect.width()) / 2;
+    LayoutUnit yOffset = (contentRect.height() - finalRect.height()) / 2;
+    finalRect.move(xOffset, yOffset);
+
+    return finalRect;
 }
 
 void RenderReplaced::computeIntrinsicRatioInformation(FloatSize& intrinsicSize, double& intrinsicRatio, bool& isPercentageIntrinsicSize) const
@@ -455,7 +491,7 @@ VisiblePosition RenderReplaced::positionForPoint(const LayoutPoint& point)
 {
     // FIXME: This code is buggy if the replaced element is relative positioned.
     InlineBox* box = inlineBoxWrapper();
-    RootInlineBox* rootBox = box ? box->root() : 0;
+    const RootInlineBox* rootBox = box ? &box->root() : 0;
     
     LayoutUnit top = rootBox ? rootBox->selectionTop() : logicalTop();
     LayoutUnit bottom = rootBox ? rootBox->selectionBottom() : logicalBottom();
@@ -469,7 +505,7 @@ VisiblePosition RenderReplaced::positionForPoint(const LayoutPoint& point)
     if (blockDirectionPosition >= bottom)
         return createVisiblePosition(caretMaxOffset(), DOWNSTREAM); // coordinates are below
     
-    if (node()) {
+    if (element()) {
         if (lineDirectionPosition <= logicalLeft() + (logicalWidth() / 2))
             return createVisiblePosition(0, DOWNSTREAM);
         return createVisiblePosition(1, DOWNSTREAM);
@@ -503,11 +539,11 @@ LayoutRect RenderReplaced::localSelectionRect(bool checkWhetherSelected) const
         // We're a block-level replaced element.  Just return our own dimensions.
         return LayoutRect(LayoutPoint(), size());
     
-    RootInlineBox* root = m_inlineBoxWrapper->root();
-    LayoutUnit newLogicalTop = root->block()->style()->isFlippedBlocksWritingMode() ? m_inlineBoxWrapper->logicalBottom() - root->selectionBottom() : root->selectionTop() - m_inlineBoxWrapper->logicalTop();
-    if (root->block()->style()->isHorizontalWritingMode())
-        return LayoutRect(0, newLogicalTop, width(), root->selectionHeight());
-    return LayoutRect(newLogicalTop, 0, root->selectionHeight(), height());
+    const RootInlineBox& rootBox = m_inlineBoxWrapper->root();
+    LayoutUnit newLogicalTop = rootBox.block().style()->isFlippedBlocksWritingMode() ? m_inlineBoxWrapper->logicalBottom() - rootBox.selectionBottom() : rootBox.selectionTop() - m_inlineBoxWrapper->logicalTop();
+    if (rootBox.block().style()->isHorizontalWritingMode())
+        return LayoutRect(0, newLogicalTop, width(), rootBox.selectionHeight());
+    return LayoutRect(newLogicalTop, 0, rootBox.selectionHeight(), height());
 }
 
 void RenderReplaced::setSelectionState(SelectionState state)
@@ -516,8 +552,7 @@ void RenderReplaced::setSelectionState(SelectionState state)
     RenderBox::setSelectionState(state);
 
     if (m_inlineBoxWrapper && canUpdateSelectionOnRootLineBoxes())
-        if (RootInlineBox* root = m_inlineBoxWrapper->root())
-            root->setHasSelectedChildren(isSelected());
+        m_inlineBoxWrapper->root().setHasSelectedChildren(isSelected());
 }
 
 bool RenderReplaced::isSelected() const
@@ -533,7 +568,7 @@ bool RenderReplaced::isSelected() const
     if (s == SelectionStart)
         return selectionStart == 0;
         
-    int end = node()->hasChildNodes() ? node()->childNodeCount() : 1;
+    int end = element()->hasChildNodes() ? element()->childNodeCount() : 1;
     if (s == SelectionEnd)
         return selectionEnd == end;
     if (s == SelectionBoth)
@@ -552,17 +587,13 @@ LayoutRect RenderReplaced::clippedOverflowRectForRepaint(const RenderLayerModelO
     // for repainting to avoid selection painting glitches.
     LayoutRect r = unionRect(localSelectionRect(false), visualOverflowRect());
 
-    RenderView* v = view();
-    if (v) {
-        // FIXME: layoutDelta needs to be applied in parts before/after transforms and
-        // repaint containers. https://bugs.webkit.org/show_bug.cgi?id=23308
-        r.move(v->layoutDelta());
-    }
+    // FIXME: layoutDelta needs to be applied in parts before/after transforms and
+    // repaint containers. https://bugs.webkit.org/show_bug.cgi?id=23308
+    r.move(view().layoutDelta());
 
-    if (style()) {
-        if (v)
-            r.inflate(style()->outlineSize());
-    }
+    if (style())
+        r.inflate(style()->outlineSize());
+
     computeRectForRepaint(repaintContainer, r);
     return r;
 }

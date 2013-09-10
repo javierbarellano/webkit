@@ -81,7 +81,7 @@ LayoutUnit RenderIFrame::maxPreferredLogicalWidth() const
 
 bool RenderIFrame::isSeamless() const
 {
-    return node() && node()->hasTagName(iframeTag) && toHTMLIFrameElement(node())->shouldDisplaySeamlessly();
+    return element() && element()->hasTagName(iframeTag) && toHTMLIFrameElement(element())->shouldDisplaySeamlessly();
 }
 
 bool RenderIFrame::requiresLayer() const
@@ -94,28 +94,28 @@ RenderView* RenderIFrame::contentRootRenderer() const
     // FIXME: Is this always a valid cast? What about plugins?
     ASSERT(!widget() || widget()->isFrameView());
     FrameView* childFrameView = toFrameView(widget());
-    return childFrameView ? childFrameView->frame()->contentRenderer() : 0;
+    return childFrameView ? childFrameView->frame().contentRenderer() : 0;
 }
 
 bool RenderIFrame::flattenFrame() const
 {
-    if (!node() || !node()->hasTagName(iframeTag))
+    if (!element() || !element()->hasTagName(iframeTag))
         return false;
 
-    HTMLIFrameElement* element = toHTMLIFrameElement(node());
-    Frame* frame = element->document()->frame();
+    HTMLIFrameElement* iFrameElement = toHTMLIFrameElement(element());
+    Frame* frame = iFrameElement->document().frame();
 
     if (isSeamless())
         return false; // Seamless iframes are already "flat", don't try to flatten them.
 
-    bool enabled = frame && frame->settings() && frame->settings()->frameFlatteningEnabled();
+    bool enabled = frame && frame->settings().frameFlatteningEnabled();
 
     if (!enabled || !frame->page())
         return false;
 
     if (style()->width().isFixed() && style()->height().isFixed()) {
         // Do not flatten iframes with scrolling="no".
-        if (element->scrollingMode() == ScrollbarAlwaysOff)
+        if (iFrameElement->scrollingMode() == ScrollbarAlwaysOff)
             return false;
         if (style()->width().value() <= 0 || style()->height().value() <= 0)
             return false;
@@ -146,7 +146,7 @@ void RenderIFrame::layoutSeamlessly()
     updateWidgetPosition(); // Notify the Widget of our final height.
 
     // Assert that the child document did a complete layout.
-    RenderView* childRoot = childFrameView ? childFrameView->frame()->contentRenderer() : 0;
+    RenderView* childRoot = childFrameView ? childFrameView->frame().contentRenderer() : 0;
     ASSERT(!childFrameView || !childFrameView->layoutPending());
     ASSERT_UNUSED(childRoot, !childRoot || !childRoot->needsLayout());
 }
@@ -168,7 +168,7 @@ void RenderIFrame::layout()
             layoutWithFlattening(style()->width().isFixed(), style()->height().isFixed());
     }
 
-    m_overflow.clear();
+    clearOverflow();
     addVisualEffectOverflow();
     updateLayerTransform();
 

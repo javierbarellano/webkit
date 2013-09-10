@@ -29,6 +29,7 @@
 #include "EllipsisBox.h"
 #include "FloatQuad.h"
 #include "FontTranscoder.h"
+#include "Frame.h"
 #include "FrameView.h"
 #include "Hyphenation.h"
 #include "InlineTextBox.h"
@@ -77,8 +78,8 @@ public:
     void restartWithNewText(unsigned lastTypedCharacterOffset)
     {
         m_lastTypedCharacterOffset = lastTypedCharacterOffset;
-        if (Settings* settings = m_renderText->document()->settings())
-            startOneShot(settings->passwordEchoDurationInSeconds());
+        const Settings& settings = m_renderText->frame().settings();
+        startOneShot(settings.passwordEchoDurationInSeconds());
     }
     void invalidate() { m_lastTypedCharacterOffset = -1; }
     unsigned lastTypedCharacterOffset() { return m_lastTypedCharacterOffset; }
@@ -159,7 +160,7 @@ RenderText::RenderText(Node* node, PassRefPtr<StringImpl> str)
     m_canUseSimpleFontCodePath = computeCanUseSimpleFontCodePath();
     setIsText();
 
-    view()->frameView()->incrementVisuallyNonEmptyCharacterCount(m_text.length());
+    view().frameView().incrementVisuallyNonEmptyCharacterCount(m_text.length());
 }
 
 #ifndef NDEBUG
@@ -189,7 +190,7 @@ bool RenderText::isWordBreak() const
 
 void RenderText::updateNeedsTranscoding()
 {
-    const TextEncoding* encoding = document()->decoder() ? &document()->decoder()->encoding() : 0;
+    const TextEncoding* encoding = document().decoder() ? &document().decoder()->encoding() : 0;
     m_needsTranscoding = fontTranscoder().needsTranscoding(style()->font().fontDescription(), encoding);
 }
 
@@ -225,7 +226,7 @@ void RenderText::removeAndDestroyTextBoxes()
     if (!documentBeingDestroyed()) {
         if (firstTextBox()) {
             if (isBR()) {
-                RootInlineBox* next = firstTextBox()->root()->nextRootBox();
+                RootInlineBox* next = firstTextBox()->root().nextRootBox();
                 if (next)
                     next->markDirty();
             }
@@ -389,7 +390,7 @@ static IntRect ellipsisRectForBox(InlineTextBox* box, unsigned startPos, unsigne
         return IntRect();
     
     IntRect rect;
-    if (EllipsisBox* ellipsis = box->root()->ellipsisBox()) {
+    if (EllipsisBox* ellipsis = box->root().ellipsisBox()) {
         int ellipsisStartPosition = max<int>(startPos - box->start(), 0);
         int ellipsisEndPosition = min<int>(endPos - box->start(), box->len());
         
@@ -533,13 +534,12 @@ static VisiblePosition createVisiblePositionForBox(const InlineBox* box, int off
         affinity = offset > box->caretMinOffset() ? VP_UPSTREAM_IF_POSSIBLE : DOWNSTREAM;
         break;
     }
-    return box->renderer()->createVisiblePosition(offset, affinity);
+    return box->renderer().createVisiblePosition(offset, affinity);
 }
 
 static VisiblePosition createVisiblePositionAfterAdjustingOffsetForBiDi(const InlineTextBox* box, int offset, ShouldAffinityBeDownstream shouldAffinityBeDownstream)
 {
     ASSERT(box);
-    ASSERT(box->renderer());
     ASSERT(offset >= 0);
 
     if (offset && static_cast<unsigned>(offset) < box->len())
@@ -551,7 +551,7 @@ static VisiblePosition createVisiblePositionAfterAdjustingOffsetForBiDi(const In
 
         const InlineBox* prevBox = box->prevLeafChildIgnoringLineBreak();
         if ((prevBox && prevBox->bidiLevel() == box->bidiLevel())
-            || box->renderer()->containingBlock()->style()->direction() == box->direction()) // FIXME: left on 12CBA
+            || box->renderer().containingBlock()->style()->direction() == box->direction()) // FIXME: left on 12CBA
             return createVisiblePositionForBox(box, box->caretLeftmostOffset(), shouldAffinityBeDownstream);
 
         if (prevBox && prevBox->bidiLevel() > box->bidiLevel()) {
@@ -581,7 +581,7 @@ static VisiblePosition createVisiblePositionAfterAdjustingOffsetForBiDi(const In
 
     const InlineBox* nextBox = box->nextLeafChildIgnoringLineBreak();
     if ((nextBox && nextBox->bidiLevel() == box->bidiLevel())
-        || box->renderer()->containingBlock()->style()->direction() == box->direction())
+        || box->renderer().containingBlock()->style()->direction() == box->direction())
         return createVisiblePositionForBox(box, box->caretRightmostOffset(), shouldAffinityBeDownstream);
 
     // offset is on the right edge
@@ -624,12 +624,12 @@ VisiblePosition RenderText::positionForPoint(const LayoutPoint& point)
         if (box->isLineBreak() && !box->prevLeafChild() && box->nextLeafChild() && !box->nextLeafChild()->isLineBreak())
             box = box->nextTextBox();
 
-        RootInlineBox* rootBox = box->root();
-        LayoutUnit top = min(rootBox->selectionTop(), rootBox->lineTop());
+        const RootInlineBox& rootBox = box->root();
+        LayoutUnit top = min(rootBox.selectionTop(), rootBox.lineTop());
         if (pointBlockDirection > top || (!blocksAreFlipped && pointBlockDirection == top)) {
-            LayoutUnit bottom = rootBox->selectionBottom();
-            if (rootBox->nextRootBox())
-                bottom = min(bottom, rootBox->nextRootBox()->lineTop());
+            LayoutUnit bottom = rootBox.selectionBottom();
+            if (rootBox.nextRootBox())
+                bottom = min(bottom, rootBox.nextRootBox()->lineTop());
 
             if (pointBlockDirection < bottom || (blocksAreFlipped && pointBlockDirection == bottom)) {
                 ShouldAffinityBeDownstream shouldAffinityBeDownstream;
@@ -659,8 +659,9 @@ LayoutRect RenderText::localCaretRect(InlineBox* inlineBox, int caretOffset, Lay
 
     InlineTextBox* box = toInlineTextBox(inlineBox);
 
-    int height = box->root()->selectionHeight();
-    int top = box->root()->selectionTop();
+    const RootInlineBox& rootBox = box->root();
+    int height = rootBox.selectionHeight();
+    int top = rootBox.selectionTop();
 
     // Go ahead and round left to snap it to the nearest pixel.
     float left = box->positionForOffset(caretOffset);
@@ -672,13 +673,13 @@ LayoutRect RenderText::localCaretRect(InlineBox* inlineBox, int caretOffset, Lay
 
     left = roundf(left);
 
-    float rootLeft = box->root()->logicalLeft();
-    float rootRight = box->root()->logicalRight();
+    float rootLeft = rootBox.logicalLeft();
+    float rootRight = rootBox.logicalRight();
 
     // FIXME: should we use the width of the root inline box or the
     // width of the containing block for this?
     if (extraWidthToEndOfLine)
-        *extraWidthToEndOfLine = (box->root()->logicalWidth() + rootLeft) - (left + 1);
+        *extraWidthToEndOfLine = (rootBox.logicalWidth() + rootLeft) - (left + 1);
 
     RenderBlock* cb = containingBlock();
     RenderStyle* cbStyle = cb->style();
@@ -722,9 +723,9 @@ LayoutRect RenderText::localCaretRect(InlineBox* inlineBox, int caretOffset, Lay
 ALWAYS_INLINE float RenderText::widthFromCache(const Font& f, int start, int len, float xPos, HashSet<const SimpleFontData*>* fallbackFonts, GlyphOverflow* glyphOverflow) const
 {
     if (style()->hasTextCombine() && isCombineText()) {
-        const RenderCombineText* combineText = toRenderCombineText(this);
-        if (combineText->isCombined())
-            return combineText->combinedTextWidth(f);
+        const RenderCombineText& combineText = toRenderCombineText(*this);
+        if (combineText.isCombined())
+            return combineText.combinedTextWidth(f);
     }
 
     if (f.isFixedPitch() && !f.isSmallCaps() && m_isAllASCII && (!glyphOverflow || !glyphOverflow->computeBounds)) {
@@ -1242,17 +1243,12 @@ void RenderText::setSelectionState(SelectionState state)
                 startPos = 0;
 
             for (InlineTextBox* box = firstTextBox(); box; box = box->nextTextBox()) {
-                if (box->isSelected(startPos, endPos)) {
-                    RootInlineBox* root = box->root();
-                    if (root)
-                        root->setHasSelectedChildren(true);
-                }
+                if (box->isSelected(startPos, endPos))
+                    box->root().setHasSelectedChildren(true);
             }
         } else {
             for (InlineTextBox* box = firstTextBox(); box; box = box->nextTextBox()) {
-                RootInlineBox* root = box->root();
-                if (root)
-                    root->setHasSelectedChildren(state == SelectionInside);
+                box->root().setHasSelectedChildren(state == SelectionInside);
             }
         }
     }
@@ -1288,9 +1284,9 @@ void RenderText::setTextWithOffset(PassRefPtr<StringImpl> text, unsigned offset,
         // Text run is entirely after the affected range.
         if (curr->start() > end) {
             curr->offsetRun(delta);
-            RootInlineBox* root = curr->root();
+            RootInlineBox& rootBox = curr->root();
             if (!firstRootBox) {
-                firstRootBox = root;
+                firstRootBox = &rootBox;
                 if (!dirtiedLines) {
                     // The affected area was in between two runs. Go ahead and mark the root box of
                     // the run after the affected area as dirty.
@@ -1298,7 +1294,7 @@ void RenderText::setTextWithOffset(PassRefPtr<StringImpl> text, unsigned offset,
                     dirtiedLines = true;
                 }
             }
-            lastRootBox = root;
+            lastRootBox = &rootBox;
         } else if (curr->end() >= offset && curr->end() <= end) {
             // Text run overlaps with the left end of the affected range.
             curr->dirtyLineBoxes();
@@ -1324,7 +1320,7 @@ void RenderText::setTextWithOffset(PassRefPtr<StringImpl> text, unsigned offset,
             firstRootBox = prev;
     } else if (lastTextBox()) {
         ASSERT(!lastRootBox);
-        firstRootBox = lastTextBox()->root();
+        firstRootBox = &lastTextBox()->root();
         firstRootBox->markDirty();
         dirtiedLines = true;
     }
@@ -1400,7 +1396,7 @@ void RenderText::setTextInternal(PassRefPtr<StringImpl> text)
     ASSERT(text);
     m_text = text;
     if (m_needsTranscoding) {
-        const TextEncoding* encoding = document()->decoder() ? &document()->decoder()->encoding() : 0;
+        const TextEncoding* encoding = document().decoder() ? &document().decoder()->encoding() : 0;
         fontTranscoder().convert(m_text, style()->font().fontDescription(), encoding);
     }
     ASSERT(m_text);
@@ -1464,7 +1460,7 @@ void RenderText::setText(PassRefPtr<StringImpl> text, bool force)
     setNeedsLayoutAndPrefWidthsRecalc();
     m_knownToHaveNoOverflowAndNoFallbackFonts = false;
     
-    if (AXObjectCache* cache = document()->existingAXObjectCache())
+    if (AXObjectCache* cache = document().existingAXObjectCache())
         cache->textChanged(this);
 }
 
@@ -1494,7 +1490,7 @@ void RenderText::dirtyLineBoxes(bool fullLayout)
 
 InlineTextBox* RenderText::createTextBox()
 {
-    return new (renderArena()) InlineTextBox(this);
+    return new (renderArena()) InlineTextBox(*this);
 }
 
 InlineTextBox* RenderText::createInlineTextBox()
@@ -1636,9 +1632,9 @@ LayoutRect RenderText::clippedOverflowRectForRepaint(const RenderLayerModelObjec
     RenderObject* rendererToRepaint = containingBlock();
 
     // Do not cross self-painting layer boundaries.
-    RenderObject* enclosingLayerRenderer = enclosingLayer()->renderer();
-    if (enclosingLayerRenderer != rendererToRepaint && !rendererToRepaint->isDescendantOf(enclosingLayerRenderer))
-        rendererToRepaint = enclosingLayerRenderer;
+    RenderObject& enclosingLayerRenderer = enclosingLayer()->renderer();
+    if (&enclosingLayerRenderer != rendererToRepaint && !rendererToRepaint->isDescendantOf(&enclosingLayerRenderer))
+        rendererToRepaint = &enclosingLayerRenderer;
 
     // The renderer we chose to repaint may be an ancestor of repaintContainer, but we need to do a repaintContainer-relative repaint.
     if (repaintContainer && repaintContainer != rendererToRepaint && !rendererToRepaint->isDescendantOf(repaintContainer))

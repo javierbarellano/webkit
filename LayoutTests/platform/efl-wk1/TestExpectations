@@ -171,18 +171,14 @@ webkit.org/b/112016 accessibility/textarea-selected-text-range.html [ Failure ]
 webkit.org/b/112017 accessibility/textbox-role-reports-selection.html [ Failure ]
 webkit.org/b/112018 accessibility/th-as-title-ui.html [ Failure ]
 webkit.org/b/112019 accessibility/title-ui-element-correctness.html [ Failure ]
-webkit.org/b/112020 accessibility/transformed-element.html [ Failure ]
-webkit.org/b/112021 accessibility/visible-elements.html [ Failure ]
+webkit.org/b/112021 accessibility/visible-elements.html [ Failure Crash ]
 
 accessibility/aria-checkbox-sends-notification.html [ Skip ]
-accessibility/color-well.html [ Skip ]
 accessibility/deleting-iframe-destroys-axcache.html [ Skip ]
 accessibility/img-fallsback-to-title.html [ Skip ]
 accessibility/internal-link-anchors2.html [ Skip ]
-accessibility/lists.html [ Skip ]
 accessibility/media-element.html [ Skip ]
 accessibility/multiselect-list-reports-active-option.html [ Skip ]
-accessibility/plugin.html [ Skip ]
 accessibility/radio-button-group-members.html [ Skip ]
 accessibility/table-attributes.html [ Skip ]
 accessibility/table-cell-spans.html [ Skip ]
@@ -190,7 +186,6 @@ accessibility/table-cells.html [ Skip ]
 accessibility/table-detection.html [ Skip ]
 accessibility/table-one-cell.html [ Skip ]
 accessibility/table-sections.html [ Skip ]
-accessibility/table-with-aria-role.html [ Skip ]
 accessibility/table-with-rules.html [ Skip ]
 
 # Frame flattening does not work properly for EFL port
@@ -254,7 +249,7 @@ webkit.org/b/86182 fast/frames/seamless/seamless-inherited-document-style.html [
 webkit.org/b/97021 fast/events/dont-loose-last-event.html [ Failure ]
 
 # Feature not mature yet and disabled by default on WebCore
-webkit.org/b/87088 fast/js/names.html [ Failure ]
+webkit.org/b/87088 js/names.html [ Failure ]
 
 # Failing after 125592
 webkit.org/b/94194 http/tests/security/frameNavigation/inactive-function-in-popup-navigate-child.html [ Failure ]
@@ -352,6 +347,7 @@ webkit.org/b/98523 fast/images/repaint-subrect-grid.html [ Failure ]
 
 # DRT needs a setting for setShouldRespectImageOrientation
 webkit.org/b/101210 fast/images/exif-orientation.html [ Failure ]
+webkit.org/b/101210 fast/images/exif-orientation-composited.html [ Failure ]
 
 # ESC key does not cancel context menu in EFL port
 Bug(EFL) editing/selection/5354455-1.html [ Failure ]
@@ -501,3 +497,6 @@ webkit.org/b/87226 printing/media-queries-print.html [ Failure ]
 webkit.org/b/87226 printing/setPrinting.html [ Failure ]
 webkit.org/b/87226 printing/simultaneous-position-float-change.html [ Failure ]
 webkit.org/b/87226 printing/width-overflow.html [ Failure ]
+
+# Failing tests after r155014
+webkit.org/b/120671 editing/selection/doubleclick-japanese-text.html [ Failure ]

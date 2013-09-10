@@ -44,20 +44,20 @@
 #include "IntSize.h"
 #include "NotImplemented.h"
 #include <cstring>
-#include <wtf/ArrayBuffer.h>
-#include <wtf/ArrayBufferView.h>
-#include <wtf/Float32Array.h>
-#include <wtf/Int32Array.h>
+#include <runtime/ArrayBuffer.h>
+#include <runtime/ArrayBufferView.h>
+#include <runtime/Float32Array.h>
+#include <runtime/Int32Array.h>
+#include <runtime/Uint8Array.h>
 #include <wtf/MainThread.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/Uint8Array.h>
 #include <wtf/text/CString.h>
 
 #if USE(OPENGL_ES_2)
 #include "OpenGLESShims.h"
 #elif PLATFORM(MAC)
 #include <OpenGL/gl.h>
-#elif PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(QT) || PLATFORM(WIN)
+#elif PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(QT) || PLATFORM(WIN) || PLATFORM(NIX)
 #include "OpenGLShims.h"
 #endif
 
@@ -219,7 +219,7 @@ void GraphicsContext3D::reshape(int width, int height)
     if (width == m_currentWidth && height == m_currentHeight)
         return;
 
-#if (PLATFORM(QT) || PLATFORM(EFL)) && USE(GRAPHICS_SURFACE)
+#if (PLATFORM(QT) || PLATFORM(EFL) || PLATFORM(NIX)) && USE(GRAPHICS_SURFACE)
     ::glFlush(); // Make sure all GL calls have been committed before resizing.
     createGraphicsSurfaces(IntSize(width, height));
 #endif

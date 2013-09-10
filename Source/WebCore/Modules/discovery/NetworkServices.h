@@ -116,8 +116,8 @@ public:
     ScriptExecutionContext* getContext() { return m_context; }
 
 protected:
-    virtual EventTargetData* eventTargetData();
-    virtual EventTargetData* ensureEventTargetData();
+    virtual EventTargetData* eventTargetData() OVERRIDE;
+    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
 
 private:
     NetworkServices(ScriptExecutionContext* context, ReadyState code)

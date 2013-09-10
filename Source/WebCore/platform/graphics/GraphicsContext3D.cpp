@@ -40,9 +40,8 @@
 #include "GraphicsContext3DNEON.h"
 #endif
 
-#include <wtf/ArrayBufferView.h>
+#include <runtime/ArrayBufferView.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/PassOwnArrayPtr.h>
 
 namespace WebCore {
 
@@ -1301,7 +1300,7 @@ ALWAYS_INLINE void FormatConverter::convert()
     }
 
     // Only textures uploaded from DOM elements or ImageData can allow DstFormat != SrcFormat.
-    const bool srcFormatComesFromDOMElementOrImageData = GraphicsContext3D::srcFormatComeFromDOMElementOrImageData(SrcFormat);
+    const bool srcFormatComesFromDOMElementOrImageData = GraphicsContext3D::srcFormatComesFromDOMElementOrImageData(SrcFormat);
     if (!srcFormatComesFromDOMElementOrImageData && SrcFormat != DstFormat) {
         ASSERT_NOT_REACHED();
         return;
@@ -1472,7 +1471,7 @@ unsigned GraphicsContext3D::getChannelBitsByFormat(GC3Denum format)
     }
 }
 
-#if !PLATFORM(BLACKBERRY) && !PLATFORM(QT) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(MAC) && !PLATFORM(WIN)
+#if !PLATFORM(BLACKBERRY) && !PLATFORM(QT) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(MAC) && !PLATFORM(WIN) && !PLATFORM(NIX)
 PlatformGraphicsContext3D GraphicsContext3D::platformGraphicsContext3D() const
 {
     return NullPlatformGraphicsContext3D;

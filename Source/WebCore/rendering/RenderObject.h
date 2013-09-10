@@ -211,6 +211,7 @@ public:
     RenderBox* enclosingBox() const;
     RenderBoxModelObject* enclosingBoxModelObject() const;
 
+    bool fixedPositionedWithNamedFlowContainingBlock() const;
     // Function to return our enclosing flow thread if we are contained inside one. This
     // function follows the containing block chain.
     RenderFlowThread* flowThreadContainingBlock() const
@@ -315,17 +316,13 @@ private:
     void* operator new(size_t) throw();
 
 public:
-    RenderArena* renderArena() const { return document()->renderArena(); }
+    RenderArena* renderArena() const { return document().renderArena(); }
 
     bool isPseudoElement() const { return node() && node()->isPseudoElement(); }
 
     virtual bool isBR() const { return false; }
-    virtual bool isBlockFlow() const { return false; }
     virtual bool isBoxModelObject() const { return false; }
     virtual bool isCounter() const { return false; }
-#if ENABLE(DIALOG_ELEMENT)
-    virtual bool isDialog() const { return false; }
-#endif
     virtual bool isQuote() const { return false; }
 
 #if ENABLE(DETAILS_ELEMENT)
@@ -352,6 +349,7 @@ public:
     virtual bool isProgress() const { return false; }
 #endif
     virtual bool isRenderBlock() const { return false; }
+    virtual bool isRenderBlockFlow() const { return false; }
     virtual bool isRenderSVGBlock() const { return false; };
     virtual bool isRenderButton() const { return false; }
     virtual bool isRenderIFrame() const { return false; }
@@ -359,7 +357,7 @@ public:
     virtual bool isRenderInline() const { return false; }
     virtual bool isRenderPart() const { return false; }
     virtual bool isRenderRegion() const { return false; }
-    virtual bool isRenderView() const { return false; }
+    virtual bool isRenderReplaced() const { return false; }
     virtual bool isReplica() const { return false; }
 
     virtual bool isRuby() const { return false; }
@@ -398,7 +396,7 @@ public:
 
     virtual bool isRenderScrollbarPart() const { return false; }
 
-    bool isRoot() const { return document()->documentElement() == m_node; }
+    bool isRoot() const { return document().documentElement() == m_node; }
     bool isBody() const;
     bool isHR() const;
     bool isLegend() const;
@@ -522,7 +520,7 @@ public:
         // RenderBlock::createAnonymousBlock(). This includes creating an anonymous
         // RenderBlock having a BLOCK or BOX display. Other classes such as RenderTextFragment
         // are not RenderBlocks and will return false. See https://bugs.webkit.org/show_bug.cgi?id=56709. 
-        return isAnonymous() && (style()->display() == BLOCK || style()->display() == BOX) && style()->styleType() == NOPSEUDO && isRenderBlock() && !isListMarker() && !isRenderFlowThread()
+        return isAnonymous() && (style()->display() == BLOCK || style()->display() == BOX) && style()->styleType() == NOPSEUDO && isRenderBlock() && !isListMarker() && !isRenderFlowThread() && !isRenderView()
 #if ENABLE(FULLSCREEN_API)
             && !isRenderFullScreen()
             && !isRenderFullScreenPlaceholder()
@@ -547,8 +545,9 @@ public:
     bool isStickyPositioned() const { return m_bitfields.isStickyPositioned(); }
     bool isPositioned() const { return m_bitfields.isPositioned(); }
 
-    bool isText() const  { return m_bitfields.isText(); }
+    bool isText() const  { return !m_bitfields.isBox() && m_bitfields.isTextOrRenderView(); }
     bool isBox() const { return m_bitfields.isBox(); }
+    bool isRenderView() const  { return m_bitfields.isBox() && m_bitfields.isTextOrRenderView(); }
     bool isInline() const { return m_bitfields.isInline(); } // inline object
     bool isRunIn() const { return style()->display() == RUN_IN; } // run-in object
     bool isDragging() const { return m_bitfields.isDragging(); }
@@ -622,7 +621,7 @@ public:
     
     virtual void updateDragState(bool dragOn);
 
-    RenderView* view() const { return document()->renderView(); };
+    RenderView& view() const { return *document().renderView(); };
 
     // Returns true if this renderer is rooted, and optionally returns the hosting view (the root of the hierarchy).
     bool isRooted(RenderView** = 0) const;
@@ -636,10 +635,10 @@ public:
     // Returns the styled node that caused the generation of this renderer.
     // This is the same as node() except for renderers of :before and :after
     // pseudo elements for which their parent node is returned.
-    Node* generatingNode() const { return isPseudoElement() ? node()->parentOrShadowHostNode() : node(); }
+    Node* generatingNode() const { return isPseudoElement() ? generatingPseudoHostElement() : node(); }
 
-    Document* document() const { return m_node->document(); }
-    Frame* frame() const { return document()->frame(); }
+    Document& document() const { return m_node->document(); }
+    Frame& frame() const; // Defined in RenderView.h
 
     bool hasOutlineAnnotation() const;
     bool hasOutline() const { return style()->hasOutline() || hasOutlineAnnotation(); }
@@ -681,8 +680,9 @@ public:
     void invalidateBackgroundObscurationStatus();
     virtual bool computeBackgroundIsKnownToBeObscured() { return false; }
 
-    void setIsText() { m_bitfields.setIsText(true); }
+    void setIsText() { ASSERT(!isBox()); m_bitfields.setIsTextOrRenderView(true); }
     void setIsBox() { m_bitfields.setIsBox(true); }
+    void setIsRenderView() { ASSERT(isBox()); m_bitfields.setIsTextOrRenderView(true); }
     void setReplaced(bool b = true) { m_bitfields.setIsReplaced(b); }
     void setHorizontalWritingMode(bool b = true) { m_bitfields.setHorizontalWritingMode(b); }
     void setHasOverflowClip(bool b = true) { m_bitfields.setHasOverflowClip(b); }
@@ -694,6 +694,9 @@ public:
 
     void updateFillImages(const FillLayer*, const FillLayer*);
     void updateImage(StyleImage*, StyleImage*);
+#if ENABLE(CSS_SHAPES)
+    void updateShapeImage(const ShapeValue*, const ShapeValue*);
+#endif
 
     virtual void paint(PaintInfo&, const LayoutPoint&);
 
@@ -794,7 +797,7 @@ public:
     virtual LayoutUnit maxPreferredLogicalWidth() const { return 0; }
 
     RenderStyle* style() const { return m_style.get(); }
-    RenderStyle* firstLineStyle() const { return document()->styleSheetCollection()->usesFirstLineRules() ? cachedFirstLineStyle() : style(); }
+    RenderStyle* firstLineStyle() const { return document().styleSheetCollection()->usesFirstLineRules() ? cachedFirstLineStyle() : style(); }
     RenderStyle* style(bool firstLine) const { return firstLine ? firstLineStyle() : style(); }
 
     // Used only by Element::pseudoStyleCacheIsInvalid to get a first line style based off of a
@@ -864,7 +867,6 @@ public:
     virtual unsigned int length() const { return 1; }
 
     bool isFloatingOrOutOfFlowPositioned() const { return (isFloating() || isOutOfFlowPositioned()); }
-    bool isFloatingWithShapeOutside() const { return isBox() && isFloating() && style()->shapeOutside(); }
 
     bool isTransparent() const { return style()->opacity() < 1.0f; }
     float opacity() const { return style()->opacity(); }
@@ -949,7 +951,7 @@ public:
     
     void remove() { if (parent()) parent()->removeChild(this); }
 
-    AnimationController* animation() const;
+    AnimationController& animation() const;
 
     bool visibleToHitTesting() const { return style()->visibility() == VISIBLE && style()->pointerEvents() != PE_NONE; }
 
@@ -1024,6 +1026,12 @@ private:
 
     Color selectionColor(int colorProperty) const;
 
+    Node* generatingPseudoHostElement() const;
+
+#if ENABLE(CSS_SHAPES)
+    void removeShapeImageClient(ShapeValue*);
+#endif
+
 #ifndef NDEBUG
     void checkBlockPositionedObjectsNeedLayout();
 #endif
@@ -1068,7 +1076,7 @@ private:
             , m_preferredLogicalWidthsDirty(false)
             , m_floating(false)
             , m_isAnonymous(!node)
-            , m_isText(false)
+            , m_isTextOrRenderView(false)
             , m_isBox(false)
             , m_isInline(true)
             , m_isReplaced(false)
@@ -1099,7 +1107,7 @@ private:
         ADD_BOOLEAN_BITFIELD(floating, Floating);
 
         ADD_BOOLEAN_BITFIELD(isAnonymous, IsAnonymous);
-        ADD_BOOLEAN_BITFIELD(isText, IsText);
+        ADD_BOOLEAN_BITFIELD(isTextOrRenderView, IsTextOrRenderView);
         ADD_BOOLEAN_BITFIELD(isBox, IsBox);
         ADD_BOOLEAN_BITFIELD(isInline, IsInline);
         ADD_BOOLEAN_BITFIELD(isReplaced, IsReplaced);
@@ -1166,7 +1174,7 @@ private:
 
 inline bool RenderObject::documentBeingDestroyed() const
 {
-    return !document()->renderer();
+    return document().renderTreeBeingDestroyed();
 }
 
 inline bool RenderObject::isBeforeContent() const

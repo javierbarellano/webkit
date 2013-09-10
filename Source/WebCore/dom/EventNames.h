@@ -128,6 +128,7 @@ namespace WebCore {
     macro(upgradeneeded) \
     macro(versionchange) \
     macro(visibilitychange) \
+    macro(wheel) \
     macro(write) \
     macro(writeend) \
     macro(writestart) \

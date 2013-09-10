@@ -50,9 +50,8 @@
 #include "ScriptGCEvent.h"
 #include "ScriptProfiler.h"
 #include "StyledElement.h"
-#include <wtf/ArrayBufferView.h>
+#include <runtime/ArrayBufferView.h>
 #include <wtf/HashSet.h>
-#include <wtf/NonCopyingSort.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/Vector.h>

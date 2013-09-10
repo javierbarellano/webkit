@@ -116,6 +116,8 @@ class Hi(IRCCommand):
     def execute(self, nick, args, tool, sheriff):
         if len(args) and re.match(sheriff.name() + r'_*\s*!\s*', ' '.join(args)):
             return "%s: hi %s!" % (nick, nick)
+        if sheriff.name() == 'WKR':  # For some unknown reason, WKR can't use tool.bugs.quips().
+            return "You're doing it wrong"
         quips = tool.bugs.quips()
         quips.append('"Only you can prevent forest fires." -- Smokey the Bear')
         return random.choice(quips)
@@ -214,7 +216,7 @@ class Rollout(IRCCommand):
 
     def _update_working_copy(self, tool):
         tool.scm().discard_local_changes()
-        tool.executive.run_and_throw_if_fail(tool.deprecated_port().update_webkit_command(), quiet=True, cwd=tool.scm().checkout_root)
+        tool.executive.run_and_throw_if_fail(tool.port().update_webkit_command(), quiet=True, cwd=tool.scm().checkout_root)
 
     def _check_diff_failure(self, error_log, tool):
         if not error_log:

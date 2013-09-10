@@ -106,8 +106,8 @@ public:
 
     PassRefPtr<NodeList> getIntersectionList(const FloatRect&, SVGElement* referenceElement) const;
     PassRefPtr<NodeList> getEnclosureList(const FloatRect&, SVGElement* referenceElement) const;
-    bool checkIntersection(SVGElement*, const FloatRect&) const;
-    bool checkEnclosure(SVGElement*, const FloatRect&) const;
+    bool checkIntersection(const SVGElement*, const FloatRect&) const;
+    bool checkEnclosure(const SVGElement*, const FloatRect&) const;
     void deselectAll();
 
     static float createSVGNumber();
@@ -123,7 +123,7 @@ public:
 
     void setupInitialView(const String& fragmentIdentifier, Element* anchorNode);
 
-    Element* getElementById(const AtomicString&) const;
+    Element* getElementById(const AtomicString&);
 
     bool widthAttributeEstablishesViewport() const;
     bool heightAttributeEstablishesViewport() const;
@@ -140,11 +140,9 @@ private:
     SVGSVGElement(const QualifiedName&, Document*);
     virtual ~SVGSVGElement();
 
-    virtual bool isSVGSVGElement() const OVERRIDE { return true; }
-    
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
-    virtual bool rendererIsNeeded(const NodeRenderingContext&) OVERRIDE;
+    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
 
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
@@ -185,12 +183,7 @@ private:
     RefPtr<SVGViewSpec> m_viewSpec;
 };
 
-inline SVGSVGElement* toSVGSVGElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || toSVGElement(node)->isSVGSVGElement());
-    return static_cast<SVGSVGElement*>(node);
-}
+ELEMENT_TYPE_CASTS(SVGSVGElement)
 
 } // namespace WebCore
 

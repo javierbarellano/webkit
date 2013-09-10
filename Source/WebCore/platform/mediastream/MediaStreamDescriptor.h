@@ -44,6 +44,7 @@ class MediaStreamDescriptorClient {
 public:
     virtual ~MediaStreamDescriptorClient() { }
 
+    virtual void trackEnded() = 0;
     virtual void streamEnded() = 0;
     virtual void addRemoteTrack(MediaStreamComponent*) = 0;
     virtual void removeRemoteTrack(MediaStreamComponent*) = 0;
@@ -73,22 +74,55 @@ public:
 
     unsigned numberOfAudioComponents() const { return m_audioComponents.size(); }
     MediaStreamComponent* audioComponent(unsigned index) const { return m_audioComponents[index].get(); }
-    void addAudioComponent(PassRefPtr<MediaStreamComponent> component) { m_audioComponents.append(component); }
-    void removeAudioComponent(MediaStreamComponent* component)
+
+    void addRemoteTrack(MediaStreamComponent* component)
     {
-        size_t pos = m_audioComponents.find(component);
-        if (pos != notFound)
-            m_audioComponents.remove(pos);
+        if (m_client)
+            m_client->addRemoteTrack(component);
+        else
+            addComponent(component);
+    }
+
+    void removeRemoteTrack(MediaStreamComponent* component)
+    {
+        if (m_client)
+            m_client->removeRemoteTrack(component);
+        else
+            removeComponent(component);
     }
 
     unsigned numberOfVideoComponents() const { return m_videoComponents.size(); }
     MediaStreamComponent* videoComponent(unsigned index) const { return m_videoComponents[index].get(); }
-    void addVideoComponent(PassRefPtr<MediaStreamComponent> component) { m_videoComponents.append(component); }
-    void removeVideoComponent(MediaStreamComponent* component)
+
+    void addComponent(PassRefPtr<MediaStreamComponent> component)
     {
-        size_t pos = m_videoComponents.find(component);
-        if (pos != notFound)
-            m_videoComponents.remove(pos);
+        switch (component->source()->type()) {
+        case MediaStreamSource::TypeAudio:
+            if (m_audioComponents.find(component) == notFound)
+                m_audioComponents.append(component);
+            break;
+        case MediaStreamSource::TypeVideo:
+            if (m_videoComponents.find(component) == notFound)
+                m_videoComponents.append(component);
+            break;
+        }
+    }
+
+    void removeComponent(PassRefPtr<MediaStreamComponent> component)
+    {
+        size_t pos = notFound;
+        switch (component->source()->type()) {
+        case MediaStreamSource::TypeAudio:
+            pos = m_audioComponents.find(component);
+            if (pos != notFound)
+                m_audioComponents.remove(pos);
+            break;
+        case MediaStreamSource::TypeVideo:
+            pos = m_videoComponents.find(component);
+            if (pos != notFound)
+                m_videoComponents.remove(pos);
+            break;
+        }
     }
 
     bool ended() const { return m_ended; }
@@ -109,9 +143,6 @@ private:
 
         for (size_t i = 0; i < videoSources.size(); i++)
             m_videoComponents.append(MediaStreamComponent::create(this, videoSources[i]));
-
-        if (!audioSources.size() && !videoSources.size())
-            m_ended = true;
     }
 
     MediaStreamDescriptor(const String& id, const MediaStreamComponentVector& audioComponents, const MediaStreamComponentVector& videoComponents)

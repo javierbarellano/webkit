@@ -82,12 +82,12 @@ private:
 
 void StopWatch::start()
 {
-    m_startTime = currentTime();
+    m_startTime = monotonicallyIncreasingTime();
 }
 
 void StopWatch::stop()
 {
-    m_stopTime = currentTime();
+    m_stopTime = monotonicallyIncreasingTime();
 }
 
 long StopWatch::getElapsedMS()
@@ -122,13 +122,13 @@ public:
         return globalObject;
     }
 
-    static const ClassInfo s_info;
+    DECLARE_INFO;
 
     static const bool needsDestructor = false;
 
     static Structure* createStructure(VM& vm, JSValue prototype)
     {
-        return Structure::create(vm, 0, prototype, TypeInfo(GlobalObjectType, StructureFlags), &s_info);
+        return Structure::create(vm, 0, prototype, TypeInfo(GlobalObjectType, StructureFlags), info());
     }
 
 protected:
@@ -138,8 +138,6 @@ protected:
         UNUSED_PARAM(arguments);
     }
 };
-
-COMPILE_ASSERT(!IsInteger<GlobalObject>::value, WTF_IsInteger_GlobalObject_false);
 
 const ClassInfo GlobalObject::s_info = { "global", &JSGlobalObject::s_info, 0, ExecState::globalObjectTable, CREATE_METHOD_TABLE(GlobalObject) };
 

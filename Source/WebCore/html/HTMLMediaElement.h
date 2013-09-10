@@ -35,6 +35,7 @@
 #include "MediaPlayer.h"
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+#include "HTMLPlugInImageElement.h"
 #include "MediaPlayerProxy.h"
 #endif
 
@@ -209,7 +210,7 @@ public:
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA_V2)
-    MediaKeys* mediaKeys() const { return m_mediaKeys.get(); }
+    MediaKeys* keys() const { return m_mediaKeys.get(); }
     void setMediaKeys(MediaKeys*);
 #endif
 
@@ -292,7 +293,8 @@ public:
     void setSelectedTextTrack(TextTrack*);
 
     bool textTracksAreReady() const;
-    void configureTextTrackDisplay();
+    enum TextTrackVisibilityCheckType { CheckTextTrackVisibility, AssumeTextTrackVisibilityChanged };
+    void configureTextTrackDisplay(TextTrackVisibilityCheckType checkType = CheckTextTrackVisibility);
     void updateTextTrackDisplay();
 
     // AudioTrackClient
@@ -402,7 +404,8 @@ protected:
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual void finishParsingChildren();
     virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
-    virtual void attach(const AttachContext& = AttachContext()) OVERRIDE;
+    virtual void willAttachRenderers() OVERRIDE;
+    virtual void didAttachRenderers() OVERRIDE;
 
     virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
 
@@ -447,23 +450,23 @@ private:
     virtual bool hasCustomFocusLogic() const OVERRIDE;
     virtual bool supportsFocus() const OVERRIDE;
     virtual bool isMouseFocusable() const OVERRIDE;
-    virtual bool rendererIsNeeded(const NodeRenderingContext&);
+    virtual bool rendererIsNeeded(const RenderStyle&);
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
-    virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const OVERRIDE;
+    virtual bool childShouldCreateRenderer(const Node*) const OVERRIDE;
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void removedFrom(ContainerNode*) OVERRIDE;
-    virtual void didRecalcStyle(StyleChange);
-    
+    virtual void didRecalcStyle(Style::Change);
+
     virtual void defaultEventHandler(Event*);
 
     virtual void didBecomeFullscreenElement();
     virtual void willStopBeingFullscreenElement();
 
     // ActiveDOMObject functions.
-    virtual bool canSuspend() const;
-    virtual void suspend(ReasonForSuspension);
-    virtual void resume();
-    virtual void stop();
+    virtual bool canSuspend() const OVERRIDE;
+    virtual void suspend(ReasonForSuspension) OVERRIDE;
+    virtual void resume() OVERRIDE;
+    virtual void stop() OVERRIDE;
     
     virtual void mediaVolumeDidChange();
 
@@ -522,6 +525,7 @@ private:
     virtual void mediaPlayerSetSize(const IntSize&) OVERRIDE;
     virtual void mediaPlayerPause() OVERRIDE;
     virtual void mediaPlayerPlay() OVERRIDE;
+    virtual bool mediaPlayerPlatformVolumeConfigurationRequired() const OVERRIDE;
     virtual bool mediaPlayerIsPaused() const OVERRIDE;
     virtual bool mediaPlayerIsLooping() const OVERRIDE;
     virtual HostWindow* mediaPlayerHostWindow() OVERRIDE;
@@ -624,11 +628,6 @@ private:
 
     void removeBehaviorsRestrictionsAfterFirstUserGesture();
 
-#if ENABLE(MICRODATA)
-    virtual String itemValueText() const;
-    virtual void setItemValueText(const String&, ExceptionCode&);
-#endif
-
     void updateMediaController();
     bool isBlocked() const;
     bool isBlockedOnMediaController() const;
@@ -645,7 +644,7 @@ private:
     Timer<HTMLMediaElement> m_progressEventTimer;
     Timer<HTMLMediaElement> m_playbackProgressTimer;
     RefPtr<TimeRanges> m_playedTimeRanges;
-    OwnPtr<GenericEventQueue> m_asyncEventQueue;
+    GenericEventQueue m_asyncEventQueue;
 
     double m_playbackRate;
     double m_defaultPlaybackRate;
@@ -658,13 +657,14 @@ private:
     RefPtr<MediaError> m_error;
 
     double m_volume;
+    bool m_volumeInitialized;
     double m_lastSeekTime;
     
     unsigned m_previousProgress;
     double m_previousProgressTime;
 
-    // The last time a timeupdate event was sent (wall clock).
-    double m_lastTimeUpdateEventWallTime;
+    // The last time a timeupdate event was sent (based on monotonic clock).
+    double m_clockTimeAtLastUpdateEvent;
 
     // The last time a timeupdate event was sent in movie time.
     double m_lastTimeUpdateEventMovieTime;
@@ -695,8 +695,8 @@ private:
 #endif
 
     mutable double m_cachedTime;
-    mutable double m_cachedTimeWallClockUpdateTime;
-    mutable double m_minimumWallClockTimeToCacheMediaTime;
+    mutable double m_clockTimeAtLastCachedTimeUpdate;
+    mutable double m_minimumClockTimeToUpdateCachedTime;
 
     double m_fragmentStartTime;
     double m_fragmentEndTime;
@@ -745,7 +745,7 @@ private:
     bool m_haveVisibleTextTrack : 1;
     bool m_processingPreferenceChange : 1;
 
-    String m_forcedOrAutomaticSubtitleTrackLanguage;
+    String m_subtitleTrackLanguage;
     float m_lastTextTrackUpdateTime;
 
     CaptionUserPreferences::CaptionDisplayMode m_captionDisplayMode;

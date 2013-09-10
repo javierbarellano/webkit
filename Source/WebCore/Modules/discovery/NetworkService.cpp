@@ -78,9 +78,9 @@ EventTargetData* NetworkService::eventTargetData()
     return &m_eventTargetData;
 }
 
-EventTargetData* NetworkService::ensureEventTargetData()
+EventTargetData& NetworkService::ensureEventTargetData()
 {
-    return &m_eventTargetData;
+    return m_eventTargetData;
 }
 
 bool NetworkService::hasPermission() const

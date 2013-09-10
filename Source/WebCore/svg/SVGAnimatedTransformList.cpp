@@ -35,7 +35,7 @@ namespace WebCore {
 
 SVGAnimatedTransformListAnimator::SVGAnimatedTransformListAnimator(SVGAnimationElement* animationElement, SVGElement* contextElement)
     : SVGAnimatedTypeAnimator(AnimatedTransformList, animationElement, contextElement)
-    , m_transformTypeString(SVGTransform::transformTypePrefixForParsing(static_cast<SVGAnimateTransformElement*>(animationElement)->transformType()))
+    , m_transformTypeString(SVGTransform::transformTypePrefixForParsing(toSVGAnimateTransformElement(animationElement)->transformType()))
 {
     // Only <animateTransform> uses this animator, as <animate> doesn't allow to animate transform lists directly.
     ASSERT(animationElement->hasTagName(SVGNames::animateTransformTag));
@@ -100,8 +100,7 @@ void SVGAnimatedTransformListAnimator::calculateAnimatedValue(float percentage, 
     // Spec: To animations provide specific functionality to get a smooth change from the underlying value to the
     // ‘to’ attribute value, which conflicts mathematically with the requirement for additive transform animations
     // to be post-multiplied. As a consequence, in SVG 1.1 the behavior of to animations for ‘animateTransform’ is undefined.
-    // FIXME: This is not taken into account yet.
-    const SVGTransformList& fromTransformList = m_animationElement->animationMode() == ToAnimation ? animated->transformList() : from->transformList();
+    const SVGTransformList& fromTransformList = from->transformList();
     const SVGTransformList& toTransformList = to->transformList();
     const SVGTransformList& toAtEndOfDurationTransformList = toAtEndOfDuration->transformList();
     SVGTransformList& animatedTransformList = animated->transformList();
@@ -111,7 +110,7 @@ void SVGAnimatedTransformListAnimator::calculateAnimatedValue(float percentage, 
         return;
 
     // Never resize the animatedTransformList to the toTransformList size, instead either clear the list or append to it.
-    if (!animatedTransformList.isEmpty() && !m_animationElement->isAdditive())
+    if (!animatedTransformList.isEmpty() && (!m_animationElement->isAdditive() || m_animationElement->animationMode() == ToAnimation))
         animatedTransformList.clear();
 
     unsigned fromTransformListSize = fromTransformList.size();

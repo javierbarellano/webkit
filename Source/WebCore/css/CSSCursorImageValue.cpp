@@ -51,8 +51,8 @@ namespace WebCore {
 static inline SVGCursorElement* resourceReferencedByCursorElement(const String& url, Document* document)
 {
     Element* element = SVGURIReference::targetElementFromIRIString(url, document);
-    if (element && element->hasTagName(SVGNames::cursorTag))
-        return static_cast<SVGCursorElement*>(element);
+    if (element && isSVGCursorElement(element))
+        return toSVGCursorElement(element);
 
     return 0;
 }
@@ -80,13 +80,13 @@ CSSCursorImageValue::~CSSCursorImageValue()
     for (; it != end; ++it) {
         SVGElement* referencedElement = *it;
         referencedElement->cursorImageValueRemoved();
-        if (SVGCursorElement* cursorElement = resourceReferencedByCursorElement(url, referencedElement->document()))
+        if (SVGCursorElement* cursorElement = resourceReferencedByCursorElement(url, &referencedElement->document()))
             cursorElement->removeClient(referencedElement);
     }
 #endif
 }
 
-String CSSCursorImageValue::customCssText() const
+String CSSCursorImageValue::customCSSText() const
 {
     StringBuilder result;
     result.append(m_imageValue->cssText());
@@ -111,7 +111,7 @@ bool CSSCursorImageValue::updateIfSVGCursorIsUsed(Element* element)
         return false;
 
     String url = static_cast<CSSImageValue*>(m_imageValue.get())->url();
-    if (SVGCursorElement* cursorElement = resourceReferencedByCursorElement(url, element->document())) {
+    if (SVGCursorElement* cursorElement = resourceReferencedByCursorElement(url, &element->document())) {
         // FIXME: This will override hot spot specified in CSS, which is probably incorrect.
         SVGLengthContext lengthContext(0);
         m_hasHotSpot = true;
@@ -121,7 +121,7 @@ bool CSSCursorImageValue::updateIfSVGCursorIsUsed(Element* element)
         float y = roundf(cursorElement->y().value(lengthContext));
         m_hotSpot.setY(static_cast<int>(y));
 
-        if (cachedImageURL() != element->document()->completeURL(cursorElement->href()))
+        if (cachedImageURL() != element->document().completeURL(cursorElement->href()))
             clearCachedImage();
 
         SVGElement* svgElement = toSVGElement(element);
