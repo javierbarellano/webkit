@@ -139,8 +139,7 @@ protected:
     MediaControls* m_controls;
 
 private:
-    /* todo: should this be return MediaControlElement::isMediaControlElement() ? */
-    virtual bool isMediaControlElement() const OVERRIDE { return false; }
+    virtual bool isMediaControlElement() const OVERRIDE { return MediaControlElement::isMediaControlElement(); }
 };
 
 // ----------------------------
