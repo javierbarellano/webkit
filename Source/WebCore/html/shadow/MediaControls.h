@@ -31,7 +31,6 @@
 
 #include "Chrome.h"
 #include "HTMLDivElement.h"
-#include "MediaSelControlElements.h"
 #include "MediaControlElements.h"
 #include "MouseEvent.h"
 #include "Page.h"

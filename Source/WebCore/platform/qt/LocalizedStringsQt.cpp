@@ -653,13 +653,6 @@ String localizedMediaTimeDescription(float time)
 #endif // ENABLE(VIDEO)
 
 
-#if ENABLE(VIDEO_TRACK)
-String textTrackClosedCaptionsText()
-{
-    return WEB_UI_STRING("Closed Captions", "Menu section heading for closed captions");
-}
-#endif
-
 String validationMessageValueMissingText()
 {
     notImplemented();

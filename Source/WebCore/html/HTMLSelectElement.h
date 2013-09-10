@@ -107,7 +107,6 @@ public:
 
 protected:
     HTMLSelectElement(const QualifiedName&, Document*, HTMLFormElement*);
-    virtual void selectChanged(int newIndex) {}
 
     virtual void defaultEventHandler(Event*);
 
@@ -136,7 +135,6 @@ private:
     virtual bool appendFormData(FormDataList&, bool);
 
     virtual void reset();
-
 
     void dispatchChangeEventForMenuList();
     
