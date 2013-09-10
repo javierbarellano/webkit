@@ -652,16 +652,12 @@ enable?(SVG) {
 
 enable?(DISCOVERY) {
   IDL_BINDINGS += \
-    $$PWD/Modules/discovery/Nav.idl \
-    $$PWD/Modules/discovery/NavDscCB.idl \
-    $$PWD/Modules/discovery/NavEvent.idl \
-    $$PWD/Modules/discovery/NavEventCB.idl \
-    $$PWD/Modules/discovery/NavServiceErrorCB.idl \
-    $$PWD/Modules/discovery/NavServiceOkCB.idl \
-    $$PWD/Modules/discovery/NavServices.idl \
-    $$PWD/Modules/discovery/NavService.idl \
-    $$PWD/Modules/discovery/NavServiceError.idl \
-    $$PWD/Modules/discovery/UPnPEvent.idl
+    $$PWD/Modules/discovery/NavigatorNetworkService.idl \
+    $$PWD/Modules/discovery/NavigatorNetworkServiceError.idl \
+    $$PWD/Modules/discovery/NavigatorNetworkServiceErrorCallback.idl \
+    $$PWD/Modules/discovery/NavigatorNetworkServiceSuccessCallback.idl \
+    $$PWD/Modules/discovery/NetworkService.idl \
+    $$PWD/Modules/discovery/NetworkServices.idl
 }
 
 enable?(GAMEPAD) {

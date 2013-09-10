@@ -23,14 +23,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef Nav_h
-#define Nav_h
+#ifndef NavigatorNetworkService_h
+#define NavigatorNetworkService_h
 
 #include "DOMWindowProperty.h"
 #include "IDiscoveryAPI.h"
 #include "NavDsc.h"
 #include "NavEvent.h"
-#include "NavServices.h"
+#include "NetworkServices.h"
 #include "Supplementable.h"
 #include "UPnPDevice.h"
 #include "ZCDevice.h"
@@ -54,19 +54,21 @@ class PluginData;
 
 // Home Networking
 class NavDscCB;
-class NavServiceErrorCB;
-class NavServiceOkCB;
+class NavigatorNetworkServiceErrorCallback;
+class NavigatorNetworkServiceSuccessCallback;
 class NavEventCB;
 class Frame;
 class Navigator;
 
 typedef int ExceptionCode;
 
-class Nav : public Supplement<Navigator>, public DOMWindowProperty, public IDiscoveryAPI {
+class NavigatorNetworkService : public Supplementable<NavigatorNetworkService>,
+    public Supplement<Navigator>, public DOMWindowProperty, public IDiscoveryAPI
+{
 public:
-    virtual ~Nav();
+    virtual ~NavigatorNetworkService();
 
-    static Nav* from(Navigator*);
+    static NavigatorNetworkService* from(Navigator*);
 
 public:
     enum ProtocolType {
@@ -77,8 +79,8 @@ public:
     static void getNetworkServices(
         Navigator*,
         const String& type,
-        PassRefPtr<NavServiceOkCB>,
-        PassRefPtr<NavServiceErrorCB>);
+        PassRefPtr<NavigatorNetworkServiceSuccessCallback>,
+        PassRefPtr<NavigatorNetworkServiceErrorCallback>);
 
     // Implement IDiscoveryAPI interface
     virtual void onError(int) OVERRIDE { }
@@ -105,7 +107,7 @@ public:
     };
 
 private:
-    Nav(Frame*);
+    NavigatorNetworkService(Frame*);
     ProtocolType readRemoveTypePrefix(WTF::CString &cType, char *sType, bool *reset);
     static const char* supplementName();
 
@@ -117,4 +119,4 @@ private:
 
 }
 
-#endif /* Nav_h */
+#endif /* NavigatorNetworkService_h */

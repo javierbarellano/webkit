@@ -23,15 +23,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NavServices_h
-#define NavServices_h
+#ifndef NetworkServices_h
+#define NetworkServices_h
 
 #include "ActiveDOMObject.h"
 #include "Event.h"
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTarget.h"
-#include "Modules/discovery/NavService.h"
+#include "NetworkService.h"
 #include <runtime/JSExportMacros.h>
 #include <string>
 #include <wtf/RefCounted.h>
@@ -40,7 +40,7 @@
 
 namespace WebCore {
 
-class NavServices : public RefCounted<NavServices>, public EventTarget, public ActiveDOMObject {
+class NetworkServices : public RefCounted<NetworkServices>, public EventTarget, public ActiveDOMObject {
 public:
     // Should be kept in sync with the values in the idl file.
     enum ReadyState {
@@ -48,14 +48,14 @@ public:
         Disconnected = 2
     };
 
-    static PassRefPtr<NavServices> create(ScriptExecutionContext* context, ReadyState code)
+    static PassRefPtr<NetworkServices> create(ScriptExecutionContext* context, ReadyState code)
     {
-        return adoptRef(new NavServices(context, code));
+        return adoptRef(new NetworkServices(context, code));
     }
 
-    NavServices(const NavServices &that);
-    NavServices& operator= (const NavServices &that);
-    virtual ~NavServices() { clearSrvs(); }
+    NetworkServices(const NetworkServices &that);
+    NetworkServices& operator= (const NetworkServices &that);
+    virtual ~NetworkServices() { clearSrvs(); }
 
     int servicesAvailable() const { return m_devs.size(); }
 
@@ -63,16 +63,16 @@ public:
     bool online() const {return m_online;}
     void setOnline(bool online) { m_online = online;}
 
-    NavService* item(unsigned short index) {return m_devs.at(index).get();}
+    NetworkService* item(unsigned short index) {return m_devs.at(index).get();}
 
-    void setServices(Vector<RefPtr<NavService> >* vDevs)
+    void setServices(Vector<RefPtr<NetworkService> >* vDevs)
     {
         m_devs.clear();
         for (int i = 0; i < (int)vDevs->size(); i++)
             m_devs.append(vDevs->at(i));
     }
 
-    void append(PassRefPtr<NavService> dev)
+    void append(PassRefPtr<NetworkService> dev)
     {
         bool found = false;
         for (int i = 0; i < m_devs.size(); i++) {
@@ -86,7 +86,7 @@ public:
             m_devs.append(dev);
     }
 
-    NavService* find(const std::string &uuid)
+    NetworkService* find(const std::string &uuid)
     {
         for (int i = 0; i < (int)m_devs.size(); i++)
 //            if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
@@ -106,10 +106,10 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceavailable);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceunavailable);
 
-    using RefCounted<NavServices>::ref;
-    using RefCounted<NavServices>::deref;
+    using RefCounted<NetworkServices>::ref;
+    using RefCounted<NetworkServices>::deref;
 
-    Vector<RefPtr<NavService> > m_devs;
+    Vector<RefPtr<NetworkService> > m_devs;
 
     std::string m_serviceType;
 
@@ -120,7 +120,7 @@ protected:
     virtual EventTargetData* ensureEventTargetData();
 
 private:
-    NavServices(ScriptExecutionContext* context, ReadyState code)
+    NetworkServices(ScriptExecutionContext* context, ReadyState code)
         : ActiveDOMObject(context)
         , m_state(code)
         , m_context(context)
@@ -139,4 +139,4 @@ private:
 
 } // namespace WebCore
 
-#endif /* NavServices_h */
+#endif /* NetworkServices_h */

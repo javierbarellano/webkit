@@ -22,10 +22,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 [
-    Conditional=DISCOVERY
-] interface NavServiceError {
-    const unsigned short PermissionDenied = 1;
-    readonly attribute unsigned short code;
+    Conditional=DISCOVERY,
+    ActiveDOMObject,
+    EventTarget
+] interface NetworkService {
+    readonly attribute DOMString id;
+    readonly attribute DOMString name;
+    readonly attribute DOMString type;
+    readonly attribute DOMString url;
+    readonly attribute DOMString config;
+
+    readonly attribute boolean  online;
+
+    attribute EventListener onserviceonline;
+    attribute EventListener onserviceoffline;
+    attribute EventListener onnotify;
+
+    // EventTarget interface
+    void addEventListener(in DOMString type, in EventListener listener,
+        in boolean useCapture);
+    void removeEventListener(in DOMString type, in EventListener listener,
+        in boolean useCapture);
+    [RaisesException] boolean dispatchEvent(in Event evt);
 };

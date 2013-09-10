@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Cable Television Laboratories, Inc.
+/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,8 +22,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-[
-    Conditional=DISCOVERY,
-] callback interface NavServiceOkCB {
-    boolean handleEvent(in NavServices services);
+
+#ifndef NavigatorNetworkServiceError_h
+#define NavigatorNetworkServiceError_h
+
+#include <wtf/PassRefPtr.h>
+#include <wtf/RefCounted.h>
+
+namespace WebCore {
+
+class NavigatorNetworkServiceError : public RefCounted<NavigatorNetworkServiceError> {
+public:
+    // Should be kept in sync with the values in the idl file.
+    enum ErrorCode {
+        PERMISSION_DENIED_ERR = 1,
+        UNKNOWN_TYPE_PREFIX_ERR = 2
+    };
+
+    static PassRefPtr<NavigatorNetworkServiceError> create(ErrorCode code)
+    {
+        return adoptRef(new NavigatorNetworkServiceError(code));
+    }
+
+    virtual ~NavigatorNetworkServiceError() { }
+
+    ErrorCode code() const { return m_code; }
+
+private:
+    NavigatorNetworkServiceError(ErrorCode code) : m_code(code) { }
+
+    ErrorCode m_code;
 };
+
+} // namespace WebCore
+
+#endif /* NavigatorNetworkServiceError_h */

@@ -3139,16 +3139,16 @@ enable?(DISCOVERY) {
     HEADERS += \
         Modules/discovery/DiscoveryBase.h \
         Modules/discovery/DiscoveryWrapper.h \
-        Modules/discovery/Nav.h \
         Modules/discovery/NavDsc.h \
         Modules/discovery/NavDscCB.h \
         Modules/discovery/NavEvent.h \
         Modules/discovery/NavEventCB.h \
-        Modules/discovery/NavService.h \
-        Modules/discovery/NavServiceError.h \
-        Modules/discovery/NavServiceErrorCB.h \
-        Modules/discovery/NavServiceOkCB.h \
-        Modules/discovery/NavServices.h \
+        Modules/discovery/NavigatorNetworkService.h \
+        Modules/discovery/NavigatorNetworkServiceError.h \
+        Modules/discovery/NavigatorNetworkServiceErrorCallback.h \
+        Modules/discovery/NavigatorNetworkServiceSuccessCallback.h \
+        Modules/discovery/NetworkService.h \
+        Modules/discovery/NetworkServices.h \
         Modules/discovery/UPnPDevice.h \
         Modules/discovery/UPnPSearch.h \
         Modules/discovery/ZCDevice.h \
@@ -3156,11 +3156,11 @@ enable?(DISCOVERY) {
     SOURCES += \
         Modules/discovery/DiscoveryBase.cpp \
         Modules/discovery/DiscoveryWrapper.cpp \
-        Modules/discovery/Nav.cpp \
         Modules/discovery/NavDsc.cpp \
         Modules/discovery/NavEvent.cpp \
-        Modules/discovery/NavService.cpp \
-        Modules/discovery/NavServices.cpp \
+        Modules/discovery/NavigatorNetworkService.cpp \
+        Modules/discovery/NetworkService.cpp \
+        Modules/discovery/NetworkServices.cpp \
         Modules/discovery/UPnPSearch.cpp \
         Modules/discovery/ZeroConf.cpp
 }

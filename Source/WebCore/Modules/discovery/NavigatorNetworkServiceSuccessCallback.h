@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Cable Television Laboratories, Inc.
+/* Copyright (C) 2011, 2012, 2013 Cable Television Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,12 +22,22 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-[
-    Conditional=DISCOVERY,
-] partial interface Navigator {
 
-    void getNetworkServices(in DOMString type,
-        in [Callback]  NavServiceOkCB successCallback,
-        in [Callback, Optional] NavServiceErrorCB errorCallback );
+#ifndef NavigatorNetworkServiceSuccessCallback_h
+#define NavigatorNetworkServiceSuccessCallback_h
 
+#include <wtf/RefCounted.h>
+
+namespace WebCore {
+
+class NetworkServices;
+
+class NavigatorNetworkServiceSuccessCallback : public RefCounted<NavigatorNetworkServiceSuccessCallback> {
+public:
+    virtual ~NavigatorNetworkServiceSuccessCallback() { }
+    virtual bool handleEvent(NetworkServices*) = 0;
 };
+
+} // namespace WebCore
+
+#endif /* NavigatorNetworkServiceSuccessCallback_h */

@@ -23,10 +23,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 [
-    Conditional=DISCOVERY
-] interface NavEvent {
-    readonly attribute DOMString propertyset; // Properties sent from event device in XML
-    readonly attribute DOMString uuid; // device id
-    readonly attribute DOMString friendlyName;
-    readonly attribute DOMString serviceType;
+    Conditional=DISCOVERY,
+    ActiveDOMObject,
+    EventTarget
+] interface NetworkServices {
+    readonly attribute unsigned long length;
+    getter NetworkService item(in unsigned long index);
+    readonly attribute unsigned long servicesAvailable;
+    
+    attribute EventListener onserviceavailable;
+    attribute EventListener onserviceunavailable;
+
+    // EventTarget interface
+    void addEventListener(in DOMString type,
+                          in EventListener listener,
+                          in boolean useCapture);
+    void removeEventListener(in DOMString type,
+                             in EventListener listener,
+                             in boolean useCapture);
+    [RaisesException] boolean dispatchEvent(in Event evt);
 };

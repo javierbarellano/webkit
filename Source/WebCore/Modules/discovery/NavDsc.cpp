@@ -41,13 +41,12 @@
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "IDiscoveryAPI.h"
-#include "Nav.h"
+#include "NavigatorNetworkService.h"
 #include "NodeList.h"
 #include "Page.h"
 #include "ResourceHandle.h"
 #include "ShadowRoot.h"
 #include "UPnPDevice.h"
-#include "UPnPEvent.h"
 #include "UPnPSearch.h"
 #include "ZCDevice.h"
 #include "ZeroConf.h"
@@ -181,7 +180,7 @@ PermissionCheckBoxElement::PermissionCheckBoxElement(Document* doc)
 void PermissionCheckBoxElement::defaultEventHandler(Event* event)
 {
     if (event->isMouseEvent() && event->type() == eventNames().mousedownEvent && m_navdsc) {
-        std::vector< NavServices* > srvs = m_navdsc->getNavServices(m_ed.type, m_ed.online);
+        std::vector< NetworkServices* > srvs = m_navdsc->getNavServices(m_ed.type, m_ed.online);
 
         // This default handler happens before the input handler, so the action hasn't been applied yet
         // srvs is a one element vector, when getNavServices() is called with 'all' for a type, it returns all services
@@ -238,11 +237,11 @@ void NavDsc::updateServices(std::string type, std::map<std::string, UPnPDevice> 
         bool found = false;
 
         if (!m_services[type]) {
-            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type] = NetworkServices::create(m_frame->document(), NetworkServices::Connected);
             m_services[type]->suspendIfNeeded();
         }
 
-        NavServices* nss = m_services[type].get();
+        NetworkServices* nss = m_services[type].get();
 
         for (int m = 0; nss && m < nss->length() && !found; m++) {
             if (strstr(nss->item(m)->id().ascii().data(), uuid.c_str()))
@@ -252,11 +251,11 @@ void NavDsc::updateServices(std::string type, std::map<std::string, UPnPDevice> 
         NAV_LOG("updateServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true" : "false"));
 
         if (!found) {
-            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            RefPtr<NetworkService> srv = NetworkService::create(m_frame->document());
             srv->suspendIfNeeded();
 
             srv->setType(WTF::String(type.c_str()));
-            srv->setProtocolType(NavService::UPnPType);
+            srv->setProtocolType(NetworkService::UPnPType);
             srv->setUrl(WTF::String(ns.descURL.c_str()));
             srv->setid(WTF::String(uuid.c_str())); // UUID
             srv->setName(WTF::String(ns.friendlyName.c_str()));
@@ -278,11 +277,11 @@ void NavDsc::updateZCServices(std::string type, std::map<std::string, ZCDevice> 
         bool found = false;
 
         if (!m_services[type]) {
-            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type] = NetworkServices::create(m_frame->document(), NetworkServices::Connected);
             m_services[type]->suspendIfNeeded();
         }
 
-        NavServices* nss = m_services[type].get();
+        NetworkServices* nss = m_services[type].get();
 
         for (int m = 0; nss && m < nss->length() && !found; m++) {
             if (strstr(nss->item(m)->id().ascii().data(), uuid.c_str()))
@@ -292,11 +291,11 @@ void NavDsc::updateZCServices(std::string type, std::map<std::string, ZCDevice> 
         NAV_LOG("updateZCServices() uuid: %s, found: %s\n", uuid.c_str(), (found ? "true" : "false"));
 
         if (!found) {
-            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            RefPtr<NetworkService> srv = NetworkService::create(m_frame->document());
             srv->suspendIfNeeded();
 
             srv->setType(WTF::String(type.c_str()));
-            srv->setProtocolType(NavService::UPnPType);
+            srv->setProtocolType(NetworkService::UPnPType);
             srv->setUrl(WTF::String(ns.url.c_str()));
             srv->setid(WTF::String(uuid.c_str())); // UUID
             srv->setName(WTF::String(ns.friendlyName.c_str()));
@@ -317,21 +316,21 @@ void NavDsc::setServices(std::string strType, const char* type,
     // Just protect m_services
     {
         MutexLocker lock(m_lockServices);
-        m_services[strType] = NavServices::create(m_frame->document(), NavServices::Connected);
+        m_services[strType] = NetworkServices::create(m_frame->document(), NetworkServices::Connected);
         m_services[strType]->suspendIfNeeded();
     }
 
-    Vector<RefPtr<NavService> >* vDevs = new Vector<RefPtr<NavService> >();
+    Vector<RefPtr<NetworkService> >* vDevs = new Vector<RefPtr<NetworkService> >();
 
     if (protoType == UPnPProtocol) {
         std::map<std::string, UPnPDevice>::iterator it;
         for (it = devs.begin(); it != devs.end(); it++) {
             UPnPDevice d((*it).second);
-            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            RefPtr<NetworkService> srv = NetworkService::create(m_frame->document());
             srv->suspendIfNeeded();
 
             srv->setType(WTF::String(type));
-            srv->setProtocolType(NavService::UPnPType);
+            srv->setProtocolType(NetworkService::UPnPType);
             srv->setUrl(WTF::String(d.descURL.c_str()));
             srv->setid(WTF::String((*it).first.c_str())); // UUID
             srv->setName(WTF::String(d.friendlyName.c_str()));
@@ -343,11 +342,11 @@ void NavDsc::setServices(std::string strType, const char* type,
         std::map<std::string, ZCDevice>::iterator it;
         for (it = zcdevs.begin(); it != zcdevs.end(); it++) {
             ZCDevice d((*it).second);
-            RefPtr<NavService> srv = NavService::create(m_frame->document());
+            RefPtr<NetworkService> srv = NetworkService::create(m_frame->document());
             srv->suspendIfNeeded();
 
             srv->setType(WTF::String(type));
-            srv->setProtocolType(NavService::ZConfType);
+            srv->setProtocolType(NetworkService::ZConfType);
             srv->setUrl(WTF::String(d.url.c_str()));
             srv->setid(WTF::String((*it).first.c_str())); // UUID
             srv->setName(WTF::String(d.friendlyName.c_str()));
@@ -362,23 +361,23 @@ void NavDsc::setServices(std::string strType, const char* type,
     m_services[strType]->m_serviceType = strType;
 }
 
-std::vector< NavServices* > NavDsc::getNavServices(std::string type, bool isUp)
+std::vector< NetworkServices* > NavDsc::getNavServices(std::string type, bool isUp)
 {
-    std::vector<NavServices*> pNS;
-    RefPtr<NavServices>  ns;
+    std::vector<NetworkServices*> pNS;
+    RefPtr<NetworkServices>  ns;
 
     MutexLocker lock(m_lockServices);
     if (type == "all") {
-        for (std::map<std::string, RefPtr<NavServices> >::iterator it = m_services.begin();
+        for (std::map<std::string, RefPtr<NetworkServices> >::iterator it = m_services.begin();
             it != m_services.end(); it++) {
 
-            RefPtr<NavServices> typeNS = it->second;
+            RefPtr<NetworkServices> typeNS = it->second;
             typeNS->setOnline(isUp);
             pNS.push_back(typeNS.get());
         }
     } else {
         if (!m_services[type]) {
-            m_services[type] = NavServices::create(m_frame->document(), NavServices::Connected);
+            m_services[type] = NetworkServices::create(m_frame->document(), NetworkServices::Connected);
             m_services[type]->suspendIfNeeded();
         }
 
@@ -390,12 +389,12 @@ std::vector< NavServices* > NavDsc::getNavServices(std::string type, bool isUp)
     return pNS;
 }
 
-bool NavDsc::has(std::vector<RefPtr<NavServices> > srvs, std::string uuid)
+bool NavDsc::has(std::vector<RefPtr<NetworkServices> > srvs, std::string uuid)
 {
     String nsUUID(uuid.c_str());
 
     for (int i = 0; i < srvs.size(); i++) {
-        Vector<RefPtr<NavService> > ns = srvs.at(i)->m_devs;
+        Vector<RefPtr<NetworkService> > ns = srvs.at(i)->m_devs;
         for (int k = 0; k < ns.size(); k++) {
             if (ns.at(k)->id() == nsUUID)
                 return true;
@@ -501,7 +500,7 @@ void NavDsc::serviceOfflineInternal(void *ptr)
     }
 
     std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
-    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+    std::vector<NetworkServices*> srvs = nd->getNavServices(ed.type, ed.online);
     if (srvs.empty()) {
         NAV_LOG("serviceOfflineInternal: No Devs, so cannot add dev\n");
         return;
@@ -532,7 +531,7 @@ void NavDsc::serviceOfflineInternal(void *ptr)
 
 void NavDsc::createPermissionsDialog(EventData ed)
 {
-    std::vector< NavServices* > srvs = getNavServices(ed.type, ed.online);
+    std::vector< NetworkServices* > srvs = getNavServices(ed.type, ed.online);
 
     RefPtr<HTMLDivElement> div = HTMLDivElement::create(m_frame->document());
     div->setInlineStyleProperty(CSSPropertyBorder, ASCIILiteral("2px solid black"));
@@ -615,7 +614,7 @@ void NavDsc::serviceOnlineInternal(void *ptr)
     }
 
     std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
-    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+    std::vector<NetworkServices*> srvs = nd->getNavServices(ed.type, ed.online);
 
     if (srvs.empty() || !srvs[0]->find(uuid)) {
         if (ed.proto == ZeroConfProtocol) {
@@ -661,7 +660,7 @@ void NavDsc::dispatchServiceOnline(void *ptr)
     }
 
     std::string uuid = (ed.proto == ZeroConfProtocol) ? ed.zcdev.friendlyName : ed.dev.uuid;
-    std::vector<NavServices*> srvs = nd->getNavServices(ed.type, ed.online);
+    std::vector<NetworkServices*> srvs = nd->getNavServices(ed.type, ed.online);
 
     if (!srvs.size() || !srvs[0]->find(uuid)) {
         if (ed.proto == ZeroConfProtocol) {
@@ -742,19 +741,14 @@ void NavDsc::sendEventInternal(void *ptr)
     }
 
     RefPtr<NavEvent> evnt = ed.evnt;
-    std::vector<NavServices*> srvs = nv->getNavServices(ed.type);
+    std::vector<NetworkServices*> srvs = nv->getNavServices(ed.type);
 
     for (int i = 0; i < srvs.size(); i++) {
-        NavService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
+        NetworkService* srv = srvs[i]->find(std::string(evnt->uuid().ascii().data()));
 
         if (srv) {
             NAV_LOG("NavDsc::sendEventInternal(%s) SENDING... Name: %s\n", ed.type.c_str(), srv->name().ascii().data());
-            struct UPnPEventInit init;
-            init.friendlyName = evnt->friendlyName();
-            init.propertyset = evnt->propertyset();
-            init.serviceType = evnt->serviceType();
-            init.uuid = evnt->uuid();
-            srv->dispatchEvent(UPnPEvent::create(eventNames().upnpEvent, init));
+            srv->dispatchEvent(Event::create());
         } else
             ERR_LOG("NavDsc::sendEventInternal() srv == NULL !!!!!!\n");
     }
@@ -773,7 +767,7 @@ void NavDsc::serverListUpdate(std::string type, std::map<std::string, UPnPDevice
 }
 
 std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
-    PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb)
+    PassRefPtr<NavigatorNetworkServiceSuccessCallback> successcb, PassRefPtr<NavigatorNetworkServiceErrorCallback> errorcb)
 {
     NAV_LOG("NavDsc::startUPnPDiscovery(%s).\n", type);
 
@@ -782,9 +776,10 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
 
     if (errorcb) {
         if (!UPnPSearch::getInstance()->m_udpSocket || !UPnPSearch::getInstance()->networkIsUp()) {
-            ERR_LOG("NavDsc::startUPnPDiscovery() NETWORK_ERR\n");
-            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NetworkError);
-            errorcb->handleEvent(err.get());
+            // FIXME: Network error doesn't exist in the spec
+            //ERR_LOG("NavDsc::startUPnPDiscovery() NETWORK_ERR\n");
+            //RefPtr<NavigatorNetworkServiceError> err = NavigatorNetworkServiceError::create(NavigatorNetworkServiceError::NetworkError);
+            //errorcb->handleEvent(err.get());
             return devs;
         }
     }
@@ -797,7 +792,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
 
         m_services.clear();
         if (successcb) {
-            std::vector<NavServices*> srvs = getNavServices(type);
+            std::vector<NetworkServices*> srvs = getNavServices(type);
             successcb->handleEvent(srvs.at(0));
         }
 
@@ -820,7 +815,7 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
     }
 
     if (successcb) {
-        std::vector<NavServices*> srvs = getNavServices(type);
+        std::vector<NetworkServices*> srvs = getNavServices(type);
         successcb->handleEvent(srvs.at(0));
     }
 
@@ -828,15 +823,16 @@ std::map<std::string, UPnPDevice> NavDsc::startUPnPDiscovery(const char *type,
 }
 
 std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char* type,
-    PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb)
+    PassRefPtr<NavigatorNetworkServiceSuccessCallback> successcb, PassRefPtr<NavigatorNetworkServiceErrorCallback> errorcb)
 {
     std::map<std::string, ZCDevice> empty;
     std::map<std::string, ZCDevice> zcdevs = ZeroConf::discoverDevs(type, this);
 
     if (errorcb) {
         if (!ZeroConf::getInstance()->m_udpSocket) {
-            RefPtr<NavServiceError> err = NavServiceError::create(NavServiceError::NetworkError);
-            errorcb->handleEvent(err.get());
+            // FIXME: Network error doesn't exist in the spec
+//            RefPtr<NavigatorNetworkServiceError> err = NavigatorNetworkServiceError::create(NavigatorNetworkServiceError::NetworkError);
+//            errorcb->handleEvent(err.get());
             return zcdevs;
         }
     }
@@ -861,7 +857,7 @@ std::map<std::string, ZCDevice> NavDsc::startZeroConfDiscovery(const char* type,
 
     setServices(strType, type, devs, zcdevs, ZeroConfProtocol);
 
-    std::vector<NavServices *> srvs = getNavServices(type);
+    std::vector<NetworkServices *> srvs = getNavServices(type);
     successcb->handleEvent(srvs.at(srvs.size()-1));
 
     return zcdevs;

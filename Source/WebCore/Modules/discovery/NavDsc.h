@@ -31,10 +31,9 @@
 #include "NavDscCB.h"
 #include "NavEvent.h"
 #include "NavEventCB.h"
-#include "NavServiceError.h"
-#include "NavServiceErrorCB.h"
-#include "NavServiceOkCB.h"
-#include "NavServices.h"
+#include "NavigatorNetworkServiceErrorCallback.h"
+#include "NavigatorNetworkServiceSuccessCallback.h"
+#include "NetworkServices.h"
 #include "UPnPDevice.h"
 #include "UPnPSearch.h"
 #include "ZCDevice.h"
@@ -52,7 +51,7 @@
 
 namespace WebCore {
 
-class Nav;
+class NavigatorNetworkService;
 class IDiscoveryAPI;
 class Frame;
 
@@ -87,10 +86,10 @@ public:
     virtual ~NavDsc();
 
     std::map<std::string, UPnPDevice> startUPnPDiscovery(const char *type,
-        PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb);
+        PassRefPtr<NavigatorNetworkServiceSuccessCallback> successcb, PassRefPtr<NavigatorNetworkServiceErrorCallback> errorcb);
 
     std::map<std::string, ZCDevice> startZeroConfDiscovery(const char *type,
-        PassRefPtr<NavServiceOkCB> successcb, PassRefPtr<NavServiceErrorCB> errorcb);
+        PassRefPtr<NavigatorNetworkServiceSuccessCallback> successcb, PassRefPtr<NavigatorNetworkServiceErrorCallback> errorcb);
 
     void onUPnPDiscovery(const char *type, IDiscoveryAPI *nav)
     {
@@ -135,7 +134,7 @@ public:
     virtual void serverListUpdate(std::string type, std::map<std::string, UPnPDevice>*);
     virtual void receiveID(long idFromHN) { }
 
-    std::vector<NavServices*> getNavServices(std::string type, bool isUp = true);
+    std::vector<NetworkServices*> getNavServices(std::string type, bool isUp = true);
 
     static void disablePermissions() { m_permissionsEnabled = false; }
 
@@ -152,7 +151,7 @@ public:
     void hack() { DiscoveryWrapper::startUPnPInternalDiscovery(0, 0); }
 
 private:
-    bool has(std::vector<RefPtr<NavServices> > srvs, std::string uuid);
+    bool has(std::vector<RefPtr<NetworkServices> > srvs, std::string uuid);
 
     void updateServices(std::string type, std::map<std::string, UPnPDevice> devs);
     void updateZCServices(std::string type, std::map<std::string, ZCDevice> devs);
@@ -180,7 +179,7 @@ private:
     bool m_resetSet;
     Mutex m_lockServices;
     // Map by type
-    std::map<std::string, RefPtr<NavServices> > m_services;
+    std::map<std::string, RefPtr<NetworkServices> > m_services;
 
     Frame* m_frame;
     static bool m_permissionsEnabled;

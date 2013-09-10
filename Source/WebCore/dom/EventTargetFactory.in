@@ -22,8 +22,8 @@ MediaSource conditional=MEDIA_SOURCE
 MediaStream conditional=MEDIA_STREAM
 MediaStreamTrack conditional=MEDIA_STREAM
 MessagePort
-NavService conditional=DISCOVERY
-NavServices conditional=DISCOVERY
+NetworkService conditional=DISCOVERY
+NetworkServices conditional=DISCOVERY
 NetworkInfoConnection conditional=NETWORK_INFO
 Node
 Notification conditional=NOTIFICATIONS|LEGACY_NOTIFICATIONS
