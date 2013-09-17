@@ -39,14 +39,14 @@ GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
 
 namespace WebCore {
 
-static void audioTrackPrivateMuteChangedCallback(GObject*, GParamSpec*, AudioTrackPrivateGStreamer* track)
+static void audioTrackPrivateActiveChangedCallback(GObject*, GParamSpec*, AudioTrackPrivateGStreamer* track)
 {
-    track->muteChanged();
+    track->activeChanged();
 }
 
-static gboolean audioTrackPrivateMuteChangeTimeoutCallback(AudioTrackPrivateGStreamer* track)
+static gboolean audioTrackPrivateActiveChangeTimeoutCallback(AudioTrackPrivateGStreamer* track)
 {
-    track->notifyTrackOfMuteChanged();
+    track->notifyTrackOfActiveChanged();
     return FALSE;
 }
 
@@ -73,15 +73,17 @@ AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> playb
     : m_index(index)
     , m_pad(pad)
     , m_playbin(playbin)
-    , m_muteTimerHandler(0)
+    , m_activeTimerHandler(0)
 {
     ASSERT(m_pad);
-    g_signal_connect(m_pad.get(), "notify::mute", G_CALLBACK(audioTrackPrivateMuteChangedCallback), this);
-
-    g_object_set(m_pad.get(), "mute", true, NULL);
+    g_signal_connect(m_playbin.get(), "notify::current-audio", G_CALLBACK(audioTrackPrivateActiveChangedCallback), this);
 
     m_tagTimerHandler = 0;
     m_eventProbeId = gst_pad_add_probe(pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, reinterpret_cast<GstPadProbeCallback>(audioTrackPrivateEventProbeCallback), this, 0);
+
+    gboolean active;
+    g_object_get(m_pad.get(), "active", &active, NULL);
+    AudioTrackPrivate::setEnabled(active);
 
     // Check tags in case we got them before we created the track
     tagsChanged();
@@ -98,10 +100,10 @@ void AudioTrackPrivateGStreamer::disconnect()
         return;
 
     g_signal_handlers_disconnect_by_func(m_pad.get(),
-        reinterpret_cast<gpointer>(audioTrackPrivateMuteChangedCallback), this);
+        reinterpret_cast<gpointer>(audioTrackPrivateActiveChangedCallback), this);
 
-    if (m_muteTimerHandler)
-        g_source_remove(m_muteTimerHandler);
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
 
     gst_pad_remove_probe(m_pad.get(), m_eventProbeId);
 
@@ -112,22 +114,24 @@ void AudioTrackPrivateGStreamer::disconnect()
     m_playbin.clear();
 }
 
-void AudioTrackPrivateGStreamer::muteChanged()
+void AudioTrackPrivateGStreamer::activeChanged()
 {
-    if (m_muteTimerHandler)
-        g_source_remove(m_muteTimerHandler);
-    m_muteTimerHandler = g_timeout_add(0,
-        reinterpret_cast<GSourceFunc>(audioTrackPrivateMuteChangeTimeoutCallback), this);
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
+    m_activeTimerHandler = g_timeout_add(0,
+        reinterpret_cast<GSourceFunc>(audioTrackPrivateActiveChangeTimeoutCallback), this);
 }
 
-void AudioTrackPrivateGStreamer::notifyTrackOfMuteChanged()
+void AudioTrackPrivateGStreamer::notifyTrackOfActiveChanged()
 {
     if (!m_pad)
         return;
 
-    gboolean mute;
-    g_object_get(m_pad.get(), "mute", &mute, NULL);
-    AudioTrackPrivate::setEnabled(!mute);
+    gboolean active = false;
+    if (m_pad)
+        g_object_get(m_pad.get(), "active", &active, NULL);
+
+    AudioTrackPrivate::setEnabled(active);
 }
 
 void AudioTrackPrivateGStreamer::tagsChanged()
@@ -183,8 +187,8 @@ void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
         return;
     AudioTrackPrivate::setEnabled(enabled);
 
-    if (m_pad)
-        g_object_set(m_pad.get(), "mute", !enabled, NULL);
+    if (enabled && m_playbin)
+        g_object_set(m_playbin.get(), "current-audio", m_index, NULL);
 }
 
 } // namespace WebCore

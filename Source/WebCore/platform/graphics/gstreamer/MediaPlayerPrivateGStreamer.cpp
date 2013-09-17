@@ -776,20 +776,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
         RefPtr<AudioTrackPrivateGStreamer> track = m_audioTracks.last();
         track->disconnect();
         m_audioTracks.removeLast();
-        if (track == m_defaultAudioTrack)
-            m_defaultAudioTrack = 0;
         m_player->removeAudioTrack(track.release());
-    }
-
-    // Enable the first track automatically
-    if (!m_audioTracks.isEmpty()) {
-        RefPtr<AudioTrackPrivateGStreamer> firstTrack = m_audioTracks[0];
-        if (firstTrack != m_defaultAudioTrack) {
-            if (m_defaultAudioTrack)
-                m_defaultAudioTrack->setEnabled(false);
-            firstTrack->setEnabled(true);
-            m_defaultAudioTrack = firstTrack.release();
-        }
     }
 #endif
 
@@ -1910,11 +1897,6 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
         g_signal_connect(m_textAppSink.get(), "new-sample", G_CALLBACK(mediaPlayerPrivateNewTextSampleCallback), this);
 
         g_object_set(m_playBin.get(), "text-sink", m_textAppSink.get(), NULL);
-
-        GRefPtr<GstElement> audioAdder = gst_element_factory_make("adder", NULL);
-        ASSERT(audioAdder);
-
-        g_object_set(m_playBin.get(), "audio-stream-combiner", audioAdder.get(), NULL);
     }
 #endif
 

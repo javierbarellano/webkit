@@ -53,8 +53,8 @@ public:
     void setIndex(int index) { m_index =  index; }
     virtual int audioTrackIndex() const OVERRIDE { return m_index; }
 
-    void muteChanged();
-    void notifyTrackOfMuteChanged();
+    void activeChanged();
+    void notifyTrackOfActiveChanged();
 
 #ifdef GST_API_VERSION_1
     void tagsChanged();
@@ -69,7 +69,7 @@ private:
     GRefPtr<GstElement> m_playbin;
     String m_label;
     String m_language;
-    guint m_muteTimerHandler;
+    guint m_activeTimerHandler;
 #ifdef GST_API_VERSION_1
     guint m_tagTimerHandler;
     gulong m_eventProbeId;
