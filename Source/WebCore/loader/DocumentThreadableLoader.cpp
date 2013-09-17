@@ -31,6 +31,11 @@
 #include "config.h"
 #include "DocumentThreadableLoader.h"
 
+#if ENABLE(DISCOVERY)
+#include "Modules/discovery/IDiscoveryAPI.h"
+#include "Modules/discovery/UPnPSearch.h"
+#endif
+
 #include "CachedRawResource.h"
 #include "CachedResourceLoader.h"
 #include "CachedResourceRequest.h"
@@ -84,7 +89,25 @@ DocumentThreadableLoader::DocumentThreadableLoader(Document* document, Threadabl
     // Setting an outgoing referer is only supported in the async code path.
     ASSERT(m_async || request.httpReferrer().isEmpty());
 
-    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests) {
+    makeRequest(request);
+}
+
+void DocumentThreadableLoader::makeRequest(const ResourceRequest& request)
+{
+#if ENABLE(DISCOVERY)
+    UPnPSearch* upnp = UPnPSearch::getInstance();
+    CString host = request.url().host().ascii();
+    char cHost[1024];
+    memcpy(cHost, host.data(), host.length());
+    cHost[host.length()] = 0;
+
+    bool ok = upnp->hostPortOk(cHost, (int)request.url().port());
+#else
+    bool ok = true;
+#endif
+
+    if (m_sameOriginRequest || m_options.crossOriginRequestPolicy == AllowCrossOriginRequests || ok) {
+
         loadRequest(request, DoSecurityCheck);
         return;
     }
@@ -304,7 +327,7 @@ void DocumentThreadableLoader::notifyFinished(CachedResource* resource)
 {
     ASSERT(m_client);
     ASSERT_UNUSED(resource, resource == m_resource);
-        
+
     if (m_resource->errorOccurred())
         didFail(m_resource->identifier(), m_resource->resourceError());
     else
@@ -394,7 +417,7 @@ void DocumentThreadableLoader::loadRequest(const ResourceRequest& request, Secur
         }
         return;
     }
-    
+
     // FIXME: ThreadableLoaderOptions.sniffContent is not supported for synchronous requests.
     Vector<char> data;
     ResourceError error;

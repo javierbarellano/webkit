@@ -13,6 +13,7 @@ WEBCORE_GENERATED_SOURCES_DIR = $${ROOT_BUILD_DIR}/Source/WebCore/$${GENERATED_S
 
 INCLUDEPATH += \
     $$SOURCE_DIR \
+    $$SOURCE_DIR/Modules/discovery \
     $$SOURCE_DIR/Modules/filesystem \
     $$SOURCE_DIR/Modules/geolocation \
     $$SOURCE_DIR/Modules/indexeddb \
@@ -306,5 +307,6 @@ linux*-g++*:QMAKE_LFLAGS += $$QMAKE_LFLAGS_NOUNDEF
 
 enable_fast_mobile_scrolling: DEFINES += ENABLE_FAST_MOBILE_SCROLLING=1
 
-!production_build:have?(FONTCONFIG): PKGCONFIG += fontconfig
+PKGCONFIG += x11 xrender 
 
+!production_build:have?(FONTCONFIG): PKGCONFIG += fontconfig

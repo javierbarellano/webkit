@@ -143,6 +143,9 @@ protected:
 #if ENABLE(VIDEO)
     virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual bool paintMediaFastForwardButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
+    virtual bool paintMediaTrackSelButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
+    virtual bool paintMediaRewindButton(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r);
     virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaSeekForwardButton(RenderObject*, const PaintInfo&, const IntRect&);
@@ -174,6 +177,8 @@ protected:
     IntRect convertToPaintingRect(RenderObject* inputRenderer, const RenderObject* partRenderer, IntRect partRect, const IntRect& localOffset) const;
 
     virtual QPalette colorPalette() const;
+
+    void paintSelect(QPainter *painter, RenderObject* o, const IntRect& r);
 
     Page* m_page;
 

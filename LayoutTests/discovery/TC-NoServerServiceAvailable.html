@@ -1,0 +1,50 @@
+<html>
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+<body>
+
+<script>
+description('Tests Acceptable UA behavior when No Server Service is dicovered.');
+
+function getNetworkServices(type, okCallback, errCallback) {
+
+	navigator.getNetworkServices(type, okCallback, errCallback);
+}
+
+var srvs;
+
+function noDevs() {
+	testPassed("No Devs found. (this is good)");
+	finishJSTest();
+}
+
+function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
+	srvs.ondevadded = addDevCB;
+	setTimeout("noDevs();", 5000);
+}
+
+function errShouldNotbeCalled(err) {
+	testFailed('GetNetworkServices() should have called ok Callback.');
+}
+
+function addDevCB() {
+	testFailed("Add dev callback.");
+	if (srvs.ondevadded == null) {
+		testFailed('AddDev should NOT have called addDevCB().');
+	}
+	srvs.ondevadded = null;
+
+	finishJSTest();
+}
+
+getNetworkServices("upnp:urn:schemas-upnp-org:service:RemoteUIServer:1", okAddDev, errShouldNotbeCalled);
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+</html>

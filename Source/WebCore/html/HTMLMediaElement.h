@@ -235,10 +235,6 @@ public:
     PassRefPtr<TextTrack> addTextTrack(const String& kind, const String& label, ExceptionCode& ec) { return addTextTrack(kind, label, emptyString(), ec); }
     PassRefPtr<TextTrack> addTextTrack(const String& kind, ExceptionCode& ec) { return addTextTrack(kind, emptyString(), emptyString(), ec); }
 
-    AudioTrackList* audioTracks();
-    TextTrackList* textTracks();
-    VideoTrackList* videoTracks();
-
     CueList currentlyActiveCues() const { return m_currentlyActiveCues; }
 
     void addAudioTrack(PassRefPtr<AudioTrack>);
@@ -249,6 +245,11 @@ public:
     void removeVideoTrack(VideoTrack*);
     void removeAllInbandTracks();
     void closeCaptionTracksChanged();
+
+    void textTracksChanged();
+    void audioTracksChanged();
+    void videoTracksChanged();
+
     void notifyMediaPlayerOfTextTrackChanges();
 
     virtual void didAddTextTrack(HTMLTrackElement*);
@@ -313,6 +314,11 @@ public:
 
     bool requiresTextTrackRepresentation() const;
     void setTextTrackRepresentation(TextTrackRepresentation*);
+
+    // MediaSelectElements
+    virtual AudioTrackList* audioTracks() OVERRIDE;
+    virtual TextTrackList*  textTracks() OVERRIDE;
+    virtual VideoTrackList* videoTracks() OVERRIDE;
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -379,6 +385,17 @@ public:
     virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
 
     virtual bool willRespondToMouseClickEvents() OVERRIDE;
+
+public: // Rate Change
+    // Events
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(ratechange);
+
+    virtual Vector<double> getSupportedPlayRates() {
+        if (!m_player)
+            return Vector<double>();
+
+        return m_player->getPlayRates();
+    }
 
 protected:
     HTMLMediaElement(const QualifiedName&, Document*, bool);
@@ -479,6 +496,7 @@ private:
     
     virtual void mediaPlayerFirstVideoFrameAvailable(MediaPlayer*);
     virtual void mediaPlayerCharacteristicChanged(MediaPlayer*);
+    virtual void mediaPlayerPlaybackRatesSupportedChanged(MediaPlayer*);
 
 #if ENABLE(ENCRYPTED_MEDIA)
     virtual void mediaPlayerKeyAdded(MediaPlayer*, const String& keySystem, const String& sessionId) OVERRIDE;

@@ -35,6 +35,7 @@
 #include "HTMLDivElement.h"
 #include "HTMLInputElement.h"
 #include "HTMLMediaElement.h"
+#include "HTMLSelectElement.h"
 #include "MediaControllerInterface.h"
 #include "RenderBlock.h"
 
@@ -70,6 +71,10 @@ enum MediaControlElementType {
     MediaTextTrackDisplay,
     MediaExitFullscreenButton,
     MediaOverlayPlayButton,
+    MediaVideoTrackSelButton,
+    MediaAudioTrackSelButton,
+    MediaTextTrackSelButton,
+    MediaFastForwardButton,
     MediaClosedCaptionsContainer,
     MediaClosedCaptionsTrackList,
 };
@@ -123,6 +128,18 @@ protected:
 
 private:
     virtual void updateDisplayType() { }
+};
+
+// ----------------------------
+
+class MediaSelectElement : public HTMLSelectElement, public MediaControlElement {
+protected:
+    explicit MediaSelectElement(Document*, MediaControlElementType, MediaControls*);
+
+    MediaControls* m_controls;
+
+private:
+    virtual bool isMediaControlElement() const OVERRIDE { return MediaControlElement::isMediaControlElement(); }
 };
 
 // ----------------------------

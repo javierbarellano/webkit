@@ -442,6 +442,9 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ControlPart e)
     case MediaPlayButtonPart:
         m_value.valueID = CSSValueMediaPlayButton;
         break;
+    case MediaFastForwardButtonPart:
+        m_value.valueID = CSSValueMediaFastForwardButton;
+        break;
     case MediaOverlayPlayButtonPart:
         m_value.valueID = CSSValueMediaOverlayPlayButton;
         break;
@@ -498,6 +501,15 @@ template<> inline CSSPrimitiveValue::CSSPrimitiveValue(ControlPart e)
         break;
     case MediaTimeRemainingPart:
         m_value.valueID = CSSValueMediaTimeRemainingDisplay;
+        break;
+    case MediaVideoTrackSelButtonPart:
+        m_value.valueID = CSSValueMediaVideoTrackSelButton;
+        break;
+    case MediaAudioTrackSelButtonPart:
+        m_value.valueID = CSSValueMediaAudioTrackSelButton;
+        break;
+    case MediaTextTrackSelButtonPart:
+        m_value.valueID = CSSValueMediaTextTrackSelButton;
         break;
     case MenulistPart:
         m_value.valueID = CSSValueMenulist;

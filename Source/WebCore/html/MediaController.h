@@ -69,6 +69,7 @@ public:
     
     virtual double defaultPlaybackRate() const { return m_defaultPlaybackRate; }
     virtual void setDefaultPlaybackRate(double);
+    virtual Vector<double> getSupportedPlayRates() { return Vector<double>(); };
     
     virtual double playbackRate() const;
     virtual void setPlaybackRate(double);
@@ -94,6 +95,8 @@ public:
     virtual void setClosedCaptionsVisible(bool);
     virtual bool closedCaptionsVisible() const { return m_closedCaptionsVisible; }
     
+    virtual void updateTrickModeButtons() { }
+
     virtual bool supportsScanning() const;
     
     virtual void beginScrubbing();
@@ -106,6 +109,13 @@ public:
     virtual bool hasCurrentSrc() const;
     
     virtual void returnToRealtime();
+
+#if ENABLE(VIDEO_TRACK)
+    // MediaSelectElements
+    virtual AudioTrackList* audioTracks() OVERRIDE { return 0; }
+    virtual VideoTrackList* videoTracks() OVERRIDE { return 0; }
+    virtual TextTrackList*  textTracks() OVERRIDE { return 0; }
+#endif
 
     bool isBlocked() const;
 

@@ -1,0 +1,164 @@
+/* Copyright (C) 2012, 2013 Cable Television Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+ * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#ifndef HNEventHandle_h
+#define HNEventHandle_h
+
+#include "HNEventServerHandle.h"
+#include "HNEventServerHandleClient.h"
+#include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+namespace WebCore {
+
+class HNEventServerHandleClient;
+void eventServerThread(void *context);
+
+class HNEventHandle : public HNEventServerHandle {
+public:
+    HNEventHandle(HNEventServerHandleClient *client)
+        : m_socket(-1)
+        , m_client(client)
+    {
+    }
+
+    ~HNEventHandle() { }
+
+    virtual void setClient(HNEventServerHandleClient *client)
+    {
+        m_client = client;
+    }
+
+    // Start Home Networking Event server.
+    virtual void connect()
+    {
+        if (m_socket < 0)
+            (void)WTF::createThread(eventServerThread, this, "HN Event Server");
+    }
+
+    // Send Subscribe request to UPnP device
+    virtual bool send(const char *data, int len)
+    {
+        return false;
+    }
+
+    // Receive Events
+    virtual void receive() { }
+
+    // Close the server.
+    virtual void close() { }
+
+    int m_socket;
+    int m_port;
+    HNEventServerHandleClient *m_client;
+
+private:
+
+
+};
+
+void eventServerThread(void *context)
+{
+    /*
+    HTTP/1.1 200 OK
+    Date: Mon, 27 Aug 2012 17:50:35 GMT
+    Server: Apache/2.2.8 (Ubuntu) PHP/5.2.4-2ubuntu5.10 with Suhosin-Patch
+    Last-Modified: Tue, 01 Sep 2009 16:34:42 GMT
+    ETag: "2404b7-1e76-47286ba340c80"
+    Accept-Ranges: bytes
+    Content-Length: 7798
+    Keep-Alive: timeout=15, max=100
+    Connection: Keep-Alive
+    Content-Type: text/css
+    */
+
+    char http200Resp[] = "HTTP/1.1 200 OK/r/nKeep-Alive: timeout=15, max=100/r/nAccept-Ranges: bytes/r/nConnection: Keep-Alive/r/n/r/n";
+    HNEventHandle* hnEventHandle = (HNEventHandle*)context;
+    hnEventHandle->m_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (hnEventHandle->m_socket == -1) {
+        printf("HNEventServer Socket failed! errno: %d\n", errno);
+        return;
+    }
+
+    int yes = 1;
+    if (setsockopt(hnEventHandle->m_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        perror("server: setsockopt ");
+        return;
+    }
+
+    sockaddr_in sa;
+    bzero((char *) &sa, sizeof(sa));
+
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = INADDR_ANY;
+    hnEventHandle->m_port = 2777;
+    sa.sin_port = htons(hnEventHandle->m_port);
+
+    if (bind(hnEventHandle->m_socket, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
+        ::close(hnEventHandle->m_socket);
+        perror("server: bind");
+        return;
+    }
+
+    listen(hnEventHandle->m_socket, 5);
+
+    struct sockaddr_in theirAddr; // connector's address information
+    socklen_t sinSize = sizeof(theirAddr);
+    while (true) {
+        int newFd = ::accept(hnEventHandle->m_socket, (struct sockaddr *)&theirAddr, &sinSize);
+        if (newFd == -1) {
+            perror("server: accept");
+            return;
+        }
+
+        std::stringstream ss;
+        char bf[8024];
+        int len = 0;
+        int total = 0;
+        do {
+            len = ::recv(newFd, &bf[total], sizeof(bf-1), 0);
+            total += len;
+        } while (len>0);
+
+        bf[total] = 0;
+
+        ::send(newFd, http200Resp, strlen(http200Resp), 0);
+
+        hnEventHandle->m_client->HNdidReceiveData(hnEventHandle, bf, total, 0, 0);
+    }
+
+    ::close(hnEventHandle->m_socket);
+}
+
+}; // namespace WebCore
+
+
+#endif /* HNEventHandle_h */

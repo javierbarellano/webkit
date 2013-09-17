@@ -177,6 +177,9 @@ public:
     // A characteristic of the media file, eg. video, audio, closed captions, etc, has changed.
     virtual void mediaPlayerCharacteristicChanged(MediaPlayer*) { }
     
+    // The video pipeline just updated the supported play rates
+    virtual void mediaPlayerPlaybackRatesSupportedChanged(MediaPlayer*) { }
+
 #if USE(ACCELERATED_COMPOSITING)
     // whether the rendering system can accelerate the display of this MediaPlayer.
     virtual bool mediaPlayerRenderingCanBeAccelerated(MediaPlayer*) { return false; }
@@ -272,6 +275,14 @@ public:
     IntSize naturalSize();
     bool hasVideo() const;
     bool hasAudio() const;
+
+    //Tell client what rates we support
+    void playbackRatesSupported(Vector<double> &rates) {
+        m_rates = rates;
+        if (m_mediaPlayerClient)
+            m_mediaPlayerClient->mediaPlayerPlaybackRatesSupportedChanged(this);
+    }
+    Vector<double> getPlayRates() { return m_rates; }
 
     void setFrameView(FrameView* frameView) { m_frameView = frameView; }
     FrameView* frameView() { return m_frameView; }
@@ -514,6 +525,8 @@ private:
     bool m_privateBrowsing;
     bool m_shouldPrepareToRender;
     bool m_contentMIMETypeWasInferredFromExtension;
+    Vector<double> m_rates;
+
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     WebMediaPlayerProxy* m_playerProxy;    // not owned or used, passed to m_private
 #endif

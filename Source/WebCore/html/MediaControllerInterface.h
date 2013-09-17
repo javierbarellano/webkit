@@ -29,10 +29,16 @@
 #if ENABLE(VIDEO)
 
 #include <wtf/PassRefPtr.h>
+#include <wtf/text/AtomicString.h>
+#include <wtf/Vector.h>
 
 namespace WebCore {
 
 class TimeRanges;
+
+class AudioTrackList;
+class VideoTrackList;
+class TextTrackList;
 
 typedef int ExceptionCode;
 
@@ -55,6 +61,8 @@ public:
     
     virtual double defaultPlaybackRate() const = 0;
     virtual void setDefaultPlaybackRate(double) = 0;
+
+    virtual Vector<double> getSupportedPlayRates() = 0;
     
     virtual double playbackRate() const = 0;
     virtual void setPlaybackRate(double) = 0;
@@ -91,6 +99,13 @@ public:
     virtual bool hasCurrentSrc() const = 0;
 
     virtual void returnToRealtime() = 0;
+
+#if ENABLE(VIDEO_TRACK)
+    // MediaSelectElements
+    virtual AudioTrackList* audioTracks() = 0;
+    virtual VideoTrackList* videoTracks() = 0;
+    virtual TextTrackList*  textTracks() = 0;
+#endif
 };
 
 }

@@ -91,6 +91,24 @@ public:
     bool shouldClosedCaptionsContainerPreventPageScrolling(int wheelDeltaY);
     void handleClickEvent(Event*);
 
+    virtual void updateTrickModeButtons();
+
+#if ENABLE(VIDEO_TRACK)
+    virtual void updateTrackControls();
+
+    virtual void createTextTrackSelDisplay();
+    virtual void updateTextTrackSelDisplay();
+    virtual void setTextTrackSelected(int index);
+
+    virtual void createVideoTrackDisplay();
+    virtual void updateVideoTrackDisplay();
+    virtual void setVideoTrackSelected(int index);
+
+    virtual void createAudioTrackDisplay();
+    virtual void updateAudioTrackDisplay();
+    virtual void setAudioTrackSelected(int index);
+#endif
+
 private:
     MediaControlsApple(Document*);
 
@@ -102,6 +120,7 @@ private:
     void setFullscreenSliderVolume();
 
     MediaControlRewindButtonElement* m_rewindButton;
+    MediaControlFastForwardButtonElement* m_fastForwardButton;
     MediaControlReturnToRealtimeButtonElement* m_returnToRealTimeButton;
     MediaControlStatusDisplayElement* m_statusDisplay;
     MediaControlTimeRemainingDisplayElement* m_timeRemainingDisplay;
@@ -116,6 +135,13 @@ private:
     MediaControlFullscreenVolumeSliderElement* m_fullScreenVolumeSlider;
     MediaControlFullscreenVolumeMaxButtonElement* m_fullScreenMaxVolumeButton;
     RefPtr<MediaControlsAppleEventListener> m_eventListener;
+
+#if ENABLE(VIDEO_TRACK)
+    MediaControlAudioTrackSelButtonElement* m_audioTrackSelButton;
+    MediaControlTextTrackSelButtonElement*  m_textTrackSelButton;
+    MediaControlVideoTrackSelButtonElement* m_videoTrackSelButton;
+#endif
+
 };
 
 }

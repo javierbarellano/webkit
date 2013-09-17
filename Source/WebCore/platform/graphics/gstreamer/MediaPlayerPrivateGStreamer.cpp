@@ -385,6 +385,8 @@ void MediaPlayerPrivateGStreamer::load(const String& url)
 
     if (!m_delayingLoad)
         commitLoad();
+
+    updatePlayRatesSupported();
 }
 
 #if ENABLE(MEDIA_SOURCE)
@@ -484,6 +486,35 @@ void MediaPlayerPrivateGStreamer::prepareToPlay()
         m_delayingLoad = false;
         commitLoad();
     }
+}
+
+void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
+{
+    INFO_MEDIA_MESSAGE("Update playrates supported");
+    if (m_source) {
+
+        if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_source.get()), "supported_rates")) {
+            // Get supported rates property value which is a GArray
+            GArray* arrayVal = 0;
+            g_object_get(m_source.get(), "supported_rates", &arrayVal, NULL);
+            if (arrayVal) {
+                Vector<double> rates;
+
+                INFO_MEDIA_MESSAGE("Supported rates cnt: %d\n", arrayVal->len);
+                for (gint i = 0; i < arrayVal->len; i++) {
+                    rates.append(g_array_index(arrayVal, gfloat, i));
+
+                    INFO_MEDIA_MESSAGE("Retrieved rate %d: %0.3f\n", (i+1), rates[i]);
+                }
+
+                m_player->playbackRatesSupported(rates);
+            } else
+                INFO_MEDIA_MESSAGE("Got null value for supported rates property\n");
+        } else
+            INFO_MEDIA_MESSAGE("Source type: %s did not have supported_rates property",
+                    G_OBJECT_TYPE_NAME(m_source.get()));
+    } else
+        INFO_MEDIA_MESSAGE("Source was NULL");
 }
 
 void MediaPlayerPrivateGStreamer::play()
@@ -1553,6 +1584,7 @@ bool MediaPlayerPrivateGStreamer::loadNextLocation()
                 // Set the new uri and start playing.
                 g_object_set(m_playBin.get(), "uri", newUrl.string().utf8().data(), NULL);
                 m_url = newUrl;
+                updatePlayRatesSupported();
                 changePipelineState(GST_STATE_PLAYING);
                 return true;
             }

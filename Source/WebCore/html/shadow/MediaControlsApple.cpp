@@ -42,7 +42,10 @@
 #include "WheelEvent.h"
 
 #if ENABLE(VIDEO_TRACK)
+#include "AudioTrackList.h"
 #include "TextTrackCue.h"
+#include "TextTrackList.h"
+#include "VideoTrackList.h"
 #endif
 
 using namespace std;
@@ -52,6 +55,7 @@ namespace WebCore {
 MediaControlsApple::MediaControlsApple(Document* document)
     : MediaControls(document)
     , m_rewindButton(0)
+    , m_fastForwardButton(0)
     , m_returnToRealTimeButton(0)
     , m_statusDisplay(0)
     , m_timeRemainingDisplay(0)
@@ -65,6 +69,9 @@ MediaControlsApple::MediaControlsApple(Document* document)
     , m_fullScreenMinVolumeButton(0)
     , m_fullScreenVolumeSlider(0)
     , m_fullScreenMaxVolumeButton(0)
+    , m_audioTrackSelButton(0)
+    , m_textTrackSelButton(0)
+    , m_videoTrackSelButton(0)
 {
 }
 
@@ -93,6 +100,12 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     RefPtr<MediaControlPlayButtonElement> playButton = MediaControlPlayButtonElement::create(document);
     controls->m_playButton = playButton.get();
     panel->appendChild(playButton.release(), ec, AttachLazily);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlFastForwardButtonElement> FastForwardButton = MediaControlFastForwardButtonElement::create(document);
+    controls->m_fastForwardButton = FastForwardButton.get();
+    panel->appendChild(FastForwardButton.release(), ec, AttachLazily);
     if (ec)
         return 0;
 
@@ -146,6 +159,24 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     RefPtr<MediaControlSeekForwardButtonElement> seekForwardButton = MediaControlSeekForwardButtonElement::create(document);
     controls->m_seekForwardButton = seekForwardButton.get();
     panel->appendChild(seekForwardButton.release(), ec, AttachLazily);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoTrackSelButton = MediaControlVideoTrackSelButtonElement::create(document, controls.get());
+    controls->m_videoTrackSelButton = videoTrackSelButton.get();
+    panel->appendChild(videoTrackSelButton.release(), ec, AttachLazily);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioTrackSelButton = MediaControlAudioTrackSelButtonElement::create(document, controls.get());
+    controls->m_audioTrackSelButton = audioTrackSelButton.get();
+    panel->appendChild(audioTrackSelButton.release(), ec, AttachLazily);
+    if (ec)
+        return 0;
+
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document, controls.get());
+    controls->m_textTrackSelButton = textTrackSelButton.get();
+    panel->appendChild(textTrackSelButton.release(), ec, AttachLazily);
     if (ec)
         return 0;
 
@@ -248,6 +279,8 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
 
     if (m_rewindButton)
         m_rewindButton->setMediaController(controller);
+    if (m_fastForwardButton)
+        m_fastForwardButton->setMediaController(controller);
     if (m_returnToRealTimeButton)
         m_returnToRealTimeButton->setMediaController(controller);
     if (m_statusDisplay)
@@ -274,6 +307,15 @@ void MediaControlsApple::setMediaController(MediaControllerInterface* controller
         m_closedCaptionsTrackList->setMediaController(controller);
     if (m_closedCaptionsContainer)
         m_closedCaptionsContainer->setMediaController(controller);
+
+#if ENABLE(VIDEO_TRACK)
+    if (m_videoTrackSelButton)
+        m_videoTrackSelButton->setMediaController(controller);
+    if (m_audioTrackSelButton)
+        m_audioTrackSelButton->setMediaController(controller);
+    if (m_textTrackSelButton)
+        m_textTrackSelButton->setMediaController(controller);
+#endif
 }
 
 void MediaControlsApple::defaultEventHandler(Event* event)
@@ -379,6 +421,118 @@ void MediaControlsApple::reset()
     }
 
     makeOpaque();
+    updateTrickModeButtons();
+}
+
+void MediaControlsApple::updateTrackControls()
+{
+    updateVideoTrackDisplay();
+    updateAudioTrackDisplay();
+    updateTextTrackDisplay();
+}
+
+void MediaControlsApple::createVideoTrackDisplay()
+{
+    if (m_videoTrackSelButton)
+        return;
+
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(&document(), this);
+    videoDisplayButton->setMediaController(m_mediaController);
+    m_videoTrackSelButton = videoDisplayButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    insertBefore(videoDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
+}
+
+void MediaControlsApple::createTextTrackSelDisplay()
+{
+    if (m_textTrackSelButton)
+        return;
+
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(&document(), this);
+    textTrackSelButton->setMediaController(m_mediaController);
+    m_textTrackSelButton = textTrackSelButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    insertBefore(textTrackSelButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
+}
+
+void MediaControlsApple::updateTextTrackSelDisplay()
+{
+    if (!m_textTrackSelButton)
+        createTextTrackSelDisplay();
+
+    TextTrackList* tracks = m_textTrackSelButton->mediaController()->textTracks();
+    if (tracks->length()) {
+        m_textTrackSelButton->show();
+        m_textTrackSelButton->display();
+    } else
+        m_textTrackSelButton->hide();
+}
+
+void MediaControlsApple::updateVideoTrackDisplay()
+{
+    if (!m_videoTrackSelButton)
+        createVideoTrackDisplay();
+
+    VideoTrackList* tracks = m_videoTrackSelButton->mediaController()->videoTracks();
+    if (tracks->length() > 1) {
+        m_videoTrackSelButton->show();
+        m_videoTrackSelButton->display();
+    } else
+        m_videoTrackSelButton->hide();
+}
+
+void MediaControlsApple::setVideoTrackSelected(int index)
+{
+    if (index < 0)
+        return;
+
+    m_videoTrackSelButton->setSelectedIndex(index);
+    m_videoTrackSelButton->display();
+}
+
+void MediaControlsApple::updateAudioTrackDisplay()
+{
+    if (!m_audioTrackSelButton)
+        createAudioTrackDisplay();
+
+    AudioTrackList* tracks = m_audioTrackSelButton->mediaController()->audioTracks();
+    if (tracks->length() > 1) {
+        m_audioTrackSelButton->show();
+        m_audioTrackSelButton->display();
+    } else
+        m_audioTrackSelButton->hide();
+}
+
+void MediaControlsApple::setAudioTrackSelected(int index)
+{
+    if (index < 0)
+        return;
+
+    m_audioTrackSelButton->setSelectedIndex(index);
+}
+
+void MediaControlsApple::createAudioTrackDisplay()
+{
+    if (m_audioTrackSelButton)
+        return;
+
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(&document(), this);
+    audioDisplayButton->setMediaController(m_mediaController);
+    m_audioTrackSelButton = audioDisplayButton.get();
+
+    // Insert it before the first controller element so it always displays behind the controls.
+    insertBefore(audioDisplayButton.release(), m_panel, IGNORE_EXCEPTION, AttachLazily);
+}
+
+void MediaControlsApple::setTextTrackSelected(int index)
+{
+    if (index < 0)
+        return;
+
+    m_textTrackSelButton->setSelectedIndex(index);
+    m_textTrackSelButton->display();
 }
 
 void MediaControlsApple::updateCurrentTimeDisplay()
@@ -615,6 +769,34 @@ bool MediaControlsAppleEventListener::operator==(const EventListener& listener)
     if (const MediaControlsAppleEventListener* mediaControlsAppleEventListener = MediaControlsAppleEventListener::cast(&listener))
         return m_mediaControls == mediaControlsAppleEventListener->m_mediaControls;
     return false;
+}
+
+void MediaControlsApple::updateTrickModeButtons()
+{
+    Vector<double> rates;
+    if (m_mediaController)
+        rates = m_mediaController->getSupportedPlayRates();
+
+    if (rates.size()) {
+        if (m_fastForwardButton && rates[rates.size() - 1] > 1.0)
+            m_fastForwardButton->show();
+        else if (m_fastForwardButton)
+            m_fastForwardButton->hide();
+
+        if (m_rewindButton) {
+            if (rates[0] < 0.0)
+                m_rewindButton->show();
+            else
+                m_rewindButton->hide();
+        }
+        return;
+    }
+
+    if (m_fastForwardButton)
+        m_fastForwardButton->hide();
+
+    if (m_rewindButton)
+        m_rewindButton->hide();
 }
 
 }

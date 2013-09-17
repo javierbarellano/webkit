@@ -108,6 +108,8 @@ public:
 protected:
     HTMLSelectElement(const QualifiedName&, Document*, HTMLFormElement*);
 
+    virtual void defaultEventHandler(Event*);
+
 private:
     virtual const AtomicString& formControlType() const;
     
@@ -133,8 +135,6 @@ private:
     virtual bool appendFormData(FormDataList&, bool);
 
     virtual void reset();
-
-    virtual void defaultEventHandler(Event*);
 
     void dispatchChangeEventForMenuList();
     

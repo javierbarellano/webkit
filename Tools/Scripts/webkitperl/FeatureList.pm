@@ -74,6 +74,8 @@ my (
     $detailsElementSupport,
     $deviceOrientationSupport,
     $directoryUploadSupport,
+    $discoverySupport,
+    $discoveryPermissionsSupport,
     $dom4EventsConstructor,
     $downloadAttributeSupport,
     $fileSystemSupport,
@@ -250,6 +252,12 @@ my @features = (
 
     { option => "directory-upload", desc => "Toggle Directory Upload support",
       define => "ENABLE_DIRECTORY_UPLOAD", default => 0, value => \$directoryUploadSupport },
+
+    { option => "discovery", desc => "Toggle Discovery support",
+      define => "ENABLE_DISCOVERY", default => 1, value => \$discoverySupport },
+
+    { option => "discovery-permissions", desc => "Toggle Discovery Permissions support",
+      define => "ENABLE_DISCOVERY_PERMISSIONS", default => 1, value => \$discoveryPermissionsSupport },
 
     { option => "dom4-events-constructor", desc => "Expose DOM4 Events constructors",
       define => "ENABLE_DOM4_EVENTS_CONSTRUCTOR", default => (isAppleWebKit() || isGtk() || isEfl()), value => \$dom4EventsConstructor },

@@ -27,6 +27,12 @@
 #include "config.h"
 #include "CrossOriginAccessControl.h"
 
+#if ENABLE(DISCOVERY)
+#include "Modules/discovery/IDiscoveryAPI.h"
+#include "Modules/discovery/UPnPSearch.h"
+#include "Modules/discovery/ZeroConf.h"
+#endif
+
 #include "HTTPParsers.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
@@ -79,7 +85,7 @@ bool isSimpleCrossOriginAccessRequest(const String& method, const HTTPHeaderMap&
 static PassOwnPtr<HTTPHeaderSet> createAllowedCrossOriginResponseHeadersSet()
 {
     OwnPtr<HTTPHeaderSet> headerSet = adoptPtr(new HashSet<String, CaseFoldingHash>);
-    
+
     headerSet->add("cache-control");
     headerSet->add("content-language");
     headerSet->add("content-type");
@@ -104,10 +110,10 @@ void updateRequestForAccessControl(ResourceRequest& request, SecurityOrigin* sec
     request.setHTTPOrigin(securityOrigin->toString());
 }
 
-ResourceRequest createAccessControlPreflightRequest(const ResourceRequest& request, SecurityOrigin* securityOrigin)
+ResourceRequest createAccessControlPreflightRequest(const ResourceRequest& request, SecurityOrigin* securityOrigin, StoredCredentials allowCredentials)
 {
     ResourceRequest preflightRequest(request.url());
-    updateRequestForAccessControl(preflightRequest, securityOrigin, DoNotAllowStoredCredentials);
+    updateRequestForAccessControl(preflightRequest, securityOrigin, allowCredentials);
     preflightRequest.setHTTPMethod("OPTIONS");
     preflightRequest.setHTTPHeaderField("Access-Control-Request-Method", request.httpMethod());
     preflightRequest.setPriority(request.priority());
@@ -150,12 +156,31 @@ bool passesAccessControlCheck(const ResourceResponse& response, StoredCredential
     }
 
     // FIXME: Access-Control-Allow-Origin can contain a list of origins.
-    if (accessControlOriginString != securityOrigin->toString()) {
+    RefPtr<SecurityOrigin> accessControlOrigin = SecurityOrigin::createFromString(accessControlOriginString);
+    if (!accessControlOrigin->isSameSchemeHostPort(securityOrigin)) {
+
         if (accessControlOriginString == "*")
             errorDescription = "Cannot use wildcard in Access-Control-Allow-Origin when credentials flag is true.";
         else
             errorDescription =  "Origin " + securityOrigin->toString() + " is not allowed by Access-Control-Allow-Origin.";
-        return false;
+
+#if ENABLE(DISCOVERY)
+        char host[1000];
+        for (int i = 0; i < (int)response.url().host().length(); i++)
+            host[i] = (char)response.url().host().characterStartingAt(i);
+
+        host[response.url().host().length()] = 0;
+
+        UPnPSearch* upnp = UPnPSearch::getInstance();
+        bool ok = upnp->hostPortOk(host, (int)response.url().port());
+
+        if (!ok) {
+            ZeroConf* zc = ZeroConf::getInstance();
+            bool ok = zc->hostPortOk(host, (int)response.url().port());
+            if (!ok)
+                return false;
+        }
+#endif
     }
 
     if (includeCredentials == AllowStoredCredentials) {

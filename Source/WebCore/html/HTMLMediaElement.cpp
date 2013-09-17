@@ -3015,12 +3015,37 @@ void HTMLMediaElement::closeCaptionTracksChanged()
 #endif
 }
 
+void HTMLMediaElement::textTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled() || !hasMediaControls())
+        return;
+
+    mediaControls()->updateTextTrackSelDisplay();
+}
+
+void HTMLMediaElement::audioTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled() || !hasMediaControls())
+        return;
+
+    mediaControls()->updateAudioTrackDisplay();
+}
+
+void HTMLMediaElement::videoTracksChanged()
+{
+    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled() || !hasMediaControls())
+        return;
+
+    mediaControls()->updateVideoTrackDisplay();
+}
+
 void HTMLMediaElement::addAudioTrack(PassRefPtr<AudioTrack> track)
 {
     if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
         return;
 
     audioTracks()->append(track);
+    audioTracksChanged();
 }
 
 void HTMLMediaElement::addTextTrack(PassRefPtr<TextTrack> track)
@@ -3029,7 +3054,7 @@ void HTMLMediaElement::addTextTrack(PassRefPtr<TextTrack> track)
         return;
 
     textTracks()->append(track);
-
+    textTracksChanged();
     closeCaptionTracksChanged();
 }
 
@@ -3039,6 +3064,7 @@ void HTMLMediaElement::addVideoTrack(PassRefPtr<VideoTrack> track)
         return;
 
     videoTracks()->append(track);
+    videoTracksChanged();
 }
 
 void HTMLMediaElement::removeAudioTrack(AudioTrack* track)
@@ -3047,6 +3073,7 @@ void HTMLMediaElement::removeAudioTrack(AudioTrack* track)
         return;
 
     m_audioTracks->remove(track);
+    audioTracksChanged();
 }
 
 void HTMLMediaElement::removeTextTrack(TextTrack* track)
@@ -3061,6 +3088,7 @@ void HTMLMediaElement::removeTextTrack(TextTrack* track)
     track->clearClient();
     m_textTracks->remove(track);
 
+    textTracksChanged();
     closeCaptionTracksChanged();
 }
 
@@ -3070,6 +3098,7 @@ void HTMLMediaElement::removeVideoTrack(VideoTrack* track)
         return;
 
     m_videoTracks->remove(track);
+    videoTracksChanged();
 }
 
 void HTMLMediaElement::removeAllInbandTracks()
@@ -3871,6 +3900,11 @@ void HTMLMediaElement::mediaPlayerCharacteristicChanged(MediaPlayer*)
     if (renderer())
         renderer()->updateFromElement();
     endProcessingMediaPlayerCallback();
+}
+
+void HTMLMediaElement::mediaPlayerPlaybackRatesSupportedChanged(MediaPlayer* mPlayer)
+{
+    mediaControls()->updateTrickModeButtons();
 }
 
 PassRefPtr<TimeRanges> HTMLMediaElement::buffered() const

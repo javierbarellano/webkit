@@ -3133,6 +3133,36 @@ enable?(DATA_TRANSFER_ITEMS) {
         platform/qt/DataTransferItemListQt.cpp
 }
 
+enable?(DISCOVERY) {
+    HEADERS += \
+        Modules/discovery/DiscoveryBase.h \
+        Modules/discovery/DiscoveryWrapper.h \
+        Modules/discovery/NavDsc.h \
+        Modules/discovery/NavDscCB.h \
+        Modules/discovery/NavEvent.h \
+        Modules/discovery/NavEventCB.h \
+        Modules/discovery/NavigatorNetworkService.h \
+        Modules/discovery/NavigatorNetworkServiceError.h \
+        Modules/discovery/NavigatorNetworkServiceErrorCallback.h \
+        Modules/discovery/NavigatorNetworkServiceSuccessCallback.h \
+        Modules/discovery/NetworkService.h \
+        Modules/discovery/NetworkServices.h \
+        Modules/discovery/UPnPDevice.h \
+        Modules/discovery/UPnPSearch.h \
+        Modules/discovery/ZCDevice.h \
+        Modules/discovery/ZeroConf.h
+    SOURCES += \
+        Modules/discovery/DiscoveryBase.cpp \
+        Modules/discovery/DiscoveryWrapper.cpp \
+        Modules/discovery/NavDsc.cpp \
+        Modules/discovery/NavEvent.cpp \
+        Modules/discovery/NavigatorNetworkService.cpp \
+        Modules/discovery/NetworkService.cpp \
+        Modules/discovery/NetworkServices.cpp \
+        Modules/discovery/UPnPSearch.cpp \
+        Modules/discovery/ZeroConf.cpp
+}
+
 enable?(FILE_SYSTEM) {
     HEADERS += \
         Modules/filesystem/AsyncFileWriter.h \

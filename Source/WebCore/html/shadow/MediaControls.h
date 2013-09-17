@@ -90,6 +90,8 @@ class MediaControls : public HTMLDivElement {
     virtual void toggleClosedCaptionTrackList() { }
     virtual void closedCaptionTracksChanged();
 
+    virtual void updateTrickModeButtons() { }
+
     virtual void enteredFullscreen();
     virtual void exitedFullscreen();
 
@@ -100,11 +102,29 @@ class MediaControls : public HTMLDivElement {
     virtual void stopHideFullscreenControlsTimer();
 
 #if ENABLE(VIDEO_TRACK)
+    virtual void addtrackControls() { }
+
     virtual void createTextTrackDisplay();
     virtual void showTextTrackDisplay();
     virtual void hideTextTrackDisplay();
     virtual void updateTextTrackDisplay();
+
+    virtual void showTextTrackSelDisplay() { }
+    virtual void updateTextTrackSelDisplay() { }
     virtual void textTrackPreferencesChanged();
+    virtual void setTextTrackSelected(int index) { }
+
+    virtual void createVideoTrackDisplay() { }
+    virtual void showVideoTrackDisplay() { }
+    virtual void hideVideoTrackDisplay() { }
+    virtual void updateVideoTrackDisplay() { }
+    virtual void setVideoTrackSelected(int index) { }
+
+    virtual void createAudioTrackDisplay() { }
+    virtual void showAudioTrackDisplay() { }
+    virtual void hideAudioTrackDisplay() { }
+    virtual void updateAudioTrackDisplay() { }
+    virtual void setAudioTrackSelected(int index) { }
 #endif
 
 protected:

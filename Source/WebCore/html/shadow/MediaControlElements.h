@@ -236,6 +236,21 @@ private:
 
 // ----------------------------
 
+class MediaControlFastForwardButtonElement : public MediaControlInputElement {
+public:
+    static PassRefPtr<MediaControlFastForwardButtonElement> create(Document*);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+private:
+    explicit MediaControlFastForwardButtonElement(Document*);
+
+    virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual void defaultEventHandler(Event*) OVERRIDE;
+};
+
+// ----------------------------
+
 class MediaControlRewindButtonElement : public MediaControlInputElement {
 public:
     static PassRefPtr<MediaControlRewindButtonElement> create(Document*);
@@ -468,8 +483,59 @@ private:
     bool m_fontSizeIsImportant;
 };
 
-#endif
+// ----------------------------
 
+class MediaControlVideoTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlVideoTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlVideoTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
+};
+
+// ----------------------------
+
+class MediaControlAudioTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlAudioTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlAudioTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
+};
+
+// ----------------------------
+
+class MediaControlTextTrackSelButtonElement : public MediaSelectElement {
+public:
+    static PassRefPtr<MediaControlTextTrackSelButtonElement> create(Document*, MediaControls* controls);
+
+    virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
+
+    void display();
+
+private:
+    MediaControlTextTrackSelButtonElement(Document* doc, MediaControls* controls);
+
+    virtual const AtomicString& shadowPseudoId() const;
+    virtual void defaultEventHandler(Event*);
+};
+
+#endif
+// ----------------------------
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)

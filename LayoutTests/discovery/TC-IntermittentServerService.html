@@ -1,0 +1,65 @@
+<html>
+<head>
+<script src="../fast/js/resources/js-test-pre.js"></script>
+</head>
+<body>
+
+<script>
+
+var devdropped;
+
+description('Tests Acceptable UA behavior when Intermittent Server Service is dicovered.');
+
+function getNetworkServices(type, okCallback, errCallback) {
+	devdropped = false;
+	navigator.getNetworkServices(type, okCallback, errCallback);
+}
+
+var srvs;
+var serviceType = "upnp:urn:schemas-upnp-org:service:RemoteUIServer:1";
+
+function okAddDev(services) {
+	testPassed("navigator.getNetworkServices() first call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable==0", "true");
+	srvs.onserviceavailable = addDevCB;
+	srvs.onserviceunavailable = dropDevCB
+}
+
+function okCallback2(services) {
+	testPassed("navigator.getNetworkServices() second call to ok callback.");
+	srvs = services;
+	shouldBe("srvs.servicesAvailable>0", "true");
+	srvs.onserviceavailable = addDevCB;
+	srvs.onserviceunavailable = dropDevCB
+}
+
+function errShouldNotbeCalled(err) {
+	testFailed('GetNetworkServices() should have called ok Callback.');
+}
+
+function dropDevCB() {
+	testPassed("Service dropped out.");
+	devdropped = true;
+}
+
+function addDevCB() {
+	if (devdropped) {
+		testPassed("Service came back.");
+		srvs.onserviceavailable = null;
+		srvs.onserviceunavailable = null;
+		finishJSTest();
+	}
+	else {
+		testPassed("Found device with service: " + serviceType);
+		navigator.getNetworkServices(serviceType, okCallback2, errShouldNotbeCalled);
+	}
+}
+
+getNetworkServices(serviceType, okAddDev, errShouldNotbeCalled);
+window.jsTestIsAsync = true;
+</script>
+
+<script src="../fast/js/resources/js-test-post.js"></script>
+</body>
+</html>
