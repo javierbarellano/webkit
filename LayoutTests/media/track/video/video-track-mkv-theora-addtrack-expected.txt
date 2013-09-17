@@ -1,0 +1,11 @@
+Testing video track "addtrack" events.
+
+EVENT(addtrack)
+EXPECTED (event.track == 'video.videoTracks[0]') OK
+
+EVENT(addtrack)
+EXPECTED (event.track == 'video.videoTracks[1]') OK
+
+EVENT(canplaythrough)
+END OF TEST
+

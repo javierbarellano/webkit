@@ -25,12 +25,17 @@
 
 #include "config.h"
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "VideoTrackPrivateGStreamer.h"
 
+#include "GStreamerUtilities.h"
+#include "Logging.h"
 #include <glib-object.h>
-#include <gst/gsttaglist.h>
+#include <gst/gst.h>
+
+GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
+#define GST_CAT_DEFAULT webkit_media_player_debug
 
 namespace WebCore {
 
@@ -60,16 +65,19 @@ VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> playb
     : m_index(index)
     , m_pad(pad)
     , m_playbin(playbin)
-    , m_isDisconnected(false)
     , m_activeTimerHandler(0)
     , m_tagTimerHandler(0)
 {
+    ASSERT(m_pad);
     g_signal_connect(m_playbin.get(), "notify::current-video", G_CALLBACK(videoTrackPrivateActiveChangedCallback), this);
     g_signal_connect(m_pad.get(), "notify::tags", G_CALLBACK(videoTrackPrivateTagsChangedCallback), this);
 
     gboolean active;
     g_object_get(m_pad.get(), "active", &active, NULL);
     VideoTrackPrivate::setSelected(active);
+
+    // Check tags in case they were sent before we created the track
+    tagsChanged();
 }
 
 VideoTrackPrivateGStreamer::~VideoTrackPrivateGStreamer()
@@ -79,10 +87,8 @@ VideoTrackPrivateGStreamer::~VideoTrackPrivateGStreamer()
 
 void VideoTrackPrivateGStreamer::disconnect()
 {
-    if (m_isDisconnected)
+    if (!m_pad)
         return;
-
-    m_isDisconnected = true;
 
     g_signal_handlers_disconnect_by_func(m_pad.get(),
         reinterpret_cast<gpointer>(videoTrackPrivateActiveChangedCallback), this);
@@ -117,47 +123,53 @@ void VideoTrackPrivateGStreamer::tagsChanged()
 
 void VideoTrackPrivateGStreamer::notifyTrackOfActiveChanged()
 {
-    if (m_isDisconnected)
+    if (!m_pad)
         return;
 
     gboolean active = false;
     if (m_pad)
         g_object_get(m_pad.get(), "active", &active, NULL);
 
-    if (active == selected())
-        return;
-
     VideoTrackPrivate::setSelected(active);
-    client()->videoTrackPrivateSelectedChanged(this);
 }
 
 void VideoTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 {
-    if (m_isDisconnected)
+    m_tagTimerHandler = 0;
+    if (!m_pad)
         return;
 
-    GstTagList* tags = 0;
-    g_object_get(m_pad.get(), "tags", &tags, NULL);
+    String label;
+    String language;
+    GRefPtr<GstEvent> event;
+    for (guint i = 0; (event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, i))); ++i) {
+        GstTagList* tags = 0;
+        gst_event_parse_tag(event.get(), &tags);
+        ASSERT(tags);
 
-    if (!tags)
-        return;
+        gchar* tagValue;
+        if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Video track %d got title %s.", m_index, tagValue);
+            label = tagValue;
+            g_free(tagValue);
+        }
 
-    gchar* tagValue;
-    if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
-        m_label = tagValue;
-        g_free(tagValue);
-        client()->videoTrackPrivateLabelChanged(this);
+        if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Video track %d got language %s.", m_index, tagValue);
+            language = tagValue;
+            g_free(tagValue);
+        }
     }
-    if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
-        m_language = tagValue;
-        g_free(tagValue);
-        client()->videoTrackPrivateLanguageChanged(this);
+
+    if (m_label != label) {
+        m_label = label;
+        client()->labelChanged(this, m_label);
     }
-#ifdef GST_API_VERSION_1
-    gst_tag_list_unref(tags);
-#else
-    gst_tag_list_free(tags);
-#endif
+
+    if (m_language != language) {
+        m_language = language;
+        client()->languageChanged(this, m_language);
+    }
 }
 
 void VideoTrackPrivateGStreamer::setSelected(bool selected)
@@ -172,4 +184,4 @@ void VideoTrackPrivateGStreamer::setSelected(bool selected)
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)

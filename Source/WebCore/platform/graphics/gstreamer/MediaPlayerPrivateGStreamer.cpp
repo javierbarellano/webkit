@@ -290,11 +290,11 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
 MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
 {
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
-    for (size_t i = 0; i < m_textTracks.size(); ++i)
-        m_textTracks[i]->disconnect();
-
     for (size_t i = 0; i < m_audioTracks.size(); ++i)
         m_audioTracks[i]->disconnect();
+
+    for (size_t i = 0; i < m_textTracks.size(); ++i)
+        m_textTracks[i]->disconnect();
 
     for (size_t i = 0; i < m_videoTracks.size(); ++i)
         m_videoTracks[i]->disconnect();
@@ -335,17 +335,17 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     GRefPtr<GstPad> videoSinkPad = adoptGRef(gst_element_get_static_pad(m_webkitVideoSink.get(), "sink"));
     g_signal_handlers_disconnect_by_func(videoSinkPad.get(), reinterpret_cast<gpointer>(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
-    if (m_videoTimerHandler)
-        g_source_remove(m_videoTimerHandler);
-
-    if (m_videoCapsTimerHandler)
-        g_source_remove(m_videoCapsTimerHandler);
-
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
 
     if (m_textTimerHandler)
         g_source_remove(m_textTimerHandler);
+
+    if (m_videoTimerHandler)
+        g_source_remove(m_videoTimerHandler);
+
+    if (m_videoCapsTimerHandler)
+        g_source_remove(m_videoCapsTimerHandler);
 }
 
 void MediaPlayerPrivateGStreamer::load(const String& url)
@@ -697,7 +697,7 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 
     m_hasVideo = numTracks > 0;
 
-#if ENABLE(VIDEO_TRACK) && GST_API_VERSION_1
+#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     for (gint i = 0; i < numTracks; ++i) {
         GstPad* pad;
         g_signal_emit_by_name(m_playBin.get(), "get-video-pad", i, &pad, NULL);
@@ -776,22 +776,10 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
         RefPtr<AudioTrackPrivateGStreamer> track = m_audioTracks.last();
         track->disconnect();
         m_audioTracks.removeLast();
-        if (track == m_defaultAudioTrack)
-            m_defaultAudioTrack = 0;
         m_player->removeAudioTrack(track.release());
     }
-
-    // Enable the first track automatically
-    if (!m_audioTracks.isEmpty()) {
-        RefPtr<AudioTrackPrivateGStreamer> firstTrack = m_audioTracks[0];
-        if (firstTrack != m_defaultAudioTrack) {
-            if (m_defaultAudioTrack)
-                m_defaultAudioTrack->setEnabled(false);
-            firstTrack->setEnabled(true);
-            m_defaultAudioTrack = firstTrack.release();
-        }
-    }
 #endif
+
     m_player->mediaPlayerClient()->mediaPlayerEngineUpdated(m_player);
 }
 
@@ -1308,7 +1296,7 @@ void MediaPlayerPrivateGStreamer::cancelLoad()
         return;
 
     if (m_playBin)
-        changePipelineState(GST_STATE_NULL);
+        changePipelineState(GST_STATE_READY);
 }
 
 void MediaPlayerPrivateGStreamer::asyncStateChangeDone()
@@ -1622,7 +1610,7 @@ void MediaPlayerPrivateGStreamer::didEnd()
 
     if (!m_player->mediaPlayerClient()->mediaPlayerIsLooping()) {
         m_paused = true;
-        changePipelineState(GST_STATE_NULL);
+        changePipelineState(GST_STATE_READY);
         m_downloadFinished = false;
     }
 }

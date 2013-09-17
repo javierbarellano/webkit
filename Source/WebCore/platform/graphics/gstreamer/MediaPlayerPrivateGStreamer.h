@@ -196,7 +196,6 @@ private:
     Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
     Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
     Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
-    RefPtr<AudioTrackPrivateGStreamer> m_defaultAudioTrack;
 #endif
 };
 }

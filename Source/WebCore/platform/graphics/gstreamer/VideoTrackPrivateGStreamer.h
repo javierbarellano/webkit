@@ -26,14 +26,12 @@
 #ifndef VideoTrackPrivateGStreamer_h
 #define VideoTrackPrivateGStreamer_h
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "GRefPtrGStreamer.h"
 #include "VideoTrackPrivate.h"
 
 namespace WebCore {
-
-class MediaPlayerPrivateGStreamer;
 
 class VideoTrackPrivateGStreamer : public VideoTrackPrivate {
 public:
@@ -69,13 +67,12 @@ private:
     GRefPtr<GstElement> m_playbin;
     String m_label;
     String m_language;
-    bool m_isDisconnected;
     guint m_activeTimerHandler;
     guint m_tagTimerHandler;
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(GSTREAMER)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #endif // VideoTrackPrivateGStreamer_h

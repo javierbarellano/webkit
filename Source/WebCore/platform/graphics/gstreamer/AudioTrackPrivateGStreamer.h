@@ -26,14 +26,12 @@
 #ifndef AudioTrackPrivateGStreamer_h
 #define AudioTrackPrivateGStreamer_h
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "AudioTrackPrivate.h"
 #include "GRefPtrGStreamer.h"
 
 namespace WebCore {
-
-class MediaPlayerPrivateGStreamer;
 
 class AudioTrackPrivateGStreamer : public AudioTrackPrivate {
 public:
@@ -56,10 +54,12 @@ public:
     virtual int audioTrackIndex() const OVERRIDE { return m_index; }
 
     void activeChanged();
-    void tagsChanged();
-
     void notifyTrackOfActiveChanged();
+
+#ifdef GST_API_VERSION_1
+    void tagsChanged();
     void notifyTrackOfTagsChanged();
+#endif
 
 private:
     AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
@@ -69,13 +69,15 @@ private:
     GRefPtr<GstElement> m_playbin;
     String m_label;
     String m_language;
-    bool m_isDisconnected;
-    guint m_muteTimerHandler;
+    guint m_activeTimerHandler;
+#ifdef GST_API_VERSION_1
     guint m_tagTimerHandler;
+    gulong m_eventProbeId;
+#endif
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(GSTREAMER)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #endif // AudioTrackPrivateGStreamer_h

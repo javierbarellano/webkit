@@ -25,12 +25,17 @@
 
 #include "config.h"
 
-#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "AudioTrackPrivateGStreamer.h"
 
+#include "GStreamerUtilities.h"
+#include "Logging.h"
 #include <glib-object.h>
-#include <gst/gsttaglist.h>
+#include <gst/gst.h>
+
+GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
+#define GST_CAT_DEFAULT webkit_media_player_debug
 
 namespace WebCore {
 
@@ -39,15 +44,23 @@ static void audioTrackPrivateActiveChangedCallback(GObject*, GParamSpec*, AudioT
     track->activeChanged();
 }
 
-static void audioTrackPrivateTagsChangedCallback(GObject*, GParamSpec*, AudioTrackPrivateGStreamer* track)
-{
-    track->tagsChanged();
-}
-
 static gboolean audioTrackPrivateActiveChangeTimeoutCallback(AudioTrackPrivateGStreamer* track)
 {
     track->notifyTrackOfActiveChanged();
     return FALSE;
+}
+
+static GstPadProbeReturn audioTrackPrivateEventProbeCallback(GstPad*, GstPadProbeInfo* info, AudioTrackPrivateGStreamer* track)
+{
+    GstEvent* event = GST_PAD_PROBE_INFO_EVENT(info);
+    switch (GST_EVENT_TYPE(event)) {
+    case GST_EVENT_TAG:
+        track->tagsChanged();
+        break;
+    default:
+        break;
+    }
+    return GST_PAD_PROBE_OK;
 }
 
 static gboolean audioTrackPrivateTagsChangeTimeoutCallback(AudioTrackPrivateGStreamer* track)
@@ -60,16 +73,20 @@ AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> playb
     : m_index(index)
     , m_pad(pad)
     , m_playbin(playbin)
-    , m_isDisconnected(false)
-    , m_muteTimerHandler(0)
-    , m_tagTimerHandler(0)
+    , m_activeTimerHandler(0)
 {
-    g_signal_connect(m_pad.get(), "notify::active", G_CALLBACK(audioTrackPrivateActiveChangedCallback), this);
-    g_signal_connect(m_pad.get(), "notify::tags", G_CALLBACK(audioTrackPrivateTagsChangedCallback), this);
+    ASSERT(m_pad);
+    g_signal_connect(m_playbin.get(), "notify::current-audio", G_CALLBACK(audioTrackPrivateActiveChangedCallback), this);
+
+    m_tagTimerHandler = 0;
+    m_eventProbeId = gst_pad_add_probe(pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, reinterpret_cast<GstPadProbeCallback>(audioTrackPrivateEventProbeCallback), this, 0);
 
     gboolean active;
     g_object_get(m_pad.get(), "active", &active, NULL);
     AudioTrackPrivate::setEnabled(active);
+
+    // Check tags in case we got them before we created the track
+    tagsChanged();
 }
 
 AudioTrackPrivateGStreamer::~AudioTrackPrivateGStreamer()
@@ -79,18 +96,16 @@ AudioTrackPrivateGStreamer::~AudioTrackPrivateGStreamer()
 
 void AudioTrackPrivateGStreamer::disconnect()
 {
-    if (m_isDisconnected)
+    if (!m_pad)
         return;
-
-    m_isDisconnected = true;
 
     g_signal_handlers_disconnect_by_func(m_pad.get(),
         reinterpret_cast<gpointer>(audioTrackPrivateActiveChangedCallback), this);
-    g_signal_handlers_disconnect_by_func(m_pad.get(),
-        reinterpret_cast<gpointer>(audioTrackPrivateTagsChangedCallback), this);
 
-    if (m_muteTimerHandler)
-        g_source_remove(m_muteTimerHandler);
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
+
+    gst_pad_remove_probe(m_pad.get(), m_eventProbeId);
 
     if (m_tagTimerHandler)
         g_source_remove(m_tagTimerHandler);
@@ -101,10 +116,22 @@ void AudioTrackPrivateGStreamer::disconnect()
 
 void AudioTrackPrivateGStreamer::activeChanged()
 {
-    if (m_muteTimerHandler)
-        g_source_remove(m_muteTimerHandler);
-    m_muteTimerHandler = g_timeout_add(0,
+    if (m_activeTimerHandler)
+        g_source_remove(m_activeTimerHandler);
+    m_activeTimerHandler = g_timeout_add(0,
         reinterpret_cast<GSourceFunc>(audioTrackPrivateActiveChangeTimeoutCallback), this);
+}
+
+void AudioTrackPrivateGStreamer::notifyTrackOfActiveChanged()
+{
+    if (!m_pad)
+        return;
+
+    gboolean active = false;
+    if (m_pad)
+        g_object_get(m_pad.get(), "active", &active, NULL);
+
+    AudioTrackPrivate::setEnabled(active);
 }
 
 void AudioTrackPrivateGStreamer::tagsChanged()
@@ -115,48 +142,43 @@ void AudioTrackPrivateGStreamer::tagsChanged()
         reinterpret_cast<GSourceFunc>(audioTrackPrivateTagsChangeTimeoutCallback), this);
 }
 
-void AudioTrackPrivateGStreamer::notifyTrackOfActiveChanged()
-{
-    if (m_isDisconnected)
-        return;
-
-    gboolean active;
-    g_object_get(m_pad.get(), "active", &active, NULL);
-
-    if (active == enabled())
-        return;
-
-    AudioTrackPrivate::setEnabled(active);
-    client()->audioTrackPrivateEnabledChanged(this);
-}
-
 void AudioTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 {
-    if (m_isDisconnected)
+    m_tagTimerHandler = 0;
+    if (!m_pad)
         return;
 
-    GstTagList* tags = 0;
-    g_object_get(m_pad.get(), "tags", &tags, NULL);
+    String label;
+    String language;
+    GRefPtr<GstEvent> event;
+    for (guint i = 0; (event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, i))); ++i) {
+        GstTagList* tags = 0;
+        gst_event_parse_tag(event.get(), &tags);
+        ASSERT(tags);
 
-    if (!tags)
-        return;
+        gchar* tagValue;
+        if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Audio track %d got title %s.", m_index, tagValue);
+            label = tagValue;
+            g_free(tagValue);
+        }
 
-    gchar* tagValue;
-    if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
-        m_label = tagValue;
-        g_free(tagValue);
-        client()->audioTrackPrivateLabelChanged(this);
+        if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Audio track %d got language %s.", m_index, tagValue);
+            language = tagValue;
+            g_free(tagValue);
+        }
     }
-    if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
-        m_language = tagValue;
-        g_free(tagValue);
-        client()->audioTrackPrivateLanguageChanged(this);
+
+    if (m_label != label) {
+        m_label = label;
+        client()->labelChanged(this, m_label);
     }
-#ifdef GST_API_VERSION_1
-    gst_tag_list_unref(tags);
-#else
-    gst_tag_list_free(tags);
-#endif
+
+    if (m_language != language) {
+        m_language = language;
+        client()->languageChanged(this, m_language);
+    }
 }
 
 void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
@@ -165,11 +187,10 @@ void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
         return;
     AudioTrackPrivate::setEnabled(enabled);
 
-    if (m_pad)
+    if (enabled && m_playbin)
         g_object_set(m_playbin.get(), "current-audio", m_index, NULL);
-    client()->audioTrackPrivateEnabledChanged(this);
 }
 
 } // namespace WebCore
 
-#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
+#endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)

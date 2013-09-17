@@ -157,28 +157,27 @@ size_t VideoTrack::inbandTrackIndex()
     return m_private->videoTrackIndex();
 }
 
-void VideoTrack::videoTrackPrivateSelectedChanged(VideoTrackPrivate* trackPrivate)
+void VideoTrack::selectedChanged(VideoTrackPrivate* trackPrivate, bool selected)
 {
-    ASSERT(trackPrivate == m_private);
-    setSelected(trackPrivate->selected());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setSelected(selected);
 }
 
-void VideoTrack::videoTrackPrivateLabelChanged(VideoTrackPrivate* trackPrivate)
+void VideoTrack::labelChanged(VideoTrackPrivate* trackPrivate, const String& label)
 {
-    ASSERT(trackPrivate == m_private);
-    setLabel(trackPrivate->label());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLabel(label);
 }
 
-void VideoTrack::videoTrackPrivateLanguageChanged(VideoTrackPrivate* trackPrivate)
+void VideoTrack::languageChanged(VideoTrackPrivate* trackPrivate, const String& language)
 {
-    ASSERT(trackPrivate == m_private);
-    setLanguage(trackPrivate->language());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLanguage(language);
 }
 
 void VideoTrack::willRemoveVideoTrackPrivate(VideoTrackPrivate* trackPrivate)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     mediaElement()->removeVideoTrack(this);
 }
 

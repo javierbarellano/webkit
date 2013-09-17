@@ -157,28 +157,27 @@ size_t AudioTrack::inbandTrackIndex()
     return m_private->audioTrackIndex();
 }
 
-void AudioTrack::audioTrackPrivateEnabledChanged(AudioTrackPrivate* trackPrivate)
+void AudioTrack::enabledChanged(AudioTrackPrivate* trackPrivate, bool enabled)
 {
-    ASSERT(trackPrivate == m_private);
-    setEnabled(trackPrivate->enabled());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setEnabled(enabled);
 }
 
-void AudioTrack::audioTrackPrivateLabelChanged(AudioTrackPrivate* trackPrivate)
+void AudioTrack::labelChanged(AudioTrackPrivate* trackPrivate, const String& label)
 {
-    ASSERT(trackPrivate == m_private);
-    setLabel(trackPrivate->label());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLabel(label);
 }
 
-void AudioTrack::audioTrackPrivateLanguageChanged(AudioTrackPrivate* trackPrivate)
+void AudioTrack::languageChanged(AudioTrackPrivate* trackPrivate, const String& language)
 {
-    ASSERT(trackPrivate == m_private);
-    setLanguage(trackPrivate->language());
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLanguage(language);
 }
 
 void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     mediaElement()->removeAudioTrack(this);
 }
 

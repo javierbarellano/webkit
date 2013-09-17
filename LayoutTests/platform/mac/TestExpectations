@@ -52,6 +52,9 @@ plugins/reloadplugins-and-pages.html
 # This test requires ogg codecs
 media/media-can-play-ogg.html
 
+webkit.org/b/52103 media/video-object-fit-change.html
+webkit.org/b/52103 media/video-object-fit.html
+
 # This test requires flac codec
 media/media-can-play-flac-audio.html
 
@@ -1306,3 +1309,6 @@ webkit.org/b/120922 compositing/overlap-blending/children-opacity-no-overlap.htm
 webkit.org/b/120923 animations/cross-fade-background-image.html [ ImageOnlyFailure ]
 
 webkit.org/b/121053 fast/history/go-back-to-iframe-with-plugin.html [ Crash Timeout Pass ]
+# Audio and video tracks aren't supported on mac
+media/track/audio
+media/track/video
