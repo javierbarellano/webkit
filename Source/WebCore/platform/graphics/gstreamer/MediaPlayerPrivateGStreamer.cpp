@@ -1842,6 +1842,8 @@ void MediaPlayerPrivateGStreamer::createAudioSink()
     GstElement* resample = gst_element_factory_make("audioresample", 0);
     GstElement* sink = gst_element_factory_make("autoaudiosink", 0);
 
+    g_object_set(sink, "async-handling", true, NULL);
+
     m_autoAudioSink = sink;
 
     g_signal_connect(sink, "child-added", G_CALLBACK(setAudioStreamPropertiesCallback), this);
