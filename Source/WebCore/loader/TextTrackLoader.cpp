@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -65,7 +66,7 @@ void TextTrackLoader::cueLoadTimerFired(Timer<TextTrackLoader>* timer)
     
     if (m_newCuesAvailable) {
         m_newCuesAvailable = false;
-        m_client->newCuesAvailable(this); 
+        m_client->newCuesAvailable(this);
     }
     
     if (m_state >= Finished)
@@ -139,6 +140,11 @@ void TextTrackLoader::notifyFinished(CachedResource* resource)
         if (m_state != Failed)
             m_state = resource->errorOccurred() ? Failed : Finished;
     }
+
+    // Tell the parser that no more data will be coming so it can finish and flush
+    // the last cue if necessary.
+    if (m_state == Finished && m_cueParser)
+        m_cueParser->finishParsing();
 
     if (!m_cueLoadTimer.isActive())
         m_cueLoadTimer.startOneShot(0);

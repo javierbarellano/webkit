@@ -29,7 +29,7 @@
                 cspan.title = "Speaker";
                 cspan.appendChild(document.createTextNode("Bear is Coming!!!!!"));
                 fragment.appendChild(cspan);
-                fragment.appendChild(document.createTextNode("\nText span with a class and an annotation."));
+                fragment.appendChild(document.createTextNode("Text span with a class and an annotation."));
  
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[0].getCueAsHTML()), true);
                 
@@ -63,21 +63,21 @@
                 
                 var fragment = document.createDocumentFragment();
                 fragment.appendChild(document.createTextNode("Bear is Coming!!!!!"));
-                fragment.appendChild(document.createTextNode("\nThis is two annotations for an empty tag."));
+                fragment.appendChild(document.createTextNode("This is two annotations for an empty tag."));
 
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[0].getCueAsHTML()), true);
                 
                 fragment = document.createDocumentFragment();
                 fragment.appendChild(document.createTextNode("I said Bear is coming!!!!"));
-                fragment.appendChild(document.createTextNode("\nThis does not parse as a voice tag."));
+                fragment.appendChild(document.createTextNode("This does not parse as a voice tag."));
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[1].getCueAsHTML()), true);
 
                 fragment = document.createDocumentFragment();
                 fragment.appendChild(document.createTextNode("I said "));
                 fragment.appendChild(document.createTextNode("Bear is coming now"));
-                fragment.appendChild(document.createTextNode("!!!!\nThis does not parse as a voice tag."));
+                fragment.appendChild(document.createTextNode("!!!!This does not parse as a voice tag."));
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[2].getCueAsHTML()), true);
 

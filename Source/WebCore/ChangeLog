@@ -1,3 +1,29 @@
+2012-04-13  Eric Carlson  <eric.carlson@apple.com>
+
+        cue.text fails for some track element cues
+        https://bugs.webkit.org/show_bug.cgi?id=81123
+
+        Reviewed by NOBODY (OOPS!).
+
+        There were two problems here: the WebVTT parser inserted line breaks into cue text when
+        it encountered line breaks in the source, and it did not correctly handle cue text being
+        split across two calls to parseBytes().
+
+        Test: media/track/track-long-captions-file.html
+
+        * html/track/WebVTTParser.cpp:
+        (WebCore::WebVTTParser::parseBytes): Inline the logic that was in collectCueText.
+        (WebCore::WebVTTParser::collectTimingsAndSettings): Drive-by style fix.
+        (WebCore::WebVTTParser::finishParsing): New, called by the client when all data has been
+            seen. Finish parsing the last cue and flush if necessary.
+        (WebCore::WebVTTParser::createNewCue): Call resetCueValues, the new cue data has been consumed.
+        * html/track/WebVTTParser.h:
+
+        * loader/TextTrackLoader.cpp:
+        (WebCore::TextTrackLoader::cueLoadTimerFired): Lose an extra space.
+        (WebCore::TextTrackLoader::notifyFinished): Notify the parser when it has seen all of the 
+            cue data.
+
 2013-09-23  Antonio Gomes  <a1.gomes@sisa.samsung.com>
 
         iframe and scrollbar with "overflow:auto" should support autoscroll with mousedrag

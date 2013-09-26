@@ -1,3 +1,22 @@
+2012-04-13  Eric Carlson  <eric.carlson@apple.com>
+
+        cue.text fails for some track element cues
+        https://bugs.webkit.org/show_bug.cgi?id=81123
+
+        Reviewed by NOBODY (OOPS!).
+
+        * media/track/captions-webvtt/tc022-entities-wrong.vtt: Updated.
+        * media/track/captions-webvtt/tc024-timestamp-bad.vtt: Ditto.
+        * media/track/track-long-captions-file-expected.txt: Added. 
+        * media/track/track-long-captions-file.html: Added.
+        * media/track/track-webvtt-tc022-entities.html: Updated.
+        * media/track/track-webvtt-tc023-markup.html: Ditto.
+        * media/track/track-webvtt-tc024-timestamp.html: Ditto.
+        * media/track/track-webvtt-tc025-class-markup.html: Ditto.
+        * media/track/track-webvtt-tc026-voice.html: Ditto.
+        * media/track/track-webvtt-tc028-unsupported-markup-expected.html: Ditto
+        * media/track/track-webvtt-tc028-unsupported-markup.html: Ditto
+
 2013-09-23  Antonio Gomes  <a1.gomes@sisa.samsung.com>
 
         iframe and scrollbar with "overflow:auto" should support autoscroll with mousedrag

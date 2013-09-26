@@ -50,17 +50,17 @@
                 testExpected("video.textTracks[" + i + "].cues.length", "3");
                 
                 var fragment = document.createDocumentFragment();
-                fragment.appendChild(document.createTextNode("This cue is painted on.\nBut since the last two timestamps are out of order, they are ignored."));
+                fragment.appendChild(document.createTextNode("This cue is painted on. But since the last two timestamps are out of order, they are ignored."));
                 
                 testExpected("video.textTracks[" + i + "].cues[0].getCueAsHTML().textContent", fragment.textContent);
                 
                 fragment = document.createDocumentFragment();
-                fragment.appendChild(document.createTextNode("I said Bear is coming!!!!\nAll of these timestamps are before the start of the cue, so get ignored."));
+                fragment.appendChild(document.createTextNode("I said Bear is coming!!!! All of these timestamps are before the start of the cue, so get ignored."));
                 
                 testExpected("video.textTracks[" + i + "].cues[1].getCueAsHTML().textContent", fragment.textContent);
 
                 fragment = document.createDocumentFragment();
-                fragment.appendChild(document.createTextNode("I said Bear is coming now!!!!\nAll of these timestamps are after the end of the cue, so get ignored."));
+                fragment.appendChild(document.createTextNode("I said Bear is coming now!!!! All of these timestamps are after the end of the cue, so get ignored."));
    
                 testExpected("video.textTracks[" + i + "].cues[2].getCueAsHTML().textContent", fragment.textContent);
           

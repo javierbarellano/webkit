@@ -61,7 +61,7 @@
                 var cspan = document.createElement("span");
                 cspan.appendChild(document.createTextNode("Bear is Coming!!!!!"));
                 fragment.appendChild(cspan);
-                fragment.appendChild(document.createTextNode("\nThe space signified an annotation start."));
+                fragment.appendChild(document.createTextNode("The space signified an annotation start."));
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[0].getCueAsHTML()), true);
                 
@@ -70,7 +70,7 @@
                 cspan.className = "red&large";
                 cspan.appendChild(document.createTextNode("I said Bear is coming!!!!"));
                 fragment.appendChild(cspan);
-                fragment.appendChild(document.createTextNode("\nProbably should only allow characters that CSS allows in class names."));
+                fragment.appendChild(document.createTextNode("Probably should only allow characters that CSS allows in class names."));
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[1].getCueAsHTML()), true);
 
@@ -80,7 +80,7 @@
                 cspan.className = "9red upper+case";
                 cspan.appendChild(document.createTextNode("Bear is coming now"));
                 fragment.appendChild(cspan);
-                fragment.appendChild(document.createTextNode("!!!!\nProbably should only allow characters that CSS allows in class names."));
+                fragment.appendChild(document.createTextNode("!!!!Probably should only allow characters that CSS allows in class names."));
 
                 testExpected(fragment.isEqualNode(video.textTracks[i].cues[2].getCueAsHTML()), true);
 

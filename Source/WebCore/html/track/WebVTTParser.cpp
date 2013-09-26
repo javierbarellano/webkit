@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2012 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -204,7 +205,13 @@ void WebVTTParser::parseBytes(const char* data, unsigned length)
 
         case CueText:
             // 41-53 - Collect the cue text, create a cue, and add it to the output.
-            m_state = collectCueText(line, length, position);
+            if (line.isEmpty()) {
+                createNewCue();
+                m_state = Id;
+            } else {
+                m_currentContent.append(line);
+                m_state = CueText;
+            }
             break;
 
         case BadCue:
@@ -303,24 +310,14 @@ WebVTTParser::ParseState WebVTTParser::collectTimingsAndSettings(const String& l
     skipWhiteSpace(line, &position);
 
     // 12 - Parse the WebVTT settings for the cue (conducted in TextTrackCue).
-    m_currentSettings = line.substring(position, line.length()-1);
+    m_currentSettings = line.substring(position, line.length() - 1);
     return CueText;
 }
 
-WebVTTParser::ParseState WebVTTParser::collectCueText(const String& line, unsigned length, unsigned position)
+void WebVTTParser::finishParsing()
 {
-    if (line.isEmpty()) {
-        createNewCue();
-        return Id;
-    }
     if (!m_currentContent.isEmpty())
-        m_currentContent.append("\n");
-    m_currentContent.append(line);
-
-    if (position >= length)
         createNewCue();
-                
-    return CueText;
 }
 
 WebVTTParser::ParseState WebVTTParser::ignoreBadCue(const String& line)
@@ -370,6 +367,8 @@ void WebVTTParser::createNewCue()
     m_cuelist.append(cue);
     if (m_client)
         m_client->newCuesParsed();
+
+    resetCueValues();
 }
 
 void WebVTTParser::resetCueValues()

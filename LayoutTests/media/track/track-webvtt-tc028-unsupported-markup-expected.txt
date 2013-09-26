@@ -13,8 +13,7 @@ And what kind of a bear it is - just have look.
 EXPECTED (cues[1].getCueAsHTML().textContent == ' I said Bear is coming!!!! I said Bear is still coming!!!! ') OK
 EXPECTED (cues[1].text == '
 I said Bear is coming!!!!
-I said Bear is still coming!!!!
-') OK
+I said Bear is still coming!!!!') OK
 EXPECTED (cues[2].getCueAsHTML().textContent == ' I said Bear is coming now!!!! ') OK
 EXPECTED (cues[2].text == '
 I said Bear is coming now!!!!

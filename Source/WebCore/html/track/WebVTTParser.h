@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2012 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -151,6 +152,9 @@ public:
     void getNewRegions(Vector<RefPtr<TextTrackRegion> >&);
 #endif
 
+    // No more data will be sent, finish parsing and flush the last cue if necessary.
+    void finishParsing();
+
     PassRefPtr<DocumentFragment> createDocumentFragmentFromCueText(const String&);
     double collectTimeStamp(const String&, unsigned*);
 
@@ -164,7 +168,6 @@ private:
     bool hasRequiredFileIdentifier();
     ParseState collectCueId(const String&);
     ParseState collectTimingsAndSettings(const String&);
-    ParseState collectCueText(const String&, unsigned length, unsigned);
     ParseState ignoreBadCue(const String&);
 
     void createNewCue();
