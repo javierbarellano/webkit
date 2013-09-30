@@ -4,9 +4,8 @@ function testAttribute(uri, attribute, values)
     {
         consoleWrite("<br><i>** Check in-band kind attributes</i>");
         testExpected("video.textTracks.length", values.length);
-        for (var i = 0; i < values.length; ++i) {
+        for (var i = 0; i < values.length; ++i)
             testExpected("video.textTracks[" + i + "]." + attribute, values[i]);
-        }
 
         consoleWrite("");
         endTest();
@@ -167,9 +166,8 @@ function testTrackOrder(uri, numInBandTracks) {
     {
         consoleWrite("<br><i>** Check initial in-band track states</i>");
         testExpected("video.textTracks.length", numInBandTracks);
-        for (var i = 0; i < numInBandTracks; ++i) {
+        for (var i = 0; i < numInBandTracks; ++i)
           run("inbandTrack" + (i + 1) + " = video.textTracks[" + i + "]");
-        }
 
         consoleWrite("<br><i>** Add two tracks, check sort order<" + "/i>");
         run("addTrack = video.addTextTrack('captions', 'Caption Track', 'en')");
@@ -180,9 +178,8 @@ function testTrackOrder(uri, numInBandTracks) {
 
         compareTracks("video.textTracks[0]", "trackElement.track");
         compareTracks("video.textTracks[1]", "addTrack");
-        for (var i = 1; i < numInBandTracks + 1; ++i) {
+        for (var i = 1; i < numInBandTracks + 1; ++i)
           compareTracks("video.textTracks[" + (i + 1) + "]", "inbandTrack" + i);
-        }
 
         consoleWrite("<br><i>** Unload video file, check track count<" + "/i>");
         run("video.src = ''");
