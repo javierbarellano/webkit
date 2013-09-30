@@ -183,6 +183,9 @@ use?(GSTREAMER) {
         DEFINES += GST_API_VERSION=1.0
         DEFINES += GST_API_VERSION_1
         PKGCONFIG += glib-2.0 gio-2.0 gstreamer-1.0 gstreamer-app-1.0 gstreamer-base-1.0 gstreamer-pbutils-1.0 gstreamer-plugins-base-1.0 gstreamer-video-1.0 gstreamer-audio-1.0
+        use?(GSTREAMER_MPEGTS) {
+            PKGCONFIG += gstreamer-mpegts-1.0
+        }
     }
 }
 

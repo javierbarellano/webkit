@@ -1,3 +1,20 @@
+2013-10-01  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Expose MPEG-TS metadata
+        https://bugs.webkit.org/show_bug.cgi?id=122001
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests (OOPS!).
+
+        * WebCore.pri: Add dependency on gstreamer-mpegts-1.0.
+        * platform/graphics/gstreamer/InbandMetadataTextTrackPrivateGStreamer.h: Add ability to set label and mark FINAL.
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h: Mark FINAL.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp: Parse MPEG-TS PMT into a metadata track.
+        (WebCore::MediaPlayerPrivateGStreamer::handleMessage): Check for MPEG-TS section data messages.
+        (WebCore::MediaPlayerPrivateGStreamer::processMpegTsSection): Convert MPEG-TS section data into track descriptions.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h: Add m_trackDescriptionTrack and processMpegTsSection().
+
 2013-10-02  Zan Dobersek  <zdobersek@igalia.com>
 
         Unreviewed, removing references to the recently removed Modules/filesystem directory.
