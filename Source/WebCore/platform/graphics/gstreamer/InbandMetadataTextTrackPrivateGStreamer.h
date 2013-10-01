@@ -33,7 +33,7 @@
 
 namespace WebCore {
 
-class InbandMetadataTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
+class InbandMetadataTextTrackPrivateGStreamer FINAL : public InbandTextTrackPrivate {
 public:
     static PassRefPtr<InbandMetadataTextTrackPrivateGStreamer> create(Kind kind)
     {
