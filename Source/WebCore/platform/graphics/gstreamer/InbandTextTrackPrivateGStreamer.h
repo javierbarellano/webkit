@@ -36,7 +36,7 @@ namespace WebCore {
 class MediaPlayerPrivateGStreamer;
 typedef struct _GstSample GstSample;
 
-class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
+class InbandTextTrackPrivateGStreamer FINAL : public InbandTextTrackPrivate {
 public:
     static PassRefPtr<InbandTextTrackPrivateGStreamer> create(gint index, GRefPtr<GstPad> pad)
     {
