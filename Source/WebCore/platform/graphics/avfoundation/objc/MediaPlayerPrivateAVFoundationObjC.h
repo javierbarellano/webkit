@@ -59,6 +59,8 @@ namespace WebCore {
 
 class WebCoreAVFResourceLoader;
 class InbandTextTrackPrivateAVFObjC;
+class AudioTrackPrivateAVFObjC;
+class VideoTrackPrivateAVFObjC;
 
 class MediaPlayerPrivateAVFoundationObjC : public MediaPlayerPrivateAVFoundation {
 public:
@@ -95,9 +97,9 @@ private:
     // engine support
     static PassOwnPtr<MediaPlayerPrivateInterface> create(MediaPlayer*);
     static void getSupportedTypes(HashSet<String>& types);
-    static MediaPlayer::SupportsType supportsType(const String& type, const String& codecs, const KURL&);
+    static MediaPlayer::SupportsType supportsType(const String& type, const String& codecs, const URL&);
 #if ENABLE(ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA_V2)
-    static MediaPlayer::SupportsType extendedSupportsType(const String& type, const String& codecs, const String& keySystem, const KURL&);
+    static MediaPlayer::SupportsType extendedSupportsType(const String& type, const String& codecs, const String& keySystem, const URL&);
 #endif
 
     static bool isAvailable();
@@ -184,6 +186,11 @@ private:
     void processLegacyClosedCaptionsTracks();
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+    void updateAudioTracks();
+    void updateVideoTracks();
+#endif
+
     RetainPtr<AVURLAsset> m_avAsset;
     RetainPtr<AVPlayer> m_avPlayer;
     RetainPtr<AVPlayerItem> m_avPlayerItem;
@@ -214,7 +221,12 @@ private:
 #if HAVE(AVFOUNDATION_MEDIA_SELECTION_GROUP) && HAVE(AVFOUNDATION_LEGIBLE_OUTPUT_SUPPORT)
     RetainPtr<AVPlayerItemLegibleOutput> m_legibleOutput;
 #endif
-    
+
+#if ENABLE(VIDEO_TRACK)
+    Vector<RefPtr<AudioTrackPrivateAVFObjC>> m_audioTracks;
+    Vector<RefPtr<VideoTrackPrivateAVFObjC>> m_videoTracks;
+#endif
+
     InbandTextTrackPrivateAVF* m_currentTrack;
 };
 

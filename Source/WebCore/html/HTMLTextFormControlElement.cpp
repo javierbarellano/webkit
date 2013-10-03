@@ -41,7 +41,6 @@
 #include "NodeTraversal.h"
 #include "RenderBlock.h"
 #include "RenderTheme.h"
-#include "ScriptEventListener.h"
 #include "ShadowRoot.h"
 #include "Text.h"
 #include "htmlediting.h"
@@ -52,8 +51,8 @@ namespace WebCore {
 using namespace HTMLNames;
 using namespace std;
 
-HTMLTextFormControlElement::HTMLTextFormControlElement(const QualifiedName& tagName, Document* doc, HTMLFormElement* form)
-    : HTMLFormControlElementWithState(tagName, doc, form)
+HTMLTextFormControlElement::HTMLTextFormControlElement(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
+    : HTMLFormControlElementWithState(tagName, document, form)
     , m_lastChangeWasUserEdit(false)
     , m_cachedSelectionStart(-1)
     , m_cachedSelectionEnd(-1)
@@ -204,10 +203,9 @@ void HTMLTextFormControlElement::dispatchFormControlChangeEvent()
     setChangedSinceLastFormControlChangeEvent(false);
 }
 
-static inline bool hasVisibleTextArea(RenderObject* textControl, HTMLElement* innerText)
+static inline bool hasVisibleTextArea(RenderElement& textControl, HTMLElement* innerText)
 {
-    ASSERT(textControl);
-    return textControl->style()->visibility() != HIDDEN && innerText && innerText->renderer() && innerText->renderBox()->height();
+    return textControl.style()->visibility() != HIDDEN && innerText && innerText->renderer() && innerText->renderBox()->height();
 }
 
 void HTMLTextFormControlElement::setRangeText(const String& replacement, ExceptionCode& ec)
@@ -290,7 +288,7 @@ void HTMLTextFormControlElement::setSelectionRange(int start, int end, TextField
     end = max(end, 0);
     start = min(max(start, 0), end);
 
-    if (!hasVisibleTextArea(renderer(), innerTextElement())) {
+    if (!hasVisibleTextArea(*renderer(), innerTextElement())) {
         cacheSelection(start, end, direction);
         return;
     }
@@ -506,12 +504,12 @@ void HTMLTextFormControlElement::setInnerTextValue(const String& value)
     if (textIsChanged || !innerTextElement()->hasChildNodes()) {
         if (textIsChanged && renderer()) {
             if (AXObjectCache* cache = document().existingAXObjectCache())
-                cache->postNotification(this, AXObjectCache::AXValueChanged, false);
+                cache->postNotification(this, AXObjectCache::AXValueChanged, TargetObservableParent);
         }
         innerTextElement()->setInnerText(value, ASSERT_NO_EXCEPTION);
 
         if (value.endsWith('\n') || value.endsWith('\r'))
-            innerTextElement()->appendChild(HTMLBRElement::create(&document()), ASSERT_NO_EXCEPTION);
+            innerTextElement()->appendChild(HTMLBRElement::create(document()), ASSERT_NO_EXCEPTION);
     }
 
     setFormControlValueMatchesRenderer(true);

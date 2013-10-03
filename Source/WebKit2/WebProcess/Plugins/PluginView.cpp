@@ -42,7 +42,6 @@
 #include <WebCore/DocumentLoader.h>
 #include <WebCore/EventHandler.h>
 #include <WebCore/FocusController.h>
-#include <WebCore/Frame.h>
 #include <WebCore/FrameLoadRequest.h>
 #include <WebCore/FrameLoader.h>
 #include <WebCore/FrameLoaderClient.h>
@@ -52,6 +51,7 @@
 #include <WebCore/HTMLPlugInImageElement.h>
 #include <WebCore/HostWindow.h>
 #include <WebCore/MIMETypeRegistry.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/MouseEvent.h>
 #include <WebCore/NetscapePlugInStreamLoader.h>
 #include <WebCore/NetworkingContext.h>
@@ -212,7 +212,7 @@ static uint32_t lastModifiedDate(const ResourceResponse& response)
 void PluginView::Stream::didReceiveResponse(NetscapePlugInStreamLoader*, const ResourceResponse& response)
 {
     // Compute the stream related data from the resource response.
-    const KURL& responseURL = response.url();
+    const URL& responseURL = response.url();
     const String& mimeType = response.mimeType();
     long long expectedContentLength = response.expectedContentLength();
     
@@ -383,7 +383,7 @@ void PluginView::manualLoadDidReceiveResponse(const ResourceResponse& response)
     }
 
     // Compute the stream related data from the resource response.
-    const KURL& responseURL = response.url();
+    const URL& responseURL = response.url();
     const String& mimeType = response.mimeType();
     long long expectedContentLength = response.expectedContentLength();
     
@@ -816,7 +816,7 @@ String PluginView::getSelectionString() const
     return m_plugin->getSelectionString();
 }
 
-PassOwnPtr<WebEvent> PluginView::createWebEvent(MouseEvent* event) const
+OwnPtr<WebEvent> PluginView::createWebEvent(MouseEvent* event) const
 {
     WebEvent::Type type = WebEvent::NoType;
     unsigned clickCount = 1;
@@ -883,9 +883,9 @@ void PluginView::handleEvent(Event* event)
         // FIXME: Clicking in a scroll bar should not change focus.
         if (currentEvent->type() == WebEvent::MouseDown) {
             focusPluginElement();
-            frame()->eventHandler().setCapturingMouseEventsNode(m_pluginElement.get());
+            frame()->eventHandler().setCapturingMouseEventsElement(m_pluginElement.get());
         } else if (currentEvent->type() == WebEvent::MouseUp)
-            frame()->eventHandler().setCapturingMouseEventsNode(0);
+            frame()->eventHandler().setCapturingMouseEventsElement(nullptr);
 
         didHandleEvent = m_plugin->handleMouseEvent(static_cast<const WebMouseEvent&>(*currentEvent));
         if (event->type() != eventNames().mousemoveEvent)
@@ -1187,7 +1187,7 @@ void PluginView::performJavaScriptURLRequest(URLRequest* request)
     if (!request->target().isNull())
         return;
 
-    ScriptState* scriptState = frame->script().globalObject(pluginWorld())->globalExec();
+    ExecState* scriptState = frame->script().globalObject(pluginWorld())->globalExec();
     String resultString;
     result.getString(scriptState, resultString);
   
@@ -1308,7 +1308,7 @@ String PluginView::userAgent()
     if (!frame)
         return String();
     
-    return frame->loader().client().userAgent(KURL());
+    return frame->loader().client().userAgent(URL());
 }
 
 void PluginView::loadURL(uint64_t requestID, const String& method, const String& urlString, const String& target, 
@@ -1433,7 +1433,6 @@ void PluginView::pluginProcessCrashed()
     if (!m_pluginElement->renderer())
         return;
 
-    // FIXME: The renderer could also be a RenderApplet, we should handle that.
     if (!m_pluginElement->renderer()->isEmbeddedObject())
         return;
 
@@ -1490,18 +1489,18 @@ String PluginView::proxiesForURL(const String& urlString)
 {
     const FrameLoader* frameLoader = frame() ? &frame()->loader() : 0;
     const NetworkingContext* context = frameLoader ? frameLoader->networkingContext() : 0;
-    Vector<ProxyServer> proxyServers = proxyServersForURL(KURL(KURL(), urlString), context);
+    Vector<ProxyServer> proxyServers = proxyServersForURL(URL(URL(), urlString), context);
     return toString(proxyServers);
 }
 
 String PluginView::cookiesForURL(const String& urlString)
 {
-    return cookies(&m_pluginElement->document(), KURL(KURL(), urlString));
+    return cookies(&m_pluginElement->document(), URL(URL(), urlString));
 }
 
 void PluginView::setCookiesForURL(const String& urlString, const String& cookieString)
 {
-    setCookies(&m_pluginElement->document(), KURL(KURL(), urlString), cookieString);
+    setCookies(&m_pluginElement->document(), URL(URL(), urlString), cookieString);
 }
 
 bool PluginView::getAuthenticationInfo(const ProtectionSpace& protectionSpace, String& username, String& password)

@@ -38,7 +38,7 @@ class HTMLOptionElement;
 
 class HTMLSelectElement : public HTMLFormControlElementWithState, public TypeAheadDataSource {
 public:
-    static PassRefPtr<HTMLSelectElement> create(const QualifiedName&, Document*, HTMLFormElement*);
+    static PassRefPtr<HTMLSelectElement> create(const QualifiedName&, Document&, HTMLFormElement*);
 
     int selectedIndex() const;
     void setSelectedIndex(int);
@@ -106,7 +106,7 @@ public:
     void optionSelectionStateChanged(HTMLOptionElement*, bool optionIsSelected);
 
 protected:
-    HTMLSelectElement(const QualifiedName&, Document*, HTMLFormElement*);
+    HTMLSelectElement(const QualifiedName&, Document&, HTMLFormElement*);
 
     virtual void defaultEventHandler(Event*);
 
@@ -131,13 +131,15 @@ private:
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
 
     virtual bool childShouldCreateRenderer(const Node*) const OVERRIDE;
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle *);
+    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
     virtual bool appendFormData(FormDataList&, bool);
 
     virtual void reset();
 
     void dispatchChangeEventForMenuList();
-    
+
+    virtual void didRecalcStyle(Style::Change) OVERRIDE FINAL;
+
     void recalcListItems(bool updateSelectedStates = true) const;
 
     void deselectItems(HTMLOptionElement* excludeElement = 0);
@@ -202,11 +204,7 @@ private:
     mutable bool m_shouldRecalcListItems;
 };
 
-inline HTMLSelectElement* toHTMLSelectElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(HTMLNames::selectTag));
-    return static_cast<HTMLSelectElement*>(node);
-}
+ELEMENT_TYPE_CASTS(HTMLSelectElement)
 
 } // namespace
 

@@ -33,7 +33,9 @@
 #include "InlineTextBox.h"
 #include "PaintInfo.h"
 #include "RenderArena.h"
+#include "RenderBlockFlow.h"
 #include "RenderInline.h"
+#include "RenderLineBreak.h"
 #include "RenderView.h"
 #include "RootInlineBox.h"
 
@@ -64,7 +66,7 @@ void RenderLineBoxList::appendLineBox(InlineFlowBox* box)
     checkConsistency();
 }
 
-void RenderLineBoxList::deleteLineBoxTree(RenderArena* arena)
+void RenderLineBoxList::deleteLineBoxTree(RenderArena& arena)
 {
     InlineFlowBox* line = m_firstLineBox;
     InlineFlowBox* nextLine;
@@ -127,7 +129,7 @@ void RenderLineBoxList::removeLineBox(InlineFlowBox* box)
     checkConsistency();
 }
 
-void RenderLineBoxList::deleteLineBoxes(RenderArena* arena)
+void RenderLineBoxList::deleteLineBoxes(RenderArena& arena)
 {
     if (m_firstLineBox) {
         InlineFlowBox* next;
@@ -309,9 +311,10 @@ bool RenderLineBoxList::hitTest(RenderBoxModelObject* renderer, const HitTestReq
     return false;
 }
 
-void RenderLineBoxList::dirtyLinesFromChangedChild(RenderObject* container, RenderObject* child)
+void RenderLineBoxList::dirtyLinesFromChangedChild(RenderBoxModelObject* container, RenderObject* child)
 {
-    if (!container->parent() || (container->isRenderBlock() && (container->selfNeedsLayout() || !container->isRenderBlockFlow())))
+    ASSERT(container->isRenderInline() || container->isRenderBlockFlow());
+    if (!container->parent() || (container->isRenderBlockFlow() && container->selfNeedsLayout()))
         return;
 
     RenderInline* inlineContainer = container->isRenderInline() ? toRenderInline(container) : 0;
@@ -339,6 +342,10 @@ void RenderLineBoxList::dirtyLinesFromChangedChild(RenderObject* container, Rend
 
         if (curr->isReplaced()) {
             InlineBox* wrapper = toRenderBox(curr)->inlineBoxWrapper();
+            if (wrapper)
+                box = &wrapper->root();
+        } if (curr->isLineBreak()) {
+            InlineBox* wrapper = toRenderLineBreak(curr)->inlineBoxWrapper();
             if (wrapper)
                 box = &wrapper->root();
         } else if (curr->isText()) {

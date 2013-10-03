@@ -40,7 +40,7 @@
 #include "HWndDC.h"
 #include "HitTestResult.h"
 #include "Image.h"
-#include "KURL.h"
+#include "URL.h"
 #include "NotImplemented.h"
 #include "Page.h"
 #include "Range.h"
@@ -344,7 +344,7 @@ Vector<String> Pasteboard::readFilenames()
 #endif
 }
 
-static bool writeURL(WCDataObject *data, const KURL& url, String title, bool withPlainText, bool withHTML)
+static bool writeURL(WCDataObject *data, const URL& url, String title, bool withPlainText, bool withHTML)
 {
     ASSERT(data);
 
@@ -396,7 +396,7 @@ bool Pasteboard::writeString(const String& type, const String& data)
     ClipboardDataType winType = clipboardTypeFromMIMEType(type);
 
     if (winType == ClipboardDataTypeURL)
-        return WebCore::writeURL(m_writableDataObject.get(), KURL(KURL(), data), String(), false, true);
+        return WebCore::writeURL(m_writableDataObject.get(), URL(URL(), data), String(), false, true);
 
     if (winType == ClipboardDataTypeText) {
         STGMEDIUM medium = {0};
@@ -565,7 +565,7 @@ static String filesystemPathFromUrlOrTitle(const String& url, const String& titl
     }
 
     if (!lstrlen(fsPathBuffer)) {
-        KURL kurl(KURL(), url);
+        URL kurl(URL(), url);
         usedURL = true;
         // The filename for any content based drag or file url should be the last element of 
         // the path. If we can't find it, or we're coming up with the name for a link
@@ -640,14 +640,14 @@ exit:
     return hr;
 }
 
-void Pasteboard::writeURLToDataObject(const KURL& kurl, const String& titleStr, Frame* frame)
+void Pasteboard::writeURLToDataObject(const URL& kurl, const String& titleStr)
 {
     if (!m_writableDataObject)
         return;
     WebCore::writeURL(m_writableDataObject.get(), kurl, titleStr, true, true);
 
     String url = kurl.string();
-    ASSERT(url.containsOnlyASCII()); // KURL::string() is URL encoded.
+    ASSERT(url.containsOnlyASCII()); // URL::string() is URL encoded.
 
     String fsPath = filesystemPathFromUrlOrTitle(url, titleStr, L".URL", true);
     String contentString("[InternetShortcut]\r\nURL=" + url + "\r\n");
@@ -683,22 +683,22 @@ void Pasteboard::writeURLToDataObject(const KURL& kurl, const String& titleStr, 
     writeFileToDataObject(m_writableDataObject.get(), urlFileDescriptor, urlFileContent, 0);
 }
 
-void Pasteboard::writeURL(const KURL& url, const String& titleStr, Frame* frame)
+void Pasteboard::write(const PasteboardURL& pasteboardURL)
 {
-    ASSERT(!url.isEmpty());
+    ASSERT(!pasteboardURL.url.isEmpty());
 
     clear();
 
-    String title(titleStr);
+    String title(pasteboardURL.title);
     if (title.isEmpty()) {
-        title = url.lastPathComponent();
+        title = pasteboardURL.url.lastPathComponent();
         if (title.isEmpty())
-            title = url.host();
+            title = pasteboardURL.url.host();
     }
 
     // write to clipboard in format com.apple.safari.bookmarkdata to be able to paste into the bookmarks view with appropriate title
     if (::OpenClipboard(m_owner)) {
-        HGLOBAL cbData = createGlobalData(url, title);
+        HGLOBAL cbData = createGlobalData(pasteboardURL.url, title);
         if (!::SetClipboardData(BookmarkClipboardFormat, cbData))
             ::GlobalFree(cbData);
         ::CloseClipboard();
@@ -707,7 +707,7 @@ void Pasteboard::writeURL(const KURL& url, const String& titleStr, Frame* frame)
     // write to clipboard in format CF_HTML to be able to paste into contenteditable areas as a link
     if (::OpenClipboard(m_owner)) {
         Vector<char> data;
-        markupToCFHTML(urlToMarkup(url, title), "", data);
+        markupToCFHTML(urlToMarkup(pasteboardURL.url, title), "", data);
         HGLOBAL cbData = createGlobalData(data);
         if (!::SetClipboardData(HTMLClipboardFormat, cbData))
             ::GlobalFree(cbData);
@@ -716,16 +716,16 @@ void Pasteboard::writeURL(const KURL& url, const String& titleStr, Frame* frame)
 
     // bare-bones CF_UNICODETEXT support
     if (::OpenClipboard(m_owner)) {
-        HGLOBAL cbData = createGlobalData(url.string());
+        HGLOBAL cbData = createGlobalData(pasteboardURL.url.string());
         if (!::SetClipboardData(CF_UNICODETEXT, cbData))
             ::GlobalFree(cbData);
         ::CloseClipboard();
     }
 
-    writeURLToDataObject(url, titleStr, frame);
+    writeURLToDataObject(pasteboardURL.url, pasteboardURL.title);
 }
 
-void Pasteboard::writeImage(Node* node, const KURL&, const String&)
+void Pasteboard::writeImage(Node* node, const URL&, const String&)
 {
     ASSERT(node);
 
@@ -774,33 +774,28 @@ bool Pasteboard::canSmartReplace()
     return ::IsClipboardFormatAvailable(WebSmartPasteFormat);
 }
 
-String Pasteboard::plainText(Frame* frame)
+void Pasteboard::read(PasteboardPlainText& text)
 {
     if (::IsClipboardFormatAvailable(CF_UNICODETEXT) && ::OpenClipboard(m_owner)) {
-        HANDLE cbData = ::GetClipboardData(CF_UNICODETEXT);
-        if (cbData) {
-            UChar* buffer = static_cast<UChar*>(GlobalLock(cbData));
-            String fromClipboard(buffer);
+        if (HANDLE cbData = ::GetClipboardData(CF_UNICODETEXT)) {
+            text.text = static_cast<UChar*>(GlobalLock(cbData));
             GlobalUnlock(cbData);
             ::CloseClipboard();
-            return fromClipboard;
+            return;
         }
         ::CloseClipboard();
     }
 
     if (::IsClipboardFormatAvailable(CF_TEXT) && ::OpenClipboard(m_owner)) {
-        HANDLE cbData = ::GetClipboardData(CF_TEXT);
-        if (cbData) {
-            char* buffer = static_cast<char*>(GlobalLock(cbData));
-            String fromClipboard(buffer);
+        if (HANDLE cbData = ::GetClipboardData(CF_TEXT)) {
+            // FIXME: This treats the characters as Latin-1, not UTF-8 or even Windows Latin-1. Is that the right encoding?
+            text.text = static_cast<char*>(GlobalLock(cbData));
             GlobalUnlock(cbData);
             ::CloseClipboard();
-            return fromClipboard;
+            return;
         }
         ::CloseClipboard();
     }
-
-    return String();
 }
 
 PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame* frame, PassRefPtr<Range> context, bool allowPlainText, bool& chosePlainText)
@@ -937,7 +932,7 @@ static HGLOBAL createGlobalImageFileContent(SharedBuffer* data)
     return memObj;
 }
 
-static HGLOBAL createGlobalHDropContent(const KURL& url, String& fileName, SharedBuffer* data)
+static HGLOBAL createGlobalHDropContent(const URL& url, String& fileName, SharedBuffer* data)
 {
     if (fileName.isEmpty() || !data)
         return 0;
@@ -1006,7 +1001,7 @@ static HGLOBAL createGlobalHDropContent(const KURL& url, String& fileName, Share
     return memObj;
 }
 
-void Pasteboard::writeImageToDataObject(Element* element, const KURL& url)
+void Pasteboard::writeImageToDataObject(Element* element, const URL& url)
 {
     // Shove image data into a DataObject for use as a file
     CachedImage* cachedImage = getCachedImage(element);
@@ -1037,7 +1032,7 @@ void Pasteboard::writeImageToDataObject(Element* element, const KURL& url)
     writeFileToDataObject(m_writableDataObject.get(), imageFileDescriptor, imageFileContent, hDropContent);
 }
 
-void Pasteboard::writeURLToWritableDataObject(const KURL& url, const String& title)
+void Pasteboard::writeURLToWritableDataObject(const URL& url, const String& title)
 {
     WebCore::writeURL(m_writableDataObject.get(), url, title, true, false);
 }

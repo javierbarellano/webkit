@@ -26,7 +26,7 @@
 #ifndef TCPSocketHandle_h
 #define TCPSocketHandle_h
 
-#include "KURL.h"
+#include "URL.h"
 #include "Logging.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -127,7 +127,7 @@ public:
         *len = pos;
     }
 
-    KURL getUrl() { return m_url; }
+    URL getUrl() { return m_url; }
 
 protected:
 
@@ -195,12 +195,12 @@ private:
 
         std::stringstream ss;
         ss << "http://" << host << ":" << port;
-        // KURL url(ParsedURLString, String(ss.str().c_str(), ss.str().length()));
+        // URL url(ParsedURLString, String(ss.str().c_str(), ss.str().length()));
         // m_url = url;
     }
 
 private:
-    KURL m_url;
+    URL m_url;
     TCPSocketHandleClient *m_client;
     struct sockaddr_in m_servaddr;
     int m_socket;

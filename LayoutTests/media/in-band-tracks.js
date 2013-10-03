@@ -29,9 +29,8 @@ function testAttribute(uri, type, attribute, values)
     {
         consoleWrite("<br><i>** Check in-band kind attributes</i>");
         testExpected("video." + type +"Tracks.length", values.length);
-        for (var i = 0; i < values.length; ++i) {
+        for (var i = 0; i < values.length; ++i)
             testExpected("video." + type +"Tracks[" + i + "]." + attribute, values[i]);
-        }
 
         consoleWrite("");
         endTest();
@@ -42,7 +41,7 @@ function testAttribute(uri, type, attribute, values)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testCuesAddedOnce(uri)
+function testCuesAddedOnce(uri, kind)
 {
     var seekedCount = 0;
     var cuesStarts = [];
@@ -90,7 +89,12 @@ function testCuesAddedOnce(uri)
         setInterval(pollProgress, 100);
 
         consoleWrite("<br><i>** Setting track 1 to showing</i>");
-        run("inbandTrack1 = video.textTracks[0]");
+        for (var i = 0; i < video.textTracks.length; ++i) {
+            if (video.textTracks[i].kind == kind) {
+                inbandTrack1 = video.textTracks[i];
+                break;
+            }
+        }
         run("inbandTrack1.mode = 'showing'");
         run("video.play()");
     }
@@ -100,7 +104,7 @@ function testCuesAddedOnce(uri)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testTextTrackMode(uri, type)
+function testMode(uri, kind)
 {
     function seeked()
     {
@@ -118,7 +122,12 @@ function testTextTrackMode(uri, type)
 
     function canplaythrough()
     {
-        run("inbandTrack1 = video.textTracks[0]");
+        for (var i = 0; i < video.textTracks.length; ++i) {
+            if (video.textTracks[i].kind == kind) {
+                inbandTrack1 = video.textTracks[i];
+                break;
+            }
+        }
 
         consoleWrite("<br><i>** A hidden track should not have visible cues<" + "/i>");
         run("inbandTrack1.mode = 'hidden'");
@@ -152,7 +161,12 @@ function testCueStyle(uri)
     function canplaythrough()
     {
         consoleWrite("<br><i>** Setting track 1 to showing and starting video</i>");
-        run("inbandTrack1 = video.textTracks[0]");
+        for (var i = 0; i < video.textTracks.length; ++i) {
+            if (video.textTracks[i].kind == "subtitles" || video.textTracks[i].kind == "captions") {
+                inbandTrack1 = video.textTracks[i];
+                break;
+            }
+        }
 
         inbandTrack1.mode = 'showing';
         run("video.play()");
@@ -166,18 +180,7 @@ function testCueStyle(uri)
     waitForEvent('canplaythrough', canplaythrough);
 }
 
-function testTextTrackOrder(uri)
-{
-    var addtrackEventCount = 0;
-
-    function trackAdded(event)
-    {
-        consoleWrite("EVENT(" + event.type + ")");
-        compareTracks("event.track", "video.textTracks[" + addtrackEventCount + "]");
-        ++addtrackEventCount;
-        consoleWrite("");
-    }
-
+function testTrackOrder(uri, numInBandTracks) {
     function compareTracks(track1, track2)
     {
         var equal = (eval(track1) == eval(track2));
@@ -187,21 +190,21 @@ function testTextTrackOrder(uri)
     function canplaythrough()
     {
         consoleWrite("<br><i>** Check initial in-band track states</i>");
-        testExpected("video.textTracks.length", 2);
-        run("inbandTrack1 = video.textTracks[0]");
-        run("inbandTrack2 = video.textTracks[1]");
+        testExpected("video.textTracks.length", numInBandTracks);
+        for (var i = 0; i < numInBandTracks; ++i)
+          run("inbandTrack" + (i + 1) + " = video.textTracks[" + i + "]");
 
         consoleWrite("<br><i>** Add two tracks, check sort order<" + "/i>");
         run("addTrack = video.addTextTrack('captions', 'Caption Track', 'en')");
         run("trackElement = document.createElement('track')");
         trackElement.label = '<track>';
         run("video.appendChild(trackElement)");
-        testExpected("video.textTracks.length", 4);
+        testExpected("video.textTracks.length", numInBandTracks + 2);
 
         compareTracks("video.textTracks[0]", "trackElement.track");
         compareTracks("video.textTracks[1]", "addTrack");
-        compareTracks("video.textTracks[2]", "inbandTrack1");
-        compareTracks("video.textTracks[3]", "inbandTrack2");
+        for (var i = 1; i < numInBandTracks + 1; ++i)
+          compareTracks("video.textTracks[" + (i + 1) + "]", "inbandTrack" + i);
 
         consoleWrite("<br><i>** Unload video file, check track count<" + "/i>");
         run("video.src = ''");
@@ -212,7 +215,6 @@ function testTextTrackOrder(uri)
     }
 
     findMediaElement();
-    video.textTracks.addEventListener("addtrack", trackAdded);
     video.src = uri;
     waitForEvent('canplaythrough', canplaythrough);
 }

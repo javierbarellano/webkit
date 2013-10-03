@@ -52,7 +52,6 @@
 #include "RenderListBox.h"
 #include "RenderMenuList.h"
 #include "RenderTheme.h"
-#include "ScriptEventListener.h"
 #include "Settings.h"
 #include "SpatialNavigation.h"
 
@@ -66,7 +65,7 @@ using namespace HTMLNames;
 // Upper limit agreed upon with representatives of Opera and Mozilla.
 static const unsigned maxSelectItems = 10000;
 
-HTMLSelectElement::HTMLSelectElement(const QualifiedName& tagName, Document* document, HTMLFormElement* form)
+HTMLSelectElement::HTMLSelectElement(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
     : HTMLFormControlElementWithState(tagName, document, form)
     , m_typeAhead(this)
     , m_size(0)
@@ -81,10 +80,18 @@ HTMLSelectElement::HTMLSelectElement(const QualifiedName& tagName, Document* doc
     ASSERT(hasTagName(selectTag));
 }
 
-PassRefPtr<HTMLSelectElement> HTMLSelectElement::create(const QualifiedName& tagName, Document* document, HTMLFormElement* form)
+PassRefPtr<HTMLSelectElement> HTMLSelectElement::create(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
 {
     ASSERT(tagName.matches(selectTag));
     return adoptRef(new HTMLSelectElement(tagName, document, form));
+}
+
+void HTMLSelectElement::didRecalcStyle(Style::Change styleChange)
+{
+    // Even though the options didn't necessarily change, we will call setOptionsChangedOnRenderer for its side effect
+    // of recomputing the width of the element. We need to do that if the style change included a change in zoom level.
+    setOptionsChangedOnRenderer();
+    HTMLFormControlElement::didRecalcStyle(styleChange);
 }
 
 const AtomicString& HTMLSelectElement::formControlType() const
@@ -337,11 +344,11 @@ bool HTMLSelectElement::canSelectAll() const
     return !usesMenuList();
 }
 
-RenderObject* HTMLSelectElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* HTMLSelectElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     if (usesMenuList())
-        return new (arena) RenderMenuList(this);
-    return new (arena) RenderListBox(this);
+        return new (arena) RenderMenuList(*this);
+    return new (arena) RenderListBox(*this);
 }
 
 bool HTMLSelectElement::childShouldCreateRenderer(const Node* child) const
@@ -680,13 +687,13 @@ void HTMLSelectElement::scrollToSelection()
     if (usesMenuList())
         return;
 
-    if (RenderObject* renderer = this->renderer())
+    if (auto renderer = this->renderer())
         toRenderListBox(renderer)->selectionChanged();
 }
 
 void HTMLSelectElement::setOptionsChangedOnRenderer()
 {
-    if (RenderObject* renderer = this->renderer()) {
+    if (auto renderer = this->renderer()) {
         if (usesMenuList())
             toRenderMenuList(renderer)->setOptionsChanged(true);
         else
@@ -852,7 +859,7 @@ void HTMLSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
         deselectItemsWithoutValidation(element);
 
     // For the menu list case, this is what makes the selected element appear.
-    if (RenderObject* renderer = this->renderer())
+    if (auto renderer = this->renderer())
         renderer->updateFromElement();
 
     scrollToSelection();
@@ -861,7 +868,7 @@ void HTMLSelectElement::selectOption(int optionIndex, SelectOptionFlags flags)
         m_isProcessingUserDrivenChange = flags & UserDriven;
         if (flags & DispatchChangeEvent)
             dispatchChangeEventForMenuList();
-        if (RenderObject* renderer = this->renderer()) {
+        if (auto renderer = this->renderer()) {
             if (usesMenuList())
                 toRenderMenuList(renderer)->didSetSelectedIndex(listIndex);
             else if (renderer->isListBox())

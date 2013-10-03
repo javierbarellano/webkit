@@ -26,7 +26,7 @@
 #ifndef UDPSocketHandleBase_h
 #define UDPSocketHandleBase_h
 
-#include "KURL.h"
+#include "URL.h"
 #include "UDPSocketHandleClient.h"
 #include <wtf/Vector.h>
 
@@ -50,13 +50,13 @@ public:
     virtual void close() { platformClose(); }
 
 protected:
-    UDPSocketHandleBase(const KURL& url, bool isMulticastGroup, UDPSocketHandleClient* client) { }
+    UDPSocketHandleBase(const URL& url, bool isMulticastGroup, UDPSocketHandleClient* client) { }
 
     virtual int platformSend(const char* data, int length) = 0;
     virtual void platformReceive() = 0;
     virtual void platformClose() = 0;
 
-    KURL m_url;
+    URL m_url;
     UDPSocketHandleClient* m_client;
     Vector<char> m_buffer;
 };

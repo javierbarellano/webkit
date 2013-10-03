@@ -62,9 +62,9 @@ RenderImage::RenderImage(Element* element)
     updateAltText();
 }
 
-RenderImage* RenderImage::createAnonymous(Document* document)
+RenderImage* RenderImage::createAnonymous(Document& document)
 {
-    RenderImage* image = new (document->renderArena()) RenderImage(0);
+    RenderImage* image = new (*document.renderArena()) RenderImage(0);
     image->setDocumentForAnonymous(document);
     return image;
 }
@@ -127,7 +127,7 @@ bool RenderImage::setImageSizeForAltText(CachedImage* newImage /* = 0 */)
         FontCachePurgePreventer fontCachePurgePreventer;
 
         const Font& font = style()->font();
-        IntSize paddedTextSize(paddingWidth + min(ceilf(font.width(RenderBlock::constructTextRun(this, font, m_altText, style()))), maxAltTextWidth), paddingHeight + min(font.fontMetrics().height(), maxAltTextHeight));
+        IntSize paddedTextSize(paddingWidth + min(ceilf(font.width(RenderBlock::constructTextRun(this, font, m_altText, *style()))), maxAltTextWidth), paddingHeight + min(font.fontMetrics().height(), maxAltTextHeight));
         imageSize = imageSize.expandedTo(paddedTextSize);
     }
 
@@ -392,7 +392,7 @@ void RenderImage::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paintOf
 
                 // Only draw the alt text if it'll fit within the content box,
                 // and only if it fits above the error image.
-                TextRun textRun = RenderBlock::constructTextRun(this, font, text, style());
+                TextRun textRun = RenderBlock::constructTextRun(this, font, text, *style());
                 LayoutUnit textWidth = font.width(textRun);
                 if (errorPictureDrawn) {
                     if (usableWidth >= textWidth && fontMetrics.height() <= imageOffset.height())

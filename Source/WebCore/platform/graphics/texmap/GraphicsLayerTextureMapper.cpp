@@ -35,10 +35,10 @@ TextureMapperLayer* toTextureMapperLayer(GraphicsLayer* layer)
     return layer ? toGraphicsLayerTextureMapper(layer)->layer() : 0;
 }
 
-PassOwnPtr<GraphicsLayer> GraphicsLayer::create(GraphicsLayerFactory* factory, GraphicsLayerClient* client)
+std::unique_ptr<GraphicsLayer> GraphicsLayer::create(GraphicsLayerFactory* factory, GraphicsLayerClient* client)
 {
     if (!factory)
-        return adoptPtr(new GraphicsLayerTextureMapper(client));
+        return std::make_unique<GraphicsLayerTextureMapper>(client);
 
     return factory->createGraphicsLayer(client);
 }
@@ -670,6 +670,10 @@ void GraphicsLayerTextureMapper::removeAnimation(const String& animationName)
 #if ENABLE(CSS_FILTERS)
 bool GraphicsLayerTextureMapper::setFilters(const FilterOperations& filters)
 {
+    TextureMapper* textureMapper = m_layer->textureMapper();
+    // TextureMapperImageBuffer does not support CSS filters.
+    if (!textureMapper || textureMapper->accelerationMode() == TextureMapper::SoftwareMode)
+        return false;
     notifyChange(FilterChange);
     return GraphicsLayer::setFilters(filters);
 }

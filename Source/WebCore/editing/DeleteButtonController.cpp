@@ -102,24 +102,24 @@ static bool isDeletableElement(const Node* node)
     if ((borderBoundingBox.width() * borderBoundingBox.height()) < minimumArea)
         return false;
 
-    if (renderer->isTable())
+    if (box->isTable())
         return true;
 
     if (node->hasTagName(ulTag) || node->hasTagName(olTag) || node->hasTagName(iframeTag))
         return true;
 
-    if (renderer->isOutOfFlowPositioned())
+    if (box->isOutOfFlowPositioned())
         return true;
 
-    if (renderer->isRenderBlock() && !renderer->isTableCell()) {
-        RenderStyle* style = renderer->style();
+    if (box->isRenderBlock() && !box->isTableCell()) {
+        RenderStyle* style = box->style();
         if (!style)
             return false;
 
         // Allow blocks that have background images
         if (style->hasBackgroundImage()) {
             for (const FillLayer* background = style->backgroundLayers(); background; background = background->next()) {
-                if (background->image() && background->image()->canRender(renderer, 1))
+                if (background->image() && background->image()->canRender(box, 1))
                     return true;
             }
         }
@@ -142,7 +142,7 @@ static bool isDeletableElement(const Node* node)
         if (!parentStyle)
             return false;
 
-        if (renderer->hasBackground() && (!parentRenderer->hasBackground() || style->visitedDependentColor(CSSPropertyBackgroundColor) != parentStyle->visitedDependentColor(CSSPropertyBackgroundColor)))
+        if (box->hasBackground() && (!parentRenderer->hasBackground() || style->visitedDependentColor(CSSPropertyBackgroundColor) != parentStyle->visitedDependentColor(CSSPropertyBackgroundColor)))
             return true;
     }
 
@@ -203,7 +203,7 @@ void DeleteButtonController::deviceScaleFactorChanged()
 
 void DeleteButtonController::createDeletionUI()
 {
-    RefPtr<HTMLDivElement> container = HTMLDivElement::create(&m_target->document());
+    RefPtr<HTMLDivElement> container = HTMLDivElement::create(m_target->document());
     container->setIdAttribute(containerElementIdentifier);
 
     container->setInlineStyleProperty(CSSPropertyWebkitUserDrag, CSSValueNone);
@@ -217,7 +217,7 @@ void DeleteButtonController::createDeletionUI()
     container->setInlineStyleProperty(CSSPropertyBottom, 0, CSSPrimitiveValue::CSS_PX);
     container->setInlineStyleProperty(CSSPropertyLeft, 0, CSSPrimitiveValue::CSS_PX);
 
-    RefPtr<HTMLDivElement> outline = HTMLDivElement::create(&m_target->document());
+    RefPtr<HTMLDivElement> outline = HTMLDivElement::create(m_target->document());
     outline->setIdAttribute(outlineElementIdentifier);
 
     const int borderWidth = 4;
@@ -241,7 +241,7 @@ void DeleteButtonController::createDeletionUI()
     if (ec)
         return;
 
-    RefPtr<DeleteButton> button = DeleteButton::create(&m_target->document());
+    RefPtr<DeleteButton> button = DeleteButton::create(m_target->document());
     button->setIdAttribute(buttonElementIdentifier);
 
     const int buttonWidth = 30;

@@ -31,7 +31,7 @@
 #include "HNEventError.h"
 #include "HNEventServerHandle.h"
 #include "HNEventServerHandleClient.h"
-#include "KURL.h"
+#include "URL.h"
 #include "NavDsc.h"
 #include "UDPSocketHandleClient.h"
 #include "soup/HNEventHandle.h"
@@ -126,7 +126,7 @@ void discoveryThread(void *context)
         if (elapsedSeconds >= 60) {
 
             if (!upnp->m_udpSocket) {
-                KURL url(KURL(), String(upnp->m_url));
+                URL url(URL(), String(upnp->m_url));
                 upnp->m_udpSocket = UDPSocketHandle::create(url, false, upnp);
                 if (!upnp->m_udpSocket->connected()) {
                     upnp->m_udpSocket.release();
@@ -166,7 +166,7 @@ void notifyThread(void *context)
     while (upnp->m_stillRunning) {
 
         if (!upnp->m_mcastSocket) {
-            KURL url(KURL(), String(upnp->m_url));
+            URL url(URL(), String(upnp->m_url));
             upnp->m_mcastSocket = UDPSocketHandle::create(url, true, upnp);
             if (!upnp->m_mcastSocket->connected()) {
                 upnp->m_mcastSocket.release();
@@ -262,7 +262,7 @@ void UPnPSearch::createConnect(const char *type)
         m_instance = new UPnPSearch(type);
 
     m_instance->m_netIsUp = true;
-    KURL url(KURL(), String(m_instance->m_url));
+    URL url(URL(), String(m_instance->m_url));
 
     if (!m_instance->m_udpSocket) {
 

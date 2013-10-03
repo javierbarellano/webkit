@@ -116,7 +116,7 @@ private:
 class MediaControlDivElement : public HTMLDivElement, public MediaControlElement {
 protected:
     virtual bool isMediaControlElement() const OVERRIDE { return MediaControlElement::isMediaControlElement(); }
-    explicit MediaControlDivElement(Document*, MediaControlElementType);
+    explicit MediaControlDivElement(Document&, MediaControlElementType);
 };
 
 // ----------------------------
@@ -124,7 +124,7 @@ protected:
 class MediaControlInputElement : public HTMLInputElement, public MediaControlElement {
 protected:
     virtual bool isMediaControlElement() const OVERRIDE { return MediaControlElement::isMediaControlElement(); }
-    explicit MediaControlInputElement(Document*, MediaControlElementType);
+    explicit MediaControlInputElement(Document&, MediaControlElementType);
 
 private:
     virtual void updateDisplayType() { }
@@ -134,7 +134,7 @@ private:
 
 class MediaSelectElement : public HTMLSelectElement, public MediaControlElement {
 protected:
-    explicit MediaSelectElement(Document*, MediaControlElementType, MediaControls*);
+    explicit MediaSelectElement(Document&, MediaControlElementType, MediaControls*);
 
     MediaControls* m_controls;
 
@@ -150,7 +150,7 @@ public:
     double currentValue() const { return m_currentValue; }
 
 protected:
-    explicit MediaControlTimeDisplayElement(Document*, MediaControlElementType);
+    explicit MediaControlTimeDisplayElement(Document&, MediaControlElementType);
 
 private:
     double m_currentValue;
@@ -165,7 +165,7 @@ public:
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
 
 protected:
-    explicit MediaControlMuteButtonElement(Document*, MediaControlElementType);
+    explicit MediaControlMuteButtonElement(Document&, MediaControlElementType);
 
     virtual void defaultEventHandler(Event*) OVERRIDE;
 
@@ -180,7 +180,7 @@ public:
     virtual bool willRespondToMouseClickEvents() OVERRIDE { return true; }
 
 protected:
-    explicit MediaControlSeekButtonElement(Document*, MediaControlElementType);
+    explicit MediaControlSeekButtonElement(Document&, MediaControlElementType);
 
     virtual void defaultEventHandler(Event*) OVERRIDE;
     virtual bool isForwardButton() const = 0;
@@ -210,7 +210,7 @@ public:
     void setClearMutedOnUserInteraction(bool);
 
 protected:
-    explicit MediaControlVolumeSliderElement(Document*);
+    explicit MediaControlVolumeSliderElement(Document&);
 
     virtual void defaultEventHandler(Event*) OVERRIDE;
 

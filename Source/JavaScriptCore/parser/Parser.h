@@ -78,6 +78,11 @@ COMPILE_ASSERT(LastUntaggedToken < 64, LessThan64UntaggedTokens);
 
 enum SourceElementsMode { CheckForStrictMode, DontCheckForStrictMode };
 enum FunctionRequirements { FunctionNoRequirements, FunctionNeedsName };
+enum DeconstructionKind {
+    DeconstructToVariables,
+    DeconstructToParameters,
+    DeconstructToExpressions
+};
 
 template <typename T> inline bool isEvalNode() { return false; }
 template <> inline bool isEvalNode<EvalNode>() { return true; }

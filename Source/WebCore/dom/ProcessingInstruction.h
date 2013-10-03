@@ -34,7 +34,7 @@ class CSSStyleSheet;
 
 class ProcessingInstruction FINAL : public CharacterData, private CachedStyleSheetClient {
 public:
-    static PassRefPtr<ProcessingInstruction> create(Document*, const String& target, const String& data);
+    static PassRefPtr<ProcessingInstruction> create(Document&, const String& target, const String& data);
     virtual ~ProcessingInstruction();
 
     const String& target() const { return m_target; }
@@ -54,7 +54,7 @@ public:
 
 private:
     friend class CharacterData;
-    ProcessingInstruction(Document*, const String& target, const String& data);
+    ProcessingInstruction(Document&, const String& target, const String& data);
 
     virtual String nodeName() const;
     virtual NodeType nodeType() const;
@@ -64,15 +64,15 @@ private:
     virtual void removedFrom(ContainerNode*) OVERRIDE;
 
     void checkStyleSheet();
-    virtual void setCSSStyleSheet(const String& href, const KURL& baseURL, const String& charset, const CachedCSSStyleSheet*);
+    virtual void setCSSStyleSheet(const String& href, const URL& baseURL, const String& charset, const CachedCSSStyleSheet*);
 #if ENABLE(XSLT)
-    virtual void setXSLStyleSheet(const String& href, const KURL& baseURL, const String& sheet);
+    virtual void setXSLStyleSheet(const String& href, const URL& baseURL, const String& sheet);
 #endif
 
     bool isLoading() const;
     virtual bool sheetLoaded();
 
-    virtual void addSubresourceAttributeURLs(ListHashSet<KURL>&) const;
+    virtual void addSubresourceAttributeURLs(ListHashSet<URL>&) const;
 
     void parseStyleSheet(const String& sheet);
 

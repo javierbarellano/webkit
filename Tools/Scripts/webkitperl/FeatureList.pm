@@ -78,7 +78,6 @@ my (
     $discoveryPermissionsSupport,
     $dom4EventsConstructor,
     $downloadAttributeSupport,
-    $fileSystemSupport,
     $filtersSupport,
     $fontLoadEventsSupport,
     $ftpDirSupport,
@@ -265,9 +264,6 @@ my @features = (
     { option => "download-attribute", desc => "Toggle Download Attribute support",
       define => "ENABLE_DOWNLOAD_ATTRIBUTE", default => (isBlackBerry() || isEfl()), value => \$downloadAttributeSupport },
 
-    { option => "file-system", desc => "Toggle File System support",
-      define => "ENABLE_FILE_SYSTEM", default => isBlackBerry(), value => \$fileSystemSupport },
-
     { option => "filters", desc => "Toggle Filters support",
       define => "ENABLE_FILTERS", default => (isAppleWebKit() || isGtk() || isEfl() || isBlackBerry()), value => \$filtersSupport },
 
@@ -423,9 +419,6 @@ my @features = (
 
     { option => "sql-database", desc => "Toggle SQL Database support",
       define => "ENABLE_SQL_DATABASE", default => 1, value => \$sqlDatabaseSupport },
-
-    { option => "style-scoped", desc => "Toggle Style Scoped support",
-      define => "ENABLE_STYLE_SCOPED", default => (isBlackBerry() || isGtk()), value => \$styleScopedSupport },
 
     { option => "suid-linux-sandbox", desc => "Toggle suid sandbox for linux",
       define => "ENABLE_SUID_SANDBOX_LINUX", default => 0, value => \$suidLinuxSandbox },

@@ -1115,7 +1115,6 @@ accessibility/aria-combobox.html
 accessibility/aria-controls-with-tabs.html
 accessibility/aria-describedby-on-input.html
 accessibility/aria-disabled.html
-accessibility/aria-help.html
 accessibility/aria-hidden.html
 accessibility/aria-hidden-with-elements.html
 accessibility/aria-invalid.html
@@ -1854,16 +1853,6 @@ http/tests/media/video-served-as-text.html
 
 # Pre-HMTL5 parser quirks only apply to the mac port for now.
 fast/parser/pre-html5-parser-quirks.html
-
-# FileSystem API is not supported.
-fast/filesystem
-http/tests/filesystem
-http/tests/inspector/filesystem
-http/tests/security/contentSecurityPolicy/filesystem-urls-match-self.html
-http/tests/security/filesystem-iframe-from-remote.html
-http/tests/websocket/tests/hybi/send-file-blob.html
-http/tests/websocket/tests/hybi/send-file-blob-fail.html
-fast/dom/MutationObserver/filesystem-callback-delivery.html
 
 # https://bugs.webkit.org/show_bug.cgi?id=46223
 # The WebKit plugin implementation does not support iframe shims.
@@ -2731,7 +2720,6 @@ inspector/timeline/timeline-decode-resize.html
 
 # Flaky inspector tests
 # https://bugs.webkit.org/show_bug.cgi?id=95802
-http/tests/inspector/appcache/appcache-manifest-with-non-existing-file.html
 http/tests/inspector/console-resource-errors.html
 http/tests/inspector/resource-tree/resource-request-content-while-loading.html
 http/tests/inspector/search/resources-search-match-index.html

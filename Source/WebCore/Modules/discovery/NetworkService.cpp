@@ -63,9 +63,9 @@ NetworkService& NetworkService::operator= (const NetworkService &that)
 
 NetworkService::~NetworkService() { }
 
-const AtomicString& NetworkService::interfaceName() const
+EventTargetInterface NetworkService::eventTargetInterface() const
 {
-    return eventNames().interfaceForNetworkService;
+    return NetworkServiceEventTargetInterfaceType;
 }
 
 ScriptExecutionContext* NetworkService::scriptExecutionContext() const

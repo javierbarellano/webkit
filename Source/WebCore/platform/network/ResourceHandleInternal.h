@@ -44,6 +44,7 @@
 #if USE(CURL)
 #include <curl/curl.h>
 #include "FormDataStreamCurl.h"
+#include "MultipartHandle.h"
 #endif
 
 #if USE(SOUP)
@@ -129,7 +130,7 @@ namespace WebCore {
             , m_scheduledFailureType(ResourceHandle::NoFailure)
             , m_failureTimer(loader, &ResourceHandle::fireFailure)
         {
-            const KURL& url = m_firstRequest.url();
+            const URL& url = m_firstRequest.url();
             m_user = url.user();
             m_pass = url.pass();
             m_firstRequest.removeCredentials();
@@ -190,6 +191,8 @@ namespace WebCore {
 
         FormDataStream m_formDataStream;
         Vector<char> m_postBytes;
+
+        OwnPtr<MultipartHandle> m_multipartHandle;
 #endif
 #if USE(SOUP)
         GRefPtr<SoupMessage> m_soupMessage;

@@ -28,7 +28,7 @@ namespace WebCore {
 
 class RenderReplaced : public RenderBox {
 public:
-    RenderReplaced(Element*);
+    explicit RenderReplaced(Element*);
     RenderReplaced(Element*, const LayoutSize& intrinsicSize);
     virtual ~RenderReplaced();
 
@@ -41,8 +41,6 @@ public:
     bool hasReplacedLogicalHeight() const;
 
 protected:
-    virtual bool isRenderReplaced() const OVERRIDE FINAL { return true; }
-
     virtual void willBeDestroyed();
 
     virtual void layout();
@@ -72,7 +70,7 @@ private:
     virtual RenderBox* embeddedContentBox() const { return 0; }
     virtual const char* renderName() const OVERRIDE { return "RenderReplaced"; }
 
-    virtual bool canHaveChildren() const { return false; }
+    virtual bool canHaveChildren() const OVERRIDE { return false; }
 
     virtual void computePreferredLogicalWidths() OVERRIDE FINAL;
     virtual void paintReplaced(PaintInfo&, const LayoutPoint&) { }

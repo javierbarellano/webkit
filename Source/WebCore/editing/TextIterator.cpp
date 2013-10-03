@@ -215,7 +215,7 @@ static inline bool fullyClipsContents(Node* node)
 static inline bool ignoresContainerClip(Node* node)
 {
     RenderObject* renderer = node->renderer();
-    if (!renderer || renderer->isText())
+    if (!renderer || renderer->isTextOrLineBreak())
         return false;
     return renderer->style()->hasOutOfFlowPosition();
 }
@@ -642,7 +642,7 @@ static inline RenderText* firstRenderTextInFirstLetter(RenderObject* firstLetter
         return 0;
 
     // FIXME: Should this check descendent objects?
-    for (RenderObject* current = firstLetter->firstChild(); current; current = current->nextSibling()) {
+    for (RenderObject* current = firstLetter->firstChildSlow(); current; current = current->nextSibling()) {
         if (current->isText())
             return toRenderText(current);
     }
@@ -681,7 +681,7 @@ bool TextIterator::handleReplacedElement()
     }
 
     if (m_entersTextControls && renderer->isTextControl()) {
-        if (HTMLElement* innerTextElement = toRenderTextControl(renderer)->textFormControlElement()->innerTextElement()) {
+        if (HTMLElement* innerTextElement = toRenderTextControl(renderer)->textFormControlElement().innerTextElement()) {
             m_node = innerTextElement->containingShadowRoot();
             pushFullyClippedState(m_fullyClippedStack, m_node);
             m_offset = 0;
@@ -1032,7 +1032,7 @@ void TextIterator::emitCharacter(UChar c, Node* textNode, Node* offsetBaseNode, 
 void TextIterator::emitText(Node* textNode, RenderObject* renderObject, int textStartOffset, int textEndOffset)
 {
     RenderText* renderer = toRenderText(renderObject);
-    m_text = m_emitsOriginalText ? renderer->originalText() : (m_emitsTextWithoutTranscoding ? renderer->textWithoutTranscoding() : renderer->text());
+    m_text = m_emitsOriginalText ? renderer->originalText() : (m_emitsTextWithoutTranscoding ? renderer->textWithoutConvertingBackslashToYenSymbol() : renderer->text());
     ASSERT(!m_text.isEmpty());
     ASSERT(0 <= textStartOffset && textStartOffset < static_cast<int>(m_text.length()));
     ASSERT(0 <= textEndOffset && textEndOffset <= static_cast<int>(m_text.length()));

@@ -23,15 +23,15 @@
 #ifndef RenderLayerModelObject_h
 #define RenderLayerModelObject_h
 
-#include "RenderObject.h"
+#include "RenderElement.h"
 
 namespace WebCore {
 
 class RenderLayer;
 
-class RenderLayerModelObject : public RenderObject {
+class RenderLayerModelObject : public RenderElement {
 public:
-    explicit RenderLayerModelObject(Element*);
+    explicit RenderLayerModelObject(Element*, unsigned baseTypeFlags);
     virtual ~RenderLayerModelObject();
 
     // Called by RenderObject::willBeDestroyed() and is the only way layers should ever be destroyed
@@ -50,9 +50,6 @@ public:
     // The query rect is given in local coordinate system.
     virtual bool backgroundIsKnownToBeOpaqueInRect(const LayoutRect&) const { return false; }
 
-    // This is null for anonymous renderers.
-    Element* element() const { return toElement(RenderObject::node()); }
-
 protected:
     void ensureLayer();
     virtual bool updateLayerIfNeeded();
@@ -60,10 +57,6 @@ protected:
     virtual void willBeDestroyed() OVERRIDE;
 
 private:
-    virtual bool isLayerModelObject() const OVERRIDE FINAL { return true; }
-
-    void node() const WTF_DELETED_FUNCTION;
-
     RenderLayer* m_layer;
 
     // Used to store state between styleWillChange and styleDidChange
@@ -75,13 +68,13 @@ private:
 
 inline RenderLayerModelObject* toRenderLayerModelObject(RenderObject* object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isLayerModelObject());
+    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderLayerModelObject());
     return static_cast<RenderLayerModelObject*>(object);
 }
 
 inline const RenderLayerModelObject* toRenderLayerModelObject(const RenderObject* object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isLayerModelObject());
+    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderLayerModelObject());
     return static_cast<const RenderLayerModelObject*>(object);
 }
 

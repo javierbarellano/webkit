@@ -14,7 +14,6 @@ WEBCORE_GENERATED_SOURCES_DIR = $${ROOT_BUILD_DIR}/Source/WebCore/$${GENERATED_S
 INCLUDEPATH += \
     $$SOURCE_DIR \
     $$SOURCE_DIR/Modules/discovery \
-    $$SOURCE_DIR/Modules/filesystem \
     $$SOURCE_DIR/Modules/geolocation \
     $$SOURCE_DIR/Modules/indexeddb \
     $$SOURCE_DIR/Modules/navigatorcontentutils \
@@ -82,7 +81,6 @@ INCLUDEPATH += \
     $$SOURCE_DIR/platform/qt \
     $$SOURCE_DIR/platform/sql \
     $$SOURCE_DIR/platform/text \
-    $$SOURCE_DIR/platform/text/transcoder \
     $$SOURCE_DIR/plugins \
     $$SOURCE_DIR/rendering \
     $$SOURCE_DIR/rendering/mathml \
@@ -115,8 +113,10 @@ use?(LIBXML2) {
     mac {
         INCLUDEPATH += /usr/include/libxml2
         LIBS += -lxml2
-    } else {
+    } else:!contains(QT_CONFIG, no-pkg-config) {
         PKGCONFIG += libxml-2.0
+    } else {
+        LIBS += -lxml2
     }
 }
 
@@ -124,8 +124,10 @@ enable?(XSLT) {
     mac {
         INCLUDEPATH += /usr/include/libxslt
         LIBS += -lxslt
-    } else {
+    } else:!contains(QT_CONFIG, no-pkg-config) {
         PKGCONFIG += libxslt
+    } else {
+        LIBS += -lxslt
     }
 }
 

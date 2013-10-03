@@ -107,7 +107,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
     ASSERT(value);
     CSSPrimitiveValue* primitiveValue = 0;
     if (value->isPrimitiveValue())
-        primitiveValue = static_cast<CSSPrimitiveValue*>(value);
+        primitiveValue = toCSSPrimitiveValue(value);
 
     const State& state = m_state;
     SVGRenderStyle* svgstyle = state.style()->accessSVGStyle();
@@ -276,7 +276,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
                 break;
             }
 
-            CSSValueList* dashes = static_cast<CSSValueList*>(value);
+            CSSValueList* dashes = toCSSValueList(value);
 
             Vector<SVGLength> array;
             size_t length = dashes->length();
@@ -285,7 +285,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
                 if (!currValue->isPrimitiveValue())
                     continue;
 
-                CSSPrimitiveValue* dash = static_cast<CSSPrimitiveValue*>(dashes->itemWithoutBoundsCheck(i));
+                CSSPrimitiveValue* dash = toCSSPrimitiveValue(dashes->itemWithoutBoundsCheck(i));
                 array.append(SVGLength::fromCSSPrimitiveValue(dash));
             }
 
@@ -364,7 +364,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setMarkerStartResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setMarkerStartResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyMarkerMid:
@@ -378,7 +378,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setMarkerMidResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setMarkerMidResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyMarkerEnd:
@@ -392,7 +392,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setMarkerEndResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setMarkerEndResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyStrokeLinecap:
@@ -429,7 +429,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setFilterResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setFilterResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyMask:
@@ -443,7 +443,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setMaskerResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setMaskerResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyClipPath:
@@ -457,7 +457,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (type == CSSPrimitiveValue::CSS_URI)
                 s = primitiveValue->getStringValue();
 
-            svgstyle->setClipperResource(SVGURIReference::fragmentIdentifierFromIRIString(s, &state.document()));
+            svgstyle->setClipperResource(SVGURIReference::fragmentIdentifierFromIRIString(s, state.document()));
             break;
         }
         case CSSPropertyTextAnchor:
@@ -557,7 +557,7 @@ void StyleResolver::applySVGProperty(CSSPropertyID id, CSSValue* value)
             if (!value->isValueList())
                 return;
 
-            CSSValueList *list = static_cast<CSSValueList*>(value);
+            CSSValueList* list = toCSSValueList(value);
             if (!list->length())
                 return;
 

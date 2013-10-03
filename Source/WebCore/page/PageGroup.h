@@ -36,24 +36,25 @@
 
 namespace WebCore {
 
-#if ENABLE(VIDEO_TRACK)
-    class CaptionPreferencesChangedListener;
-    class CaptionUserPreferences;
-#endif
-    class KURL;
+    class URL;
     class GroupSettings;
     class IDBFactoryBackendInterface;
     class Page;
     class SecurityOrigin;
     class StorageNamespace;
 
+#if ENABLE(VIDEO_TRACK)
+    class CaptionPreferencesChangedListener;
+    class CaptionUserPreferences;
+#endif
+
     class PageGroup : public Supplementable<PageGroup> {
         WTF_MAKE_NONCOPYABLE(PageGroup); WTF_MAKE_FAST_ALLOCATED;
     public:
         explicit PageGroup(const String& name);
+        explicit PageGroup(Page&);
         ~PageGroup();
 
-        static PassOwnPtr<PageGroup> create(Page*);
         static PageGroup* pageGroup(const String& groupName);
 
         static void closeLocalStorage();
@@ -68,12 +69,12 @@ namespace WebCore {
 
         const HashSet<Page*>& pages() const { return m_pages; }
 
-        void addPage(Page*);
-        void removePage(Page*);
+        void addPage(Page&);
+        void removePage(Page&);
 
         bool isLinkVisited(LinkHash);
 
-        void addVisitedLink(const KURL&);
+        void addVisitedLink(const URL&);
         void addVisitedLink(const UChar*, size_t);
         void addVisitedLinkHash(LinkHash);
         void removeVisitedLinks();
@@ -89,16 +90,16 @@ namespace WebCore {
 
         StorageNamespace* transientLocalStorage(SecurityOrigin* topOrigin);
 
-        void addUserScriptToWorld(DOMWrapperWorld*, const String& source, const KURL&,
+        void addUserScriptToWorld(DOMWrapperWorld*, const String& source, const URL&,
                                   const Vector<String>& whitelist, const Vector<String>& blacklist,
                                   UserScriptInjectionTime, UserContentInjectedFrames);
-        void addUserStyleSheetToWorld(DOMWrapperWorld*, const String& source, const KURL&,
+        void addUserStyleSheetToWorld(DOMWrapperWorld*, const String& source, const URL&,
                                       const Vector<String>& whitelist, const Vector<String>& blacklist,
                                       UserContentInjectedFrames,
                                       UserStyleLevel level = UserStyleUserLevel,
                                       UserStyleInjectionTime injectionTime = InjectInExistingDocuments);
-        void removeUserScriptFromWorld(DOMWrapperWorld*, const KURL&);
-        void removeUserStyleSheetFromWorld(DOMWrapperWorld*, const KURL&);
+        void removeUserScriptFromWorld(DOMWrapperWorld*, const URL&);
+        void removeUserStyleSheetFromWorld(DOMWrapperWorld*, const URL&);
 
         void removeUserScriptsFromWorld(DOMWrapperWorld*);
         void removeUserStyleSheetsFromWorld(DOMWrapperWorld*);
@@ -116,13 +117,10 @@ namespace WebCore {
 #endif
 
     private:
-        PageGroup(Page*);
-
         void addVisitedLink(LinkHash);
         void invalidateInjectedStyleSheetCacheInAllFrames();
 
         String m_name;
-
         HashSet<Page*> m_pages;
 
         HashSet<LinkHash, LinkHashHash> m_visitedLinkHashes;
@@ -132,13 +130,13 @@ namespace WebCore {
         RefPtr<StorageNamespace> m_localStorage;
         HashMap<RefPtr<SecurityOrigin>, RefPtr<StorageNamespace> > m_transientLocalStorageMap;
 
-        OwnPtr<UserScriptMap> m_userScripts;
-        OwnPtr<UserStyleSheetMap> m_userStyleSheets;
+        std::unique_ptr<UserScriptMap> m_userScripts;
+        std::unique_ptr<UserStyleSheetMap> m_userStyleSheets;
 
-        const OwnPtr<GroupSettings> m_groupSettings;
+        const std::unique_ptr<GroupSettings> m_groupSettings;
 
 #if ENABLE(VIDEO_TRACK)
-        OwnPtr<CaptionUserPreferences> m_captionPreferences;
+        std::unique_ptr<CaptionUserPreferences> m_captionPreferences;
 #endif
     };
 

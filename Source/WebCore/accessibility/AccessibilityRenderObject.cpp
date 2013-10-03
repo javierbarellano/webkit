@@ -65,7 +65,6 @@
 #include "NodeList.h"
 #include "Page.h"
 #include "ProgressTracker.h"
-#include "RenderBR.h"
 #include "RenderButton.h"
 #include "RenderFieldset.h"
 #include "RenderFileUploadControl.h"
@@ -73,6 +72,7 @@
 #include "RenderImage.h"
 #include "RenderInline.h"
 #include "RenderLayer.h"
+#include "RenderLineBreak.h"
 #include "RenderListBox.h"
 #include "RenderListMarker.h"
 #include "RenderMathMLBlock.h"
@@ -176,7 +176,7 @@ static inline RenderObject* firstChildInContinuation(RenderObject* renderer)
     while (r) {
         if (r->isRenderBlock())
             return r;
-        if (RenderObject* child = r->firstChild())
+        if (RenderObject* child = r->firstChildSlow())
             return child;
         r = toRenderInline(r)->continuation(); 
     }
@@ -186,7 +186,7 @@ static inline RenderObject* firstChildInContinuation(RenderObject* renderer)
 
 static inline RenderObject* firstChildConsideringContinuation(RenderObject* renderer)
 {
-    RenderObject* firstChild = renderer->firstChild();
+    RenderObject* firstChild = renderer->firstChildSlow();
 
     if (!firstChild && isInlineWithContinuation(renderer))
         firstChild = firstChildInContinuation(renderer);
@@ -197,7 +197,7 @@ static inline RenderObject* firstChildConsideringContinuation(RenderObject* rend
 
 static inline RenderObject* lastChildConsideringContinuation(RenderObject* renderer)
 {
-    RenderObject* lastChild = renderer->lastChild();
+    RenderObject* lastChild = renderer->lastChildSlow();
     RenderObject* prev;
     RenderObject* cur = renderer;
 
@@ -207,7 +207,7 @@ static inline RenderObject* lastChildConsideringContinuation(RenderObject* rende
     while (cur) {
         prev = cur;
 
-        if (RenderObject* lc = cur->lastChild())
+        if (RenderObject* lc = cur->lastChildSlow())
             lastChild = lc;
 
         if (cur->isRenderInline()) {
@@ -325,7 +325,8 @@ static inline RenderObject* childBeforeConsideringContinuations(RenderInline* r,
 
 static inline bool firstChildIsInlineContinuation(RenderObject* renderer)
 {
-    return renderer->firstChild() && renderer->firstChild()->isInlineElementContinuation();
+    RenderObject* child = renderer->firstChildSlow();
+    return child && child->isInlineElementContinuation();
 }
 
 AccessibilityObject* AccessibilityRenderObject::previousSibling() const
@@ -344,9 +345,9 @@ AccessibilityObject* AccessibilityRenderObject::previousSibling() const
     // Case 2: Anonymous block parent of the end of a continuation - skip all the way to before
     // the parent of the start, since everything in between will be linked up via the continuation.
     else if (m_renderer->isAnonymousBlock() && firstChildIsInlineContinuation(m_renderer)) {
-        RenderObject* firstParent = startOfContinuations(m_renderer->firstChild())->parent();
+        RenderObject* firstParent = startOfContinuations(m_renderer->firstChildSlow())->parent();
         while (firstChildIsInlineContinuation(firstParent))
-            firstParent = startOfContinuations(firstParent->firstChild())->parent();
+            firstParent = startOfContinuations(firstParent->firstChildSlow())->parent();
         previousSibling = firstParent->previousSibling();
     }
 
@@ -367,7 +368,8 @@ AccessibilityObject* AccessibilityRenderObject::previousSibling() const
 
 static inline bool lastChildHasContinuation(RenderObject* renderer)
 {
-    return renderer->lastChild() && isInlineWithContinuation(renderer->lastChild());
+    RenderObject* child = renderer->lastChildSlow();
+    return child && isInlineWithContinuation(child);
 }
 
 AccessibilityObject* AccessibilityRenderObject::nextSibling() const
@@ -386,9 +388,9 @@ AccessibilityObject* AccessibilityRenderObject::nextSibling() const
     // Case 2: Anonymous block parent of the start of a continuation - skip all the way to
     // after the parent of the end, since everything in between will be linked up via the continuation.
     else if (m_renderer->isAnonymousBlock() && lastChildHasContinuation(m_renderer)) {
-        RenderObject* lastParent = endOfContinuations(m_renderer->lastChild())->parent();
+        RenderObject* lastParent = endOfContinuations(m_renderer->lastChildSlow())->parent();
         while (lastChildHasContinuation(lastParent))
-            lastParent = endOfContinuations(lastParent->lastChild())->parent();
+            lastParent = endOfContinuations(lastParent->lastChildSlow())->parent();
         nextSibling = lastParent->nextSibling();
     }
 
@@ -449,7 +451,7 @@ RenderObject* AccessibilityRenderObject::renderParentObject() const
         parent = startOfConts;
     
     // Case 3: The first sibling is the beginning of a continuation chain. Find the origin of that continuation.
-    else if (parent && (firstChild = parent->firstChild()) && firstChild->node()) {
+    else if (parent && (firstChild = parent->firstChildSlow()) && firstChild->node()) {
         // Get the node's renderer and follow that continuation chain until the first child is found
         RenderObject* nodeRenderFirstChild = firstChild->node()->renderer();
         while (nodeRenderFirstChild != firstChild) {
@@ -459,9 +461,10 @@ RenderObject* AccessibilityRenderObject::renderParentObject() const
                     break;
                 }
             }
-            if (firstChild == parent->firstChild())
+            RenderObject* parentFirstChild = parent->firstChildSlow();
+            if (firstChild == parentFirstChild)
                 break;
-            firstChild = parent->firstChild();
+            firstChild = parentFirstChild;
             if (!firstChild->node())
                 break;
             nodeRenderFirstChild = firstChild->node()->renderer();
@@ -633,7 +636,7 @@ String AccessibilityRenderObject::textUnderElement(AccessibilityTextUnderElement
     
     // Reflect when a content author has explicitly marked a line break.
     if (m_renderer->isBR())
-        return toRenderBR(*m_renderer).text();
+        return ASCIILiteral("\n");
 
 #if ENABLE(MATHML)
     // Math operators create RenderText nodes on the fly that are not tied into the DOM in a reasonable way,
@@ -893,13 +896,13 @@ AccessibilityObject* AccessibilityRenderObject::internalLinkElement() const
         return 0;
     HTMLAnchorElement* anchor = toHTMLAnchorElement(element);
     
-    KURL linkURL = anchor->href();
+    URL linkURL = anchor->href();
     String fragmentIdentifier = linkURL.fragmentIdentifier();
     if (fragmentIdentifier.isEmpty())
         return 0;
     
     // check if URL is the same as current URL
-    KURL documentURL = m_renderer->document().url();
+    URL documentURL = m_renderer->document().url();
     if (!equalIgnoringFragmentIdentifier(documentURL, linkURL))
         return 0;
     
@@ -931,13 +934,13 @@ void AccessibilityRenderObject::addRadioButtonGroupMembers(AccessibilityChildren
     HTMLInputElement* input = toHTMLInputElement(node);
     // if there's a form, then this is easy
     if (input->form()) {
-        Vector<RefPtr<Node> > formElements;
+        Vector<Ref<Element>> formElements;
         input->form()->getNamedElements(input->name(), formElements);
         
         unsigned len = formElements.size();
         for (unsigned i = 0; i < len; ++i) {
-            Node* associateElement = formElements[i].get();
-            if (AccessibilityObject* object = axObjectCache()->getOrCreate(associateElement))
+            Element& associateElement = formElements[i].get();
+            if (AccessibilityObject* object = axObjectCache()->getOrCreate(&associateElement))
                 linkedUIElements.append(object);        
         } 
     } else {
@@ -975,10 +978,7 @@ bool AccessibilityRenderObject::hasTextAlternative() const
 {
     // ARIA: section 2A, bullet #3 says if aria-labeledby or aria-label appears, it should
     // override the "label" element association.
-    if (!ariaLabeledByAttribute().isEmpty() || !getAttribute(aria_labelAttr).isEmpty())
-        return true;
-        
-    return false;   
+    return ariaAccessibilityDescription().length();
 }
     
 bool AccessibilityRenderObject::ariaHasPopup() const
@@ -1047,12 +1047,6 @@ bool AccessibilityRenderObject::exposesTitleUIElement() const
     if (accessibilityIsIgnored())
         return true;
     
-    // Checkboxes and radio buttons use the text of their title ui element as their own AXTitle.
-    // This code controls whether the title ui element should appear in the AX tree (usually, no).
-    // It should appear if the control already has a label (which will be used as the AXTitle instead).
-    if (isCheckboxOrRadio())
-        return hasTextAlternative();
-
     // When controls have their own descriptions, the title element should be ignored.
     if (hasTextAlternative())
         return false;
@@ -1163,15 +1157,17 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
     AccessibilityObject* controlObject = correspondingControlForLabelElement();
     if (controlObject && !controlObject->exposesTitleUIElement() && controlObject->isCheckboxOrRadio())
         return true;
-        
-    // NOTE: BRs always have text boxes now, so the text box check here can be removed
+
+    if (m_renderer->isBR())
+        return true;
+
     if (m_renderer->isText()) {
         // static text beneath MenuItems and MenuButtons are just reported along with the menu item, so it's ignored on an individual level
         AccessibilityObject* parent = parentObjectUnignored();
-        if (parent && (parent->ariaRoleAttribute() == MenuItemRole || parent->ariaRoleAttribute() == MenuButtonRole))
+        if (parent && (parent->isMenuItem() || parent->ariaRoleAttribute() == MenuButtonRole))
             return true;
         RenderText* renderText = toRenderText(m_renderer);
-        if (m_renderer->isBR() || !renderText->firstTextBox())
+        if (!renderText->firstTextBox())
             return true;
 
         // static text beneath TextControls is reported along with the text control text so it's ignored.
@@ -1266,7 +1262,7 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
             
             // check whether rendered image was stretched from one-dimensional file image
             if (image->cachedImage()) {
-                LayoutSize imageSize = image->cachedImage()->imageSizeForRenderer(m_renderer, image->view().zoomFactor());
+                LayoutSize imageSize = image->cachedImage()->imageSizeForRenderer(toRenderElement(m_renderer), image->view().zoomFactor());
                 return imageSize.height() <= 1 || imageSize.width() <= 1;
             }
         }
@@ -1395,8 +1391,8 @@ String AccessibilityRenderObject::selectedText() const
         return String(); // need to return something distinct from empty string
     
     if (isNativeTextControl()) {
-        HTMLTextFormControlElement* textControl = toRenderTextControl(m_renderer)->textFormControlElement();
-        return textControl->selectedText();
+        HTMLTextFormControlElement& textControl = toRenderTextControl(m_renderer)->textFormControlElement();
+        return textControl.selectedText();
     }
     
     if (ariaRoleAttribute() == UnknownRole)
@@ -1429,8 +1425,8 @@ PlainTextRange AccessibilityRenderObject::selectedTextRange() const
     
     AccessibilityRole ariaRole = ariaRoleAttribute();
     if (isNativeTextControl() && ariaRole == UnknownRole) {
-        HTMLTextFormControlElement* textControl = toRenderTextControl(m_renderer)->textFormControlElement();
-        return PlainTextRange(textControl->selectionStart(), textControl->selectionEnd() - textControl->selectionStart());
+        HTMLTextFormControlElement& textControl = toRenderTextControl(m_renderer)->textFormControlElement();
+        return PlainTextRange(textControl.selectionStart(), textControl.selectionEnd() - textControl.selectionStart());
     }
     
     if (ariaRole == UnknownRole)
@@ -1442,8 +1438,8 @@ PlainTextRange AccessibilityRenderObject::selectedTextRange() const
 void AccessibilityRenderObject::setSelectedTextRange(const PlainTextRange& range)
 {
     if (isNativeTextControl()) {
-        HTMLTextFormControlElement* textControl = toRenderTextControl(m_renderer)->textFormControlElement();
-        textControl->setSelectionRange(range.start, range.start + range.length);
+        HTMLTextFormControlElement& textControl = toRenderTextControl(m_renderer)->textFormControlElement();
+        textControl.setSelectionRange(range.start, range.start + range.length);
         return;
     }
 
@@ -1452,7 +1448,7 @@ void AccessibilityRenderObject::setSelectedTextRange(const PlainTextRange& range
         Position(node, range.start + range.length, Position::PositionIsOffsetInAnchor), DOWNSTREAM));
 }
 
-KURL AccessibilityRenderObject::url() const
+URL AccessibilityRenderObject::url() const
 {
     if (isAnchor() && isHTMLAnchorElement(m_renderer->node())) {
         if (HTMLAnchorElement* anchor = toHTMLAnchorElement(anchorElement()))
@@ -1468,7 +1464,7 @@ KURL AccessibilityRenderObject::url() const
     if (isInputImage())
         return toHTMLInputElement(m_renderer->node())->src();
     
-    return KURL();
+    return URL();
 }
 
 bool AccessibilityRenderObject::isUnvisited() const
@@ -1827,7 +1823,7 @@ VisiblePosition AccessibilityRenderObject::visiblePositionForIndex(int index) co
         return VisiblePosition();
 
     if (isNativeTextControl())
-        return toRenderTextControl(m_renderer)->textFormControlElement()->visiblePositionForIndex(index);
+        return toRenderTextControl(m_renderer)->textFormControlElement().visiblePositionForIndex(index);
 
     if (!allowsTextRanges() && !m_renderer->isText())
         return VisiblePosition();
@@ -1842,7 +1838,7 @@ VisiblePosition AccessibilityRenderObject::visiblePositionForIndex(int index) co
 int AccessibilityRenderObject::indexForVisiblePosition(const VisiblePosition& pos) const
 {
     if (isNativeTextControl())
-        return toRenderTextControl(m_renderer)->textFormControlElement()->indexForVisiblePosition(pos);
+        return toRenderTextControl(m_renderer)->textFormControlElement().indexForVisiblePosition(pos);
 
     if (!isTextControl())
         return 0;
@@ -2305,11 +2301,11 @@ void AccessibilityRenderObject::handleAriaExpandedChanged()
     
     // Post that the row count changed.
     if (containerParent)
-        axObjectCache()->postNotification(containerParent, document(), AXObjectCache::AXRowCountChanged, true);
+        axObjectCache()->postNotification(containerParent, document(), AXObjectCache::AXRowCountChanged);
 
     // Post that the specific row either collapsed or expanded.
     if (roleValue() == RowRole || roleValue() == TreeItemRole)
-        axObjectCache()->postNotification(this, document(), isExpanded() ? AXObjectCache::AXRowExpanded : AXObjectCache::AXRowCollapsed, true);
+        axObjectCache()->postNotification(this, document(), isExpanded() ? AXObjectCache::AXRowExpanded : AXObjectCache::AXRowCollapsed);
 }
 
 void AccessibilityRenderObject::handleActiveDescendantChanged()
@@ -2322,7 +2318,7 @@ void AccessibilityRenderObject::handleActiveDescendantChanged()
     AccessibilityRenderObject* activedescendant = static_cast<AccessibilityRenderObject*>(activeDescendant());
     
     if (activedescendant && shouldNotifyActiveDescendant())
-        renderer()->document().axObjectCache()->postNotification(m_renderer, AXObjectCache::AXActiveDescendantChanged, true);
+        renderer()->document().axObjectCache()->postNotification(m_renderer, AXObjectCache::AXActiveDescendantChanged);
 }
 
 AccessibilityObject* AccessibilityRenderObject::correspondingControlForLabelElement() const
@@ -2679,6 +2675,9 @@ bool AccessibilityRenderObject::canSetValueAttribute() const
     if (isNativeTextControl())
         return !isReadOnly();
 
+    if (isMeter())
+        return false;
+
     if (equalIgnoringCase(getAttribute(aria_readonlyAttr), "true"))
         return false;
     
@@ -2712,10 +2711,10 @@ void AccessibilityRenderObject::textChanged()
             continue;
         
         if (parent->supportsARIALiveRegion())
-            cache->postNotification(renderParent, AXObjectCache::AXLiveRegionChanged, true);
+            cache->postNotification(renderParent, AXObjectCache::AXLiveRegionChanged);
 
         if (parent->isARIATextControl() && !parent->isNativeTextControl() && !parent->node()->rendererIsEditable())
-            cache->postNotification(renderParent, AXObjectCache::AXValueChanged, true);
+            cache->postNotification(renderParent, AXObjectCache::AXValueChanged);
     }
 }
 
@@ -3367,13 +3366,13 @@ String AccessibilityRenderObject::passwordFieldValue() const
     // Look for the RenderText object in the RenderObject tree for this input field.
     RenderObject* renderer = node()->renderer();
     while (renderer && !renderer->isText())
-        renderer = renderer->firstChild();
+        renderer = toRenderElement(renderer)->firstChild();
 
     if (!renderer || !renderer->isText())
         return String();
 
     // Return the text that is actually being rendered in the input field.
-    return static_cast<RenderText*>(renderer)->textWithoutTranscoding();
+    return static_cast<RenderText*>(renderer)->textWithoutConvertingBackslashToYenSymbol();
 #else
     // It seems only GTK is interested in this at the moment.
     return String();
@@ -3440,7 +3439,7 @@ bool AccessibilityRenderObject::isMathSubscriptSuperscript() const
     if (!m_renderer || !m_renderer->isRenderMathMLBlock())
         return false;
     
-    return toRenderMathMLBlock(m_renderer)->isRenderMathMLSubSup();
+    return toRenderMathMLBlock(m_renderer)->isRenderMathMLScripts() && !isMathMultiscript();
 }
 
 bool AccessibilityRenderObject::isMathRow() const
@@ -3696,12 +3695,12 @@ AccessibilityObject* AccessibilityRenderObject::mathSuperscriptObject()
         return 0;
     
     AccessibilityChildrenVector children = this->children();
-    if (children.size() < 2)
-        return 0;
-    
-    if (node()->hasTagName(MathMLNames::msupTag))
+    unsigned count = children.size();
+
+    if (count >= 2 && node()->hasTagName(MathMLNames::msupTag))
         return children[1].get();
-    if (node()->hasTagName(MathMLNames::msubsupTag))
+
+    if (count >= 3 && node()->hasTagName(MathMLNames::msubsupTag))
         return children[2].get();
     
     return 0;

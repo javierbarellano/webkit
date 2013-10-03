@@ -31,7 +31,7 @@ namespace WebCore {
 
 class HTMLDocument : public Document, public CachedResourceClient {
 public:
-    static PassRefPtr<HTMLDocument> create(Frame* frame, const KURL& url)
+    static PassRefPtr<HTMLDocument> create(Frame* frame, const URL& url)
     {
         return adoptRef(new HTMLDocument(frame, url));
     }
@@ -80,7 +80,7 @@ public:
     static bool isCaseSensitiveAttribute(const QualifiedName&);
 
 protected:
-    HTMLDocument(Frame*, const KURL&, DocumentClassFlags = 0);
+    HTMLDocument(Frame*, const URL&, DocumentClassFlags = 0);
 
 private:
     virtual PassRefPtr<Element> createElement(const AtomicString& tagName, ExceptionCode&);
@@ -104,8 +104,20 @@ inline const HTMLDocument* toHTMLDocument(const Document* document)
     return static_cast<const HTMLDocument*>(document);
 }
 
+inline HTMLDocument& toHTMLDocument(Document& document)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(document.isHTMLDocument());
+    return static_cast<HTMLDocument&>(document);
+}
+
+inline const HTMLDocument& toHTMLDocument(const Document& document)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(document.isHTMLDocument());
+    return static_cast<const HTMLDocument&>(document);
+}
 // This will catch anyone doing an unnecessary cast.
 void toHTMLDocument(const HTMLDocument*);
+void toHTMLDocument(const HTMLDocument&);
 
 } // namespace WebCore
 
