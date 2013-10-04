@@ -4,6 +4,7 @@
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
  * Copyright (C) 2009 Gustavo Noronha Silva <gns@gnome.org>
  * Copyright (C) 2009, 2010, 2011, 2012, 2013 Igalia S.L
+ * Copyright (C) 2013 Cable Television Laboratories, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -41,6 +42,7 @@
 #include <limits>
 #include <wtf/gobject/GOwnPtr.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringBuilder.h>
 
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 #include "AudioTrackPrivateGStreamer.h"
@@ -49,6 +51,14 @@
 #include "TextCombinerGStreamer.h"
 #include "TextSinkGStreamer.h"
 #include "VideoTrackPrivateGStreamer.h"
+#endif
+
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+#define GST_USE_UNSTABLE_API
+extern "C" {
+#include <gst/mpegts/mpegts.h>
+}
+#undef GST_USE_UNSTABLE_API
 #endif
 
 #ifdef GST_API_VERSION_1
@@ -972,6 +982,9 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     bool attemptNextLocation = false;
     const GstStructure* structure = gst_message_get_structure(message);
     GstState requestedState, currentState;
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+    GstMpegTsSection* section;
+#endif
 
     m_canFallBackToLastFinishedSeekPositon = false;
 
@@ -1078,6 +1091,12 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
             m_missingPlugins = result == GST_INSTALL_PLUGINS_STARTED_OK;
             g_free(detail);
         }
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+        else if ((section = gst_message_parse_mpegts_section(message))) {
+            processMpegTsSection(section);
+            gst_mpegts_section_unref(section);
+        }
+#endif
         break;
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     case GST_MESSAGE_TOC:
@@ -1111,6 +1130,55 @@ void MediaPlayerPrivateGStreamer::processBufferingStats(GstMessage* message)
 
     updateStates();
 }
+
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section)
+{
+    ASSERT(section);
+
+    /* See: Exposing In-band Media Container Tracks in HTML5
+     * http://www.cablelabs.com/specifications/CL-SP-HTML5-MAP-I02-120510.pdf */
+
+    if (section->section_type != GST_MPEGTS_SECTION_PMT)
+        return;
+
+    if (!m_trackDescriptionTrack) {
+        m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata, "video/mp2t track-description");
+        m_player->addTextTrack(m_trackDescriptionTrack);
+    }
+
+    const GstMpegTsPMT* pmt = gst_mpegts_section_get_pmt(section);
+    ASSERT(pmt);
+
+    StringBuilder content;
+    content.append("{\"mp2t_track_description\":[");
+    for (guint i = 0; i < pmt->streams->len; ++i) {
+        if (i)
+            content.append(',');
+
+        GstMpegTsPMTStream* stream = static_cast<GstMpegTsPMTStream*>(g_ptr_array_index(pmt->streams, i));
+        content.append(String::format("{\"stream_type\":\"%#.2x\",\"pid\":\"%u\",\"es_descriptor\":[",
+            stream->stream_type, stream->pid));
+        for (guint j = 0; j < stream->descriptors->len; ++j) {
+            if (j)
+                content.append(',');
+
+            GstMpegTsDescriptor* descriptor = static_cast<GstMpegTsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
+            gchar* descContents = g_base64_encode(descriptor->data, descriptor->length);
+            content.append(String::format("{\"tag\":\"%#.2x\",\"desc_contents\":\"%s\"}", descriptor->tag, descContents));
+            g_free(descContents);
+        }
+        content.append("]}");
+    }
+    content.append("]}");
+
+    RefPtr<GenericCueData> cue = GenericCueData::create();
+    cue->setContent(content.toString());
+    cue->setStartTime(currentTimeDouble());
+    cue->setEndTime(std::numeric_limits<double>::infinity());
+    m_trackDescriptionTrack->client()->addGenericCue(m_trackDescriptionTrack.get(), cue.release());
+}
+#endif
 
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 void MediaPlayerPrivateGStreamer::processTableOfContents(GstMessage* message)

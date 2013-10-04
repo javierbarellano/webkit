@@ -33,26 +33,29 @@
 
 namespace WebCore {
 
-class InbandMetadataTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
+class InbandMetadataTextTrackPrivateGStreamer FINAL : public InbandTextTrackPrivate {
 public:
-    static PassRefPtr<InbandMetadataTextTrackPrivateGStreamer> create(Kind kind)
+    static PassRefPtr<InbandMetadataTextTrackPrivateGStreamer> create(Kind kind, const AtomicString& label = emptyAtom)
     {
-        return adoptRef(new InbandMetadataTextTrackPrivateGStreamer(kind));
+        return adoptRef(new InbandMetadataTextTrackPrivateGStreamer(kind, label));
     }
 
     ~InbandMetadataTextTrackPrivateGStreamer() { }
 
     virtual Kind kind() const OVERRIDE { return m_kind; }
+    virtual AtomicString label() const OVERRIDE { return m_label; }
 
 private:
-    InbandMetadataTextTrackPrivateGStreamer(Kind kind)
+    InbandMetadataTextTrackPrivateGStreamer(Kind kind, const AtomicString& label)
         : InbandTextTrackPrivate(Generic)
         , m_kind(kind)
+        , m_label(label)
     {
 
     }
 
     Kind m_kind;
+    AtomicString m_label;
 };
 
 } // namespace WebCore
