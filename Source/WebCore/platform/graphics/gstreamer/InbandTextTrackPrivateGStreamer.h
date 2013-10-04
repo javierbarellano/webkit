@@ -49,6 +49,7 @@ public:
 
     void disconnect();
 
+    virtual Kind kind() const OVERRIDE { return m_kind; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }
 
@@ -68,6 +69,7 @@ private:
 
     gint m_index;
     GRefPtr<GstPad> m_pad;
+    Kind m_kind;
     AtomicString m_label;
     AtomicString m_language;
     guint m_sampleTimerHandler;

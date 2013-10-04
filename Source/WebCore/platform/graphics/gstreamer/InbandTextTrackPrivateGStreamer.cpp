@@ -31,8 +31,10 @@
 
 #include "GStreamerUtilities.h"
 #include "Logging.h"
+#include "TextTrack.h"
 #include <glib-object.h>
 #include <gst/gst.h>
+#include <gst/tag/tag.h>
 
 GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
 #define GST_CAT_DEFAULT webkit_media_player_debug
@@ -77,6 +79,7 @@ InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRe
     : InbandTextTrackPrivate(WebVTT)
     , m_index(index)
     , m_pad(pad)
+    , m_kind(Subtitles)
     , m_sampleTimerHandler(0)
     , m_streamTimerHandler(0)
     , m_tagTimerHandler(0)
@@ -191,6 +194,7 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
     if (!m_pad)
         return;
 
+    Kind kind = m_kind;
     String label;
     String language;
     GRefPtr<GstEvent> event;
@@ -211,6 +215,33 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
             language = tagValue;
             g_free(tagValue);
         }
+#ifdef GST_TAG_TRACK_KIND
+        if (gst_tag_list_get_string(tags, GST_TAG_TRACK_KIND, &tagValue)) {
+            INFO_MEDIA_MESSAGE("Text track %d got kind %s.", m_index, tagValue);
+
+            String value = tagValue;
+
+            if (value == TextTrack::subtitlesKeyword())
+                kind = Subtitles;
+            else if (value == TextTrack::captionsKeyword())
+                kind = Captions;
+            else if (value == TextTrack::descriptionsKeyword())
+                kind = Descriptions;
+            else if (value == TextTrack::chaptersKeyword())
+                kind = Chapters;
+            else if (value == TextTrack::metadataKeyword())
+                kind = Metadata;
+            else if (value == TextTrack::forcedKeyword())
+                kind = Forced;
+
+            g_free(tagValue);
+        }
+#endif
+    }
+
+    if (m_kind != kind) {
+        m_kind = kind;
+        client()->kindChanged(this);
     }
 
     if (m_label != label) {
