@@ -37,7 +37,7 @@ using namespace std;
 namespace WebCore {
 
 RenderScrollbarPart::RenderScrollbarPart(RenderScrollbar* scrollbar, ScrollbarPart part)
-    : RenderBlock(0)
+    : RenderBlock(nullptr, 0)
     , m_scrollbar(scrollbar)
     , m_part(part)
 {
@@ -47,9 +47,9 @@ RenderScrollbarPart::~RenderScrollbarPart()
 {
 }
 
-RenderScrollbarPart* RenderScrollbarPart::createAnonymous(Document* document, RenderScrollbar* scrollbar, ScrollbarPart part)
+RenderScrollbarPart* RenderScrollbarPart::createAnonymous(Document& document, RenderScrollbar* scrollbar, ScrollbarPart part)
 {
-    RenderScrollbarPart* renderer = new (document->renderArena()) RenderScrollbarPart(scrollbar, part);
+    RenderScrollbarPart* renderer = new (*document.renderArena()) RenderScrollbarPart(scrollbar, part);
     renderer->setDocumentForAnonymous(document);
     return renderer;
 }
@@ -209,10 +209,10 @@ void RenderScrollbarPart::paintIntoRect(GraphicsContext* graphicsContext, const 
     }
 }
 
-RenderObject* RenderScrollbarPart::rendererOwningScrollbar() const
+RenderBox* RenderScrollbarPart::rendererOwningScrollbar() const
 {
     if (!m_scrollbar)
-        return 0;
+        return nullptr;
     return m_scrollbar->owningRenderer();
 }
 

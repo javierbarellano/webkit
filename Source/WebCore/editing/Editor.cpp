@@ -68,7 +68,6 @@
 #include "Pasteboard.h"
 #include "RemoveFormatCommand.h"
 #include "RenderBlock.h"
-#include "RenderPart.h"
 #include "RenderTextControl.h"
 #include "RenderedPosition.h"
 #include "ReplaceSelectionCommand.h"
@@ -413,30 +412,46 @@ void Editor::pasteAsFragment(PassRefPtr<DocumentFragment> pastingFragment, bool 
 
 void Editor::pasteAsPlainTextBypassingDHTML()
 {
-    pasteAsPlainTextWithPasteboard(Pasteboard::createForCopyAndPaste().get());
+    pasteAsPlainTextWithPasteboard(*Pasteboard::createForCopyAndPaste());
 }
 
-void Editor::pasteAsPlainTextWithPasteboard(Pasteboard* pasteboard)
+void Editor::pasteAsPlainTextWithPasteboard(Pasteboard& pasteboard)
 {
-    String text = pasteboard->plainText(&m_frame);
+    String text = readPlainTextFromPasteboard(pasteboard);
     if (client() && client()->shouldInsertText(text, selectedRange().get(), EditorInsertActionPasted))
         pasteAsPlainText(text, canSmartReplaceWithPasteboard(pasteboard));
 }
 
-#if !PLATFORM(MAC)
+String Editor::readPlainTextFromPasteboard(Pasteboard& pasteboard)
+{
+    PasteboardPlainText text;
+    pasteboard.read(text);
+    return plainTextFromPasteboard(text);
+}
+
+#if !(PLATFORM(MAC) && !PLATFORM(IOS))
+
+String Editor::plainTextFromPasteboard(const PasteboardPlainText& text)
+{
+    return text.text;
+}
+
+#endif
+
+#if !PLATFORM(MAC) && !PLATFORM(EFL)
 void Editor::pasteWithPasteboard(Pasteboard* pasteboard, bool allowPlainText)
 {
     RefPtr<Range> range = selectedRange();
     bool chosePlainText;
     RefPtr<DocumentFragment> fragment = pasteboard->documentFragment(&m_frame, range, allowPlainText, chosePlainText);
     if (fragment && shouldInsertFragment(fragment, range, EditorInsertActionPasted))
-        pasteAsFragment(fragment, canSmartReplaceWithPasteboard(pasteboard), chosePlainText);
+        pasteAsFragment(fragment, canSmartReplaceWithPasteboard(*pasteboard), chosePlainText);
 }
 #endif
 
-bool Editor::canSmartReplaceWithPasteboard(Pasteboard* pasteboard)
+bool Editor::canSmartReplaceWithPasteboard(Pasteboard& pasteboard)
 {
-    return client() && client()->smartInsertDeleteEnabled() && pasteboard->canSmartReplace();
+    return client() && client()->smartInsertDeleteEnabled() && pasteboard.canSmartReplace();
 }
 
 bool Editor::shouldInsertFragment(PassRefPtr<DocumentFragment> fragment, PassRefPtr<Range> replacingDOMRange, EditorInsertAction givenAction)
@@ -542,7 +557,7 @@ void Editor::respondToChangedContents(const VisibleSelection& endingSelection)
     if (AXObjectCache::accessibilityEnabled()) {
         Node* node = endingSelection.start().deprecatedNode();
         if (AXObjectCache* cache = m_frame.document()->existingAXObjectCache())
-            cache->postNotification(node, AXObjectCache::AXValueChanged, false);
+            cache->postNotification(node, AXObjectCache::AXValueChanged, TargetObservableParent);
     }
 
     updateMarkersForWordsAffectedByEditing(true);
@@ -565,7 +580,7 @@ bool Editor::hasBidiSelection() const
     } else
         startNode = m_frame.selection().selection().visibleStart().deepEquivalent().deprecatedNode();
 
-    RenderObject* renderer = startNode->renderer();
+    auto renderer = startNode->renderer();
     while (renderer && !renderer->isRenderBlock())
         renderer = renderer->parent();
 
@@ -697,10 +712,6 @@ bool Editor::dispatchCPPEvent(const AtomicString& eventType, ClipboardAccessPoli
         return true;
 
     RefPtr<Clipboard> clipboard = Clipboard::createForCopyAndPaste(policy);
-
-#if PLATFORM(IOS)
-    clipboard->pasteboard().setFrame(m_frame);
-#endif
 
     RefPtr<Event> event = ClipboardEvent::create(eventType, true, true, clipboard);
     target->dispatchEvent(event, IGNORE_EXCEPTION);
@@ -1049,7 +1060,7 @@ void Editor::cut()
         if (enclosingTextFormControl(m_frame.selection().start()))
             Pasteboard::createForCopyAndPaste()->writePlainText(selectedTextForClipboard(), canSmartCopyOrDelete() ? Pasteboard::CanSmartReplace : Pasteboard::CannotSmartReplace);
         else {
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC) || PLATFORM(EFL)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Convert all other platforms to match Mac and delete this.
@@ -1077,13 +1088,13 @@ void Editor::copy()
     } else {
         Document* document = m_frame.document();
         if (HTMLImageElement* imageElement = imageElementFromImageDocument(document)) {
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL)
             writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), *imageElement, document->url(), document->title());
 #else
             Pasteboard::createForCopyAndPaste()->writeImage(imageElement, document->url(), document->title());
 #endif
         } else {
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Convert all other platforms to match Mac and delete this.
@@ -1113,7 +1124,7 @@ void Editor::paste(Pasteboard& pasteboard)
     if (m_frame.selection().isContentRichlyEditable())
         pasteWithPasteboard(&pasteboard, true);
     else
-        pasteAsPlainTextWithPasteboard(&pasteboard);
+        pasteAsPlainTextWithPasteboard(pasteboard);
 }
 
 void Editor::pasteAsPlainText()
@@ -1123,7 +1134,7 @@ void Editor::pasteAsPlainText()
     if (!canPaste())
         return;
     updateMarkersForWordsAffectedByEditing(false);
-    pasteAsPlainTextWithPasteboard(Pasteboard::createForCopyAndPaste().get());
+    pasteAsPlainTextWithPasteboard(*Pasteboard::createForCopyAndPaste());
 }
 
 void Editor::performDelete()
@@ -1159,18 +1170,22 @@ void Editor::simplifyMarkup(Node* startNode, Node* endNode)
     applyCommand(SimplifyMarkupCommand::create(document(), startNode, (endNode) ? NodeTraversal::next(endNode) : 0));
 }
 
-void Editor::copyURL(const KURL& url, const String& title)
+void Editor::copyURL(const URL& url, const String& title)
 {
     copyURL(url, title, *Pasteboard::createForCopyAndPaste());
 }
 
-void Editor::copyURL(const KURL& url, const String& title, Pasteboard& pasteboard)
+void Editor::copyURL(const URL& url, const String& title, Pasteboard& pasteboard)
 {
+    PasteboardURL pasteboardURL;
+    pasteboardURL.url = url;
+    pasteboardURL.title = title;
+
 #if PLATFORM(MAC) && !PLATFORM(IOS)
-    writeURLToPasteboard(pasteboard, url, title);
-#else
-    pasteboard.writeURL(url, title, &m_frame);
+    fillInUserVisibleForm(pasteboardURL);
 #endif
+
+    pasteboard.write(pasteboardURL);
 }
 
 void Editor::copyImage(const HitTestResult& result)
@@ -1179,11 +1194,11 @@ void Editor::copyImage(const HitTestResult& result)
     if (!element)
         return;
 
-    KURL url = result.absoluteLinkURL();
+    URL url = result.absoluteLinkURL();
     if (url.isEmpty())
         url = result.absoluteImageURL();
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC) || PLATFORM(EFL)
     writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), *element, url, result.altDisplayString());
 #else
     Pasteboard::createForCopyAndPaste()->writeImage(element, url, result.altDisplayString());
@@ -1423,7 +1438,7 @@ WritingDirection Editor::baseWritingDirectionForSelectionStart() const
     if (!node)
         return result;
 
-    RenderObject* renderer = node->renderer();
+    auto renderer = node->renderer();
     if (!renderer)
         return result;
 
@@ -2324,7 +2339,7 @@ void Editor::markAndReplaceFor(PassRefPtr<SpellCheckRequest> request, const Vect
 
                 if (AXObjectCache* cache = m_frame.document()->existingAXObjectCache()) {
                     if (Element* root = m_frame.selection().selection().rootEditableElement())
-                        cache->postNotification(root, AXObjectCache::AXAutocorrectionOccured, true);
+                        cache->postNotification(root, AXObjectCache::AXAutocorrectionOccured);
                 }
 
                 // Skip all other results for the replaced text.
@@ -3066,7 +3081,7 @@ static Node* findFirstMarkable(Node* node)
     while (node) {
         if (!node->renderer())
             return 0;
-        if (node->renderer()->isText())
+        if (node->renderer()->isTextOrLineBreak())
             return node;
         if (isHTMLTextFormControlElement(node))
             node = toHTMLTextFormControlElement(node)->visiblePositionForIndex(1).deepEquivalent().deprecatedNode();

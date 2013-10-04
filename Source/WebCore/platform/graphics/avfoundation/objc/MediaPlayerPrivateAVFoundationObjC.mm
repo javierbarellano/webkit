@@ -29,6 +29,8 @@
 
 #import "MediaPlayerPrivateAVFoundationObjC.h"
 
+#import "AudioTrackPrivateAVFObjC.h"
+#import "AVTrackPrivateAVFObjCImpl.h"
 #import "BlockExceptions.h"
 #import "ExceptionCodePlaceholder.h"
 #import "FloatConversion.h"
@@ -37,12 +39,13 @@
 #import "GraphicsContext.h"
 #import "InbandTextTrackPrivateAVFObjC.h"
 #import "InbandTextTrackPrivateLegacyAVFObjC.h"
-#import "KURL.h"
+#import "URL.h"
 #import "Logging.h"
 #import "SecurityOrigin.h"
 #import "SoftLinking.h"
 #import "TimeRanges.h"
 #import "UUID.h"
+#import "VideoTrackPrivateAVFObjC.h"
 #import "WebCoreAVFResourceLoader.h"
 #import "WebCoreSystemInterface.h"
 #import <objc/runtime.h>
@@ -429,7 +432,7 @@ void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const String& url)
         [options.get() setObject:headerFields.get() forKey:@"AVURLAssetHTTPHeaderFieldsKey"];
 #endif
 
-    NSURL *cocoaURL = KURL(ParsedURLString, url);
+    NSURL *cocoaURL = URL(ParsedURLString, url);
     m_avAsset = adoptNS([[AVURLAsset alloc] initWithURL:cocoaURL options:options.get()]);
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
@@ -882,7 +885,7 @@ void MediaPlayerPrivateAVFoundationObjC::getSupportedTypes(HashSet<String>& supp
     supportedTypes = mimeTypeCache();
 } 
 
-MediaPlayer::SupportsType MediaPlayerPrivateAVFoundationObjC::supportsType(const String& type, const String& codecs, const KURL&)
+MediaPlayer::SupportsType MediaPlayerPrivateAVFoundationObjC::supportsType(const String& type, const String& codecs, const URL&)
 {
     if (!mimeTypeCache().contains(type))
         return MediaPlayer::IsNotSupported;
@@ -905,7 +908,7 @@ static bool keySystemIsSupported(const String& keySystem)
     return false;
 }
 
-MediaPlayer::SupportsType MediaPlayerPrivateAVFoundationObjC::extendedSupportsType(const String& type, const String& codecs, const String& keySystem, const KURL& url)
+MediaPlayer::SupportsType MediaPlayerPrivateAVFoundationObjC::extendedSupportsType(const String& type, const String& codecs, const String& keySystem, const URL& url)
 {
     // From: <http://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-canplaytype>
     // In addition to the steps in the current specification, this method must run the following steps:
@@ -1048,6 +1051,12 @@ void MediaPlayerPrivateAVFoundationObjC::tracksChanged()
         }
         setHasVideo(hasVideo);
         setHasAudio(hasAudio);
+
+
+#if ENABLE(VIDEO_TRACK)
+        updateAudioTracks();
+        updateVideoTracks();
+#endif
     }
 
 #if HAVE(AVFOUNDATION_MEDIA_SELECTION_GROUP)
@@ -1078,6 +1087,59 @@ void MediaPlayerPrivateAVFoundationObjC::tracksChanged()
 
     setDelayCharacteristicsChangedNotification(false);
 }
+
+#if ENABLE(VIDEO_TRACK)
+template <typename RefT, typename PassRefT>
+void determineChangedTracksFromNewTracksAndOldItems(NSArray* tracks, NSString* trackType, Vector<RefT>& oldItems, RefT (*itemFactory)(AVPlayerItemTrack*), MediaPlayer* player, void (MediaPlayer::*removedFunction)(PassRefT), void (MediaPlayer::*addedFunction)(PassRefT))
+{
+    RetainPtr<NSSet> newTracks = adoptNS([[NSSet alloc] initWithArray:[tracks objectsAtIndexes:[tracks indexesOfObjectsPassingTest:^(id track, NSUInteger, BOOL*){
+        return [[[track assetTrack] mediaType] isEqualToString:trackType];
+    }]]]);
+    RetainPtr<NSMutableSet> oldTracks = adoptNS([[NSMutableSet alloc] initWithCapacity:oldItems.size()]);
+
+    typedef Vector<RefT> ItemVector;
+    for (auto i = oldItems.begin(); i != oldItems.end(); ++i)
+        [oldTracks addObject:(*i)->playerItemTrack()];
+
+    RetainPtr<NSMutableSet> removedTracks = adoptNS([oldTracks mutableCopy]);
+    [removedTracks minusSet:newTracks.get()];
+
+    RetainPtr<NSMutableSet> addedTracks = adoptNS([newTracks mutableCopy]);
+    [addedTracks minusSet:oldTracks.get()];
+
+    ItemVector replacementItems;
+    ItemVector addedItems;
+    ItemVector removedItems;
+    for (auto i = oldItems.begin(); i != oldItems.end(); ++i) {
+        if ([removedTracks containsObject:(*i)->playerItemTrack()])
+            removedItems.append(*i);
+        else
+            replacementItems.append(*i);
+    }
+
+    for (AVPlayerItemTrack* track in addedTracks.get())
+        addedItems.append(itemFactory(track));
+
+    replacementItems.appendVector(addedItems);
+    oldItems.swap(replacementItems);
+
+    for (auto i = removedItems.begin(); i != removedItems.end(); ++i)
+        (player->*removedFunction)(*i);
+
+    for (auto i = addedItems.begin(); i != addedItems.end(); ++i)
+        (player->*addedFunction)(*i);
+}
+
+void MediaPlayerPrivateAVFoundationObjC::updateAudioTracks()
+{
+    determineChangedTracksFromNewTracksAndOldItems([m_avPlayerItem tracks], AVMediaTypeAudio, m_audioTracks, &AudioTrackPrivateAVFObjC::create, player(), &MediaPlayer::removeAudioTrack, &MediaPlayer::addAudioTrack);
+}
+
+void MediaPlayerPrivateAVFoundationObjC::updateVideoTracks()
+{
+    determineChangedTracksFromNewTracksAndOldItems([m_avPlayerItem tracks], AVMediaTypeVideo, m_videoTracks, &VideoTrackPrivateAVFObjC::create, player(), &MediaPlayer::removeVideoTrack, &MediaPlayer::addVideoTrack);
+}
+#endif // ENABLE(VIDEO_TRACK)
 
 void MediaPlayerPrivateAVFoundationObjC::sizeChanged()
 {
@@ -1117,7 +1179,7 @@ bool MediaPlayerPrivateAVFoundationObjC::hasSingleSecurityOrigin() const
     if (!m_avAsset)
         return false;
     
-    RefPtr<SecurityOrigin> resolvedOrigin = SecurityOrigin::create(KURL(wkAVAssetResolvedURL(m_avAsset.get())));
+    RefPtr<SecurityOrigin> resolvedOrigin = SecurityOrigin::create(URL(wkAVAssetResolvedURL(m_avAsset.get())));
     RefPtr<SecurityOrigin> requestedOrigin = SecurityOrigin::createFromString(assetURL());
     return resolvedOrigin->isSameSchemeHostPort(requestedOrigin.get());
 }
@@ -1309,7 +1371,7 @@ MediaPlayer::MediaKeyException MediaPlayerPrivateAVFoundationObjC::generateKeyRe
 
     RefPtr<ArrayBuffer> keyRequestBuffer = ArrayBuffer::create([keyRequest.get() bytes], [keyRequest.get() length]);
     RefPtr<Uint8Array> keyRequestArray = Uint8Array::create(keyRequestBuffer, 0, keyRequestBuffer->byteLength());
-    player()->keyMessage(keySystem, sessionID, keyRequestArray->data(), keyRequestArray->byteLength(), KURL());
+    player()->keyMessage(keySystem, sessionID, keyRequestArray->data(), keyRequestArray->byteLength(), URL());
 
     // Move ownership of the AVAssetResourceLoadingRequestfrom the keyIDToRequestMap to the sessionIDToRequestMap:
     m_sessionIDToRequestMap.set(sessionID, avRequest);
@@ -1525,23 +1587,15 @@ String MediaPlayerPrivateAVFoundationObjC::languageOfPrimaryAudioTrack() const
     }
 
     AVAssetTrack *track = [tracks objectAtIndex:0];
-    NSString *language = [track extendedLanguageTag];
+    m_languageOfPrimaryAudioTrack = AVTrackPrivateAVFObjCImpl::languageForAVAssetTrack(track);
 
-    // If the language code is stored as a QuickTime 5-bit packed code there aren't enough bits for a full
-    // RFC 4646 language tag so extendedLanguageTag returns NULL. In this case languageCode will return the
-    // ISO 639-2/T language code so check it.
-    if (!language)
-        language = [track languageCode];
-
-    // Some legacy tracks have "und" as a language, treat that the same as no language at all.
-    if (language && ![language isEqualToString:@"und"]) {
-        m_languageOfPrimaryAudioTrack = language;
+#if !LOG_DISABLED
+    if (m_languageOfPrimaryAudioTrack == emptyString())
+        LOG(Media, "MediaPlayerPrivateAVFoundationObjC::languageOfPrimaryAudioTrack(%p) - single audio track has no language, returning emptyString()", this);
+    else
         LOG(Media, "MediaPlayerPrivateAVFoundationObjC::languageOfPrimaryAudioTrack(%p) - returning language of single audio track: %s", this, m_languageOfPrimaryAudioTrack.utf8().data());
-        return m_languageOfPrimaryAudioTrack;
-    }
+#endif
 
-    LOG(Media, "MediaPlayerPrivateAVFoundationObjC::languageOfPrimaryAudioTrack(%p) - single audio track has no language, returning emptyString()", this);
-    m_languageOfPrimaryAudioTrack = emptyString();
     return m_languageOfPrimaryAudioTrack;
 }
 

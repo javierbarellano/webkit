@@ -128,18 +128,18 @@ class RunJavaScriptCoreTestsTest(unittest.TestCase):
     1 regression found.
     0 tests fixed.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     0 failures found.
     0 crashes found.
     OK.""")
 
-    def test_fast_js_failure_new_output(self):
+    def test_layout_failure_new_output(self):
         self.assertResults(FAILURE, ["jscore-test", '469 failing js tests '], 1,  """Results for Mozilla tests:
     0 regressions found.
     0 tests fixed.
     OK.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     469 failures found.
     0 crashes found.
 
@@ -147,13 +147,13 @@ Results for JSC stress tests:
     0 failures found.
     OK.""")
 
-    def test_fast_js_crash_new_output(self):
+    def test_layout_crash_new_output(self):
         self.assertResults(FAILURE, ["jscore-test", '1 crashing js test '], 1,  """Results for Mozilla tests:
     0 regressions found.
     0 tests fixed.
     OK.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     0 failures found.
     1 crashes found.
 
@@ -161,12 +161,12 @@ Results for JSC stress tests:
     0 failures found.
     OK.""")
 
-    def test_mozilla_and_fast_js_failure_new_output(self):
+    def test_mozilla_and_layout_failure_new_output(self):
         self.assertResults(FAILURE, ["jscore-test", '1 failing Mozilla test ', '469 failing js tests '], 1,  """Results for Mozilla tests:
     1 regression found.
     0 tests fixed.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     469 failures found.
     0 crashes found.
 
@@ -179,7 +179,7 @@ Results for JSC stress tests:
     0 regression found.
     0 tests fixed.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     0 failures found.
     0 crashes found.
 
@@ -192,7 +192,7 @@ Results for JSC stress tests:
     0 regression found.
     0 tests fixed.
 
-Results for js tests:
+Results for LayoutTests/js tests:
     0 failures found.
     25 crashes found.
 

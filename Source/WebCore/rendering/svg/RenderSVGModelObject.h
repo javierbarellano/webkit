@@ -33,7 +33,7 @@
 
 #if ENABLE(SVG)
 
-#include "RenderObject.h"
+#include "RenderElement.h"
 #include "SVGElement.h"
 #include "SVGRenderSupport.h"
 
@@ -46,10 +46,8 @@ namespace WebCore {
 
 class SVGElement;
 
-class RenderSVGModelObject : public RenderObject {
+class RenderSVGModelObject : public RenderElement {
 public:
-    explicit RenderSVGModelObject(SVGElement*);
-
     virtual LayoutRect clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const OVERRIDE;
     virtual void computeFloatRectForRepaint(const RenderLayerModelObject* repaintContainer, FloatRect&, bool fixed = false) const OVERRIDE FINAL;
     virtual LayoutRect outlineBoundsForRepaint(const RenderLayerModelObject* repaintContainer, const RenderGeometryMap*) const OVERRIDE FINAL;
@@ -69,14 +67,14 @@ public:
     bool hasSVGShadow() const { return m_hasSVGShadow; }
     void setHasSVGShadow(bool hasShadow) { m_hasSVGShadow = hasShadow; }
 
-    SVGElement* element() const { return toSVGElement(RenderObject::node()); }
+    SVGElement& element() const { return toSVGElement(nodeForNonAnonymous()); }
 
 protected:
+    explicit RenderSVGModelObject(SVGElement&);
+
     virtual void willBeDestroyed() OVERRIDE;
 
 private:
-    void node() const WTF_DELETED_FUNCTION;
-
     // This method should never be called, SVG uses a different nodeAtPoint method
     bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) OVERRIDE;
     virtual void absoluteFocusRingQuads(Vector<FloatQuad>&) OVERRIDE FINAL;

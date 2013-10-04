@@ -139,7 +139,7 @@ void RenderMathMLOperator::updateFromElement()
     RenderObject* savedRenderer = element()->renderer();
 
     // Destroy our current children
-    children()->destroyLeftoverChildren();
+    destroyLeftoverChildren();
 
     // Since we share a node with our children, destroying our children may set our node's
     // renderer to 0, so we need to restore it.
@@ -229,14 +229,11 @@ void RenderMathMLOperator::updateFromElement()
         // Build the text of the operator.
         RenderText* text = 0;
         if (m_operator) 
-            text = new (renderArena()) RenderText(element(), StringImpl::create(&m_operator, 1));
+            text = RenderText::createAnonymous(document(), String(&m_operator, 1));
         else
-            text = new (renderArena()) RenderText(element(), element()->textContent().replace(hyphenMinus, minusSign).impl());
+            text = RenderText::createAnonymous(document(), element()->textContent().replace(hyphenMinus, minusSign).impl());
         // If we can't figure out the text, leave it blank.
         if (text) {
-            RefPtr<RenderStyle> textStyle = RenderStyle::create();
-            textStyle->inheritFrom(container->style());
-            text->setStyle(textStyle.release());
             container->addChild(text);
         }
     } else {
@@ -315,8 +312,7 @@ RenderBlock* RenderMathMLOperator::createGlyph(UChar glyph, int maxHeightForRend
         parent = charBlock;
     }
     
-    RenderText* text = new (renderArena()) RenderText(element(), StringImpl::create(&glyph, 1));
-    text->setStyle(container->style());
+    RenderText* text = RenderText::createAnonymous(document(), String(&glyph, 1));
     parent->addChild(text);
     return container;
 }

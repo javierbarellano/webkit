@@ -35,12 +35,9 @@ class RenderInline : public RenderBoxModelObject {
 public:
     explicit RenderInline(Element*);
 
-    static RenderInline* createAnonymous(Document*);
+    static RenderInline* createAnonymous(Document&);
 
-    RenderObject* firstChild() const { ASSERT(children() == virtualChildren()); return children()->firstChild(); }
-    RenderObject* lastChild() const { ASSERT(children() == virtualChildren()); return children()->lastChild(); }
-
-    virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0);
+    virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0) OVERRIDE;
 
     virtual LayoutUnit marginLeft() const OVERRIDE FINAL;
     virtual LayoutUnit marginRight() const OVERRIDE FINAL;
@@ -52,7 +49,7 @@ public:
     virtual LayoutUnit marginEnd(const RenderStyle* otherStyle = 0) const OVERRIDE FINAL;
 
     virtual void absoluteRects(Vector<IntRect>&, const LayoutPoint& accumulatedOffset) const OVERRIDE FINAL;
-    virtual void absoluteQuads(Vector<FloatQuad>&, bool* wasFixed) const;
+    virtual void absoluteQuads(Vector<FloatQuad>&, bool* wasFixed) const OVERRIDE;
 
     virtual LayoutSize offsetFromContainer(RenderObject*, const LayoutPoint&, bool* offsetDependsOnPoint = 0) const OVERRIDE FINAL;
 
@@ -94,19 +91,14 @@ public:
     bool hitTestCulledInline(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset);
 
 protected:
-    virtual void willBeDestroyed();
+    virtual void willBeDestroyed() OVERRIDE;
 
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
 
 private:
-    virtual RenderObjectChildList* virtualChildren() OVERRIDE FINAL { return children(); }
-    virtual const RenderObjectChildList* virtualChildren() const OVERRIDE FINAL { return children(); }
-    const RenderObjectChildList* children() const { return &m_children; }
-    RenderObjectChildList* children() { return &m_children; }
+    virtual const char* renderName() const OVERRIDE;
 
-    virtual const char* renderName() const;
-
-    virtual bool isRenderInline() const OVERRIDE FINAL { return true; }
+    virtual bool canHaveChildren() const OVERRIDE FINAL { return true; }
 
     LayoutRect culledInlineVisualOverflowBoundingBox() const;
     InlineBox* culledInlineFirstLineBox() const;
@@ -180,7 +172,6 @@ private:
                              const LayoutRect& nextLine, const Color);
     RenderBoxModelObject* continuationBefore(RenderObject* beforeChild);
 
-    RenderObjectChildList m_children;
     RenderLineBoxList m_lineBoxes;   // All of the line boxes created for this inline flow.  For example, <i>Hello<br>world.</i> will have two <i> line boxes.
 
     bool m_alwaysCreateLineBoxes : 1;

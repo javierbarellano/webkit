@@ -48,7 +48,7 @@ namespace WebCore {
 
 using namespace SVGNames;
 
-inline SVGFontFaceElement::SVGFontFaceElement(const QualifiedName& tagName, Document* document)
+inline SVGFontFaceElement::SVGFontFaceElement(const QualifiedName& tagName, Document& document)
     : SVGElement(tagName, document)
     , m_fontFaceRule(StyleRuleFontFace::create(MutableStylePropertySet::create(CSSStrictMode)))
     , m_fontElement(0)
@@ -56,7 +56,7 @@ inline SVGFontFaceElement::SVGFontFaceElement(const QualifiedName& tagName, Docu
     ASSERT(hasTagName(font_faceTag));
 }
 
-PassRefPtr<SVGFontFaceElement> SVGFontFaceElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<SVGFontFaceElement> SVGFontFaceElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new SVGFontFaceElement(tagName, document));
 }
@@ -228,10 +228,7 @@ void SVGFontFaceElement::rebuildFontFace()
     }
 
     // we currently ignore all but the first src element, alternatively we could concat them
-    SVGFontFaceSrcElement* srcElement = 0;
-    auto firstFontFaceSrcElementChild = childrenOfType<SVGFontFaceSrcElement>(this).begin();
-    if (firstFontFaceSrcElementChild != childrenOfType<SVGFontFaceSrcElement>(this).end())
-        srcElement = &*firstFontFaceSrcElementChild;
+    auto srcElement = childrenOfType<SVGFontFaceSrcElement>(this).first();
 
     bool describesParentFont = isSVGFontElement(parentNode());
     RefPtr<CSSValueList> list;
@@ -256,11 +253,11 @@ void SVGFontFaceElement::rebuildFontFace()
     if (describesParentFont) {    
         // Traverse parsed CSS values and associate CSSFontFaceSrcValue elements with ourselves.
         RefPtr<CSSValue> src = m_fontFaceRule->properties().getPropertyCSSValue(CSSPropertySrc);
-        CSSValueList* srcList = static_cast<CSSValueList*>(src.get());
+        CSSValueList* srcList = toCSSValueList(src.get());
 
         unsigned srcLength = srcList ? srcList->length() : 0;
         for (unsigned i = 0; i < srcLength; i++) {
-            if (CSSFontFaceSrcValue* item = static_cast<CSSFontFaceSrcValue*>(srcList->itemWithoutBoundsCheck(i)))
+            if (CSSFontFaceSrcValue* item = toCSSFontFaceSrcValue(srcList->itemWithoutBoundsCheck(i)))
                 item->setSVGFontFaceElement(this);
         }
     }

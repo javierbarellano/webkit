@@ -73,7 +73,7 @@ public:
     RenderBoxRegionInfo* renderBoxRegionInfo(const RenderBox*) const;
     RenderBoxRegionInfo* setRenderBoxRegionInfo(const RenderBox*, LayoutUnit logicalLeftInset, LayoutUnit logicalRightInset,
         bool containingBlockChainIsInset);
-    PassOwnPtr<RenderBoxRegionInfo> takeRenderBoxRegionInfo(const RenderBox*);
+    OwnPtr<RenderBoxRegionInfo> takeRenderBoxRegionInfo(const RenderBox*);
     void removeRenderBoxRegionInfo(const RenderBox*);
 
     void deleteAllRenderBoxRegionInfo();
@@ -139,10 +139,8 @@ public:
 
     virtual void collectLayerFragments(LayerFragments&, const LayoutRect&, const LayoutRect&) { }
 
-#if USE(ACCELERATED_COMPOSITING)
-    void setRequiresLayerForCompositing(bool);
-    virtual bool requiresLayer() const { return m_requiresLayerForCompositing || RenderBlock::requiresLayer(); }
-#endif
+    // All regions create stacking contexts, as specified in the CSS standard. Do that by allocating a separate RenderLayer for each.
+    virtual bool requiresLayer() const OVERRIDE { return true; }
 
     void addLayoutOverflowForBox(const RenderBox*, const LayoutRect&);
     void addVisualOverflowForBox(const RenderBox*, const LayoutRect&);
@@ -152,8 +150,6 @@ public:
     LayoutRect visualOverflowRectForBoxForPropagation(const RenderBox*);
 
     LayoutRect rectFlowPortionForBox(const RenderBox*, const LayoutRect&) const;
-
-    Element* generatingElement() const { return toElement(RenderObject::generatingNode()); }
 
 protected:
     RenderOverflow* ensureOverflowForBox(const RenderBox*);
@@ -192,7 +188,7 @@ private:
     virtual void installFlowThread();
 
     PassRefPtr<RenderStyle> computeStyleInRegion(const RenderObject*);
-    void computeChildrenStyleInRegion(const RenderObject*);
+    void computeChildrenStyleInRegion(const RenderElement*);
     void setObjectStyleInRegion(RenderObject*, PassRefPtr<RenderStyle>, bool objectRegionStyleCached);
 
     void checkRegionStyle();
@@ -234,9 +230,6 @@ private:
     bool m_isValid : 1;
     bool m_hasCustomRegionStyle : 1;
     bool m_hasAutoLogicalHeight : 1;
-#if USE(ACCELERATED_COMPOSITING)
-    bool m_requiresLayerForCompositing : 1;
-#endif
     bool m_hasComputedAutoHeight : 1;
 
     LayoutUnit m_computedAutoHeight;

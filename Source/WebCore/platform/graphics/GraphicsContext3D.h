@@ -30,10 +30,10 @@
 #include "Image.h"
 #include "IntRect.h"
 #include "PlatformLayer.h"
+#include <memory>
 #include <wtf/HashMap.h>
 #include <wtf/ListHashSet.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/OwnArrayPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
@@ -107,6 +107,8 @@ class PlatformContextCairo;
 #elif PLATFORM(BLACKBERRY)
 class GraphicsContext;
 #endif
+
+typedef WTF::HashMap<CString, uint64_t> ShaderNameHash;
 
 struct ActiveInfo {
     String name;
@@ -900,7 +902,7 @@ public:
         CGImageRef m_cgImage;
         RetainPtr<CGImageRef> m_decodedImage;
         RetainPtr<CFDataRef> m_pixelData;
-        OwnArrayPtr<uint8_t> m_formalizedRGBA8Data;
+        std::unique_ptr<uint8_t[]> m_formalizedRGBA8Data;
 #elif PLATFORM(QT)
         QImage m_qtImage;
 #elif PLATFORM(BLACKBERRY)
@@ -1024,9 +1026,11 @@ private:
     String originalSymbolName(Platform3DObject program, ANGLEShaderSymbolType, const String& name);
 
     ANGLEWebKitBridge m_compiler;
+
+    OwnPtr<ShaderNameHash> nameHashMapForShaders;
 #endif
 
-#if PLATFORM(BLACKBERRY) || (PLATFORM(QT) && defined(QT_OPENGL_ES_2)) || ((PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(WIN)) && USE(OPENGL_ES_2))
+#if PLATFORM(BLACKBERRY) || (PLATFORM(QT) && defined(QT_OPENGL_ES_2)) || ((PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(WIN) || PLATFORM(NIX)) && USE(OPENGL_ES_2))
     friend class Extensions3DOpenGLES;
     OwnPtr<Extensions3DOpenGLES> m_extensions;
 #else

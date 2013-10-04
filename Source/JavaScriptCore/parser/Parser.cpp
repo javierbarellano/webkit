@@ -368,7 +368,8 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
             goto standardForLoop;
         
         failIfFalse(declarations == 1);
-        
+        failIfTrueWithMessage(forInInitializer, "Cannot use initialiser syntax in a for-in loop");
+
         // Handle for-in with var declaration
         JSTextPosition inLocation = tokenStartPosition();
         consumeOrFail(INTOKEN);
@@ -386,7 +387,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseForStatement(
         endLoop();
         failIfFalse(statement);
         
-        return context.createForInLoop(location, forInTarget, forInInitializer, expr, statement, declsStart, inLocation, exprEnd, initStart, initEnd, startLine, endLine);
+        return context.createForInLoop(location, forInTarget, expr, statement, declsStart, inLocation, exprEnd, startLine, endLine);
     }
     
     if (!match(SEMICOLON)) {
@@ -870,7 +871,7 @@ template <FunctionRequirements requirements, bool nameIsInContainingScope, class
     // Cache the tokenizer state and the function scope the first time the function is parsed.
     // Any future reparsing can then skip the function.
     static const int minimumFunctionLengthToCache = 16;
-    OwnPtr<SourceProviderCacheItem> newInfo;
+    std::unique_ptr<SourceProviderCacheItem> newInfo;
     int functionLength = closeBraceOffset - openBraceOffset;
     if (TreeBuilder::CanUseFunctionCache && m_functionCache && functionLength > minimumFunctionLengthToCache) {
         SourceProviderCacheItemCreationParameters parameters;
@@ -888,7 +889,7 @@ template <FunctionRequirements requirements, bool nameIsInContainingScope, class
     matchOrFail(CLOSEBRACE);
     
     if (newInfo)
-        m_functionCache->add(openBraceOffset, newInfo.release());
+        m_functionCache->add(openBraceOffset, std::move(newInfo));
     
     next();
     return true;

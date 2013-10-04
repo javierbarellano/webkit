@@ -44,9 +44,9 @@ NetworkServices& NetworkServices::operator= (const NetworkServices &that)
     return *this;
 }
 
-const AtomicString& NetworkServices::interfaceName() const
+EventTargetInterface NetworkServices::eventTargetInterface() const
 {
-    return eventNames().interfaceForNetworkServices;
+    return NetworkServicesEventTargetInterfaceType;
 }
 
 ScriptExecutionContext* NetworkServices::scriptExecutionContext() const

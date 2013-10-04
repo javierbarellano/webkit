@@ -96,7 +96,7 @@ namespace WebCore {
     class ImageBuffer;
     class IntRect;
     class RoundedRect;
-    class KURL;
+    class URL;
     class GraphicsContext3D;
     class TextRun;
     class TransformationMatrix;
@@ -150,6 +150,7 @@ namespace WebCore {
             // but we need to preserve this buggy behavior for canvas and -webkit-box-shadow.
             , shadowsUseLegacyRadius(false)
 #endif
+            , drawLuminanceMask(false)
         {
         }
 
@@ -188,6 +189,7 @@ namespace WebCore {
 #if USE(CG)
         bool shadowsUseLegacyRadius : 1;
 #endif
+        bool drawLuminanceMask : 1;
     };
 
     class GraphicsContext {
@@ -382,6 +384,9 @@ namespace WebCore {
         CompositeOperator compositeOperation() const;
         BlendMode blendModeOperation() const;
 
+        void setDrawLuminanceMask(bool);
+        bool drawLuminanceMask() const;
+
         void clip(const Path&, WindRule = RULE_EVENODD);
 
         // This clip function is used only by <canvas> code. It allows
@@ -395,7 +400,7 @@ namespace WebCore {
         void translate(const FloatSize& size) { translate(size.width(), size.height()); }
         void translate(float x, float y);
 
-        void setURLForRect(const KURL&, const IntRect&);
+        void setURLForRect(const URL&, const IntRect&);
 
         void concatCTM(const AffineTransform&);
         void setCTM(const AffineTransform&);

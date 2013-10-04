@@ -55,12 +55,12 @@ enum {
 
 class HTMLAnchorElement : public HTMLElement {
 public:
-    static PassRefPtr<HTMLAnchorElement> create(Document*);
-    static PassRefPtr<HTMLAnchorElement> create(const QualifiedName&, Document*);
+    static PassRefPtr<HTMLAnchorElement> create(Document&);
+    static PassRefPtr<HTMLAnchorElement> create(const QualifiedName&, Document&);
 
     virtual ~HTMLAnchorElement();
 
-    KURL href() const;
+    URL href() const;
     void setHref(const AtomicString&);
 
     const AtomicString& name() const;
@@ -103,7 +103,7 @@ public:
     void invalidateCachedVisitedLinkHash() { m_cachedVisitedLinkHash = 0; }
 
 protected:
-    HTMLAnchorElement(const QualifiedName&, Document*);
+    HTMLAnchorElement(const QualifiedName&, Document&);
 
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
@@ -120,7 +120,7 @@ private:
     virtual short tabIndex() const OVERRIDE FINAL;
     virtual bool draggable() const;
 
-    void sendPings(const KURL& destinationURL);
+    void sendPings(const URL& destinationURL);
 
     void handleClick(Event*);
 

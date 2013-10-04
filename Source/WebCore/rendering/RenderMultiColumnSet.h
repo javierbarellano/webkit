@@ -43,7 +43,7 @@ namespace WebCore {
 // come before and after the span.
 class RenderMultiColumnSet FINAL : public RenderRegionSet {
 public:
-    static RenderMultiColumnSet* createAnonymous(RenderFlowThread*);
+    static RenderMultiColumnSet* createAnonymous(RenderFlowThread&);
 
     virtual bool isRenderMultiColumnSet() const OVERRIDE { return true; }
 
@@ -98,7 +98,7 @@ public:
     void prepareForLayout();
 
 private:
-    RenderMultiColumnSet(RenderFlowThread*);
+    explicit RenderMultiColumnSet(RenderFlowThread*);
 
     virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const OVERRIDE;
 
@@ -117,6 +117,10 @@ private:
     virtual bool shouldHaveAutoLogicalHeight() const OVERRIDE { return false; }
     
     virtual void repaintFlowThreadContent(const LayoutRect& repaintRect, bool immediate) const OVERRIDE;
+
+    // RenderMultiColumnSet derives from RenderRegion, but unlike the CSS Regions specification, the Multi-Columns CSS
+    // specification states that the column boxes do not establish new Stacking Contexts.
+    virtual bool requiresLayer() const OVERRIDE FINAL { return RenderBlockFlow::requiresLayer(); }
 
     virtual void collectLayerFragments(LayerFragments&, const LayoutRect& layerBoundingBox, const LayoutRect& dirtyRect) OVERRIDE;
 

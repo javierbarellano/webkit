@@ -51,7 +51,7 @@ namespace WebCore {
 using namespace HTMLNames;
 
 RenderTable::RenderTable(Element* element)
-    : RenderBlock(element)
+    : RenderBlock(element, 0)
     , m_head(0)
     , m_foot(0)
     , m_firstBody(0)
@@ -78,7 +78,7 @@ RenderTable::~RenderTable()
 void RenderTable::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
 {
     RenderBlock::styleDidChange(diff, oldStyle);
-    propagateStyleToAnonymousChildren();
+    propagateStyleToAnonymousChildren(PropagateToAllChildren);
 
     ETableLayout oldTableLayout = oldStyle ? oldStyle->tableLayout() : TAUTO;
 
@@ -168,14 +168,14 @@ void RenderTable::addChild(RenderObject* child, RenderObject* beforeChild)
     }
 
     if (!beforeChild && lastChild() && lastChild()->isTableSection() && lastChild()->isAnonymous() && !lastChild()->isBeforeContent()) {
-        lastChild()->addChild(child);
+        toRenderTableSection(lastChild())->addChild(child);
         return;
     }
 
     if (beforeChild && !beforeChild->isAnonymous() && beforeChild->parent() == this) {
         RenderObject* section = beforeChild->previousSibling();
         if (section && section->isTableSection() && section->isAnonymous()) {
-            section->addChild(child);
+            toRenderTableSection(section)->addChild(child);
             return;
         }
     }
@@ -184,9 +184,10 @@ void RenderTable::addChild(RenderObject* child, RenderObject* beforeChild)
     while (lastBox && lastBox->parent()->isAnonymous() && !lastBox->isTableSection() && lastBox->style()->display() != TABLE_CAPTION && lastBox->style()->display() != TABLE_COLUMN_GROUP)
         lastBox = lastBox->parent();
     if (lastBox && lastBox->isAnonymous() && !isAfterContent(lastBox)) {
-        if (beforeChild == lastBox)
-            beforeChild = lastBox->firstChild();
-        lastBox->addChild(child, beforeChild);
+        RenderTableSection* section = toRenderTableSection(lastBox);
+        if (beforeChild == section)
+            beforeChild = section->firstRow();
+        section->addChild(child, beforeChild);
         return;
     }
 
@@ -248,7 +249,6 @@ void RenderTable::updateLogicalWidth()
     }
 
     RenderBlock* cb = containingBlock();
-    RenderView* renderView = &view();
 
     LayoutUnit availableLogicalWidth = containingBlockLogicalWidthForContent();
     bool hasPerpendicularContainingBlock = cb->style()->isHorizontalWritingMode() != style()->isHorizontalWritingMode();
@@ -259,8 +259,8 @@ void RenderTable::updateLogicalWidth()
         setLogicalWidth(convertStyleLogicalWidthToComputedWidth(styleLogicalWidth, containerWidthInInlineDirection));
     else {
         // Subtract out any fixed margins from our available width for auto width tables.
-        LayoutUnit marginStart = minimumValueForLength(style()->marginStart(), availableLogicalWidth, renderView);
-        LayoutUnit marginEnd = minimumValueForLength(style()->marginEnd(), availableLogicalWidth, renderView);
+        LayoutUnit marginStart = minimumValueForLength(style()->marginStart(), availableLogicalWidth);
+        LayoutUnit marginEnd = minimumValueForLength(style()->marginEnd(), availableLogicalWidth);
         LayoutUnit marginTotal = marginStart + marginEnd;
 
         // Subtract out our margins to get the available content width.
@@ -307,8 +307,8 @@ void RenderTable::updateLogicalWidth()
         setMarginStart(marginValues.m_start);
         setMarginEnd(marginValues.m_end);
     } else {
-        setMarginStart(minimumValueForLength(style()->marginStart(), availableLogicalWidth, renderView));
-        setMarginEnd(minimumValueForLength(style()->marginEnd(), availableLogicalWidth, renderView));
+        setMarginStart(minimumValueForLength(style()->marginStart(), availableLogicalWidth));
+        setMarginEnd(minimumValueForLength(style()->marginEnd(), availableLogicalWidth));
     }
 }
 
@@ -324,7 +324,7 @@ LayoutUnit RenderTable::convertStyleLogicalWidthToComputedWidth(const Length& st
     if (isCSSTable && styleLogicalWidth.isSpecified() && styleLogicalWidth.isPositive() && style()->boxSizing() == CONTENT_BOX)
         borders = borderStart() + borderEnd() + (collapseBorders() ? LayoutUnit() : paddingStart() + paddingEnd());
 
-    return minimumValueForLength(styleLogicalWidth, availableWidth, &view()) + borders;
+    return minimumValueForLength(styleLogicalWidth, availableWidth) + borders;
 }
 
 LayoutUnit RenderTable::convertStyleLogicalHeightToComputedHeight(const Length& styleLogicalHeight)
@@ -343,7 +343,7 @@ LayoutUnit RenderTable::convertStyleLogicalHeightToComputedHeight(const Length& 
     } else if (styleLogicalHeight.isPercent())
         computedLogicalHeight = computePercentageLogicalHeight(styleLogicalHeight);
     else if (styleLogicalHeight.isViewportPercentage())
-        computedLogicalHeight = minimumValueForLength(styleLogicalHeight, 0, &view());
+        computedLogicalHeight = minimumValueForLength(styleLogicalHeight, 0);
     else
         ASSERT_NOT_REACHED();
     return max<LayoutUnit>(0, computedLogicalHeight);
@@ -408,8 +408,6 @@ void RenderTable::layout()
     LayoutStateMaintainer statePusher(&view(), this, locationOffset(), hasTransform() || hasReflection() || style()->isFlippedBlocksWritingMode());
 
     setLogicalHeight(0);
-
-    initMaxMarginValues();
     
     LayoutUnit oldLogicalWidth = logicalWidth();
     updateLogicalWidth();
@@ -571,14 +569,10 @@ void RenderTable::recalcCollapsedBorders()
     for (RenderObject* section = firstChild(); section; section = section->nextSibling()) {
         if (!section->isTableSection())
             continue;
-        for (RenderObject* row = section->firstChild(); row; row = row->nextSibling()) {
-            if (!row->isTableRow())
-                continue;
-            for (RenderObject* cell = row->firstChild(); cell; cell = cell->nextSibling()) {
-                if (!cell->isTableCell())
-                    continue;
-                ASSERT(toRenderTableCell(cell)->table() == this);
-                toRenderTableCell(cell)->collectBorderValues(m_collapsedBorders);
+        for (RenderTableRow* row = toRenderTableSection(section)->firstRow(); row; row = row->nextRow()) {
+            for (RenderTableCell* cell = row->firstCell(); cell; cell = cell->nextCell()) {
+                ASSERT(cell->table() == this);
+                cell->collectBorderValues(m_collapsedBorders);
             }
         }
     }
@@ -1417,7 +1411,7 @@ RenderTable* RenderTable::createAnonymousWithParentRenderer(const RenderObject* 
 {
     RefPtr<RenderStyle> newStyle = RenderStyle::createAnonymousStyleWithDisplay(parent->style(), TABLE);
     RenderTable* newTable = new (parent->renderArena()) RenderTable(0);
-    newTable->setDocumentForAnonymous(&parent->document());
+    newTable->setDocumentForAnonymous(parent->document());
     newTable->setStyle(newStyle.release());
     return newTable;
 }

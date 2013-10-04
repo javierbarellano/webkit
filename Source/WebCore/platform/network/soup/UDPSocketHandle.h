@@ -48,7 +48,7 @@ class UDPSocketHandleClient;
 
 class UDPSocketHandle : public RefCounted<UDPSocketHandle>, public UDPSocketHandleBase {
 public:
-    static PassRefPtr<UDPSocketHandle> create(const KURL& url, bool isMulticastGroup, UDPSocketHandleClient* client)
+    static PassRefPtr<UDPSocketHandle> create(const URL& url, bool isMulticastGroup, UDPSocketHandleClient* client)
     {
         return adoptRef(new UDPSocketHandle(url, isMulticastGroup, client));
     }
@@ -127,7 +127,7 @@ protected:
 
 private:
 
-    UDPSocketHandle(const KURL &url, bool isMulticastGroup, UDPSocketHandleClient *client)
+    UDPSocketHandle(const URL &url, bool isMulticastGroup, UDPSocketHandleClient *client)
         : UDPSocketHandleBase(url, isMulticastGroup, client)
     {
         m_connectionFailed = true;
@@ -182,7 +182,7 @@ private:
     }
 
 private:
-    KURL m_url;
+    URL m_url;
     UDPSocketHandleClient* m_client;
     struct sockaddr_in m_servaddr;
     bool m_isMulticast;

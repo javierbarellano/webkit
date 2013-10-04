@@ -399,7 +399,7 @@ static void appendAccessibilityObject(AccessibilityObject* object, Accessibility
             return;
         
         Document* doc = toFrameView(widget)->frame().document();
-        if (!doc || !doc->renderView())
+        if (!doc || !doc->hasLivingRenderTree())
             return;
         
         object = object->axObjectCache()->getOrCreate(doc);
@@ -535,6 +535,16 @@ bool AccessibilityObject::isRangeControl() const
     default:
         return false;
     }
+}
+
+bool AccessibilityObject::isMeter() const
+{
+#if ENABLE(METER_ELEMENT)
+    RenderObject* renderer = this->renderer();
+    return renderer && renderer->isMeter();
+#else
+    return false;
+#endif
 }
 
 IntPoint AccessibilityObject::clickPoint()
@@ -748,7 +758,7 @@ static VisiblePosition startOfStyleRange(const VisiblePosition& visiblePos)
     // traverse backward by renderer to look for style change
     for (RenderObject* r = renderer->previousInPreOrder(); r; r = r->previousInPreOrder()) {
         // skip non-leaf nodes
-        if (r->firstChild())
+        if (r->firstChildSlow())
             continue;
 
         // stop at style change
@@ -771,7 +781,7 @@ static VisiblePosition endOfStyleRange(const VisiblePosition& visiblePos)
     // traverse forward by renderer to look for style change
     for (RenderObject* r = renderer->nextInPreOrder(); r; r = r->nextInPreOrder()) {
         // skip non-leaf nodes
-        if (r->firstChild())
+        if (r->firstChildSlow())
             continue;
 
         // stop at style change
@@ -1455,8 +1465,8 @@ static ARIARoleMap* createARIARoleMap()
         { "menu", MenuRole },
         { "menubar", MenuBarRole },
         { "menuitem", MenuItemRole },
-        { "menuitemcheckbox", MenuItemRole },
-        { "menuitemradio", MenuItemRole },
+        { "menuitemcheckbox", MenuItemCheckboxRole },
+        { "menuitemradio", MenuItemRadioRole },
         { "note", DocumentNoteRole },
         { "navigation", LandmarkNavigationRole },
         { "option", ListBoxOptionRole },
@@ -1617,6 +1627,8 @@ AccessibilitySortDirection AccessibilityObject::sortDirection() const
         return SortDirectionAscending;
     if (equalIgnoringCase(sortAttribute, "descending"))
         return SortDirectionDescending;
+    if (equalIgnoringCase(sortAttribute, "other"))
+        return SortDirectionOther;
     
     return SortDirectionNone;
 }
@@ -1693,8 +1705,13 @@ AccessibilityButtonState AccessibilityObject::checkboxOrRadioValue() const
     const AtomicString& result = getAttribute(aria_checkedAttr);
     if (equalIgnoringCase(result, "true"))
         return ButtonStateOn;
-    if (equalIgnoringCase(result, "mixed"))
+    if (equalIgnoringCase(result, "mixed")) {
+        // ARIA says that radio and menuitemradio elements must NOT expose button state mixed.
+        AccessibilityRole ariaRole = ariaRoleAttribute();
+        if (ariaRole == RadioButtonRole || ariaRole == MenuItemRadioRole)
+            return ButtonStateOff;
         return ButtonStateMixed;
+    }
     
     return ButtonStateOff;
 }

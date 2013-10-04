@@ -29,6 +29,7 @@
 #import "TestController.h"
 #import "WebKitTestRunnerDraggingInfo.h"
 #import <WebKit2/WKImageCG.h>
+#import <WebKit2/WKPreferencesPrivate.h>
 #import <WebKit2/WKViewPrivate.h>
 #import <wtf/RetainPtr.h>
 
@@ -110,17 +111,6 @@ using namespace WTR;
     return NSMakeRect(_fakeOrigin.x, _fakeOrigin.y, currentFrame.size.width, currentFrame.size.height);
 }
 
-- (CGFloat)backingScaleFactor
-{
-    return 1;
-}
-
-@end
-
-@interface NSWindow (Details)
-
-- (void)_setWindowResolution:(CGFloat)resolution displayIfChanged:(BOOL)displayIfChanged;
-
 @end
 
 namespace WTR {
@@ -132,6 +122,10 @@ PlatformWebView::PlatformWebView(WKContextRef contextRef, WKPageGroupRef pageGro
     WKRetainPtr<WKStringRef> useTiledDrawingKey(AdoptWK, WKStringCreateWithUTF8CString("TiledDrawing"));
     WKTypeRef useTiledDrawingValue = options ? WKDictionaryGetItemForKey(options, useTiledDrawingKey.get()) : NULL;
     bool useTiledDrawing = useTiledDrawingValue && WKBooleanGetValue(static_cast<WKBooleanRef>(useTiledDrawingValue));
+
+    // The tiled drawing specific tests also depend on threaded scrolling.
+    WKPreferencesRef preferences = WKPageGroupGetPreferences(pageGroupRef);
+    WKPreferencesSetThreadedScrollingEnabled(preferences, useTiledDrawing);
 
     NSRect rect = NSMakeRect(0, 0, TestController::viewWidth, TestController::viewHeight);
     m_view = [[TestRunnerWKView alloc] initWithFrame:rect contextRef:contextRef pageGroupRef:pageGroupRef relatedToPage:relatedPage useTiledDrawing:useTiledDrawing];
@@ -145,7 +139,6 @@ PlatformWebView::PlatformWebView(WKContextRef contextRef, WKPageGroupRef pageGro
     [[m_window contentView] addSubview:m_view];
     [m_window orderBack:nil];
     [m_window setReleasedWhenClosed:NO];
-    [m_window _setWindowResolution:1 displayIfChanged:YES];
 }
 
 void PlatformWebView::resizeTo(unsigned width, unsigned height)

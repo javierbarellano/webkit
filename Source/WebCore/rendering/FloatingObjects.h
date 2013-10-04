@@ -41,53 +41,15 @@ public:
     // Note that Type uses bits so you can use FloatLeftRight as a mask to query for both left and right.
     enum Type { FloatLeft = 1, FloatRight = 2, FloatLeftRight = 3 };
 
-    FloatingObject(EFloat type)
-        : m_renderer(0)
-        , m_originatingLine(0)
-        , m_paginationStrut(0)
-        , m_shouldPaint(true)
-        , m_isDescendant(false)
-        , m_isPlaced(false)
-#ifndef NDEBUG
-        , m_isInPlacedTree(false)
-#endif
-    {
-        ASSERT(type != NoFloat);
-        if (type == LeftFloat)
-            m_type = FloatLeft;
-        else if (type == RightFloat)
-            m_type = FloatRight;
-    }
+    static std::unique_ptr<FloatingObject> create(RenderBox&);
+    std::unique_ptr<FloatingObject> copyToNewContainer(LayoutSize, bool shouldPaint = false, bool isDescendant = false) const;
+    std::unique_ptr<FloatingObject> unsafeClone() const;
 
-    FloatingObject(Type type, const LayoutRect& frameRect)
-        : m_renderer(0)
-        , m_originatingLine(0)
-        , m_frameRect(frameRect)
-        , m_paginationStrut(0)
-        , m_type(type)
-        , m_shouldPaint(true)
-        , m_isDescendant(false)
-        , m_isPlaced(true)
-#ifndef NDEBUG
-        , m_isInPlacedTree(false)
-#endif
-    {
-    }
-
-    FloatingObject* clone() const
-    {
-        FloatingObject* cloneObject = new FloatingObject(type(), m_frameRect);
-        cloneObject->m_renderer = m_renderer;
-        cloneObject->m_originatingLine = m_originatingLine;
-        cloneObject->m_paginationStrut = m_paginationStrut;
-        cloneObject->m_shouldPaint = m_shouldPaint;
-        cloneObject->m_isDescendant = m_isDescendant;
-        cloneObject->m_isPlaced = m_isPlaced;
-        return cloneObject;
-    }
+    explicit FloatingObject(RenderBox&);
+    FloatingObject(RenderBox&, Type, const LayoutRect&, bool shouldPaint, bool isDescendant);
 
     Type type() const { return static_cast<Type>(m_type); }
-    RenderBox* renderer() const { return m_renderer; }
+    RenderBox& renderer() const { return m_renderer; }
 
     bool isPlaced() const { return m_isPlaced; }
     void setIsPlaced(bool placed = true) { m_isPlaced = placed; }
@@ -121,7 +83,6 @@ public:
     void setIsDescendant(bool isDescendant) { m_isDescendant = isDescendant; }
 
     // FIXME: Callers of these methods are dangerous and should be whitelisted explicitly or removed.
-    void setRenderer(RenderBox* renderer) { m_renderer = renderer; }
     RootInlineBox* originatingLine() const { return m_originatingLine; }
     void setOriginatingLine(RootInlineBox* line) { m_originatingLine = line; }
 
@@ -130,6 +91,7 @@ public:
     LayoutUnit logicalLeft(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? x() : y(); }
     LayoutUnit logicalRight(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? maxX() : maxY(); }
     LayoutUnit logicalWidth(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? width() : height(); }
+    LayoutUnit logicalHeight(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? height() : width(); }
 
     int pixelSnappedLogicalTop(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? frameRect().pixelSnappedY() : frameRect().pixelSnappedX(); }
     int pixelSnappedLogicalBottom(bool isHorizontalWritingMode) const { return isHorizontalWritingMode ? frameRect().pixelSnappedMaxY() : frameRect().pixelSnappedMaxX(); }
@@ -166,7 +128,7 @@ public:
     }
 
 private:
-    RenderBox* m_renderer;
+    RenderBox& m_renderer;
     RootInlineBox* m_originatingLine;
     LayoutRect m_frameRect;
     int m_paginationStrut; // FIXME: This should be a LayoutUnit, since it's a vertical offset.
@@ -181,20 +143,26 @@ private:
 };
 
 struct FloatingObjectHashFunctions {
-    static unsigned hash(FloatingObject* key) { return DefaultHash<RenderBox*>::Hash::hash(key->renderer()); }
-    static bool equal(FloatingObject* a, FloatingObject* b) { return a->renderer() == b->renderer(); }
+    static unsigned hash(const std::unique_ptr<FloatingObject>& key) { return PtrHash<RenderBox*>::hash(&key->renderer()); }
+    static bool equal(const std::unique_ptr<FloatingObject>& a, const std::unique_ptr<FloatingObject>& b) { return &a->renderer() == &b->renderer(); }
     static const bool safeToCompareToEmptyOrDeleted = true;
 };
 struct FloatingObjectHashTranslator {
-    static unsigned hash(RenderBox* key) { return DefaultHash<RenderBox*>::Hash::hash(key); }
-    static bool equal(FloatingObject* a, RenderBox* b) { return a->renderer() == b; }
+    static unsigned hash(const RenderBox& key) { return PtrHash<const RenderBox*>::hash(&key); }
+    static unsigned hash(const FloatingObject& key) { return PtrHash<RenderBox*>::hash(&key.renderer()); }
+    static bool equal(const std::unique_ptr<FloatingObject>& a, const RenderBox& b) { return &a->renderer() == &b; }
+    static bool equal(const std::unique_ptr<FloatingObject>& a, const FloatingObject& b) { return &a->renderer() == &b.renderer(); }
 };
-typedef ListHashSet<FloatingObject*, 4, FloatingObjectHashFunctions> FloatingObjectSet;
-typedef FloatingObjectSet::const_iterator FloatingObjectSetIterator;
+
+typedef ListHashSet<std::unique_ptr<FloatingObject>, 4, FloatingObjectHashFunctions> FloatingObjectSet;
+
 typedef PODInterval<int, FloatingObject*> FloatingObjectInterval;
 typedef PODIntervalTree<int, FloatingObject*> FloatingObjectTree;
 typedef PODFreeListArena<PODRedBlackTree<FloatingObjectInterval>::Node> IntervalArena;
 
+// FIXME: This is really the same thing as FloatingObjectSet.
+// Change clients to use that set directly, and replace the moveAllToFloatInfoMap function with a takeSet function.
+typedef HashMap<RenderBox*, std::unique_ptr<FloatingObject>> RendererToFloatInfoMap;
 
 class FloatingObjects {
     WTF_MAKE_NONCOPYABLE(FloatingObjects); WTF_MAKE_FAST_ALLOCATED;
@@ -203,7 +171,8 @@ public:
     ~FloatingObjects();
 
     void clear();
-    void add(FloatingObject*);
+    void moveAllToFloatInfoMap(RendererToFloatInfoMap&);
+    FloatingObject* add(std::unique_ptr<FloatingObject>);
     void remove(FloatingObject*);
     void addPlacedObject(FloatingObject*);
     void removePlacedObject(FloatingObject*);
@@ -215,14 +184,10 @@ public:
     void clearLineBoxTreePointers();
     LayoutUnit logicalLeftOffset(LayoutUnit fixedOffset, LayoutUnit logicalTop, LayoutUnit logicalHeight, ShapeOutsideFloatOffsetMode = ShapeOutsideFloatShapeOffset, LayoutUnit* heightRemaining = 0);
     LayoutUnit logicalRightOffset(LayoutUnit fixedOffset, LayoutUnit logicalTop, LayoutUnit logicalHeight, ShapeOutsideFloatOffsetMode = ShapeOutsideFloatShapeOffset, LayoutUnit* heightRemaining = 0);
+
 private:
     void computePlacedFloatsTree();
-    const FloatingObjectTree& placedFloatsTree()
-    {
-        if (!m_placedFloatsTree.isInitialized())
-            computePlacedFloatsTree();
-        return m_placedFloatsTree;
-    }
+    const FloatingObjectTree& placedFloatsTree();
     void increaseObjectsCount(FloatingObject::Type);
     void decreaseObjectsCount(FloatingObject::Type);
     FloatingObjectInterval intervalForFloatingObject(FloatingObject*);

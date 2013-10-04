@@ -739,7 +739,7 @@ CollapsedBorderValue RenderTableCell::computeCollapsedBeforeBorder(IncludeBorder
         if (prevCell->section() == section())
             prevRow = parent()->previousSibling();
         else
-            prevRow = prevCell->section()->lastChild();
+            prevRow = prevCell->section()->lastRow();
     
         if (prevRow) {
             result = chooseBorder(CollapsedBorderValue(prevRow->style()->borderAfter(), includeColor ? prevRow->style()->visitedDependentColor(afterColorProperty) : Color(), BROW), result);
@@ -1264,7 +1264,7 @@ void RenderTableCell::paintCollapsedBorders(PaintInfo& paintInfo, const LayoutPo
     }
 }
 
-void RenderTableCell::paintBackgroundsBehindCell(PaintInfo& paintInfo, const LayoutPoint& paintOffset, RenderObject* backgroundObject)
+void RenderTableCell::paintBackgroundsBehindCell(PaintInfo& paintInfo, const LayoutPoint& paintOffset, RenderElement* backgroundObject)
 {
     if (!paintInfo.shouldPaintWithinRoot(this))
         return;
@@ -1364,16 +1364,16 @@ void RenderTableCell::scrollbarsChanged(bool horizontalScrollbarChanged, bool ve
         setIntrinsicPaddingAfter(intrinsicPaddingAfter() - scrollbarHeight);
 }
 
-RenderTableCell* RenderTableCell::createAnonymous(Document* document)
+RenderTableCell* RenderTableCell::createAnonymous(Document& document)
 {
-    RenderTableCell* renderer = new (document->renderArena()) RenderTableCell(0);
+    RenderTableCell* renderer = new (*document.renderArena()) RenderTableCell(0);
     renderer->setDocumentForAnonymous(document);
     return renderer;
 }
 
 RenderTableCell* RenderTableCell::createAnonymousWithParentRenderer(const RenderObject* parent)
 {
-    RenderTableCell* newCell = RenderTableCell::createAnonymous(&parent->document());
+    RenderTableCell* newCell = RenderTableCell::createAnonymous(parent->document());
     RefPtr<RenderStyle> newStyle = RenderStyle::createAnonymousStyleWithDisplay(parent->style(), TABLE_CELL);
     newCell->setStyle(newStyle.release());
     return newCell;

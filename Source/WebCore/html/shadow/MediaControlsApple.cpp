@@ -52,7 +52,7 @@ using namespace std;
 
 namespace WebCore {
 
-MediaControlsApple::MediaControlsApple(Document* document)
+MediaControlsApple::MediaControlsApple(Document& document)
     : MediaControls(document)
     , m_rewindButton(0)
     , m_fastForwardButton(0)
@@ -75,14 +75,14 @@ MediaControlsApple::MediaControlsApple(Document* document)
 {
 }
 
-PassRefPtr<MediaControls> MediaControls::create(Document* document)
+PassRefPtr<MediaControls> MediaControls::create(Document& document)
 {
     return MediaControlsApple::createControls(document);
 }
 
-PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* document)
+PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document& document)
 {
-    if (!document->page())
+    if (!document.page())
         return 0;
 
     RefPtr<MediaControlsApple> controls = adoptRef(new MediaControlsApple(document));
@@ -115,7 +115,7 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     if (ec)
         return 0;
 
-    if (document->page()->theme()->usesMediaControlStatusDisplay()) {
+    if (document.page()->theme()->usesMediaControlStatusDisplay()) {
         RefPtr<MediaControlStatusDisplayElement> statusDisplay = MediaControlStatusDisplayElement::create(document);
         controls->m_statusDisplay = statusDisplay.get();
         panel->appendChild(statusDisplay.release(), ec, AttachLazily);
@@ -180,7 +180,7 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     if (ec)
         return 0;
 
-    if (document->page()->theme()->supportsClosedCaptioning()) {
+    if (document.page()->theme()->supportsClosedCaptioning()) {
         RefPtr<MediaControlClosedCaptionsContainerElement> closedCaptionsContainer = MediaControlClosedCaptionsContainerElement::create(document);
 
         RefPtr<MediaControlClosedCaptionsTrackListElement> closedCaptionsTrackList = MediaControlClosedCaptionsTrackListElement::create(document, controls.get());
@@ -209,7 +209,7 @@ PassRefPtr<MediaControlsApple> MediaControlsApple::createControls(Document* docu
     // The mute button and the slider element should be in the same div.
     RefPtr<HTMLDivElement> panelVolumeControlContainer = HTMLDivElement::create(document);
 
-    if (document->page()->theme()->usesMediaControlVolumeSlider()) {
+    if (document.page()->theme()->usesMediaControlVolumeSlider()) {
         RefPtr<MediaControlVolumeSliderContainerElement> volumeSliderContainer = MediaControlVolumeSliderContainerElement::create(document);
 
         RefPtr<MediaControlPanelVolumeSliderElement> slider = MediaControlPanelVolumeSliderElement::create(document);
@@ -436,7 +436,7 @@ void MediaControlsApple::createVideoTrackDisplay()
     if (m_videoTrackSelButton)
         return;
 
-    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(&document(), this);
+    RefPtr<MediaControlVideoTrackSelButtonElement> videoDisplayButton = MediaControlVideoTrackSelButtonElement::create(document(), this);
     videoDisplayButton->setMediaController(m_mediaController);
     m_videoTrackSelButton = videoDisplayButton.get();
 
@@ -449,7 +449,7 @@ void MediaControlsApple::createTextTrackSelDisplay()
     if (m_textTrackSelButton)
         return;
 
-    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(&document(), this);
+    RefPtr<MediaControlTextTrackSelButtonElement> textTrackSelButton = MediaControlTextTrackSelButtonElement::create(document(), this);
     textTrackSelButton->setMediaController(m_mediaController);
     m_textTrackSelButton = textTrackSelButton.get();
 
@@ -518,7 +518,7 @@ void MediaControlsApple::createAudioTrackDisplay()
     if (m_audioTrackSelButton)
         return;
 
-    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(&document(), this);
+    RefPtr<MediaControlAudioTrackSelButtonElement> audioDisplayButton = MediaControlAudioTrackSelButtonElement::create(document(), this);
     audioDisplayButton->setMediaController(m_mediaController);
     m_audioTrackSelButton = audioDisplayButton.get();
 
@@ -755,9 +755,7 @@ void MediaControlsAppleEventListener::handleEvent(ScriptExecutionContext*, Event
 {
     if (event->type() == eventNames().clickEvent)
         m_mediaControls->handleClickEvent(event);
-
-    else if ((event->type() == eventNames().wheelEvent || event->type() == eventNames().mousewheelEvent)
-        && event->hasInterface(eventNames().interfaceForWheelEvent)) {
+    else if ((event->type() == eventNames().wheelEvent || event->type() == eventNames().mousewheelEvent) && event->eventInterface() == WheelEventInterfaceType) {
         WheelEvent* wheelEvent = static_cast<WheelEvent*>(event);
         if (m_mediaControls->shouldClosedCaptionsContainerPreventPageScrolling(wheelEvent->wheelDeltaY()))
             event->preventDefault();

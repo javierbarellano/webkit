@@ -73,8 +73,8 @@ public:
     NetworkService& operator= (const NetworkService &that);
     virtual ~NetworkService();
 
-    virtual const AtomicString& interfaceName() const;
-    virtual ScriptExecutionContext* scriptExecutionContext() const;
+    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
+    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceonline);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(serviceoffline);

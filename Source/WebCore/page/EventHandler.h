@@ -71,6 +71,7 @@ class OptionalCursor;
 class PlatformKeyboardEvent;
 class PlatformTouchEvent;
 class PlatformWheelEvent;
+class RenderElement;
 class RenderLayer;
 class RenderObject;
 class RenderWidget;
@@ -117,11 +118,11 @@ public:
 #if ENABLE(PAN_SCROLLING)
     void didPanScrollStart();
     void didPanScrollStop();
-    void startPanScrolling(RenderObject*);
+    void startPanScrolling(RenderElement*);
 #endif
 
     void stopAutoscrollTimer(bool rendererIsBeingDestroyed = false);
-    RenderObject* autoscrollRenderer() const;
+    RenderElement* autoscrollRenderer() const;
     void updateAutoscrollRenderer();
     bool autoscrollInProgress() const;
     bool mouseDownWasInSubframe() const { return m_mouseDownWasInSubframe; }
@@ -137,7 +138,7 @@ public:
     bool mousePressed() const { return m_mousePressed; }
     void setMousePressed(bool pressed) { m_mousePressed = pressed; }
 
-    void setCapturingMouseEventsNode(PassRefPtr<Node>); // A caller is responsible for resetting capturing node to 0.
+    void setCapturingMouseEventsElement(PassRefPtr<Element>); // A caller is responsible for resetting capturing element to 0.
 
 #if ENABLE(DRAG_SUPPORT)
     bool updateDragAndDrop(const PlatformMouseEvent&, Clipboard*);
@@ -447,11 +448,11 @@ private:
 
     RenderLayer* m_resizeLayer;
 
-    RefPtr<Node> m_capturingMouseEventsNode;
-    bool m_eventHandlerWillResetCapturingMouseEventsNode;
+    RefPtr<Element> m_capturingMouseEventsElement;
+    bool m_eventHandlerWillResetCapturingMouseEventsElement;
     
-    RefPtr<Node> m_nodeUnderMouse;
-    RefPtr<Node> m_lastNodeUnderMouse;
+    RefPtr<Element> m_elementUnderMouse;
+    RefPtr<Element> m_lastElementUnderMouse;
     RefPtr<Frame> m_lastMouseMoveEventSubframe;
     RefPtr<Scrollbar> m_lastScrollbarUnderMouse;
     Cursor m_currentMouseCursor;
@@ -476,11 +477,11 @@ private:
     PlatformMouseEvent m_mouseDown;
 
     Deque<FloatSize> m_recentWheelEventDeltas;
-    RefPtr<Node> m_latchedWheelEventNode;
+    RefPtr<Element> m_latchedWheelEventElement;
     bool m_inTrackingScrollGesturePhase;
     bool m_widgetIsLatched;
 
-    RefPtr<Node> m_previousWheelScrolledNode;
+    RefPtr<Element> m_previousWheelScrolledElement;
 
 #if PLATFORM(MAC)
     NSView *m_mouseDownView;
@@ -498,7 +499,7 @@ private:
 #if ENABLE(GESTURE_EVENTS)
     RefPtr<Node> m_scrollGestureHandlingNode;
     bool m_lastHitTestResultOverWidget;
-    RefPtr<Node> m_previousGestureScrolledNode;
+    RefPtr<Element> m_previousGestureScrolledElement;
     RefPtr<Scrollbar> m_scrollbarHandlingScrollGesture;
 #endif
 

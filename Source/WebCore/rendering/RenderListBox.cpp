@@ -82,18 +82,14 @@ const int defaultSize = 4;
 // widget, but I'm not sure this is right for the new control.
 const int baselineAdjustment = 7;
 
-RenderListBox::RenderListBox(Element* element)
-    : RenderBlockFlow(element)
+RenderListBox::RenderListBox(HTMLSelectElement& element)
+    : RenderBlockFlow(&element)
     , m_optionsChanged(true)
     , m_scrollToRevealSelectionAfterLayout(false)
     , m_inAutoscroll(false)
     , m_optionsWidth(0)
     , m_indexOffset(0)
 {
-    ASSERT(element);
-    ASSERT(element->isHTMLElement());
-    ASSERT(element->hasTagName(HTMLNames::selectTag));
-
     view().frameView().addScrollableArea(this);
 }
 
@@ -103,9 +99,9 @@ RenderListBox::~RenderListBox()
     view().frameView().removeScrollableArea(this);
 }
 
-inline HTMLSelectElement* RenderListBox::selectElement() const
+HTMLSelectElement& RenderListBox::selectElement() const
 {
-    return toHTMLSelectElement(element());
+    return toHTMLSelectElement(nodeForNonAnonymous());
 }
 
 void RenderListBox::updateFromElement()
@@ -113,7 +109,7 @@ void RenderListBox::updateFromElement()
     FontCachePurgePreventer fontCachePurgePreventer;
 
     if (m_optionsChanged) {
-        const Vector<HTMLElement*>& listItems = selectElement()->listItems();
+        const Vector<HTMLElement*>& listItems = selectElement().listItems();
         int size = numItems();
         
         float width = 0;
@@ -134,7 +130,7 @@ void RenderListBox::updateFromElement()
             if (!text.isEmpty()) {
                 applyTextTransform(style(), text, ' ');
                 // FIXME: Why is this always LTR? Can't text direction affect the width?
-                TextRun textRun = constructTextRun(this, itemFont, text, style(), TextRun::AllowTrailingExpansion);
+                TextRun textRun = constructTextRun(this, itemFont, text, *style(), TextRun::AllowTrailingExpansion);
                 textRun.disableRoundingHacks();
                 float textWidth = itemFont.width(textRun);
                 width = max(width, textWidth);
@@ -192,12 +188,10 @@ void RenderListBox::layout()
 
 void RenderListBox::scrollToRevealSelection()
 {    
-    HTMLSelectElement* select = selectElement();
-
     m_scrollToRevealSelectionAfterLayout = false;
 
-    int firstIndex = select->activeSelectionStartListIndex();
-    if (firstIndex >= 0 && !listIndexIsVisible(select->activeSelectionEndListIndex()))
+    int firstIndex = selectElement().activeSelectionStartListIndex();
+    if (firstIndex >= 0 && !listIndexIsVisible(selectElement().activeSelectionEndListIndex()))
         scrollToRevealElementAtListIndex(firstIndex);
 }
 
@@ -241,7 +235,7 @@ void RenderListBox::computePreferredLogicalWidths()
 
 int RenderListBox::size() const
 {
-    int specifiedSize = selectElement()->size();
+    int specifiedSize = selectElement().size();
     if (specifiedSize > 1)
         return max(minSize, specifiedSize);
 
@@ -256,7 +250,7 @@ int RenderListBox::numVisibleItems() const
 
 int RenderListBox::numItems() const
 {
-    return selectElement()->listItems().size();
+    return selectElement().listItems().size();
 }
 
 LayoutUnit RenderListBox::listHeight() const
@@ -330,10 +324,8 @@ void RenderListBox::addFocusRingRects(Vector<IntRect>& rects, const LayoutPoint&
     if (!isSpatialNavigationEnabled(&frame()))
         return RenderBlockFlow::addFocusRingRects(rects, additionalOffset, paintContainer);
 
-    HTMLSelectElement* select = selectElement();
-
     // Focus the last selected item.
-    int selectedItem = select->activeSelectionEndListIndex();
+    int selectedItem = selectElement().activeSelectionEndListIndex();
     if (selectedItem >= 0) {
         rects.append(pixelSnappedIntRect(itemBoundingBoxRect(additionalOffset, selectedItem)));
         return;
@@ -341,11 +333,11 @@ void RenderListBox::addFocusRingRects(Vector<IntRect>& rects, const LayoutPoint&
 
     // No selected items, find the first non-disabled item.
     int size = numItems();
-    const Vector<HTMLElement*>& listItems = select->listItems();
+    const Vector<HTMLElement*>& listItems = selectElement().listItems();
     for (int i = 0; i < size; ++i) {
         HTMLElement* element = listItems[i];
         if (isHTMLOptionElement(element) && !element->isDisabledFormControl()) {
-            select->setActiveSelectionEndIndex(i);
+            selectElement().setActiveSelectionEndIndex(i);
             rects.append(pixelSnappedIntRect(itemBoundingBoxRect(additionalOffset, i)));
             return;
         }
@@ -388,9 +380,7 @@ void RenderListBox::paintItemForeground(PaintInfo& paintInfo, const LayoutPoint&
 {
     FontCachePurgePreventer fontCachePurgePreventer;
 
-    HTMLSelectElement* select = selectElement();
-
-    const Vector<HTMLElement*>& listItems = select->listItems();
+    const Vector<HTMLElement*>& listItems = selectElement().listItems();
     HTMLElement* listItemElement = listItems[listIndex];
 
     RenderStyle* itemStyle = listItemElement->renderStyle();
@@ -410,10 +400,10 @@ void RenderListBox::paintItemForeground(PaintInfo& paintInfo, const LayoutPoint&
 
     Color textColor = listItemElement->renderStyle() ? listItemElement->renderStyle()->visitedDependentColor(CSSPropertyColor) : style()->visitedDependentColor(CSSPropertyColor);
     if (isOptionElement && toHTMLOptionElement(listItemElement)->selected()) {
-        if (frame().selection().isFocusedAndActive() && document().focusedElement() == element())
+        if (frame().selection().isFocusedAndActive() && document().focusedElement() == &selectElement())
             textColor = theme()->activeListBoxSelectionForegroundColor();
         // Honor the foreground color for disabled items
-        else if (!listItemElement->isDisabledFormControl() && !select->isDisabledFormControl())
+        else if (!listItemElement->isDisabledFormControl() && !selectElement().isDisabledFormControl())
             textColor = theme()->inactiveListBoxSelectionForegroundColor();
     }
 
@@ -438,12 +428,12 @@ void RenderListBox::paintItemForeground(PaintInfo& paintInfo, const LayoutPoint&
 
 void RenderListBox::paintItemBackground(PaintInfo& paintInfo, const LayoutPoint& paintOffset, int listIndex)
 {
-    const Vector<HTMLElement*>& listItems = selectElement()->listItems();
+    const Vector<HTMLElement*>& listItems = selectElement().listItems();
     HTMLElement* listItemElement = listItems[listIndex];
 
     Color backColor;
     if (isHTMLOptionElement(listItemElement) && toHTMLOptionElement(listItemElement)->selected()) {
-        if (frame().selection().isFocusedAndActive() && document().focusedElement() == element())
+        if (frame().selection().isFocusedAndActive() && document().focusedElement() == &selectElement())
             backColor = theme()->activeListBoxSelectionBackgroundColor();
         else
             backColor = theme()->inactiveListBoxSelectionBackgroundColor();
@@ -533,8 +523,7 @@ void RenderListBox::panScroll(const IntPoint& panStartMousePosition)
         return;
 
     m_inAutoscroll = true;
-    HTMLSelectElement* select = selectElement();
-    select->updateListBoxSelection(!select->multiple());
+    selectElement().updateListBoxSelection(!selectElement().multiple());
     m_inAutoscroll = false;
 }
 
@@ -561,28 +550,27 @@ void RenderListBox::autoscroll(const IntPoint&)
     IntPoint pos = frame().view()->windowToContents(frame().eventHandler().lastKnownMousePosition());
 
     int endIndex = scrollToward(pos);
-    if (selectElement()->isDisabledFormControl())
+    if (selectElement().isDisabledFormControl())
         return;
 
     if (endIndex >= 0) {
-        HTMLSelectElement* select = selectElement();
         m_inAutoscroll = true;
 
-        if (!select->multiple())
-            select->setActiveSelectionAnchorIndex(endIndex);
+        if (!selectElement().multiple())
+            selectElement().setActiveSelectionAnchorIndex(endIndex);
 
-        select->setActiveSelectionEndIndex(endIndex);
-        select->updateListBoxSelection(!select->multiple());
+        selectElement().setActiveSelectionEndIndex(endIndex);
+        selectElement().updateListBoxSelection(!selectElement().multiple());
         m_inAutoscroll = false;
     }
 }
 
 void RenderListBox::stopAutoscroll()
 {
-    if (selectElement()->isDisabledFormControl())
+    if (selectElement().isDisabledFormControl())
         return;
 
-    selectElement()->listBoxOnChange();
+    selectElement().listBoxOnChange();
 }
 
 bool RenderListBox::scrollToRevealElementAtListIndex(int index)
@@ -606,21 +594,20 @@ bool RenderListBox::listIndexIsVisible(int index)
     return index >= m_indexOffset && index < m_indexOffset + numVisibleItems();
 }
 
-bool RenderListBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Node**)
+bool RenderListBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Element**)
 {
     return ScrollableArea::scroll(direction, granularity, multiplier);
 }
 
-bool RenderListBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Node**)
+bool RenderListBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Element**)
 {
     return ScrollableArea::scroll(logicalToPhysical(direction, style()->isHorizontalWritingMode(), style()->isFlippedBlocksWritingMode()), granularity, multiplier);
 }
 
 void RenderListBox::valueChanged(unsigned listIndex)
 {
-    HTMLSelectElement* element = selectElement();
-    element->setSelectedIndex(element->listToOptionIndex(listIndex));
-    element->dispatchFormControlChangeEvent();
+    selectElement().setSelectedIndex(selectElement().listToOptionIndex(listIndex));
+    selectElement().dispatchFormControlChangeEvent();
 }
 
 int RenderListBox::scrollSize(ScrollbarOrientation orientation) const
@@ -645,7 +632,7 @@ void RenderListBox::scrollTo(int newOffset)
 
     m_indexOffset = newOffset;
     repaint();
-    element()->document().eventQueue().enqueueOrDispatchScrollEvent(*element());
+    document().eventQueue().enqueueOrDispatchScrollEvent(selectElement());
 }
 
 LayoutUnit RenderListBox::itemHeight() const
@@ -699,7 +686,7 @@ bool RenderListBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& re
 {
     if (!RenderBlockFlow::nodeAtPoint(request, result, locationInContainer, accumulatedOffset, hitTestAction))
         return false;
-    const Vector<HTMLElement*>& listItems = selectElement()->listItems();
+    const Vector<HTMLElement*>& listItems = selectElement().listItems();
     int size = numItems();
     LayoutPoint adjustedLocation = accumulatedOffset + location();
 
@@ -804,16 +791,6 @@ bool RenderListBox::shouldSuspendScrollAnimations() const
     return view().frameView().shouldSuspendScrollAnimations();
 }
 
-bool RenderListBox::scrollbarsCanBeActive() const
-{
-    return view().frameView().scrollbarsCanBeActive();
-}
-
-bool RenderListBox::scrollbarAnimationsAreSuppressed() const
-{
-    return view().frameView().scrollbarAnimationsAreSuppressed();
-}
-
 ScrollableArea* RenderListBox::enclosingScrollableArea() const
 {
     // FIXME: Return a RenderLayer that's scrollable.
@@ -830,7 +807,7 @@ PassRefPtr<Scrollbar> RenderListBox::createScrollbar()
     RefPtr<Scrollbar> widget;
     bool hasCustomScrollbarStyle = style()->hasPseudoStyle(SCROLLBAR);
     if (hasCustomScrollbarStyle)
-        widget = RenderScrollbar::createCustomScrollbar(this, VerticalScrollbar, element());
+        widget = RenderScrollbar::createCustomScrollbar(this, VerticalScrollbar, &selectElement());
     else {
         widget = Scrollbar::createNativeScrollbar(this, VerticalScrollbar, theme()->scrollbarControlSizeForPart(ListboxPart));
         didAddScrollbar(widget.get(), VerticalScrollbar);

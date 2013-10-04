@@ -88,7 +88,7 @@ public:
     void setTextAsOfLastFormControlChangeEvent(const String& text) { m_textAsOfLastFormControlChangeEvent = text; }
 
 protected:
-    HTMLTextFormControlElement(const QualifiedName&, Document*, HTMLFormElement*);
+    HTMLTextFormControlElement(const QualifiedName&, Document&, HTMLFormElement*);
     bool isPlaceholderEmpty() const;
     virtual void updatePlaceholderText() = 0;
 
@@ -142,11 +142,20 @@ inline bool isHTMLTextFormControlElement(const Node* node)
     return node->isElementNode() && toElement(node)->isTextFormControl();
 }
 
+inline HTMLTextFormControlElement& toHTMLTextFormControlElement(Node& node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(isHTMLTextFormControlElement(&node));
+    return static_cast<HTMLTextFormControlElement&>(node);
+}
+
 inline HTMLTextFormControlElement* toHTMLTextFormControlElement(Node* node)
 {
     ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLTextFormControlElement(node));
     return static_cast<HTMLTextFormControlElement*>(node);
 }
+
+void toHTMLTextFormControlElement(const HTMLTextFormControlElement&);
+void toHTMLTextFormControlElement(const HTMLTextFormControlElement*);
 
 HTMLTextFormControlElement* enclosingTextFormControl(const Position&);
 
