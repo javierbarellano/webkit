@@ -1,3 +1,15 @@
+2013-10-09  Brendan Long  <b.long@cablelabs.com>
+
+        Track controls show metadata and chapter tracks
+        https://bugs.webkit.org/show_bug.cgi?id=122468
+
+        Reviewed by NOBODY (OOPS!).
+
+        Test: media/video-controls-captions-trackmenu-only-captions-descriptions-and-subtitles.html
+
+        * page/CaptionUserPreferences.cpp:
+        (WebCore::CaptionUserPreferences::sortedTrackListForMenu): Only show captions, descriptions and subtitles in the track controls.
+
 2013-10-09  Carlos Garcia Campos  <cgarcia@igalia.com>
 
         Unreviewed. Update GObject DOM symbols file after r157163.
