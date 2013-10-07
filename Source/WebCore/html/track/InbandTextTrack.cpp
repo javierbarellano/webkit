@@ -64,31 +64,8 @@ InbandTextTrack::InbandTextTrack(ScriptExecutionContext* context, TextTrackClien
     , m_private(tracksPrivate)
 {
     m_private->setClient(this);
-    
-    switch (m_private->kind()) {
-    case InbandTextTrackPrivate::Subtitles:
-        setKind(TextTrack::subtitlesKeyword());
-        break;
-    case InbandTextTrackPrivate::Captions:
-        setKind(TextTrack::captionsKeyword());
-        break;
-    case InbandTextTrackPrivate::Descriptions:
-        setKind(TextTrack::descriptionsKeyword());
-        break;
-    case InbandTextTrackPrivate::Chapters:
-        setKind(TextTrack::chaptersKeyword());
-        break;
-    case InbandTextTrackPrivate::Metadata:
-        setKind(TextTrack::metadataKeyword());
-        break;
-    case InbandTextTrackPrivate::Forced:
-        setKind(TextTrack::forcedKeyword());
-        break;
-    case InbandTextTrackPrivate::None:
-    default:
-        ASSERT_NOT_REACHED();
-        break;
-    }
+
+    setKind(m_private->kind());
 }
 
 InbandTextTrack::~InbandTextTrack()
@@ -154,6 +131,40 @@ size_t InbandTextTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
     return m_private->textTrackIndex();
+}
+
+void InbandTextTrack::setKind(InbandTextTrackPrivate::Kind kind)
+{
+    switch (kind) {
+    case InbandTextTrackPrivate::Subtitles:
+        TextTrack::setKind(TextTrack::subtitlesKeyword());
+        break;
+    case InbandTextTrackPrivate::Captions:
+        TextTrack::setKind(TextTrack::captionsKeyword());
+        break;
+    case InbandTextTrackPrivate::Descriptions:
+        TextTrack::setKind(TextTrack::descriptionsKeyword());
+        break;
+    case InbandTextTrackPrivate::Chapters:
+        TextTrack::setKind(TextTrack::chaptersKeyword());
+        break;
+    case InbandTextTrackPrivate::Metadata:
+        TextTrack::setKind(TextTrack::metadataKeyword());
+        break;
+    case InbandTextTrackPrivate::Forced:
+        TextTrack::setKind(TextTrack::forcedKeyword());
+        break;
+    case InbandTextTrackPrivate::None:
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+}
+
+void InbandTextTrack::kindChanged(InbandTextTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setKind(m_private->kind());
 }
 
 void InbandTextTrack::labelChanged(InbandTextTrackPrivate* trackPrivate, const String& label)

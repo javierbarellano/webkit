@@ -141,6 +141,7 @@ public:
 
     virtual void parseWebVTTCueData(InbandTextTrackPrivate*, const char* data, unsigned length) = 0;
 
+    virtual void kindChanged(InbandTextTrackPrivate*) = 0;
     virtual void labelChanged(InbandTextTrackPrivate*, const String&) = 0;
     virtual void languageChanged(InbandTextTrackPrivate*, const String&) = 0;
 
