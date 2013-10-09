@@ -140,7 +140,7 @@ void discoveryThread(void *context)
                 // Spec recommends more than one, but less than 10, in a 250ms window.
                 // We'll send 3 repeats, 75ms apart.
 
-				fprintf(stderr,"Issueing M-SEARCH (3x): \n%s\n", upnp->m_sendData.c_str());
+				NAV_LOG("Issueing M-SEARCH (3x): \n%s\n", upnp->m_sendData.c_str());
 
                 for (int i = 0; i < 3; i++) {
                     bool netIdUp = upnp->m_udpSocket->send(upnp->m_sendData.c_str(), upnp->m_sendData.length());
@@ -673,7 +673,7 @@ bool serviceMatch(const char* buffer, const char* registeredType)
 
 	bool match = false;
 
-	fprintf(stderr,"serviceMatch for type: %s in buffer:\n%s\n", registeredType, buffer);
+	//NAV_LOG("serviceMatch for type: %s in buffer:\n%s\n", registeredType, buffer);
 
 	// Separate the service type from the version (registered type)
 	char *rootType = (char *) malloc(strlen(registeredType)+1);
