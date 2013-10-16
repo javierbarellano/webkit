@@ -3912,7 +3912,8 @@ void HTMLMediaElement::mediaPlayerCharacteristicChanged(MediaPlayer*)
 
 void HTMLMediaElement::mediaPlayerPlaybackRatesSupportedChanged(MediaPlayer* mPlayer)
 {
-    mediaControls()->updateTrickModeButtons();
+    if (hasMediaControls())
+        mediaControls()->updateTrickModeButtons();
 }
 
 PassRefPtr<TimeRanges> HTMLMediaElement::buffered() const
