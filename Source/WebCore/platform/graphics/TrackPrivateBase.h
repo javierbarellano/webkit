@@ -1,9 +1,11 @@
 /*
  * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2013 Cable Television Labs, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -23,48 +25,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef AudioTrackPrivate_h
-#define AudioTrackPrivate_h
+#ifndef TrackPrivateBase_h
+#define TrackPrivateBase_h
 
-#include "TrackPrivateBase.h"
+#include <wtf/Forward.h>
+#include <wtf/Noncopyable.h>
+#include <wtf/RefCounted.h>
+#include <wtf/text/AtomicString.h>
 
 #if ENABLE(VIDEO_TRACK)
 
 namespace WebCore {
 
-class AudioTrackPrivate;
+class TrackPrivateBase;
 
-class AudioTrackPrivateClient : public TrackPrivateBaseClient {
+class TrackPrivateBaseClient {
 public:
-    virtual void enabledChanged(AudioTrackPrivate*, bool) = 0;
+    virtual ~TrackPrivateBaseClient() { }
+    virtual void labelChanged(TrackPrivateBase*, const String&) = 0;
+    virtual void languageChanged(TrackPrivateBase*, const String&) = 0;
+    virtual void willRemove(TrackPrivateBase*) = 0;
 };
 
-class AudioTrackPrivate : public TrackPrivateBase {
+class TrackPrivateBase : public RefCounted<TrackPrivateBase> {
+    WTF_MAKE_NONCOPYABLE(TrackPrivateBase); WTF_MAKE_FAST_ALLOCATED;
 public:
-    static PassRefPtr<AudioTrackPrivate> create()
+    virtual ~TrackPrivateBase() { }
+
+    virtual TrackPrivateBaseClient* client() const = 0;
+
+    virtual AtomicString id() const { return emptyAtom; }
+    virtual AtomicString label() const { return emptyAtom; }
+    virtual AtomicString language() const { return emptyAtom; }
+
+    virtual int trackIndex() const { return 0; }
+
+    void willBeRemoved()
     {
-        return adoptRef(new AudioTrackPrivate());
+        if (TrackPrivateBaseClient* client = this->client())
+            client->willRemove(this);
     }
-
-    void setClient(AudioTrackPrivateClient* client) { m_client = client; }
-    virtual AudioTrackPrivateClient* client() const OVERRIDE { return m_client; }
-
-    virtual void setEnabled(bool enabled) { m_enabled = enabled; };
-    virtual bool enabled() const { return m_enabled; }
-
-    enum Kind { Alternative, Description, Main, MainDesc, Translation, Commentary, None };
-    virtual Kind kind() const { return None; }
 
 protected:
-    AudioTrackPrivate()
-        : m_client(0)
-        , m_enabled(false)
-    {
-    }
-
-private:
-    AudioTrackPrivateClient* m_client;
-    bool m_enabled;
+    TrackPrivateBase() { }
 };
 
 } // namespace WebCore

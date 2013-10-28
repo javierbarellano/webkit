@@ -1,3 +1,47 @@
+2013-10-28  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Support audio and video tracks
+        https://bugs.webkit.org/show_bug.cgi?id=117039
+
+        Add a TrackPrivateBase as a base class for the *TrackPrivate classes,
+        so they can share some code.
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests because this is just refactoring.
+
+        * GNUmakefile.list.am: Add TrackPrivateBase.h to the build.
+        * WebCore.vcxproj/WebCore.vcxproj: Same.
+        * WebCore.vcxproj/WebCore.vcxproj.filters: Same.
+        * WebCore.xcodeproj/project.pbxproj: Same.
+        * html/track/AudioTrack.cpp:
+        (WebCore::AudioTrack::inbandTrackIndex): audioTrackIndex() was renamed to trackIndex()
+        (WebCore::AudioTrack::enabledChanged): Added.
+        (WebCore::AudioTrack::labelChanged): Added.
+        (WebCore::AudioTrack::languageChanged): Added.
+        (WebCore::AudioTrack::willRemove): Rename to match TrackPrivateBaseClient.
+        * html/track/AudioTrack.h:
+        * html/track/InbandTextTrack.cpp:
+        (WebCore::InbandTextTrack::inbandTrackIndex): Use trackIndex().
+        (WebCore::InbandTextTrack::labelChanged): Changed to match TrackPrivateBaseClient.
+        (WebCore::InbandTextTrack::languageChanged): Same.
+        (WebCore::InbandTextTrack::willRemove): Same.
+        * html/track/InbandTextTrack.h:
+        * html/track/VideoTrack.cpp:
+        (WebCore::VideoTrack::inbandTrackIndex): Use trackIndex().
+        (WebCore::VideoTrack::selectedChanged): Added.
+        (WebCore::VideoTrack::labelChanged): Added.
+        (WebCore::VideoTrack::languageChanged): Added.
+        (WebCore::VideoTrack::willRemove): Added.
+        * html/track/VideoTrack.h:
+        * platform/graphics/AudioTrackPrivate.h: Extend TrackPrivateBaseClient and TrackPrivateBase.
+        * platform/graphics/InbandTextTrackPrivate.h: Same.
+        * platform/graphics/InbandTextTrackPrivateClient.h: Same.
+        * platform/graphics/VideoTrackPrivate.h: Same.
+        * platform/graphics/TrackPrivateBase.h: Refactored out duplicate functionality in *TrackPrivate classes.
+        * platform/graphics/avfoundation/InbandTextTrackPrivateAVF.h: Renamed textTrackIndex() to trackIndex().
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h: Same.
+
 2013-10-28  Anders Carlsson  <andersca@apple.com>
 
         RunLoop::dispatch should take an std::function
