@@ -346,14 +346,14 @@ MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer()
     GRefPtr<GstPad> videoSinkPad = adoptGRef(gst_element_get_static_pad(m_webkitVideoSink.get(), "sink"));
     g_signal_handlers_disconnect_by_func(videoSinkPad.get(), reinterpret_cast<gpointer>(mediaPlayerPrivateVideoSinkCapsChangedCallback), this);
 
+    if (m_videoTimerHandler)
+        g_source_remove(m_videoTimerHandler);
+
     if (m_audioTimerHandler)
         g_source_remove(m_audioTimerHandler);
 
     if (m_textTimerHandler)
         g_source_remove(m_textTimerHandler);
-
-    if (m_videoTimerHandler)
-        g_source_remove(m_videoTimerHandler);
 
     if (m_videoCapsTimerHandler)
         g_source_remove(m_videoCapsTimerHandler);
@@ -710,20 +710,18 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
 
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     for (gint i = 0; i < numTracks; ++i) {
-        GstPad* pad;
-        g_signal_emit_by_name(m_playBin.get(), "get-video-pad", i, &pad, NULL);
+        GRefPtr<GstPad> pad;
+        g_signal_emit_by_name(m_playBin.get(), "get-video-pad", i, &pad.outPtr(), NULL);
         ASSERT(pad);
 
         if (i < static_cast<gint>(m_videoTracks.size())) {
             RefPtr<VideoTrackPrivateGStreamer> existingTrack = m_videoTracks[i];
             existingTrack->setIndex(i);
-            if (existingTrack->pad() == pad) {
-                gst_object_unref(pad);
+            if (existingTrack->pad() == pad)
                 continue;
-            }
         }
 
-        RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_playBin, i, adoptGRef(pad));
+        RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_playBin, i, pad);
         m_videoTracks.append(track);
         m_player->addVideoTrack(track.release());
     }
@@ -765,20 +763,18 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
 
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
     for (gint i = 0; i < numTracks; ++i) {
-        GstPad* pad;
-        g_signal_emit_by_name(m_playBin.get(), "get-audio-pad", i, &pad, NULL);
+        GRefPtr<GstPad> pad;
+        g_signal_emit_by_name(m_playBin.get(), "get-audio-pad", i, &pad.outPtr(), NULL);
         ASSERT(pad);
 
         if (i < static_cast<gint>(m_audioTracks.size())) {
             RefPtr<AudioTrackPrivateGStreamer> existingTrack = m_audioTracks[i];
             existingTrack->setIndex(i);
-            if (existingTrack->pad() == pad) {
-                gst_object_unref(pad);
+            if (existingTrack->pad() == pad)
                 continue;
-            }
         }
 
-        RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_playBin, i, adoptGRef(pad));
+        RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_playBin, i, pad);
         m_audioTracks.insert(i, track);
         m_player->addAudioTrack(track.release());
     }

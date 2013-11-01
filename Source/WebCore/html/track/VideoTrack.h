@@ -78,6 +78,7 @@ protected:
 
 private:
     virtual bool isValidKind(const AtomicString&) const OVERRIDE;
+
     virtual void selectedChanged(VideoTrackPrivate*, bool) OVERRIDE;
     virtual void labelChanged(VideoTrackPrivate*, const String&) OVERRIDE;
     virtual void languageChanged(VideoTrackPrivate*, const String&) OVERRIDE;
@@ -92,7 +93,7 @@ private:
 
 inline VideoTrack* toVideoTrack(TrackBase* track)
 {
-    ASSERT(track->type() == TrackBase::VideoTrack);
+    ASSERT_WITH_SECURITY_IMPLICATION(track->type() == TrackBase::VideoTrack);
     return static_cast<VideoTrack*>(track);
 }
 

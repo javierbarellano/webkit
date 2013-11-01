@@ -29,46 +29,27 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "GRefPtrGStreamer.h"
+#include "TrackPrivateBaseGStreamer.h"
 #include "VideoTrackPrivate.h"
 
 namespace WebCore {
 
-class VideoTrackPrivateGStreamer : public VideoTrackPrivate {
+class VideoTrackPrivateGStreamer FINAL : public VideoTrackPrivate, public TrackPrivateBaseGStreamer {
 public:
     static PassRefPtr<VideoTrackPrivateGStreamer> create(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
     {
         return adoptRef(new VideoTrackPrivateGStreamer(playbin, index, pad));
     }
 
-    ~VideoTrackPrivateGStreamer();
-
-    GstPad* pad() const { return m_pad.get(); }
-
-    void disconnect();
-
-    virtual AtomicString label() const OVERRIDE { return m_label; }
-    virtual AtomicString language() const OVERRIDE { return m_language; }
     virtual void setSelected(bool) OVERRIDE;
+    virtual void setActive(bool enabled) OVERRIDE { setSelected(enabled); }
 
-    void setIndex(int index) { m_index =  index; }
     virtual int videoTrackIndex() const OVERRIDE { return m_index; }
-
-    void activeChanged();
-    void tagsChanged();
-
-    void notifyTrackOfActiveChanged();
-    void notifyTrackOfTagsChanged();
+    virtual void labelChanged(const String&) OVERRIDE;
+    virtual void languageChanged(const String&) OVERRIDE;
 
 private:
     VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
-
-    gint m_index;
-    GRefPtr<GstPad> m_pad;
-    GRefPtr<GstElement> m_playbin;
-    String m_label;
-    String m_language;
-    guint m_activeTimerHandler;
-    guint m_tagTimerHandler;
 };
 
 } // namespace WebCore

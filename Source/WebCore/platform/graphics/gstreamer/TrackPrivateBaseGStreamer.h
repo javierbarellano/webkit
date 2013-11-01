@@ -23,37 +23,53 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef AudioTrackPrivateGStreamer_h
-#define AudioTrackPrivateGStreamer_h
+#ifndef TrackPrivateBaseGStreamer_h
+#define TrackPrivateBaseGStreamer_h
 
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
-#include "AudioTrackPrivate.h"
 #include "GRefPtrGStreamer.h"
-#include "TrackPrivateBaseGStreamer.h"
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class AudioTrackPrivateGStreamer FINAL : public AudioTrackPrivate, public TrackPrivateBaseGStreamer {
+class TrackPrivateBaseGStreamer {
 public:
-    static PassRefPtr<AudioTrackPrivateGStreamer> create(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
-    {
-        return adoptRef(new AudioTrackPrivateGStreamer(playbin, index, pad));
-    }
+    virtual ~TrackPrivateBaseGStreamer();
 
-    virtual void setEnabled(bool) OVERRIDE;
-    virtual void setActive(bool enabled) OVERRIDE { setEnabled(enabled); }
+    virtual void labelChanged(const String&) = 0;
+    virtual void languageChanged(const String&) = 0;
 
-    virtual int audioTrackIndex() const OVERRIDE { return m_index; }
-    virtual void labelChanged(const String&) OVERRIDE;
-    virtual void languageChanged(const String&) OVERRIDE;
+    GstPad* pad() const { return m_pad.get(); }
+
+    void disconnect();
+
+    virtual void setActive(bool) = 0;
+
+    void setIndex(int index) { m_index =  index; }
+
+    void activeChanged();
+    void tagsChanged();
+
+    void notifyTrackOfActiveChanged();
+    void notifyTrackOfTagsChanged();
+
+protected:
+    TrackPrivateBaseGStreamer(const char* notifyActiveSignal, GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
+
+    gint m_index;
+    GRefPtr<GstElement> m_playbin;
 
 private:
-    AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
+    GRefPtr<GstPad> m_pad;
+    String m_label;
+    String m_language;
+    guint m_activeTimerHandler;
+    guint m_tagTimerHandler;
 };
 
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
-#endif // AudioTrackPrivateGStreamer_h
+#endif // TrackPrivateBaseGStreamer_h
