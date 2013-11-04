@@ -75,7 +75,7 @@ public:
     void append(PassRefPtr<NetworkService> dev)
     {
         bool found = false;
-        for (int i = 0; i < m_devs.size(); i++) {
+        for (size_t i = 0; i < m_devs.size(); i++) {
             if (!strcmp(m_devs[i].get()->m_id.ascii().data(), dev->m_id.ascii().data())) {
                 found = true;
                 break;
@@ -88,7 +88,7 @@ public:
 
     NetworkService* find(const std::string &uuid)
     {
-        for (int i = 0; i < (int)m_devs.size(); i++)
+        for (size_t i = 0; i < m_devs.size(); i++)
 //            if (std::string(m_services[i]->uuid().ascii().data()) == uuid)
             return m_devs[i].get();
 
