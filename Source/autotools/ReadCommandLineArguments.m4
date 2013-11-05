@@ -99,6 +99,13 @@ AC_ARG_ENABLE([credential_storage],
     [enable_credential_storage="yes"])
 AC_MSG_RESULT([$enable_credential_storage])
 
+AC_MSG_CHECKING([whether to enable discovery support])
+AC_ARG_ENABLE(discovery,
+    AC_HELP_STRING([--enable-discovery], [enable support for discovery [default=yes]]),
+    [],
+    [enable_discovery="yes"])
+AC_MSG_RESULT([$enable_discovery])
+
 AC_ARG_ENABLE(glx, 
     AC_HELP_STRING([--enable-glx], [enable support for GLX [default=auto]]),
     [],

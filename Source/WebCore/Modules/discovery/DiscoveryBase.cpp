@@ -49,6 +49,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <wtf/ASCIICType.h>
 
 #define MAX_RCVBUF 8192
 #define MAX_TAG 256
@@ -66,14 +67,14 @@
 // trim from start
 static std::string& ltrim(std::string &s)
 {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<std::string::value_type, bool>(isASCIISpace))));
     return s;
 }
 
 // trim from end
 static std::string& rtrim(std::string &s)
 {
-    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<std::string::value_type, bool>(isASCIISpace))).base(), s.end());
     return s;
 }
 
@@ -302,7 +303,7 @@ std::map<std::string, std::string> DiscoveryBase::parseUDPMessage(const char *da
 
             std::string token = tokenValue.substr(0, pos);
             trim(token);
-            std::transform(token.begin(), token.end(), token.begin(), toupper);
+            std::transform(token.begin(), token.end(), token.begin(), toASCIIUpper<char>);
 
             std::string value = tokenValue.substr(pos + 1);
             trim(value);
