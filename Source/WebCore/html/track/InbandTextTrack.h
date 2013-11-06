@@ -58,6 +58,7 @@ private:
     void setKind(InbandTextTrackPrivate::Kind kind);
 
     virtual void kindChanged(InbandTextTrackPrivate*) OVERRIDE;
+    virtual void idChanged(TrackPrivateBase*, const String&) OVERRIDE;
     virtual void labelChanged(TrackPrivateBase*, const String&) OVERRIDE;
     virtual void languageChanged(TrackPrivateBase*, const String&) OVERRIDE;
     virtual void willRemove(TrackPrivateBase*) OVERRIDE;
