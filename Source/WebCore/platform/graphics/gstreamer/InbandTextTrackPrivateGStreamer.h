@@ -30,30 +30,26 @@
 
 #include "GRefPtrGStreamer.h"
 #include "InbandTextTrackPrivate.h"
+#include "TrackPrivateBaseGStreamer.h"
 
 namespace WebCore {
 
 class MediaPlayerPrivateGStreamer;
 typedef struct _GstSample GstSample;
 
-class InbandTextTrackPrivateGStreamer FINAL : public InbandTextTrackPrivate {
+class InbandTextTrackPrivateGStreamer : public InbandTextTrackPrivate, public TrackPrivateBaseGStreamer {
 public:
     static PassRefPtr<InbandTextTrackPrivateGStreamer> create(gint index, GRefPtr<GstPad> pad)
     {
         return adoptRef(new InbandTextTrackPrivateGStreamer(index, pad));
     }
 
-    ~InbandTextTrackPrivateGStreamer();
-
-    GstPad* pad() const { return m_pad.get(); }
-
-    void disconnect();
+    virtual void disconnect() OVERRIDE;
 
     virtual Kind kind() const OVERRIDE { return m_kind; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }
 
-    void setIndex(int index) { m_index =  index; }
     virtual int trackIndex() const OVERRIDE { return m_index; }
     String streamId() const { return m_streamId; }
 
@@ -67,11 +63,7 @@ public:
 private:
     InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad>);
 
-    gint m_index;
-    GRefPtr<GstPad> m_pad;
     Kind m_kind;
-    AtomicString m_label;
-    AtomicString m_language;
     guint m_sampleTimerHandler;
     guint m_streamTimerHandler;
     guint m_tagTimerHandler;

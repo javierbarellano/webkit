@@ -512,7 +512,7 @@ void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
                 Vector<double> rates;
 
                 INFO_MEDIA_MESSAGE("Supported rates cnt: %d\n", arrayVal->len);
-                for (gint i = 0; i < arrayVal->len; i++) {
+                for (guint i = 0; i < arrayVal->len; i++) {
                     rates.append(g_array_index(arrayVal, gfloat, i));
 
                     INFO_MEDIA_MESSAGE("Retrieved rate %d: %0.3f\n", (i+1), rates[i]);
