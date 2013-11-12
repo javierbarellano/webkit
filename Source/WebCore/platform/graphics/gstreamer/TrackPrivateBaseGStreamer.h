@@ -57,6 +57,7 @@ protected:
     TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
 
     gint m_index;
+    String m_id;
     String m_label;
     String m_language;
     GRefPtr<GstPad> m_pad;

@@ -1,0 +1,13 @@
+
+Check in-band text tracks' language attributes.
+
+EVENT(canplaythrough)
+
+** Check in-band kind attributes
+EXPECTED (video.textTracks.length == '3') OK
+EXPECTED (video.textTracks[0].id == '') OK
+EXPECTED (video.textTracks[1].id == '3532951484994180891') OK
+EXPECTED (video.textTracks[2].id == '8676205028037491494') OK
+
+END OF TEST
+

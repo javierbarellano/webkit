@@ -46,6 +46,7 @@ public:
 
     virtual void disconnect() OVERRIDE;
 
+    virtual AtomicString id() const OVERRIDE { return m_id; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }
 
