@@ -1,0 +1,11 @@
+Check audio tracks' id attributes.
+
+EVENT(canplaythrough)
+
+** Check in-band kind attributes
+EXPECTED (video.audioTracks.length == '2') OK
+EXPECTED (video.audioTracks[0].id == '12845557391394096188') OK
+EXPECTED (video.audioTracks[1].id == '5510936566322132205') OK
+
+END OF TEST
+

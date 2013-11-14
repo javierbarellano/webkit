@@ -1,10 +1,10 @@
 Testing audio track "addtrack" events.
 
 EVENT(addtrack)
-EXPECTED (event.track == 'video.audioTracks[0]') OK
+EXPECTED (video.audioTracks contains 'event.track') OK
 
 EVENT(addtrack)
-EXPECTED (event.track == 'video.audioTracks[1]') OK
+EXPECTED (video.audioTracks contains 'event.track') OK
 
 EVENT(canplaythrough)
 END OF TEST

@@ -23,43 +23,55 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VideoTrackPrivateGStreamer_h
-#define VideoTrackPrivateGStreamer_h
+#ifndef TrackPrivateBaseGStreamer_h
+#define TrackPrivateBaseGStreamer_h
 
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "GRefPtrGStreamer.h"
-#include "TrackPrivateBaseGStreamer.h"
-#include "VideoTrackPrivate.h"
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class VideoTrackPrivateGStreamer FINAL : public VideoTrackPrivate, public TrackPrivateBaseGStreamer {
+class TrackPrivateBase;
+
+class TrackPrivateBaseGStreamer {
 public:
-    static PassRefPtr<VideoTrackPrivateGStreamer> create(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
-    {
-        return adoptRef(new VideoTrackPrivateGStreamer(playbin, index, pad));
-    }
+    virtual ~TrackPrivateBaseGStreamer();
 
-    virtual void disconnect() OVERRIDE;
+    GstPad* pad() const { return m_pad.get(); }
 
-    virtual void setSelected(bool) OVERRIDE;
-    virtual void setActive(bool enabled) OVERRIDE { setSelected(enabled); }
+    virtual void disconnect();
 
-    virtual int trackIndex() const OVERRIDE { return m_index; }
+    virtual void setActive(bool) { }
 
-    virtual AtomicString id() const OVERRIDE { return m_id; }
-    virtual AtomicString label() const OVERRIDE { return m_label; }
-    virtual AtomicString language() const OVERRIDE { return m_language; }
+    void setIndex(int index) { m_index =  index; }
+
+    void activeChanged();
+    void tagsChanged();
+
+    void notifyTrackOfActiveChanged();
+    void notifyTrackOfTagsChanged();
+
+protected:
+    TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
+
+    gint m_index;
+    String m_id;
+    String m_label;
+    String m_language;
+    GRefPtr<GstPad> m_pad;
 
 private:
-    VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
+    bool getTag(GstTagList* tags, const gchar* tagName, String& value);
 
-    GRefPtr<GstElement> m_playbin;
+    TrackPrivateBase* m_owner;
+    guint m_activeTimerHandler;
+    guint m_tagTimerHandler;
 };
 
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
-#endif // VideoTrackPrivateGStreamer_h
+#endif // TrackPrivateBaseGStreamer_h

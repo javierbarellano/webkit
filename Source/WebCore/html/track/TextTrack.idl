@@ -30,6 +30,7 @@
     JSCustomMarkFunction,
     SkipVTableValidation
 ] interface TextTrack {
+    readonly attribute DOMString id;
     readonly attribute DOMString kind;
     readonly attribute DOMString label;
     readonly attribute DOMString language;

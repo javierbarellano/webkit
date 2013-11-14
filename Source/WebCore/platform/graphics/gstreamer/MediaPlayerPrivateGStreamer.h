@@ -202,9 +202,9 @@ private:
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
 #if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
-    Vector<RefPtr<AudioTrackPrivateGStreamer> > m_audioTracks;
-    Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
-    Vector<RefPtr<VideoTrackPrivateGStreamer> > m_videoTracks;
+    Vector<RefPtr<AudioTrackPrivateGStreamer>> m_audioTracks;
+    Vector<RefPtr<InbandTextTrackPrivateGStreamer>> m_textTracks;
+    Vector<RefPtr<VideoTrackPrivateGStreamer>> m_videoTracks;
     RefPtr<InbandTextTrackPrivate> m_chaptersTrack;
 #endif
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)

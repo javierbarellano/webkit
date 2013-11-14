@@ -76,26 +76,17 @@ static gboolean textTrackPrivateTagsChangeTimeoutCallback(InbandTextTrackPrivate
 }
 
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
-    : InbandTextTrackPrivate(WebVTT)
-    , m_index(index)
-    , m_pad(pad)
+    : InbandTextTrackPrivate(WebVTT), TrackPrivateBaseGStreamer(this, index, pad)
     , m_kind(Subtitles)
     , m_sampleTimerHandler(0)
     , m_streamTimerHandler(0)
     , m_tagTimerHandler(0)
 {
-    ASSERT(m_pad);
     m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);
 
-    /* We want to check these in case we got events before the track was created */
-    streamChanged();
-    tagsChanged();
-}
-
-InbandTextTrackPrivateGStreamer::~InbandTextTrackPrivateGStreamer()
-{
-    disconnect();
+    notifyTrackOfStreamChanged();
+    notifyTrackOfTagsChanged();
 }
 
 void InbandTextTrackPrivateGStreamer::disconnect()
@@ -107,10 +98,13 @@ void InbandTextTrackPrivateGStreamer::disconnect()
     g_signal_handlers_disconnect_by_func(m_pad.get(),
         reinterpret_cast<gpointer>(textTrackPrivateEventCallback), this);
 
+
+    if (m_streamTimerHandler)
+        g_source_remove(m_streamTimerHandler);
     if (m_tagTimerHandler)
         g_source_remove(m_tagTimerHandler);
 
-    m_pad.clear();
+    TrackPrivateBaseGStreamer::disconnect();
 }
 
 void InbandTextTrackPrivateGStreamer::handleSample(GRefPtr<GstSample> sample)
@@ -195,8 +189,6 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
         return;
 
     Kind kind = m_kind;
-    String label;
-    String language;
     GRefPtr<GstEvent> event;
     for (guint i = 0; (event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, i))); ++i) {
         GstTagList* tags = 0;
@@ -204,17 +196,6 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
         ASSERT(tags);
 
         gchar* tagValue;
-        if (gst_tag_list_get_string(tags, GST_TAG_TITLE, &tagValue)) {
-            INFO_MEDIA_MESSAGE("Text track %d got title %s.", m_index, tagValue);
-            label = tagValue;
-            g_free(tagValue);
-        }
-
-        if (gst_tag_list_get_string(tags, GST_TAG_LANGUAGE_CODE, &tagValue)) {
-            INFO_MEDIA_MESSAGE("Text track %d got language %s.", m_index, tagValue);
-            language = tagValue;
-            g_free(tagValue);
-        }
 #ifdef GST_TAG_TRACK_KIND
         if (gst_tag_list_get_string(tags, GST_TAG_TRACK_KIND, &tagValue)) {
             INFO_MEDIA_MESSAGE("Text track %d got kind %s.", m_index, tagValue);
@@ -242,16 +223,6 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
     if (m_kind != kind) {
         m_kind = kind;
         client()->kindChanged(this);
-    }
-
-    if (m_label != label) {
-        m_label = label;
-        client()->labelChanged(this, m_label);
-    }
-
-    if (m_language != language) {
-        m_language = language;
-        client()->languageChanged(this, m_language);
     }
 }
 

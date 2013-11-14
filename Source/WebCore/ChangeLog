@@ -1,3 +1,220 @@
+2013-11-10  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Consolidate more code into TrackPrivateBaseGStreamer
+        https://bugs.webkit.org/show_bug.cgi?id=124020
+
+        Reviewed by Philippe Normand.
+
+        No new tests because this is just refactoring.
+
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp:
+        (WebCore::AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer): Don't pass playbin to TrackPrivateBaseGStreamer, and do pass a pointer to "this".
+        (WebCore::AudioTrackPrivateGStreamer::disconnect): Clear m_playbin().
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h: Move labelChanged() and languageChanged() to TrackPrivateBaseGStreamer. Move m_playbin to this class (along with disconnect() to clear it).
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp: Move tag handling, pad and index to TrackPrivateBaseGStreamer.
+        (WebCore::textTrackPrivateEventCallback):
+        (WebCore::InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer):
+        (WebCore::InbandTextTrackPrivateGStreamer::disconnect):
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h:
+        * platform/graphics/gstreamer/TextCombinerGStreamer.cpp: Add WebKitTextCombinerPad with "tags" property, set in the same was as input-selector's pads.
+        (webkit_text_combiner_pad_init): Initialize tags to 0.
+        (webkitTextCombinerPadFinalize): Clear tags.
+        (webkitTextCombinerPadGetProperty): Handling "tags" property.
+        (webkitTextCombinerPadEvent): Changed to be a pad event function instead of a pad probe, and now intercepts tags and merges them (like input-selector pads do).
+        (webkitTextCombinerRequestNewPad): Using WebKitTextCombinerPad instead of just GhostPad.
+        (webkit_text_combiner_pad_class_init): Setup WebKitTextCombinerPad.
+        * platform/graphics/gstreamer/TextCombinerGStreamer.h: Remove superfluous code.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp:
+        (WebCore::TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer): Use "notify::active" so we don't need a playbin, and immediately check for tags after the constructor.
+        (WebCore::TrackPrivateBaseGStreamer::disconnect): Remove m_playbin.
+        (WebCore::TrackPrivateBaseGStreamer::getTag): Refactored out from notifyTrackOfTagsChanged.
+        (WebCore::TrackPrivateBaseGStreamer::notifyTrackOfTagsChanged): Simplify using m_owner (so we can call labelChanged() and languageChanged() directly), and use getTag() above.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h: Add m_owner to we can access the owning track, and change some functions to match our needs better.
+        (WebCore::TrackPrivateBaseGStreamer::setActive): Add empty default since InbandTextTrackPrivateGStreamer doesn't need this.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp: Same as AudioTrackPrivateGStreamer.
+        (WebCore::VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer):
+        (WebCore::VideoTrackPrivateGStreamer::disconnect):
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h: Same as AudioTrackPrivateGStreamer.
+
+2013-11-06  Brendan Long  <b.long@cablelabs.com>
+
+        Add "id" attribute to TextTrack
+        https://bugs.webkit.org/show_bug.cgi?id=123825
+
+        Reviewed by Eric Carlson.
+
+        Test: media/track/track-id.html
+
+        * html/HTMLMediaElement.cpp:
+        (HTMLMediaElement::addTextTrack): Add emptyString() for track id.
+        * html/track/AudioTrack.cpp:
+        (WebCore::AudioTrack::AudioTrack): Pass trackPrivate->id() to TrackBase.
+        (WebCore::AudioTrack::idChanged): Added, set id.
+        * html/track/AudioTrack.h: Move m_id to TrackBase.
+        * html/track/InbandTextTrack.cpp:
+        (WebCore::InbandTextTrack::InbandTextTrack): Pass trackPrivate->id() to TrackBase.
+        (WebCore::InbandTextTrack::idChanged): Added, set id.
+        * html/track/InbandTextTrack.h: Add idChanged().
+        * html/track/LoadableTextTrack.cpp:
+        (WebCore::LoadableTextTrack::LoadableTextTrack): Add emptyString() for track id.
+        (WebCore::LoadableTextTrack::id): Override to return the track element's id.
+        * html/track/TextTrack.cpp:
+        (WebCore::TextTrack::captionMenuOffItem): Add empty string for track id.
+        (WebCore::TextTrack::captionMenuAutomaticItem): Add empty string for track id.
+        (WebCore::TextTrack::TextTrack): Pass id to TrackBase.
+        * html/track/TextTrack.h:
+        (WebCore::TextTrack::create): Add id parameter.
+        * html/track/TextTrack.idl: Add id attribute.
+        * html/track/TrackBase.cpp:
+        (WebCore::TrackBase::TrackBase): Add m_id.
+        * html/track/TrackBase.h: Add id attribute / m_id.
+        * html/track/VideoTrack.cpp:
+        (WebCore::VideoTrack::VideoTrack): Pass trackPrivate->id() to TrackBase.
+        (WebCore::VideoTrack::idChanged): Added, set id.
+        * html/track/VideoTrack.h: Move m_id to TrackBase.
+        * platform/graphics/TrackPrivateBase.h: Add idChanged() callback.
+
+2013-11-06  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Override label() and language() in Audio and VideoTrackPrivateGStreamer
+        https://bugs.webkit.org/show_bug.cgi?id=123836
+
+        The tests are currently flakey because we only get the label and language if we get
+        tags after the track client is set.
+
+        Reviewed by Philippe Normand.
+
+        No new tests because the tests already exist (this fixes flakeyness).
+
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h: Override label() and language() to use m_label and m_language.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h: Same.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h: Make m_label and m_language protected so they can be used in the functions above.
+
+2013-11-04  Brendan Long  <b.long@cablelabs.com>
+
+        Move duplicate code in TrackPrivate classes to a common base class
+        https://bugs.webkit.org/show_bug.cgi?id=123619
+
+        Reviewed by Darin Adler.
+
+        No new tests because this is just refactoring.
+
+        * GNUmakefile.list.am: Add TrackPrivateBase.
+        * WebCore.vcxproj/WebCore.vcxproj: Same.
+        * WebCore.vcxproj/WebCore.vcxproj.filters: Same.
+        * WebCore.xcodeproj/project.pbxproj: Same.
+        * html/track/AudioTrack.cpp:
+        (WebCore::AudioTrack::inbandTrackIndex): Renamed audioTrackIndex() to trackIndex().
+        (WebCore::AudioTrack::labelChanged): First argument is now a TrackPrivateBase*.
+        (WebCore::AudioTrack::languageChanged): Same.
+        (WebCore::AudioTrack::willRemove): Same.
+        * html/track/AudioTrack.h: Update TrackPrivateBaseClient function signatures.
+        * html/track/InbandTextTrack.cpp:
+        (WebCore::InbandTextTrack::inbandTrackIndex): Renamed textTrackIndex() to trackIndex().
+        (WebCore::InbandTextTrack::labelChanged): First argument is now a TrackPrivateBase*.
+        (WebCore::InbandTextTrack::languageChanged): Same.
+        (WebCore::InbandTextTrack::willRemove): Same.
+        * html/track/InbandTextTrack.h: Update TrackPrivateBaseClient function signatures.
+        * html/track/VideoTrack.cpp:
+        (WebCore::VideoTrack::inbandTrackIndex): Renamed videoTrackIndex() to trackIndex().
+        (WebCore::VideoTrack::labelChanged): First argument is now a TrackPrivateBase*.
+        (WebCore::VideoTrack::languageChanged): Same.
+        (WebCore::VideoTrack::willRemove): Same.
+        * html/track/VideoTrack.h: Update TrackPrivateBaseClient function signatures.
+        * platform/graphics/AudioTrackPrivate.h: Remove code that was moved to TrackPrivateBase.
+        * platform/graphics/InbandTextTrackPrivate.h: Same.
+        * platform/graphics/InbandTextTrackPrivateClient.h: Same.
+        * platform/graphics/VideoTrackPrivate.h: Same.
+        * platform/graphics/TrackPrivateBase.h: Refactored out duplicate code in AudioTrackPrivate, InbandTextTrackPrivate and VideoTrackPrivate.
+        * platform/graphics/avfoundation/InbandTextTrackPrivateAVF.h: Renamed textTrackIndex() to trackIndex().
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h: Same.
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h: Renamed audioTrackIndex() to trackIndex().
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h: Renamed videoTrackIndex() to trackIndex90.
+
+2013-11-01  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Support audio and video tracks
+        https://bugs.webkit.org/show_bug.cgi?id=117039
+
+        Reviewed by Philippe Normand.
+
+        Tests: media/track/audio/audio-track-mkv-vorbis-addtrack.html
+               media/track/audio/audio-track-mkv-vorbis-enabled.html
+               media/track/audio/audio-track-mkv-vorbis-language.html
+               media/track/in-band/track-in-band-kate-ogg-addtrack.html
+               media/track/in-band/track-in-band-srt-mkv-addtrack.html
+               media/track/video/video-track-mkv-theora-addtrack.html
+               media/track/video/video-track-mkv-theora-language.html
+               media/track/video/video-track-mkv-theora-selected.html
+
+        * GNUmakefile.list.am: Add audio and video track files.
+        * PlatformEfl.cmake: Same.
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::audioTrackEnabledChanged): Schedule "change" event.
+        (WebCore::HTMLMediaElement::videoTrackSelectedChanged): Same.
+        * html/track/AudioTrack.cpp:
+        (WebCore::AudioTrack::setEnabled): Call m_private->setEnabled
+        (WebCore::AudioTrack::enabledChanged): Added callback.
+        (WebCore::AudioTrack::labelChanged): Same.
+        (WebCore::AudioTrack::languageChanged): Same.
+        (WebCore::AudioTrack::willRemoveAudioTrackPrivate): Use ASSERT_UNUSED for consistence.
+        * html/track/AudioTrack.h: Add new enabled, label and language callbacks.
+        * html/track/VideoTrack.cpp:
+        (WebCore::VideoTrack::setSelected): Call m_private->setEnabled
+        (WebCore::VideoTrack::selectedChanged): Added callback.
+        (WebCore::VideoTrack::labelChanged): Same.
+        (WebCore::VideoTrack::languageChanged): Same.
+        (WebCore::VideoTrack::willRemoveVideoTrackPrivate): Use ASSERT_UNUSED for consistence.
+        * html/track/VideoTrack.h: Add new selected, label and language callbacks.
+        * platform/graphics/AudioTrackPrivate.h:
+        (WebCore::AudioTrackPrivate::setEnabled): Call m_client->enabledChanged
+        * platform/graphics/VideoTrackPrivate.h:
+        (WebCore::VideoTrackPrivate::setSelected): Call m_client->selectedChanged
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp:
+        (WebCore::InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer): Add ASSERT(m_pad)
+        (WebCore::InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged): Look at all tag events instead of just the first one.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        (WebCore::mediaPlayerPrivateVideoSinkCapsChangedCallback): Separated callback when caps change from callback when number of videos change.
+        (WebCore::mediaPlayerPrivateVideoCapsChangeTimeoutCallback): Same.
+        (WebCore::MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer): Initialize m_videoCapsTimerHandler.
+        (WebCore::MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer): Disconnect audio and video tracks and remove callbacks.
+        (WebCore::MediaPlayerPrivateGStreamer::videoCapsChanged): Separated callback when caps change from callback when number of videos change.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfVideo): Create video tracks for each stream.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfVideoCaps): Separated callback when caps change from callback when number of videos change.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfAudio): Create audio tracks for each stream.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h: Add audio and video tracks, and a pointer to keep track of the default audio stream.
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp: Added.
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h: Added.
+        * platform/graphics/gstreamer/GRefPtrGStreamer.cpp: Add GRefPtr<GstTagList>
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp: Added, handles tags and "active" property of audio and video tracks.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h: Added.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp: Added.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h: Added.
+
+2013-10-18  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer][GTK] Add GRefPtr::outPtr()
+        https://bugs.webkit.org/show_bug.cgi?id=122996
+
+        Reviewed by Philippe Normand.
+
+        No new tests because this is just simplifying existing code.
+
+        * platform/graphics/gstreamer/GRefPtrGStreamer.cpp: Add GRefPtr specialization for GstToc.
+        * platform/graphics/gstreamer/GRefPtrGStreamer.h: Same.
+        * platform/graphics/gstreamer/GStreamerGWorld.cpp: Use GRefPtr::outPtr() to simplify code.
+        (WebCore::GStreamerGWorld::enterFullscreen):
+        (WebCore::GStreamerGWorld::exitFullscreen):
+        (WebCore::GStreamerGWorld::removePlatformVideoSink):
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp: Same.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfText):
+        (WebCore::MediaPlayerPrivateGStreamer::newTextSample):
+        (WebCore::MediaPlayerPrivateGStreamer::processTableOfContents):
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp: Same.
+        (WebCore::MediaPlayerPrivateGStreamerBase::currentVideoSinkCaps):
+        * platform/network/soup/ResourceHandleSoup.cpp: Same.
+        (WebCore::HostTLSCertificateSet::computeCertificateHash):
+
 2013-10-01  Brendan Long  <b.long@cablelabs.com>
 
         [GStreamer] Expose MPEG-TS metadata

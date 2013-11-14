@@ -30,50 +30,32 @@
 
 #include "AudioTrackPrivate.h"
 #include "GRefPtrGStreamer.h"
+#include "TrackPrivateBaseGStreamer.h"
 
 namespace WebCore {
 
-class AudioTrackPrivateGStreamer : public AudioTrackPrivate {
+class AudioTrackPrivateGStreamer FINAL : public AudioTrackPrivate, public TrackPrivateBaseGStreamer {
 public:
     static PassRefPtr<AudioTrackPrivateGStreamer> create(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
     {
         return adoptRef(new AudioTrackPrivateGStreamer(playbin, index, pad));
     }
 
-    ~AudioTrackPrivateGStreamer();
+    virtual void disconnect() OVERRIDE;
 
-    GstPad* pad() const { return m_pad.get(); }
+    virtual void setEnabled(bool) OVERRIDE;
+    virtual void setActive(bool enabled) OVERRIDE { setEnabled(enabled); }
 
-    void disconnect();
+    virtual int trackIndex() const OVERRIDE { return m_index; }
 
+    virtual AtomicString id() const OVERRIDE { return m_id; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }
-    virtual void setEnabled(bool) OVERRIDE;
-
-    void setIndex(int index) { m_index =  index; }
-    virtual int audioTrackIndex() const OVERRIDE { return m_index; }
-
-    void activeChanged();
-    void notifyTrackOfActiveChanged();
-
-#ifdef GST_API_VERSION_1
-    void tagsChanged();
-    void notifyTrackOfTagsChanged();
-#endif
 
 private:
     AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
 
-    gint m_index;
-    GRefPtr<GstPad> m_pad;
     GRefPtr<GstElement> m_playbin;
-    String m_label;
-    String m_language;
-    guint m_activeTimerHandler;
-#ifdef GST_API_VERSION_1
-    guint m_tagTimerHandler;
-    gulong m_eventProbeId;
-#endif
 };
 
 } // namespace WebCore

@@ -54,9 +54,6 @@ public:
     }
     virtual ~AudioTrack();
 
-    AtomicString id() const { return m_id; }
-    void setId(const AtomicString& id) { m_id = id; }
-
     static const AtomicString& alternativeKeyword();
     static const AtomicString& descriptionKeyword();
     static const AtomicString& mainKeyword();
@@ -78,12 +75,13 @@ protected:
 
 private:
     virtual bool isValidKind(const AtomicString&) const OVERRIDE;
-    virtual void enabledChanged(AudioTrackPrivate*, bool) OVERRIDE;
-    virtual void labelChanged(AudioTrackPrivate*, const String&) OVERRIDE;
-    virtual void languageChanged(AudioTrackPrivate*, const String&) OVERRIDE;
-    virtual void willRemoveAudioTrackPrivate(AudioTrackPrivate*) OVERRIDE;
 
-    AtomicString m_id;
+    virtual void enabledChanged(AudioTrackPrivate*, bool) OVERRIDE;
+    virtual void idChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void labelChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void languageChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void willRemove(TrackPrivateBase*) OVERRIDE;
+
     bool m_enabled;
     AudioTrackClient* m_client;
 
@@ -92,7 +90,7 @@ private:
 
 inline AudioTrack* toAudioTrack(TrackBase* track)
 {
-    ASSERT(track->type() == TrackBase::AudioTrack);
+    ASSERT_WITH_SECURITY_IMPLICATION(track->type() == TrackBase::AudioTrack);
     return static_cast<AudioTrack*>(track);
 }
 
