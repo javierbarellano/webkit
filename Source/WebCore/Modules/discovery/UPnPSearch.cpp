@@ -410,11 +410,15 @@ void UPnPSearch::checkForDroppedDevs()
 
                 if (m_devs[type].devMap[dv.uuid].contactAttempts > MAX_CONTACT_ATTEMPTS) {
                     NAV_LOG("Device Off line... Url: %s, Reply: %s, navDsc: %p\n", dv.descURL.c_str(), bf, m_navDsc);
+                    // Device was never going away - remove instead of marking offline.
+                    /*
                     if (m_devs[type].devMap[dv.uuid].online) {
                         m_devs[type].devMap[dv.uuid].online = false;
                         if (m_navDsc)
                             m_navDsc->UPnPDevDropped(type, m_devs[type].devMap[dv.uuid]);
                     }
+                    */
+                    removeDevice(&m_devs, dv.uuid);
                 }
             } else {
                 m_devs[type].devMap[dv.uuid].contactAttempts = 0;
