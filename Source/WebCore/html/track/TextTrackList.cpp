@@ -105,7 +105,7 @@ int TextTrackList::getTrackIndexRelativeToRenderedTracks(TextTrack *textTrack)
     return -1;
 }
 
-TextTrack* TextTrackList::item(unsigned index)
+TextTrack* TextTrackList::item(unsigned index) const
 {
     // 4.8.10.12.1 Text track model
     // The text tracks are sorted as follows:
@@ -126,6 +126,22 @@ TextTrack* TextTrackList::item(unsigned index)
         return toTextTrack(m_inbandTracks[index].get());
 
     return 0;
+}
+
+TextTrack* TextTrackList::getTrackById(const AtomicString& id)
+{
+    // 4.8.10.12.5 Text track API
+    // The getTrackById(id) method must return the first TextTrack in the
+    // TextTrackList object whose id IDL attribute would return a value equal
+    // to the value of the id argument.
+    for (unsigned i = 0; i < length(); ++i) {
+        TextTrack* track = item(i);
+        if (track->id() == id)
+            return track;
+    }
+
+    // When no tracks match the given argument, the method must return null.
+    return nullptr;
 }
 
 void TextTrackList::invalidateTrackIndexesAfterTrack(TextTrack* track)
