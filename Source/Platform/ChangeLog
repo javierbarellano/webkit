@@ -1,3 +1,13 @@
+2013-11-26  Marcelo Lira  <marcelo.lira@openbossa.org>
+
+        Nix upstreaming - Adding build files and supporting scripts
+        https://bugs.webkit.org/show_bug.cgi?id=118367
+
+        Reviewed by Ryosuke Niwa.
+
+        * CMakeLists.txt: Added.
+        * PlatformNix.cmake: Added.
+
 2013-06-14  Zan Dobersek  <zdobersek@igalia.com>
 
         Unreviewed GTK build fix.
