@@ -185,6 +185,7 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged()
 void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 {
     m_tagTimerHandler = 0;
+#ifdef GST_TAG_TRACK_KIND
     if (!m_pad)
         return;
 
@@ -196,7 +197,6 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
         ASSERT(tags);
 
         gchar* tagValue;
-#ifdef GST_TAG_TRACK_KIND
         if (gst_tag_list_get_string(tags, GST_TAG_TRACK_KIND, &tagValue)) {
             INFO_MEDIA_MESSAGE("Text track %d got kind %s.", m_index, tagValue);
 
@@ -217,13 +217,13 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
 
             g_free(tagValue);
         }
-#endif
     }
 
     if (m_kind != kind) {
         m_kind = kind;
         client()->kindChanged(this);
     }
+#endif
 }
 
 } // namespace WebCore
