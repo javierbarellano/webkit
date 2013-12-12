@@ -507,7 +507,7 @@ void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
         if (g_object_class_find_property (G_OBJECT_GET_CLASS (m_source.get()), "supported_rates")) {
             // Get supported rates property value which is a GArray
             GArray* arrayVal = 0;
-            g_object_get(m_source.get(), "supported_rates", &arrayVal, NULL);
+            g_object_get(m_source.get(), "supported-rates", &arrayVal, NULL);
             if (arrayVal) {
                 Vector<double> rates;
 
