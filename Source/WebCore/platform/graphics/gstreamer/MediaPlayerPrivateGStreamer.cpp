@@ -67,6 +67,8 @@ extern "C" {
 #include <gst/interfaces/streamvolume.h>
 #endif
 
+#define GST_USE_DLNA_PROTOCOL_ENV_VAR "GST_USE_DLNA_PROTOCOL"
+
 // GstPlayFlags flags from playbin2. It is the policy of GStreamer to
 // not publicly expose element-specific enums. That's why this
 // GstPlayFlags enum has been copied here.
@@ -377,10 +379,16 @@ void MediaPlayerPrivateGStreamer::load(const String& url)
     ASSERT(m_playBin);
 
     m_url = URL(URL(), cleanUrl);
-    g_object_set(m_playBin.get(), "uri", cleanUrl.utf8().data(), NULL);
 
-    INFO_MEDIA_MESSAGE("Load %s", cleanUrl.utf8().data());
-
+    if (getenv(GST_USE_DLNA_PROTOCOL_ENV_VAR)) {
+        String dlnaUrl(cleanUrl);
+        dlnaUrl.insert("dlna+", 0);
+        g_object_set(m_playBin.get(), "uri", dlnaUrl.utf8().data(), NULL);
+        INFO_MEDIA_MESSAGE("Using dlna protocol URI: %s", dlnaUrl.utf8().data());
+    } else {
+        g_object_set(m_playBin.get(), "uri", cleanUrl.utf8().data(), NULL);
+        INFO_MEDIA_MESSAGE("Load %s", cleanUrl.utf8().data());
+    }
     if (m_preload == MediaPlayer::None) {
         LOG_MEDIA_MESSAGE("Delaying load.");
         m_delayingLoad = true;
@@ -511,16 +519,16 @@ void MediaPlayerPrivateGStreamer::updatePlayRatesSupported()
             if (arrayVal) {
                 Vector<double> rates;
 
-                INFO_MEDIA_MESSAGE("Supported rates cnt: %d\n", arrayVal->len);
+                INFO_MEDIA_MESSAGE("Supported rates cnt: %d", arrayVal->len);
                 for (guint i = 0; i < arrayVal->len; i++) {
                     rates.append(g_array_index(arrayVal, gfloat, i));
 
-                    INFO_MEDIA_MESSAGE("Retrieved rate %d: %0.3f\n", (i+1), rates[i]);
+                    INFO_MEDIA_MESSAGE("Retrieved rate %d: %0.3f", (i+1), rates[i]);
                 }
 
                 m_player->playbackRatesSupported(rates);
             } else
-                INFO_MEDIA_MESSAGE("Got null value for supported rates property\n");
+                INFO_MEDIA_MESSAGE("Got null value for supported rates property");
         } else
             INFO_MEDIA_MESSAGE("Source type: %s did not have supported_rates property",
                     G_OBJECT_TYPE_NAME(m_source.get()));
