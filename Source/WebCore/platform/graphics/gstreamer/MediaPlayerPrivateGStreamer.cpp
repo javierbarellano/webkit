@@ -380,15 +380,12 @@ void MediaPlayerPrivateGStreamer::load(const String& url)
 
     m_url = URL(URL(), cleanUrl);
 
-    if (getenv(GST_USE_DLNA_PROTOCOL_ENV_VAR)) {
-        String dlnaUrl(cleanUrl);
-        dlnaUrl.insert("dlna+", 0);
-        g_object_set(m_playBin.get(), "uri", dlnaUrl.utf8().data(), NULL);
-        INFO_MEDIA_MESSAGE("Using dlna protocol URI: %s", dlnaUrl.utf8().data());
-    } else {
-        g_object_set(m_playBin.get(), "uri", cleanUrl.utf8().data(), NULL);
-        INFO_MEDIA_MESSAGE("Load %s", cleanUrl.utf8().data());
-    }
+    if (getenv(GST_USE_DLNA_PROTOCOL_ENV_VAR))
+        cleanUrl.insert("dlna+", 0);
+
+    g_object_set(m_playBin.get(), "uri", cleanUrl.utf8().data(), NULL);
+    INFO_MEDIA_MESSAGE("Load %s", cleanUrl.utf8().data());
+
     if (m_preload == MediaPlayer::None) {
         LOG_MEDIA_MESSAGE("Delaying load.");
         m_delayingLoad = true;
