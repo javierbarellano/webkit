@@ -193,6 +193,7 @@ static GstAppSrcCallbacks appsrcCallbacks = {
     webKitWebSrcSeekDataCb,
     { 0 }
 };
+static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* request);
 
 #define webkit_web_src_parent_class parent_class
 // We split this out into another macro to avoid a check-webkit-style error.
@@ -595,7 +596,7 @@ static gboolean webKitWebSrcStart(WebKitWebSrc* src)
         || !g_ascii_strcasecmp("trailers.apple.com", url.host().utf8().data()))
         request.setHTTPUserAgent("Quicktime/7.6.6");
 
-    if (priv->requestedOffset) {
+    if (priv->requestedOffset && !priv->excludeRangeHeader) {
         GOwnPtr<gchar> val;
 
         val.set(g_strdup_printf("bytes=%" G_GUINT64_FORMAT "-", priv->requestedOffset));
@@ -608,6 +609,10 @@ static gboolean webKitWebSrcStart(WebKitWebSrc* src)
 
     // Needed to use DLNA streaming servers
     request.setHTTPHeaderField("transferMode.dlna", "Streaming");
+
+    // Append extra headers if set
+    if (!webKitWebSrcAddExtraHeaders(src, (ResourceRequest*)&request))
+        GST_ERROR_OBJECT(src, "Problems setting extra headers");
 
     if (priv->player) {
         if (CachedResourceLoader* loader = priv->player->cachedResourceLoader())
@@ -953,6 +958,78 @@ void webKitWebSrcSetMediaPlayer(WebKitWebSrc* src, WebCore::MediaPlayer* player)
     ASSERT(player);
     GMutexLocker locker(GST_OBJECT_GET_LOCK(src));
     src->priv->player = player;
+}
+
+static gboolean webKitWebSrcAppendExtraHeader(GQuark fieldId, const GValue * value, gpointer userData)
+{
+    WebKitWebSrc* src = WEBKIT_WEB_SRC(userData);
+    const gchar *fieldName = g_quark_to_string(fieldId);
+    gchar *fieldContent = NULL;
+
+    if (G_VALUE_TYPE(value) == G_TYPE_STRING) {
+        fieldContent = g_value_dup_string(value);
+    } else {
+        //GValue dest = { 0 };
+        GValue dest;
+
+        g_value_init(&dest, G_TYPE_STRING);
+        if (g_value_transform(value, &dest))
+            fieldContent = g_value_dup_string(&dest);
+    }
+
+    if (fieldContent == NULL) {
+        GST_ERROR_OBJECT (src, "extra-headers field '%s' contains no value "
+                "or can't be converted to a string", fieldName);
+        return FALSE;
+    }
+
+    GST_DEBUG_OBJECT(src, "Appending extra header: \"%s: %s\"", fieldName, fieldContent);
+
+    // *TODO* - need to do this with ResourceRequest
+    //soup_message_headers_append(src->msg->request_headers, fieldName, fieldContent);
+
+    g_free(fieldContent);
+
+    return TRUE;
+}
+
+static gboolean webKitWebSrcAppendExtraHeaders(GQuark fieldId, const GValue * value,
+    gpointer userData)
+{
+    if (G_VALUE_TYPE(value) == GST_TYPE_ARRAY) {
+        guint n = gst_value_array_get_size(value);
+        guint i;
+
+        for (i = 0; i < n; i++) {
+            const GValue *v = gst_value_array_get_value(value, i);
+
+            if (!webKitWebSrcAppendExtraHeader(fieldId, v, userData))
+                return FALSE;
+        }
+    } else if (G_VALUE_TYPE(value) == GST_TYPE_LIST) {
+        guint n = gst_value_list_get_size(value);
+        guint i;
+
+        for (i = 0; i < n; i++) {
+            const GValue *v = gst_value_list_get_value(value, i);
+
+            if (!webKitWebSrcAppendExtraHeader(fieldId, v, userData))
+                return FALSE;
+        }
+    } else
+        return webKitWebSrcAppendExtraHeader(fieldId, value, userData);
+
+    return TRUE;
+}
+
+
+static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* request)
+{
+    WebKitWebSrcPrivate* priv = src->priv;
+    if (!priv->extraHeaders)
+        return TRUE;
+
+    return gst_structure_foreach(priv->extraHeaders, webKitWebSrcAppendExtraHeaders, src);
 }
 
 StreamingClient::StreamingClient(WebKitWebSrc* src)
