@@ -142,6 +142,11 @@ struct _WebKitWebSrcPrivate {
     // TRUE if appsrc's version is >= 0.10.27, see
     // https://bugzilla.gnome.org/show_bug.cgi?id=609423
     gboolean haveAppSrc27;
+
+    guint64 contentSize;
+    gboolean excludeRangeHeader;
+    GstStructure *extraHeaders;
+    guint blockSize;
 };
 
 enum {
@@ -150,7 +155,11 @@ enum {
     PROP_IRADIO_GENRE,
     PROP_IRADIO_URL,
     PROP_IRADIO_TITLE,
-    PROP_LOCATION
+    PROP_LOCATION,
+    PROP_CONTENT_SIZE,
+    PROP_EXCLUDE_RANGE_HEADER,
+    PROP_EXTRA_HEADERS,
+    PROP_BLOCK_SIZE
 };
 
 static GstStaticPadTemplate srcTemplate = GST_STATIC_PAD_TEMPLATE("src",
@@ -258,6 +267,42 @@ static void webkit_web_src_class_init(WebKitWebSrcClass* klass)
                                                         "Location to read from",
                                                         0,
                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+                                    PROP_EXTRA_HEADERS,
+                                    g_param_spec_boxed("extra-headers",
+                                                       "Extra Headers",
+                                                       "Extra headers to append to the HTTP request",
+                                                       GST_TYPE_STRUCTURE,
+                                                       (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+                                    PROP_EXCLUDE_RANGE_HEADER,
+                                    g_param_spec_boolean("exclude-range-header",
+                                                         "exclude-range-header",
+                                                         "Exclude range header in HTTP requests",
+                                                         FALSE,
+                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+                                    PROP_CONTENT_SIZE,
+                                    g_param_spec_uint64("content-size",
+                                                        "Content size in bytes",
+                                                        "Size in bytes of content associated with URI",
+                                                        0,
+                                                        G_MAXUINT64,
+                                                        0,
+                                                        (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(oklass,
+                                    PROP_BLOCK_SIZE,
+                                    g_param_spec_uint("blocksize",
+                                                      "Size of buffers in bytes",
+                                                      "Size in bytes to read per buffer (-1 = default)",
+                                                      0,
+                                                      G_MAXUINT,
+                                                      4096,
+                                                      (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     eklass->change_state = webKitWebSrcChangeState;
 
     g_type_class_add_private(klass, sizeof(WebKitWebSrcPrivate));
@@ -359,6 +404,24 @@ static void webKitWebSrcSetProperty(GObject* object, guint propID, const GValue*
         gst_uri_handler_set_uri(reinterpret_cast<GstURIHandler*>(src), g_value_get_string(value));
 #endif
         break;
+    case PROP_EXTRA_HEADERS:{
+        const GstStructure *s = gst_value_get_structure (value);
+
+        if (priv->extraHeaders)
+            gst_structure_free (priv->extraHeaders);
+
+        priv->extraHeaders = s ? gst_structure_copy (s) : NULL;
+        break;
+    }
+    case PROP_EXCLUDE_RANGE_HEADER:
+        priv->excludeRangeHeader = g_value_get_boolean (value);
+        break;
+    case PROP_CONTENT_SIZE:
+    	priv->contentSize = g_value_get_uint64 (value);
+        break;
+    case PROP_BLOCK_SIZE:
+        priv->blockSize = g_value_get_uint (value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
         break;
@@ -389,6 +452,18 @@ static void webKitWebSrcGetProperty(GObject* object, guint propID, GValue* value
         break;
     case PROP_LOCATION:
         g_value_set_string(value, priv->uri);
+        break;
+    case PROP_EXTRA_HEADERS:
+        gst_value_set_structure (value, priv->extraHeaders);
+        break;
+    case PROP_EXCLUDE_RANGE_HEADER:
+        g_value_set_boolean (value, priv->excludeRangeHeader);
+        break;
+    case PROP_CONTENT_SIZE:
+        g_value_set_uint64 (value, priv->contentSize);
+        break;
+    case PROP_BLOCK_SIZE:
+        g_value_set_uint (value, priv->blockSize);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
