@@ -144,7 +144,7 @@ struct _WebKitWebSrcPrivate {
     gboolean haveAppSrc27;
 
     gboolean excludeRangeHeader;
-    GstStructure *extraHeaders;
+    GstStructure* extraHeaders;
     guint blockSize;
 };
 
@@ -192,7 +192,7 @@ static GstAppSrcCallbacks appsrcCallbacks = {
     webKitWebSrcSeekDataCb,
     { 0 }
 };
-static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* request);
+static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc*, ResourceRequest*);
 
 #define webkit_web_src_parent_class parent_class
 // We split this out into another macro to avoid a check-webkit-style error.
@@ -269,39 +269,24 @@ static void webkit_web_src_class_init(WebKitWebSrcClass* klass)
                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(oklass,
-                                    PROP_EXTRA_HEADERS,
-                                    g_param_spec_boxed("extra-headers",
-                                                       "Extra Headers",
-                                                       "Extra headers to append to the HTTP request",
-                                                       GST_TYPE_STRUCTURE,
-                                                       (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        PROP_EXTRA_HEADERS,
+        g_param_spec_boxed("extra-headers", "Extra Headers", "Extra headers to append to the HTTP request",
+            GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(oklass,
-                                    PROP_EXCLUDE_RANGE_HEADER,
-                                    g_param_spec_boolean("exclude-range-header",
-                                                         "exclude-range-header",
-                                                         "Exclude range header in HTTP requests",
-                                                         FALSE,
-                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        PROP_EXCLUDE_RANGE_HEADER,
+        g_param_spec_boolean("exclude-range-header", "exclude-range-header", "Exclude range header in HTTP requests",
+            FALSE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(oklass,
-                                    PROP_CONTENT_SIZE,
-                                    g_param_spec_uint64("content-size",
-                                                        "Content size in bytes",
-                                                        "Size in bytes of content associated with URI",
-                                                        0,
-                                                        G_MAXUINT64,
-                                                        0,
-                                                        (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        PROP_CONTENT_SIZE,
+        g_param_spec_uint64("content-size", "Content size in bytes", "Size in bytes of content associated with URI",
+            0, G_MAXUINT64, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     g_object_class_install_property(oklass,
-                                    PROP_BLOCK_SIZE,
-                                    g_param_spec_uint("blocksize",
-                                                      "Size of buffers in bytes",
-                                                      "Size in bytes to read per buffer (-1 = default)",
-                                                      0,
-                                                      G_MAXUINT,
-                                                      4096,
-                                                      (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        PROP_BLOCK_SIZE,
+        g_param_spec_uint("blocksize", "Size of buffers in bytes", "Size in bytes to read per buffer (-1 = default)",
+            0, G_MAXUINT, 4096, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     eklass->change_state = webKitWebSrcChangeState;
 
@@ -404,23 +389,23 @@ static void webKitWebSrcSetProperty(GObject* object, guint propID, const GValue*
         gst_uri_handler_set_uri(reinterpret_cast<GstURIHandler*>(src), g_value_get_string(value));
 #endif
         break;
-    case PROP_EXTRA_HEADERS:{
-        const GstStructure *s = gst_value_get_structure (value);
+    case PROP_EXTRA_HEADERS: {
+        const GstStructure *s = gst_value_get_structure(value);
 
         if (priv->extraHeaders)
-            gst_structure_free (priv->extraHeaders);
+            gst_structure_free(priv->extraHeaders);
 
-        priv->extraHeaders = s ? gst_structure_copy (s) : NULL;
+        priv->extraHeaders = s ? gst_structure_copy(s) : NULL;
         break;
     }
     case PROP_EXCLUDE_RANGE_HEADER:
-        priv->excludeRangeHeader = g_value_get_boolean (value);
+        priv->excludeRangeHeader = g_value_get_boolean(value);
         break;
     case PROP_CONTENT_SIZE:
-        priv->size = g_value_get_uint64 (value);
+        priv->size = g_value_get_uint64(value);
         break;
     case PROP_BLOCK_SIZE:
-        priv->blockSize = g_value_get_uint (value);
+        priv->blockSize = g_value_get_uint(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
@@ -454,16 +439,16 @@ static void webKitWebSrcGetProperty(GObject* object, guint propID, GValue* value
         g_value_set_string(value, priv->uri);
         break;
     case PROP_EXTRA_HEADERS:
-        gst_value_set_structure (value, priv->extraHeaders);
+        gst_value_set_structure(value, priv->extraHeaders);
         break;
     case PROP_EXCLUDE_RANGE_HEADER:
-        g_value_set_boolean (value, priv->excludeRangeHeader);
+        g_value_set_boolean(value, priv->excludeRangeHeader);
         break;
     case PROP_CONTENT_SIZE:
-        g_value_set_uint64 (value, priv->size);
+        g_value_set_uint64(value, priv->size);
         break;
     case PROP_BLOCK_SIZE:
-        g_value_set_uint (value, priv->blockSize);
+        g_value_set_uint(value, priv->blockSize);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
@@ -959,14 +944,13 @@ void webKitWebSrcSetMediaPlayer(WebKitWebSrc* src, WebCore::MediaPlayer* player)
     src->priv->player = player;
 }
 
-static gboolean webKitWebSrcAppendExtraHeader(WebKitWebSrc* src, ResourceRequest* request,
-                                              const gchar *fieldName, const GValue * value)
+static gboolean webKitWebSrcAppendExtraHeader(WebKitWebSrc* src, ResourceRequest* request, const gchar* fieldName, const GValue* value)
 {
-    gchar *fieldContent = NULL;
+    gchar* fieldContent = 0;
 
-    if (G_VALUE_TYPE(value) == G_TYPE_STRING) {
+    if (G_VALUE_TYPE(value) == G_TYPE_STRING)
         fieldContent = g_value_dup_string(value);
-    } else {
+    else {
         GValue dest;
 
         g_value_init(&dest, G_TYPE_STRING);
@@ -975,8 +959,8 @@ static gboolean webKitWebSrcAppendExtraHeader(WebKitWebSrc* src, ResourceRequest
     }
 
     if (!fieldContent) {
-        GST_ERROR_OBJECT (src, "extra-headers field '%s' contains no value "
-                "or can't be converted to a string", fieldName);
+        GST_ERROR_OBJECT(src, "extra-headers field '%s' contains no value "
+            "or can't be converted to a string", fieldName);
         return FALSE;
     }
 
