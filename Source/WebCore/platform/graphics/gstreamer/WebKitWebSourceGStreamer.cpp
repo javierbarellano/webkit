@@ -143,7 +143,6 @@ struct _WebKitWebSrcPrivate {
     // https://bugzilla.gnome.org/show_bug.cgi?id=609423
     gboolean haveAppSrc27;
 
-    guint64 contentSize;
     gboolean excludeRangeHeader;
     GstStructure *extraHeaders;
     guint blockSize;
@@ -418,7 +417,7 @@ static void webKitWebSrcSetProperty(GObject* object, guint propID, const GValue*
         priv->excludeRangeHeader = g_value_get_boolean (value);
         break;
     case PROP_CONTENT_SIZE:
-    	priv->contentSize = g_value_get_uint64 (value);
+        priv->size = g_value_get_uint64 (value);
         break;
     case PROP_BLOCK_SIZE:
         priv->blockSize = g_value_get_uint (value);
@@ -461,7 +460,7 @@ static void webKitWebSrcGetProperty(GObject* object, guint propID, GValue* value
         g_value_set_boolean (value, priv->excludeRangeHeader);
         break;
     case PROP_CONTENT_SIZE:
-        g_value_set_uint64 (value, priv->contentSize);
+        g_value_set_uint64 (value, priv->size);
         break;
     case PROP_BLOCK_SIZE:
         g_value_set_uint (value, priv->blockSize);
@@ -611,7 +610,7 @@ static gboolean webKitWebSrcStart(WebKitWebSrc* src)
     request.setHTTPHeaderField("transferMode.dlna", "Streaming");
 
     // Append extra headers if set
-    if (!webKitWebSrcAddExtraHeaders(src, (ResourceRequest*)&request))
+    if (!webKitWebSrcAddExtraHeaders(src, &request))
         GST_ERROR_OBJECT(src, "Problems setting extra headers");
 
     if (priv->player) {
@@ -960,16 +959,14 @@ void webKitWebSrcSetMediaPlayer(WebKitWebSrc* src, WebCore::MediaPlayer* player)
     src->priv->player = player;
 }
 
-static gboolean webKitWebSrcAppendExtraHeader(GQuark fieldId, const GValue * value, gpointer userData)
+static gboolean webKitWebSrcAppendExtraHeader(WebKitWebSrc* src, ResourceRequest* request,
+                                              const gchar *fieldName, const GValue * value)
 {
-    WebKitWebSrc* src = WEBKIT_WEB_SRC(userData);
-    const gchar *fieldName = g_quark_to_string(fieldId);
     gchar *fieldContent = NULL;
 
     if (G_VALUE_TYPE(value) == G_TYPE_STRING) {
         fieldContent = g_value_dup_string(value);
     } else {
-        //GValue dest = { 0 };
         GValue dest;
 
         g_value_init(&dest, G_TYPE_STRING);
@@ -977,51 +974,19 @@ static gboolean webKitWebSrcAppendExtraHeader(GQuark fieldId, const GValue * val
             fieldContent = g_value_dup_string(&dest);
     }
 
-    if (fieldContent == NULL) {
+    if (!fieldContent) {
         GST_ERROR_OBJECT (src, "extra-headers field '%s' contains no value "
                 "or can't be converted to a string", fieldName);
         return FALSE;
     }
 
     GST_DEBUG_OBJECT(src, "Appending extra header: \"%s: %s\"", fieldName, fieldContent);
-
-    // *TODO* - need to do this with ResourceRequest
-    //soup_message_headers_append(src->msg->request_headers, fieldName, fieldContent);
+    request->setHTTPHeaderField(fieldName, fieldContent);
 
     g_free(fieldContent);
 
     return TRUE;
 }
-
-static gboolean webKitWebSrcAppendExtraHeaders(GQuark fieldId, const GValue * value,
-    gpointer userData)
-{
-    if (G_VALUE_TYPE(value) == GST_TYPE_ARRAY) {
-        guint n = gst_value_array_get_size(value);
-        guint i;
-
-        for (i = 0; i < n; i++) {
-            const GValue *v = gst_value_array_get_value(value, i);
-
-            if (!webKitWebSrcAppendExtraHeader(fieldId, v, userData))
-                return FALSE;
-        }
-    } else if (G_VALUE_TYPE(value) == GST_TYPE_LIST) {
-        guint n = gst_value_list_get_size(value);
-        guint i;
-
-        for (i = 0; i < n; i++) {
-            const GValue *v = gst_value_list_get_value(value, i);
-
-            if (!webKitWebSrcAppendExtraHeader(fieldId, v, userData))
-                return FALSE;
-        }
-    } else
-        return webKitWebSrcAppendExtraHeader(fieldId, value, userData);
-
-    return TRUE;
-}
-
 
 static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* request)
 {
@@ -1029,7 +994,31 @@ static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* 
     if (!priv->extraHeaders)
         return TRUE;
 
-    return gst_structure_foreach(priv->extraHeaders, webKitWebSrcAppendExtraHeaders, src);
+    gint fieldCnt = gst_structure_n_fields(priv->extraHeaders);
+    for (gint fieldIdx = 0; fieldIdx < fieldCnt; fieldIdx++) {
+        const gchar *fieldName = gst_structure_nth_field_name(priv->extraHeaders, fieldIdx);
+        const GValue *fieldValue = gst_structure_get_value(priv->extraHeaders, fieldName);
+        if (G_VALUE_TYPE(fieldValue) == GST_TYPE_ARRAY) {
+            guint arraySize = gst_value_array_get_size(fieldValue);
+            for (guint arrayIdx = 0; arrayIdx < arraySize; arrayIdx++) {
+                const GValue *arrayValue = gst_value_array_get_value(fieldValue, arrayIdx);
+                if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, arrayValue))
+                    return FALSE;
+            }
+        } else if (G_VALUE_TYPE(fieldValue) == GST_TYPE_LIST) {
+            guint listSize = gst_value_list_get_size(fieldValue);
+            for (guint listIdx = 0; listIdx < listSize; listIdx++) {
+                const GValue *listValue = gst_value_list_get_value(fieldValue, listIdx);
+                if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, listValue))
+                    return FALSE;
+            }
+        } else {
+            if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, fieldValue))
+                return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 StreamingClient::StreamingClient(WebKitWebSrc* src)
@@ -1071,8 +1060,8 @@ void StreamingClient::handleResponseReceived(const ResourceResponse& response)
 
     GMutexLocker locker(GST_OBJECT_GET_LOCK(src));
 
-    // If we seeked we need 206 == PARTIAL_CONTENT
-    if (priv->requestedOffset && response.httpStatusCode() != 206) {
+    // If we seeked, check for any success status codes
+    if (priv->requestedOffset && response.httpStatusCode() >= 300) {
         locker.unlock();
         GST_ELEMENT_ERROR(src, RESOURCE, READ, (0), (0));
         gst_app_src_end_of_stream(priv->appsrc);
@@ -1081,10 +1070,11 @@ void StreamingClient::handleResponseReceived(const ResourceResponse& response)
     }
 
     long long length = response.expectedContentLength();
-    if (length > 0)
+    if (length > 0) {
         length += priv->requestedOffset;
-
-    priv->size = length >= 0 ? length : 0;
+        priv->size = length;
+    } else
+        length = priv->size;
     priv->seekable = length > 0 && g_ascii_strcasecmp("none", response.httpHeaderField("Accept-Ranges").utf8().data());
 
 #ifdef GST_API_VERSION_1
