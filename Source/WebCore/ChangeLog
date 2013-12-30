@@ -1,3 +1,21 @@
+2013-12-30  Brendan Long  <self@brendanlong.com>
+
+        [Gtk] Add fast-forward and reverse media controls
+        https://bugs.webkit.org/show_bug.cgi?id=126301
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests because this covered by the existing media controls tests (as well as any
+        other buttons are), and the playbackrate, reverse play, and seek tests.
+
+        * css/mediaControlsGtk.css: Make reverse and fast-forward take the same style as play, except move the margins to be before reverse and after fast-forward.
+        * html/shadow/MediaControls.cpp:
+        (WebCore::MediaControls::MediaControls): 0-initialize new buttons.
+        (WebCore::MediaControls::setMediaController): Set media controller for new buttons.
+        * html/shadow/MediaControls.h: Add fast forward and reverse buttons.
+        * html/shadow/MediaControlsGtk.cpp:
+        (WebCore::MediaControlsGtk::initializeControls): Add fast forward and reverse buttons.
+
 2013-12-30  Antti Koivisto  <antti@apple.com>
 
         Remove attachChild

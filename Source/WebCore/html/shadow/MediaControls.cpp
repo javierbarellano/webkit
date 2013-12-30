@@ -41,7 +41,9 @@ MediaControls::MediaControls(Document& document)
 #if ENABLE(VIDEO_TRACK)
     , m_textDisplayContainer(0)
 #endif
+    , m_reverseButton(0)
     , m_playButton(0)
+    , m_fastForwardButton(0)
     , m_currentTimeDisplay(0)
     , m_timeline(0)
     , m_panelMuteButton(0)
@@ -66,8 +68,12 @@ void MediaControls::setMediaController(MediaControllerInterface* controller)
     if (m_textDisplayContainer)
         m_textDisplayContainer->setMediaController(controller);
 #endif
+    if (m_reverseButton)
+        m_reverseButton->setMediaController(controller);
     if (m_playButton)
         m_playButton->setMediaController(controller);
+    if (m_fastForwardButton)
+        m_fastForwardButton->setMediaController(controller);
     if (m_currentTimeDisplay)
         m_currentTimeDisplay->setMediaController(controller);
     if (m_timeline)
