@@ -147,7 +147,9 @@ protected:
 #endif
 
     // Media control elements.
+    MediaControlSeekBackButtonElement* m_reverseButton;
     MediaControlPlayButtonElement* m_playButton;
+    MediaControlSeekForwardButtonElement* m_fastForwardButton;
     MediaControlCurrentTimeDisplayElement* m_currentTimeDisplay;
     MediaControlTimelineElement* m_timeline;
     MediaControlPanelMuteButtonElement* m_panelMuteButton;

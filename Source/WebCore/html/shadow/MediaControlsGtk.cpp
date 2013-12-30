@@ -95,9 +95,21 @@ bool MediaControlsGtk::initializeControls(Document& document)
     RefPtr<MediaControlPanelElement> panel = MediaControlPanelElement::create(document);
     ExceptionCode exceptionCode;
 
+    RefPtr<MediaControlSeekBackButtonElement> reverseButton = MediaControlSeekBackButtonElement::create(document);
+    m_reverseButton = reverseButton.get();
+    panel->appendChild(reverseButton.release(), exceptionCode);
+    if (exceptionCode)
+        return false;
+
     RefPtr<MediaControlPlayButtonElement> playButton = MediaControlPlayButtonElement::create(document);
     m_playButton = playButton.get();
     panel->appendChild(playButton.release(), exceptionCode, AttachLazily);
+    if (exceptionCode)
+        return false;
+
+    RefPtr<MediaControlSeekForwardButtonElement> fastForwardButton = MediaControlSeekForwardButtonElement::create(document);
+    m_fastForwardButton = fastForwardButton.get();
+    panel->appendChild(fastForwardButton.release(), exceptionCode);
     if (exceptionCode)
         return false;
 
