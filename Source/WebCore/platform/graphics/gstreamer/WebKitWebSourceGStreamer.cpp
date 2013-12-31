@@ -996,10 +996,8 @@ static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* 
                 if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, listValue))
                     return FALSE;
             }
-        } else {
-            if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, fieldValue))
-                return FALSE;
-        }
+        } else if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, fieldValue))
+            return FALSE;
     }
 
     return TRUE;
@@ -1058,6 +1056,7 @@ void StreamingClient::handleResponseReceived(const ResourceResponse& response)
         length += priv->requestedOffset;
         priv->size = length;
     } else
+        // If length was not provided via content length header, set length to current assigned size
         length = priv->size;
     priv->seekable = length > 0 && g_ascii_strcasecmp("none", response.httpHeaderField("Accept-Ranges").utf8().data());
 
