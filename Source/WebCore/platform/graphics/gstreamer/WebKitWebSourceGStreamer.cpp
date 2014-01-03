@@ -142,6 +142,10 @@ struct _WebKitWebSrcPrivate {
     // TRUE if appsrc's version is >= 0.10.27, see
     // https://bugzilla.gnome.org/show_bug.cgi?id=609423
     gboolean haveAppSrc27;
+
+    gboolean excludeRangeHeader;
+    GstStructure* extraHeaders;
+    guint blockSize;
 };
 
 enum {
@@ -150,7 +154,11 @@ enum {
     PROP_IRADIO_GENRE,
     PROP_IRADIO_URL,
     PROP_IRADIO_TITLE,
-    PROP_LOCATION
+    PROP_LOCATION,
+    PROP_CONTENT_SIZE,
+    PROP_EXCLUDE_RANGE_HEADER,
+    PROP_EXTRA_HEADERS,
+    PROP_BLOCK_SIZE
 };
 
 static GstStaticPadTemplate srcTemplate = GST_STATIC_PAD_TEMPLATE("src",
@@ -184,6 +192,7 @@ static GstAppSrcCallbacks appsrcCallbacks = {
     webKitWebSrcSeekDataCb,
     { 0 }
 };
+static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc*, ResourceRequest*);
 
 #define webkit_web_src_parent_class parent_class
 // We split this out into another macro to avoid a check-webkit-style error.
@@ -258,6 +267,27 @@ static void webkit_web_src_class_init(WebKitWebSrcClass* klass)
                                                         "Location to read from",
                                                         0,
                                                         (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+        PROP_EXTRA_HEADERS,
+        g_param_spec_boxed("extra-headers", "Extra Headers", "Extra headers to append to the HTTP request",
+            GST_TYPE_STRUCTURE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+        PROP_EXCLUDE_RANGE_HEADER,
+        g_param_spec_boolean("exclude-range-header", "exclude-range-header", "Exclude range header in HTTP requests",
+            FALSE, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+        PROP_CONTENT_SIZE,
+        g_param_spec_uint64("content-size", "Content size in bytes", "Size in bytes of content associated with URI",
+            0, G_MAXUINT64, 0, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(oklass,
+        PROP_BLOCK_SIZE,
+        g_param_spec_uint("blocksize", "Size of buffers in bytes", "Size in bytes to read per buffer (-1 = default)",
+            0, G_MAXUINT, 4096, (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
     eklass->change_state = webKitWebSrcChangeState;
 
     g_type_class_add_private(klass, sizeof(WebKitWebSrcPrivate));
@@ -359,6 +389,24 @@ static void webKitWebSrcSetProperty(GObject* object, guint propID, const GValue*
         gst_uri_handler_set_uri(reinterpret_cast<GstURIHandler*>(src), g_value_get_string(value));
 #endif
         break;
+    case PROP_EXTRA_HEADERS: {
+        const GstStructure *s = gst_value_get_structure(value);
+
+        if (priv->extraHeaders)
+            gst_structure_free(priv->extraHeaders);
+
+        priv->extraHeaders = s ? gst_structure_copy(s) : NULL;
+        break;
+    }
+    case PROP_EXCLUDE_RANGE_HEADER:
+        priv->excludeRangeHeader = g_value_get_boolean(value);
+        break;
+    case PROP_CONTENT_SIZE:
+        priv->size = g_value_get_uint64(value);
+        break;
+    case PROP_BLOCK_SIZE:
+        priv->blockSize = g_value_get_uint(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
         break;
@@ -389,6 +437,18 @@ static void webKitWebSrcGetProperty(GObject* object, guint propID, GValue* value
         break;
     case PROP_LOCATION:
         g_value_set_string(value, priv->uri);
+        break;
+    case PROP_EXTRA_HEADERS:
+        gst_value_set_structure(value, priv->extraHeaders);
+        break;
+    case PROP_EXCLUDE_RANGE_HEADER:
+        g_value_set_boolean(value, priv->excludeRangeHeader);
+        break;
+    case PROP_CONTENT_SIZE:
+        g_value_set_uint64(value, priv->size);
+        break;
+    case PROP_BLOCK_SIZE:
+        g_value_set_uint(value, priv->blockSize);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, propID, pspec);
@@ -520,7 +580,7 @@ static gboolean webKitWebSrcStart(WebKitWebSrc* src)
         || !g_ascii_strcasecmp("trailers.apple.com", url.host().utf8().data()))
         request.setHTTPUserAgent("Quicktime/7.6.6");
 
-    if (priv->requestedOffset) {
+    if (priv->requestedOffset && !priv->excludeRangeHeader) {
         GOwnPtr<gchar> val;
 
         val.set(g_strdup_printf("bytes=%" G_GUINT64_FORMAT "-", priv->requestedOffset));
@@ -533,6 +593,10 @@ static gboolean webKitWebSrcStart(WebKitWebSrc* src)
 
     // Needed to use DLNA streaming servers
     request.setHTTPHeaderField("transferMode.dlna", "Streaming");
+
+    // Append extra headers if set
+    if (!webKitWebSrcAddExtraHeaders(src, &request))
+        GST_ERROR_OBJECT(src, "Problems setting extra headers");
 
     if (priv->player) {
         if (CachedResourceLoader* loader = priv->player->cachedResourceLoader())
@@ -880,6 +944,65 @@ void webKitWebSrcSetMediaPlayer(WebKitWebSrc* src, WebCore::MediaPlayer* player)
     src->priv->player = player;
 }
 
+static gboolean webKitWebSrcAppendExtraHeader(WebKitWebSrc* src, ResourceRequest* request, const gchar* fieldName, const GValue* value)
+{
+    gchar* fieldContent = 0;
+
+    if (G_VALUE_TYPE(value) == G_TYPE_STRING)
+        fieldContent = g_value_dup_string(value);
+    else {
+        GValue dest;
+
+        g_value_init(&dest, G_TYPE_STRING);
+        if (g_value_transform(value, &dest))
+            fieldContent = g_value_dup_string(&dest);
+    }
+
+    if (!fieldContent) {
+        GST_ERROR_OBJECT(src, "extra-headers field '%s' contains no value "
+            "or can't be converted to a string", fieldName);
+        return FALSE;
+    }
+
+    GST_DEBUG_OBJECT(src, "Appending extra header: \"%s: %s\"", fieldName, fieldContent);
+    request->setHTTPHeaderField(fieldName, fieldContent);
+
+    g_free(fieldContent);
+
+    return TRUE;
+}
+
+static gboolean webKitWebSrcAddExtraHeaders(WebKitWebSrc* src, ResourceRequest* request)
+{
+    WebKitWebSrcPrivate* priv = src->priv;
+    if (!priv->extraHeaders)
+        return TRUE;
+
+    gint fieldCnt = gst_structure_n_fields(priv->extraHeaders);
+    for (gint fieldIdx = 0; fieldIdx < fieldCnt; fieldIdx++) {
+        const gchar *fieldName = gst_structure_nth_field_name(priv->extraHeaders, fieldIdx);
+        const GValue *fieldValue = gst_structure_get_value(priv->extraHeaders, fieldName);
+        if (G_VALUE_TYPE(fieldValue) == GST_TYPE_ARRAY) {
+            guint arraySize = gst_value_array_get_size(fieldValue);
+            for (guint arrayIdx = 0; arrayIdx < arraySize; arrayIdx++) {
+                const GValue *arrayValue = gst_value_array_get_value(fieldValue, arrayIdx);
+                if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, arrayValue))
+                    return FALSE;
+            }
+        } else if (G_VALUE_TYPE(fieldValue) == GST_TYPE_LIST) {
+            guint listSize = gst_value_list_get_size(fieldValue);
+            for (guint listIdx = 0; listIdx < listSize; listIdx++) {
+                const GValue *listValue = gst_value_list_get_value(fieldValue, listIdx);
+                if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, listValue))
+                    return FALSE;
+            }
+        } else if (!webKitWebSrcAppendExtraHeader(src, request, fieldName, fieldValue))
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
 StreamingClient::StreamingClient(WebKitWebSrc* src)
     : m_src(adoptGRef(static_cast<GstElement*>(gst_object_ref(src))))
 {
@@ -919,8 +1042,8 @@ void StreamingClient::handleResponseReceived(const ResourceResponse& response)
 
     GMutexLocker locker(GST_OBJECT_GET_LOCK(src));
 
-    // If we seeked we need 206 == PARTIAL_CONTENT
-    if (priv->requestedOffset && response.httpStatusCode() != 206) {
+    // If we seeked, check for any success status codes
+    if (priv->requestedOffset && response.httpStatusCode() >= 300) {
         locker.unlock();
         GST_ELEMENT_ERROR(src, RESOURCE, READ, (0), (0));
         gst_app_src_end_of_stream(priv->appsrc);
@@ -929,10 +1052,12 @@ void StreamingClient::handleResponseReceived(const ResourceResponse& response)
     }
 
     long long length = response.expectedContentLength();
-    if (length > 0)
+    if (length > 0) {
         length += priv->requestedOffset;
-
-    priv->size = length >= 0 ? length : 0;
+        priv->size = length;
+    } else
+        // If length was not provided via content length header, set length to current assigned size
+        length = priv->size;
     priv->seekable = length > 0 && g_ascii_strcasecmp("none", response.httpHeaderField("Accept-Ranges").utf8().data());
 
 #ifdef GST_API_VERSION_1
