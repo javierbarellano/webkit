@@ -1874,7 +1874,8 @@ static HashSet<String> mimeTypeCache()
         "video/x-msvideo",
         "video/x-mve",
         "video/x-nuv",
-        "video/x-vcd"
+        "video/x-vcd",
+        "video/vnd.dlna.mpeg-tts"
     };
 
     for (unsigned i = 0; i < (sizeof(mimeTypes) / sizeof(*mimeTypes)); ++i)
