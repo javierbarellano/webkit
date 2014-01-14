@@ -1,3 +1,114 @@
+2013-12-04  Tamas Gergely  <tgergely.u-szeged@partner.samsung.com>
+
+        Update jhbuild revision.
+        https://bugs.webkit.org/show_bug.cgi?id=124966
+        
+        Reviewed by Gyuyoung Kim.
+
+        Used version of Jhbuild failed to create directories and caused
+        update-webkitefl-libs to fail. Latest Jhbuild version has it fixed.
+
+        * jhbuild/jhbuild-wrapper:
+
+2013-11-26  Marcelo Lira  <marcelo.lira@openbossa.org>
+
+        Nix upstreaming - Adding build files and supporting scripts
+        https://bugs.webkit.org/show_bug.cgi?id=118367
+
+        Reviewed by Ryosuke Niwa.
+
+        * Scripts/build-webkit:
+        * Scripts/run-nix-tests: Added.
+        * Scripts/run-webkit-tests:
+        * Scripts/update-webkit-libs-jhbuild:
+        * Scripts/update-webkitnix-libs: Added.
+        * Scripts/webkitdirs.pm:
+        (determineArchitecture):
+        (argumentsForConfiguration):
+        (jscProductDir):
+        (builtDylibPathForName):
+        (determineIsNix):
+        (isNix):
+        (isAppleWebKit):
+        (launcherPath):
+        (launcherName):
+        (checkRequiredSystemConfig):
+        (copyInspectorFrontendFiles):
+        (jhbuildWrapperPrefixIfNeeded):
+        (buildCMakeProjectOrExit):
+        (cmakeBasedPortName):
+        * Scripts/webkitpy/common/config/ports.py:
+        (DeprecatedPort.port):
+        (EflWK2Port.build_webkit_command):
+        (NixPort):
+        (NixPort.build_webkit_command):
+        * Scripts/webkitpy/port/factory.py:
+        (platform_options):
+        (PortFactory):
+        * Scripts/webkitpy/port/nix.py: Added.
+        (NixPort):
+        (NixPort._wk2_port_name):
+        (NixPort.determine_full_port_name):
+        (NixPort.__init__):
+        (NixPort._port_flag_for_scripts):
+        (NixPort.setup_test_run):
+        (NixPort.setup_environ_for_server):
+        (NixPort.default_timeout_ms):
+        (NixPort.clean_up_test_run):
+        (NixPort._generate_all_test_configurations):
+        (NixPort._path_to_driver):
+        (NixPort._path_to_image_diff):
+        (NixPort._image_diff_command):
+        (NixPort._search_paths):
+        (NixPort.show_results_html_file):
+        (NixPort._port_specific_expectations_files):
+        (NixPort.default_baseline_search_path):
+        * Scripts/webkitpy/port/nix_unittest.py: Added.
+        (NixPortTest):
+        (NixPortTest._assert_search_path):
+        (NixPortTest._assert_expectations_files):
+        (NixPortTest.test_baseline_search_path):
+        (NixPortTest.test_expectations_files):
+        (NixPortTest.test_default_timeout_ms):
+        * jhbuild/jhbuild-wrapper:
+        (determine_platform):
+        * nix/common.py: Added.
+        (script_path):
+        (top_level_path):
+        * nix/jhbuild.modules: Added.
+        * nix/jhbuildrc: Added.
+
+2013-11-08  Przemyslaw Szymanski  <p.szymanski3@samsung.com>
+
+        [JHBUILD] Jhbuild Makefile build bug workaround
+        https://bugs.webkit.org/show_bug.cgi?id=123971
+
+        Reviewed by Ryosuke Niwa.
+
+        After Jhbuild repository is cloned (for instance when you use
+        Tools/Scripts/update-webkitefl-libs) it is built from sources.
+        If you have GREP_OPTIONS grep env variable set (for instance
+        GREP_OPTIONS=-n) then it is jhbuild build error. Makefile.plain
+        uses shell grep. For specific GREP_OPTIONS grep output will be
+        different than expected one by Jhbuild and there is an error
+        with Jhbuild build. Jhbuild will not be built and then WebKit
+        source also will not be built. This patch is a workaround to this
+        issue. It disables GREP_OPTIONS for Jhbuild build time.
+
+        * jhbuild/jhbuild-wrapper:
+        (install_jhbuild):
+
+2013-10-21  Zan Dobersek  <zdobersek@igalia.com>
+
+        [Jhbuild] Bump the required Jhbuild revision
+        https://bugs.webkit.org/show_bug.cgi?id=123089
+
+        Reviewed by Carlos Garcia Campos.
+
+        * jhbuild/jhbuild-wrapper: Latest versions of the gnome-common tools produce failures when configuring Jhbuild
+        due to the configure.ac script using both IT_PROG_INTLTOOL and AM_GNU_GETTEXT macros. This is already fixed
+        in the Jhbuild source so a more recent revision of it should be used.
+
 2013-10-01  Timothy Hatcher  <timothy@apple.com>
 
         Fix singular labels for test failures.
