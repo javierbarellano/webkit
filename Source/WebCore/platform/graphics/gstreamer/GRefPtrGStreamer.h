@@ -88,9 +88,11 @@ template<> GRefPtr<GstEvent> adoptGRef(GstEvent* ptr);
 template<> GstEvent* refGPtr<GstEvent>(GstEvent* ptr);
 template<> void derefGPtr<GstEvent>(GstEvent* ptr);
 
+#ifdef GST_API_VERSION_1
 template<> GRefPtr<GstToc> adoptGRef(GstToc* ptr);
 template<> GstToc* refGPtr<GstToc>(GstToc* ptr);
 template<> void derefGPtr<GstToc>(GstToc* ptr);
+#endif
 }
 
 #endif // USE(GSTREAMER)
