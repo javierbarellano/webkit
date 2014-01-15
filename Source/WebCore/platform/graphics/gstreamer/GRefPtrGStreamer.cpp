@@ -243,6 +243,7 @@ template<> void derefGPtr<GstEvent>(GstEvent* ptr)
         gst_event_unref(ptr);
 }
 
+#ifdef GST_API_VERSION_1
 template<> GRefPtr<GstToc> adoptGRef(GstToc* ptr)
 {
     return GRefPtr<GstToc>(ptr, GRefPtrAdopt);
@@ -261,5 +262,6 @@ template<> void derefGPtr<GstToc>(GstToc* ptr)
     if (ptr)
         gst_toc_unref(ptr);
 }
+#endif
 }
 #endif // USE(GSTREAMER)
