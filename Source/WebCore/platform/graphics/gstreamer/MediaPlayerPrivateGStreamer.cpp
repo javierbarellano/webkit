@@ -567,10 +567,6 @@ float MediaPlayerPrivateGStreamer::duration() const
     if (m_errorOccured)
         return 0.0f;
 
-    // Media duration query failed already, don't attempt new useless queries.
-    if (!m_mediaDurationKnown)
-        return numeric_limits<float>::infinity();
-
     if (m_mediaDuration)
         return m_mediaDuration;
 
