@@ -125,6 +125,14 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfSample()
             WARN_MEDIA_MESSAGE("Track %d got sample with no buffer.", m_index);
             continue;
         }
+
+        guint64 offset = GST_BUFFER_OFFSET(buffer);
+        g_print("WebKit offset is %" G_GUINT64_FORMAT "\n", offset);
+        if (offset != GST_BUFFER_OFFSET_NONE && !m_seenBufferOffsets.add(offset).isNewEntry) {
+            INFO_MEDIA_MESSAGE("Ignoring duplicate buffer with offset %" G_GUINT64_FORMAT, offset);
+            continue;
+        }
+
         GstMapInfo info;
         gboolean ret = gst_buffer_map(buffer, &info, GST_MAP_READ);
         ASSERT(ret);

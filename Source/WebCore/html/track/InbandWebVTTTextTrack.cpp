@@ -66,11 +66,6 @@ void InbandWebVTTTextTrack::newCuesParsed()
         RefPtr<TextTrackCue> cue = TextTrackCue::create(*scriptExecutionContext(), cueData->startTime(), cueData->endTime(), cueData->content());
         cue->setId(cueData->id());
         cue->setCueSettings(cueData->settings());
-
-        if (hasCue(cue.get(), TextTrackCue::IgnoreDuration)) {
-            LOG(Media, "InbandWebVTTTextTrack::newCuesParsed ignoring already added cue: start=%.2f, end=%.2f, content=\"%s\"\n", cueData->startTime(), cueData->endTime(), cueData->content().utf8().data());
-            return;
-        }
         addCue(cue.release());
     }
 }

@@ -31,6 +31,7 @@
 #include "GRefPtrGStreamer.h"
 #include "InbandTextTrackPrivate.h"
 #include "TrackPrivateBaseGStreamer.h"
+#include <wtf/HashSet.h>
 
 namespace WebCore {
 
@@ -67,6 +68,7 @@ private:
     Vector<GRefPtr<GstSample> > m_pendingSamples;
     String m_streamId;
     Mutex m_sampleMutex;
+    HashSet<uint64_t> m_seenBufferOffsets;
 };
 
 } // namespace WebCore
