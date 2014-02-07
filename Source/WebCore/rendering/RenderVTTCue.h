@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2012 Victor Carbune (victor@rosedu.org)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,34 +23,51 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-[
-    Conditional=VIDEO_TRACK,
-    JSGenerateToNativeObject,
-    Constructor(double startTime, double endTime, DOMString text),
-    ConstructorCallWith=ScriptExecutionContext,
-    EventTarget,
-    JSCustomMarkFunction,
-    CustomIsReachable,
-    CustomToJSObject,
-    SkipVTableValidation,
-] interface TextTrackCue {
-    readonly attribute TextTrack track;
+#ifndef RenderVTTCue_h
+#define RenderVTTCue_h
 
-    attribute DOMString id;
-    [SetterRaisesException] attribute double startTime;
-    [SetterRaisesException] attribute double endTime;
-    attribute boolean pauseOnExit;
+#if ENABLE(VIDEO_TRACK)
 
-    attribute EventListener onenter;
-    attribute EventListener onexit;
+#include "FloatPoint.h"
+#include "RenderBlockFlow.h"
+#include "RenderInline.h"
 
-    // EventTarget interface
-    void addEventListener(DOMString type, 
-                          EventListener listener, 
-                          optional boolean useCapture);
-    void removeEventListener(DOMString type, 
-                             EventListener listener, 
-                             optional boolean useCapture);
-    [RaisesException] boolean dispatchEvent(Event evt);
+namespace WebCore {
+
+class RenderBox;
+class VTTCue;
+class VTTCueBox;
+
+class RenderVTTCue final : public RenderBlockFlow {
+public:
+    RenderVTTCue(VTTCueBox&, PassRef<RenderStyle>);
+
+private:
+    virtual void layout() override;
+
+    bool isOutside() const;
+    bool rectIsWithinContainer(const IntRect&) const;
+    bool isOverlapping() const;
+    RenderObject* overlappingObject() const;
+    RenderObject* overlappingObjectForRect(const IntRect&) const;
+    bool shouldSwitchDirection(InlineFlowBox*, LayoutUnit) const;
+
+    void moveBoxesByStep(LayoutUnit);
+    bool switchDirection(bool&, LayoutUnit&);
+    void moveIfNecessaryToKeepWithinContainer();
+    bool findNonOverlappingPosition(int& x, int& y) const;
+
+    bool initializeLayoutParameters(InlineFlowBox*&, LayoutUnit&, LayoutUnit&);
+    void placeBoxInDefaultPosition(LayoutUnit, bool&);
+    void repositionCueSnapToLinesSet();
+    void repositionCueSnapToLinesNotSet();
+    void repositionGenericCue();
+
+    VTTCue* m_cue;
+    FloatPoint m_fallbackPosition;
 };
 
+} // namespace WebCore
+
+#endif
+#endif // RenderVTTCue_h
