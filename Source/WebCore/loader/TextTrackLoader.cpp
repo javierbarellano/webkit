@@ -36,9 +36,8 @@
 #include "Document.h"
 #include "Logging.h"
 #include "ResourceBuffer.h"
-#include "ScriptCallStack.h"
 #include "SecurityOrigin.h"
-#include "TextTrackCue.h"
+#include "VTTCue.h"
 #include "WebVTTParser.h"
 
 namespace WebCore {
@@ -65,7 +64,7 @@ void TextTrackLoader::cueLoadTimerFired(Timer<TextTrackLoader>* timer)
     
     if (m_newCuesAvailable) {
         m_newCuesAvailable = false;
-        m_client->newCuesAvailable(this); 
+        m_client->newCuesAvailable(this);
     }
     
     if (m_state >= Finished)
@@ -150,9 +149,6 @@ bool TextTrackLoader::load(const URL& url, const String& crossOriginMode)
 {
     cancelLoad();
 
-    if (!m_client->shouldLoadCues(this))
-        return false;
-
     ASSERT(m_scriptExecutionContext->isDocument());
     Document* document = toDocument(m_scriptExecutionContext);
     CachedResourceRequest cueRequest(ResourceRequest(document->completeURL(url)));
@@ -171,10 +167,10 @@ bool TextTrackLoader::load(const URL& url, const String& crossOriginMode)
 
     CachedResourceLoader* cachedResourceLoader = document->cachedResourceLoader();
     m_cachedCueData = cachedResourceLoader->requestTextTrack(cueRequest);
-    if (m_cachedCueData)
-        m_cachedCueData->addClient(this);
-    
-    m_client->cueLoadingStarted(this);
+    if (!m_cachedCueData)
+        return false;
+
+    m_cachedCueData->addClient(this);
     
     return true;
 }
@@ -191,7 +187,7 @@ void TextTrackLoader::newCuesParsed()
 #if ENABLE(WEBVTT_REGIONS)
 void TextTrackLoader::newRegionsParsed()
 {
-    m_client->newRegionsAvailable(this); 
+    m_client.newRegionsAvailable(this);
 }
 #endif
 
@@ -207,15 +203,15 @@ void TextTrackLoader::fileFailedToParse()
     cancelLoad();
 }
 
-void TextTrackLoader::getNewCues(Vector<RefPtr<TextTrackCue> >& outputCues)
+void TextTrackLoader::getNewCues(Vector<RefPtr<TextTrackCue>>& outputCues)
 {
     ASSERT(m_cueParser);
     if (m_cueParser) {
-        Vector<RefPtr<WebVTTCueData> > newCues;
+        Vector<RefPtr<WebVTTCueData>> newCues;
         m_cueParser->getNewCues(newCues);
         for (size_t i = 0; i < newCues.size(); ++i) {
             RefPtr<WebVTTCueData> data = newCues[i];
-            RefPtr<TextTrackCue> cue = TextTrackCue::create(m_scriptExecutionContext, data->startTime(), data->endTime(), data->content());
+            RefPtr<VTTCue> cue = VTTCue::create(m_scriptExecutionContext, data->startTime(), data->endTime(), data->content());
             cue->setId(data->id());
             cue->setCueSettings(data->settings());
             outputCues.append(cue);
@@ -224,7 +220,7 @@ void TextTrackLoader::getNewCues(Vector<RefPtr<TextTrackCue> >& outputCues)
 }
 
 #if ENABLE(WEBVTT_REGIONS)
-void TextTrackLoader::getNewRegions(Vector<RefPtr<TextTrackRegion> >& outputRegions)
+void TextTrackLoader::getNewRegions(Vector<RefPtr<TextTrackRegion>>& outputRegions)
 {
     ASSERT(m_cueParser);
     if (m_cueParser)

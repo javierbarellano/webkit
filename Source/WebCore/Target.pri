@@ -3868,6 +3868,7 @@ enable?(VIDEO_TRACK) {
         html/track/TrackListBase.h \
         html/track/VideoTrack.h \
         html/track/VideoTrackList.h \
+        html/track/VTTCue.h \
         html/track/WebVTTParser.h \
         html/track/WebVTTToken.h \
         html/track/WebVTTTokenizer.h \
@@ -3904,13 +3905,14 @@ enable?(VIDEO_TRACK) {
         html/track/TrackListBase.cpp \
         html/track/VideoTrack.cpp \
         html/track/VideoTrackList.cpp \
+        html/track/VTTCue.cpp \
         html/track/WebVTTElement.cpp \
         html/track/WebVTTParser.cpp \
         html/track/WebVTTTokenizer.cpp \
         loader/cache/CachedTextTrack.cpp \
         loader/TextTrackLoader.cpp \
         platform/graphics/TextTrackRepresentation.cpp \
-        rendering/RenderTextTrackCue.cpp
+        rendering/RenderVTTCue.cpp
 }
 
 enable?(WEB_SOCKETS) {
