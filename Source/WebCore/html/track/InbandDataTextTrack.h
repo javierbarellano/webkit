@@ -23,65 +23,32 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#ifndef InbandDataTextTrack_h
+#define InbandDataTextTrack_h
 
 #if ENABLE(VIDEO_TRACK)
-#include "DataCue.h"
 
-#include "Logging.h"
-#include "TextTrack.h"
-#include "TextTrackCueList.h"
+#include "InbandTextTrack.h"
+#include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-DataCue::DataCue(ScriptExecutionContext& context, double start, double end, ArrayBuffer* data, ExceptionCode& ec)
-    : TextTrackCue(context, start, end)
-{
-    setData(data, ec);
-}
+class Document;
+class InbandTextTrackPrivate;
+class TextTrackCue;
 
-DataCue::DataCue(ScriptExecutionContext& context, double start, double end, const void* data, unsigned length)
-    : TextTrackCue(context, start, end)
-{
-    m_data = ArrayBuffer::create(data, length);
-}
+class InbandDataTextTrack : public InbandTextTrack {
+public:
+    static PassRefPtr<InbandDataTextTrack> create(ScriptExecutionContext*, TextTrackClient*, PassRefPtr<InbandTextTrackPrivate>);
+    virtual ~InbandDataTextTrack();
 
-DataCue::~DataCue()
-{
-}
+private:
+    InbandDataTextTrack(ScriptExecutionContext*, TextTrackClient*, PassRefPtr<InbandTextTrackPrivate>);
 
-RefPtr<ArrayBuffer> DataCue::data() const
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(m_data);
-    return ArrayBuffer::create(m_data.get());
-}
-
-void DataCue::setData(ArrayBuffer* data, ExceptionCode& ec)
-{
-    if (!data)
-        ec = TypeError;
-    else
-        m_data = ArrayBuffer::create(data);
-}
-
-String DataCue::text(bool& isNull) const
-{
-    isNull = true;
-    return String();
-}
-
-DataCue* toDataCue(TextTrackCue* cue)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(cue->cueType() == TextTrackCue::Data);
-    return static_cast<DataCue*>(cue);
-}
-
-const DataCue* toDataCue(const TextTrackCue* cue)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(cue->cueType() == TextTrackCue::Data);
-    return static_cast<const DataCue*>(cue);
-}
+    virtual void addDataCue(InbandTextTrackPrivate*, double, double, const void*, unsigned) override;
+};
 
 } // namespace WebCore
 
+#endif
 #endif

@@ -1131,46 +1131,23 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section
     ASSERT(section);
 
     /* See: Exposing In-band Media Container Tracks in HTML5
-     * http://www.cablelabs.com/specifications/CL-SP-HTML5-MAP-I02-120510.pdf */
+     * http://www.cablelabs.com/specification/mapping-from-mpeg-2-transport-to-html5-specification */
 
     if (section->section_type != GST_MPEGTS_SECTION_PMT)
         return;
 
     if (!m_trackDescriptionTrack) {
-        m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata, "video/mp2t track-description");
+        m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata,
+            InbandTextTrackPrivate::Data, "video/mp2t track-description");
         m_player->addTextTrack(m_trackDescriptionTrack);
     }
 
-    const GstMpegTsPMT* pmt = gst_mpegts_section_get_pmt(section);
-    ASSERT(pmt);
+    GRefPtr<GBytes> data = gst_mpegts_section_get_data (section);
+    gsize size;
+    const void* bytes = g_bytes_get_data(data.get(), &size);
 
-    StringBuilder content;
-    content.append("{\"mp2t_track_description\":[");
-    for (guint i = 0; i < pmt->streams->len; ++i) {
-        if (i)
-            content.append(',');
-
-        GstMpegTsPMTStream* stream = static_cast<GstMpegTsPMTStream*>(g_ptr_array_index(pmt->streams, i));
-        content.append(String::format("{\"stream_type\":\"%#.2x\",\"pid\":\"%u\",\"es_descriptor\":[",
-            stream->stream_type, stream->pid));
-        for (guint j = 0; j < stream->descriptors->len; ++j) {
-            if (j)
-                content.append(',');
-
-            GstMpegTsDescriptor* descriptor = static_cast<GstMpegTsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
-            gchar* descContents = g_base64_encode(descriptor->data, descriptor->length);
-            content.append(String::format("{\"tag\":\"%#.2x\",\"desc_contents\":\"%s\"}", descriptor->tag, descContents));
-            g_free(descContents);
-        }
-        content.append("]}");
-    }
-    content.append("]}");
-
-    RefPtr<GenericCueData> cue = GenericCueData::create();
-    cue->setContent(content.toString());
-    cue->setStartTime(currentTimeDouble());
-    cue->setEndTime(std::numeric_limits<double>::infinity());
-    m_trackDescriptionTrack->client()->addGenericCue(m_trackDescriptionTrack.get(), cue.release());
+    m_trackDescriptionTrack->client()->addDataCue(m_trackDescriptionTrack.get(), currentTimeDouble(),
+        std::numeric_limits<double>::infinity(), bytes, size);
 }
 #endif
 
@@ -1180,7 +1157,7 @@ void MediaPlayerPrivateGStreamer::processTableOfContents(GstMessage* message)
     if (m_chaptersTrack)
         m_player->removeTextTrack(m_chaptersTrack);
 
-    m_chaptersTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Chapters);
+    m_chaptersTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Chapters, InbandTextTrackPrivate::Generic);
     m_player->addTextTrack(m_chaptersTrack);
 
     GRefPtr<GstToc> toc;

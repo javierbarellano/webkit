@@ -50,10 +50,6 @@ private:
 #endif
     virtual void fileFailedToParse() OVERRIDE;
 
-    virtual void addGenericCue(InbandTextTrackPrivate*, PassRefPtr<GenericCueData>) OVERRIDE { ASSERT_NOT_REACHED(); }
-    virtual void updateGenericCue(InbandTextTrackPrivate*, GenericCueData*) OVERRIDE { ASSERT_NOT_REACHED(); }
-    virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) OVERRIDE { ASSERT_NOT_REACHED(); }
-
     OwnPtr<WebVTTParser> m_webVTTParser;
 };
 

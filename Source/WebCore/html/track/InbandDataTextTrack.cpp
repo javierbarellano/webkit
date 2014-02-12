@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Cable Television Labs Inc. All rights reserved.
+ * Copyright (C) 2014 Cable Television Labs Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,60 +26,33 @@
 #include "config.h"
 
 #if ENABLE(VIDEO_TRACK)
-#include "DataCue.h"
+#include "InbandDataTextTrack.h"
 
-#include "Logging.h"
-#include "TextTrack.h"
-#include "TextTrackCueList.h"
+#include "DataCue.h"
+#include "ExceptionCodePlaceholder.h"
+#include "InbandTextTrackPrivate.h"
+#include <runtime/ArrayBuffer.h>
 
 namespace WebCore {
 
-DataCue::DataCue(ScriptExecutionContext& context, double start, double end, ArrayBuffer* data, ExceptionCode& ec)
-    : TextTrackCue(context, start, end)
+PassRefPtr<InbandDataTextTrack> InbandDataTextTrack::create(ScriptExecutionContext* context, TextTrackClient* client, PassRefPtr<InbandTextTrackPrivate> playerPrivate)
 {
-    setData(data, ec);
+    return adoptRef(new InbandDataTextTrack(context, client, playerPrivate));
 }
 
-DataCue::DataCue(ScriptExecutionContext& context, double start, double end, const void* data, unsigned length)
-    : TextTrackCue(context, start, end)
-{
-    m_data = ArrayBuffer::create(data, length);
-}
-
-DataCue::~DataCue()
+InbandDataTextTrack::InbandDataTextTrack(ScriptExecutionContext* context, TextTrackClient* client, PassRefPtr<InbandTextTrackPrivate> trackPrivate)
+    : InbandTextTrack(context, client, trackPrivate)
 {
 }
 
-RefPtr<ArrayBuffer> DataCue::data() const
+InbandDataTextTrack::~InbandDataTextTrack()
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(m_data);
-    return ArrayBuffer::create(m_data.get());
 }
 
-void DataCue::setData(ArrayBuffer* data, ExceptionCode& ec)
+void InbandDataTextTrack::addDataCue(InbandTextTrackPrivate*, double start, double end, const void* data, unsigned length)
 {
-    if (!data)
-        ec = TypeError;
-    else
-        m_data = ArrayBuffer::create(data);
-}
-
-String DataCue::text(bool& isNull) const
-{
-    isNull = true;
-    return String();
-}
-
-DataCue* toDataCue(TextTrackCue* cue)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(cue->cueType() == TextTrackCue::Data);
-    return static_cast<DataCue*>(cue);
-}
-
-const DataCue* toDataCue(const TextTrackCue* cue)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(cue->cueType() == TextTrackCue::Data);
-    return static_cast<const DataCue*>(cue);
+    RefPtr<DataCue> cue = DataCue::create(*scriptExecutionContext(), start, end, data, length);
+    addCue(cue.release(), ASSERT_NO_EXCEPTION);
 }
 
 } // namespace WebCore

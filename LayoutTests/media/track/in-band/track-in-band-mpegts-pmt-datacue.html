@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <script src=../../media-file.js></script>
+        <script src=../../video-test.js></script>
+        <script>
+        function start() {
+            findMediaElement();
+
+            run("track = video.textTracks[0]");
+            testExpected("track.kind", "metadata");
+            testExpected("track.label", "video/mp2t track-description");
+
+            run("track.mode = 'hidden'");
+            testExpected("track.cues.length", 1);
+
+            run("cue = track.cues[0]");
+            testExpected("cue", DataCue, "instanceof");
+            testExpected("cue.text", null);
+
+            var expectedData = [2, 176, 18, 0, 1, 193, 0, 0, 225, 0, 240, 0, 2,
+                225, 0, 240, 0, 158, 139, 35, 209];
+            testArraysEqual("new Uint8Array(cue.data)", expectedData);
+
+            endTest();
+        }
+        </script>
+    </head>
+    <body>
+        <video src="../../content/counting.ts" oncanplaythrough="start()" controls></video>
+        <p>Check for PMT cue from MPEG-TS file.</p>
+    </body>
+</html>

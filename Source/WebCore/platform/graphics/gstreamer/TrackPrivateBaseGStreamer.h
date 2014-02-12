@@ -29,6 +29,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
 
 #include "GRefPtrGStreamer.h"
+#include <wtf/ThreadingPrimitives.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -57,17 +58,20 @@ protected:
     TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
 
     gint m_index;
-    String m_id;
-    String m_label;
-    String m_language;
+    AtomicString m_id;
+    AtomicString m_label;
+    AtomicString m_language;
     GRefPtr<GstPad> m_pad;
 
 private:
-    bool getTag(GstTagList* tags, const gchar* tagName, String& value);
+    bool getTag(GstTagList* tags, const gchar* tagName, AtomicString& value);
 
     TrackPrivateBase* m_owner;
     guint m_activeTimerHandler;
     guint m_tagTimerHandler;
+
+    Mutex m_tagMutex;
+    GRefPtr<GstTagList> m_tags;
 };
 
 } // namespace WebCore
