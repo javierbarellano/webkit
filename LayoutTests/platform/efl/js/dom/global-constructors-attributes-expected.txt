@@ -273,6 +273,11 @@ PASS Object.getOwnPropertyDescriptor(global, 'DataView').hasOwnProperty('get') i
 PASS Object.getOwnPropertyDescriptor(global, 'DataView').hasOwnProperty('set') is false
 PASS Object.getOwnPropertyDescriptor(global, 'DataView').enumerable is false
 PASS Object.getOwnPropertyDescriptor(global, 'DataView').configurable is true
+PASS Object.getOwnPropertyDescriptor(global, 'DataCue').value is DataCue
+PASS Object.getOwnPropertyDescriptor(global, 'DataCue').hasOwnProperty('get') is false
+PASS Object.getOwnPropertyDescriptor(global, 'DataCue').hasOwnProperty('set') is false
+PASS Object.getOwnPropertyDescriptor(global, 'DataCue').enumerable is false
+PASS Object.getOwnPropertyDescriptor(global, 'DataCue').configurable is true
 PASS Object.getOwnPropertyDescriptor(global, 'DelayNode').value is DelayNode
 PASS Object.getOwnPropertyDescriptor(global, 'DelayNode').hasOwnProperty('get') is false
 PASS Object.getOwnPropertyDescriptor(global, 'DelayNode').hasOwnProperty('set') is false

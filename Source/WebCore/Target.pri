@@ -3854,6 +3854,7 @@ enable?(VIDEO_TRACK) {
         html/HTMLTrackElement.h \
         html/track/AudioTrack.h \
         html/track/AudioTrackList.h \
+        html/track/DataCue.h \
         html/track/InbandGenericTextTrack.h \
         html/track/InbandTextTrack.h \
         html/track/InbandWebVTTTextTrack.h \
@@ -3891,6 +3892,7 @@ enable?(VIDEO_TRACK) {
         html/HTMLTrackElement.cpp \
         html/track/AudioTrack.cpp \
         html/track/AudioTrackList.cpp \
+        html/track/DataCue.cpp \
         html/track/InbandGenericTextTrack.cpp \
         html/track/InbandTextTrack.cpp \
         html/track/InbandWebVTTTextTrack.cpp \

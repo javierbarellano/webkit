@@ -635,6 +635,7 @@ enable?(VIDEO_TRACK) {
   IDL_BINDINGS += \
     $$PWD/html/track/AudioTrack.idl \
     $$PWD/html/track/AudioTrackList.idl \
+    $$PWD/html/track/DataCue.idl \
     $$PWD/html/track/TextTrack.idl \
     $$PWD/html/track/TextTrackCue.idl \
     $$PWD/html/track/TextTrackCueList.idl \
