@@ -58,12 +58,12 @@ protected:
     TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
 
     gint m_index;
-    String m_label;
-    String m_language;
+    AtomicString m_label;
+    AtomicString m_language;
     GRefPtr<GstPad> m_pad;
 
 private:
-    bool getTag(GstTagList* tags, const gchar* tagName, String& value);
+    bool getTag(GstTagList* tags, const gchar* tagName, AtomicString& value);
 
     TrackPrivateBase* m_owner;
     guint m_activeTimerHandler;

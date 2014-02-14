@@ -141,7 +141,7 @@ void TrackPrivateBaseGStreamer::notifyTrackOfActiveChanged()
     setActive(active);
 }
 
-bool TrackPrivateBaseGStreamer::getTag(GstTagList* tags, const gchar* tagName, String& value)
+bool TrackPrivateBaseGStreamer::getTag(GstTagList* tags, const gchar* tagName, AtomicString& value)
 {
     GUniqueOutPtr<gchar> tagValue;
     if (gst_tag_list_get_string(tags, tagName, &tagValue.outPtr())) {
