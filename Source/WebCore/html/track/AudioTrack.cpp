@@ -159,6 +159,12 @@ void AudioTrack::idChanged(TrackPrivateBase* trackPrivate, const AtomicString& i
     setId(id);
 }
 
+void AudioTrack::kindChanged(AudioTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    updateKindFromPrivate();
+}
+
 void AudioTrack::labelChanged(TrackPrivateBase* trackPrivate, const AtomicString& label)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);

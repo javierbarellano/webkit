@@ -177,6 +177,11 @@ void TrackPrivateBaseGStreamer::notifyTrackOfTagsChanged()
     if (getTag(tags.get(), GST_TAG_TRACK_ID, m_id) && client)
         client->idChanged(m_owner, m_id);
 #endif
+
+#ifdef GST_TAG_TRACK_KIND
+    if (getTag(tags.get(), GST_TAG_TRACK_KIND, m_kindKeyword) && client)
+        kindChanged();
+#endif
 }
 
 } // namespace WebCore

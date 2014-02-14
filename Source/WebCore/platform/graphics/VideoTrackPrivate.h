@@ -37,6 +37,7 @@ class VideoTrackPrivate;
 class VideoTrackPrivateClient : public TrackPrivateBaseClient {
 public:
     virtual void selectedChanged(VideoTrackPrivate*, bool) = 0;
+    virtual void kindChanged(VideoTrackPrivate*) = 0;
 };
 
 class VideoTrackPrivate : public TrackPrivateBase {
@@ -56,7 +57,7 @@ public:
         m_selected = selected;
         if (m_client)
             m_client->selectedChanged(this, m_selected);
-    };
+    }
     virtual bool selected() const { return m_selected; }
 
     enum Kind { Alternative, Captions, Main, Sign, Subtitles, Commentary, None };

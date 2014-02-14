@@ -47,6 +47,7 @@ public:
 
     virtual void disconnect() override;
 
+    virtual Kind kind() const override { return m_kind; }
     virtual AtomicString label() const override { return m_label; }
     virtual AtomicString language() const override { return m_language; }
 
@@ -62,12 +63,15 @@ public:
 private:
     InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad>);
 
+    virtual void kindChanged() override;
+
     GThreadSafeMainLoopSource m_sampleTimerHandler;
     GThreadSafeMainLoopSource m_streamTimerHandler;
     gulong m_eventProbe;
     Vector<GRefPtr<GstSample> > m_pendingSamples;
     String m_streamId;
     Mutex m_sampleMutex;
+    Kind m_kind;
 };
 
 } // namespace WebCore

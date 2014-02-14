@@ -160,6 +160,12 @@ void VideoTrack::idChanged(TrackPrivateBase* trackPrivate, const AtomicString& i
     setId(id);
 }
 
+void VideoTrack::kindChanged(VideoTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    updateKindFromPrivate();
+}
+
 void VideoTrack::labelChanged(TrackPrivateBase* trackPrivate, const AtomicString& label)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);

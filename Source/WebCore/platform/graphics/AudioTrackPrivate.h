@@ -37,6 +37,7 @@ class AudioTrackPrivate;
 class AudioTrackPrivateClient : public TrackPrivateBaseClient {
 public:
     virtual void enabledChanged(AudioTrackPrivate*, bool) = 0;
+    virtual void kindChanged(AudioTrackPrivate*) = 0;
 };
 
 class AudioTrackPrivate : public TrackPrivateBase {
@@ -56,7 +57,7 @@ public:
         m_enabled = enabled;
         if (m_client)
             m_client->enabledChanged(this, enabled);
-    };
+    }
     virtual bool enabled() const { return m_enabled; }
 
     enum Kind { Alternative, Description, Main, MainDesc, Translation, Commentary, None };

@@ -28,7 +28,7 @@
 
 #if ENABLE(VIDEO_TRACK)
 
-#include "InbandTextTrackPrivateClient.h"
+#include "InbandTextTrackPrivate.h"
 #include "TextTrack.h"
 #include "TextTrackCueGeneric.h"
 #include <wtf/RefPtr.h>
@@ -63,7 +63,9 @@ protected:
 
 private:
     virtual bool isInband() const override final { return true; }
+    void setPrivateKind(InbandTextTrackPrivate::Kind);
     virtual void idChanged(TrackPrivateBase*, const AtomicString&) override;
+    virtual void kindChanged(InbandTextTrackPrivate*) override;
     virtual void labelChanged(TrackPrivateBase*, const AtomicString&) override;
     virtual void languageChanged(TrackPrivateBase*, const AtomicString&) override;
     virtual void willRemove(TrackPrivateBase*) override;

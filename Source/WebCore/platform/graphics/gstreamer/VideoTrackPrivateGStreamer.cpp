@@ -28,6 +28,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(VIDEO_TRACK)
 
 #include "VideoTrackPrivateGStreamer.h"
+#include "VideoTrack.h"
 
 #include <glib-object.h>
 
@@ -36,6 +37,7 @@ namespace WebCore {
 VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
     : TrackPrivateBaseGStreamer(this, index, pad)
     , m_playbin(playbin)
+    , m_kind(None)
 {
     notifyTrackOfActiveChanged();
 }
@@ -54,6 +56,38 @@ void VideoTrackPrivateGStreamer::setSelected(bool selected)
 
     if (selected && m_playbin)
         g_object_set(m_playbin.get(), "current-video", m_index, NULL);
+}
+
+void VideoTrackPrivateGStreamer::kindChanged()
+{
+    Kind kind;
+
+    if (m_kindKeyword == VideoTrack::alternativeKeyword())
+        kind = Alternative;
+    else if (m_kindKeyword == VideoTrack::captionsKeyword())
+        kind = Captions;
+    else if (m_kindKeyword == VideoTrack::mainKeyword())
+        kind = Main;
+    else if (m_kindKeyword == VideoTrack::signKeyword())
+        kind = Sign;
+    else if (m_kindKeyword == VideoTrack::subtitlesKeyword())
+        kind = Subtitles;
+    else if (m_kindKeyword == VideoTrack::commentaryKeyword())
+        kind = Commentary;
+    else
+        kind = None;
+
+    setKind(kind);
+}
+
+void VideoTrackPrivateGStreamer::setKind(Kind kind)
+{
+    if (m_kind == kind)
+        return;
+
+    m_kind = kind;
+    if (client())
+        client()->kindChanged(this);
 }
 
 } // namespace WebCore

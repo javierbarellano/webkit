@@ -31,6 +31,7 @@
 
 #include "GStreamerUtilities.h"
 #include "Logging.h"
+#include "TextTrack.h"
 #include <glib-object.h>
 #include <gst/gst.h>
 
@@ -54,6 +55,7 @@ static GstPadProbeReturn textTrackPrivateEventCallback(GstPad*, GstPadProbeInfo*
 
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
     : InbandTextTrackPrivate(WebVTT), TrackPrivateBaseGStreamer(this, index, pad)
+    , m_kind(Subtitles)
 {
     m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);
@@ -129,6 +131,29 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged()
     gst_event_parse_stream_start(event.get(), &streamId);
     INFO_MEDIA_MESSAGE("Track %d got stream start for stream %s.", m_index, streamId);
     m_streamId = streamId;
+}
+
+void InbandTextTrackPrivateGStreamer::kindChanged()
+{
+    Kind oldKind = m_kind;
+
+    if (m_kindKeyword == TextTrack::captionsKeyword())
+        m_kind = Captions;
+    else if (m_kindKeyword == TextTrack::chaptersKeyword())
+        m_kind = Chapters;
+    else if (m_kindKeyword == TextTrack::descriptionsKeyword())
+        m_kind = Descriptions;
+    else if (m_kindKeyword == TextTrack::forcedKeyword())
+        m_kind = Forced;
+    else if (m_kindKeyword == TextTrack::metadataKeyword())
+        m_kind = Metadata;
+    else if (m_kindKeyword == TextTrack::subtitlesKeyword())
+        m_kind = Subtitles;
+    else
+        m_kind = None;
+
+    if (m_kind != oldKind)
+        client()->kindChanged(this);
 }
 
 } // namespace WebCore

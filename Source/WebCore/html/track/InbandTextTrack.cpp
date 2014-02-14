@@ -165,6 +165,12 @@ void InbandTextTrack::idChanged(TrackPrivateBase* trackPrivate, const AtomicStri
     setId(id);
 }
 
+void InbandTextTrack::kindChanged(InbandTextTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    updateKindFromPrivate();
+}
+
 void InbandTextTrack::labelChanged(TrackPrivateBase* trackPrivate, const AtomicString& label)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);

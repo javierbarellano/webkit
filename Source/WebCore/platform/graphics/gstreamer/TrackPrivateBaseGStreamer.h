@@ -58,8 +58,11 @@ public:
 protected:
     TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
 
+    virtual void kindChanged() = 0;
+
     gint m_index;
     AtomicString m_id;
+    AtomicString m_kindKeyword;
     AtomicString m_label;
     AtomicString m_language;
     GRefPtr<GstPad> m_pad;

@@ -168,6 +168,8 @@ class InbandTextTrackPrivateClient : public TrackPrivateBaseClient {
 public:
     virtual ~InbandTextTrackPrivateClient() { }
 
+    virtual void kindChanged(InbandTextTrackPrivate*) = 0;
+
     virtual void addDataCue(InbandTextTrackPrivate*, const MediaTime& start, const MediaTime& end, const void*, unsigned) = 0;
 
 #if ENABLE(DATACUE_VALUE)

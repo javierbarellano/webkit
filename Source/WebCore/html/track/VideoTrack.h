@@ -87,6 +87,7 @@ private:
 
     virtual void selectedChanged(VideoTrackPrivate*, bool) override;
     virtual void idChanged(TrackPrivateBase*, const AtomicString&) override;
+    virtual void kindChanged(VideoTrackPrivate*) override;
     virtual void labelChanged(TrackPrivateBase*, const AtomicString&) override;
     virtual void languageChanged(TrackPrivateBase*, const AtomicString&) override;
     virtual void willRemove(TrackPrivateBase*) override;
