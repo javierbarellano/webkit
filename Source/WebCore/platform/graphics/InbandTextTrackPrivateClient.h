@@ -134,6 +134,8 @@ class InbandTextTrackPrivateClient : public TrackPrivateBaseClient {
 public:
     virtual ~InbandTextTrackPrivateClient() { }
 
+    virtual void kindChanged(InbandTextTrackPrivate*) = 0;
+
     virtual void addDataCue(InbandTextTrackPrivate*, double start, double end, const void* data, unsigned length) = 0;
 
     virtual void addGenericCue(InbandTextTrackPrivate*, PassRefPtr<GenericCueData>) = 0;
@@ -141,8 +143,6 @@ public:
     virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) = 0;
 
     virtual void parseWebVTTCueData(InbandTextTrackPrivate*, const char* data, unsigned length) = 0;
-
-    virtual void kindChanged(InbandTextTrackPrivate*) = 0;
 };
 
 } // namespace WebCore

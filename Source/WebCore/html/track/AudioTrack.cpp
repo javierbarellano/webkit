@@ -87,32 +87,7 @@ AudioTrack::AudioTrack(AudioTrackClient* client, PassRefPtr<AudioTrackPrivate> t
 {
     m_private->setClient(this);
 
-    switch (m_private->kind()) {
-    case AudioTrackPrivate::Alternative:
-        setKind(AudioTrack::alternativeKeyword());
-        break;
-    case AudioTrackPrivate::Description:
-        setKind(AudioTrack::descriptionKeyword());
-        break;
-    case AudioTrackPrivate::Main:
-        setKind(AudioTrack::mainKeyword());
-        break;
-    case AudioTrackPrivate::MainDesc:
-        setKind(AudioTrack::mainDescKeyword());
-        break;
-    case AudioTrackPrivate::Translation:
-        setKind(AudioTrack::translationKeyword());
-        break;
-    case AudioTrackPrivate::Commentary:
-        setKind(AudioTrack::commentaryKeyword());
-        break;
-    case AudioTrackPrivate::None:
-        setKind(emptyString());
-        break;
-    default:
-        ASSERT_NOT_REACHED();
-        break;
-    }
+    setPrivateKind(m_private->kind());
 }
 
 AudioTrack::~AudioTrack()
@@ -150,6 +125,36 @@ void AudioTrack::setEnabled(const bool enabled)
         m_client->audioTrackEnabledChanged(this);
 }
 
+void AudioTrack::setPrivateKind(AudioTrackPrivate::Kind kind)
+{
+    switch (kind) {
+    case AudioTrackPrivate::Alternative:
+        setKind(AudioTrack::alternativeKeyword());
+        break;
+    case AudioTrackPrivate::Description:
+        setKind(AudioTrack::descriptionKeyword());
+        break;
+    case AudioTrackPrivate::Main:
+        setKind(AudioTrack::mainKeyword());
+        break;
+    case AudioTrackPrivate::MainDesc:
+        setKind(AudioTrack::mainDescKeyword());
+        break;
+    case AudioTrackPrivate::Translation:
+        setKind(AudioTrack::translationKeyword());
+        break;
+    case AudioTrackPrivate::Commentary:
+        setKind(AudioTrack::commentaryKeyword());
+        break;
+    case AudioTrackPrivate::None:
+        setKind(emptyString());
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+}
+
 size_t AudioTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
@@ -166,6 +171,12 @@ void AudioTrack::idChanged(TrackPrivateBase* trackPrivate, const String& id)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setId(id);
+}
+
+void AudioTrack::kindChanged(AudioTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setPrivateKind(m_private->kind());
 }
 
 void AudioTrack::labelChanged(TrackPrivateBase* trackPrivate, const String& label)

@@ -77,10 +77,10 @@ static gboolean textTrackPrivateTagsChangeTimeoutCallback(InbandTextTrackPrivate
 
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
     : InbandTextTrackPrivate(WebVTT), TrackPrivateBaseGStreamer(this, index, pad)
-    , m_kind(Subtitles)
     , m_sampleTimerHandler(0)
     , m_streamTimerHandler(0)
     , m_tagTimerHandler(0)
+    , m_kind(Subtitles)
 {
     m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);
@@ -182,48 +182,27 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfStreamChanged()
     m_streamId = streamId;
 }
 
-void InbandTextTrackPrivateGStreamer::notifyTrackOfTagsChanged()
+void InbandTextTrackPrivateGStreamer::kindChanged()
 {
-    m_tagTimerHandler = 0;
-#ifdef GST_TAG_TRACK_KIND
-    if (!m_pad)
-        return;
+    Kind oldKind = m_kind;
 
-    Kind kind = m_kind;
-    GRefPtr<GstEvent> event;
-    for (guint i = 0; (event = adoptGRef(gst_pad_get_sticky_event(m_pad.get(), GST_EVENT_TAG, i))); ++i) {
-        GstTagList* tags = 0;
-        gst_event_parse_tag(event.get(), &tags);
-        ASSERT(tags);
+    if (m_kindKeyword == TextTrack::captionsKeyword())
+        m_kind = Captions;
+    else if (m_kindKeyword == TextTrack::chaptersKeyword())
+        m_kind = Chapters;
+    else if (m_kindKeyword == TextTrack::descriptionsKeyword())
+        m_kind = Descriptions;
+    else if (m_kindKeyword == TextTrack::forcedKeyword())
+        m_kind = Forced;
+    else if (m_kindKeyword == TextTrack::metadataKeyword())
+        m_kind = Metadata;
+    else if (m_kindKeyword == TextTrack::subtitlesKeyword())
+        m_kind = Subtitles;
+    else
+        m_kind = None;
 
-        gchar* tagValue;
-        if (gst_tag_list_get_string(tags, GST_TAG_TRACK_KIND, &tagValue)) {
-            INFO_MEDIA_MESSAGE("Text track %d got kind %s.", m_index, tagValue);
-
-            String value = tagValue;
-
-            if (value == TextTrack::subtitlesKeyword())
-                kind = Subtitles;
-            else if (value == TextTrack::captionsKeyword())
-                kind = Captions;
-            else if (value == TextTrack::descriptionsKeyword())
-                kind = Descriptions;
-            else if (value == TextTrack::chaptersKeyword())
-                kind = Chapters;
-            else if (value == TextTrack::metadataKeyword())
-                kind = Metadata;
-            else if (value == TextTrack::forcedKeyword())
-                kind = Forced;
-
-            g_free(tagValue);
-        }
-    }
-
-    if (m_kind != kind) {
-        m_kind = kind;
+    if (m_kind != oldKind)
         client()->kindChanged(this);
-    }
-#endif
 }
 
 } // namespace WebCore

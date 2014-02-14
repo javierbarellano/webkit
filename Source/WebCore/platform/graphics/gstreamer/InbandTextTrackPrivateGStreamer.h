@@ -59,12 +59,12 @@ public:
     void tagsChanged();
     void notifyTrackOfSample();
     void notifyTrackOfStreamChanged();
-    void notifyTrackOfTagsChanged();
 
 private:
     InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad>);
 
-    Kind m_kind;
+    virtual void kindChanged() override;
+
     guint m_sampleTimerHandler;
     guint m_streamTimerHandler;
     guint m_tagTimerHandler;
@@ -72,6 +72,7 @@ private:
     Vector<GRefPtr<GstSample> > m_pendingSamples;
     String m_streamId;
     Mutex m_sampleMutex;
+    Kind m_kind;
 };
 
 } // namespace WebCore

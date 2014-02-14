@@ -86,33 +86,7 @@ VideoTrack::VideoTrack(VideoTrackClient* client, PassRefPtr<VideoTrackPrivate> t
     , m_private(trackPrivate)
 {
     m_private->setClient(this);
-
-    switch (m_private->kind()) {
-    case VideoTrackPrivate::Alternative:
-        setKind(VideoTrack::alternativeKeyword());
-        break;
-    case VideoTrackPrivate::Captions:
-        setKind(VideoTrack::captionsKeyword());
-        break;
-    case VideoTrackPrivate::Main:
-        setKind(VideoTrack::mainKeyword());
-        break;
-    case VideoTrackPrivate::Sign:
-        setKind(VideoTrack::signKeyword());
-        break;
-    case VideoTrackPrivate::Subtitles:
-        setKind(VideoTrack::subtitlesKeyword());
-        break;
-    case VideoTrackPrivate::Commentary:
-        setKind(VideoTrack::commentaryKeyword());
-        break;
-    case VideoTrackPrivate::None:
-        setKind(emptyString());
-        break;
-    default:
-        ASSERT_NOT_REACHED();
-        break;
-    }
+    setPrivateKind(m_private->kind());
 }
 
 VideoTrack::~VideoTrack()
@@ -150,6 +124,36 @@ void VideoTrack::setSelected(const bool selected)
         m_client->videoTrackSelectedChanged(this);
 }
 
+void VideoTrack::setPrivateKind(VideoTrackPrivate::Kind kind)
+{
+    switch (kind) {
+    case VideoTrackPrivate::Alternative:
+        setKind(VideoTrack::alternativeKeyword());
+        break;
+    case VideoTrackPrivate::Captions:
+        setKind(VideoTrack::captionsKeyword());
+        break;
+    case VideoTrackPrivate::Main:
+        setKind(VideoTrack::mainKeyword());
+        break;
+    case VideoTrackPrivate::Sign:
+        setKind(VideoTrack::signKeyword());
+        break;
+    case VideoTrackPrivate::Subtitles:
+        setKind(VideoTrack::subtitlesKeyword());
+        break;
+    case VideoTrackPrivate::Commentary:
+        setKind(VideoTrack::commentaryKeyword());
+        break;
+    case VideoTrackPrivate::None:
+        setKind(emptyString());
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+}
+
 size_t VideoTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
@@ -166,6 +170,12 @@ void VideoTrack::idChanged(TrackPrivateBase* trackPrivate, const String& id)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setId(id);
+}
+
+void VideoTrack::kindChanged(VideoTrackPrivate* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setPrivateKind(m_private->kind());
 }
 
 void VideoTrack::labelChanged(TrackPrivateBase* trackPrivate, const String& label)

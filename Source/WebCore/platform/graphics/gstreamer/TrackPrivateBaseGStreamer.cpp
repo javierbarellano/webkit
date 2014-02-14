@@ -34,6 +34,7 @@
 #include "TrackPrivateBase.h"
 #include <glib-object.h>
 #include <gst/gst.h>
+#include <gst/tag/tag.h>
 #include <wtf/gobject/GOwnPtr.h>
 
 GST_DEBUG_CATEGORY_EXTERN(webkit_media_player_debug);
@@ -162,6 +163,11 @@ void TrackPrivateBaseGStreamer::notifyTrackOfTagsChanged()
 #ifdef GST_TAG_TRACK_CONTAINER_ID
     if (getTag(tags.get(), GST_TAG_TRACK_CONTAINER_ID, m_id) && client)
         client->idChanged(m_owner, m_id);
+#endif
+
+#ifdef GST_TAG_TRACK_KIND
+    if (getTag(tags.get(), GST_TAG_TRACK_KIND, m_kindKeyword) && client)
+        kindChanged();
 #endif
 }
 

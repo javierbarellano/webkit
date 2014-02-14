@@ -55,10 +55,10 @@ protected:
     RefPtr<InbandTextTrackPrivate> m_private;
 
 private:
-    void setKind(InbandTextTrackPrivate::Kind kind);
+    void setPrivateKind(InbandTextTrackPrivate::Kind);
 
-    virtual void kindChanged(InbandTextTrackPrivate*) OVERRIDE;
     virtual void idChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void kindChanged(InbandTextTrackPrivate*) OVERRIDE;
     virtual void labelChanged(TrackPrivateBase*, const String&) OVERRIDE;
     virtual void languageChanged(TrackPrivateBase*, const String&) OVERRIDE;
     virtual void willRemove(TrackPrivateBase*) OVERRIDE;

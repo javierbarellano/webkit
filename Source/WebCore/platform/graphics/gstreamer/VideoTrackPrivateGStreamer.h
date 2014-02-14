@@ -48,6 +48,7 @@ public:
 
     virtual int trackIndex() const OVERRIDE { return m_index; }
 
+    virtual Kind kind() const OVERRIDE { return m_kind; }
     virtual AtomicString id() const OVERRIDE { return m_id; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }
@@ -55,7 +56,10 @@ public:
 private:
     VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
 
+    virtual void kindChanged() override;
+
     GRefPtr<GstElement> m_playbin;
+    Kind m_kind;
 };
 
 } // namespace WebCore

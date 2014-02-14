@@ -29,6 +29,7 @@
 
 #include "AudioTrackPrivateGStreamer.h"
 
+#include "AudioTrack.h"
 #include <glib-object.h>
 
 namespace WebCore {
@@ -36,6 +37,7 @@ namespace WebCore {
 AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
     : TrackPrivateBaseGStreamer(this, index, pad)
     , m_playbin(playbin)
+    , m_kind(None)
 {
     notifyTrackOfActiveChanged();
 }
@@ -54,6 +56,29 @@ void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
 
     if (enabled && m_playbin)
         g_object_set(m_playbin.get(), "current-audio", m_index, NULL);
+}
+
+void AudioTrackPrivateGStreamer::kindChanged()
+{
+    Kind oldKind = m_kind;
+
+    if (m_kindKeyword == AudioTrack::alternativeKeyword())
+        m_kind = Alternative;
+    else if (m_kindKeyword == AudioTrack::descriptionKeyword())
+        m_kind = Description;
+    else if (m_kindKeyword == AudioTrack::mainKeyword())
+        m_kind = Main;
+    else if (m_kindKeyword == AudioTrack::mainDescKeyword())
+        m_kind = MainDesc;
+    else if (m_kindKeyword == AudioTrack::translationKeyword())
+        m_kind = Translation;
+    else if (m_kindKeyword == AudioTrack::commentaryKeyword())
+        m_kind = Commentary;
+    else
+        m_kind = None;
+
+    if (m_kind != oldKind)
+        client()->kindChanged(this);
 }
 
 } // namespace WebCore
