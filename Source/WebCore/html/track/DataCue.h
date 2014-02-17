@@ -38,7 +38,7 @@ class ScriptExecutionContext;
 
 class DataCue : public TextTrackCue {
 public:
-    static PassRefPtr<DataCue> create(ScriptExecutionContext& context, double start, double end, PassRefPtr<ArrayBuffer> data)
+    static PassRefPtr<DataCue> create(ScriptExecutionContext& context, double start, double end, ArrayBuffer* data)
     {
         return adoptRef(new DataCue(context, start, end, data));
     }
@@ -46,12 +46,12 @@ public:
     virtual ~DataCue();
     virtual CueType cueType() const { return Data; }
 
-    RefPtr<ArrayBuffer> data() const { return m_data; }
-    void setData(PassRefPtr<ArrayBuffer> data) { m_data = data; }
+    RefPtr<ArrayBuffer> data() const { return ArrayBuffer::create(m_data.get()); }
+    void setData(ArrayBuffer* data) { m_data = ArrayBuffer::create(data); }
     String text(bool& isNull) const;
 
 protected:
-    DataCue(ScriptExecutionContext&, double start, double end, PassRefPtr<ArrayBuffer>);
+    DataCue(ScriptExecutionContext&, double start, double end, ArrayBuffer*);
 
 private:
     RefPtr<ArrayBuffer> m_data;

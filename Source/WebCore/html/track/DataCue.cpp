@@ -34,9 +34,9 @@
 
 namespace WebCore {
 
-DataCue::DataCue(ScriptExecutionContext& context, double start, double end, PassRefPtr<ArrayBuffer> data)
+DataCue::DataCue(ScriptExecutionContext& context, double start, double end, ArrayBuffer* data)
     : TextTrackCue(context, start, end)
-    , m_data(data)
+    , m_data(ArrayBuffer::create(data))
 {
 }
 

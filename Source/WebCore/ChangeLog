@@ -1,3 +1,19 @@
+2014-02-17  Brendan Long  <b.long@cablelabs.com>
+
+        DataCue.data should be a copy of the input ArrayBuffer, not a pointer
+        https://bugs.webkit.org/show_bug.cgi?id=128886
+
+        Reviewed by NOBODY (OOPS!).
+
+        No new tests, just added to the existing DataCue test.
+
+        * html/track/DataCue.cpp:
+        (WebCore::DataCue::DataCue): Copy the ArrayBuffer data.
+        * html/track/DataCue.h:
+        (WebCore::DataCue::create): Same.
+        (WebCore::DataCue::data): Same.
+        (WebCore::DataCue::setData): Same.
+
 2014-02-17  Manuel Rego Casasnovas  <rego@igalia.com>
 
         [CSS Grid Layout] Fix missing layout in flexible and content sized columns
