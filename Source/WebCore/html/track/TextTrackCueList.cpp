@@ -54,11 +54,7 @@ TextTrackCue* TextTrackCueList::item(unsigned index) const
 
 TextTrackCue* TextTrackCueList::getCueById(const String& id) const
 {
-    for (size_t i = 0; i < m_list.size(); ++i) {
-        if (m_list[i]->id() == id)
-            return m_list[i].get();
-    }
-    return 0;
+    return m_map.get(id);
 }
 
 TextTrackCueList* TextTrackCueList::activeCues()
@@ -96,6 +92,8 @@ bool TextTrackCueList::add(PassRefPtr<TextTrackCue> prpCue, size_t start, size_t
             return false;
 
         m_list.insert(start, cue);
+        if (!cue->id().isEmpty())
+            m_map.add(cue->id(), cue.get());
         invalidateCueIndexes(start);
         return true;
     }
@@ -115,6 +113,8 @@ bool TextTrackCueList::remove(TextTrackCue* cue)
 
     cue->setIsActive(false);
     m_list.remove(index);
+    if (!cue->id().isEmpty())
+        m_map.remove(cue->id());
     return true;
 }
 

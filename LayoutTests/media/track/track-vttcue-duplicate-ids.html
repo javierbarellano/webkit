@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>WebVTT duplicate cues</title>
+
+        <script src=../media-file.js></script>
+        <script src=../video-test.js></script>
+        <script>
+            var cues;
+            var expectedCues = [];
+            for(var i = 0; i < 4; ++i) {
+                expectedCues[i] = {
+                    id: i + 1,
+                    startTime: i,
+                    endTime: i + 1,
+                    pauseOnExit: false,
+                    vertical: "",
+                    snapToLines: true,
+                    line: -1,
+                    position: 50,
+                    size: 100,
+                    align: "middle",
+                    getCueAsHTML: function()
+                    {
+                        return document.createTextNode(this.text);
+                    },
+                };
+            }
+            expectedCues[0].text = "Lorem";
+            expectedCues[1].text = "ipsum";
+            expectedCues[2].text = "dolor";
+            expectedCues[3].text = "sit";
+
+            function serialize(documentFragment)
+            {
+                return new XMLSerializer().serializeToString(documentFragment);
+            }
+
+            function start()
+            {
+                findMediaElement();
+                for (var i = 0; i < video.textTracks.length; ++i) {
+                    video.textTracks[i].mode = "hidden";
+                }
+                enableAllTextTracks();
+
+                consoleWrite("<br>*** Test cues loaded from the file.");
+
+                run("testCues = video.textTracks[0].cues");
+                testExpected("testCues.length", expectedCues.length);
+                for (var i = 0; i < testCues.length && i < expectedCues.length; ++i) {
+                    testCue = testCues[i];
+                    expectedCue = expectedCues[i];
+
+                    // TextTrackCue
+                    testExpected("testCue.id", expectedCue.id);
+                    testExpected("testCue.startTime", expectedCue.startTime);
+                    testExpected("testCue.endTime", expectedCue.endTime);
+                    testExpected("testCue.pauseOnExit", expectedCue.pauseOnExit);
+
+                    // VTTCue
+                    testExpected("testCue.vertical", expectedCue.vertical);
+                    testExpected("testCue.snapToLines", expectedCue.snapToLines);
+                    testExpected("testCue.line", expectedCue.line);
+                    testExpected("testCue.position", expectedCue.position);
+                    testExpected("testCue.size", expectedCue.size);
+                    testExpected("testCue.align", expectedCue.align);
+                    testExpected("testCue.text", expectedCue.text);
+                    testExpected("serialize(testCue.getCueAsHTML())", serialize(expectedCue.getCueAsHTML()));
+                    testExpected("testCue.regionId", expectedCue.regionId);
+                }
+
+                endTest();
+            }
+            setCaptionDisplayMode('Automatic');
+        </script>
+    </head>
+    <body>
+        <p>Tests that WebVTT cues with ids matching earlier cues overwrite those cues</p>
+        <video>
+            <track src="captions-webvtt/captions-duplicate-ids.vtt" kind="captions" default onload="start()">
+        </video>
+    </body>
+</html>

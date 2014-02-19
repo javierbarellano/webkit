@@ -41,6 +41,7 @@
 #include "TextTrackCueList.h"
 #include "TextTrackList.h"
 #include "TextTrackRegionList.h"
+#include "VTTCue.h"
 
 namespace WebCore {
 
@@ -304,6 +305,15 @@ void TextTrack::addCue(PassRefPtr<TextTrackCue> prpCue, ExceptionCode& ec)
     TextTrack* cueTrack = cue->track();
     if (cueTrack && cueTrack != this)
         cueTrack->removeCue(cue.get(), ASSERT_NO_EXCEPTION);
+
+    // If another cue with the same "id" exists, update it instead of adding a new cue
+    if (m_cues && cue->cueType() == TextTrackCue::WebVTT) {
+        RefPtr<TextTrackCue> existingCue = m_cues->getCueById(cue->id());
+        if (existingCue && existingCue->cueType() == TextTrackCue::WebVTT) {
+            toVTTCue(existingCue.get())->copyDataFrom(*toVTTCue(cue.get()));
+            return;
+        }
+    }
 
     // 2. Add cue to the method's TextTrack object's text track's text track list of cues.
     cue->setTrack(this);

@@ -79,6 +79,7 @@ public:
     }
 
     virtual ~VTTCue();
+    void copyDataFrom(const VTTCue&);
 
     const String& vertical() const;
     void setVertical(const String&, ExceptionCode&);

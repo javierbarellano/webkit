@@ -29,6 +29,7 @@
 #if ENABLE(VIDEO_TRACK)
 
 #include "TextTrackCue.h"
+#include <wtf/HashMap.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/Vector.h>
@@ -64,6 +65,7 @@ private:
     void invalidateCueIndexes(size_t);
 
     Vector<RefPtr<TextTrackCue>> m_list;
+    HashMap<String, TextTrackCue*> m_map;
     RefPtr<TextTrackCueList> m_activeCues;
 
 };

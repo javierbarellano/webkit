@@ -208,6 +208,24 @@ VTTCue::VTTCue(ScriptExecutionContext& context, double start, double end, const 
     m_displayWritingModeMap[VerticalGrowingRight] = CSSValueVerticalLr;
 }
 
+void VTTCue::copyDataFrom(const VTTCue& other)
+{
+    willChange();
+
+    // TextTrackCue
+    setId(other.id());
+    setStartTime(other.startTime(), ASSERT_NO_EXCEPTION);
+    setEndTime(other.endTime(), ASSERT_NO_EXCEPTION);
+    setPauseOnExit(other.pauseOnExit());
+
+    // VTTCue
+    setCueSettings(other.cueSettings());
+    setText(other.text());
+
+    ASSERT(isEqual(other, MatchAllFields));
+    didChange();
+}
+
 VTTCue::~VTTCue()
 {
     removeDisplayTree();
