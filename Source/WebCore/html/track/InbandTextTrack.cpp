@@ -33,6 +33,7 @@
 #include "Event.h"
 #include "ExceptionCodePlaceholder.h"
 #include "HTMLMediaElement.h"
+#include "InbandDataTextTrack.h"
 #include "InbandGenericTextTrack.h"
 #include "InbandTextTrackPrivate.h"
 #include "InbandWebVTTTextTrack.h"
@@ -47,6 +48,8 @@ PassRefPtr<InbandTextTrack> InbandTextTrack::create(ScriptExecutionContext* cont
     TextTrackClient* client, PassRefPtr<InbandTextTrackPrivate> trackPrivate)
 {
     switch (trackPrivate->cueFormat()) {
+    case InbandTextTrackPrivate::Data:
+        return InbandDataTextTrack::create(context, client, trackPrivate);
     case InbandTextTrackPrivate::Generic:
         return InbandGenericTextTrack::create(context, client, trackPrivate);
     case InbandTextTrackPrivate::WebVTT:

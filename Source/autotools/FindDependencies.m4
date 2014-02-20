@@ -433,6 +433,11 @@ if test "$enable_video" = "yes" || test "$enable_web_audio" = "yes"; then
         gstreamer-pbutils-1.0,
         gstreamer-tag-1.0,
         gstreamer-video-1.0])
+    PKG_CHECK_MODULES([GSTREAMER_MPEGTS], [gstreamer-mpegts-1.0 >= 1.3.0],
+        [AC_DEFINE([WTF_USE_GSTREAMER_MPEGTS], [1], [ ])],
+        [ ])
+    GSTREAMER_CFLAGS="$GSTREAMER_CFLAGS $GSTREAMER_MPEGTS_CFLAGS"
+    GSTREAMER_LIBS="$GSTREAMER_LIBS $GSTREAMER_MPEGTS_LIBS"
     AC_SUBST([GSTREAMER_CFLAGS])
     AC_SUBST([GSTREAMER_LIBS])
 fi

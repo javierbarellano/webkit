@@ -1,0 +1,37 @@
+
+Check for PMT cue from MPEG-TS file.
+
+RUN(track = video.textTracks[0])
+EXPECTED (track.kind == 'metadata') OK
+EXPECTED (track.id == 'video/mp2t track-description') OK
+RUN(track.mode = 'hidden')
+EXPECTED (track.cues.length == '1') OK
+RUN(cue = track.cues[0])
+EXPECTED (cue instanceof '[object DataCueConstructor]') OK
+EXPECTED (cue.text == 'null') OK
+EXPECTED (cue.startTime == '0') OK
+EXPECTED (cue.endTime == '0') OK
+EXPECTED (new Uint8Array(cue.data).length == '21') OK
+EXPECTED (new Uint8Array(cue.data)[0] == '2') OK
+EXPECTED (new Uint8Array(cue.data)[1] == '176') OK
+EXPECTED (new Uint8Array(cue.data)[2] == '18') OK
+EXPECTED (new Uint8Array(cue.data)[3] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[4] == '1') OK
+EXPECTED (new Uint8Array(cue.data)[5] == '193') OK
+EXPECTED (new Uint8Array(cue.data)[6] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[7] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[8] == '225') OK
+EXPECTED (new Uint8Array(cue.data)[9] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[10] == '240') OK
+EXPECTED (new Uint8Array(cue.data)[11] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[12] == '2') OK
+EXPECTED (new Uint8Array(cue.data)[13] == '225') OK
+EXPECTED (new Uint8Array(cue.data)[14] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[15] == '240') OK
+EXPECTED (new Uint8Array(cue.data)[16] == '0') OK
+EXPECTED (new Uint8Array(cue.data)[17] == '158') OK
+EXPECTED (new Uint8Array(cue.data)[18] == '139') OK
+EXPECTED (new Uint8Array(cue.data)[19] == '35') OK
+EXPECTED (new Uint8Array(cue.data)[20] == '209') OK
+END OF TEST
+

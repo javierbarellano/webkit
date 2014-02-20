@@ -35,24 +35,27 @@ namespace WebCore {
 
 class InbandMetadataTextTrackPrivateGStreamer : public InbandTextTrackPrivate {
 public:
-    static PassRefPtr<InbandMetadataTextTrackPrivateGStreamer> create(Kind kind)
+    static PassRefPtr<InbandMetadataTextTrackPrivateGStreamer> create(Kind kind, CueFormat cueFormat, const AtomicString& id = emptyAtom)
     {
-        return adoptRef(new InbandMetadataTextTrackPrivateGStreamer(kind));
+        return adoptRef(new InbandMetadataTextTrackPrivateGStreamer(kind, cueFormat, id));
     }
 
     ~InbandMetadataTextTrackPrivateGStreamer() { }
 
     virtual Kind kind() const override { return m_kind; }
+    virtual AtomicString id() const override { return m_id; }
 
 private:
-    InbandMetadataTextTrackPrivateGStreamer(Kind kind)
-        : InbandTextTrackPrivate(Generic)
+    InbandMetadataTextTrackPrivateGStreamer(Kind kind, CueFormat cueFormat, const AtomicString& id)
+        : InbandTextTrackPrivate(cueFormat)
         , m_kind(kind)
+        , m_id(id)
     {
 
     }
 
     Kind m_kind;
+    AtomicString m_id;
 };
 
 } // namespace WebCore

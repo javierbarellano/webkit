@@ -2726,6 +2726,7 @@ if (ENABLE_VIDEO_TRACK)
         html/track/AudioTrack.cpp
         html/track/AudioTrackList.cpp
         html/track/DataCue.cpp
+        html/track/InbandDataTextTrack.cpp
         html/track/InbandGenericTextTrack.cpp
         html/track/InbandTextTrack.cpp
         html/track/InbandWebVTTTextTrack.cpp

@@ -35,6 +35,7 @@ namespace WebCore {
 class InbandTextTrackPrivate : public TrackPrivateBase {
 public:
     enum CueFormat {
+        Data,
         Generic,
         WebVTT
     };

@@ -4,6 +4,7 @@
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
  * Copyright (C) 2009 Gustavo Noronha Silva <gns@gnome.org>
  * Copyright (C) 2009, 2010, 2011, 2012, 2013 Igalia S.L
+ * Copyright (C) 2014 Cable Television Laboratories, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -39,6 +40,7 @@
 #include <limits>
 #include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringBuilder.h>
 
 #if ENABLE(VIDEO_TRACK)
 #include "AudioTrackPrivateGStreamer.h"
@@ -49,6 +51,11 @@
 #include "VideoTrackPrivateGStreamer.h"
 #endif
 
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+#define GST_USE_UNSTABLE_API
+#include <gst/mpegts/mpegts.h>
+#undef GST_USE_UNSTABLE_API
+#endif
 #include <gst/audio/streamvolume.h>
 
 #if ENABLE(MEDIA_SOURCE)
@@ -943,6 +950,9 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     bool attemptNextLocation = false;
     const GstStructure* structure = gst_message_get_structure(message);
     GstState requestedState, currentState;
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+    GstMpegTsSection* section;
+#endif
 
     m_canFallBackToLastFinishedSeekPositon = false;
 
@@ -1045,6 +1055,12 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
             m_missingPlugins = result == GST_INSTALL_PLUGINS_STARTED_OK;
             g_free(detail);
         }
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+        else if ((section = gst_message_parse_mpegts_section(message))) {
+            processMpegTsSection(section);
+            gst_mpegts_section_unref(section);
+        }
+#endif
         break;
 #if ENABLE(VIDEO_TRACK)
     case GST_MESSAGE_TOC:
@@ -1079,13 +1095,39 @@ void MediaPlayerPrivateGStreamer::processBufferingStats(GstMessage* message)
     updateStates();
 }
 
+#if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section)
+{
+    ASSERT(section);
+
+    /* See: Exposing In-band Media Container Tracks in HTML5
+     * http://www.cablelabs.com/specification/mapping-from-mpeg-2-transport-to-html5-specification */
+
+    if (section->section_type != GST_MPEGTS_SECTION_PMT)
+        return;
+
+    if (!m_trackDescriptionTrack) {
+        m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata,
+            InbandTextTrackPrivate::Data, "video/mp2t track-description");
+        m_player->addTextTrack(m_trackDescriptionTrack);
+    }
+
+    GRefPtr<GBytes> data = gst_mpegts_section_get_data(section);
+    gsize size;
+    const void* bytes = g_bytes_get_data(data.get(), &size);
+
+    m_trackDescriptionTrack->client()->addDataCue(m_trackDescriptionTrack.get(), currentTimeDouble(),
+        currentTimeDouble(), bytes, size);
+}
+#endif
+
 #if ENABLE(VIDEO_TRACK)
 void MediaPlayerPrivateGStreamer::processTableOfContents(GstMessage* message)
 {
     if (m_chaptersTrack)
         m_player->removeTextTrack(m_chaptersTrack);
 
-    m_chaptersTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Chapters);
+    m_chaptersTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Chapters, InbandTextTrackPrivate::Generic);
     m_player->addTextTrack(m_chaptersTrack);
 
     GRefPtr<GstToc> toc;
