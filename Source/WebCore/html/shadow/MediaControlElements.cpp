@@ -1675,8 +1675,10 @@ PassRefPtr<MediaControlTextTrackSelButtonElement> MediaControlTextTrackSelButton
 
 void MediaControlTextTrackSelButtonElement::display()
 {
+    removeChildren();
+
     TextTrackList* trackList = mediaController()->textTracks();
-    if (!trackList)
+    if (!trackList || !trackList->length())
         return;
 
     Vector<AtomicString> names;
@@ -1685,12 +1687,15 @@ void MediaControlTextTrackSelButtonElement::display()
     int selectedIndex = 0;
     for (size_t i = 0; i < trackList->length(); ++i) {
         TextTrack* track = trackList->item(i);
-        names.append(track->label());
-        if (track->mode() == TextTrack::showingKeyword())
-            selectedIndex = i + 1;
+        if (track->kind() == TextTrack::subtitlesKeyword() || track->kind() == TextTrack::captionsKeyword()) {
+            names.append(track->label());
+            if (track->mode() == TextTrack::showingKeyword())
+                selectedIndex = i + 1;
+        }
     }
 
-    removeChildren();
+    if (names.size() == 1)
+        return;
 
     for (unsigned i = 0; i < names.size(); ++i) {
         String name = names[i];
@@ -1724,8 +1729,12 @@ void MediaControlTextTrackSelButtonElement::defaultEventHandler(Event* event)
 
         /* -1 to skip "None" */
         int selected = selectedIndex() - 1;
-        for (size_t i = 0; i < trackList->length(); ++i)
+        for (size_t i = 0; i < trackList->length(); ++i) {
+            TextTrack* track = trackList->item(i);
+            if (i < selected && track->kind() != TextTrack::subtitlesKeyword() && track->kind() != TextTrack::captionsKeyword())
+                ++selected;
             trackList->item(i)->setMode(selected == i ? TextTrack::showingKeyword() : TextTrack::disabledKeyword());
+        }
     }
     HTMLSelectElement::defaultEventHandler(event);
 }
