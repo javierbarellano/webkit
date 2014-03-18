@@ -66,7 +66,7 @@ macro(FIND_GSTREAMER_COMPONENT _component_prefix _pkgconfig_name _library)
 
     find_library(${_component_prefix}_LIBRARIES
         NAMES ${_library}
-        HINTS ${PC_${_component_prefix}_LIBRARY_DIRS} ${PC_${_component_prefix}_LIBDIR}
+        HINTS ${PC_${_component_prefix}_LIBRARY_DIRS} ${PC_${_component_prefix}_LIBDIR}/.libs ${PC_${_component_prefix}_LIBDIR}
     )
 endmacro()
 

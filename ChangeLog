@@ -1,3 +1,16 @@
+2014-03-18  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] FindGStreamer.cmake should also look for libraries in ${PC_${_component_prefix}_LIBDIR}/.libs
+        https://bugs.webkit.org/show_bug.cgi?id=130418
+
+        When building GStreamer from git, it uses libtool, which creates libgstwhatever.la,
+        but the real library goes in .libs/libgstwhatever.so. Another approach
+        would be to compile with libtool, but that's much more involved.
+
+        Reviewed by NOBODY (OOPS!).
+
+        * Source/cmake/FindGStreamer.cmake:
+
 2015-04-22  Michael Catanzaro  <mcatanzaro@igalia.com>
 
         [CMake] Require specifying visibility of WebKit options
