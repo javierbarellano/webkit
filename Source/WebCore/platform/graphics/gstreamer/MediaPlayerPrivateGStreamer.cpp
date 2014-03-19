@@ -1147,7 +1147,7 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section
     const void* bytes = g_bytes_get_data(data.get(), &size);
 
     m_trackDescriptionTrack->client()->addDataCue(m_trackDescriptionTrack.get(), currentTimeDouble(),
-        std::numeric_limits<double>::infinity(), bytes, size);
+        currentTimeDouble(), bytes, size);
 }
 #endif
 

@@ -8,6 +8,8 @@ EXPECTED (track.cues.length == '1') OK
 RUN(cue = track.cues[0])
 EXPECTED (cue instanceof '[object DataCueConstructor]') OK
 EXPECTED (cue.text == 'null') OK
+EXPECTED (cue.startTime == '0') OK
+EXPECTED (cue.endTime == '0') OK
 EXPECTED (new Uint8Array(cue.data).length == '21') OK
 EXPECTED (new Uint8Array(cue.data)[0] == '2') OK
 EXPECTED (new Uint8Array(cue.data)[1] == '176') OK
