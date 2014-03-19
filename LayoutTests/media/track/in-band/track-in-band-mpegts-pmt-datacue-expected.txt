@@ -1,9 +1,8 @@
-
 Check for PMT cue from MPEG-TS file.
 
 RUN(track = video.textTracks[0])
 EXPECTED (track.kind == 'metadata') OK
-EXPECTED (track.label == 'video/mp2t track-description') OK
+EXPECTED (track.id == 'video/mp2t track-description') OK
 RUN(track.mode = 'hidden')
 EXPECTED (track.cues.length == '1') OK
 RUN(cue = track.cues[0])
