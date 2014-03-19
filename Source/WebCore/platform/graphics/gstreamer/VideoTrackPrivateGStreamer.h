@@ -49,6 +49,7 @@ public:
     virtual int trackIndex() const OVERRIDE { return m_index; }
 
     virtual Kind kind() const OVERRIDE { return m_kind; }
+    void setKind(Kind);
     virtual AtomicString id() const OVERRIDE { return m_id; }
     virtual AtomicString label() const OVERRIDE { return m_label; }
     virtual AtomicString language() const OVERRIDE { return m_language; }

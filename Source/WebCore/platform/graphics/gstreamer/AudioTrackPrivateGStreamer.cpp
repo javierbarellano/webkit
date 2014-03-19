@@ -60,24 +60,32 @@ void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
 
 void AudioTrackPrivateGStreamer::kindChanged()
 {
-    Kind oldKind = m_kind;
+    Kind kind;
 
     if (m_kindKeyword == AudioTrack::alternativeKeyword())
-        m_kind = Alternative;
+        kind = Alternative;
     else if (m_kindKeyword == AudioTrack::descriptionKeyword())
-        m_kind = Description;
+        kind = Description;
     else if (m_kindKeyword == AudioTrack::mainKeyword())
-        m_kind = Main;
+        kind = Main;
     else if (m_kindKeyword == AudioTrack::mainDescKeyword())
-        m_kind = MainDesc;
+        kind = MainDesc;
     else if (m_kindKeyword == AudioTrack::translationKeyword())
-        m_kind = Translation;
+        kind = Translation;
     else if (m_kindKeyword == AudioTrack::commentaryKeyword())
-        m_kind = Commentary;
+        kind = Commentary;
     else
-        m_kind = None;
+        kind = None;
 
-    if (m_kind != oldKind)
+    setKind(kind);
+}
+
+void AudioTrackPrivateGStreamer::setKind(Kind kind)
+{
+    if (m_kind == kind)
+        return;
+    m_kind = kind;
+    if (client())
         client()->kindChanged(this);
 }
 

@@ -60,24 +60,32 @@ void VideoTrackPrivateGStreamer::setSelected(bool selected)
 
 void VideoTrackPrivateGStreamer::kindChanged()
 {
-    Kind oldKind = m_kind;
+    Kind kind;
 
     if (m_kindKeyword == VideoTrack::alternativeKeyword())
-        m_kind = Alternative;
+        kind = Alternative;
     else if (m_kindKeyword == VideoTrack::captionsKeyword())
-        m_kind = Captions;
+        kind = Captions;
     else if (m_kindKeyword == VideoTrack::mainKeyword())
-        m_kind = Main;
+        kind = Main;
     else if (m_kindKeyword == VideoTrack::signKeyword())
-        m_kind = Sign;
+        kind = Sign;
     else if (m_kindKeyword == VideoTrack::subtitlesKeyword())
-        m_kind = Subtitles;
+        kind = Subtitles;
     else if (m_kindKeyword == VideoTrack::commentaryKeyword())
-        m_kind = Commentary;
+        kind = Commentary;
     else
-        m_kind = None;
+        kind = None;
 
-    if (m_kind != oldKind)
+    setKind(kind);
+}
+
+void VideoTrackPrivateGStreamer::setKind(Kind kind)
+{
+    if (m_kind == kind)
+        return;
+    m_kind = kind;
+    if (client())
         client()->kindChanged(this);
 }
 

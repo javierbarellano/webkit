@@ -723,7 +723,9 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
         }
 
         RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_playBin, i, pad);
-        m_videoTracks.append(track);
+        if (m_trackDescriptionTrack)
+            track->setKind(VideoTrackPrivate::Main);
+        m_videoTracks.insert(i, track);
         m_player->addVideoTrack(track.release());
     }
 
@@ -776,6 +778,8 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
         }
 
         RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_playBin, i, pad);
+        if (m_trackDescriptionTrack)
+            track->setKind(AudioTrackPrivate::Main);
         m_audioTracks.insert(i, track);
         m_player->addAudioTrack(track.release());
     }
@@ -1148,6 +1152,11 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section
 
     m_trackDescriptionTrack->client()->addDataCue(m_trackDescriptionTrack.get(), currentTimeDouble(),
         currentTimeDouble(), bytes, size);
+
+    if (!m_audioTracks.isEmpty())
+        m_audioTracks[0]->setKind(AudioTrackPrivate::Main);
+    if (!m_videoTracks.isEmpty())
+        m_videoTracks[0]->setKind(VideoTrackPrivate::Main);
 }
 #endif
 
