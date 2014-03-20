@@ -1130,33 +1130,51 @@ void MediaPlayerPrivateGStreamer::processBufferingStats(GstMessage* message)
 }
 
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+static void addDataCueFromMpegTsSection(InbandTextTrackPrivate* track, double time, GstMpegTsSection* section)
+{
+    GRefPtr<GBytes> data = gst_mpegts_section_get_data(section);
+    gsize size;
+    const void* bytes = g_bytes_get_data(data.get(), &size);
+
+    track->client()->addDataCue(track, time, time, bytes, size);
+}
+
 void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section)
 {
     ASSERT(section);
 
     /* See: Exposing In-band Media Container Tracks in HTML5
      * http://www.cablelabs.com/specification/mapping-from-mpeg-2-transport-to-html5-specification */
+    if (section->section_type == GST_MPEGTS_SECTION_PMT) {
+        /* 5.1.1 Program Description TextTrack */
+        if (!m_trackDescriptionTrack) {
+            m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata,
+                InbandTextTrackPrivate::Data, "video/mp2t track-description");
+            m_player->addTextTrack(m_trackDescriptionTrack);
+        }
+        addDataCueFromMpegTsSection(m_trackDescriptionTrack.get(), currentTimeDouble(), section);
 
-    if (section->section_type != GST_MPEGTS_SECTION_PMT)
-        return;
-
-    if (!m_trackDescriptionTrack) {
-        m_trackDescriptionTrack = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata,
-            InbandTextTrackPrivate::Data, "video/mp2t track-description");
-        m_player->addTextTrack(m_trackDescriptionTrack);
+        if (!m_audioTracks.isEmpty())
+            m_audioTracks[0]->setKind(AudioTrackPrivate::Main);
+        if (!m_videoTracks.isEmpty())
+            m_videoTracks[0]->setKind(VideoTrackPrivate::Main);
+    } else if (section->table_id == GST_MTS_TABLE_ID_14496_OBJET_DESCRIPTOR || section->table_id >= 0x80) {
+        /* 5.1.4 Other TextTracks */
+        RefPtr<InbandTextTrackPrivate> track;
+        String pid = String::number(section->pid);
+        for (size_t i = 0; i < m_metadataTracks.size(); ++i) {
+            if (m_metadataTracks[i]->id() == pid) {
+                track = m_metadataTracks[i];
+                break;
+            }
+        }
+        if (!track) {
+            track = InbandMetadataTextTrackPrivateGStreamer::create(InbandTextTrackPrivate::Metadata, InbandTextTrackPrivate::Data, pid);
+            m_metadataTracks.append(track);
+            m_player->addTextTrack(track);
+        }
+        addDataCueFromMpegTsSection(track.get(), currentTimeDouble(), section);
     }
-
-    GRefPtr<GBytes> data = gst_mpegts_section_get_data (section);
-    gsize size;
-    const void* bytes = g_bytes_get_data(data.get(), &size);
-
-    m_trackDescriptionTrack->client()->addDataCue(m_trackDescriptionTrack.get(), currentTimeDouble(),
-        currentTimeDouble(), bytes, size);
-
-    if (!m_audioTracks.isEmpty())
-        m_audioTracks[0]->setKind(AudioTrackPrivate::Main);
-    if (!m_videoTracks.isEmpty())
-        m_videoTracks[0]->setKind(VideoTrackPrivate::Main);
 }
 #endif
 

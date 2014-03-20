@@ -209,6 +209,7 @@ private:
 #endif
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
     RefPtr<InbandTextTrackPrivate> m_trackDescriptionTrack;
+    Vector<RefPtr<InbandTextTrackPrivate>> m_metadataTracks;
 #endif
 };
 }
