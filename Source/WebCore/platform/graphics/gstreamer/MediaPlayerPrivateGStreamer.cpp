@@ -1031,46 +1031,50 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section
         m_metadataTracks.clear();
         for (guint i = 0; i < pmt->streams->len; ++i) {
             const GstMpegTsPMTStream* stream = static_cast<const GstMpegTsPMTStream*>(g_ptr_array_index(pmt->streams, i));
-            if (stream->stream_type == 0x05 || stream->stream_type >= 0x80) {
-                AtomicString pid = String::number(stream->pid);
-                RefPtr<InbandMetadataTextTrackPrivateGStreamer> track = InbandMetadataTextTrackPrivateGStreamer::create(
-                    InbandTextTrackPrivate::Metadata, InbandTextTrackPrivate::Data, pid);
+            AtomicString pid = String::number(stream->pid);
+            RefPtr<InbandMetadataTextTrackPrivateGStreamer> track = InbandMetadataTextTrackPrivateGStreamer::create(
+                InbandTextTrackPrivate::Metadata, InbandTextTrackPrivate::Data, pid);
 
-                // 4.7.10.12.2 Sourcing in-band text tracks
-                // If the new text track's kind is metadata, then set the text track in-band metadata track dispatch
-                // type as follows, based on the type of the media resource:
-                // Let stream type be the value of the "stream_type" field describing the text track's type in the
-                // file's program map section, interpreted as an 8-bit unsigned integer. Let length be the value of
-                // the "ES_info_length" field for the track in the same part of the program map section, interpreted
-                // as an integer as defined by the MPEG-2 specification. Let descriptor bytes be the length bytes
-                // following the "ES_info_length" field. The text track in-band metadata track dispatch type must be
-                // set to the concatenation of the stream type byte and the zero or more descriptor bytes bytes,
-                // expressed in hexadecimal using uppercase ASCII hex digits.
-                String inbandMetadataTrackDispatchType;
-                appendUnsignedAsHexFixedSize(stream->stream_type, inbandMetadataTrackDispatchType, 2);
-                for (guint j = 0; j < stream->descriptors->len; ++j) {
-                    const GstMpegTsDescriptor* descriptor = static_cast<const GstMpegTsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
-                    for (guint k = 0; k < descriptor->length; ++k)
-                        appendByteAsHex(descriptor->data[k], inbandMetadataTrackDispatchType);
-                }
-                track->setInBandMetadataTrackDispatchType(inbandMetadataTrackDispatchType);
-
-                m_metadataTracks.add(pid, track);
-                m_player->addTextTrack(track);
+            // 4.7.10.12.2 Sourcing in-band text tracks
+            // If the new text track's kind is metadata, then set the text track in-band metadata track dispatch
+            // type as follows, based on the type of the media resource:
+            // Let stream type be the value of the "stream_type" field describing the text track's type in the
+            // file's program map section, interpreted as an 8-bit unsigned integer. Let length be the value of
+            // the "ES_info_length" field for the track in the same part of the program map section, interpreted
+            // as an integer as defined by the MPEG-2 specification. Let descriptor bytes be the length bytes
+            // following the "ES_info_length" field. The text track in-band metadata track dispatch type must be
+            // set to the concatenation of the stream type byte and the zero or more descriptor bytes bytes,
+            // expressed in hexadecimal using uppercase ASCII hex digits.
+            String inbandMetadataTrackDispatchType;
+            appendUnsignedAsHexFixedSize(stream->stream_type, inbandMetadataTrackDispatchType, 2);
+            for (guint j = 0; j < stream->descriptors->len; ++j) {
+                const GstMpegTsDescriptor* descriptor = static_cast<const GstMpegTsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
+                for (guint k = 0; k < descriptor->length; ++k)
+                    appendByteAsHex(descriptor->data[k], inbandMetadataTrackDispatchType);
             }
+            track->setInBandMetadataTrackDispatchType(inbandMetadataTrackDispatchType);
+
+            m_metadataTracks.add(pid, track);
+            m_player->addTextTrack(track);
         }
-    } else {
-        AtomicString pid = String::number(section->pid);
-        RefPtr<InbandMetadataTextTrackPrivateGStreamer> track = m_metadataTracks.get(pid);
-        if (!track)
-            return;
-
-        GRefPtr<GBytes> data = gst_mpegts_section_get_data(section);
-        gsize size;
-        const void* bytes = g_bytes_get_data(data.get(), &size);
-
-        track->addDataCue(currentTimeDouble(), currentTimeDouble(), bytes, size);
     }
+
+    AtomicString pid = String::number(section->pid);
+    RefPtr<InbandMetadataTextTrackPrivateGStreamer> track = m_metadataTracks.get(pid);
+    if (!track) {
+        g_print("Missing track %u\n", section->pid);
+        track = InbandMetadataTextTrackPrivateGStreamer::create(
+            InbandTextTrackPrivate::Metadata, InbandTextTrackPrivate::Data, pid);
+        m_metadataTracks.add(pid, track);
+        m_player->addTextTrack(track);
+    }
+
+    GRefPtr<GBytes> data = gst_mpegts_section_get_data(section);
+    gsize size;
+    const void* bytes = g_bytes_get_data(data.get(), &size);
+
+    track->addDataCue(currentTimeDouble(), currentTimeDouble(), bytes, size);
+
 }
 #endif
 
