@@ -242,6 +242,7 @@ private:
     RefPtr<InbandMetadataTextTrackPrivateGStreamer> m_chaptersTrack;
 #endif
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
+    AtomicString m_trackDescriptionId;
     HashMap<AtomicString, RefPtr<InbandMetadataTextTrackPrivateGStreamer>> m_metadataTracks;
 #endif
 #if ENABLE(MEDIA_SOURCE)

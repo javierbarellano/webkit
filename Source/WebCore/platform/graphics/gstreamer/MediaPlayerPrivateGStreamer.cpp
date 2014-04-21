@@ -682,6 +682,10 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
         }
 
         RefPtr<VideoTrackPrivateGStreamer> track = VideoTrackPrivateGStreamer::create(m_pipeline, i, pad);
+#if USE(GSTREAMER_MPEGTS)
+        if (!m_trackDescriptionId.isNull() && i == 0)
+            track->setKind(VideoTrackPrivate::Main);
+#endif
         m_videoTracks.append(track);
         m_player->addVideoTrack(track.release());
     }
@@ -730,6 +734,10 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfAudio()
         }
 
         RefPtr<AudioTrackPrivateGStreamer> track = AudioTrackPrivateGStreamer::create(m_pipeline, i, pad);
+#if USE(GSTREAMER_MPEGTS)
+        if (!m_trackDescriptionId.isNull() && i == 0)
+            track->setKind(AudioTrackPrivate::Main);
+#endif
         m_audioTracks.insert(i, track);
         m_player->addAudioTrack(track.release());
     }
@@ -1084,6 +1092,7 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegtsSection* section
 
     if (section->section_type == GST_MPEGTS_SECTION_PMT) {
         const GstMpegtsPMT* pmt = gst_mpegts_section_get_pmt(section);
+        m_trackDescriptionId = String::number(section->pid);
         m_metadataTracks.clear();
         for (guint i = 0; i < pmt->streams->len; ++i) {
             const GstMpegtsPMTStream* stream = static_cast<const GstMpegtsPMTStream*>(g_ptr_array_index(pmt->streams, i));
