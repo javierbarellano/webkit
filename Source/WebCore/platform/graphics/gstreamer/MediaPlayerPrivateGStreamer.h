@@ -147,7 +147,7 @@ private:
     void setDownloadBuffering();
     void processBufferingStats(GstMessage*);
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
-    void processMpegTsSection(GstMpegTsSection*);
+    void processMpegTsSection(GstMpegTsSection*, double time);
 #endif
 #if ENABLE(VIDEO_TRACK)
     void processTableOfContents(GstMessage*);

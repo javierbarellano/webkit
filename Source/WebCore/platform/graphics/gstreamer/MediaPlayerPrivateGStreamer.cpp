@@ -982,7 +982,13 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         else {
             GstMpegTsSection* section = gst_message_parse_mpegts_section(message);
             if (section) {
-                processMpegTsSection(section);
+                guint64 timestamp = GST_MESSAGE_TIMESTAMP(message);
+                double cueTime;
+                if (GST_CLOCK_TIME_IS_VALID(timestamp))
+                    cueTime = GST_TIME_AS_SECONDS(static_cast<double>(timestamp));
+                else
+                    cueTime = currentTimeDouble();
+                processMpegTsSection(section, cueTime);
                 gst_mpegts_section_unref(section);
             }
         }
@@ -1022,7 +1028,7 @@ void MediaPlayerPrivateGStreamer::processBufferingStats(GstMessage* message)
 }
 
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
-void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section)
+void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section, double time)
 {
     ASSERT(section);
 
@@ -1069,7 +1075,7 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section
         gsize size;
         const void* bytes = g_bytes_get_data(data.get(), &size);
 
-        track->addDataCue(currentTimeDouble(), currentTimeDouble(), bytes, size);
+        track->addDataCue(time, time, bytes, size);
     }
 }
 #endif
