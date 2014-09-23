@@ -2900,6 +2900,7 @@ if (ENABLE_VIDEO_TRACK)
     list(APPEND WebCore_IDL_FILES
         html/track/AudioTrack.idl
         html/track/AudioTrackList.idl
+        html/track/CueEvent.idl
         html/track/DataCue.idl
         html/track/TextTrack.idl
         html/track/TextTrackCue.idl
@@ -2915,6 +2916,7 @@ if (ENABLE_VIDEO_TRACK)
         html/track/AudioTrack.cpp
         html/track/AudioTrackList.cpp
         html/track/BufferedLineReader.cpp
+        html/track/CueEvent.cpp
         html/track/DataCue.cpp
         html/track/InbandDataTextTrack.cpp
         html/track/InbandGenericTextTrack.cpp

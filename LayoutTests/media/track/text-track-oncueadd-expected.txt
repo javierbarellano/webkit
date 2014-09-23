@@ -1,0 +1,22 @@
+Tests TextTrack's cueadd event
+
+
+* Saw cueadd event *
+EXPECTED (cue.text == 'Lorem') OK
+
+* Saw cueadd event *
+EXPECTED (cue.text == 'ipsum') OK
+
+* Saw cueadd event *
+EXPECTED (cue.text == 'dolor') OK
+
+* Saw cueadd event *
+EXPECTED (cue.text == 'sit') OK
+
+* Adding cue to track manually *
+
+* Saw cueadd event *
+EXPECTED (cue.text == 'Added cue') OK
+
+END OF TEST
+

@@ -4197,6 +4197,9 @@
     <ClCompile Include="..\html\track\BufferedLineReader.cpp">
       <Filter>html\track</Filter>
     </ClCompile>
+    <ClCompile Include="..\html\track\CueEvent.cpp">
+      <Filter>html\track</Filter>
+    </ClCompile>
     <ClCompile Include="..\html\track\DataCue.cpp">
       <Filter>html\track</Filter>
     </ClCompile>
@@ -11380,6 +11383,9 @@
       <Filter>html\shadow</Filter>
     </ClInclude>
     <ClInclude Include="..\html\track\BufferedLineReader.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
+    <ClInclude Include="..\html\track\CueEvent.h">
       <Filter>html\track</Filter>
     </ClInclude>
     <ClInclude Include="..\html\track\DataCue.h">

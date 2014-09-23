@@ -1,3 +1,13 @@
+2014-09-23  Brendan Long  <b.long@cablelabs.com>
+
+        Add TextTrack cueadd event
+        https://bugs.webkit.org/show_bug.cgi?id=136550
+
+        Reviewed by NOBODY (OOPS!).
+
+        * media/track/text-track-oncueadd-expected.txt: Added.
+        * media/track/text-track-oncueadd.html: Added.
+
 2014-09-23  Eduardo Lima Mitev  <elima@igalia.com>
 
         [GTK] Adds implementation of Subtle Crypto digest algorithms

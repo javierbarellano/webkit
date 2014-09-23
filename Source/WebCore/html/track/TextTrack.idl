@@ -47,6 +47,7 @@ enum TextTrackKind { "subtitles",  "captions",  "descriptions",  "chapters", "me
     [RaisesException] void addCue(TextTrackCue cue);
     [RaisesException] void removeCue(TextTrackCue cue);
 
+             attribute EventListener oncueadd;
              attribute EventListener oncuechange;
 
 #if defined(ENABLE_WEBVTT_REGIONS) && ENABLE_WEBVTT_REGIONS

@@ -166,6 +166,7 @@ namespace WebCore {
     macro(active) \
     macro(inactive) \
     macro(addtrack) \
+    macro(cueadd) \
     macro(cuechange) \
     macro(enter) \
     macro(exit) \

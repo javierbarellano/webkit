@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <script src=../media-file.js></script>
+        <script src=../video-test.js></script>
+        <script>
+
+            var cue;
+            var cueNumber = 0;
+
+            var expectedCues = [
+                "Lorem",
+                "ipsum",
+                "dolor",
+                "sit",
+                "Added cue"
+            ]
+
+            function cueAdded(e)
+            {
+                consoleWrite("* Saw cueadd event *");
+                cue = e.cue;
+                testExpected("cue.text", expectedCues[cueNumber]);
+                consoleWrite("");
+
+                ++cueNumber;
+                if (cueNumber >= expectedCues.length)
+                    endTest();
+            }
+
+            function trackLoaded()
+            {
+                consoleWrite("* Adding cue to track manually *");
+                var testTrack = document.getElementById("testTrack");
+                var cue = new VTTCue(4, 5, "Added cue");
+                testTrack.track.addCue(cue);
+                consoleWrite("");
+            }
+
+            onload = function() {
+                var video = document.getElementById("testVideo");
+                video.textTracks.addEventListener("addtrack", function(e) {
+                    e.track.addEventListener("cueadd", cueAdded);
+                });
+            };
+
+            setCaptionDisplayMode('Automatic');
+        </script>
+    </head>
+    <body>
+        <p>Tests TextTrack's cueadd event</p>
+        <video id="testVideo">
+            <track id="testTrack" src="captions-webvtt/captions.vtt" kind="captions" onload="trackLoaded()" default>
+        </video>
+    </body>
+</html>

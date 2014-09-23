@@ -56,6 +56,10 @@
 #include "JSGamepad.h"
 #endif
 
+#if ENABLE(VIDEO_TRACK)
+#include "JSTextTrackCue.h"
+#endif
+
 using namespace JSC;
 
 namespace WebCore {
@@ -180,6 +184,11 @@ void JSDictionary::convertValue(ExecState* exec, JSValue value, MessagePortArray
 }
 
 #if ENABLE(VIDEO_TRACK)
+void JSDictionary::convertValue(ExecState*, JSValue value, RefPtr<TextTrackCue>& result)
+{
+    result = JSTextTrackCue::toWrapped(value);
+}
+
 void JSDictionary::convertValue(ExecState*, JSValue value, RefPtr<TrackBase>& result)
 {
     result = toTrack(value);

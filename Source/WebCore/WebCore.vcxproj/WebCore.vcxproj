@@ -16095,6 +16095,7 @@
     <ClCompile Include="..\html\shadow\SpinButtonElement.cpp" />
     <ClCompile Include="..\html\shadow\TextControlInnerElements.cpp" />
     <ClCompile Include="..\html\track\BufferedLineReader.cpp" />
+    <ClCompile Include="..\html\track\CueEvent.cpp" />
     <ClCompile Include="..\html\track\DataCue.cpp" />
     <ClCompile Include="..\html\track\InbandDataTextTrack.cpp" />
     <ClCompile Include="..\html\track\InbandGenericTextTrack.cpp" />
@@ -20885,6 +20886,7 @@
     <ClInclude Include="..\html\shadow\SpinButtonElement.h" />
     <ClInclude Include="..\html\shadow\TextControlInnerElements.h" />
     <ClInclude Include="..\html\track\BufferedLineReader.h" />
+    <ClInclude Include="..\html\track\CueEvent.h" />
     <ClInclude Include="..\html\track\DataCue.h" />
     <ClInclude Include="..\html\track\InbandDataTextTrack.h" />
     <ClInclude Include="..\html\track\InbandGenericTextTrack.h" />

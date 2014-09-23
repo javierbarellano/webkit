@@ -87,6 +87,7 @@
 
 #if ENABLE(VIDEO_TRACK)
 #include "AudioTrackList.h"
+#include "CueEvent.h"
 #include "HTMLTrackElement.h"
 #include "InbandGenericTextTrack.h"
 #include "InbandTextTrackPrivate.h"
@@ -1631,6 +1632,15 @@ void HTMLMediaElement::textTrackAddCue(TextTrack* track, PassRefPtr<TextTrackCue
     if (!m_cueTree.contains(interval))
         m_cueTree.add(interval);
     updateActiveTextTrackCues(currentMediaTime());
+
+    CueEventInit init;
+    init.bubbles = false;
+    init.cancelable = false;
+    init.cue = cue.release();
+
+    RefPtr<CueEvent> cueEvent = CueEvent::create(eventNames().cueaddEvent, init);
+    cueEvent->setTarget(track);
+    m_asyncEventQueue.enqueueEvent(cueEvent.release());
 }
 
 void HTMLMediaElement::textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue> prpCue)

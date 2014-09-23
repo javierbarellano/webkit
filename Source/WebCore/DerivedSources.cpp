@@ -469,6 +469,7 @@
 #if ENABLE(VIDEO_TRACK)
 #include "JSAudioTrack.cpp"
 #include "JSAudioTrackList.cpp"
+#include "JSCueEvent.cpp"
 #include "JSDataCue.cpp"
 #include "JSHTMLTrackElement.cpp"
 #include "JSTextTrack.cpp"

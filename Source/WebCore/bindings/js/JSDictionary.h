@@ -53,6 +53,7 @@ class MediaStreamTrack;
 class Node;
 class SerializedScriptValue;
 class Storage;
+class TextTrackCue;
 class TrackBase;
 class VoidCallback;
 
@@ -117,6 +118,7 @@ private:
     static void convertValue(JSC::ExecState*, JSC::JSValue, RefPtr<Storage>& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, MessagePortArray& result);
 #if ENABLE(VIDEO_TRACK)
+    static void convertValue(JSC::ExecState*, JSC::JSValue, RefPtr<TextTrackCue>& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, RefPtr<TrackBase>& result);
 #endif
     static void convertValue(JSC::ExecState*, JSC::JSValue, HashSet<AtomicString>& result);

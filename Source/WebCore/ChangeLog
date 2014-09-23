@@ -1,3 +1,33 @@
+2014-09-23  Brendan Long  <b.long@cablelabs.com>
+
+        Add TextTrack cueadd event
+        https://bugs.webkit.org/show_bug.cgi?id=136550
+
+        Reviewed by NOBODY (OOPS!).
+
+        Test: media/track/text-track-oncueadd.html
+
+        * CMakeLists.txt:
+        * DerivedSources.cpp:
+        * bindings/js/JSDictionary.cpp:
+        (WebCore::JSDictionary::convertValue):
+        * bindings/js/JSDictionary.h:
+        * dom/EventNames.h:
+        * dom/EventNames.in:
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::parseAttribute):
+        * html/track/CueEvent.cpp: Added.
+        (WebCore::CueEventInit::CueEventInit):
+        (WebCore::CueEvent::CueEvent):
+        (WebCore::CueEvent::~CueEvent):
+        (WebCore::CueEvent::eventInterface):
+        * html/track/CueEvent.h: Added.
+        (WebCore::CueEvent::create):
+        (WebCore::CueEvent::cue):
+        * html/track/CueEvent.idl: Added.
+        * html/track/TextTrack.h:
+        * html/track/TextTrack.idl:
+
 2014-09-23  Eduardo Lima Mitev  <elima@igalia.com>
 
         [GTK] Adds implementation of Subtle Crypto digest algorithms
