@@ -41,8 +41,6 @@ public:
         return adoptRef(new AudioTrackPrivateGStreamer(playbin, index, pad));
     }
 
-    virtual void disconnect() override;
-
     virtual void setEnabled(bool) override;
     virtual void setActive(bool enabled) override { setEnabled(enabled); }
 
@@ -53,8 +51,6 @@ public:
 
 private:
     AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
-
-    GRefPtr<GstElement> m_playbin;
 };
 
 } // namespace WebCore

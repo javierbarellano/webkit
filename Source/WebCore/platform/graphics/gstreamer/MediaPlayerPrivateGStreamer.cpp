@@ -189,6 +189,7 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_mediaLocationCurrentIndex(0)
     , m_resetPipeline(false)
     , m_paused(true)
+    , m_fixingClock(false)
     , m_playbackRatePause(false)
     , m_seeking(false)
     , m_seekIsPending(false)
@@ -952,6 +953,9 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         if (issueError)
             loadingFailed(error);
         break;
+    case GST_MESSAGE_CLOCK_LOST:
+        clockLost();
+        break;
     case GST_MESSAGE_EOS:
         didEnd();
         break;
@@ -1021,6 +1025,12 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         break;
     }
     return TRUE;
+}
+
+void MediaPlayerPrivateGStreamer::clockLost()
+{
+    m_fixingClock = true;
+    changePipelineState(GST_STATE_PAUSED);
 }
 
 void MediaPlayerPrivateGStreamer::handlePluginInstallerResult(GstInstallPluginsReturn result)
@@ -1411,8 +1421,11 @@ void MediaPlayerPrivateGStreamer::updateStates()
                 notifyPlayerOfMute();
                 m_volumeAndMuteInitialized = true;
             }
-
-            if (didBuffering && !m_buffering && !m_paused && m_playbackRate) {
+            if (m_fixingClock) {
+                LOG_MEDIA_MESSAGE("[Clock Changed] Restarting playback.");
+                m_fixingClock = false;
+                changePipelineState(GST_STATE_PLAYING);
+            } else if (didBuffering && !m_buffering && !m_paused && m_playbackRate) {
                 LOG_MEDIA_MESSAGE("[Buffering] Restarting playback.");
                 changePipelineState(GST_STATE_PLAYING);
             }

@@ -74,5 +74,6 @@ void unmapGstBuffer(GstBuffer*);
 bool initializeGStreamer();
 unsigned getGstPlayFlag(const char* nick);
 GstClockTime toGstClockTime(float time);
+void setPlaybinFlag(GstElement* playbin, const char* flagName, bool value);
 
 }

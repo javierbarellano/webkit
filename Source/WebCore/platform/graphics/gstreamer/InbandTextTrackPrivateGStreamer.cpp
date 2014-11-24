@@ -53,7 +53,7 @@ static GstPadProbeReturn textTrackPrivateEventCallback(GstPad*, GstPadProbeInfo*
 }
 
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(gint index, GRefPtr<GstPad> pad)
-    : InbandTextTrackPrivate(WebVTT), TrackPrivateBaseGStreamer(this, index, pad)
+    : InbandTextTrackPrivate(WebVTT), TrackPrivateBaseGStreamer(this, nullptr, index, pad)
 {
     m_eventProbe = gst_pad_add_probe(m_pad.get(), GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
         reinterpret_cast<GstPadProbeCallback>(textTrackPrivateEventCallback), this, 0);

@@ -159,6 +159,24 @@ GstClockTime toGstClockTime(float time)
     return GST_TIMEVAL_TO_TIME(timeValue);
 }
 
+void setPlaybinFlag(GstElement* playbin, const char* flagName, bool value)
+{
+    unsigned flag = getGstPlayFlag(flagName);
+
+    unsigned flags;
+    g_object_get(playbin, "flags", &flags, nullptr);
+
+    if (value == static_cast<bool>(flags & flag))
+        return;
+
+    if (value)
+        flags |= flag;
+    else
+        flags &= ~flag;
+
+    g_object_set(playbin, "flags", flags, nullptr);
+}
+
 }
 
 #endif // USE(GSTREAMER)

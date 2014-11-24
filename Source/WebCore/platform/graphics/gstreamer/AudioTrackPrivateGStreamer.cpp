@@ -34,16 +34,9 @@
 namespace WebCore {
 
 AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
-    : TrackPrivateBaseGStreamer(this, index, pad)
-    , m_playbin(playbin)
+    : TrackPrivateBaseGStreamer(this, playbin, index, pad)
 {
     notifyTrackOfActiveChanged();
-}
-
-void AudioTrackPrivateGStreamer::disconnect()
-{
-    m_playbin.clear();
-    TrackPrivateBaseGStreamer::disconnect();
 }
 
 void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
@@ -51,9 +44,7 @@ void AudioTrackPrivateGStreamer::setEnabled(bool enabled)
     if (enabled == this->enabled())
         return;
     AudioTrackPrivate::setEnabled(enabled);
-
-    if (enabled && m_playbin)
-        g_object_set(m_playbin.get(), "current-audio", m_index, NULL);
+    TrackPrivateBaseGStreamer::setEnabled("audio", "current-audio", enabled);
 }
 
 } // namespace WebCore

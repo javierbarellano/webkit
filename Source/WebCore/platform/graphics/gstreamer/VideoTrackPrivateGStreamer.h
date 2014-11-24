@@ -41,8 +41,6 @@ public:
         return adoptRef(new VideoTrackPrivateGStreamer(playbin, index, pad));
     }
 
-    virtual void disconnect() override;
-
     virtual void setSelected(bool) override;
     virtual void setActive(bool enabled) override { setSelected(enabled); }
 
@@ -53,8 +51,6 @@ public:
 
 private:
     VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
-
-    GRefPtr<GstElement> m_playbin;
 };
 
 } // namespace WebCore

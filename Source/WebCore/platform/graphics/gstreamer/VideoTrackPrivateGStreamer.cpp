@@ -34,16 +34,9 @@
 namespace WebCore {
 
 VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer(GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
-    : TrackPrivateBaseGStreamer(this, index, pad)
-    , m_playbin(playbin)
+    : TrackPrivateBaseGStreamer(this, playbin, index, pad)
 {
     notifyTrackOfActiveChanged();
-}
-
-void VideoTrackPrivateGStreamer::disconnect()
-{
-    m_playbin.clear();
-    TrackPrivateBaseGStreamer::disconnect();
 }
 
 void VideoTrackPrivateGStreamer::setSelected(bool selected)
@@ -51,9 +44,7 @@ void VideoTrackPrivateGStreamer::setSelected(bool selected)
     if (selected == this->selected())
         return;
     VideoTrackPrivate::setSelected(selected);
-
-    if (selected && m_playbin)
-        g_object_set(m_playbin.get(), "current-video", m_index, NULL);
+    TrackPrivateBaseGStreamer::setEnabled("video", "current-video", selected);
 }
 
 } // namespace WebCore

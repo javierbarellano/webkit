@@ -1,3 +1,35 @@
+2014-11-25  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Disable video and/or audio if all tracks are deselected
+        https://bugs.webkit.org/show_bug.cgi?id=129774
+
+        Reviewed by NOBODY (OOPS!).
+
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp:
+        (WebCore::AudioTrackPrivateGStreamer::AudioTrackPrivateGStreamer): Have TrackPrivateBaseGStreamer handle m_playbin.
+        (WebCore::AudioTrackPrivateGStreamer::setEnabled): Have TrackPrivateBaseGStreamer handle switching streams.
+        * platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h: Don't need m_playbin or overriding disconnect() anymore.
+        * platform/graphics/gstreamer/GStreamerUtilities.cpp:
+        (WebCore::setPlaybinFlag): Added, handles setting playbin flags.
+        * platform/graphics/gstreamer/GStreamerUtilities.h: Add setPlaybinFlag()
+        * platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp:
+        (WebCore::InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer): Handle changed TrackPrivateBaseGStreamer constructor.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        (WebCore::MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer): Add m_fixingClock to indicate that we paused in response to a GST_MESSSAGE_CLOCK_LOST.
+        (WebCore::MediaPlayerPrivateGStreamer::handleMessage): Handle GST_MESSAGE_CLOCK_LOST.
+        (WebCore::MediaPlayerPrivateGStreamer::clockLost): Pause and set m_fixingClock so we'll restart.
+        (WebCore::MediaPlayerPrivateGStreamer::updateStates): Restart playback if we paused to fix the clock.
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h: Add clockLost() and m_clockLost.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp:
+        (WebCore::TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer): Handle m_playbin for children.
+        (WebCore::TrackPrivateBaseGStreamer::disconnect): Clear m_playbin.
+        (WebCore::TrackPrivateBaseGStreamer::setEnabled): Sets current audio or video stream.
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h: Add m_playbin and functions above.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp:
+        (WebCore::VideoTrackPrivateGStreamer::VideoTrackPrivateGStreamer): Have TrackPrivateBaseGStreamer handle m_playbin.
+        (WebCore::VideoTrackPrivateGStreamer::setSelected): Have TrackPrivateBaseGStreamer handle switching streams.
+        * platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h: Don't need m_playbin or overriding disconnect() anymore.
+
 2014-11-24  Joanmarie Diggs  <jdiggs@igalia.com>
 
         AX: [ATK] Unskip the skipped ATK tests in roles-exposed.html

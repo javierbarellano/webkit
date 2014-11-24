@@ -148,6 +148,7 @@ private:
     bool loadNextLocation();
     void mediaLocationChanged(GstMessage*);
 
+    void clockLost();
     void setDownloadBuffering();
     void processBufferingStats(GstMessage*);
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
@@ -182,6 +183,7 @@ private:
     int m_mediaLocationCurrentIndex;
     bool m_resetPipeline;
     bool m_paused;
+    bool m_fixingClock;
     bool m_playbackRatePause;
     bool m_seeking;
     bool m_seekIsPending;

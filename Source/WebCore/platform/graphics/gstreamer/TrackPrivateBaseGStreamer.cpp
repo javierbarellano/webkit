@@ -53,9 +53,10 @@ static void trackPrivateTagsChangedCallback(GObject*, GParamSpec*, TrackPrivateB
     track->tagsChanged();
 }
 
-TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad> pad)
+TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackPrivateBase* owner, GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad> pad)
     : m_index(index)
     , m_pad(pad)
+    , m_playbin(playbin)
     , m_owner(owner)
 {
     ASSERT(m_pad);
@@ -86,8 +87,25 @@ void TrackPrivateBaseGStreamer::disconnect()
     m_activeTimerHandler.cancel();
     m_tagTimerHandler.cancel();
 
+    m_playbin.clear();
     m_pad.clear();
     m_tags.clear();
+}
+
+void TrackPrivateBaseGStreamer::setEnabled(const char* flagName, const char* currentStreamProperty, bool enabled)
+{
+    if (!m_playbin)
+        return;
+
+    if (enabled) {
+        g_object_set(m_playbin.get(), currentStreamProperty, m_index, nullptr);
+        setPlaybinFlag(m_playbin.get(), flagName, true);
+    } else {
+        int currentStream;
+        g_object_get(m_playbin.get(), currentStreamProperty, &currentStream, nullptr);
+        if (currentStream == m_index)
+            setPlaybinFlag(m_playbin.get(), flagName, false);
+    }
 }
 
 void TrackPrivateBaseGStreamer::activeChanged()

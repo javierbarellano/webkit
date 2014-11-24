@@ -56,12 +56,14 @@ public:
     void notifyTrackOfTagsChanged();
 
 protected:
-    TrackPrivateBaseGStreamer(TrackPrivateBase* owner, gint index, GRefPtr<GstPad>);
+    TrackPrivateBaseGStreamer(TrackPrivateBase* owner, GRefPtr<GstElement> playbin, gint index, GRefPtr<GstPad>);
+    void setEnabled(const char* flagName, const char* currentStreamProperty, bool enabled);
 
     gint m_index;
     AtomicString m_label;
     AtomicString m_language;
     GRefPtr<GstPad> m_pad;
+    GRefPtr<GstElement> m_playbin;
 
 private:
     bool getLanguageCode(GstTagList* tags, AtomicString& value);
