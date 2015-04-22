@@ -238,7 +238,6 @@ Ref<Inspector::Protocol::Runtime::TypeSet> TypeSet::inspectorTypeSet() const
         .setIsNumber((m_seenTypes & TypeNumber) != TypeNothing)
         .setIsString((m_seenTypes & TypeString) != TypeNothing)
         .setIsObject((m_seenTypes & TypeObject) != TypeNothing)
-        .setIsSymbol((m_seenTypes & TypeSymbol) != TypeNothing)
         .release();
 }
 
