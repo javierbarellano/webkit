@@ -1045,7 +1045,7 @@ gboolean MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         }
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
         else {
-            GstMpegtsSection* section = gst_message_parse_mpegts_section(message);
+            GstMpegTsSection* section = gst_message_parse_mpegts_section(message);
             if (section) {
                 processMpegTsSection(section);
                 gst_mpegts_section_unref(section);
@@ -1086,16 +1086,16 @@ void MediaPlayerPrivateGStreamer::processBufferingStats(GstMessage* message)
 }
 
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
-void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegtsSection* section)
+void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegTsSection* section)
 {
     ASSERT(section);
 
     if (section->section_type == GST_MPEGTS_SECTION_PMT) {
-        const GstMpegtsPMT* pmt = gst_mpegts_section_get_pmt(section);
+        const GstMpegTsPMT* pmt = gst_mpegts_section_get_pmt(section);
         m_trackDescriptionId = String::number(section->pid);
         m_metadataTracks.clear();
         for (guint i = 0; i < pmt->streams->len; ++i) {
-            const GstMpegtsPMTStream* stream = static_cast<const GstMpegtsPMTStream*>(g_ptr_array_index(pmt->streams, i));
+            const GstMpegTsPMTStream* stream = static_cast<const GstMpegTsPMTStream*>(g_ptr_array_index(pmt->streams, i));
             if (stream->stream_type == 0x05 || stream->stream_type >= 0x80) {
                 AtomicString pid = String::number(stream->pid);
                 RefPtr<InbandMetadataTextTrackPrivateGStreamer> track = InbandMetadataTextTrackPrivateGStreamer::create(
@@ -1114,7 +1114,7 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegtsSection* section
                 String inbandMetadataTrackDispatchType;
                 appendUnsignedAsHexFixedSize(stream->stream_type, inbandMetadataTrackDispatchType, 2);
                 for (guint j = 0; j < stream->descriptors->len; ++j) {
-                    const GstMpegtsDescriptor* descriptor = static_cast<const GstMpegtsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
+                    const GstMpegTsDescriptor* descriptor = static_cast<const GstMpegTsDescriptor*>(g_ptr_array_index(stream->descriptors, j));
                     for (guint k = 0; k < descriptor->length; ++k)
                         appendByteAsHex(descriptor->data[k], inbandMetadataTrackDispatchType);
                 }

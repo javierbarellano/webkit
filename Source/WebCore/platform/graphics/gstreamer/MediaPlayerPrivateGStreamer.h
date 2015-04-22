@@ -46,7 +46,7 @@
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
 typedef struct _GstElement GstElement;
-typedef struct _GstMpegtsSection GstMpegtsSection;
+typedef struct _GstMpegTsSection GstMpegTsSection;
 
 namespace WebCore {
 
@@ -162,7 +162,7 @@ private:
     void setDownloadBuffering();
     void processBufferingStats(GstMessage*);
 #if ENABLE(VIDEO_TRACK) && USE(GSTREAMER_MPEGTS)
-    void processMpegTsSection(GstMpegtsSection*);
+    void processMpegTsSection(GstMpegTsSection*);
 #endif
 #if ENABLE(VIDEO_TRACK)
     void processTableOfContents(GstMessage*);
